@@ -71,3 +71,25 @@ def to_summary(pred: dspy.Prediction) -> str:
     add("Exceptions", getattr(pred, "exceptions", ""))
     return " \n".join(parts)
 
+
+class SixEWriter(dspy.Module):
+    """Generate a 6E document draft from intent + context.
+
+    Produces a compact JSON-like document with keys:
+    constraints, boundaries, edges, assumptions, dependencies, exceptions.
+    """
+
+    def __init__(self, *, use_cot: bool = True):
+        super().__init__()
+        P = dspy.ChainOfThought if use_cot else dspy.Predict
+        self.write = P("intent, context -> sixe_doc")
+
+    def forward(self, intent: str, context: str) -> dspy.Prediction:
+        instruction = (
+            "Write a concise 6E JSON object with keys: "
+            "constraints, boundaries, edges, assumptions, dependencies, exceptions. "
+            "Keep values short bullet-like strings."
+        )
+        prompt = f"Instruction: {instruction}\nIntent: {intent}\nContext:\n{context}"
+        pred = self.write(intent=intent, context=prompt)
+        return dspy.Prediction(sixe_doc=getattr(pred, "sixe_doc", str(pred)))

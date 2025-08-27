@@ -34,10 +34,10 @@ smoke:
   just viberefine "Echo signature for smoke"
   just codegen "A Python CLI that prints 'smoke ok'" python generated/smoke_cli.py
 
-agent question tools="retrieve_stub" iters=3:
+agent question tools="retrieve_stub" iters="3":
   uv run python -m agent_demo --tools "{{tools}}" --iters {{iters}} "{{question}}"
 
-web-search query k=5:
+web-search query k="5":
   uv run python -m tools_demo search -k {{k}} "{{query}}"
 
 web-fetch url:
@@ -46,7 +46,7 @@ web-fetch url:
 web-scrape url selector="":
   uv run python -m tools_demo scrape --selector "{{selector}}" "{{url}}"
 
-data-preview path nrows=5:
+data-preview path nrows="5":
   uv run python -m tools_demo preview --nrows {{nrows}} "{{path}}"
 
 mermaid file name="" variants="predict,cot,react":

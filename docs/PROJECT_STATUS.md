@@ -28,6 +28,24 @@ What Works Today
 - MLflow in Docker:
   - `docker-compose.yml` for Synology NAS (host port 50000 → container 5000).
 
+Mermaid → DSPy Generator (Alpha)
+--------------------------------
+- Generator CLI (`mermaid2dspy.py`) converts flowcharts into runnable DSPy programs.
+- Variants emitted per workflow: `predict`, `cot`, `clarity` (and placeholder `react`).
+- CLARITY implemented as first-class DSPy modules (`ClarityStep`, `ClarityDecision`).
+- Phase specials in runtime:
+  - Conversation nodes: build context from repo + DB + KB/Ontology, capture fixed intent via transcript acceptance.
+  - INIT_6E nodes: synthesize 6E doc, extract normalized fields, persist to SQL (SQLite by default).
+  - Intent nodes: forward the fixed intent captured during Conversation.
+- Tools added for context:
+  - `repo_summary`, `db_schema` (SQLite), `kb_summary`, `ontology_summary`.
+
+6E Pipeline (Alpha)
+-------------------
+- SixE modules: `SixEWriter` (intent+context → 6E doc), `SixEExtractor` (6 fields), helpers.
+- SQL store: `sixe` table with 6E columns + metadata; auto-created in SQLite (`SIXE_DB_URL`).
+- Query with sqlite3 for quick inspection.
+
 Recent Verifications
 --------------------
 - Ran traced examples for `example_predict`, `vibegen`, `viberefine`, and `codegen`.
@@ -69,9 +87,17 @@ Environment Snapshot
 Tools
 -----
 - ToolRegistry with focused utilities:
-  - `web_search` (DuckDuckGo based, no API key; graceful fallback on errors)
-  - `web_fetch` (httpx), `web_scrape` (BeautifulSoup)
-  - `data_preview` (pandas for CSV/JSON/Parquet)
+  - Web/data: `web_search`, `web_fetch`, `web_scrape`, `data_preview`
+  - Context: `repo_summary`, `db_schema` (SQLite), `kb_summary`, `ontology_summary`
 - Justfile tasks for quick demos:
   - `just web-search "query"` / `just web-fetch url=...` / `just web-scrape url=... selector="..."`
   - `just data-preview path=/path/to/file.csv`
+
+Limitations and Open Issues
+---------------------------
+- Mermaid parsing covers common flowchart syntax; subgraphs and chained edges need refinement.
+- Decision routing uses label string inclusion; should restrict to explicit outgoing labels.
+- ReAct variant is placeholder; real tools wiring and safety guards pending.
+- Intent capture uses a transcript-file stub; live Discord/bot integration not wired yet.
+- SQL store is SQLite-only; Postgres/SQLAlchemy integration pending.
+- No unit/e2e tests yet; CI absent.

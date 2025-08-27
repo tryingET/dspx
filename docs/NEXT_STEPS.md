@@ -1,25 +1,43 @@
-Next Steps (Immediate)
-======================
+Next Steps (Prioritized)
+=======================
 
-Completed
----------
-- Provider selection in config/CLI:
-  - [x] `[provider].name` in `config.toml` + `DSPX_PROVIDER` env override
-  - [x] `--provider` flag in `codegen`, `vibegen`, `viberefine`
-  - [x] Services instantiate LMs via `ProviderRegistry` (default `codex-exec`)
- - ToolRegistry scaffolding:
-   - [x] `web_search`, `web_fetch`, `web_scrape`, `data_preview`
-   - [x] Justfile tasks for `web-search`, `web-fetch`, `web-scrape`, `data-preview`
- - AgentService (ReAct) skeleton:
-   - [x] `agent_demo.py` CLI wired to DSPy tools
+Phase A — Mermaid → DSPy hardening
+----------------------------------
+- [ ] Subgraph selection: run a named phase from a full diagram.
+- [ ] Edge chains: parse `A --> B --> C` and subgraphs robustly.
+- [ ] Decision routing: constrain to explicit outgoing edge labels.
+- [ ] React variant: real tools wiring + safety guards (timeboxed actions).
+- [ ] Provenance: persist per-node JSON (inputs, outputs, pattern, runtime, errors).
 
-Remaining
----------
-1) Tests
-- Add unit tests for provider selection and `ToolRegistry`.
-- Include a smoke test for `AgentService` with `StubLM`.
-- Optional: a trace-smoke task that emits to MLflow.
+Phase B — Intent capture and context
+-----------------------------------
+- [ ] Discord bot: live intent acceptance on reaction/phrase; produce transcript.
+- [ ] Runner hook: replace transcript-file stub with bot/webhook ingestion.
+- [ ] Stronger repo context: static analysis (APIs, deps, tests), code graph sketch.
+- [ ] KB/Ontology: optional SPARQL endpoint support; semantic matches by intent.
 
-2) OpenAI Responses provider (optional)
-- Add `providers_register_openai.py` using `dspy.LM("openai/...")` when API key
-  is present; register it with `ProviderRegistry` and set capability flags.
+Phase C — 6E pipeline and storage
+---------------------------------
+- [ ] SQLAlchemy + Postgres support with migrations and retries.
+- [ ] Idempotency: hash source inputs; upsert/dedupe 6E rows.
+- [ ] Export: write 6E JSON artifacts per node; link from MLflow.
+- [ ] Validation: lint 6E (required fields; short/concise; no placeholders).
+
+Phase D — CLARITY modules
+-------------------------
+- [ ] Enforce lexicographic gating (block on constraint violations).
+- [ ] Add tools only at Intervene; reversible actions preference.
+- [ ] Persist CLARITY provenance table; MLflow artifacts for traces.
+
+Phase E — Tests and CI
+----------------------
+- [ ] Unit tests: parser (Mermaid), context tools, SixE modules, SQL store.
+- [ ] Golden tests: generated programs compile and run on stubs.
+- [ ] E2E: Phase 1 run uses transcript stub; asserts SQL row created.
+- [ ] CI: lint, unit, and e2e matrix (skip network where needed).
+
+Phase F — Docs and UX
+---------------------
+- [ ] README: “Phase 1 capture” quickstart with `DISCORD_TRANSCRIPT`.
+- [ ] Docs: architecture (generator, runtime hooks, patterns).
+- [ ] CLI ergonomics: `--phase`, `--variants`, `--out`, `--dry-run`.
