@@ -64,6 +64,7 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     _set_if_missing("CODEX_MODEL", codex.get("model"))
     _set_if_missing("CODEX_REASONING", codex.get("reasoning_effort"))
     _set_if_missing("CODEX_BYPASS", _coerce_bool(codex.get("bypass", True)))
+    _set_if_missing("CODEX_SEARCH", _coerce_bool(codex.get("search", False)))
 
     # Provider selection env
     _set_if_missing("DSPX_PROVIDER", provider.get("name"))

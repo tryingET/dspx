@@ -12,11 +12,13 @@ def _factory() -> CodexExecLM:
     model = os.getenv("CODEX_MODEL", "gpt-5")
     reasoning = os.getenv("CODEX_REASONING", "minimal")
     bypass = os.getenv("CODEX_BYPASS", "1") not in {"", "0", "false", "False"}
+    search = os.getenv("CODEX_SEARCH", "0") not in {"", "0", "false", "False"}
     return CodexExecLM(
         model_flag=model,
         auto_mode=not bypass,
         dangerously_bypass=bypass,
         reasoning_effort=reasoning,
+        enable_search=search,
     )
 
 

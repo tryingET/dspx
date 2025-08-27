@@ -13,6 +13,7 @@ experiment = "DSPy"
 model = "gpt-5"
 reasoning_effort = "minimal"
 bypass = true  # maps to --dangerously-bypass-approvals-and-sandbox
+search = false  # codex web_search optional; using DSPy tools instead
 
 [provider]
 # Select the LM provider via registry (default: codex-exec)

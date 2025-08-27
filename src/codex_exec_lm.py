@@ -96,6 +96,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
         capture_last_message: bool = True,
         dangerously_bypass: bool = False,
         reasoning_effort: Optional[str] = None,
+        enable_search: bool = False,
     ) -> None:
         # Compose a descriptive model label for DSPy logs/history.
         model_label = f"codex-exec/{model_flag or 'default'}"
@@ -113,6 +114,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
         self.capture_last_message = capture_last_message
         self.dangerously_bypass = dangerously_bypass
         self.reasoning_effort = reasoning_effort
+        self.enable_search = enable_search
 
         # history of calls for debugging/inspection
         self.history: List[CodexExecResult] = []
@@ -287,7 +289,10 @@ class CodexExecLM(BaseLM, InternalLMBase):
 
     # Helpers
     def _build_command(self, query: str) -> List[str]:
-        cmd: List[str] = [self.binary, "exec"]
+        cmd: List[str] = [self.binary]
+        if self.enable_search:
+            cmd.append("--search")
+        cmd.append("exec")
         if self.dangerously_bypass:
             cmd.append("--dangerously-bypass-approvals-and-sandbox")
         elif self.auto_mode:

@@ -34,3 +34,11 @@ smoke:
   just viberefine "Echo signature for smoke"
   just codegen "A Python CLI that prints 'smoke ok'" python generated/smoke_cli.py
 
+agent question tools="retrieve_stub" iters=3:
+  uv run python -m agent_demo --tools "{{tools}}" --iters {{iters}} "{{question}}"
+
+mermaid file name="" variants="predict,cot,react":
+  uv run python -m mermaid2dspy -f "{{file}}" -n "{{name}}" -v "{{variants}}"
+
+mermaid-stdin name="" variants="predict,cot,react":
+  echo "Paste Mermaid, then Ctrl-D:" && uv run python -m mermaid2dspy -n "{{name}}" -v "{{variants}}"

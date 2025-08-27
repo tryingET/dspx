@@ -1,0 +1,9 @@
+flowchart TB
+    START([User has need])
+    subgraph "Phase 1: Initial Capture"
+        CONV[Discord Conversation]
+        INIT_6E[Extract Initial 6 Elements]\n        INTENT[Create Intent]
+    end
+    START --> CONV
+    CONV --> INIT_6E
+    INIT_6E --> INTENT

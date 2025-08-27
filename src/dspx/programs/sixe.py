@@ -1,0 +1,73 @@
+from __future__ import annotations
+
+from typing import Dict
+
+import dspy
+
+
+class SixESignature(dspy.Signature):
+    """Extract the Initial 6 Elements (6E) from context text.
+
+    Fields:
+    - constraints: Hard rules ("We must...")
+    - boundaries: Responsibility boundaries ("Ends here...")
+    - edges: Integration points ("Happens at...")
+    - assumptions: Accepted truths ("We assume...")
+    - dependencies: Preconditions ("Requires...")
+    - exceptions: Guarded deviations ("Allowed unless/until...")
+    """
+
+    context: str
+    constraints: str
+    boundaries: str
+    edges: str
+    assumptions: str
+    dependencies: str
+    exceptions: str
+
+
+class SixEExtractor(dspy.Module):
+    """CoT extractor for 6E, returns a structured prediction."""
+
+    def __init__(self, *, use_cot: bool = True):
+        super().__init__()
+        P = dspy.ChainOfThought if use_cot else dspy.Predict
+        self.extract = P(SixESignature)
+
+    def forward(self, context: str) -> dspy.Prediction:
+        pred = self.extract(context=context)
+        return dspy.Prediction(
+            constraints=getattr(pred, "constraints", ""),
+            boundaries=getattr(pred, "boundaries", ""),
+            edges=getattr(pred, "edges", ""),
+            assumptions=getattr(pred, "assumptions", ""),
+            dependencies=getattr(pred, "dependencies", ""),
+            exceptions=getattr(pred, "exceptions", ""),
+        )
+
+
+def to_dict(pred: dspy.Prediction) -> Dict[str, str]:
+    return dict(
+        constraints=getattr(pred, "constraints", ""),
+        boundaries=getattr(pred, "boundaries", ""),
+        edges=getattr(pred, "edges", ""),
+        assumptions=getattr(pred, "assumptions", ""),
+        dependencies=getattr(pred, "dependencies", ""),
+        exceptions=getattr(pred, "exceptions", ""),
+    )
+
+
+def to_summary(pred: dspy.Prediction) -> str:
+    parts = []
+    def add(label: str, val: str) -> None:
+        v = (val or "").strip()
+        if v:
+            parts.append(f"{label}: {v}")
+    add("Constraints", getattr(pred, "constraints", ""))
+    add("Boundaries", getattr(pred, "boundaries", ""))
+    add("Edges", getattr(pred, "edges", ""))
+    add("Assumptions", getattr(pred, "assumptions", ""))
+    add("Dependencies", getattr(pred, "dependencies", ""))
+    add("Exceptions", getattr(pred, "exceptions", ""))
+    return " \n".join(parts)
+

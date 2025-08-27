@@ -7,3 +7,9 @@
 [submodule "submodules/ovllm"]
 	path = submodules/ovllm
 	url = https://github.com/MaximeRivest/ovllm
+[submodule "submodules/dspy"]
+	path = submodules/dspy
+	url = https://github.com/stanfordnlp/dspy
+[submodule "submodules/codex"]
+	path = submodules/codex
+	url = https://github.com/openai/codex

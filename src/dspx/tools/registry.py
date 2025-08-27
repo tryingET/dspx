@@ -1,0 +1,313 @@
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, List, Optional
+import re
+from typing import cast
+from pathlib import Path
+import os
+import sqlite3
+
+import httpx
+from bs4 import BeautifulSoup
+import pandas as pd
+from duckduckgo_search import DDGS
+
+
+_TOOLS: Dict[str, Callable[..., Any]] = {}
+
+
+def register_tool(name: str, func: Callable[..., Any]) -> None:
+    _TOOLS[name] = func
+
+
+def get_tool(name: str) -> Callable[..., Any]:
+    return _TOOLS[name]
+
+
+def available() -> List[str]:
+    return sorted(_TOOLS.keys())
+
+
+def ensure_default_tools() -> None:
+    if "web_search" not in _TOOLS:
+        register_tool("web_search", _web_search)
+    if "web_fetch" not in _TOOLS:
+        register_tool("web_fetch", _web_fetch)
+    if "web_scrape" not in _TOOLS:
+        register_tool("web_scrape", _web_scrape)
+    if "data_preview" not in _TOOLS:
+        register_tool("data_preview", _data_preview)
+    if "repo_summary" not in _TOOLS:
+        register_tool("repo_summary", _repo_summary)
+    if "db_schema" not in _TOOLS:
+        register_tool("db_schema", _db_schema)
+    if "kb_summary" not in _TOOLS:
+        register_tool("kb_summary", _kb_summary)
+    if "ontology_summary" not in _TOOLS:
+        register_tool("ontology_summary", _ontology_summary)
+
+
+def _web_fetch(url: str, *, headers: Optional[Dict[str, str]] = None, timeout: float = 15.0) -> Dict[str, Any]:
+    """Fetch a URL and return status, headers subset, and text (truncated)."""
+    with httpx.Client(follow_redirects=True, timeout=timeout) as client:
+        resp = client.get(url, headers=headers)
+        text = resp.text
+        max_len = 100_000
+        if len(text) > max_len:
+            text = text[:max_len] + f"\n... [truncated {len(resp.text) - max_len} bytes]"
+        return {
+            "status_code": resp.status_code,
+            "headers": dict(resp.headers),
+            "text": text,
+            "url": str(resp.url),
+        }
+
+
+def _web_search(query: str, k: int = 5, safe: str = "moderate") -> List[Dict[str, Any]]:
+    """DuckDuckGo text search. Returns list of {title, href, body}."""
+    results: List[Dict[str, Any]] = []
+    try:
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=k, safesearch=safe):
+                results.append({
+                    "title": r.get("title"),
+                    "href": r.get("href"),
+                    "body": r.get("body"),
+                })
+    except Exception:
+        # Gracefully degrade to empty results on network/captcha errors.
+        results = []
+    return results
+
+
+def _web_scrape(url: str, *, selector: Optional[str] = None, timeout: float = 15.0) -> Dict[str, Any]:
+    """Fetch a URL and extract text; optionally restrict via CSS selector."""
+    result = _web_fetch(url, timeout=timeout)
+    html = result.get("text", "")
+    soup = BeautifulSoup(html, "html.parser")
+    if selector:
+        elems = soup.select(selector)
+        text = "\n\n".join(e.get_text(separator=" ", strip=True) for e in elems)
+    else:
+        for tag in soup(["script", "style", "noscript"]):
+            tag.extract()
+        text = soup.get_text(separator=" ", strip=True)
+    if len(text) > 100_000:
+        text = text[:100_000] + "\n... [truncated]"
+    return {
+        "url": result.get("url"),
+        "status_code": result.get("status_code"),
+        "text": text,
+    }
+
+
+def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
+    """Preview a local data file (CSV, JSON, Parquet). Returns schema + head."""
+    lower = path.lower()
+    out: Dict[str, Any] = {"path": path}
+    if lower.endswith(".csv"):
+        df = pd.read_csv(path, nrows=nrows)
+        out.update({
+            "type": "csv",
+            "columns": df.columns.tolist(),
+            "rows": df.head(nrows).to_dict(orient="records"),
+        })
+    elif lower.endswith(".json") or lower.endswith(".jsonl"):
+        try:
+            df = pd.read_json(path, lines=True, nrows=nrows)
+        except ValueError:
+            df = pd.read_json(path)
+        out.update({
+            "type": "json",
+            "columns": df.columns.tolist(),
+            "rows": df.head(nrows).to_dict(orient="records"),
+        })
+    elif lower.endswith(".parquet"):
+        df = pd.read_parquet(path)
+        out.update({
+            "type": "parquet",
+            "columns": df.columns.tolist(),
+            "rows": df.head(nrows).to_dict(orient="records"),
+        })
+    else:
+        out.update({
+            "type": "unknown",
+            "error": "Unsupported file extension",
+        })
+    return out
+
+
+def _read_head(path: Path, nbytes: int = 2000) -> str:
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            return f.read(nbytes)
+    except Exception:
+        return ""
+
+
+def _repo_summary(root: str = ".", max_files: int = 20, depth: int = 2) -> str:
+    """Return a lightweight repository summary for context building.
+
+    - Lists top-level dirs/files
+    - Reads heads of common metadata files and a few code files
+    - Skips heavy dirs (.git, .venv, submodules)
+    """
+    base = Path(root).resolve()
+    skip = {".git", ".venv", "venv", "node_modules", "submodules", "__pycache__"}
+    parts: List[str] = []
+    parts.append(f"Repo: {base}")
+    # Top-level contents
+    top = [p.name for p in base.iterdir() if p.is_dir() and p.name not in skip]
+    files = [p.name for p in base.iterdir() if p.is_file()]
+    parts.append("Top-level dirs: " + ", ".join(sorted(top)[:30]))
+    parts.append("Top-level files: " + ", ".join(sorted(files)[:30]))
+
+    candidates: List[Path] = []
+    preferred = [
+        "README.md",
+        "pyproject.toml",
+        "requirements.txt",
+        "package.json",
+        "Justfile",
+        "config.toml",
+    ]
+    for name in preferred:
+        p = base / name
+        if p.exists():
+            candidates.append(p)
+
+    # Walk a little to pick a few .py and .md files
+    picked = 0
+    for dirpath, dirnames, filenames in os.walk(base):
+        dp = Path(dirpath)
+        # Limit depth
+        try:
+            rel = dp.relative_to(base)
+            depth_len = len(rel.parts)
+        except Exception:
+            depth_len = 0
+        if depth_len > depth:
+            continue
+        dirnames[:] = [d for d in dirnames if d not in skip]
+        for fn in filenames:
+            if fn.startswith("."):
+                continue
+            if fn.endswith(".py") or fn.endswith(".md"):
+                p = dp / fn
+                if p not in candidates:
+                    candidates.append(p)
+                    picked += 1
+                    if picked >= max_files:
+                        break
+        if picked >= max_files:
+            break
+
+    # Emit heads
+    for p in candidates[:max_files]:
+        head = _read_head(p)
+        if head.strip():
+            parts.append(f"\n# {p.relative_to(base)}\n{head.strip()}\n")
+    return "\n".join(parts)
+
+
+def _detect_sqlite_url(url: Optional[str]) -> Optional[Path]:
+    if url and url.startswith("sqlite:///"):
+        return Path(url[len("sqlite///"):])
+    if url and url.startswith("sqlite:"):
+        # sqlite:path or sqlite:path?mode=rw — not fully supported; try naive strip
+        return Path(url.split(":", 1)[1])
+    # Try env or default location
+    env = os.getenv("DATABASE_URL") or os.getenv("SIXE_DB_URL")
+    if env and env.startswith("sqlite///"):
+        return Path(env[len("sqlite///"):])
+    if env and env.startswith("sqlite:"):
+        return Path(env.split(":", 1)[1])
+    default = Path("generated/sixe.db")
+    if default.exists():
+        return default
+    return None
+
+
+def _db_schema(url: Optional[str] = None, *, max_tables: int = 25, sample_rows: int = 3) -> str:
+    """Return a compact DB schema + tiny samples.
+
+    Currently supports SQLite. For other engines, returns a stub unless
+    accessed via a future SQLAlchemy-based implementation.
+    """
+    p = _detect_sqlite_url(url)
+    if p is None or not p.exists():
+        return "[db_schema] No SQLite database detected. Set DATABASE_URL or SIXE_DB_URL."
+    try:
+        conn = sqlite3.connect(str(p))
+    except Exception as e:
+        return f"[db_schema] Failed to open SQLite: {e}"
+    parts: List[str] = [f"SQLite DB: {p}"]
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        tables = [r[0] for r in cur.fetchall()]
+        if not tables:
+            parts.append("No user tables found.")
+        for t in tables[:max_tables]:
+            parts.append(f"\n## table: {t}")
+            # columns
+            try:
+                cur.execute(f"PRAGMA table_info({t})")
+                cols = cur.fetchall()
+                col_line = ", ".join([f"{c[1]}:{c[2]}" for c in cols])
+                parts.append(f"columns: {col_line}")
+            except Exception:
+                pass
+            # sample
+            try:
+                cur.execute(f"SELECT * FROM {t} LIMIT {int(sample_rows)}")
+                rows = cur.fetchall()
+                parts.append(f"sample_rows: {rows}")
+            except Exception:
+                parts.append("sample_rows: <error>")
+    finally:
+        conn.close()
+    return "\n".join(parts)
+
+
+def _kb_summary(root: str = ".", *, max_files: int = 12) -> str:
+    base = Path(root).resolve()
+    dirs = [
+        base / "kb",
+        base / "knowledge",
+        base / "docs",
+        base / "doc",
+    ]
+    exts = {".md", ".txt", ".rst"}
+    parts: List[str] = []
+    for d in dirs:
+        if not d.exists():
+            continue
+        parts.append(f"Knowledge dir: {d}")
+        files = [p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in exts]
+        for p in files[:max_files]:
+            head = _read_head(p)
+            if head.strip():
+                parts.append(f"\n# {p.relative_to(base)}\n{head.strip()}\n")
+    return "\n".join(parts) if parts else "[kb_summary] No local knowledge files found."
+
+
+def _ontology_summary(root: str = ".", *, max_files: int = 8) -> str:
+    base = Path(root).resolve()
+    dirs = [
+        base / "ontology",
+        base / "ontologies",
+        base / "kb",
+    ]
+    exts = {".ttl", ".rdf", ".owl"}
+    parts: List[str] = []
+    for d in dirs:
+        if not d.exists():
+            continue
+        parts.append(f"Ontology dir: {d}")
+        files = [p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in exts]
+        for p in files[:max_files]:
+            head = _read_head(p)
+            if head.strip():
+                parts.append(f"\n# {p.relative_to(base)}\n{head.strip()}\n")
+    return "\n".join(parts) if parts else "[ontology_summary] No ontology files found."

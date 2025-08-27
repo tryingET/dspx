@@ -1,0 +1,6 @@
+graph TD
+  A[Ingest] --> B{Valid?}
+  B -->|Yes| C[Analyze]
+  B -->|No| D[Repair]
+  C --> E[Summarize]
+  D --> E[Summarize]

@@ -114,6 +114,23 @@ Code Generator CLI
 
   uv run env CODEX_MODEL=gpt-4.1 python -m codegen -l python -o hello.py "CLI that prints 'Hello'"
 
+Mermaid → DSPy Programs
+-----------------------
+- Paste a Mermaid flowchart and generate multiple DSPy program variants (predict, CoT, ReAct) that execute the workflow end-to-end:
+
+  just mermaid path/to/diagram.mmd name="my_flow" variants="predict,cot,react"
+
+- Or via stdin:
+
+  just mermaid-stdin name="my_flow"
+  # paste the Mermaid, then Ctrl-D
+
+- Output goes to `generated/workflows/<name or hash>/` as `program_<variant>.py` plus the original `workflow.mmd`.
+
+- Extra variant: `clarity` (Constraints→Learn→Abduce→Robust-plan→Intervene→Trace→Yield). Example:
+
+  uv run python -m mermaid2dspy -f path/to/diagram.mmd -v clarity -n my_flow
+
 Vibe-DSPy (Codex Exec) Adapter
 ------------------------------
 - Generate a DSPy signature using vibe-dspy with Codex Exec as the LM:
