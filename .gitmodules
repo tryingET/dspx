@@ -1,0 +1,9 @@
+[submodule "submodules/vibe-dspy"]
+	path = submodules/vibe-dspy
+	url = https://github.com/Archelunch/vibe-dspy
+[submodule "submodules/attachments"]
+	path = submodules/attachments
+	url = https://github.com/MaximeRivest/attachments
+[submodule "submodules/ovllm"]
+	path = submodules/ovllm
+	url = https://github.com/MaximeRivest/ovllm

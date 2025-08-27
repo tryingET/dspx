@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:3.3.1
+    container_name: mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+    ports:
+      - "50000:5000"  # host:container (avoid DSM conflicts by using 50000 on host)
+    volumes:
+      - /volume1/mlflow:/mlflow  # persistent DB + artifacts on Synology volume
+    restart: unless-stopped
+
+# Notes:
+# - Adjust host port if 50000 is in use.
+# - Make sure /volume1/mlflow exists on your NAS (mkdir -p /volume1/mlflow).
+# - The server will be reachable at http://NAS_IP:50000
+# - In this repo, set [mlflow].tracking_uri in config.toml to that URL.
