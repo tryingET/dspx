@@ -87,4 +87,3 @@ Current State
 - Codex Exec provider and CLIs are functional; MLflow tracing + config.toml are active.
 - vibe‑dspy integration exists through adapter CLIs (`vibegen.py`, `viberefine.py`).
 - Next steps are additive and backward compatible with current usage.
-

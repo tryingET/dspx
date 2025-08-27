@@ -20,4 +20,3 @@ class LMResponse(BaseModel):
     model: Optional[str] = None
     usage: Optional[dict[str, Any]] = None
     raw: Optional[dict[str, Any]] = None
-

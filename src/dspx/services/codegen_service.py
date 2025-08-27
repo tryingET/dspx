@@ -8,7 +8,7 @@ import dspy
 
 from config_loader import load_config_env
 from tracing import enable_mlflow_from_env
-from codex_exec_lm import CodexExecLM
+from dspx.provider_registry import create_from_env, ensure_default_providers
 
 
 def _extract_code_block(text: str) -> str:
@@ -44,12 +44,9 @@ def run(spec: str, *, language: Optional[str] = None, outfile: Optional[str] = N
     reasoning_effort = os.getenv("CODEX_REASONING", "minimal")
     dangerously_bypass = os.getenv("CODEX_BYPASS", "1") not in {"", "0", "false", "False"}
 
-    lm = CodexExecLM(
-        model_flag=model,
-        auto_mode=not dangerously_bypass,
-        dangerously_bypass=dangerously_bypass,
-        reasoning_effort=reasoning_effort,
-    )
+    # Create LM via provider registry (default: codex-exec)
+    ensure_default_providers()
+    lm = create_from_env()
     dspy.configure(lm=lm)
 
     codegen = dspy.Predict("spec -> code")
@@ -64,4 +61,3 @@ def run(spec: str, *, language: Optional[str] = None, outfile: Optional[str] = N
         with open(path, "w", encoding="utf-8") as f:
             f.write(code_text + ("\n" if not code_text.endswith("\n") else ""))
     return code_text
-

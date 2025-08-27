@@ -27,7 +27,7 @@ Architecture & Vision
   - Providers: Codex Exec today; OpenAI Responses / OSS next
   - Services: codegen, signature generation (vibe), refine, agents/optimizers (future)
   - CLI: thin entrypoints delegating to services
-- See VISION.md for the full refactor plan, pros/cons, and roadmap.
+- See docs/VISION.md for the full refactor plan, pros/cons, and roadmap.
 
 Quick Start (uv)
 ----------------
@@ -198,6 +198,18 @@ Config file (no more long env lines)
   bypass = true
 
 - Your commands stay short:
+ 
+Task Runner
+-----------
+- A Justfile is included for common commands:
+
+  just            # list tasks
+  just install    # uv sync
+  just example    # run example_predict
+  just vibegen "Make a signature..."
+  just viberefine "Echo signature"
+  just codegen "A Python CLI that prints 'ok'"
+  just smoke      # run a small suite
 
   uv run python -m viberefine --non-interactive "Classify sentiment"
 
@@ -215,3 +227,9 @@ Notes
 - The wrapper flattens chat-style messages into a plain prompt for the CLI.
 - If Codex exits non-zero, the wrapper still returns captured stdout (or stderr). Set `strict=True` to raise on failures.
 - Ensure your environment has the necessary permissions for code execution if Codex writes/executes files during `--full-auto` runs.
+Project Layout
+--------------
+- `src/`: source code (modules/packages)
+- `docs/`: project docs (vision, status, next steps)
+- `generated/`: generated examples (git-tracked for demo)
+- `submodules/`: external utilities (vibe-dspy, attachments, ovllm)

@@ -50,9 +50,10 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     if cfg_path.exists():
         data = _load_toml(cfg_path)
 
-    # Sections: [mlflow], [codex]
+    # Sections: [mlflow], [codex], [provider]
     mlflow = data.get("mlflow", {}) if isinstance(data, dict) else {}
     codex = data.get("codex", {}) if isinstance(data, dict) else {}
+    provider = data.get("provider", {}) if isinstance(data, dict) else {}
 
     # MLflow envs
     _set_if_missing("MLFLOW_ENABLE", _coerce_bool(mlflow.get("enable", True)))
@@ -64,5 +65,8 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     _set_if_missing("CODEX_REASONING", codex.get("reasoning_effort"))
     _set_if_missing("CODEX_BYPASS", _coerce_bool(codex.get("bypass", True)))
 
-    return data
+    # Provider selection env
+    _set_if_missing("DSPX_PROVIDER", provider.get("name"))
 
+    return data
+    # moved to src/

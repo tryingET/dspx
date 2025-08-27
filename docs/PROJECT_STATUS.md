@@ -33,17 +33,23 @@ Recent Verifications
 - Confirmed MLflow auto-creates the "DSPy" experiment and logs traces.
 - Generated runnable script in `generated/doc_qa_sig.py` with a working demo.
 
+Registry & Provider Selection
+-----------------------------
+- Provider registry is implemented and integrated into services.
+- Default provider is `codex-exec`; you can override with `DSPX_PROVIDER`.
+- Codex provider auto-registers when needed (ensure_default_providers).
+
 Known Gaps
 ----------
 - Provider API and DTOs:
   - No `LMBase` abstraction yet; services directly rely on DSPy BaseLM-compatible classes.
   - No versioned request/response DTOs to stabilize contracts across layers.
-- Registry and capabilities:
-  - No ProviderRegistry to choose backends by name or advertise capabilities (tool-calling, code-exec, JSON mode).
+- Tools & adapters:
+  - No ToolRegistry yet; retrieval/storage/eval adapters are planned.
 - Service layer:
-  - Orchestration logic resides in CLIs; should move into `services/` for reuse and testing.
+  - Orchestration logic moved into `dspx/services`; CLIs are thin wrappers.
 - Plugins and tools:
-  - No ToolRegistry or plugin loader; submodules are referenced manually via PYTHONPATH.
+  - No plugin loader yet; submodules referenced manually via PYTHONPATH.
 - Tests and CI:
   - No unit or e2e tests yet; no CI to guard interfaces or trace regressions.
 
@@ -59,4 +65,3 @@ Environment Snapshot
 - dspy-ai 3.0.2
 - codex-cli 0.24.0
 - mlflow 3.3.1 (server via Docker; tracing via `mlflow.dspy.autolog()`)
-

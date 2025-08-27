@@ -17,4 +17,3 @@ def ensure_vibe_path() -> None:
     vibe_src = here / "submodules" / "vibe-dspy" / "src"
     if vibe_src.is_dir() and str(vibe_src) not in sys.path:
         sys.path.insert(0, str(vibe_src))
-

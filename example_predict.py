@@ -1,5 +1,9 @@
 import sys
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+
 import dspy
 import os
 from config_loader import load_config_env

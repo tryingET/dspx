@@ -14,3 +14,6 @@ model = "gpt-5"
 reasoning_effort = "minimal"
 bypass = true  # maps to --dangerously-bypass-approvals-and-sandbox
 
+[provider]
+# Select the LM provider via registry (default: codex-exec)
+name = "codex-exec"

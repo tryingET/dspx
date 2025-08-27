@@ -333,3 +333,4 @@ class _MinimalResponse:
         self.model = model
         self.choices = choices
         self.usage = usage
+        # moved to src/ layout

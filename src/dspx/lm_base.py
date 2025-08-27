@@ -20,4 +20,3 @@ class LMBase(ABC):
     @abstractmethod
     def generate(self, request: LMRequest, **kwargs) -> LMResponse:
         raise NotImplementedError
-

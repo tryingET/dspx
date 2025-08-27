@@ -2,6 +2,8 @@ import argparse
 import os
 import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+from pathlib import Path
 from typing import Optional
 
 import dspy
@@ -79,12 +81,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("-o", "--out", dest="outfile", help="Write final code to this file")
     ap.add_argument("--wrap-script", action="store_true", help="Wrap final code into a runnable script with Codex Exec config")
     ap.add_argument("--non-interactive", action="store_true", help="Auto-accept first draft (no prompts)")
+    ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
     args = ap.parse_args(argv)
 
     # Load config.toml to populate env defaults
     load_config_env()
     # Optionally enable MLflow tracing if configured via env.
     enable_mlflow_from_env()
+
+    # Provider override via env for the registry
+    if args.provider:
+        os.environ["DSPX_PROVIDER"] = args.provider
 
     code = service_refine(
         args.prompt,

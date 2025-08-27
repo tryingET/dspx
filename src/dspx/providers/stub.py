@@ -8,4 +8,3 @@ class StubLM(LMBase):
     def generate(self, request: LMRequest, **kwargs) -> LMResponse:  # type: ignore[override]
         text = "stub: " + (request.prompt or "")
         return LMResponse(outputs=[text], model="stub", usage=None, raw=None)
-

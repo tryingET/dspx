@@ -23,4 +23,3 @@ def _factory() -> CodexExecLM:
 def register() -> None:
     caps = ProviderCapabilities(code_exec=True, supports_tools=False, json_mode=False, multi_turn=True)
     register_provider("codex-exec", _factory, caps)
-

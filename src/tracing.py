@@ -29,6 +29,7 @@ def enable_mlflow_from_env() -> bool:
     """
     if not _truthy(os.getenv("MLFLOW_ENABLE", "1")):
         return False
+    # moved to src/
 
     try:
         import mlflow
@@ -49,4 +50,3 @@ def enable_mlflow_from_env() -> bool:
     except Exception:
         # Fallback to no-op if server not reachable or integration unavailable
         return False
-

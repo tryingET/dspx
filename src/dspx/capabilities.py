@@ -8,4 +8,3 @@ class ProviderCapabilities(BaseModel):
     code_exec: bool = True
     json_mode: bool = False
     multi_turn: bool = True
-
