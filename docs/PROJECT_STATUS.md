@@ -21,6 +21,7 @@ What Works Today
   - `codegen.py`: spec → code generator (code-only output; optional file write).
   - `vibegen.py`: uses vibe-dspy’s SignatureGenerator with Codex Exec.
   - `viberefine.py`: interactive/non-interactive refine loop; optional wrapped script output.
+  - `agent_demo.py`: minimal ReAct agent demo with optional DSPy tools.
 - Submodules:
   - `submodules/vibe-dspy` (signature generation utilities).
   - `submodules/attachments` and `submodules/ovllm` (optional utilities; importable via PYTHONPATH).
@@ -65,3 +66,12 @@ Environment Snapshot
 - dspy-ai 3.0.2
 - codex-cli 0.24.0
 - mlflow 3.3.1 (server via Docker; tracing via `mlflow.dspy.autolog()`)
+Tools
+-----
+- ToolRegistry with focused utilities:
+  - `web_search` (DuckDuckGo based, no API key; graceful fallback on errors)
+  - `web_fetch` (httpx), `web_scrape` (BeautifulSoup)
+  - `data_preview` (pandas for CSV/JSON/Parquet)
+- Justfile tasks for quick demos:
+  - `just web-search "query"` / `just web-fetch url=...` / `just web-scrape url=... selector="..."`
+  - `just data-preview path=/path/to/file.csv`

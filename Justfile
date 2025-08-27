@@ -37,6 +37,18 @@ smoke:
 agent question tools="retrieve_stub" iters=3:
   uv run python -m agent_demo --tools "{{tools}}" --iters {{iters}} "{{question}}"
 
+web-search query k=5:
+  uv run python -m tools_demo search -k {{k}} "{{query}}"
+
+web-fetch url:
+  uv run python -m tools_demo fetch "{{url}}"
+
+web-scrape url selector="":
+  uv run python -m tools_demo scrape --selector "{{selector}}" "{{url}}"
+
+data-preview path nrows=5:
+  uv run python -m tools_demo preview --nrows {{nrows}} "{{path}}"
+
 mermaid file name="" variants="predict,cot,react":
   uv run python -m mermaid2dspy -f "{{file}}" -n "{{name}}" -v "{{variants}}"
 
