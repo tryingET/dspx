@@ -6,6 +6,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import subprocess
 
 # Ensure we can import from src/
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
@@ -41,7 +42,13 @@ def _class_header(name: str, label: str, nid: str) -> str:
     )
 
 
-def _build_signatures(nodes: Dict[str, dict]) -> Tuple[str, Dict[str, str]]:
+def _run_cli(module: str, args: List[str], env: Optional[dict] = None):
+    import subprocess, os
+    proc = subprocess.run([sys.executable, "-m", module, *args], capture_output=True, text=True, env=env or os.environ.copy())
+    return proc.returncode, proc.stdout, proc.stderr
+
+
+def _build_signatures(nodes: Dict[str, dict], *, use_cli: bool, refine: bool, refine_attempts: int, provider: Optional[str]) -> Tuple[str, Dict[str, str]]:
     """Generate a signatures.py module and return (source, mapping nid->class)."""
     parts: List[str] = []
     mapping: Dict[str, str] = {}
@@ -50,7 +57,20 @@ def _build_signatures(nodes: Dict[str, dict]) -> Tuple[str, Dict[str, str]]:
             continue
         cls = f"Sig_{nid}"
         prompt = _class_header(cls, n.get("label", nid), nid)
-        code = service_generate(prompt)
+        env = os.environ.copy()
+        if provider:
+            env["DSPX_PROVIDER"] = provider
+        if use_cli:
+            if refine:
+                rc, out, err = _run_cli('viberefine', (["--non-interactive", "-n", str(refine_attempts), prompt]), env)
+            else:
+                rc, out, err = _run_cli('vibegen', ([prompt]), env)
+            if rc != 0:
+                raise SystemExit(f"CLI generation failed for {nid}: {err.strip()}\nPrompt was: {prompt}")
+            code = out
+        else:
+            code = service_generate(prompt)
+
         # Ensure class name matches (fallback if generator changed it)
         m = re.search(r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code)
         if not m or m.group(1) != cls:
@@ -206,6 +226,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--name", "-n", help="Workflow name (slug)")
     ap.add_argument("--outdir", "-o", help="Output dir (defaults to generated/workflows/<name>)")
     ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
+    ap.add_argument("--use-cli", action="store_true", help="Use CLI tools (vibegen/viberefine) instead of service calls")
+    ap.add_argument("--refine", action="store_true", help="Use viberefine (non-interactive) for signatures")
+    ap.add_argument("--refine-attempts", type=int, default=3, help="Attempts for viberefine when --refine is set")
     args = ap.parse_args(argv)
 
     load_config_env()
@@ -224,7 +247,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_root.mkdir(parents=True, exist_ok=True)
 
     # Build signatures.py
-    sig_src, mapping = _build_signatures(nodes)
+    sig_src, mapping = _build_signatures(nodes, use_cli=args.use_cli, refine=args.refine, refine_attempts=args.refine_attempts, provider=args.provider)
     (out_root / "signatures.py").write_text(sig_src, encoding="utf-8")
 
     # Emit program that imports signatures
