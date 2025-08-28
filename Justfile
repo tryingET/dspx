@@ -54,3 +54,11 @@ mermaid file name="" variants="predict,cot,react":
 
 mermaid-stdin name="" variants="predict,cot,react":
   echo "Paste Mermaid, then Ctrl-D:" && uv run python -m mermaid2dspy -n "{{name}}" -v "{{variants}}"
+
+
+dspx-mermaid file name="" provider="":
+  if [ "{{provider}}" != "" ]; then \
+    uv run env DSPX_PROVIDER={{provider}} python -m dspx_mermaid2dspy -f "{{file}}" -n "{{name}}" ; \
+  else \
+    uv run python -m dspx_mermaid2dspy -f "{{file}}" -n "{{name}}" ; \
+  fi
