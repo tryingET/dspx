@@ -12,67 +12,67 @@ POLICY = (
 
 
 class _ConstraintsSig(dspy.Signature):
-    instruction: str
-    input: str
-    constraints: str
+    instruction: str = dspy.InputField(desc="High-level step instruction with policy context")
+    input: str = dspy.InputField(desc="Primary input text for the step")
+    constraints: str = dspy.OutputField(desc="Hard requirements and must-not-violate rules")
 
 
 class _LearnSig(dspy.Signature):
-    constraints: str
-    input: str
-    learnings: str
+    constraints: str = dspy.InputField(desc="Constraints carried from previous phase")
+    input: str = dspy.InputField(desc="Same input text for continuity")
+    learnings: str = dspy.OutputField(desc="Key observations, facts, and uncertainties")
 
 
 class _AbduceSig(dspy.Signature):
-    constraints: str
-    learnings: str
-    input: str
-    hypotheses: str
+    constraints: str = dspy.InputField(desc="Constraints context")
+    learnings: str = dspy.InputField(desc="Learn phase findings")
+    input: str = dspy.InputField(desc="Reference input")
+    hypotheses: str = dspy.OutputField(desc="Multiple candidate hypotheses with rationale")
 
 
 class _PlanSig(dspy.Signature):
-    constraints: str
-    learnings: str
-    hypotheses: str
-    input: str
-    plan: str
+    constraints: str = dspy.InputField(desc="Constraints to satisfy")
+    learnings: str = dspy.InputField(desc="Learnings to leverage")
+    hypotheses: str = dspy.InputField(desc="Hypotheses to consider")
+    input: str = dspy.InputField(desc="Original input for grounding")
+    plan: str = dspy.OutputField(desc="Robust plan addressing constraints and hypotheses")
 
 
 class _InterveneSig(dspy.Signature):
-    constraints: str
-    plan: str
-    input: str
-    intervention: str
+    constraints: str = dspy.InputField(desc="Constraints to respect")
+    plan: str = dspy.InputField(desc="Plan to execute or test")
+    input: str = dspy.InputField(desc="Reference input")
+    intervention: str = dspy.OutputField(desc="Safe, reversible intervention proposal")
 
 
 class _TraceSig(dspy.Signature):
-    constraints: str
-    learnings: str
-    hypotheses: str
-    plan: str
-    intervention: str
-    input: str
-    trace: str
+    constraints: str = dspy.InputField(desc="Constraints context")
+    learnings: str = dspy.InputField(desc="Learnings context")
+    hypotheses: str = dspy.InputField(desc="Hypotheses context")
+    plan: str = dspy.InputField(desc="Plan context")
+    intervention: str = dspy.InputField(desc="Intervention context")
+    input: str = dspy.InputField(desc="Reference input")
+    trace: str = dspy.OutputField(desc="Decision trace with provenance and counterfactuals")
 
 
 class _YieldSig(dspy.Signature):
-    constraints: str
-    learnings: str
-    hypotheses: str
-    plan: str
-    intervention: str
-    trace: str
-    input: str
-    yield_output: str
+    constraints: str = dspy.InputField(desc="Constraints context")
+    learnings: str = dspy.InputField(desc="Learnings context")
+    hypotheses: str = dspy.InputField(desc="Hypotheses context")
+    plan: str = dspy.InputField(desc="Plan context")
+    intervention: str = dspy.InputField(desc="Intervention context")
+    trace: str = dspy.InputField(desc="Trace context")
+    input: str = dspy.InputField(desc="Reference input")
+    yield_output: str = dspy.OutputField(desc="Outcome summary and regret")
 
 
 class _DecisionSig(dspy.Signature):
-    constraints: str
-    learnings: str
-    hypotheses: str
-    plan: str
-    input: str
-    decision: str
+    constraints: str = dspy.InputField(desc="Constraints context")
+    learnings: str = dspy.InputField(desc="Learnings context")
+    hypotheses: str = dspy.InputField(desc="Hypotheses context")
+    plan: str = dspy.InputField(desc="Plan context")
+    input: str = dspy.InputField(desc="Reference input")
+    decision: str = dspy.OutputField(desc="Chosen branch label")
 
 
 def _decorate(instr: str) -> str:
@@ -137,4 +137,3 @@ class ClarityDecision(dspy.Module):
             input=input,
         )
         return dspy.Prediction(decision=getattr(pred, "decision", str(pred)))
-

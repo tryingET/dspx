@@ -171,8 +171,8 @@ def _emit_common_header(name: str) -> str:
             "import os",
             "from typing import Dict, List, Optional",
             "import dspy",
-            "from config_loader import load_config_env",
-            "from tracing import enable_mlflow_from_env",
+            "from dspx.config_loader import load_config_env",
+            "from dspx.tracing import enable_mlflow_from_env",
             "from dspx.provider_registry import create_from_env, ensure_default_providers",
             "",
             f"PROGRAM_NAME = {name!r}",
@@ -350,9 +350,9 @@ def _emit_predict_impl() -> str:
     return "\n".join(
         [
             "class StepSignature(dspy.Signature):",
-            "    instruction: str",
-            "    input: str",
-            "    output: str",
+            "    instruction: str = dspy.InputField(desc='Step instruction or guidance')",
+            "    input: str = dspy.InputField(desc='Primary input/context for the step')",
+            "    output: str = dspy.OutputField(desc='Result of this step')",
             "",
             "def step_process(instruction: str, input: str) -> str:",
             "    mod = dspy.Predict(StepSignature)",
@@ -371,9 +371,9 @@ def _emit_cot_impl() -> str:
     return "\n".join(
         [
             "class StepSignature(dspy.Signature):",
-            "    instruction: str",
-            "    input: str",
-            "    output: str",
+            "    instruction: str = dspy.InputField(desc='Step instruction or guidance')",
+            "    input: str = dspy.InputField(desc='Primary input/context for the step')",
+            "    output: str = dspy.OutputField(desc='Result of this step')",
             "",
             "def step_process(instruction: str, input: str) -> str:",
             "    mod = dspy.ChainOfThought(StepSignature)",

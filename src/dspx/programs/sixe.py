@@ -17,13 +17,16 @@ class SixESignature(dspy.Signature):
     - exceptions: Guarded deviations ("Allowed unless/until...")
     """
 
-    context: str
-    constraints: str
-    boundaries: str
-    edges: str
-    assumptions: str
-    dependencies: str
-    exceptions: str
+    # Inputs
+    context: str = dspy.InputField(desc="Source text (or JSON) to extract 6E from.")
+
+    # Outputs
+    constraints: str = dspy.OutputField(desc="Hard rules: 'We must…'")
+    boundaries: str = dspy.OutputField(desc="Responsibility boundaries: 'Ends here…'")
+    edges: str = dspy.OutputField(desc="Integration points: 'Happens at…'")
+    assumptions: str = dspy.OutputField(desc="Accepted truths: 'We assume…'")
+    dependencies: str = dspy.OutputField(desc="Preconditions: 'Requires…'")
+    exceptions: str = dspy.OutputField(desc="Guarded deviations: 'Allowed unless/until…'")
 
 
 class SixEExtractor(dspy.Module):
