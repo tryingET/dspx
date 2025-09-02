@@ -21,6 +21,13 @@ dev = [
     "pytest-cov>=4.1.0",
 ]
 
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+exclude = "^(submodules/|generated/)"
+warn_unused_ignores = false
+check_untyped_defs = false
+
 [project.scripts]
 "dspx-example" = "dspx.cli.example_predict:main"
 "dspx-codegen" = "dspx.cli.codegen:main"

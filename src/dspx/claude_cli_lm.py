@@ -47,18 +47,20 @@ try:
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
+
     class InternalLMBase:  # type: ignore
         pass
+
     ProviderCapabilities = None  # type: ignore
 
-# Try to import BaseLM from DSPy
-try:
-    from dspy import BaseLM  # type: ignore
+# Try to import BaseLM from DSPy (alias for clarity during type checking)
+try:  # pragma: no cover
+    from dspy import BaseLM as DSPyBaseLM  # type: ignore
 except Exception:  # pragma: no cover
     try:
-        from dspy.models import BaseLM  # type: ignore
+        from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
     except Exception:  # pragma: no cover
-        class BaseLM:  # minimal fallback
+        class DSPyBaseLM:
             def __init__(self, model: str = "claude-cli", model_type: str = "text", **kwargs) -> None:
                 self.model = model
                 self.model_type = model_type
@@ -87,7 +89,7 @@ class _Running:
     started_at: float
 
 
-class ClaudeHeadlessLM(BaseLM, InternalLMBase):
+class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
     """DSPy LM that shells out to `claude` CLI in headless mode.
 
     Parameters
@@ -130,7 +132,7 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
         use_cli_cwd: bool = False,
     ) -> None:
         model_label = f"claude-cli/{output_format}"
-        super().__init__(model=model_label, model_type="text")
+        DSPyBaseLM.__init__(self, model=model_label, model_type="text")
         # config
         self.binary = binary
         self.output_format = output_format
@@ -159,7 +161,7 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
             if ProviderCapabilities is not None:
                 caps = ProviderCapabilities(
                     supports_tools=True,  # via allowedTools
-                    code_exec=False,      # CLI can call Bash via tools, but we don't assume local exec here
+                    code_exec=False,  # CLI can call Bash via tools, but we don't assume local exec here
                     json_mode=(self.output_format in {"json", "stream-json"}),
                     multi_turn=True,
                 )
@@ -171,8 +173,9 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
             pass
 
         # Soft-check binary availability
-        if shutil.which(self.binary) is None:
-            pass
+        self._bin_warned = False
+        if shutil.which(self.binary) is None and not self._bin_warned:
+            self._warn_missing_binary()
 
     # DSPy entrypoint: forward(prompt|messages)
     def forward(
@@ -181,15 +184,19 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
         messages: Optional[Iterable[Dict[str, Any]]] = None,
         **kwargs: Any,
     ):
-        query = prompt if prompt is not None else self._messages_to_prompt(messages)
+        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
         cmd = self._build_command(query)
 
         if self.verbose:
             ts = datetime.now().strftime("%H:%M:%S")
-            print(f"[{ts}] ClaudeHeadlessLM: launching claude (fmt={self.output_format})…")
+            print(
+                f"[{ts}] ClaudeHeadlessLM: launching claude (fmt={self.output_format})…"
+            )
 
         env = os.environ.copy()
         env.update(self.env)
+        if shutil.which(self.binary) is None and not self._bin_warned:
+            self._warn_missing_binary()
         t0 = time.time()
         proc = subprocess.run(
             cmd,
@@ -211,7 +218,9 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
                 f"claude failed (exit={proc.returncode})\nCommand: {' '.join(cmd)}\nSTDERR:\n{stderr}\nSTDOUT:\n{stdout}"
             )
 
-        self._store_history(query, cmd, proc.returncode, stdout, stderr, text, jobj, t0, t1)
+        self._store_history(
+            query, cmd, proc.returncode, stdout, stderr, text, jobj, t0, t1
+        )
 
         response = _MinimalResponse(
             model=self.model,
@@ -235,9 +244,11 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
                 [{"role": m.role, "content": m.content} for m in (msgs or [])]
             )
 
-        cmd = self._build_command(query)
+        cmd = self._build_command((query or ""))
         env = os.environ.copy()
         env.update(self.env)
+        if shutil.which(self.binary) is None and not self._bin_warned:
+            self._warn_missing_binary()
         t0 = time.time()
         proc = subprocess.run(
             cmd,
@@ -259,12 +270,19 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
                 f"claude failed (exit={proc.returncode})\nCommand: {' '.join(cmd)}\nSTDERR:\n{stderr}\nSTDOUT:\n{stdout}"
             )
 
-        self._store_history(query, cmd, proc.returncode, stdout, stderr, text, jobj, t0, t1)
+        self._store_history(
+            query, cmd, proc.returncode, stdout, stderr, text, jobj, t0, t1
+        )
         return LMResponse(outputs=[text], model=self.model, usage=None, raw=jobj)
 
     # Advanced: asynchronous helpers
-    def start(self, *, prompt: Optional[str] = None, messages: Optional[Iterable[Dict[str, Any]]] = None) -> _Running:
-        query = prompt if prompt is not None else self._messages_to_prompt(messages)
+    def start(
+        self,
+        *,
+        prompt: Optional[str] = None,
+        messages: Optional[Iterable[Dict[str, Any]]] = None,
+    ) -> _Running:
+        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
         env = os.environ.copy()
         env.update(self.env)
         cmd = self._build_command(query)
@@ -277,7 +295,9 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
             text=True,
             start_new_session=True,
         )
-        return _Running(command=cmd, cwd=self.cwd or None, env=env, popen=p, started_at=time.time())
+        return _Running(
+            command=cmd, cwd=self.cwd or None, env=env, popen=p, started_at=time.time()
+        )
 
     def collect(self, run: _Running) -> ClaudeRun:
         proc = run.popen
@@ -303,7 +323,9 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
 
     def terminate(self, run: _Running) -> None:
         try:
-            import os, signal
+            import os
+            import signal
+
             os.killpg(run.popen.pid, signal.SIGTERM)
         except Exception:
             try:
@@ -312,7 +334,9 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
                 pass
         try:
             time.sleep(0.2)
-            import os, signal
+            import os
+            import signal
+
             os.killpg(run.popen.pid, signal.SIGKILL)
         except Exception:
             try:
@@ -355,7 +379,9 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
             return tools
         return ",".join([str(t) for t in tools])
 
-    def _extract_text_and_json(self, stdout: str, stderr: str) -> tuple[str, Optional[Dict[str, Any]]]:
+    def _extract_text_and_json(
+        self, stdout: str, stderr: str
+    ) -> tuple[str, Optional[Dict[str, Any]]]:
         text = stdout if stdout else stderr
         jobj: Optional[Dict[str, Any]] = None
         if self.output_format == "json":
@@ -418,7 +444,9 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
             ts = datetime.now().strftime("%H:%M:%S")
             dur = f"{(t1 - t0):.1f}s"
             snippet = text[:120].replace("\n", " ") + ("…" if len(text) > 120 else "")
-            print(f"[{ts}] ClaudeHeadlessLM: finished (exit={rc}, dur={dur}). Output: {snippet}")
+            print(
+                f"[{ts}] ClaudeHeadlessLM: finished (exit={rc}, dur={dur}). Output: {snippet}"
+            )
 
     @staticmethod
     def _messages_to_prompt(messages: Optional[Iterable[Dict[str, Any]]]) -> str:
@@ -433,9 +461,22 @@ class ClaudeHeadlessLM(BaseLM, InternalLMBase):
             parts.append(f"{role}: {content}")
         return "\n".join(parts).strip()
 
+    def _warn_missing_binary(self) -> None:
+        self._bin_warned = True
+        msg = (
+            f"[ClaudeHeadlessLM] CLI '{self.binary}' not found in PATH. "
+            "Install the 'claude' CLI and configure auth; use --print/-p for headless."
+        )
+        try:
+            print(msg)
+        except Exception:
+            pass
+
 
 class _MinimalResponse:
-    def __init__(self, model: str, choices: List[Dict[str, Any]], usage: Dict[str, Any]):
+    def __init__(
+        self, model: str, choices: List[Dict[str, Any]], usage: Dict[str, Any]
+    ):
         self.model = model
         self.choices = choices
         self.usage = usage

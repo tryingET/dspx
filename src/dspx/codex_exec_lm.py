@@ -41,19 +41,21 @@ try:
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
+
     class InternalLMBase:  # type: ignore
         pass
+
     ProviderCapabilities = None  # type: ignore
 
 
-# Try to import BaseLM from DSPy. In 3.x, it's exposed at top-level.
-try:
-    from dspy import BaseLM  # type: ignore
-except Exception:  # pragma: no cover - fallback for older DSPy
+# Try to import BaseLM from DSPy, alias to avoid redefinition noise in type checkers.
+try:  # pragma: no cover - import path varies by DSPy version
+    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+except Exception:  # pragma: no cover
     try:
-        from dspy.models import BaseLM  # type: ignore
+        from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
     except Exception:  # pragma: no cover
-        class BaseLM:  # minimal duck-typed fallback
+        class DSPyBaseLM:  # minimal duck-typed fallback
             def __init__(self, model: str = "codex-exec", model_type: str = "text", **kwargs) -> None:
                 self.model = model
                 self.model_type = model_type
@@ -82,7 +84,7 @@ class _Running:
     started_at: float
 
 
-class CodexExecLM(BaseLM, InternalLMBase):
+class CodexExecLM(DSPyBaseLM, InternalLMBase):
     """DSPy-compatible LM that proxies calls to `codex exec`.
 
     Parameters
@@ -117,7 +119,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
         # Compose a descriptive model label for DSPy logs/history.
         model_label = f"codex-exec/{model_flag or 'default'}"
         # BaseLM in DSPy>=3 requires a model string and a model_type.
-        super().__init__(model=model_label, model_type="text")
+        DSPyBaseLM.__init__(self, model=model_label, model_type="text")
         self.model_flag = model_flag
         self.auto_mode = auto_mode
         self.binary = binary
@@ -139,17 +141,20 @@ class CodexExecLM(BaseLM, InternalLMBase):
 
         # Initialize internal LMBase (capabilities) if available
         try:
-            caps = ProviderCapabilities(code_exec=True, supports_tools=False) if ProviderCapabilities else None
+            caps = (
+                ProviderCapabilities(code_exec=True, supports_tools=False)
+                if ProviderCapabilities
+                else None
+            )
             if hasattr(InternalLMBase, "__init__"):
                 InternalLMBase.__init__(self, capabilities=caps)  # type: ignore
         except Exception:
             pass
 
-        # Validate binary availability early (but don't hard-fail; warn softly).
-        if shutil.which(self.binary) is None:
-            # Not raising to keep import-time side effects minimal.
-            # A runtime failure will be clearer with stderr captured.
-            pass
+        # Validate binary availability early (but don't hard-fail; soft warn once).
+        self._bin_warned = False
+        if shutil.which(self.binary) is None and not self._bin_warned:
+            self._warn_missing_binary()
 
     # DSPy will call `forward`; return an OpenAI-like response object.
     def forward(
@@ -158,22 +163,27 @@ class CodexExecLM(BaseLM, InternalLMBase):
         messages: Optional[Iterable[Dict[str, Any]]] = None,
         **kwargs: Any,
     ):
-        query = prompt if prompt is not None else self._messages_to_prompt(messages)
+        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
         cmd = self._build_command(query)
 
         if self.verbose:
             ts = datetime.now().strftime("%H:%M:%S")
-            print(f"[{ts}] CodexExecLM: launching codex exec (model={self.model_flag or 'default'}, auto={self.auto_mode}, bypass={self.dangerously_bypass})…")
+            print(
+                f"[{ts}] CodexExecLM: launching codex exec (model={self.model_flag or 'default'}, auto={self.auto_mode}, bypass={self.dangerously_bypass})…"
+            )
 
         # Merge env with current process env; Codex Auth typically lives in env.
         env = os.environ.copy()
         env.update(self.env)
+        if shutil.which(self.binary) is None and not self._bin_warned:
+            self._warn_missing_binary()
 
         # Optionally capture only the agent's last message via a temp file.
         last_msg_file: Optional[str] = None
         cmd_for_run = list(cmd)
         if self.capture_last_message:
             import tempfile
+
             fd, last_msg_file = tempfile.mkstemp(prefix="codex_last_", suffix=".txt")
             os.close(fd)
             cmd_for_run.extend(["--output-last-message", last_msg_file])
@@ -236,25 +246,37 @@ class CodexExecLM(BaseLM, InternalLMBase):
             ts = datetime.now().strftime("%H:%M:%S")
             dur = f"{(t1 - t0):.1f}s"
             summary = text[:120].replace("\n", " ") + ("…" if len(text) > 120 else "")
-            print(f"[{ts}] CodexExecLM: finished (exit={proc.returncode}, dur={dur}). Output: {summary}")
+            print(
+                f"[{ts}] CodexExecLM: finished (exit={proc.returncode}, dur={dur}). Output: {summary}"
+            )
 
         # Build a minimal OpenAI-like response object for DSPy to process.
         response = _MinimalResponse(
             model=self.model,
-            choices=[{"text": text}],  # BaseLM._process_completion supports dict choices
+            choices=[
+                {"text": text}
+            ],  # BaseLM._process_completion supports dict choices
             usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         )
         return response
 
     # Advanced: asynchronous execution helpers for orchestration layers
-    def start(self, *, prompt: Optional[str] = None, messages: Optional[Iterable[Dict[str, Any]]] = None) -> _Running:
-        query = prompt if prompt is not None else self._messages_to_prompt(messages)
+    def start(
+        self,
+        *,
+        prompt: Optional[str] = None,
+        messages: Optional[Iterable[Dict[str, Any]]] = None,
+    ) -> _Running:
+        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
         env = os.environ.copy()
         env.update(self.env)
+        if shutil.which(self.binary) is None and not self._bin_warned:
+            self._warn_missing_binary()
         last_msg_file: Optional[str] = None
         cmd_for_run = list(self._build_command(query))
         if self.capture_last_message:
             import tempfile
+
             fd, last_msg_file = tempfile.mkstemp(prefix="codex_last_", suffix=".txt")
             os.close(fd)
             cmd_for_run.extend(["--output-last-message", last_msg_file])
@@ -267,7 +289,14 @@ class CodexExecLM(BaseLM, InternalLMBase):
             text=True,
             start_new_session=True,
         )
-        return _Running(command=cmd_for_run, cwd=self.workspace or None, env=env, popen=p, last_msg_file=last_msg_file, started_at=time.time())
+        return _Running(
+            command=cmd_for_run,
+            cwd=self.workspace or None,
+            env=env,
+            popen=p,
+            last_msg_file=last_msg_file,
+            started_at=time.time(),
+        )
 
     def collect(self, run: _Running) -> CodexExecResult:
         proc = run.popen
@@ -277,7 +306,9 @@ class CodexExecLM(BaseLM, InternalLMBase):
         text = ""
         if run.last_msg_file and os.path.exists(run.last_msg_file):
             try:
-                with open(run.last_msg_file, "r", encoding="utf-8", errors="ignore") as f:
+                with open(
+                    run.last_msg_file, "r", encoding="utf-8", errors="ignore"
+                ) as f:
                     text = f.read().strip()
             finally:
                 try:
@@ -303,7 +334,9 @@ class CodexExecLM(BaseLM, InternalLMBase):
 
     def terminate(self, run: _Running) -> None:
         try:
-            import os, signal
+            import os
+            import signal
+
             # Send SIGTERM to the whole process group
             os.killpg(run.popen.pid, signal.SIGTERM)
         except Exception:
@@ -313,7 +346,9 @@ class CodexExecLM(BaseLM, InternalLMBase):
                 pass
         try:
             time.sleep(0.2)
-            import os, signal
+            import os
+            import signal
+
             os.killpg(run.popen.pid, signal.SIGKILL)
         except Exception:
             try:
@@ -343,15 +378,18 @@ class CodexExecLM(BaseLM, InternalLMBase):
                 [{"role": m.role, "content": m.content} for m in (msgs or [])]
             )
 
-        cmd = self._build_command(query)
+        cmd = self._build_command((query or ""))
         env = os.environ.copy()
         env.update(self.env)
+        if shutil.which(self.binary) is None and not self._bin_warned:
+            self._warn_missing_binary()
 
         # Optionally capture only the agent's last message via a temp file.
         last_msg_file: Optional[str] = None
         cmd_for_run = list(cmd)
         if self.capture_last_message:
             import tempfile
+
             fd, last_msg_file = tempfile.mkstemp(prefix="codex_last_", suffix=".txt")
             os.close(fd)
             cmd_for_run.extend(["--output-last-message", last_msg_file])
@@ -410,7 +448,9 @@ class CodexExecLM(BaseLM, InternalLMBase):
             ts = datetime.now().strftime("%H:%M:%S")
             dur = f"{(t1 - t0):.1f}s"
             summary = text[:120].replace("\n", " ") + ("…" if len(text) > 120 else "")
-            print(f"[{ts}] CodexExecLM.generate: finished (exit={proc.returncode}, dur={dur}). Output: {summary}")
+            print(
+                f"[{ts}] CodexExecLM.generate: finished (exit={proc.returncode}, dur={dur}). Output: {summary}"
+            )
 
         return LMResponse(outputs=[text], model=self.model, usage=None, raw=None)
 
@@ -430,7 +470,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
             cmd.extend(["--model", self.model_flag])
         if self.reasoning_effort:
             # Pass as config override; Codex parses JSON if possible, otherwise literal
-            cmd.extend(["-c", f"model_reasoning_effort=\"{self.reasoning_effort}\""])
+            cmd.extend(["-c", f'model_reasoning_effort="{self.reasoning_effort}"'])
         if self.extra_flags:
             cmd.extend(self.extra_flags)
         # The final argument is the query/prompt.
@@ -451,6 +491,17 @@ class CodexExecLM(BaseLM, InternalLMBase):
             lines.append(f"{role}: {content}")
         return "\n".join(lines).strip()
 
+    def _warn_missing_binary(self) -> None:
+        self._bin_warned = True
+        msg = (
+            f"[CodexExecLM] CLI '{self.binary}' not found in PATH. "
+            "Install Codex CLI and authenticate (codex --version, codex auth whoami)."
+        )
+        try:
+            print(msg)
+        except Exception:
+            pass
+
 
 class _MinimalResponse:
     """A lightweight, OpenAI-like response container for DSPy.
@@ -461,7 +512,13 @@ class _MinimalResponse:
     - usage: dict-like
     """
 
-    def __init__(self, model: str, choices: List[Dict[str, Any]], usage: Dict[str, Any]):
+    def __init__(
+        self, model: str, choices: List[Dict[str, Any]], usage: Dict[str, Any]
+    ):
         self.model = model
         self.choices = choices
         self.usage = usage
+
+    
+    
+ 

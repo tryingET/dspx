@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 # Internal DTO/provider base (optional)
@@ -14,18 +13,20 @@ try:
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
+
     class InternalLMBase:  # type: ignore
         pass
+
     ProviderCapabilities = None  # type: ignore
 
-# DSPy BaseLM
-try:
-    from dspy import BaseLM  # type: ignore
+# DSPy BaseLM (aliased to avoid redefinition noise)
+try:  # pragma: no cover
+    from dspy import BaseLM as DSPyBaseLM  # type: ignore
 except Exception:  # pragma: no cover
     try:
-        from dspy.models import BaseLM  # type: ignore
+        from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
     except Exception:  # pragma: no cover
-        class BaseLM:  # minimal fallback
+        class DSPyBaseLM:
             def __init__(self, model: str = "multi", model_type: str = "text", **kwargs) -> None:
                 self.model = model
                 self.model_type = model_type
@@ -89,10 +90,22 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
     try:
         if ProviderCapabilities is None:
             return None
-        supports_tools = any(getattr(getattr(p, "capabilities", None), "supports_tools", False) for p in providers)
-        code_exec = any(getattr(getattr(p, "capabilities", None), "code_exec", False) for p in providers)
-        json_mode = any(getattr(getattr(p, "capabilities", None), "json_mode", False) for p in providers)
-        multi_turn = any(getattr(getattr(p, "capabilities", None), "multi_turn", False) for p in providers)
+        supports_tools = any(
+            getattr(getattr(p, "capabilities", None), "supports_tools", False)
+            for p in providers
+        )
+        code_exec = any(
+            getattr(getattr(p, "capabilities", None), "code_exec", False)
+            for p in providers
+        )
+        json_mode = any(
+            getattr(getattr(p, "capabilities", None), "json_mode", False)
+            for p in providers
+        )
+        multi_turn = any(
+            getattr(getattr(p, "capabilities", None), "multi_turn", False)
+            for p in providers
+        )
         return ProviderCapabilities(
             supports_tools=supports_tools,
             code_exec=code_exec,
@@ -103,7 +116,7 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
         return None
 
 
-class MultiProviderLM(BaseLM, InternalLMBase):
+class MultiProviderLM(DSPyBaseLM, InternalLMBase):
     """Aggregate multiple BaseLM providers under one interface.
 
     Modes
@@ -133,17 +146,28 @@ class MultiProviderLM(BaseLM, InternalLMBase):
         worktree_branch_prefix: str = "dspx-multi",
         worktree_commitish: str = "HEAD",
         cleanup_isolated: bool = True,
-        validator: Optional[Any] = None,  # callable: (text, provider, prompt, messages) -> bool
+        validator: Optional[
+            Any
+        ] = None,  # callable: (text, provider, prompt, messages) -> bool
         abort_others_on_validate: bool = True,
+        reducer: Optional[Any] = None,
+        reduce_timeout_ms: Optional[int] = None,
         # Policy alignment knobs (best-effort propagation to providers)
         policy_bypass_permissions: Optional[bool] = None,
         policy_allowed_tools: Optional[Any] = None,
         policy_disallowed_tools: Optional[Any] = None,
         policy_append_system_prompt: Optional[str] = None,
     ) -> None:
-        super().__init__(model=f"{label}/{strategy}", model_type="text")
+        DSPyBaseLM.__init__(self, model=f"{label}/{strategy}", model_type="text")
         self.providers: List[Any] = list(providers)
-        self.names: List[str] = list(names) if names is not None else [getattr(p, "model", getattr(p, "__class__", type(p)).__name__) for p in providers]
+        self.names: List[str] = (
+            list(names)
+            if names is not None
+            else [
+                getattr(p, "model", getattr(p, "__class__", type(p)).__name__)
+                for p in providers
+            ]
+        )
         self.strategy = strategy
         self.concat_sep = concat_sep
         # store knobs
@@ -151,6 +175,8 @@ class MultiProviderLM(BaseLM, InternalLMBase):
         self.base_cwd = base_cwd
         self.validator = validator
         self.abort_others_on_validate = abort_others_on_validate
+        self.reducer = reducer
+        self.reduce_timeout_ms = reduce_timeout_ms
         self.policy_bypass_permissions = policy_bypass_permissions
         self.policy_allowed_tools = policy_allowed_tools
         self.policy_disallowed_tools = policy_disallowed_tools
@@ -220,7 +246,9 @@ class MultiProviderLM(BaseLM, InternalLMBase):
         return LMResponse(outputs=[text], model=self.model, usage=None, raw=raw)
 
     # Execution helpers
-    def _run_all(self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]) -> List[ProviderResult]:
+    def _run_all(
+        self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
+    ) -> List[ProviderResult]:
         strat = self.strategy
         if strat == "parallel_first":
             return self._run_parallel_first(prompt=prompt, messages=messages)
@@ -239,8 +267,19 @@ class MultiProviderLM(BaseLM, InternalLMBase):
                 return [res]
         return outs2
 
-    def _run_one(self, idx: int, provider: Any, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]) -> ProviderResult:
-        name = self.names[idx] if idx < len(self.names) else getattr(provider, "model", f"prov{idx}")
+    def _run_one(
+        self,
+        idx: int,
+        provider: Any,
+        *,
+        prompt: Optional[str],
+        messages: Optional[Iterable[Dict[str, Any]]],
+    ) -> ProviderResult:
+        name = (
+            self.names[idx]
+            if idx < len(self.names)
+            else getattr(provider, "model", f"prov{idx}")
+        )
         t0 = time.time()
         try:
             if hasattr(provider, "forward"):
@@ -248,20 +287,44 @@ class MultiProviderLM(BaseLM, InternalLMBase):
                 text = _extract_text_from_response(resp)
             elif LMRequest is not None and hasattr(provider, "generate"):
                 # Build LMRequest for provider.generate if only DTO is available
-                req = LMRequest(prompt=prompt, messages=None if messages is None else [  # type: ignore
-                    # type: ignore: we don't have Message class here; providers expecting generate will likely be our own
-                ])
+                req = LMRequest(
+                    prompt=prompt,
+                    messages=None
+                    if messages is None
+                    else [  # type: ignore
+                        # type: ignore: we don't have Message class here; providers expecting generate will likely be our own
+                    ],
+                )
                 r = provider.generate(req)
-                text = (r.outputs or [""])[0] if r and getattr(r, "outputs", None) else ""
+                text = (
+                    (r.outputs or [""])[0] if r and getattr(r, "outputs", None) else ""
+                )
             else:
                 raise RuntimeError("Provider lacks forward/generate")
             t1 = time.time()
-            return ProviderResult(name=name, model=getattr(provider, "model", None), text=text or "", raw=resp if 'resp' in locals() else None, started_at=t0, ended_at=t1)
+            return ProviderResult(
+                name=name,
+                model=getattr(provider, "model", None),
+                text=text or "",
+                raw=resp if "resp" in locals() else None,
+                started_at=t0,
+                ended_at=t1,
+            )
         except Exception as e:
             t1 = time.time()
-            return ProviderResult(name=name, model=getattr(provider, "model", None), text="", raw=None, started_at=t0, ended_at=t1, error=e)
+            return ProviderResult(
+                name=name,
+                model=getattr(provider, "model", None),
+                text="",
+                raw=None,
+                started_at=t0,
+                ended_at=t1,
+                error=e,
+            )
 
-    def _run_parallel_first(self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]) -> List[ProviderResult]:
+    def _run_parallel_first(
+        self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
+    ) -> List[ProviderResult]:
         # Prefer async-capable providers (our wrappers) to allow termination.
         async_runs: List[Optional[Any]] = [None] * len(self.providers)
         supports_async = []
@@ -271,14 +334,19 @@ class MultiProviderLM(BaseLM, InternalLMBase):
         prepared_cwds: List[Optional[str]] = [None] * len(self.providers)
         cleanup_info: Optional[Dict[str, Any]] = None
         if self.parallel_isolated and self.base_cwd:
-            prepared_cwds, cleanup_info = self._prepare_isolated_cwds(len(self.providers))
+            prepared_cwds, cleanup_info = self._prepare_isolated_cwds(
+                len(self.providers)
+            )
 
         # Start all
         for i, p in enumerate(self.providers):
             prov = p
-            name = self.names[i] if i < len(self.names) else f"prov{i}"
             # Apply temporary cwd override when supported
-            cwd_override = prepared_cwds[i] if (self.parallel_isolated and self.base_cwd) else self.base_cwdsafe()
+            cwd_override = (
+                prepared_cwds[i]
+                if (self.parallel_isolated and self.base_cwd)
+                else self.base_cwdsafe()
+            )
             prev_cwds[i] = self._apply_cwd(prov, cwd_override)
             if hasattr(prov, "start"):
                 try:
@@ -325,7 +393,9 @@ class MultiProviderLM(BaseLM, InternalLMBase):
 
         # Async polling loop with validation and cancellation
         finished: List[Optional[ProviderResult]] = [None] * len(self.providers)
-        remaining = set(i for i in range(len(self.providers)) if async_runs[i] is not None)
+        remaining = set(
+            i for i in range(len(self.providers)) if async_runs[i] is not None
+        )
         try:
             while remaining:
                 # check processes
@@ -347,19 +417,52 @@ class MultiProviderLM(BaseLM, InternalLMBase):
                                 text = getattr(cres, "text", "")
                                 t1 = getattr(cres, "ended_at", time.time())
                                 t0 = getattr(cres, "started_at", t1)
-                                finished[i] = ProviderResult(name=self.names[i], model=getattr(prov, "model", None), text=text, raw=cres, started_at=t0, ended_at=t1)
+                                finished[i] = ProviderResult(
+                                    name=self.names[i],
+                                    model=getattr(prov, "model", None),
+                                    text=text,
+                                    raw=cres,
+                                    started_at=t0,
+                                    ended_at=t1,
+                                )
                             else:
                                 # shouldn't happen; mark blank
-                                finished[i] = ProviderResult(name=self.names[i], model=getattr(prov, "model", None), text="", raw=None, started_at=time.time(), ended_at=time.time())
+                                finished[i] = ProviderResult(
+                                    name=self.names[i],
+                                    model=getattr(prov, "model", None),
+                                    text="",
+                                    raw=None,
+                                    started_at=time.time(),
+                                    ended_at=time.time(),
+                                )
                         except Exception as e:
-                            finished[i] = ProviderResult(name=self.names[i], model=getattr(prov, "model", None), text="", raw=None, started_at=time.time(), ended_at=time.time(), error=e)
+                            finished[i] = ProviderResult(
+                                name=self.names[i],
+                                model=getattr(prov, "model", None),
+                                text="",
+                                raw=None,
+                                started_at=time.time(),
+                                ended_at=time.time(),
+                                error=e,
+                            )
                         remaining.remove(i)
                         made_progress = True
 
                         # Validation and early abort
-                        if self.validator is not None and finished[i] and not finished[i].error:
+                        if (
+                            self.validator is not None
+                            and finished[i]
+                            and not finished[i].error
+                        ):
                             try:
-                                ok = bool(self.validator(finished[i].text, provider=self.names[i], prompt=prompt, messages=messages))
+                                ok = bool(
+                                    self.validator(
+                                        finished[i].text,
+                                        provider=self.names[i],
+                                        prompt=prompt,
+                                        messages=messages,
+                                    )
+                                )
                             except Exception:
                                 ok = False
                             if ok and self.abort_others_on_validate:
@@ -368,7 +471,10 @@ class MultiProviderLM(BaseLM, InternalLMBase):
                                     rj = async_runs[j]
                                     provj = self.providers[j]
                                     try:
-                                        if hasattr(provj, "terminate") and rj is not None:
+                                        if (
+                                            hasattr(provj, "terminate")
+                                            and rj is not None
+                                        ):
                                             provj.terminate(rj)
                                     except Exception:
                                         pass
@@ -386,11 +492,21 @@ class MultiProviderLM(BaseLM, InternalLMBase):
             if cleanup_info and self.cleanup_isolated:
                 self._cleanup_isolated(cleanup_info)
 
-        # No validated winner; return first finished or any
-        for r in finished:
-            if r is not None:
-                return [r]
-        return []
+        # No validated winner; use reducer if provided, else first finished
+        candidates: List[ProviderResult] = [r for r in finished if r is not None]  # type: ignore
+        if not candidates:
+            return []
+        if self.reducer is not None:
+            try:
+                ctx = {"prompt": prompt, "messages": messages, "strategy": self.strategy}
+                picked = self.reducer.pick(candidates, ctx)
+                idx = getattr(picked, "winner_index", 0)
+                if isinstance(idx, int) and 0 <= idx < len(candidates):
+                    return [candidates[idx]]
+            except Exception:
+                pass
+        # fallback
+        return [candidates[0]]
 
     def _apply_alignment_policies(self) -> None:
         for p in self.providers:
@@ -412,19 +528,27 @@ class MultiProviderLM(BaseLM, InternalLMBase):
                                 setattr(p, "permission_mode", "acceptEdits")
                         except Exception:
                             pass
-                if self.policy_allowed_tools is not None and hasattr(p, "allowed_tools"):
+                if self.policy_allowed_tools is not None and hasattr(
+                    p, "allowed_tools"
+                ):
                     try:
                         setattr(p, "allowed_tools", self.policy_allowed_tools)
                     except Exception:
                         pass
-                if self.policy_disallowed_tools is not None and hasattr(p, "disallowed_tools"):
+                if self.policy_disallowed_tools is not None and hasattr(
+                    p, "disallowed_tools"
+                ):
                     try:
                         setattr(p, "disallowed_tools", self.policy_disallowed_tools)
                     except Exception:
                         pass
-                if self.policy_append_system_prompt is not None and hasattr(p, "append_system_prompt"):
+                if self.policy_append_system_prompt is not None and hasattr(
+                    p, "append_system_prompt"
+                ):
                     try:
-                        setattr(p, "append_system_prompt", self.policy_append_system_prompt)
+                        setattr(
+                            p, "append_system_prompt", self.policy_append_system_prompt
+                        )
                     except Exception:
                         pass
             except Exception:
@@ -467,25 +591,46 @@ class MultiProviderLM(BaseLM, InternalLMBase):
         return self.base_cwd
 
     # Isolation helpers
-    def _prepare_isolated_cwds(self, n: int) -> Tuple[List[Optional[str]], Dict[str, Any]]:
+    def _prepare_isolated_cwds(
+        self, n: int
+    ) -> Tuple[List[Optional[str]], Dict[str, Any]]:
         mode = (self.isolation_mode or "mirror").lower()
         if mode == "git-worktree":
             return self._prepare_worktrees(n)
         # default: mirror copy
         return self._prepare_mirror_isolated_cwds(n)
 
-    def _prepare_mirror_isolated_cwds(self, n: int) -> Tuple[List[Optional[str]], Dict[str, Any]]:
-        import tempfile, shutil, os as _os
+    def _prepare_mirror_isolated_cwds(
+        self, n: int
+    ) -> Tuple[List[Optional[str]], Dict[str, Any]]:
+        import tempfile
+        import shutil
+        import os as _os
+
         prepared: List[Optional[str]] = [None] * n
         roots: List[str] = []
         for i in range(n):
             try:
                 tmpdir = tempfile.mkdtemp(prefix=f"dspx_multi_{i}_")
+
                 # Ignore heavy dirs
                 def _ig(dir, files):
-                    ignore = {".git", "__pycache__", ".venv", "venv", ".mypy_cache", ".pytest_cache"}
+                    ignore = {
+                        ".git",
+                        "__pycache__",
+                        ".venv",
+                        "venv",
+                        ".mypy_cache",
+                        ".pytest_cache",
+                    }
                     return [f for f in files if f in ignore]
-                shutil.copytree(self.base_cwd, _os.path.join(tmpdir, "proj"), dirs_exist_ok=True, ignore=_ig)
+
+                shutil.copytree(
+                    self.base_cwd,
+                    _os.path.join(tmpdir, "proj"),
+                    dirs_exist_ok=True,
+                    ignore=_ig,
+                )
                 path = _os.path.join(tmpdir, "proj")
                 prepared[i] = path
                 roots.append(tmpdir)
@@ -494,10 +639,19 @@ class MultiProviderLM(BaseLM, InternalLMBase):
         return prepared, {"mode": "mirror", "roots": roots}
 
     def _prepare_worktrees(self, n: int) -> Tuple[List[Optional[str]], Dict[str, Any]]:
-        import tempfile, subprocess, os as _os, shutil
+        import tempfile
+        import subprocess
+        import os as _os
+        import shutil
+
         # Ensure base_cwd is inside a git repo
         try:
-            cp = subprocess.run(["git", "-C", self.base_cwd, "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=False)
+            cp = subprocess.run(
+                ["git", "-C", self.base_cwd, "rev-parse", "--show-toplevel"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
             if cp.returncode != 0:
                 # fallback to mirror
                 return self._prepare_mirror_isolated_cwds(n)
@@ -513,7 +667,16 @@ class MultiProviderLM(BaseLM, InternalLMBase):
             tmpdir = tempfile.mkdtemp(prefix=f"dspx_wt_{i}_")
             wt_path = _os.path.join(tmpdir, "wt")
             # Create a detached worktree at commitish to avoid branch conflicts
-            cmd = ["git", "-C", repo_root, "worktree", "add", "--detach", wt_path, commitish]
+            cmd = [
+                "git",
+                "-C",
+                repo_root,
+                "worktree",
+                "add",
+                "--detach",
+                wt_path,
+                commitish,
+            ]
             cp = subprocess.run(cmd, capture_output=True, text=True)
             if cp.returncode == 0 and _os.path.isdir(wt_path):
                 worktrees[i] = wt_path
@@ -530,7 +693,12 @@ class MultiProviderLM(BaseLM, InternalLMBase):
                 worktrees[i] = mir[0]
                 if info.get("mode") == "mirror":
                     tmp_roots.extend(info.get("roots", []))
-        return worktrees, {"mode": "git-worktree", "repo_root": repo_root, "tmp_roots": tmp_roots, "paths": created_paths}
+        return worktrees, {
+            "mode": "git-worktree",
+            "repo_root": repo_root,
+            "tmp_roots": tmp_roots,
+            "paths": created_paths,
+        }
 
     def _cleanup_isolated(self, info: Dict[str, Any]) -> None:
         mode = (info.get("mode") or "").lower()
@@ -538,15 +706,23 @@ class MultiProviderLM(BaseLM, InternalLMBase):
             for root in info.get("roots", []) or []:
                 try:
                     import shutil
+
                     shutil.rmtree(root, ignore_errors=True)
                 except Exception:
                     pass
         elif mode == "git-worktree":
-            import subprocess, shutil
+            import subprocess
+            import shutil
+
             repo_root = info.get("repo_root")
             for p in info.get("paths", []) or []:
                 try:
-                    subprocess.run(["git", "-C", repo_root, "worktree", "remove", "--force", p], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    subprocess.run(
+                        ["git", "-C", repo_root, "worktree", "remove", "--force", p],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                    )
                 except Exception:
                     pass
             for tmp in info.get("tmp_roots", []) or []:
@@ -576,7 +752,9 @@ class MultiProviderLM(BaseLM, InternalLMBase):
 
 
 class _MinimalResponse:
-    def __init__(self, model: str, choices: List[Dict[str, Any]], usage: Dict[str, Any]):
+    def __init__(
+        self, model: str, choices: List[Dict[str, Any]], usage: Dict[str, Any]
+    ):
         self.model = model
         self.choices = choices
         self.usage = usage

@@ -19,15 +19,15 @@ dev-install:
 
 # Format code with ruff
 fmt:
-  uvx ruff format .
+  uvx ruff format src docs
 
 # Lint with ruff
 lint:
-  uvx ruff check .
+  uvx ruff check src docs
 
 # Type-check with mypy
 typecheck:
-  uvx mypy src
+  uv run mypy --exclude '^(submodules/|generated/)' src
 
 # Run tests (if present)
 test:
@@ -45,14 +45,8 @@ publish:
 # Set project version in pyproject.toml
 version new="":
   if [ -z "{{new}}" ]; then echo "usage: just version new=1.2.3"; exit 1; fi
-  python - <<PY
-import re, sys
-p = 'pyproject.toml'
-s = open(p,'r',encoding='utf-8').read()
-ns = re.sub(r'^(version\s*=\s*")([^"]+)(")', f"\\g<1>{{new}}\\g<3>", s, count=1, flags=re.M)
-open(p,'w',encoding='utf-8').write(ns)
-print('set version to', '{{new}}')
-PY
+  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i pyproject.toml
+  echo "set version to {{new}}"
 
 # Tag the current commit as a release version
 tag v="":

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 import time
 from typing import List
 
@@ -10,14 +9,8 @@ import dspy
 
 from dspx.provider_registry import ensure_default_providers, create
 from dspx.multi_provider_lm import MultiProviderLM
-from dspx.validators import (
-    non_empty,
-    json_parsable,
-    regex,
-    contains_all,
-    all_of,
-    any_of,
-)
+from dspx.validators import non_empty, json_parsable, regex, contains_all
+from dspx.reducers import HeuristicReducer
 from dspx.tracing import enable_mlflow_from_env, ensure_run_from_env
 
 
@@ -82,6 +75,22 @@ def main(argv: List[str] | None = None) -> int:
         help="Validator: none|json|regex:<pat>|contains:a,b,c",
     )
     ap.add_argument(
+        "--reducer",
+        default="none",
+        choices=["none", "heuristic"],
+        help="Reducer strategy for multiple candidates",
+    )
+    ap.add_argument(
+        "--keywords",
+        default="",
+        help="Comma-separated keywords for heuristic reducer",
+    )
+    ap.add_argument(
+        "--require-json",
+        action="store_true",
+        help="Require JSON for heuristic reducer",
+    )
+    ap.add_argument(
         "--bypass", action="store_true", help="Align bypass/policy across providers"
     )
     ap.add_argument(
@@ -102,6 +111,10 @@ def main(argv: List[str] | None = None) -> int:
     provs = [create(n) for n in names]
 
     validator = _build_validator(args.validator)
+    reducer = None
+    if args.reducer == "heuristic":
+        kws = [s for s in (args.keywords or "").split(",") if s]
+        reducer = HeuristicReducer(require_json=args.require_json, keywords=kws)
 
     lm = MultiProviderLM(
         providers=provs,
@@ -113,6 +126,7 @@ def main(argv: List[str] | None = None) -> int:
         worktree_commitish=args.worktree_commitish,
         policy_bypass_permissions=True if args.bypass else None,
         validator=validator,
+        reducer=reducer,
     )
     dspy.configure(lm=lm)
 
