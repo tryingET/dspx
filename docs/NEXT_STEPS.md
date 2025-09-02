@@ -47,9 +47,12 @@ Phase F — Docs and UX
 
 Phase G — Provider Instrumentation
 ----------------------------------
-- [ ] Make verbose LM logging configurable per provider; document `DSPX_CODEX_VERBOSE`.
-- [ ] Expose LM call history in a common interface (durations, exit codes, snippets).
-- [ ] Optional: stream last-agent-message while `codex exec` runs (TTY-friendly UI hook).
+- [x] Make verbose LM logging configurable per provider; document
+  `DSPX_CODEX_VERBOSE` (also `DSPX_CLAUDE_VERBOSE`, `DSPX_GEMINI_VERBOSE`).
+- [x] Expose LM call history in a common interface (durations, exit
+  codes, snippets) via `history` lists.
+- [ ] Optional: stream last-agent-message while `codex exec` runs
+  (TTY-friendly UI hook).
 
 Phase H — Consensus Reducer (Multi‑Provider)
 --------------------------------------------
@@ -97,15 +100,36 @@ MLflow
 - Tags: `providers`, `strategy`, `isolation_mode`, `winner`, `validated=1/0`.
 
 Implementation plan
-1) Interface: add optional `reducer` and `reduce_timeout_ms` to `MultiProviderLM`.
-2) HeuristicReducer: implements keyword/regex/json heuristics + simple tie‑breakers.
-3) JudgeReducer: configurable judge LM (can be Claude/Codex/OpenAI); prompt templates for scoring and pairwise comparisons.
-4) Wiring: in `parallel_first`, route finished candidates to the reducer; if threshold reached, abort others.
-5) CLI: extend `dspx-multi-demo` with `--reducer {none,heuristic,judge}` and options.
-6) MLflow: log reducer scores/artifacts; add `winner` tag and `candidates/*` artifacts.
-7) Docs: examples + guidance (safety, side‑effects, cost, reproducibility).
+1) [x] Interface: add optional `reducer` and `reduce_timeout_ms` to
+   `MultiProviderLM`.
+2) [x] HeuristicReducer: implements keyword/regex/json heuristics +
+   simple tie‑breakers.
+3) [ ] JudgeReducer: configurable judge LM (Claude/Codex/OpenAI);
+   prompt templates for scoring and pairwise comparisons.
+4) [ ] Wiring: in `parallel_first`, route finished candidates to the
+   reducer; add threshold/time‑budget/min‑k policies.
+5) [x] CLI: extend `dspx-multi-demo` with `--reducer
+   {none,heuristic,judge}` and options.
+6) [~] MLflow: log reducer scores/artifacts; `winner` tag present;
+   add `scores` and candidate artifacts next.
+7) [ ] Docs: examples + guidance (safety, side‑effects, cost,
+   reproducibility).
 
 Open questions
 - Judge neutrality: avoid using a candidate provider as its own judge by default; allow explicit judge selection.
 - Score calibration: normalize across tasks; allow per‑task schema/metric hooks.
 - Cost control: limit candidates (k‑best by validator) before invoking judge.
+
+Phase I — CI & Release
+----------------------
+- [ ] GitHub Actions: lint (ruff), typecheck (mypy on src), build (uv).
+- [ ] Publish on tag: build & upload to PyPI (uv publish) with token.
+- [ ] Cache uv and Python for fast CI.
+
+Phase J — Typing and Lint
+-------------------------
+- [ ] Resolve remaining mypy issues in project code (Optional/Union,
+  container types in multi‑provider and mermaid helpers).
+- [ ] Add type stubs for third‑party libs as needed (e.g., pandas‑stubs,
+  types‑beautifulsoup4).
+- [ ] Gradually enable stricter mypy flags once baseline is clean.
