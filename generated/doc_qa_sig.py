@@ -2,9 +2,9 @@
 import os
 import dspy
 from typing import List, Optional
-from codex_exec_lm import CodexExecLM
-from config_loader import load_config_env
-from tracing import enable_mlflow_from_env
+from dspx.codex_exec_lm import CodexExecLM
+from dspx.config_loader import load_config_env
+from dspx.tracing import enable_mlflow_from_env
 
 # Load config.toml (MLflow + Codex defaults) and enable tracing if configured.
 load_config_env()

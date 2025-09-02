@@ -41,3 +41,71 @@ Phase F — Docs and UX
 - [ ] README: “Phase 1 capture” quickstart with `DISCORD_TRANSCRIPT`.
 - [ ] Docs: architecture (generator, runtime hooks, patterns).
 - [ ] CLI ergonomics: `--phase`, `--variants`, `--out`, `--dry-run`.
+ - [ ] Config behavior: document discovery order (DSPX_CONFIG → nearest config.toml via walk-up).
+ - [ ] Observability: print resolved config path and effective MLflow URI/experiment at startup.
+ - [ ] Metrics & tags: standardize MLflow params/metrics/tags (lm_model, lm_auto, lm_bypass, issues_count, durations).
+
+Phase G — Provider Instrumentation
+----------------------------------
+- [ ] Make verbose LM logging configurable per provider; document `DSPX_CODEX_VERBOSE`.
+- [ ] Expose LM call history in a common interface (durations, exit codes, snippets).
+- [ ] Optional: stream last-agent-message while `codex exec` runs (TTY-friendly UI hook).
+
+Phase H — Consensus Reducer (Multi‑Provider)
+--------------------------------------------
+Goal: Choose the “best” answer when running multiple providers concurrently, with tunable strategies (heuristics or LLM‑as‑judge), and first‑pass early abort.
+
+Design
+- Reducer interface: pluggable reducer for MultiProviderLM.
+  - `class Reducer: def score(self, result, context) -> float|bool|dict; def pick(self, results, context) -> {winner, scores, meta}`
+  - Context includes: prompt/messages, provider name, timings, validation flags, task type hints.
+- Strategies:
+  - HeuristicReducer: length, keyword coverage, regex match, JSON parse success, schema keys, toxicity filters.
+  - ValidatorReducer: wraps existing validators; pass/fail + tie‑break (e.g., shortest valid, fastest valid).
+  - JudgeReducer (LLM‑as‑judge): ask a judge model to rate candidates; configurable judge LM (can be one of providers, a separate API, or local).
+  - Self‑consistency: prompt variants to each provider and vote across samples; optional due to cost.
+  - Weighted voting: per‑provider weights by historical quality/cost/latency.
+- Termination rules:
+  - Early stop when a candidate exceeds threshold (2c), abort others.
+  - Or time‑budget: wait `T` ms then pick highest score.
+  - Or min‑k: wait for k candidates or timeout, then pick.
+- Isolation interplay:
+  - Shared workspace: prefer read‑only or idempotent tasks.
+  - Git worktrees: safe for code‑editing; reducer should store chosen patch only.
+  - Database capture: persist all candidates even when not chosen; reducer records provenance and rationale.
+
+API sketch
+```
+class ReduceResult:
+    winner_index: int
+    scores: dict[str, float]
+    rationale: str | None
+    threshold_passed: bool
+
+class Reducer(Protocol):
+    def prepare(self, context: dict) -> None: ...  # e.g., warm judge LM
+    def score(self, text: str, meta: dict, context: dict) -> float: ...
+    def pick(self, candidates: list[dict], context: dict) -> ReduceResult: ...
+
+# Integrate into MultiProviderLM
+MultiProviderLM(..., reducer: Reducer | None = None, reduce_timeout_ms: int | None = None)
+```
+
+MLflow
+- Log reducer details: `reducer.strategy`, `reducer.threshold`, `winner`, `scores.{provider}`.
+- Artifacts: `candidates/<provider>.txt`, `reducer/rationale.txt`, `reducer/config.json`.
+- Tags: `providers`, `strategy`, `isolation_mode`, `winner`, `validated=1/0`.
+
+Implementation plan
+1) Interface: add optional `reducer` and `reduce_timeout_ms` to `MultiProviderLM`.
+2) HeuristicReducer: implements keyword/regex/json heuristics + simple tie‑breakers.
+3) JudgeReducer: configurable judge LM (can be Claude/Codex/OpenAI); prompt templates for scoring and pairwise comparisons.
+4) Wiring: in `parallel_first`, route finished candidates to the reducer; if threshold reached, abort others.
+5) CLI: extend `dspx-multi-demo` with `--reducer {none,heuristic,judge}` and options.
+6) MLflow: log reducer scores/artifacts; add `winner` tag and `candidates/*` artifacts.
+7) Docs: examples + guidance (safety, side‑effects, cost, reproducibility).
+
+Open questions
+- Judge neutrality: avoid using a candidate provider as its own judge by default; allow explicit judge selection.
+- Score calibration: normalize across tasks; allow per‑task schema/metric hooks.
+- Cost control: limit candidates (k‑best by validator) before invoking judge.

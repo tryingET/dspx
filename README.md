@@ -12,6 +12,9 @@ Prerequisites
 Files
 -----
 - `codex_exec_lm.py`: DSPy-compatible wrapper around `codex exec`.
+- `claude_cli_lm.py`: DSPy-compatible wrapper around the `claude` CLI (headless mode).
+- `gemini_cli_lm.py`: DSPy-compatible wrapper around the `gemini` CLI (headless `-p`).
+- `multi_provider_lm.py`: Aggregate multiple providers under one LM (`MultiProviderLM`).
 - `example_predict.py`: A runnable DSPy script using `Predict("question -> answer")`.
 - `codegen.py`: CLI to generate code from a spec using DSPy + Codex Exec.
 - `submodules/vibe-dspy`: Git submodule pointing to https://github.com/Archelunch/vibe-dspy
@@ -54,6 +57,49 @@ Customization
 -------------
 - Change model: set `CODEX_MODEL` env var or edit `model_flag` in `example_predict.py` (e.g., `gpt-5`).
 
+Claude Code (Headless) Provider
+-------------------------------
+Use the `claude` CLI programmatically via `ClaudeHeadlessLM`.
+
+Quick start:
+
+  uv pip install -e .
+  python -c "from dspx.claude_cli_lm import ClaudeHeadlessLM; import dspy; dspy.configure(lm=ClaudeHeadlessLM(output_format='text')); p=dspy.Predict('question -> answer'); print(p(question='Explain Python context managers').answer)"
+
+Environment variables for the built-in registry factory:
+
+- `CLAUDE_BIN` (default: `claude`)
+- `CLAUDE_OUTPUT_FORMAT` (`text`|`json`|`stream-json`)
+- `CLAUDE_APPEND_SYSTEM_PROMPT`
+- `CLAUDE_ALLOWED_TOOLS` (comma or space separated)
+- `CLAUDE_DISALLOWED_TOOLS` (comma or space separated)
+- `CLAUDE_PERMISSION_MODE` (e.g., `acceptEdits`)
+- `CLAUDE_MCP_CONFIG` (path to servers.json)
+- `CLAUDE_PERMISSION_PROMPT_TOOL`
+- `CLAUDE_RESUME` (session id)
+- `CLAUDE_CONTINUE` (`1` to continue most recent)
+- `CLAUDE_CWD` (working directory)
+- `CLAUDE_USE_CLI_CWD` (`1` to pass `--cwd` to CLI)
+- `CLAUDE_TIMEOUT` (seconds)
+
+Registry name: `claude-cli`. You can select it via `DSPX_PROVIDER=claude-cli` with `provider_registry.create_from_env()`.
+
+FunctAI Integration
+-------------------
+FunctAI builds on DSPy. You can pass any DSPy BaseLM—including `CodexExecLM` or `ClaudeHeadlessLM`—to FunctAI’s global configure:
+
+  from functai import configure
+  from dspx.codex_exec_lm import CodexExecLM
+  from dspx.claude_cli_lm import ClaudeHeadlessLM
+
+  # Use Codex Exec
+  configure(lm=CodexExecLM(model_flag='gpt-4.1', auto_mode=True))
+
+  # Or use Claude CLI headless with JSON output
+  configure(lm=ClaudeHeadlessLM(output_format='json'))
+
+No other changes are required; FunctAI forwards the LM into DSPy under the hood.
+
 Default Codex flags
 -------------------
 The wrapper/example currently passes:
@@ -76,7 +122,9 @@ Submodule: vibe-dspy
 - Importing its code in this project (no packaging metadata in upstream):
   - Use PYTHONPATH to point to its `src` directory when running code:
 
-    uv run env PYTHONPATH=submodules/vibe-dspy/src python -m example_predict
+  # install project console scripts
+  uv sync && uv pip install -e .
+  uv run dspx-example
 
   - Or set PYTHONPATH in your shell/session for convenience.
 
@@ -98,11 +146,11 @@ Code Generator CLI
 ------------------
 - Generate code (prints to stdout by default):
 
-  uv run python -m codegen "Create a Python CLI that says hello"
+  uv run dspx-codegen "Create a Python CLI that says hello"
 
 - Language hint and write to file:
 
-  uv run python -m codegen -l python -o hello.py "CLI that prints 'Hello, world!'"
+  uv run dspx-codegen -l python -o hello.py "CLI that prints 'Hello, world!'"
 
 - Environment variables to control Codex behavior:
 
@@ -112,7 +160,7 @@ Code Generator CLI
 
   Example with explicit model:
 
-  uv run env CODEX_MODEL=gpt-4.1 python -m codegen -l python -o hello.py "CLI that prints 'Hello'"
+  uv run env CODEX_MODEL=gpt-4.1 dspx-codegen -l python -o hello.py "CLI that prints 'Hello'"
 
 Mermaid → DSPy Programs
 -----------------------
@@ -129,17 +177,17 @@ Mermaid → DSPy Programs
 
 - Extra variant: `clarity` (Constraints→Learn→Abduce→Robust-plan→Intervene→Trace→Yield). Example:
 
-  uv run python -m mermaid2dspy -f path/to/diagram.mmd -v clarity -n my_flow
+  uv run dspx-mermaid -f path/to/diagram.mmd -v clarity -n my_flow
 
 Vibe-DSPy (Codex Exec) Adapter
 ------------------------------
 - Generate a DSPy signature using vibe-dspy with Codex Exec as the LM:
 
-  uv run python -m vibegen "Count birds in an image and describe each"
+  uv run dspx-vibegen "Count birds in an image and describe each"
 
 - Wrap the signature into a runnable script that configures Codex Exec and save it:
 
-  uv run python -m vibegen --wrap-script -o generated/birds_sig.py "Count birds in an image and describe each"
+  uv run dspx-vibegen --wrap-script -o generated/birds_sig.py "Count birds in an image and describe each"
 
 - Control model/flags via env (same as the rest of this repo):
   - `CODEX_MODEL` (default: `gpt-5`)
@@ -150,15 +198,15 @@ Interactive Refine
 ------------------
 - Run refine with Codex Exec (interactive):
 
-  uv run python -m viberefine --attempts 3 "Extract topics and sentiment from support tickets"
+  uv run dspx-viberefine --attempts 3 "Extract topics and sentiment from support tickets"
 
 - Non-interactive (accept first draft) and save to file:
 
-  uv run python -m viberefine --non-interactive -o generated/tickets_sig.py "Extract topics and sentiment from support tickets"
+  uv run dspx-viberefine --non-interactive -o generated/tickets_sig.py "Extract topics and sentiment from support tickets"
 
 - Wrap into runnable script that configures Codex Exec:
 
-  uv run python -m viberefine --non-interactive --wrap-script -o generated/tickets_script.py "Extract topics and sentiment from support tickets"
+  uv run dspx-viberefine --non-interactive --wrap-script -o generated/tickets_script.py "Extract topics and sentiment from support tickets"
 
 Tracing with MLflow
 -------------------
@@ -173,7 +221,25 @@ Tracing with MLflow
 - Enable tracing via env and run any script (example):
 
   uv run env MLFLOW_ENABLE=1 MLFLOW_TRACKING_URI=http://127.0.0.1:5000 MLFLOW_EXPERIMENT=DSPy \
-    python -m example_predict
+    MLFLOW_RUN_NAME="local-test-$(date +%Y%m%d-%H%M%S)" \
+    dspx-example
+
+- Or inside your script, after configuring providers:
+
+  from dspx.tracing import enable_mlflow_from_env, ensure_run_from_env
+  enable_mlflow_from_env()
+  ensure_run_from_env()  # uses $MLFLOW_RUN_NAME if provided
+
+Run naming
+----------
+- Set a run name via env to keep experiments organized:
+
+  export MLFLOW_RUN_NAME="intent-context-$(date +%Y%m%d-%H%M%S)"
+
+- Many scripts also call `mlflow.start_run(run_name=...)`. If both are set, the explicit `start_run` argument takes precedence over `MLFLOW_RUN_NAME`.
+- Library behavior: `enable_mlflow_from_env()` will auto‑start a run using
+  `MLFLOW_RUN_NAME` if no run is active yet. Scripts can still override by
+  starting their own run explicitly.
 
 Synology NAS (Docker) Example
 -----------------------------
@@ -198,6 +264,9 @@ Synology NAS (Docker) Example
 
   - Update `config.toml` → `[mlflow].tracking_uri = "http://NAS_IP:50000"`
   - Or export `MLFLOW_TRACKING_URI=http://NAS_IP:50000`
+  - Optionally set a run name prefix per machine/project:
+
+    export MLFLOW_RUN_NAME="orgmem-intent-$(hostname)-$(date +%Y%m%d-%H%M%S)"
 
 Config file (no more long env lines)
 ------------------------------------
@@ -208,14 +277,104 @@ Config file (no more long env lines)
   enable = true
   tracking_uri = "http://192.168.1.10:50000"
   experiment = "DSPy"
+  # Optional: you can continue to set `MLFLOW_RUN_NAME` via env for run naming
 
   [codex]
   model = "gpt-5"
   reasoning_effort = "minimal"
   bypass = true
 
+Gemini (Headless) Provider
+--------------------------
+Use the `gemini` CLI programmatically via `GeminiCLILM` (non-interactive `-p`).
+
+Quick start:
+
+  python -c "from dspx.gemini_cli_lm import GeminiCLILM; import dspy; dspy.configure(lm=GeminiCLILM()); p=dspy.Predict('question -> answer'); print(p(question='What is a git worktree?').answer)"
+
+Environment variables for the built-in registry factory:
+
+- `GEMINI_BIN` (default: `gemini`)
+- `GEMINI_MODEL` (forwarded in env; configure via settings.json or env)
+- `GEMINI_CWD` (working directory for subprocess)
+- `GEMINI_TIMEOUT` (seconds)
+- `GEMINI_EXTRA_FLAGS` (space-separated additional CLI flags)
+
+Registry name: `gemini-cli`.
+
+Multi‑Provider Abstraction
+-------------------------
+Run multiple SDKs side‑by‑side without picking a single BaseLM.
+
+- Registry name: `multi`
+ - Env: `DSPX_MULTI_PROVIDERS="codex-exec,claude-cli,gemini-cli"`, `DSPX_MULTI_STRATEGY="sequential_first|parallel_first|collect_concat|collect_longest"`
+- Python usage:
+
+  from dspx.multi_provider_lm import MultiProviderLM
+  from dspx.codex_exec_lm import CodexExecLM
+  from dspx.claude_cli_lm import ClaudeHeadlessLM
+  import dspy
+
+  lm = MultiProviderLM(
+      providers=[
+          CodexExecLM(model_flag="gpt-5", auto_mode=True),
+          ClaudeHeadlessLM(output_format="text"),
+      ],
+      strategy="sequential_first",  # or: parallel_first, collect_concat, collect_longest
+  )
+  dspy.configure(lm=lm)
+
+Safety and side effects:
+- Prefer `sequential_first` when providers can modify files (e.g., code‑editing tools).
+- `parallel_first` can’t cancel already‑running CLI processes; they finish in background.
+- For isolation, point each provider at separate CWDs and disable dangerous flags.
+
+Aligned policy knobs:
+- Set once, applied across providers where applicable:
+  - `policy_bypass_permissions=True` → CodexExecLM: `dangerously_bypass=True`; ClaudeHeadlessLM: `permission_mode='acceptEdits'`.
+  - `policy_allowed_tools`, `policy_disallowed_tools` → forwarded to Claude when available.
+  - `policy_append_system_prompt` → forwarded to Claude.
+
+Parallel variants:
+- Shared workspace (2a): `MultiProviderLM(..., strategy='parallel_first', parallel_isolated=False, base_cwd=None)`.
+- Isolated worktrees (2b): `MultiProviderLM(..., strategy='parallel_first', parallel_isolated=True, base_cwd='/path/to/repo', isolation_mode='git-worktree')`
+  - Creates detached worktrees from `--worktree-commitish` (default `HEAD`) and cleans them up when done.
+- Early abort on validation (2c): provide a validator and keep the first passing result; others are terminated when supported.
+  - `MultiProviderLM(..., strategy='parallel_first', validator=my_ok, abort_others_on_validate=True)`
+  - Works best with our CLI wrappers (`CodexExecLM`, `ClaudeHeadlessLM`) which expose `start/collect/terminate`.
+
+Env configuration for `multi` registry:
+- `DSPX_MULTI_PROVIDERS`: order of providers, e.g. `codex-exec,claude-cli,gemini-cli`
+- `DSPX_MULTI_STRATEGY`: `sequential_first|parallel_first|collect_concat|collect_longest`
+- `DSPX_MULTI_PARALLEL_ISOLATED`: `1` to mirror the workspace per provider
+- `DSPX_MULTI_BASE_CWD`: base repo/workspace to mirror when isolated
+- `DSPX_MULTI_ISOLATION_MODE`: `mirror` (default) or `git-worktree`
+- `DSPX_MULTI_WORKTREE_COMMITISH`: commit/ref for worktree (default `HEAD`)
+- `DSPX_MULTI_CLEANUP_ISOLATED`: `1` to auto-remove mirrored dirs/worktrees
+- `DSPX_MULTI_POLICY_BYPASS`: `1` to enable cross-SDK bypass alignment
+- `DSPX_MULTI_POLICY_ALLOWED_TOOLS`: tools list for Claude
+- `DSPX_MULTI_POLICY_DISALLOWED_TOOLS`: tools list for Claude
+- `DSPX_MULTI_POLICY_APPEND_SYSTEM_PROMPT`: extra system prompt for Claude
+
+CLI demo with MLflow
+--------------------
+- Compare strategies and log results to MLflow:
+
+  dspx-multi-demo "Refactor this module for clarity" \
+    --providers codex-exec,claude-cli \
+    --strategy parallel_first \
+    --parallel-isolated \
+    --isolation-mode git-worktree \
+    --base-cwd /path/to/repo \
+    --worktree-commitish HEAD \
+    --validator json \
+    --bypass \
+    --mlflow
+
+- Set MLflow env (optional): `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT`, `MLFLOW_RUN_NAME`, `MLFLOW_ENABLE=1`.
+
 - Your commands stay short:
- 
+
 Task Runner
 -----------
 - A Justfile is included for common commands:
@@ -228,7 +387,7 @@ Task Runner
   just codegen "A Python CLI that prints 'ok'"
   just smoke      # run a small suite
 
-  uv run python -m viberefine --non-interactive "Classify sentiment"
+  uv run dspx-viberefine --non-interactive "Classify sentiment"
 
 What gets logged
 - DSPy predictions and steps (inputs/outputs, LM config, tools) appear under the selected experiment's Traces tab in the MLflow UI.

@@ -7,8 +7,8 @@ from typing import Optional
 
 import dspy
 
-from config_loader import load_config_env
-from tracing import enable_mlflow_from_env
+from dspx.config_loader import load_config_env
+from dspx.tracing import enable_mlflow_from_env
 from dspx.provider_registry import create_from_env, ensure_default_providers
 
 
@@ -17,9 +17,9 @@ def _wrap_script(signature_code: str) -> str:
         "# Auto-generated DSPy script (Codex Exec enabled)",
         "import os",
         "import dspy",
-        "from codex_exec_lm import CodexExecLM",
-        "from config_loader import load_config_env",
-        "from tracing import enable_mlflow_from_env",
+        "from dspx.codex_exec_lm import CodexExecLM",
+        "from dspx.config_loader import load_config_env",
+        "from dspx.tracing import enable_mlflow_from_env",
         "",
         "load_config_env()",
         "enable_mlflow_from_env()",

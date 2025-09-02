@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
-from config_loader import load_config_env
-from tracing import enable_mlflow_from_env
+from dspx.config_loader import load_config_env
+from dspx.tracing import enable_mlflow_from_env
 
 
 def ensure_env_and_tracing(config_path: str | None = None) -> None:

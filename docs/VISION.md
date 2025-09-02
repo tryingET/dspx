@@ -8,7 +8,7 @@ This codebase integrates DSPy with Codex Exec (codex CLI) to enable execution‑
 Layers
 ------
 - Core:
-  - `config_loader.py`: Loads config.toml → env (MLflow + Codex defaults)
+  - `config_loader.py`: Loads config.toml → env (MLflow + Codex defaults); discovery via `DSPX_CONFIG` or nearest `config.toml` (walk-up from CWD).
   - `tracing.py`: MLflow autolog enablement (opt‑in via env/config)
   - LM Provider API (planned `LMBase`): small interface to unify providers
   - DTOs (planned): typed request/response contracts (versioned)
@@ -17,6 +17,7 @@ Layers
 - Providers:
   - `codex_exec_lm.py`: CodexExecLM (codex exec, --full-auto or bypass)
   - OpenAI Responses (future), OSS/Ollama (future)
+  - Instrumentation: optional verbose logs via `DSPX_CODEX_VERBOSE`, call history (durations, exit codes, output snippet)
 - Services:
   - CodegenService: “spec → code” workflows (see `codegen.py` CLI)
   - SignatureService: vibe‑dspy adapter (see `vibegen.py`)
@@ -33,6 +34,7 @@ Layers
   - MLflow server/UI (local/remote/NAS)
   - `submodules/vibe-dspy` (signatures), `attachments`, `ovllm`
   - `codex` CLI (Codex Exec)
+  - Optional explicit MLflow runs in downstream scripts for guaranteed tracking (params, artifacts, tags)
 
 Why This Refactor
 -----------------

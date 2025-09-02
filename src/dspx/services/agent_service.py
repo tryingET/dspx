@@ -6,8 +6,8 @@ import dspy
 
 from ..provider_registry import create_from_env, ensure_default_providers
 from ..tools.registry import ensure_default_tools, get_tool
-from config_loader import load_config_env
-from tracing import enable_mlflow_from_env
+from dspx.config_loader import load_config_env
+from dspx.tracing import enable_mlflow_from_env
 
 
 def run(question: str, *, tools: Optional[List[str]] = None, max_iters: int = 3) -> str:

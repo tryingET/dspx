@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import argparse
-import os
-import sys
 from pathlib import Path
 from typing import List
 
-from src.dspx.services.mermaid_workflow_service import generate_programs
+from dspx.services.mermaid_workflow_service import generate_programs
 
 
 def _read_input(path: str | None) -> str:
     if path and path != "-":
         return Path(path).read_text(encoding="utf-8")
+    import sys
     data = sys.stdin.read()
     if not data:
         raise SystemExit("No Mermaid input provided. Pass --file or pipe via stdin.")

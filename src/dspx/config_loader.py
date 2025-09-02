@@ -36,18 +36,43 @@ def _load_toml(path: Path) -> Dict[str, Any]:
         return {}
 
 
+def _find_config_path(explicit: Optional[str]) -> Optional[Path]:
+    """Return the best config path to use, if any.
+
+    Priority:
+    1) `explicit` argument if provided and exists
+    2) `DSPX_CONFIG` env var if set and exists
+    3) Nearest `config.toml` by walking up from CWD
+    4) Fallback: None
+    """
+    # 1) explicit
+    if explicit:
+        p = Path(explicit).expanduser().resolve()
+        if p.exists():
+            return p
+    # 2) env var
+    env_p = os.getenv("DSPX_CONFIG")
+    if env_p:
+        p = Path(env_p).expanduser().resolve()
+        if p.exists():
+            return p
+    # 3) walk up from CWD
+    cur = Path.cwd().resolve()
+    for parent in [cur] + list(cur.parents):
+        cand = parent / "config.toml"
+        if cand.exists():
+            return cand
+    return None
+
+
 def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     """Load config from a TOML file and export to environment variables.
 
-    Order:
-    - If `path` is provided and exists, load it.
-    - Else, load `config.toml` from the current working directory if present.
-
     Returns the parsed config dict (possibly empty).
     """
-    cfg_path = Path(path) if path else Path.cwd() / "config.toml"
+    cfg_path = _find_config_path(path)
     data: Dict[str, Any] = {}
-    if cfg_path.exists():
+    if cfg_path and cfg_path.exists():
         data = _load_toml(cfg_path)
 
     # Sections: [mlflow], [codex], [provider]

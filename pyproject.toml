@@ -1,5 +1,5 @@
 [project]
-name = "dspycodexexec"
+name = "dspx"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -12,3 +12,18 @@ dependencies = [
     "mlflow>=2.18.0",
     "pandas>=2.3.2",
 ]
+
+[project.scripts]
+"dspx-example" = "dspx.cli.example_predict:main"
+"dspx-codegen" = "dspx.cli.codegen:main"
+"dspx-tools" = "dspx.cli.tools_demo:main"
+"dspx-vibegen" = "dspx.cli.vibegen:main"
+"dspx-viberefine" = "dspx.cli.viberefine:main"
+"dspx-mermaid" = "dspx.cli.mermaid2dspy:main"
+"dspx-mermaid-sig" = "dspx.cli.dspx_mermaid2dspy:main"
+"dspx-agent" = "dspx.cli.agent_demo:main"
+"dspx-multi-demo" = "dspx.cli.multi_demo:main"
+
+[build-system]
+requires = ["uv-build>=0.2"]
+build-backend = "uv_build"

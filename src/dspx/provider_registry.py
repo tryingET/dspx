@@ -40,6 +40,24 @@ def ensure_default_providers() -> None:
         except Exception:
             # Ignore if unavailable; callers may still register manually
             pass
+    if "claude-cli" not in _REGISTRY:
+        try:
+            from .providers_register_claude import register as _reg_claude  # type: ignore
+            _reg_claude()
+        except Exception:
+            pass
+    if "multi" not in _REGISTRY:
+        try:
+            from .providers_register_multi import register as _reg_multi  # type: ignore
+            _reg_multi()
+        except Exception:
+            pass
+    if "gemini-cli" not in _REGISTRY:
+        try:
+            from .providers_register_gemini import register as _reg_gemini  # type: ignore
+            _reg_gemini()
+        except Exception:
+            pass
 
 
 def create_from_env(env_var: str = "DSPX_PROVIDER", default: str = "codex-exec") -> object:

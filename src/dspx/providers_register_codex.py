@@ -5,7 +5,7 @@ from typing import Optional
 
 from .capabilities import ProviderCapabilities
 from .provider_registry import register_provider
-from codex_exec_lm import CodexExecLM
+from dspx.codex_exec_lm import CodexExecLM
 
 
 def _factory() -> CodexExecLM:

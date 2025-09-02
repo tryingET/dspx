@@ -2,8 +2,8 @@ from __future__ import annotations
 import os
 from typing import Dict, List, Optional
 import dspy
-from config_loader import load_config_env
-from tracing import enable_mlflow_from_env
+from dspx.config_loader import load_config_env
+from dspx.tracing import enable_mlflow_from_env
 from dspx.provider_registry import create_from_env, ensure_default_providers
 
 PROGRAM_NAME = 'sample_flow'

@@ -11,11 +11,14 @@ What Works Today
   - Supports `--model`, reasoning effort via `-c model_reasoning_effort=...`, and `--dangerously-bypass-approvals-and-sandbox`.
   - Captures last agent message via `--output-last-message` for clean outputs.
   - Bridges to DSPy’s BaseLM; returns an OpenAI-like minimal response object.
+  - Verbose instrumentation: set `DSPX_CODEX_VERBOSE=1` to print launch/finish lines with durations; history available via `lm.history`.
 - MLflow tracing (`tracing.py` + `config.toml`):
   - Autologging enabled via `enable_mlflow_from_env()`; configured through `config.toml` (or env).
   - Verified runs (experiment "DSPy") appear in MLflow UI (NAS Docker or local server).
+  - Downstream scripts may also start explicit runs (`mlflow.start_run`) and log params/artifacts for guaranteed visibility.
 - Config management (`config_loader.py`):
   - Reads `config.toml` at startup; populates MLflow and Codex env vars automatically.
+  - Discovery order: `DSPX_CONFIG` env → nearest `config.toml` by walking up from the current working directory.
 - CLIs:
   - `example_predict.py`: simple Q&A with Codex Exec.
   - `codegen.py`: spec → code generator (code-only output; optional file write).
@@ -81,9 +84,9 @@ Risks and Constraints
 Environment Snapshot
 --------------------
 - Python 3.13 (managed by uv)
-- dspy-ai 3.0.2
-- codex-cli 0.24.0
-- mlflow 3.3.1 (server via Docker; tracing via `mlflow.dspy.autolog()`)
+- dspy-ai 3.x
+- codex-cli 0.24.x
+- mlflow 3.x (server via Docker; tracing via `mlflow.dspy.autolog()`)
 Tools
 -----
 - ToolRegistry with focused utilities:
@@ -101,3 +104,4 @@ Limitations and Open Issues
 - Intent capture uses a transcript-file stub; live Discord/bot integration not wired yet.
 - SQL store is SQLite-only; Postgres/SQLAlchemy integration pending.
 - No unit/e2e tests yet; CI absent.
+ - Config precedence can surprise if multiple parent folders contain a `config.toml`. Set `DSPX_CONFIG` for strict control.

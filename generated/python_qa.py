@@ -1,7 +1,7 @@
 # Auto-generated DSPy script (Codex Exec enabled)
 import os
 import dspy
-from codex_exec_lm import CodexExecLM
+from dspx.codex_exec_lm import CodexExecLM
 
 # Configure Codex Exec as the LM
 MODEL = os.getenv('CODEX_MODEL', 'gpt-5')

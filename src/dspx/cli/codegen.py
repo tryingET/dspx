@@ -1,7 +1,4 @@
 import argparse
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 from typing import Optional
 
 from dspx.services.codegen_service import run as run_codegen

@@ -3,7 +3,7 @@ CodexExecLM: A minimal DSPy-compatible wrapper around the Codex CLI
 (`codex exec`) so you can use Codex Exec as the active LM in DSPy.
 
 Usage:
-    from codex_exec_lm import CodexExecLM
+    from dspx.codex_exec_lm import CodexExecLM
     import dspy
 
     lm = CodexExecLM(model_flag="gpt-4.1", auto_mode=True)
@@ -29,6 +29,8 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime
+import time
 from typing import Any, Dict, Iterable, List, Optional
 
 # Optional internal DTO/provider interface for services
@@ -64,6 +66,20 @@ class CodexExecResult:
     returncode: int
     stdout: str
     stderr: str
+    text: str  # Final text used as completion (stdout/last-message/stderr)
+    started_at: float | None = None
+    ended_at: float | None = None
+    duration_s: float | None = None
+
+
+@dataclass
+class _Running:
+    command: List[str]
+    cwd: Optional[str]
+    env: dict
+    popen: subprocess.Popen
+    last_msg_file: Optional[str]
+    started_at: float
 
 
 class CodexExecLM(BaseLM, InternalLMBase):
@@ -115,6 +131,8 @@ class CodexExecLM(BaseLM, InternalLMBase):
         self.dangerously_bypass = dangerously_bypass
         self.reasoning_effort = reasoning_effort
         self.enable_search = enable_search
+        # Verbose logging for visibility; set via env DSPX_CODEX_VERBOSE=1
+        self.verbose: bool = os.getenv("DSPX_CODEX_VERBOSE", "0") == "1"
 
         # history of calls for debugging/inspection
         self.history: List[CodexExecResult] = []
@@ -143,6 +161,10 @@ class CodexExecLM(BaseLM, InternalLMBase):
         query = prompt if prompt is not None else self._messages_to_prompt(messages)
         cmd = self._build_command(query)
 
+        if self.verbose:
+            ts = datetime.now().strftime("%H:%M:%S")
+            print(f"[{ts}] CodexExecLM: launching codex exec (model={self.model_flag or 'default'}, auto={self.auto_mode}, bypass={self.dangerously_bypass})…")
+
         # Merge env with current process env; Codex Auth typically lives in env.
         env = os.environ.copy()
         env.update(self.env)
@@ -156,6 +178,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
             os.close(fd)
             cmd_for_run.extend(["--output-last-message", last_msg_file])
 
+        t0 = time.time()
         proc = subprocess.run(
             cmd_for_run,
             cwd=self.workspace or None,
@@ -167,6 +190,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
             check=False,
         )
 
+        t1 = time.time()
         stdout = (proc.stdout or "").strip()
         stderr = (proc.stderr or "").strip()
 
@@ -201,8 +225,18 @@ class CodexExecLM(BaseLM, InternalLMBase):
                 returncode=proc.returncode,
                 stdout=stdout,
                 stderr=stderr,
+                text=text,
+                started_at=t0,
+                ended_at=t1,
+                duration_s=(t1 - t0),
             )
         )
+
+        if self.verbose:
+            ts = datetime.now().strftime("%H:%M:%S")
+            dur = f"{(t1 - t0):.1f}s"
+            summary = text[:120].replace("\n", " ") + ("…" if len(text) > 120 else "")
+            print(f"[{ts}] CodexExecLM: finished (exit={proc.returncode}, dur={dur}). Output: {summary}")
 
         # Build a minimal OpenAI-like response object for DSPy to process.
         response = _MinimalResponse(
@@ -211,6 +245,87 @@ class CodexExecLM(BaseLM, InternalLMBase):
             usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         )
         return response
+
+    # Advanced: asynchronous execution helpers for orchestration layers
+    def start(self, *, prompt: Optional[str] = None, messages: Optional[Iterable[Dict[str, Any]]] = None) -> _Running:
+        query = prompt if prompt is not None else self._messages_to_prompt(messages)
+        env = os.environ.copy()
+        env.update(self.env)
+        last_msg_file: Optional[str] = None
+        cmd_for_run = list(self._build_command(query))
+        if self.capture_last_message:
+            import tempfile
+            fd, last_msg_file = tempfile.mkstemp(prefix="codex_last_", suffix=".txt")
+            os.close(fd)
+            cmd_for_run.extend(["--output-last-message", last_msg_file])
+        p = subprocess.Popen(
+            cmd_for_run,
+            cwd=self.workspace or None,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+        return _Running(command=cmd_for_run, cwd=self.workspace or None, env=env, popen=p, last_msg_file=last_msg_file, started_at=time.time())
+
+    def collect(self, run: _Running) -> CodexExecResult:
+        proc = run.popen
+        stdout, stderr = proc.communicate(timeout=self.timeout)
+        stdout = (stdout or "").strip()
+        stderr = (stderr or "").strip()
+        text = ""
+        if run.last_msg_file and os.path.exists(run.last_msg_file):
+            try:
+                with open(run.last_msg_file, "r", encoding="utf-8", errors="ignore") as f:
+                    text = f.read().strip()
+            finally:
+                try:
+                    os.remove(run.last_msg_file)
+                except Exception:
+                    pass
+        if not text:
+            text = stdout if stdout else (stderr if self.capture_stderr else "")
+        t1 = time.time()
+        res = CodexExecResult(
+            prompt="",  # unknown here
+            command=run.command,
+            returncode=proc.returncode or 0,
+            stdout=stdout,
+            stderr=stderr,
+            text=text,
+            started_at=run.started_at,
+            ended_at=t1,
+            duration_s=(t1 - run.started_at),
+        )
+        self.history.append(res)
+        return res
+
+    def terminate(self, run: _Running) -> None:
+        try:
+            import os, signal
+            # Send SIGTERM to the whole process group
+            os.killpg(run.popen.pid, signal.SIGTERM)
+        except Exception:
+            try:
+                run.popen.terminate()
+            except Exception:
+                pass
+        try:
+            time.sleep(0.2)
+            import os, signal
+            os.killpg(run.popen.pid, signal.SIGKILL)
+        except Exception:
+            try:
+                run.popen.kill()
+            except Exception:
+                pass
+        if run.last_msg_file:
+            try:
+                if os.path.exists(run.last_msg_file):
+                    os.remove(run.last_msg_file)
+            except Exception:
+                pass
 
     # Internal services entrypoint: DTO-based generate()
     def generate(self, request: "LMRequest", **kwargs):  # type: ignore[override]
@@ -241,6 +356,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
             os.close(fd)
             cmd_for_run.extend(["--output-last-message", last_msg_file])
 
+        t0 = time.time()
         proc = subprocess.run(
             cmd_for_run,
             cwd=self.workspace or None,
@@ -252,6 +368,7 @@ class CodexExecLM(BaseLM, InternalLMBase):
             check=False,
         )
 
+        t1 = time.time()
         stdout = (proc.stdout or "").strip()
         stderr = (proc.stderr or "").strip()
 
@@ -282,8 +399,18 @@ class CodexExecLM(BaseLM, InternalLMBase):
                 returncode=proc.returncode,
                 stdout=stdout,
                 stderr=stderr,
+                text=text,
+                started_at=t0,
+                ended_at=t1,
+                duration_s=(t1 - t0),
             )
         )
+
+        if self.verbose:
+            ts = datetime.now().strftime("%H:%M:%S")
+            dur = f"{(t1 - t0):.1f}s"
+            summary = text[:120].replace("\n", " ") + ("…" if len(text) > 120 else "")
+            print(f"[{ts}] CodexExecLM.generate: finished (exit={proc.returncode}, dur={dur}). Output: {summary}")
 
         return LMResponse(outputs=[text], model=self.model, usage=None, raw=None)
 
@@ -338,4 +465,3 @@ class _MinimalResponse:
         self.model = model
         self.choices = choices
         self.usage = usage
-        # moved to src/ layout

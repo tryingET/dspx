@@ -403,6 +403,29 @@ wheels = [
 ]
 
 [[package]]
+name = "dspx"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "dspy-ai" },
+    { name = "duckduckgo-search" },
+    { name = "httpx" },
+    { name = "mlflow" },
+    { name = "pandas" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.13.5" },
+    { name = "dspy-ai", specifier = ">=3.0.2" },
+    { name = "duckduckgo-search", specifier = ">=8.1.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "mlflow", specifier = ">=2.18.0" },
+    { name = "pandas", specifier = ">=2.3.2" },
+]
+
+[[package]]
 name = "dspy"
 version = "3.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -445,29 +468,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a6/d2/c965e4b0eaf73e448278ec8a20c68e6b001faca2520b5e54baaf48eafe6b/dspy_ai-3.0.2.tar.gz", hash = "sha256:2c3088761de225153015c1d18deb58c71d8c80db3b686fbd18f65713535f2d0f", size = 1121, upload-time = "2025-08-22T11:17:05.634Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/66/bee35553f5361dd43a8993792301f220ba339b13c68a36414d03cef61bcb/dspy_ai-3.0.2-py3-none-any.whl", hash = "sha256:2b3cbf6d0046ab5d6c7e6fdf6307f5160ba1f046b98882b794024e85c995d4bd", size = 1095, upload-time = "2025-08-22T11:17:04.775Z" },
-]
-
-[[package]]
-name = "dspycodexexec"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "beautifulsoup4" },
-    { name = "dspy-ai" },
-    { name = "duckduckgo-search" },
-    { name = "httpx" },
-    { name = "mlflow" },
-    { name = "pandas" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "beautifulsoup4", specifier = ">=4.13.5" },
-    { name = "dspy-ai", specifier = ">=3.0.2" },
-    { name = "duckduckgo-search", specifier = ">=8.1.1" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "mlflow", specifier = ">=2.18.0" },
-    { name = "pandas", specifier = ">=2.3.2" },
 ]
 
 [[package]]

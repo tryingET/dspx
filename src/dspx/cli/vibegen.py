@@ -1,23 +1,8 @@
 import argparse
-import os
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 from pathlib import Path
 from typing import Optional
 
-import dspy
-from config_loader import load_config_env
-from tracing import enable_mlflow_from_env
 from dspx.services.signatures_service import run_generate as service_generate
-
-
-def add_vibe_path() -> None:
-    """Ensure submodules/vibe-dspy/src is importable."""
-    here = Path(__file__).parent
-    vibe_src = here / "submodules" / "vibe-dspy" / "src"
-    if vibe_src.is_dir():
-        sys.path.insert(0, str(vibe_src))
 
 
 def wrap_script(signature_code: str) -> str:
@@ -26,7 +11,7 @@ def wrap_script(signature_code: str) -> str:
     lines.append("# Auto-generated DSPy script (Codex Exec enabled)")
     lines.append("import os")
     lines.append("import dspy")
-    lines.append("from codex_exec_lm import CodexExecLM")
+    lines.append("from dspx.codex_exec_lm import CodexExecLM")
     lines.append("")
     lines.append("# Configure Codex Exec as the LM")
     lines.append("MODEL = os.getenv('CODEX_MODEL', 'gpt-5')")
@@ -48,7 +33,9 @@ def wrap_script(signature_code: str) -> str:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    add_vibe_path()
+    from dspx.cli.shared import ensure_env_and_tracing, ensure_vibe_path
+
+    ensure_vibe_path()
     # Local import after path setup
     from signature_generator import SignatureGenerator
 
@@ -65,13 +52,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
     args = ap.parse_args(argv)
 
-    # Load config.toml to populate env defaults
-    load_config_env()
-    # Optionally enable MLflow tracing if configured via env.
-    enable_mlflow_from_env()
+    ensure_env_and_tracing()
 
     # Optional provider override via env for the registry
     if args.provider:
+        import os
         os.environ["DSPX_PROVIDER"] = args.provider
 
     # Use service layer to generate signature code
