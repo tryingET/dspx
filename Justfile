@@ -17,6 +17,60 @@ dev-install:
   # Install project in editable mode to expose console scripts
   uv pip install -e .
 
+# Format code with ruff
+fmt:
+  uvx ruff format .
+
+# Lint with ruff
+lint:
+  uvx ruff check .
+
+# Type-check with mypy
+typecheck:
+  uvx mypy src
+
+# Run tests (if present)
+test:
+  uv run -m pytest -q || true
+
+# Build distributables (wheel + sdist)
+build:
+  uv build
+
+# Publish to PyPI (requires PYPI_TOKEN)
+publish:
+  if [ -z "${PYPI_TOKEN:-}" ]; then echo "PYPI_TOKEN not set"; exit 1; fi
+  uv publish --token "$PYPI_TOKEN"
+
+# Set project version in pyproject.toml
+version new="":
+  if [ -z "{{new}}" ]; then echo "usage: just version new=1.2.3"; exit 1; fi
+  python - <<PY
+import re, sys
+p = 'pyproject.toml'
+s = open(p,'r',encoding='utf-8').read()
+ns = re.sub(r'^(version\s*=\s*")([^"]+)(")', f"\\g<1>{{new}}\\g<3>", s, count=1, flags=re.M)
+open(p,'w',encoding='utf-8').write(ns)
+print('set version to', '{{new}}')
+PY
+
+# Tag the current commit as a release version
+tag v="":
+  if [ -z "{{v}}" ]; then echo "usage: just tag v=v1.2.3"; exit 1; fi
+  git tag "{{v}}"
+  echo "created tag {{v}}"
+
+# One-shot release helper: fmt, lint, test, build
+release new="":
+  if [ -z "{{new}}" ]; then echo "usage: just release new=1.2.3"; exit 1; fi
+  just fmt
+  just lint
+  just typecheck
+  just test
+  just version new={{new}}
+  just build
+  echo "Now: just tag v=v{{new}} && just publish (requires PYPI_TOKEN)"
+
 # Install console scripts as a uv tool and run via `uvx` (global-ish)
 tool-install:
   # Install console scripts as a uv tool (global-ish via uvx)

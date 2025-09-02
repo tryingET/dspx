@@ -19,15 +19,35 @@ def _factory() -> MultiProviderLM:
     ensure_default_providers()
     names = _parse_list("DSPX_MULTI_PROVIDERS", "codex-exec,claude-cli,gemini-cli")
     strategy = os.getenv("DSPX_MULTI_STRATEGY", "sequential_first")
-    parallel_isolated = os.getenv("DSPX_MULTI_PARALLEL_ISOLATED", "0") not in {"", "0", "false", "False"}
+    parallel_isolated = os.getenv("DSPX_MULTI_PARALLEL_ISOLATED", "0") not in {
+        "",
+        "0",
+        "false",
+        "False",
+    }
     base_cwd = os.getenv("DSPX_MULTI_BASE_CWD") or None
     isolation_mode = os.getenv("DSPX_MULTI_ISOLATION_MODE", "mirror")
-    policy_bypass = os.getenv("DSPX_MULTI_POLICY_BYPASS", "") not in {"", "0", "false", "False"}
+    policy_bypass = os.getenv("DSPX_MULTI_POLICY_BYPASS", "") not in {
+        "",
+        "0",
+        "false",
+        "False",
+    }
     policy_allowed = os.getenv("DSPX_MULTI_POLICY_ALLOWED_TOOLS") or None
     policy_disallowed = os.getenv("DSPX_MULTI_POLICY_DISALLOWED_TOOLS") or None
     policy_append = os.getenv("DSPX_MULTI_POLICY_APPEND_SYSTEM_PROMPT") or None
-    abort_on_validate = os.getenv("DSPX_MULTI_ABORT_ON_VALIDATE", "1") not in {"", "0", "false", "False"}
-    cleanup_isolated = os.getenv("DSPX_MULTI_CLEANUP_ISOLATED", "1") not in {"", "0", "false", "False"}
+    abort_on_validate = os.getenv("DSPX_MULTI_ABORT_ON_VALIDATE", "1") not in {
+        "",
+        "0",
+        "false",
+        "False",
+    }
+    cleanup_isolated = os.getenv("DSPX_MULTI_CLEANUP_ISOLATED", "1") not in {
+        "",
+        "0",
+        "false",
+        "False",
+    }
     worktree_commitish = os.getenv("DSPX_MULTI_WORKTREE_COMMITISH", "HEAD")
     provs = []
     for n in names:
@@ -58,5 +78,7 @@ def _factory() -> MultiProviderLM:
 
 def register() -> None:
     # Capabilities: union of underlying at runtime; advertise generic multi-turn
-    caps = ProviderCapabilities(supports_tools=True, code_exec=True, json_mode=False, multi_turn=True)
+    caps = ProviderCapabilities(
+        supports_tools=True, code_exec=True, json_mode=False, multi_turn=True
+    )
     register_provider("multi", _factory, caps)

@@ -53,6 +53,25 @@ Quick Start (uv)
 
 It configures DSPy to use Codex Exec with `gpt-5`, minimal reasoning effort, and bypassed approvals/sandbox. Codex may write and run code under the hood; the final answer prints to stdout.
 
+Install, Update, Build
+----------------------
+- Dev install (editable): `uv pip install -e .` — exposes console scripts.
+- Run commands without install: `uv run dspx-multi-demo ...` or
+  `python -m dspx.cli.multi_demo ...`.
+- Update (editable install): `git pull` (code updates immediately).
+- Update (uv tool install): `uv tool install --force .` in repo.
+- Build packages: `just build` (uses `uv build`, outputs to `dist/`).
+- Publish (PyPI): set `PYPI_TOKEN` then `just publish`.
+
+Release Cycle
+-------------
+- Suggest Semantic Versioning with lightweight cadence:
+  - Patch on fixes/docs; minor on features; major for breaking changes.
+  - Tag releases: `just tag v=vX.Y.Z` and create GitHub Release.
+  - Publish when ready: `just publish` (requires `PYPI_TOKEN`).
+- Helper flow: `just release new=X.Y.Z` runs fmt/lint/typecheck/test, bumps
+  version, and builds artifacts; then tag and publish.
+
 Customization
 -------------
 - Change model: set `CODEX_MODEL` env var or edit `model_flag` in `example_predict.py` (e.g., `gpt-5`).
@@ -372,6 +391,19 @@ CLI demo with MLflow
     --mlflow
 
 - Set MLflow env (optional): `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT`, `MLFLOW_RUN_NAME`, `MLFLOW_ENABLE=1`.
+
+Simple Modern uv
+----------------
+This repo follows a simple modern `uv` setup:
+
+- Tasks via Justfile:
+  - `just install` / `just dev-install` — sync deps or editable install.
+  - `just fmt` / `just lint` / `just typecheck` — ruff + mypy.
+  - `just test` — run pytest if present.
+  - `just build` / `just publish` — build and publish packages.
+  - `just release new=X.Y.Z` — fmt/lint/typecheck/test, bump version, build.
+- Dev dependencies declared under `[dependency-groups.dev]` for uv.
+- Console scripts defined in `pyproject.toml` under `[project.scripts]`.
 
 - Your commands stay short:
 

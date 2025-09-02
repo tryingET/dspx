@@ -7,7 +7,9 @@ from .capabilities import ProviderCapabilities
 
 
 class ProviderFactory:
-    def __init__(self, factory: Callable[[], object], capabilities: ProviderCapabilities):
+    def __init__(
+        self, factory: Callable[[], object], capabilities: ProviderCapabilities
+    ):
         self.factory = factory
         self.capabilities = capabilities
 
@@ -15,7 +17,9 @@ class ProviderFactory:
 _REGISTRY: Dict[str, ProviderFactory] = {}
 
 
-def register_provider(name: str, factory: Callable[[], object], capabilities: ProviderCapabilities) -> None:
+def register_provider(
+    name: str, factory: Callable[[], object], capabilities: ProviderCapabilities
+) -> None:
     _REGISTRY[name] = ProviderFactory(factory, capabilities)
 
 
@@ -36,6 +40,7 @@ def ensure_default_providers() -> None:
     if "codex-exec" not in _REGISTRY:
         try:
             from .providers_register_codex import register as _reg_codex  # type: ignore
+
             _reg_codex()
         except Exception:
             # Ignore if unavailable; callers may still register manually
@@ -43,24 +48,29 @@ def ensure_default_providers() -> None:
     if "claude-cli" not in _REGISTRY:
         try:
             from .providers_register_claude import register as _reg_claude  # type: ignore
+
             _reg_claude()
         except Exception:
             pass
     if "multi" not in _REGISTRY:
         try:
             from .providers_register_multi import register as _reg_multi  # type: ignore
+
             _reg_multi()
         except Exception:
             pass
     if "gemini-cli" not in _REGISTRY:
         try:
             from .providers_register_gemini import register as _reg_gemini  # type: ignore
+
             _reg_gemini()
         except Exception:
             pass
 
 
-def create_from_env(env_var: str = "DSPX_PROVIDER", default: str = "codex-exec") -> object:
+def create_from_env(
+    env_var: str = "DSPX_PROVIDER", default: str = "codex-exec"
+) -> object:
     """Create an LM instance from the registry based on an env var.
 
     Defaults to 'codex-exec'. Callers should first call ensure_default_providers().
