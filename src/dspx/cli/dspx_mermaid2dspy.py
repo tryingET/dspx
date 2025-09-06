@@ -5,6 +5,8 @@ import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import sys
+import subprocess
 
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
@@ -40,7 +42,24 @@ def _class_header(name: str, label: str, nid: str) -> str:
     )
 
 
-def _build_signatures(nodes: Dict[str, Node]) -> Tuple[str, Dict[str, str]]:
+def _run_cli(module: str, args: List[str], env: Optional[dict] = None):
+    proc = subprocess.run(
+        [sys.executable, "-m", module, *args],
+        capture_output=True,
+        text=True,
+        env=env or os.environ.copy(),
+    )
+    return proc.returncode, proc.stdout, proc.stderr
+
+
+def _build_signatures(
+    nodes: Dict[str, Node],
+    *,
+    use_cli: bool = False,
+    refine: bool = False,
+    refine_attempts: int = 3,
+    provider: Optional[str] = None,
+) -> Tuple[str, Dict[str, str]]:
     """Generate a signatures.py module and return (source, mapping nid->class)."""
     parts: List[str] = []
     mapping: Dict[str, str] = {}
@@ -49,7 +68,25 @@ def _build_signatures(nodes: Dict[str, Node]) -> Tuple[str, Dict[str, str]]:
             continue
         cls = f"Sig_{nid}"
         prompt = _class_header(cls, n.label or nid, nid)
-        code = service_generate(prompt)
+        if use_cli:
+            env = os.environ.copy()
+            if provider:
+                env["DSPX_PROVIDER"] = provider
+            if refine:
+                rc, out, err = _run_cli(
+                    "dspx.cli.viberefine",
+                    (["--non-interactive", "-n", str(refine_attempts), prompt]),
+                    env,
+                )
+            else:
+                rc, out, err = _run_cli("dspx.cli.vibegen", ([prompt]), env)
+            if rc != 0:
+                raise SystemExit(
+                    f"CLI generation failed for {nid}: {err.strip()}\nPrompt was: {prompt}"
+                )
+            code = out
+        else:
+            code = service_generate(prompt)
         # Ensure class name matches (fallback if generator changed it)
         m = re.search(
             r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code
@@ -213,6 +250,22 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--outdir", "-o", help="Output dir (defaults to generated/workflows/<name>)"
     )
     ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
+    ap.add_argument(
+        "--use-cli",
+        action="store_true",
+        help="Use CLI tools (vibegen/viberefine) instead of service calls",
+    )
+    ap.add_argument(
+        "--refine",
+        action="store_true",
+        help="Use viberefine (non-interactive) for signatures",
+    )
+    ap.add_argument(
+        "--refine-attempts",
+        type=int,
+        default=3,
+        help="Attempts for viberefine when --refine is set",
+    )
     args = ap.parse_args(argv)
 
     load_config_env()
@@ -231,7 +284,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_root.mkdir(parents=True, exist_ok=True)
 
     # Build signatures.py
-    sig_src, mapping = _build_signatures(nodes)
+    sig_src, mapping = _build_signatures(
+        nodes,
+        use_cli=args.use_cli,
+        refine=args.refine,
+        refine_attempts=args.refine_attempts,
+        provider=args.provider,
+    )
     (out_root / "signatures.py").write_text(sig_src, encoding="utf-8")
 
     # Emit program that imports signatures

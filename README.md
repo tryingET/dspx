@@ -44,12 +44,12 @@ For a reusable setup guide when starting new projects with DSPy + dspx CodexExec
 
 Architecture & Vision
 ---------------------
-- This repo is evolving toward a layered design with clear seams for extension:
-  - Core: config loader, MLflow tracing, LM provider base + registry
-  - Providers: Codex Exec today; OpenAI Responses / OSS next
-  - Services: codegen, signature generation (vibe), refine, agents/optimizers (future)
-  - CLI: thin entrypoints delegating to services
-- See docs/VISION.md for the full refactor plan, pros/cons, and roadmap.
+- This repo follows a layered design with clear seams for extension:
+  - Core: config loader, MLflow tracing, typed DTOs, LM provider base + registry, tool registry
+  - Providers: Codex Exec, Claude CLI, Gemini CLI, Multi‑provider
+  - Services: codegen, signature generation (vibe), refine, mermaid workflows, agents
+  - CLI: thin entrypoints delegating to services; unified `dspx` CLI planned
+- See docs/VISION.md for principles/roadmap, and docs/ARCHITECTURE.md for multi‑view diagrams. OpenAPI design in docs/OPENAPI_TOOLING.md.
 
 Quick Start (uv)
 ----------------
@@ -66,9 +66,9 @@ Quick Start (uv)
    codex --version
    codex auth whoami
 
-4) Run the example via uv:
+4) Run the example via uvx (console script):
 
-   uv run python example_predict.py
+   uvx dspx-example
 
 It configures DSPy to use Codex Exec with `gpt-5`, minimal reasoning effort, and bypassed approvals/sandbox. Codex may write and run code under the hood; the final answer prints to stdout.
 
@@ -170,7 +170,7 @@ Submodule: vibe-dspy
 
   # install project console scripts
   uv sync && uv pip install -e .
-  uv run dspx-example
+  uvx dspx-example
 
   - Or set PYTHONPATH in your shell/session for convenience.
 
