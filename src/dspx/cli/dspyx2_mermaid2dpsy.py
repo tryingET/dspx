@@ -11,7 +11,7 @@ import subprocess
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
 from dspx.services.signatures_service import run_generate as service_generate
-from dspx.services.mermaid_workflow_service import parse_mermaid
+from dspx.services.mermaid_workflow_service import parse_mermaid, Node
 
 
 def _read_input(path: Optional[str]) -> str:
@@ -51,7 +51,7 @@ def _run_cli(module: str, args: List[str], env: Optional[dict] = None):
 
 
 def _build_signatures(
-    nodes: Dict[str, dict],
+    nodes: Dict[str, Node],
     *,
     use_cli: bool,
     refine: bool,
@@ -62,10 +62,10 @@ def _build_signatures(
     parts: List[str] = []
     mapping: Dict[str, str] = {}
     for nid, n in nodes.items():
-        if n.get("type") == "decision":
+        if n.type == "decision":
             continue
         cls = f"Sig_{nid}"
-        prompt = _class_header(cls, n.get("label", nid), nid)
+        prompt = _class_header(cls, n.label or nid, nid)
         env = os.environ.copy()
         if provider:
             env["DSPX_PROVIDER"] = provider
@@ -111,13 +111,13 @@ def _build_signatures(
 
 
 def _emit_program(
-    name: str, nodes: Dict[str, dict], edges: List[dict], mapping: Dict[str, str]
+    name: str, nodes: Dict[str, Node], edges: List[dict], mapping: Dict[str, str]
 ) -> str:
     # Graph literal
     node_lines = []
     for nid, n in nodes.items():
         node_lines.append(
-            f"        '{nid}': dict(id='{n['id']}', label={n['label']!r}, type='{n['type']}'),"
+            f"        '{nid}': dict(id='{n.id}', label={n.label!r}, type='{n.type}'),"
         )
     edge_lines = []
     for e in edges:
@@ -296,7 +296,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     prog_src = _emit_program(
         base,
         nodes,
-        [e.__dict__ if hasattr(e, "__dict__") else e for e in edges],
+        [e.__dict__ for e in edges],
         mapping,
     )
     (out_root / "program_sigpredict.py").write_text(prog_src, encoding="utf-8")

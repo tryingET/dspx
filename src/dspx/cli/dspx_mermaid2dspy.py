@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
 from dspx.services.signatures_service import run_generate as service_generate
-from dspx.services.mermaid_workflow_service import parse_mermaid
+from dspx.services.mermaid_workflow_service import parse_mermaid, Node
 
 
 def _read_input(path: Optional[str]) -> str:
@@ -40,15 +40,15 @@ def _class_header(name: str, label: str, nid: str) -> str:
     )
 
 
-def _build_signatures(nodes: Dict[str, dict]) -> Tuple[str, Dict[str, str]]:
+def _build_signatures(nodes: Dict[str, Node]) -> Tuple[str, Dict[str, str]]:
     """Generate a signatures.py module and return (source, mapping nid->class)."""
     parts: List[str] = []
     mapping: Dict[str, str] = {}
     for nid, n in nodes.items():
-        if n.get("type") == "decision":
+        if n.type == "decision":
             continue
         cls = f"Sig_{nid}"
-        prompt = _class_header(cls, n.get("label", nid), nid)
+        prompt = _class_header(cls, n.label or nid, nid)
         code = service_generate(prompt)
         # Ensure class name matches (fallback if generator changed it)
         m = re.search(
@@ -75,13 +75,13 @@ def _build_signatures(nodes: Dict[str, dict]) -> Tuple[str, Dict[str, str]]:
 
 
 def _emit_program(
-    name: str, nodes: Dict[str, dict], edges: List[dict], mapping: Dict[str, str]
+    name: str, nodes: Dict[str, Node], edges: List[dict], mapping: Dict[str, str]
 ) -> str:
     # Graph literal
     node_lines = []
     for nid, n in nodes.items():
         node_lines.append(
-            f"        '{nid}': dict(id='{n['id']}', label={n['label']!r}, type='{n['type']}'),"
+            f"        '{nid}': dict(id='{n.id}', label={n.label!r}, type='{n.type}'),"
         )
     edge_lines = []
     for e in edges:
@@ -238,7 +238,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     prog_src = _emit_program(
         base,
         nodes,
-        [e.__dict__ if hasattr(e, "__dict__") else e for e in edges],
+        [e.__dict__ for e in edges],
         mapping,
     )
     (out_root / "program_sigpredict.py").write_text(prog_src, encoding="utf-8")

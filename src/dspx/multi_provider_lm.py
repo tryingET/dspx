@@ -19,20 +19,25 @@ except Exception:  # pragma: no cover
 
     ProviderCapabilities = None  # type: ignore
 
-# DSPy BaseLM (aliased to avoid redefinition noise)
-try:  # pragma: no cover
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
-except Exception:  # pragma: no cover
-    try:
-        from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
-    except Exception:  # pragma: no cover
+# DSPy BaseLM (typing-friendly import pattern)
+from typing import TYPE_CHECKING
 
-        class DSPyBaseLM:
-            def __init__(
-                self, model: str = "multi", model_type: str = "text", **kwargs
-            ) -> None:
-                self.model = model
-                self.model_type = model_type
+if TYPE_CHECKING:  # only for static typing
+    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+else:  # pragma: no cover
+    try:
+        from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    except Exception:
+        try:
+            from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
+        except Exception:
+
+            class DSPyBaseLM:  # type: ignore
+                def __init__(
+                    self, model: str = "multi", model_type: str = "text", **kwargs
+                ) -> None:
+                    self.model = model
+                    self.model_type = model_type
 
 
 @dataclass
@@ -266,7 +271,7 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
         for idx, p in enumerate(self.providers):
             res = self._run_one(idx, p, prompt=prompt, messages=messages)
             outs2.append(res)
-            if not res.error and res.text.strip():
+            if (res.error is None) and res.text.strip():
                 return [res]
         return outs2
 
@@ -290,13 +295,10 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
                 text = _extract_text_from_response(resp)
             elif LMRequest is not None and hasattr(provider, "generate"):
                 # Build LMRequest for provider.generate if only DTO is available
+                # We don't have the typed Message class here; pass prompt only.
                 req = LMRequest(
                     prompt=prompt,
-                    messages=None
-                    if messages is None
-                    else [  # type: ignore
-                        # type: ignore: we don't have Message class here; providers expecting generate will likely be our own
-                    ],
+                    messages=None,
                 )
                 r = provider.generate(req)
                 text = (
@@ -378,11 +380,12 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
             # Optional validation path: collect first finished and validate; can't abort others
             done_event.wait()
             for i in range(len(results)):
-                if results[i] is not None:
+                ri = results[i]
+                if ri is not None:
                     # restore cwds
                     for j, pr in enumerate(self.providers):
                         self._restore_cwd(pr, prev_cwds[j])
-                    return [results[i]]  # type: ignore
+                    return [ri]
             for th in threads:
                 try:
                     th.join(timeout=0.1)
@@ -452,15 +455,16 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
                         made_progress = True
 
                         # Validation and early abort
+                        fi = finished[i]
                         if (
                             self.validator is not None
-                            and finished[i]
-                            and not finished[i].error
+                            and fi is not None
+                            and fi.error is None
                         ):
                             try:
                                 ok = bool(
                                     self.validator(
-                                        finished[i].text,
+                                        fi.text,
                                         provider=self.names[i],
                                         prompt=prompt,
                                         messages=messages,
@@ -484,7 +488,7 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
                                 # restore cwds and return
                                 for j, pr in enumerate(self.providers):
                                     self._restore_cwd(pr, prev_cwds[j])
-                                return [finished[i]]
+                                return [fi]
 
                 if not made_progress:
                     time.sleep(0.05)
@@ -632,6 +636,8 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
                     }
                     return [f for f in files if f in ignore]
 
+                # mypy: base_cwd is Optional; guard at runtime for safety
+                assert self.base_cwd is not None
                 shutil.copytree(
                     self.base_cwd,
                     _os.path.join(tmpdir, "proj"),
@@ -653,8 +659,9 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
 
         # Ensure base_cwd is inside a git repo
         try:
+            base_cwd_str: str = self.base_cwd or "."
             cp = subprocess.run(
-                ["git", "-C", self.base_cwd, "rev-parse", "--show-toplevel"],
+                ["git", "-C", base_cwd_str, "rev-parse", "--show-toplevel"],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -721,11 +728,19 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
             import subprocess
             import shutil
 
-            repo_root = info.get("repo_root")
+            repo_root_str: str = str(info.get("repo_root") or ".")
             for p in info.get("paths", []) or []:
                 try:
                     subprocess.run(
-                        ["git", "-C", repo_root, "worktree", "remove", "--force", p],
+                        [
+                            "git",
+                            "-C",
+                            repo_root_str,
+                            "worktree",
+                            "remove",
+                            "--force",
+                            p,
+                        ],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         text=True,

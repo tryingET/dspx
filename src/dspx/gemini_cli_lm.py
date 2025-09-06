@@ -32,19 +32,24 @@ except Exception:  # pragma: no cover
 
     ProviderCapabilities = None  # type: ignore
 
-try:  # pragma: no cover
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
-except Exception:  # pragma: no cover
-    try:
-        from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
-    except Exception:  # pragma: no cover
+from typing import TYPE_CHECKING
 
-        class DSPyBaseLM:
-            def __init__(
-                self, model: str = "gemini-cli", model_type: str = "text", **kwargs
-            ) -> None:
-                self.model = model
-                self.model_type = model_type
+if TYPE_CHECKING:  # typing-only import to keep mypy happy
+    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+else:  # pragma: no cover - runtime fallback binding
+    try:
+        from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    except Exception:
+        try:
+            from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
+        except Exception:
+
+            class DSPyBaseLM:  # type: ignore
+                def __init__(
+                    self, model: str = "gemini-cli", model_type: str = "text", **kwargs
+                ) -> None:
+                    self.model = model
+                    self.model_type = model_type
 
 
 @dataclass
@@ -164,7 +169,8 @@ class GeminiCLILM(DSPyBaseLM, InternalLMBase):
             query = self._messages_to_prompt(
                 [{"role": m.role, "content": m.content} for m in (msgs or [])]
             )
-        cmd = self._build_command((query or ""))
+        query_str: str = query or ""
+        cmd = self._build_command(query_str)
         env = os.environ.copy()
         env.update(self.env)
         if shutil.which(self.binary) is None and not self._bin_warned:
@@ -188,7 +194,9 @@ class GeminiCLILM(DSPyBaseLM, InternalLMBase):
             raise RuntimeError(
                 f"gemini failed (exit={proc.returncode})\nCommand: {' '.join(cmd)}\nSTDERR:\n{stderr}\nSTDOUT:\n{stdout}"
             )
-        self._store_history(query, cmd, proc.returncode, stdout, stderr, text, t0, t1)
+        self._store_history(
+            query_str, cmd, proc.returncode, stdout, stderr, text, t0, t1
+        )
         return LMResponse(outputs=[text], model=self.model, usage=None, raw=None)
 
     def start(

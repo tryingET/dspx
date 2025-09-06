@@ -49,19 +49,24 @@ except Exception:  # pragma: no cover
 
 
 # Try to import BaseLM from DSPy, alias to avoid redefinition noise in type checkers.
-try:  # pragma: no cover - import path varies by DSPy version
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
-except Exception:  # pragma: no cover
-    try:
-        from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
-    except Exception:  # pragma: no cover
+from typing import TYPE_CHECKING
 
-        class DSPyBaseLM:  # minimal duck-typed fallback
-            def __init__(
-                self, model: str = "codex-exec", model_type: str = "text", **kwargs
-            ) -> None:
-                self.model = model
-                self.model_type = model_type
+if TYPE_CHECKING:  # typing-only import to keep mypy happy
+    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+else:  # pragma: no cover - runtime fallback binding
+    try:
+        from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    except Exception:
+        try:
+            from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
+        except Exception:
+
+            class DSPyBaseLM:  # type: ignore
+                def __init__(
+                    self, model: str = "codex-exec", model_type: str = "text", **kwargs
+                ) -> None:
+                    self.model = model
+                    self.model_type = model_type
 
 
 @dataclass
@@ -146,7 +151,7 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
         try:
             caps = (
                 ProviderCapabilities(code_exec=True, supports_tools=False)
-                if ProviderCapabilities
+                if ProviderCapabilities is not None
                 else None
             )
             if hasattr(InternalLMBase, "__init__"):
@@ -392,7 +397,8 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
                 [{"role": m.role, "content": m.content} for m in (msgs or [])]
             )
 
-        cmd = self._build_command((query or ""))
+        query_str: str = query or ""
+        cmd = self._build_command(query_str)
         env = os.environ.copy()
         env.update(self.env)
         if shutil.which(self.binary) is None and not self._bin_warned:
@@ -446,7 +452,7 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
         # Record history
         self.history.append(
             CodexExecResult(
-                prompt=query,
+                prompt=query_str,
                 command=cmd_for_run,
                 returncode=proc.returncode,
                 stdout=stdout,
