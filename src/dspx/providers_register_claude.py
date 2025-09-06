@@ -10,7 +10,7 @@ from dspx.claude_cli_lm import ClaudeHeadlessLM
 
 def _env_flag(name: str, default_false: bool = True) -> bool:
     v = os.getenv(name, "" if default_false else "1")
-    return not (v in {"", "0", "false", "False", "no", "No"})
+    return v not in {"", "0", "false", "False", "no", "No"}
 
 
 def _env_list(name: str) -> Optional[Iterable[str]]:
@@ -56,6 +56,7 @@ def _factory() -> ClaudeHeadlessLM:
 
 
 def register() -> None:
-    caps = ProviderCapabilities(supports_tools=True, code_exec=False, json_mode=True, multi_turn=True)
+    caps = ProviderCapabilities(
+        supports_tools=True, code_exec=False, json_mode=True, multi_turn=True
+    )
     register_provider("claude-cli", _factory, caps)
-

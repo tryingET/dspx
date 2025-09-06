@@ -26,7 +26,9 @@ class SixESignature(dspy.Signature):
     edges: str = dspy.OutputField(desc="Integration points: 'Happens at…'")
     assumptions: str = dspy.OutputField(desc="Accepted truths: 'We assume…'")
     dependencies: str = dspy.OutputField(desc="Preconditions: 'Requires…'")
-    exceptions: str = dspy.OutputField(desc="Guarded deviations: 'Allowed unless/until…'")
+    exceptions: str = dspy.OutputField(
+        desc="Guarded deviations: 'Allowed unless/until…'"
+    )
 
 
 class SixEExtractor(dspy.Module):
@@ -62,10 +64,12 @@ def to_dict(pred: dspy.Prediction) -> Dict[str, str]:
 
 def to_summary(pred: dspy.Prediction) -> str:
     parts = []
+
     def add(label: str, val: str) -> None:
         v = (val or "").strip()
         if v:
             parts.append(f"{label}: {v}")
+
     add("Constraints", getattr(pred, "constraints", ""))
     add("Boundaries", getattr(pred, "boundaries", ""))
     add("Edges", getattr(pred, "edges", ""))

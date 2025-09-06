@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
-import re
-from typing import cast
 from pathlib import Path
 import os
 import sqlite3
@@ -47,14 +45,18 @@ def ensure_default_tools() -> None:
         register_tool("ontology_summary", _ontology_summary)
 
 
-def _web_fetch(url: str, *, headers: Optional[Dict[str, str]] = None, timeout: float = 15.0) -> Dict[str, Any]:
+def _web_fetch(
+    url: str, *, headers: Optional[Dict[str, str]] = None, timeout: float = 15.0
+) -> Dict[str, Any]:
     """Fetch a URL and return status, headers subset, and text (truncated)."""
     with httpx.Client(follow_redirects=True, timeout=timeout) as client:
         resp = client.get(url, headers=headers)
         text = resp.text
         max_len = 100_000
         if len(text) > max_len:
-            text = text[:max_len] + f"\n... [truncated {len(resp.text) - max_len} bytes]"
+            text = (
+                text[:max_len] + f"\n... [truncated {len(resp.text) - max_len} bytes]"
+            )
         return {
             "status_code": resp.status_code,
             "headers": dict(resp.headers),
@@ -69,18 +71,22 @@ def _web_search(query: str, k: int = 5, safe: str = "moderate") -> List[Dict[str
     try:
         with DDGS() as ddgs:
             for r in ddgs.text(query, max_results=k, safesearch=safe):
-                results.append({
-                    "title": r.get("title"),
-                    "href": r.get("href"),
-                    "body": r.get("body"),
-                })
+                results.append(
+                    {
+                        "title": r.get("title"),
+                        "href": r.get("href"),
+                        "body": r.get("body"),
+                    }
+                )
     except Exception:
         # Gracefully degrade to empty results on network/captcha errors.
         results = []
     return results
 
 
-def _web_scrape(url: str, *, selector: Optional[str] = None, timeout: float = 15.0) -> Dict[str, Any]:
+def _web_scrape(
+    url: str, *, selector: Optional[str] = None, timeout: float = 15.0
+) -> Dict[str, Any]:
     """Fetch a URL and extract text; optionally restrict via CSS selector."""
     result = _web_fetch(url, timeout=timeout)
     html = result.get("text", "")
@@ -107,33 +113,41 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
     out: Dict[str, Any] = {"path": path}
     if lower.endswith(".csv"):
         df = pd.read_csv(path, nrows=nrows)
-        out.update({
-            "type": "csv",
-            "columns": df.columns.tolist(),
-            "rows": df.head(nrows).to_dict(orient="records"),
-        })
+        out.update(
+            {
+                "type": "csv",
+                "columns": df.columns.tolist(),
+                "rows": df.head(nrows).to_dict(orient="records"),
+            }
+        )
     elif lower.endswith(".json") or lower.endswith(".jsonl"):
         try:
             df = pd.read_json(path, lines=True, nrows=nrows)
         except ValueError:
             df = pd.read_json(path)
-        out.update({
-            "type": "json",
-            "columns": df.columns.tolist(),
-            "rows": df.head(nrows).to_dict(orient="records"),
-        })
+        out.update(
+            {
+                "type": "json",
+                "columns": df.columns.tolist(),
+                "rows": df.head(nrows).to_dict(orient="records"),
+            }
+        )
     elif lower.endswith(".parquet"):
         df = pd.read_parquet(path)
-        out.update({
-            "type": "parquet",
-            "columns": df.columns.tolist(),
-            "rows": df.head(nrows).to_dict(orient="records"),
-        })
+        out.update(
+            {
+                "type": "parquet",
+                "columns": df.columns.tolist(),
+                "rows": df.head(nrows).to_dict(orient="records"),
+            }
+        )
     else:
-        out.update({
-            "type": "unknown",
-            "error": "Unsupported file extension",
-        })
+        out.update(
+            {
+                "type": "unknown",
+                "error": "Unsupported file extension",
+            }
+        )
     return out
 
 
@@ -212,14 +226,14 @@ def _repo_summary(root: str = ".", max_files: int = 20, depth: int = 2) -> str:
 
 def _detect_sqlite_url(url: Optional[str]) -> Optional[Path]:
     if url and url.startswith("sqlite:///"):
-        return Path(url[len("sqlite///"):])
+        return Path(url[len("sqlite///") :])
     if url and url.startswith("sqlite:"):
         # sqlite:path or sqlite:path?mode=rw — not fully supported; try naive strip
         return Path(url.split(":", 1)[1])
     # Try env or default location
     env = os.getenv("DATABASE_URL") or os.getenv("SIXE_DB_URL")
     if env and env.startswith("sqlite///"):
-        return Path(env[len("sqlite///"):])
+        return Path(env[len("sqlite///") :])
     if env and env.startswith("sqlite:"):
         return Path(env.split(":", 1)[1])
     default = Path("generated/sixe.db")
@@ -228,7 +242,9 @@ def _detect_sqlite_url(url: Optional[str]) -> Optional[Path]:
     return None
 
 
-def _db_schema(url: Optional[str] = None, *, max_tables: int = 25, sample_rows: int = 3) -> str:
+def _db_schema(
+    url: Optional[str] = None, *, max_tables: int = 25, sample_rows: int = 3
+) -> str:
     """Return a compact DB schema + tiny samples.
 
     Currently supports SQLite. For other engines, returns a stub unless
@@ -236,7 +252,9 @@ def _db_schema(url: Optional[str] = None, *, max_tables: int = 25, sample_rows: 
     """
     p = _detect_sqlite_url(url)
     if p is None or not p.exists():
-        return "[db_schema] No SQLite database detected. Set DATABASE_URL or SIXE_DB_URL."
+        return (
+            "[db_schema] No SQLite database detected. Set DATABASE_URL or SIXE_DB_URL."
+        )
     try:
         conn = sqlite3.connect(str(p))
     except Exception as e:
@@ -244,7 +262,9 @@ def _db_schema(url: Optional[str] = None, *, max_tables: int = 25, sample_rows: 
     parts: List[str] = [f"SQLite DB: {p}"]
     try:
         cur = conn.cursor()
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        )
         tables = [r[0] for r in cur.fetchall()]
         if not tables:
             parts.append("No user tables found.")

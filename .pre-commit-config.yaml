@@ -1,0 +1,31 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format (uv)
+        entry: uvx ruff format --force-exclude
+        language: system
+        types: [python]
+        pass_filenames: true
+        exclude: ^examples/
+      - id: ruff-check
+        name: ruff check (uv)
+        entry: uvx ruff check --force-exclude
+        language: system
+        types: [python]
+        pass_filenames: true
+        exclude: ^examples/
+      - id: mypy
+        name: mypy (uvx)
+        entry: uvx mypy --exclude '^(submodules/|generated/|examples/)' src
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [manual]
+      - id: whitespace
+        name: whitespace check (git)
+        entry: bash -lc 'git diff --check --cached'
+        language: system
+        pass_filenames: false
+
+default_stages: [commit]

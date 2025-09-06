@@ -12,9 +12,13 @@ POLICY = (
 
 
 class _ConstraintsSig(dspy.Signature):
-    instruction: str = dspy.InputField(desc="High-level step instruction with policy context")
+    instruction: str = dspy.InputField(
+        desc="High-level step instruction with policy context"
+    )
     input: str = dspy.InputField(desc="Primary input text for the step")
-    constraints: str = dspy.OutputField(desc="Hard requirements and must-not-violate rules")
+    constraints: str = dspy.OutputField(
+        desc="Hard requirements and must-not-violate rules"
+    )
 
 
 class _LearnSig(dspy.Signature):
@@ -27,7 +31,9 @@ class _AbduceSig(dspy.Signature):
     constraints: str = dspy.InputField(desc="Constraints context")
     learnings: str = dspy.InputField(desc="Learn phase findings")
     input: str = dspy.InputField(desc="Reference input")
-    hypotheses: str = dspy.OutputField(desc="Multiple candidate hypotheses with rationale")
+    hypotheses: str = dspy.OutputField(
+        desc="Multiple candidate hypotheses with rationale"
+    )
 
 
 class _PlanSig(dspy.Signature):
@@ -35,7 +41,9 @@ class _PlanSig(dspy.Signature):
     learnings: str = dspy.InputField(desc="Learnings to leverage")
     hypotheses: str = dspy.InputField(desc="Hypotheses to consider")
     input: str = dspy.InputField(desc="Original input for grounding")
-    plan: str = dspy.OutputField(desc="Robust plan addressing constraints and hypotheses")
+    plan: str = dspy.OutputField(
+        desc="Robust plan addressing constraints and hypotheses"
+    )
 
 
 class _InterveneSig(dspy.Signature):
@@ -52,7 +60,9 @@ class _TraceSig(dspy.Signature):
     plan: str = dspy.InputField(desc="Plan context")
     intervention: str = dspy.InputField(desc="Intervention context")
     input: str = dspy.InputField(desc="Reference input")
-    trace: str = dspy.OutputField(desc="Decision trace with provenance and counterfactuals")
+    trace: str = dspy.OutputField(
+        desc="Decision trace with provenance and counterfactuals"
+    )
 
 
 class _YieldSig(dspy.Signature):
@@ -102,11 +112,33 @@ class ClarityStep(dspy.Module):
         instr = _decorate(instruction)
         c = self.m_constraints(instruction=instr, input=input)
         learn = self.m_learn(constraints=c.constraints, input=input)
-        abd = self.m_abduce(constraints=c.constraints, learnings=learn.learnings, input=input)
-        plan = self.m_plan(constraints=c.constraints, learnings=learn.learnings, hypotheses=abd.hypotheses, input=input)
+        abd = self.m_abduce(
+            constraints=c.constraints, learnings=learn.learnings, input=input
+        )
+        plan = self.m_plan(
+            constraints=c.constraints,
+            learnings=learn.learnings,
+            hypotheses=abd.hypotheses,
+            input=input,
+        )
         inter = self.m_intervene(constraints=c.constraints, plan=plan.plan, input=input)
-        tr = self.m_trace(constraints=c.constraints, learnings=learn.learnings, hypotheses=abd.hypotheses, plan=plan.plan, intervention=inter.intervention, input=input)
-        y = self.m_yield(constraints=c.constraints, learnings=learn.learnings, hypotheses=abd.hypotheses, plan=plan.plan, intervention=inter.intervention, trace=tr.trace, input=input)
+        tr = self.m_trace(
+            constraints=c.constraints,
+            learnings=learn.learnings,
+            hypotheses=abd.hypotheses,
+            plan=plan.plan,
+            intervention=inter.intervention,
+            input=input,
+        )
+        y = self.m_yield(
+            constraints=c.constraints,
+            learnings=learn.learnings,
+            hypotheses=abd.hypotheses,
+            plan=plan.plan,
+            intervention=inter.intervention,
+            trace=tr.trace,
+            input=input,
+        )
         return dspy.Prediction(
             constraints=getattr(c, "constraints", ""),
             learnings=getattr(learn, "learnings", ""),

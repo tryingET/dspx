@@ -17,10 +17,13 @@ def _factory() -> GeminiCLILM:
     env = {}
     if os.getenv("GEMINI_MODEL"):
         env["GEMINI_MODEL"] = os.getenv("GEMINI_MODEL", "")
-    return GeminiCLILM(binary=binary, cwd=cwd, extra_flags=extra_flags, env=env, timeout=timeout)
+    return GeminiCLILM(
+        binary=binary, cwd=cwd, extra_flags=extra_flags, env=env, timeout=timeout
+    )
 
 
 def register() -> None:
-    caps = ProviderCapabilities(supports_tools=True, code_exec=False, json_mode=False, multi_turn=True)
+    caps = ProviderCapabilities(
+        supports_tools=True, code_exec=False, json_mode=False, multi_turn=True
+    )
     register_provider("gemini-cli", _factory, caps)
-

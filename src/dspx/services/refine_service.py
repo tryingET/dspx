@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -38,7 +37,14 @@ def _wrap_script(signature_code: str) -> str:
     return "\n".join(lines)
 
 
-def run_refine(prompt: str, *, outfile: Optional[str] = None, attempts: int = 3, wrap_script: bool = False, non_interactive: bool = False) -> str:
+def run_refine(
+    prompt: str,
+    *,
+    outfile: Optional[str] = None,
+    attempts: int = 3,
+    wrap_script: bool = False,
+    non_interactive: bool = False,
+) -> str:
     load_config_env()
     enable_mlflow_from_env()
 
@@ -51,7 +57,11 @@ def run_refine(prompt: str, *, outfile: Optional[str] = None, attempts: int = 3,
     cur = Path(__file__).resolve().parent
     root = None
     for _ in range(6):
-        if (cur / "submodules").exists() or (cur / ".git").exists() or (cur.parent == cur):
+        if (
+            (cur / "submodules").exists()
+            or (cur / ".git").exists()
+            or (cur.parent == cur)
+        ):
             root = cur
             break
         cur = cur.parent
@@ -68,10 +78,15 @@ def run_refine(prompt: str, *, outfile: Optional[str] = None, attempts: int = 3,
         ans = input("Accept signature? [y/N]: ").strip().lower()
         if ans in {"y", "yes"}:
             return 1.0
-        fb = input("Feedback (leave empty for generic): ").strip() or "Please improve the signature."
+        fb = (
+            input("Feedback (leave empty for generic): ").strip()
+            or "Please improve the signature."
+        )
         return dspy.Prediction(score=0.0, feedback=fb)
 
-    refiner = dspy.Refine(module=SignatureGenerator(), N=attempts, reward_fn=reward_fn, threshold=1.0)
+    refiner = dspy.Refine(
+        module=SignatureGenerator(), N=attempts, reward_fn=reward_fn, threshold=1.0
+    )
     try:
         pred = refiner(prompt=prompt)
         code = SignatureGenerator.generate_code(pred)

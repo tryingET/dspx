@@ -60,8 +60,11 @@ except Exception:  # pragma: no cover
     try:
         from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
     except Exception:  # pragma: no cover
+
         class DSPyBaseLM:
-            def __init__(self, model: str = "claude-cli", model_type: str = "text", **kwargs) -> None:
+            def __init__(
+                self, model: str = "claude-cli", model_type: str = "text", **kwargs
+            ) -> None:
                 self.model = model
                 self.model_type = model_type
 
@@ -184,7 +187,9 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         messages: Optional[Iterable[Dict[str, Any]]] = None,
         **kwargs: Any,
     ):
-        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
+        query: str = (
+            prompt if prompt is not None else self._messages_to_prompt(messages)
+        ) or ""
         cmd = self._build_command(query)
 
         if self.verbose:
@@ -282,7 +287,9 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         prompt: Optional[str] = None,
         messages: Optional[Iterable[Dict[str, Any]]] = None,
     ) -> _Running:
-        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
+        query: str = (
+            prompt if prompt is not None else self._messages_to_prompt(messages)
+        ) or ""
         env = os.environ.copy()
         env.update(self.env)
         cmd = self._build_command(query)

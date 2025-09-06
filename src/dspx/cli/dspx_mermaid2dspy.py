@@ -16,6 +16,7 @@ def _read_input(path: Optional[str]) -> str:
     if path and path != "-":
         return Path(path).read_text(encoding="utf-8")
     import sys
+
     data = sys.stdin.read()
     if not data:
         raise SystemExit("No Mermaid input provided. Pass --file or pipe via stdin.")
@@ -50,15 +51,17 @@ def _build_signatures(nodes: Dict[str, dict]) -> Tuple[str, Dict[str, str]]:
         prompt = _class_header(cls, n.get("label", nid), nid)
         code = service_generate(prompt)
         # Ensure class name matches (fallback if generator changed it)
-        m = re.search(r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code)
+        m = re.search(
+            r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code
+        )
         if not m or m.group(1) != cls:
             # Minimal fix: prepend a correct class stub if generator missed it
             stub = (
                 "import dspy\n\n"
                 f"class {cls}(dspy.Signature):\n"
-                "    \"\"\"Auto-generated fallback signature.\n"
+                '    """Auto-generated fallback signature.\n'
                 "    NOTE: Generator did not return the expected class name; using fallback.\n"
-                "    \"\"\"\n"
+                '    """\n'
                 "    context: str = dspy.InputField(desc='Upstream context for this step')\n"
                 "    output: str = dspy.OutputField(desc='Result of this step')\n"
             )
@@ -71,7 +74,9 @@ def _build_signatures(nodes: Dict[str, dict]) -> Tuple[str, Dict[str, str]]:
     return src, mapping
 
 
-def _emit_program(name: str, nodes: Dict[str, dict], edges: List[dict], mapping: Dict[str, str]) -> str:
+def _emit_program(
+    name: str, nodes: Dict[str, dict], edges: List[dict], mapping: Dict[str, str]
+) -> str:
     # Graph literal
     node_lines = []
     for nid, n in nodes.items():
@@ -199,10 +204,14 @@ def _emit_program(name: str, nodes: Dict[str, dict], edges: List[dict], mapping:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description="Generate DSPy program from Mermaid using vibe-dspy signatures (one per node)")
+    ap = argparse.ArgumentParser(
+        description="Generate DSPy program from Mermaid using vibe-dspy signatures (one per node)"
+    )
     ap.add_argument("--file", "-f", help="Path to Mermaid file, or '-' to read stdin")
     ap.add_argument("--name", "-n", help="Workflow name (slug)")
-    ap.add_argument("--outdir", "-o", help="Output dir (defaults to generated/workflows/<name>)")
+    ap.add_argument(
+        "--outdir", "-o", help="Output dir (defaults to generated/workflows/<name>)"
+    )
     ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
     args = ap.parse_args(argv)
 
@@ -226,7 +235,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     (out_root / "signatures.py").write_text(sig_src, encoding="utf-8")
 
     # Emit program that imports signatures
-    prog_src = _emit_program(base, nodes, [e.__dict__ if hasattr(e, "__dict__") else e for e in edges], mapping)
+    prog_src = _emit_program(
+        base,
+        nodes,
+        [e.__dict__ if hasattr(e, "__dict__") else e for e in edges],
+        mapping,
+    )
     (out_root / "program_sigpredict.py").write_text(prog_src, encoding="utf-8")
 
     # Save Mermaid source

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable, Dict, Iterable, Optional
+from typing import Any, Callable, Iterable
 
 Validator = Callable[..., bool]
 
@@ -10,21 +10,26 @@ Validator = Callable[..., bool]
 def non_empty() -> Validator:
     def _v(text: str, **ctx) -> bool:
         return bool(text and str(text).strip())
+
     return _v
 
 
 def contains_all(keywords: Iterable[str]) -> Validator:
     keys = [k for k in keywords if k]
+
     def _v(text: str, **ctx) -> bool:
         t = text or ""
         return all(k in t for k in keys)
+
     return _v
 
 
 def regex(pattern: str, flags: int = 0) -> Validator:
     rx = re.compile(pattern, flags)
+
     def _v(text: str, **ctx) -> bool:
         return bool(rx.search(text or ""))
+
     return _v
 
 
@@ -35,11 +40,13 @@ def json_parsable() -> Validator:
             return True
         except Exception:
             return False
+
     return _v
 
 
 def json_has(path: str) -> Validator:
-    parts = [p for p in path.split('.') if p]
+    parts = [p for p in path.split(".") if p]
+
     def _v(text: str, **ctx) -> bool:
         try:
             obj = json.loads(text)
@@ -52,6 +59,7 @@ def json_has(path: str) -> Validator:
             else:
                 return False
         return True
+
     return _v
 
 
@@ -64,6 +72,7 @@ def any_of(*validators: Validator) -> Validator:
             except Exception:
                 continue
         return False
+
     return _v
 
 
@@ -76,6 +85,7 @@ def all_of(*validators: Validator) -> Validator:
             except Exception:
                 return False
         return True
+
     return _v
 
 
@@ -84,6 +94,7 @@ def from_metric(metric: Callable[..., Any]) -> Validator:
 
     Accepts functions that return bool-like or numeric (positive=pass).
     """
+
     def _v(text: str, **ctx) -> bool:
         try:
             v = metric(text, **ctx)
@@ -92,5 +103,5 @@ def from_metric(metric: Callable[..., Any]) -> Validator:
             return bool(v)
         except Exception:
             return False
-    return _v
 
+    return _v

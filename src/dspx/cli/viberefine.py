@@ -1,9 +1,7 @@
 import argparse
 import os
-from pathlib import Path
 from typing import Optional
 
-import dspy
 
 from dspx.services.refine_service import run_refine as service_refine
 
@@ -16,13 +14,17 @@ def wrap_script(signature_code: str) -> str:
     lines.append("from dspx.codex_exec_lm import CodexExecLM")
     lines.append("")
     lines.append("MODEL = os.getenv('CODEX_MODEL', 'gpt-5')")
-    lines.append("lm = CodexExecLM(model_flag=MODEL, auto_mode=False, dangerously_bypass=True, reasoning_effort='minimal')")
+    lines.append(
+        "lm = CodexExecLM(model_flag=MODEL, auto_mode=False, dangerously_bypass=True, reasoning_effort='minimal')"
+    )
     lines.append("dspy.configure(lm=lm)")
     lines.append("")
     lines.append(signature_code)
     lines.append("")
     lines.append("def demo():")
-    lines.append("    pass  # TODO: instantiate a Predict module with the generated Signature")
+    lines.append(
+        "    pass  # TODO: instantiate a Predict module with the generated Signature"
+    )
     lines.append("")
     lines.append("if __name__ == '__main__':")
     lines.append("    demo()")
@@ -33,16 +35,27 @@ def main(argv: Optional[list[str]] = None) -> int:
     from dspx.cli.shared import ensure_env_and_tracing, ensure_vibe_path
 
     ensure_vibe_path()
-    from signature_generator import SignatureGenerator  # type: ignore
 
     ap = argparse.ArgumentParser(
         description="Interactive refine of DSPy signature using vibe-dspy + Codex Exec"
     )
-    ap.add_argument("prompt", help="Natural language description of the desired functionality")
-    ap.add_argument("-n", "--attempts", type=int, default=3, help="Max refinement attempts")
+    ap.add_argument(
+        "prompt", help="Natural language description of the desired functionality"
+    )
+    ap.add_argument(
+        "-n", "--attempts", type=int, default=3, help="Max refinement attempts"
+    )
     ap.add_argument("-o", "--out", dest="outfile", help="Write final code to this file")
-    ap.add_argument("--wrap-script", action="store_true", help="Wrap final code into a runnable script with Codex Exec")
-    ap.add_argument("--non-interactive", action="store_true", help="Auto-accept first draft (no prompts)")
+    ap.add_argument(
+        "--wrap-script",
+        action="store_true",
+        help="Wrap final code into a runnable script with Codex Exec",
+    )
+    ap.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Auto-accept first draft (no prompts)",
+    )
     ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
     args = ap.parse_args(argv)
 

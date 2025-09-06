@@ -26,8 +26,11 @@ except Exception:  # pragma: no cover
     try:
         from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
     except Exception:  # pragma: no cover
+
         class DSPyBaseLM:
-            def __init__(self, model: str = "multi", model_type: str = "text", **kwargs) -> None:
+            def __init__(
+                self, model: str = "multi", model_type: str = "text", **kwargs
+            ) -> None:
                 self.model = model
                 self.model_type = model_type
 
@@ -498,7 +501,11 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
             return []
         if self.reducer is not None:
             try:
-                ctx = {"prompt": prompt, "messages": messages, "strategy": self.strategy}
+                ctx = {
+                    "prompt": prompt,
+                    "messages": messages,
+                    "strategy": self.strategy,
+                }
                 picked = self.reducer.pick(candidates, ctx)
                 idx = getattr(picked, "winner_index", 0)
                 if isinstance(idx, int) and 0 <= idx < len(candidates):

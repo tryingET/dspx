@@ -55,8 +55,11 @@ except Exception:  # pragma: no cover
     try:
         from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
     except Exception:  # pragma: no cover
+
         class DSPyBaseLM:  # minimal duck-typed fallback
-            def __init__(self, model: str = "codex-exec", model_type: str = "text", **kwargs) -> None:
+            def __init__(
+                self, model: str = "codex-exec", model_type: str = "text", **kwargs
+            ) -> None:
                 self.model = model
                 self.model_type = model_type
 
@@ -163,8 +166,16 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
         messages: Optional[Iterable[Dict[str, Any]]] = None,
         **kwargs: Any,
     ):
-        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
-        cmd = self._build_command(query)
+        query: str = (
+            prompt if prompt is not None else self._messages_to_prompt(messages)
+        ) or ""
+        # Avoid passing large/unsafe prompts as argv. Use stdin when needed.
+        use_stdin = (
+            ("\x00" in query)
+            or (len(query) > 32768)
+            or os.getenv("DSPX_CODEX_STDIN", "0") == "1"
+        )
+        cmd = self._build_command("-" if use_stdin else query)
 
         if self.verbose:
             ts = datetime.now().strftime("%H:%M:%S")
@@ -193,6 +204,7 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
             cmd_for_run,
             cwd=self.workspace or None,
             env=env,
+            input=(query if use_stdin else None),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -267,7 +279,9 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
         prompt: Optional[str] = None,
         messages: Optional[Iterable[Dict[str, Any]]] = None,
     ) -> _Running:
-        query: str = (prompt if prompt is not None else self._messages_to_prompt(messages)) or ""
+        query: str = (
+            prompt if prompt is not None else self._messages_to_prompt(messages)
+        ) or ""
         env = os.environ.copy()
         env.update(self.env)
         if shutil.which(self.binary) is None and not self._bin_warned:
@@ -518,7 +532,3 @@ class _MinimalResponse:
         self.model = model
         self.choices = choices
         self.usage = usage
-
-    
-    
- 

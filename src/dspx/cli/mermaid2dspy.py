@@ -11,6 +11,7 @@ def _read_input(path: str | None) -> str:
     if path and path != "-":
         return Path(path).read_text(encoding="utf-8")
     import sys
+
     data = sys.stdin.read()
     if not data:
         raise SystemExit("No Mermaid input provided. Pass --file or pipe via stdin.")
@@ -18,11 +19,21 @@ def _read_input(path: str | None) -> str:
 
 
 def main(argv: List[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Generate DSPy programs from a Mermaid flowchart")
-    p.add_argument("spec", nargs="?", help="Inline Mermaid text (optional if --file or stdin provided)")
+    p = argparse.ArgumentParser(
+        description="Generate DSPy programs from a Mermaid flowchart"
+    )
+    p.add_argument(
+        "spec",
+        nargs="?",
+        help="Inline Mermaid text (optional if --file or stdin provided)",
+    )
     p.add_argument("--file", "-f", help="Path to Mermaid .mmd file or '-' for stdin")
     p.add_argument("--name", "-n", help="Workflow name (slug)")
-    p.add_argument("--outdir", "-o", help="Output directory root (defaults to generated/workflows/<name>)")
+    p.add_argument(
+        "--outdir",
+        "-o",
+        help="Output directory root (defaults to generated/workflows/<name>)",
+    )
     p.add_argument(
         "--variants",
         "-v",
@@ -37,7 +48,9 @@ def main(argv: List[str] | None = None) -> int:
         diagram = _read_input(args.file)
 
     variants = [v.strip() for v in (args.variants or "").split(",") if v.strip()]
-    out = generate_programs(diagram, name=args.name, out_dir=args.outdir, variants=variants)
+    out = generate_programs(
+        diagram, name=args.name, out_dir=args.outdir, variants=variants
+    )
 
     print("Generated:")
     for pth in out:
@@ -53,4 +66,3 @@ def main(argv: List[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

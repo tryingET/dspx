@@ -21,9 +21,7 @@ def main() -> int:
     dspy.configure(lm=lm)
 
     qa = dspy.Predict("question -> answer")
-    question = (
-        "Write a Python function to check if a number is prime, and tell me if 37 is prime."
-    )
+    question = "Write a Python function to check if a number is prime, and tell me if 37 is prime."
     result = qa(question=question)
     print(result.answer)
 

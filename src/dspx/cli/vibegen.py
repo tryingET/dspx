@@ -15,7 +15,9 @@ def wrap_script(signature_code: str) -> str:
     lines.append("")
     lines.append("# Configure Codex Exec as the LM")
     lines.append("MODEL = os.getenv('CODEX_MODEL', 'gpt-5')")
-    lines.append("lm = CodexExecLM(model_flag=MODEL, auto_mode=False, dangerously_bypass=True, reasoning_effort='minimal')")
+    lines.append(
+        "lm = CodexExecLM(model_flag=MODEL, auto_mode=False, dangerously_bypass=True, reasoning_effort='minimal')"
+    )
     lines.append("dspy.configure(lm=lm)")
     lines.append("")
     lines.append(signature_code)
@@ -37,13 +39,16 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     ensure_vibe_path()
     # Local import after path setup
-    from signature_generator import SignatureGenerator
 
     ap = argparse.ArgumentParser(
         description="Generate a DSPy signature using vibe-dspy, configured with Codex Exec"
     )
-    ap.add_argument("prompt", help="Natural language description of the desired functionality")
-    ap.add_argument("-o", "--out", dest="outfile", help="Write generated code to this file")
+    ap.add_argument(
+        "prompt", help="Natural language description of the desired functionality"
+    )
+    ap.add_argument(
+        "-o", "--out", dest="outfile", help="Write generated code to this file"
+    )
     ap.add_argument(
         "--wrap-script",
         action="store_true",
@@ -57,6 +62,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     # Optional provider override via env for the registry
     if args.provider:
         import os
+
         os.environ["DSPX_PROVIDER"] = args.provider
 
     # Use service layer to generate signature code

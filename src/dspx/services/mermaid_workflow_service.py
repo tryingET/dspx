@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,9 +46,13 @@ def parse_mermaid(diagram: str) -> Graph:
     nodes: Dict[str, Node] = {}
     edges: List[Edge] = []
 
-    def ensure_node(nid: str, label: Optional[str] = None, ntype: Optional[str] = None) -> None:
+    def ensure_node(
+        nid: str, label: Optional[str] = None, ntype: Optional[str] = None
+    ) -> None:
         if nid not in nodes:
-            nodes[nid] = Node(id=nid, label=_clean_label(label or nid), type=ntype or "unknown")
+            nodes[nid] = Node(
+                id=nid, label=_clean_label(label or nid), type=ntype or "unknown"
+            )
         else:
             if label:
                 nodes[nid].label = _clean_label(label)
@@ -298,7 +301,7 @@ def _emit_runtime() -> str:
             "            ctx[nid] = out",
             "            outs = [e for e in edges if e['src'] == nid]",
             "            if not outs:",
-                "                continue",
+            "                continue",
             "            matched = None",
             "            for e in outs:",
             "                el = (e['label'] or '')",
@@ -401,7 +404,13 @@ def _emit_react_impl() -> str:
     )
 
 
-def generate_programs(diagram: str, *, name: Optional[str] = None, out_dir: Optional[str] = None, variants: Optional[Iterable[str]] = None) -> List[str]:
+def generate_programs(
+    diagram: str,
+    *,
+    name: Optional[str] = None,
+    out_dir: Optional[str] = None,
+    variants: Optional[Iterable[str]] = None,
+) -> List[str]:
     nodes, edges = parse_mermaid(diagram)
     if not nodes:
         raise ValueError("No nodes parsed from Mermaid diagram")

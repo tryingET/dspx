@@ -1,0 +1,46 @@
+name: Weekly UV Upgrade
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'  # Mondays at 03:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Update lockfile with uv
+        run: |
+          uv lock --upgrade
+          uv sync
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/uv-upgrade
+          commit-message: |
+            🚧 chore(deps): weekly uv lock upgrade
+
+            - Run `uv lock --upgrade` and `uv sync` to refresh pins
+            - Opens automated PR for review
+          title: '🚧 chore(deps): weekly uv lock upgrade'
+          body: |
+            Automated dependency refresh using uv.
+
+            - Updated uv.lock via `uv lock --upgrade`
+            - Synced environment to validate resolution
+            - Please review changes and merge when green
+          labels: dependencies

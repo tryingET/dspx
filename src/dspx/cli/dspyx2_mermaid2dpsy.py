@@ -41,11 +41,23 @@ def _class_header(name: str, label: str, nid: str) -> str:
 
 
 def _run_cli(module: str, args: List[str], env: Optional[dict] = None):
-    proc = subprocess.run([sys.executable, "-m", module, *args], capture_output=True, text=True, env=env or os.environ.copy())
+    proc = subprocess.run(
+        [sys.executable, "-m", module, *args],
+        capture_output=True,
+        text=True,
+        env=env or os.environ.copy(),
+    )
     return proc.returncode, proc.stdout, proc.stderr
 
 
-def _build_signatures(nodes: Dict[str, dict], *, use_cli: bool, refine: bool, refine_attempts: int, provider: Optional[str]) -> Tuple[str, Dict[str, str]]:
+def _build_signatures(
+    nodes: Dict[str, dict],
+    *,
+    use_cli: bool,
+    refine: bool,
+    refine_attempts: int,
+    provider: Optional[str],
+) -> Tuple[str, Dict[str, str]]:
     """Generate a signatures.py module and return (source, mapping nid->class)."""
     parts: List[str] = []
     mapping: Dict[str, str] = {}
@@ -59,25 +71,33 @@ def _build_signatures(nodes: Dict[str, dict], *, use_cli: bool, refine: bool, re
             env["DSPX_PROVIDER"] = provider
         if use_cli:
             if refine:
-                rc, out, err = _run_cli('dspx.cli.viberefine', (["--non-interactive", "-n", str(refine_attempts), prompt]), env)
+                rc, out, err = _run_cli(
+                    "dspx.cli.viberefine",
+                    (["--non-interactive", "-n", str(refine_attempts), prompt]),
+                    env,
+                )
             else:
-                rc, out, err = _run_cli('dspx.cli.vibegen', ([prompt]), env)
+                rc, out, err = _run_cli("dspx.cli.vibegen", ([prompt]), env)
             if rc != 0:
-                raise SystemExit(f"CLI generation failed for {nid}: {err.strip()}\nPrompt was: {prompt}")
+                raise SystemExit(
+                    f"CLI generation failed for {nid}: {err.strip()}\nPrompt was: {prompt}"
+                )
             code = out
         else:
             code = service_generate(prompt)
 
         # Ensure class name matches (fallback if generator changed it)
-        m = re.search(r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code)
+        m = re.search(
+            r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code
+        )
         if not m or m.group(1) != cls:
             # Minimal fix: prepend a correct class stub if generator missed it
             stub = (
                 "import dspy\n\n"
                 f"class {cls}(dspy.Signature):\n"
-                "    \"\"\"Auto-generated fallback signature.\n"
+                '    """Auto-generated fallback signature.\n'
                 "    NOTE: Generator did not return the expected class name; using fallback.\n"
-                "    \"\"\"\n"
+                '    """\n'
                 "    context: str = dspy.InputField(desc='Upstream context for this step')\n"
                 "    output: str = dspy.OutputField(desc='Result of this step')\n"
             )
@@ -90,7 +110,9 @@ def _build_signatures(nodes: Dict[str, dict], *, use_cli: bool, refine: bool, re
     return src, mapping
 
 
-def _emit_program(name: str, nodes: Dict[str, dict], edges: List[dict], mapping: Dict[str, str]) -> str:
+def _emit_program(
+    name: str, nodes: Dict[str, dict], edges: List[dict], mapping: Dict[str, str]
+) -> str:
     # Graph literal
     node_lines = []
     for nid, n in nodes.items():
@@ -218,14 +240,31 @@ def _emit_program(name: str, nodes: Dict[str, dict], edges: List[dict], mapping:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description="Generate DSPy program from Mermaid using vibe-dspy signatures (one per node)")
+    ap = argparse.ArgumentParser(
+        description="Generate DSPy program from Mermaid using vibe-dspy signatures (one per node)"
+    )
     ap.add_argument("--file", "-f", help="Path to Mermaid file, or '-' to read stdin")
     ap.add_argument("--name", "-n", help="Workflow name (slug)")
-    ap.add_argument("--outdir", "-o", help="Output dir (defaults to generated/workflows/<name>)")
+    ap.add_argument(
+        "--outdir", "-o", help="Output dir (defaults to generated/workflows/<name>)"
+    )
     ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
-    ap.add_argument("--use-cli", action="store_true", help="Use CLI tools (vibegen/viberefine) instead of service calls")
-    ap.add_argument("--refine", action="store_true", help="Use viberefine (non-interactive) for signatures")
-    ap.add_argument("--refine-attempts", type=int, default=3, help="Attempts for viberefine when --refine is set")
+    ap.add_argument(
+        "--use-cli",
+        action="store_true",
+        help="Use CLI tools (vibegen/viberefine) instead of service calls",
+    )
+    ap.add_argument(
+        "--refine",
+        action="store_true",
+        help="Use viberefine (non-interactive) for signatures",
+    )
+    ap.add_argument(
+        "--refine-attempts",
+        type=int,
+        default=3,
+        help="Attempts for viberefine when --refine is set",
+    )
     args = ap.parse_args(argv)
 
     load_config_env()
@@ -244,11 +283,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_root.mkdir(parents=True, exist_ok=True)
 
     # Build signatures.py
-    sig_src, mapping = _build_signatures(nodes, use_cli=args.use_cli, refine=args.refine, refine_attempts=args.refine_attempts, provider=args.provider)
+    sig_src, mapping = _build_signatures(
+        nodes,
+        use_cli=args.use_cli,
+        refine=args.refine,
+        refine_attempts=args.refine_attempts,
+        provider=args.provider,
+    )
     (out_root / "signatures.py").write_text(sig_src, encoding="utf-8")
 
     # Emit program that imports signatures
-    prog_src = _emit_program(base, nodes, [e.__dict__ if hasattr(e, "__dict__") else e for e in edges], mapping)
+    prog_src = _emit_program(
+        base,
+        nodes,
+        [e.__dict__ if hasattr(e, "__dict__") else e for e in edges],
+        mapping,
+    )
     (out_root / "program_sigpredict.py").write_text(prog_src, encoding="utf-8")
 
     # Save Mermaid source

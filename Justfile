@@ -31,7 +31,12 @@ typecheck:
 
 # Run tests (if present)
 test:
-  uv run -m pytest -q || true
+  # Run only local tests (none by default); skip submodules' test suites
+  if [ -d tests ]; then \
+    uv run -m pytest -q tests || true; \
+  else \
+    echo "no local tests"; \
+  fi
 
 # Build distributables (wheel + sdist)
 build:

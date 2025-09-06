@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-from typing import Optional
 
 import dspy
 import sys
@@ -25,7 +23,11 @@ def run_generate(prompt: str) -> str:
     cur = Path(__file__).resolve().parent
     root = None
     for _ in range(6):
-        if (cur / "submodules").exists() or (cur / ".git").exists() or (cur.parent == cur):
+        if (
+            (cur / "submodules").exists()
+            or (cur / ".git").exists()
+            or (cur.parent == cur)
+        ):
             root = cur
             break
         cur = cur.parent

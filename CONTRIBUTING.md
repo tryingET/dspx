@@ -19,6 +19,12 @@ Development Setup
   uv sync
   uv pip install -e .
 
+- Enable pre-commit hooks (no pip needed):
+
+  uvx pre-commit install
+  # run on all files once
+  uvx pre-commit run --all-files
+
 Pull Requests
 -------------
 - Describe the problem and solution clearly.
@@ -28,4 +34,3 @@ Pull Requests
 Code of Conduct
 ---------------
 By participating, you agree to abide by the Code of Conduct (see CODE_OF_CONDUCT.md).
-

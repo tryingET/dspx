@@ -7,9 +7,14 @@ from dspx.services.agent_service import run as run_agent
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    p = argparse.ArgumentParser(description="Run a minimal ReAct agent with optional tools")
+    p = argparse.ArgumentParser(
+        description="Run a minimal ReAct agent with optional tools"
+    )
     p.add_argument("question", help="User question for the agent")
-    p.add_argument("--tools", help="Comma-separated tool names (e.g., retrieve_stub,python_exec_stub)")
+    p.add_argument(
+        "--tools",
+        help="Comma-separated tool names (e.g., retrieve_stub,python_exec_stub)",
+    )
     p.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
     p.add_argument("--iters", type=int, default=3, help="Max ReAct iterations")
     args = p.parse_args(argv)
@@ -17,6 +22,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Optional provider override
     if args.provider:
         import os
+
         os.environ["DSPX_PROVIDER"] = args.provider
 
     tools = [s.strip() for s in args.tools.split(",")] if args.tools else []
@@ -27,4 +33,3 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

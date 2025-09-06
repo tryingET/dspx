@@ -458,5 +458,6 @@ Project Layout
 --------------
 - `src/`: source code (modules/packages)
 - `docs/`: project docs (vision, status, next steps)
-- `generated/`: generated examples (git-tracked for demo)
+- `examples/`: curated, versioned examples and workflows
+- `generated/`: local outputs (ignored); kept for CLI defaults
 - `submodules/`: external utilities (vibe-dspy, attachments, ovllm)

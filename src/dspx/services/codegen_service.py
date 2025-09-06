@@ -34,15 +34,19 @@ def _build_spec(base_spec: str, language: Optional[str]) -> str:
     )
 
 
-def run(spec: str, *, language: Optional[str] = None, outfile: Optional[str] = None, print_all: bool = False) -> str:
+def run(
+    spec: str,
+    *,
+    language: Optional[str] = None,
+    outfile: Optional[str] = None,
+    print_all: bool = False,
+) -> str:
     # Configure env + tracing
     load_config_env()
     enable_mlflow_from_env()
 
-    # LM options
-    model = os.getenv("CODEX_MODEL", os.getenv("OPENAI_MODEL", "gpt-5"))
-    reasoning_effort = os.getenv("CODEX_REASONING", "minimal")
-    dangerously_bypass = os.getenv("CODEX_BYPASS", "1") not in {"", "0", "false", "False"}
+    # LM options (read from env via provider-specific factories)
+    # Kept minimal here; provider registry will apply env when creating the LM.
 
     # Create LM via provider registry (default: codex-exec)
     ensure_default_providers()

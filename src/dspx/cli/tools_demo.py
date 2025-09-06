@@ -45,7 +45,9 @@ def cmd_preview(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="DSPy tools demo (search/fetch/scrape/preview)")
+    p = argparse.ArgumentParser(
+        description="DSPy tools demo (search/fetch/scrape/preview)"
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("search", help="Web search via DuckDuckGo")

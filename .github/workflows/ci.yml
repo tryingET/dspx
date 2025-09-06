@@ -27,6 +27,9 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
+      - name: Pre-commit (local hooks)
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
       - name: Format check (ruff)
         run: uvx ruff format --check src docs
 
@@ -38,4 +41,3 @@ jobs:
 
       - name: Tests (pytest)
         run: just test
-

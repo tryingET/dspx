@@ -10,6 +10,7 @@ Usage:
     from dspx.tracing import enable_mlflow_from_env
     enable_mlflow_from_env()
 """
+
 from __future__ import annotations
 
 import os
@@ -62,7 +63,9 @@ def enable_mlflow_from_env() -> bool:
         return False
 
 
-def ensure_run_from_env(run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None) -> bool:
+def ensure_run_from_env(
+    run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None
+) -> bool:
     """Ensure an MLflow run is active, using env/defaults when needed.
 
     - If a run is already active, set provided tags (if any) and return False.

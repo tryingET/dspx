@@ -52,7 +52,9 @@ def _guess_intent_from_text(transcript: str) -> str:
     return lines[-1] if lines else ""
 
 
-def capture_intent(*, transcript_path_env: str = "DISCORD_TRANSCRIPT", default_text: str = "") -> Tuple[str, bool]:
+def capture_intent(
+    *, transcript_path_env: str = "DISCORD_TRANSCRIPT", default_text: str = ""
+) -> Tuple[str, bool]:
     """Capture intent and acceptance from a transcript file or text.
 
     - If `DISCORD_TRANSCRIPT` (or env override) points to a file, read it.
@@ -70,4 +72,3 @@ def capture_intent(*, transcript_path_env: str = "DISCORD_TRANSCRIPT", default_t
     intent = _guess_intent_from_text(text)
     accepted = _accepted(text)
     return intent, accepted
-

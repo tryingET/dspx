@@ -7,13 +7,17 @@ from typing import Dict, Optional
 
 
 def get_db_url() -> str:
-    return os.getenv("SIXE_DB_URL") or os.getenv("DATABASE_URL") or "sqlite:///generated/sixe.db"
+    return (
+        os.getenv("SIXE_DB_URL")
+        or os.getenv("DATABASE_URL")
+        or "sqlite:///generated/sixe.db"
+    )
 
 
 def _parse_sqlite_url(url: str) -> Optional[Path]:
     if not url.startswith("sqlite:///"):
         return None
-    path = url[len("sqlite:///"):]
+    path = url[len("sqlite:///") :]
     return Path(path)
 
 
@@ -89,4 +93,3 @@ def insert_six_e(
         conn.commit()
     finally:
         conn.close()
-

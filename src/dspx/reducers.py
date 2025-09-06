@@ -34,7 +34,11 @@ class HeuristicReducer:
         self.keywords = [k for k in (keywords or []) if k]
         self.length_cap = max(1, int(length_cap))
 
-    def pick(self, candidates: Sequence[ProviderResult], context: Optional[Dict[str, Any]] = None) -> ReduceResult:
+    def pick(
+        self,
+        candidates: Sequence[ProviderResult],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> ReduceResult:
         scores: Dict[int, float] = {}
         best_i = 0
         best_s = float("-inf")
@@ -73,5 +77,6 @@ class HeuristicReducer:
             scores[i] = s
             if s > best_s:
                 best_s, best_i = s, i
-        return ReduceResult(winner_index=best_i, scores=scores, rationale=None, threshold_passed=False)
-
+        return ReduceResult(
+            winner_index=best_i, scores=scores, rationale=None, threshold_passed=False
+        )
