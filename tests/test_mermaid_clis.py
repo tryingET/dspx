@@ -30,6 +30,10 @@ def test_dspx_mermaid_sig_cli_runs_on_decisions_only(tmp_path: Path) -> None:
     assert (outdir / "signatures.py").exists()
     assert (outdir / "program_sigpredict.py").exists()
     assert (outdir / "workflow.mmd").exists()
+    assert (outdir / "manifest.json").exists()
+    # Program graph + artifact JSON present
+    assert (outdir / "program_graph.json").exists()
+    assert (outdir / "artifact.json").exists()
 
 
 # Removed legacy alias dspyx2_mermaid2dspy; canonical CLI is dspx_mermaid2dspy

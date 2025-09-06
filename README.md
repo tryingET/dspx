@@ -46,10 +46,10 @@ Architecture & Vision
 ---------------------
 - This repo follows a layered design with clear seams for extension:
   - Core: config loader, MLflow tracing, typed DTOs, LM provider base + registry, tool registry
-  - Providers: Codex Exec, Claude CLI, Gemini CLI, Multi‑provider
-  - Services: codegen, signature generation (vibe), refine, mermaid workflows, agents
-  - CLI: thin entrypoints delegating to services; unified `dspx` CLI planned
-- See docs/VISION.md for principles/roadmap, and docs/ARCHITECTURE.md for multi‑view diagrams. OpenAPI design in docs/OPENAPI_TOOLING.md.
+  - Providers: Codex Exec, Claude CLI, Gemini CLI, Multi‑provider, Stub LM
+  - Services: codegen, signature generation (vibe), refine, module generation, mermaid workflows, agents
+  - CLI: thin entrypoints delegating to services; unified `dspx` CLI available
+- See docs/VISION.md (principles/roadmap), docs/ARCHITECTURE.md (multi‑view diagrams), and docs/OPENAPI_TOOLING.md (MVP details).
 
 Quick Start (uv)
 ----------------
@@ -71,6 +71,47 @@ Quick Start (uv)
    uvx dspx-example
 
 It configures DSPy to use Codex Exec with `gpt-5`, minimal reasoning effort, and bypassed approvals/sandbox. Codex may write and run code under the hood; the final answer prints to stdout.
+
+Unified CLI (dspx)
+------------------
+- Signature (deterministic template):
+
+  dspx signature gen "Extract names" --template-version simple-v1 --class-name Sig_Names -o generated/sig.py
+
+- Module generation (deterministic template):
+
+  dspx module-gen -n Summarizer -d "Summarizes text" -i text -o summary --template-version simple-v1 > generated/module.py
+
+- Codegen (deterministic template):
+
+  dspx codegen 'A CLI that prints "hello"' -l python --template-version simple-v1 > generated/hello.py
+
+- Mermaid workflows (multiple variants):
+
+  dspx mermaid gen -f path/to/diagram.mmd -n flow -v predict,cot,react
+
+- Mermaid with signature‑per‑node (vibe‑dspy):
+
+  dspx mermaid sig -f path/to/diagram.mmd -n flow --provider codex-exec
+
+OpenAPI Tools & Workflows
+-------------------------
+- Inspect operations in a local spec (JSON or YAML):
+
+  dspx tools openapi ops path/to/spec.yaml
+
+- Call a single operation with a host allowlist:
+
+  dspx tools openapi call --spec path/to/spec.json --op ping --allow-host api.example.com
+
+- Persist a mapping for a prefix (used by workflows):
+
+  dspx tools openapi load -p gh --spec /abs/github.json --allow-host api.github.com
+  dspx tools openapi env -p gh  # prints export commands
+
+- Mermaid openapi nodes: label a node as `openapi:<prefix>.<operationId>`.
+  - Upstream input supports JSON envelope: `{ "params": {...}, "body": {...}, "headers": {...}, "timeout": 10 }`.
+  - The generated program auto‑registers the toolpack using env (`DSPX_OPENAPI_SPEC_<P>`) or a mapping file under `generated/openapi/<prefix>.json`.
 
 Install, Update, Build
 ----------------------

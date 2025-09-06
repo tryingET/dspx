@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import httpx
+
+from dspx.tools.openapi import load_spec, extract_operations
+from dspx.tools.openapi.caller import call_operation
+from dspx.dtos import OpenAPICallRequest
+
+
+def _make_spec(tmp_path: Path) -> str:
+    spec: dict[str, Any] = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/ping": {
+                "get": {
+                    "operationId": "ping",
+                    "responses": {"200": {"description": "ok"}},
+                }
+            },
+            "/echo/{msg}": {
+                "get": {
+                    "operationId": "echo",
+                    "parameters": [
+                        {
+                            "name": "msg",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "string"},
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            },
+        },
+    }
+    p = tmp_path / "spec.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    return str(p)
+
+
+def test_openapi_loader_and_ops(tmp_path: Path) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+    assert "ping" in ops and "echo" in ops
+    assert ops["ping"]["path"] == "/ping"
+    assert ops["ping"]["method"] == "GET"
+
+
+def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host != "api.example.com":
+            return httpx.Response(403, text="forbidden")
+        if request.url.path == "/ping":
+            return httpx.Response(200, json={"ok": True})
+        if request.url.path.startswith("/echo/"):
+            return httpx.Response(200, text=request.url.path.split("/echo/")[-1])
+        return httpx.Response(404, text="not found")
+
+    transport = httpx.MockTransport(handler)
+    client = httpx.Client(transport=transport)
+
+    # ping
+    req = OpenAPICallRequest(operation_id="ping")
+    res = call_operation(
+        req,
+        operation=ops["ping"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+    assert res.status_code == 200 and res.body == {"ok": True}
+
+    # echo with path param
+    req2 = OpenAPICallRequest(operation_id="echo", params={"msg": "hello"})
+    res2 = call_operation(
+        req2,
+        operation=ops["echo"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+    assert res2.status_code == 200 and (res2.raw_text or "").strip() == "hello"
+
+
+def test_openapi_call_with_body_and_headers(tmp_path: Path) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/send": {
+                "post": {
+                    "operationId": "send",
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "spec2.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    data = load_spec(str(p))
+    ops = extract_operations(data)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        # echo back header and json body
+        if request.url.path == "/send" and request.method.upper() == "POST":
+            payload = request.content.decode("utf-8")
+            return httpx.Response(
+                200, text=f"H={request.headers.get('X-Test', '')};B={payload}"
+            )
+        return httpx.Response(404, text="not found")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    req = OpenAPICallRequest(
+        operation_id="send", headers={"X-Test": "ok"}, body={"k": 1}
+    )
+    res = call_operation(
+        req,
+        operation=ops["send"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+    raw = res.raw_text or ""
+    assert (
+        res.status_code == 200 and "H=ok" in raw and ('"k":1' in raw or '"k": 1' in raw)
+    )

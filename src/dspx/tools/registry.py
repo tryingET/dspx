@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Mapping
 from pathlib import Path
 import os
 import sqlite3
@@ -43,6 +43,66 @@ def ensure_default_tools() -> None:
         register_tool("kb_summary", _kb_summary)
     if "ontology_summary" not in _TOOLS:
         register_tool("ontology_summary", _ontology_summary)
+    # OpenAPI dynamic registration helpers are available via register_openapi_operations
+
+
+def register_openapi_operations(
+    prefix: str,
+    spec: Mapping[str, Any],
+    *,
+    allowed_hosts: Optional[Mapping[str, bool]] = None,
+) -> List[str]:
+    """Register OpenAPI operations as tools with a name prefix.
+
+    Returns the list of registered tool names. Tools accept keyword args:
+    - params: dict for path/query params
+    - body: dict
+    - headers: dict[str, str]
+    - timeout: float
+    - method/server/path: override defaults
+    - client: optional httpx.Client (for testing)
+    """
+    from dspx.tools.openapi.loader import extract_operations  # lazy import
+    from dspx.tools.openapi.caller import call_operation
+    from dspx.dtos import OpenAPICallRequest
+
+    ops = extract_operations(dict(spec))
+    names: List[str] = []
+    for op_id, op in ops.items():
+        tool_name = f"{prefix}.{op_id}"
+
+        def _make_tool(op_id: str, op_desc: Mapping[str, Any]):
+            def _tool(
+                *,
+                params: Optional[Mapping[str, Any]] = None,
+                body: Optional[Mapping[str, Any]] = None,
+                headers: Optional[Mapping[str, str]] = None,
+                timeout: Optional[float] = None,
+                method: Optional[str] = None,
+                server: Optional[str] = None,
+                path: Optional[str] = None,
+                client: Optional[httpx.Client] = None,
+            ) -> Any:
+                req = OpenAPICallRequest(
+                    operation_id=op_id,
+                    method=method,
+                    server=server,
+                    path=path,
+                    params=dict(params or {}),
+                    body=dict(body) if body is not None else None,
+                    headers=dict(headers or {}),
+                    timeout=timeout,
+                )
+                res = call_operation(
+                    req, operation=op_desc, allowed_hosts=allowed_hosts, client=client
+                )
+                return res.body if res.body is not None else res.raw_text
+
+            return _tool
+
+        register_tool(tool_name, _make_tool(op_id, dict(op)))
+        names.append(tool_name)
+    return names
 
 
 def _web_fetch(

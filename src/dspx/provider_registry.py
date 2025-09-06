@@ -66,6 +66,13 @@ def ensure_default_providers() -> None:
             _reg_gemini()
         except Exception:
             pass
+    if "stub" not in _REGISTRY:
+        try:
+            from .providers_register_stub import register as _reg_stub  # type: ignore
+
+            _reg_stub()
+        except Exception:
+            pass
 
 
 def create_from_env(

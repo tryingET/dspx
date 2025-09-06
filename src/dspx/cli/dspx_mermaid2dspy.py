@@ -12,6 +12,7 @@ from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
 from dspx.services.signatures_service import run_generate as service_generate
 from dspx.services.mermaid_workflow_service import parse_mermaid, Node
+from dspx.dtos import ProgramGraphSpec, ProgramArtifact
 
 
 def _read_input(path: Optional[str]) -> str:
@@ -309,6 +310,79 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(" -", out_root / "signatures.py")
     print(" -", out_root / "program_sigpredict.py")
     print(" -", out_root / "workflow.mmd")
+    # Write manifest with content hashes
+    try:
+        from dspx.cache import sha256_text
+        import json as _json
+
+        files = {
+            "signatures.py": sha256_text(sig_src),
+            "program_sigpredict.py": sha256_text(prog_src),
+            "workflow.mmd": sha256_text(diagram),
+        }
+        manifest = {
+            "name": base,
+            "files": files,
+            "generator": "dspx_mermaid2dspy",
+        }
+        (out_root / "manifest.json").write_text(
+            _json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass
+    # MLflow: attach artifacts and tags (best-effort)
+    try:
+        from dspx.tracing import ensure_run_from_env
+        import mlflow
+
+        ensure_run_from_env(tags={"service": "mermaid_sig", "program_name": base})
+        for fname in [
+            "signatures.py",
+            "program_sigpredict.py",
+            "workflow.mmd",
+            "manifest.json",
+            "program_graph.json",
+            "artifact.json",
+        ]:
+            p = out_root / fname
+            if p.exists():
+                try:
+                    mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    # Write program graph and artifact JSON
+    try:
+        import json as _json
+
+        graph = ProgramGraphSpec(
+            mermaid=diagram,
+            name=base,
+            nodes=[
+                {k: getattr(n, k) for k in ("id", "label", "type")}
+                for n in nodes.values()
+            ],
+            edges=[{k: getattr(e, k) for k in ("src", "dst", "label")} for e in edges],
+        )
+        (out_root / "program_graph.json").write_text(
+            _json.dumps(graph.model_dump(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        files_map = {
+            "signatures.py": "signatures.py",
+            "program_sigpredict.py": "program_sigpredict.py",
+            "workflow.mmd": "workflow.mmd",
+        }
+        art = ProgramArtifact(
+            name=base, files=files_map, metadata={"variants": ["program_sigpredict.py"]}
+        )
+        (out_root / "artifact.json").write_text(
+            _json.dumps(art.model_dump(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
     print("\nRun:")
     print("  cd", out_root)
     print("  uv run python program_sigpredict.py")

@@ -1,81 +1,69 @@
 # Next Steps
 
-This document outlines actionable next steps aligned with the phased
-implementation plan in `docs/VISION.md`.
+This document tracks actionable next steps aligned with the phased plan
+in `docs/VISION.md`. Phases 1–6 are complete; below focuses on upcoming
+work and refinements.
 
-## Phase 1 — Contracts & Abstractions
+## Phase 7 — Adapter Registry (datasets/eval/stores)
 
-Goal: introduce minimal, testable interfaces and data contracts so
-services can run with a stub LM.
-
-- Deliverables
-  - `dspx/core/lm_base.py` with `LMBase` and `ProviderCapabilities`.
-  - `dspx/core/dtos.py` with v1 DTOs:
-    - SignatureGenRequest/Result
-    - ModuleSpec/ModuleArtifact
-    - ProgramGraphSpec/ProgramArtifact
-    - OpenAPICallRequest/Result (skeleton)
-  - `dspx/providers/stub_lm.py` simple deterministic LM for tests.
-
-- Changes
-  - Refactor services to accept `LMBase` where applicable.
-  - Keep existing behavior; add optional code paths using DTOs.
-
-- Acceptance
-  - Unit tests using StubLM (no external providers) pass in <2s.
-  - Services import DTOs without breaking existing CLIs.
-
-## Phase 2 — Template Library
-
-Goal: centralize prompts/templates for signatures and codegen.
+Goal: connectors for datasets (CSV/Parquet/MLflow), stores (MLflow/SQL/object),
+eval adapters, and simple metrics.
 
 - Deliverables
-  - `dspx/templates/` with versioned templates + selection API.
-  - Golden tests for signature/codegen outputs with StubLM.
+  - `dspx/adapters/{datasets,stores,eval}.py` with lightweight interfaces.
+  - CSV/Parquet loader, MLflow dataset reference, simple metrics (accuracy/F1).
+  - Unit tests with small fixtures, no network.
 
 - Acceptance
-  - Services consume templates; tests stable and deterministic.
+  - Adapters usable by services and optimizers; tests deterministic.
 
-## Phase 3 — ModuleService (MVP)
+## Phase 8 — Server API (optional)
 
-Goal: generate reusable DSPy modules from ModuleSpec.
+Goal: expose HTTP endpoints for `signature`, `module`, `mermaid` workflows.
 
 - Deliverables
-  - `dspx/services/module_service.py` with `run_generate`.
-  - DTO mapping from ModuleSpec → ModuleArtifact (optionally via
-    SignatureService).
-  - Unit tests using StubLM and templates.
+  - `dspx-server` (FastAPI) for `/signature`, `/module`, `/mermaid`.
+  - Basic auth/token, request/response DTOs, MLflow tags.
 
 - Acceptance
-  - Module skeleton code is produced and passes smoke tests.
+  - Smoke tests; local run <2s; documented usage.
 
-## Phase 4 — Unified CLI (skeleton)
+## Phase 9 — Policy, Safety, Sandboxing
 
-Goal: user-friendly command surface with consistent flags.
+Goal: strengthen policy for tool/provider gating and isolation.
 
 - Deliverables
-  - `dspx/cli/dspx.py` (Typer) with:
-    - `signature gen|refine`
-    - `module gen`
-    - `mermaid gen|sig`
-  - Backward-compatible shims from existing scripts.
+  - Policy engine for tool/provider allow/deny with budgets/timeouts.
+  - Optional isolated worktrees for code-exec; explicit destructive prompts.
+  - CLI flags and config propagation.
 
 - Acceptance
-  - CLI smoke tests <3s; help text documents shared flags.
+  - Policies enforced in tools and providers; tests for deny/allow flows.
 
-## Phase 5 — OpenAPI Toolpack (MVP)
+## Phase 10 — Plugins & Extension Points
 
-Goal: safe, typed access to OpenAPI operations as tools.
+Goal: enable third-party providers/tools/generators via entry points.
 
 - Deliverables
-  - `dspx/tools/openapi/{loader,caller}.py` + CLI commands.
-  - Host allowlists, timeouts, redaction; MLflow metadata.
+  - Plugin registry + discovery; example plugin + docs.
 
 - Acceptance
-  - Load GitHub spec; call a read-only op; logs redact tokens.
+  - Plugins loadable and testable; documentation covers lifecycle.
+
+## Refinements (Near-term 80/20)
+
+- OpenAPI: enhance validation (arrays/enums/nested objects), `ops --method` and
+  `--paths` added; `describe --json` for programmatic use; next add `--tags`
+  and response schemas.
+- MLflow: attach manifests and generated code as artifacts; standardize tags
+  (`service`, `template_version`, `provider`).
+- Templates: expand module/codegen templates (multi-output, additional languages).
+- Caching: expose CLI flags to bypass/inspect cache; include cache key in meta files.
+- Docs: end-to-end tutorial using Mermaid + OpenAPI node with env/mapping, and
+  adapter usage once Phase 7 is in place.
 
 ## Day-to-Day Checklist
 
-- Run `just test` before and after changes; target <3s locally.
+- Run `just test` before and after changes; target <5s locally.
 - Keep docs in sync (VISION/ARCHITECTURE/NEXT_STEPS) with major changes.
 - Prefer small, scoped PRs per phase/sub-phase; include acceptance notes.

@@ -9,6 +9,7 @@ import dspy
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
 from dspx.provider_registry import create_from_env, ensure_default_providers
+from dspx.lm_base import LMBase
 
 
 def _wrap_script(signature_code: str) -> str:
@@ -44,13 +45,14 @@ def run_refine(
     attempts: int = 3,
     wrap_script: bool = False,
     non_interactive: bool = False,
+    lm: Optional[LMBase] = None,
 ) -> str:
     load_config_env()
     enable_mlflow_from_env()
 
     ensure_default_providers()
-    lm = create_from_env()
-    dspy.configure(lm=lm)
+    active_lm = lm or create_from_env()
+    dspy.configure(lm=active_lm)
 
     # Ensure vibe-dspy is importable
     # Find repo root by walking up until 'submodules' or '.git' is found

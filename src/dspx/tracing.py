@@ -89,7 +89,10 @@ def ensure_run_from_env(
                     except Exception:
                         pass
             return False
+        # Avoid implicitly starting runs unless configured via env
         rn = run_name or os.getenv("MLFLOW_RUN_NAME")
+        if not rn and not os.getenv("MLFLOW_TRACKING_URI"):
+            return False
         mlflow.start_run(run_name=rn)  # type: ignore[attr-defined]
         if tags:
             for k, v in tags.items():

@@ -4,7 +4,9 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
+import json as _json
 from typing import Dict, Iterable, List, Optional, Tuple
+from dspx.dtos import ProgramGraphSpec, ProgramArtifact
 
 
 @dataclass
@@ -196,7 +198,9 @@ def _emit_runtime() -> str:
         [
             "from dspx.programs.sixe import SixEExtractor, SixEWriter, to_dict, to_summary",
             "from dspx.storage.sql_store import ensure_schema, insert_six_e, get_db_url",
-            "from dspx.tools.registry import ensure_default_tools, get_tool",
+            "from dspx.tools.registry import ensure_default_tools, get_tool, register_openapi_operations",
+            "from dspx.tools.openapi.loader import load_spec",
+            "import json as _json",
             "from dspx.conversation.discord_capture import capture_intent",
             "def _normalize(s: str) -> str:",
             "    return ''.join(ch.lower() for ch in s if ch.isalnum())",
@@ -217,6 +221,141 @@ def _emit_runtime() -> str:
             "",
             "def _is_intent_node(nid: str, label: str) -> bool:",
             "    return 'intent' in label.lower()",
+            "",
+            "def _is_openapi_node(nid: str, label: str) -> bool:",
+            "    return label.strip().lower().startswith('openapi:')",
+            "",
+            "def _parse_openapi_label(label: str) -> Optional[tuple[str, str]]:",
+            "    # Format: openapi:<prefix>.<operationId>",
+            "    raw = label.strip()",
+            "    if not raw.lower().startswith('openapi:'):",
+            "        return None",
+            "    t = raw[len('openapi:'):]",
+            "    if not t or '.' not in t:",
+            "        return None",
+            "    pref, op = t.split('.', 1)",
+            "    pref = pref.strip()",
+            "    op = op.strip()",
+            "    if not pref or not op:",
+            "        return None",
+            "    return pref, op",
+            "",
+            "def _required_openapi_prefixes(nodes: Dict[str, dict]) -> List[str]:",
+            "    seen = set()",
+            "    for nid, n in nodes.items():",
+            "        lab = (n.get('label') or '').strip()",
+            "        if lab.lower().startswith('openapi:'):",
+            "            p = _parse_openapi_label(lab)",
+            "            if p:",
+            "                seen.add(p[0])",
+            "    return sorted(seen)",
+            "",
+            "def _register_openapi_from_env(prefix: str) -> bool:",
+            "    import os",
+            "    spec_env = f'DSPX_OPENAPI_SPEC_{prefix.upper()}'",
+            "    host_env = f'DSPX_OPENAPI_HOST_{prefix.upper()}'",
+            "    spec_path = os.getenv(spec_env)",
+            "    if not spec_path:",
+            "        # Try mapping files as fallback",
+            "        mp = _find_openapi_mapping_file(prefix)",
+            "        if mp:",
+            "            try:",
+            "                spec_path2, host2 = _load_openapi_mapping(mp)",
+            "                spec_path = spec_path2",
+            "                if host2 and not os.getenv(host_env):",
+            "                    os.environ[host_env] = host2",
+            "            except Exception:",
+            "                spec_path = None",
+            "        if not spec_path:",
+            "            return False",
+            "    try:",
+            "        spec = load_spec(spec_path)",
+            "    except Exception:",
+            "        return False",
+            "    host = os.getenv(host_env)",
+            "    allowed = {host: True} if host else None",
+            "    try:",
+            "        register_openapi_operations(prefix, spec, allowed_hosts=allowed)",
+            "        return True",
+            "    except Exception:",
+            "        return False",
+            "",
+            "def _find_openapi_mapping_file(prefix: str) -> Optional[str]:",
+            "    import os",
+            "    # Highest priority: explicit file env",
+            "    single_env = f'DSPX_OPENAPI_MAP_{prefix.upper()}'",
+            "    if os.getenv(single_env):",
+            "        return os.getenv(single_env)",
+            "    # Next: a mapping directory env",
+            "    map_dir = os.getenv('DSPX_OPENAPI_MAP_DIR')",
+            "    if map_dir:",
+            "        cand = os.path.join(map_dir, f'{prefix}.json')",
+            "        if os.path.exists(cand):",
+            "            return cand",
+            "    # Defaults relative to CWD",
+            "    for d in ('generated/openapi', 'openapi'):",
+            "        cand = os.path.join(os.getcwd(), d, f'{prefix}.json')",
+            "        if os.path.exists(cand):",
+            "            return cand",
+            "    return None",
+            "",
+            "def _load_openapi_mapping(path: str) -> tuple[str, Optional[str]]:",
+            "    import json as _json",
+            "    with open(path, 'r', encoding='utf-8') as f:",
+            "        data = _json.load(f)",
+            "    spec = data.get('spec')",
+            "    host = data.get('allow_host')",
+            "    if not spec:",
+            "        raise ValueError('mapping missing spec')",
+            "    return str(spec), (str(host) if host else None)",
+            "",
+            "def _ensure_openapi_for_graph(nodes: Dict[str, dict]) -> None:",
+            "    prefixes = _required_openapi_prefixes(nodes)",
+            "    for p in prefixes:",
+            "        _register_openapi_from_env(p)",
+            "",
+            "def _parse_kv_pairs(s: str) -> Dict[str, str]:",
+            "    out: Dict[str, str] = {}",
+            "    for tok in s.replace('\n', ' ').split():",
+            "        if '=' in tok:",
+            "            k, v = tok.split('=', 1)",
+            "            if k and v:",
+            "                out[k.strip()] = v.strip()",
+            "    return out",
+            "",
+            "def _handle_openapi(label: str, input_text: str) -> str:",
+            "    p = _parse_openapi_label(label)",
+            "    if not p:",
+            "        return input_text",
+            "    pref, op = p",
+            "    name = f'{pref}.{op}'",
+            "    try:",
+            "        fn = get_tool(name)",
+            "    except KeyError:",
+            "        return input_text",
+            "    # Try JSON envelope: {params, body, headers, timeout}",
+            "    params = None",
+            "    body = None",
+            "    headers = None",
+            "    timeout = None",
+            "    txt = (input_text or '').strip()",
+            "    if txt.startswith('{') and txt.endswith('}'):",
+            "        try:",
+            "            data = _json.loads(txt)",
+            "            if isinstance(data, dict):",
+            "                params = data.get('params') or None",
+            "                body = data.get('body') or None",
+            "                headers = data.get('headers') or None",
+            "                timeout = data.get('timeout') or None",
+            "        except Exception:",
+            "            params = None",
+            "    if params is None:",
+            "        params = _parse_kv_pairs(input_text)",
+            "    out = fn(params=params or None, body=body, headers=headers, timeout=timeout)",
+            "    try:",
+            "        return str(out)",
+            "    except Exception:",
+            "        return input_text",
             "",
             "def _build_context(base: str = '.') -> str:",
             "    ensure_default_tools()",
@@ -290,6 +429,9 @@ def _emit_runtime() -> str:
             "    pending: List[str] = _sources(nodes, edges)",
             "    seen: Dict[str, int] = {k: 0 for k in nodes}",
             "",
+            "    # Ensure OpenAPI tools are registered if requested",
+            "    _ensure_openapi_for_graph(nodes)",
+            "",
             "    while pending:",
             "        nid = pending.pop(0)",
             "        node = nodes[nid]",
@@ -328,6 +470,8 @@ def _emit_runtime() -> str:
             "                extras.setdefault(nid, {})['sixe'] = rec",
             "            elif _is_intent_node(nid, node['label']):",
             "                out = _handle_intent(node['label'], input_text, extras)",
+            "            elif _is_openapi_node(nid, node['label']):",
+            "                out = _handle_openapi(node['label'], input_text)",
             "            else:",
             "                out = step_process(node['label'], input_text)",
             "            ctx[nid] = out",
@@ -465,6 +609,86 @@ def generate_programs(
 
     # Also keep original Mermaid source
     (out_root / "workflow.mmd").write_text(diagram, encoding="utf-8")
+
+    # Write manifest with content hashes and metadata
+    try:
+        from dspx.cache import sha256_text  # lazy import
+
+        files = {}
+        for p in produced:
+            try:
+                txt = Path(p).read_text(encoding="utf-8", errors="ignore")
+                files[Path(p).name] = sha256_text(txt)
+            except Exception:
+                pass
+        files["workflow.mmd"] = sha256_text(diagram)
+        manifest = {
+            "name": base,
+            "variants": [Path(p).name for p in produced],
+            "files": files,
+        }
+        (out_root / "manifest.json").write_text(
+            _json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+    # Emit ProgramGraphSpec and ProgramArtifact as JSON for tooling
+    try:
+        graph = ProgramGraphSpec(
+            mermaid=diagram,
+            name=base,
+            nodes=[
+                {k: getattr(n, k) for k in ("id", "label", "type")}
+                for n in nodes.values()
+            ],
+            edges=[{k: getattr(e, k) for k in ("src", "dst", "label")} for e in edges],
+        )
+        (out_root / "program_graph.json").write_text(
+            _json.dumps(graph.model_dump(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        files_map = {Path(p).name: Path(p).name for p in produced}
+        files_map["workflow.mmd"] = "workflow.mmd"
+        art = ProgramArtifact(
+            name=base,
+            files=files_map,
+            metadata={"variants": [Path(p).name for p in produced]},
+        )
+        (out_root / "artifact.json").write_text(
+            _json.dumps(art.model_dump(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+    # MLflow: attach artifacts and standard tags (best-effort)
+    try:
+        from dspx.tracing import ensure_run_from_env
+        import mlflow
+
+        ensure_run_from_env(tags={"service": "mermaid", "program_name": base})
+        # Log generated files as artifacts
+        for p in produced:
+            try:
+                mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        for extra in [
+            "workflow.mmd",
+            "manifest.json",
+            "program_graph.json",
+            "artifact.json",
+        ]:
+            path = out_root / extra
+            if path.exists():
+                try:
+                    mlflow.log_artifact(str(path))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
     return produced
 
