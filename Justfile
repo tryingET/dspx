@@ -27,7 +27,7 @@ lint:
 
 # Type-check with mypy
 typecheck:
-  uv run mypy --exclude '^(submodules/|generated/)' src
+  uvx mypy --exclude '^(submodules/|generated/|examples/)' src
 
 # Run tests (if present)
 test:
