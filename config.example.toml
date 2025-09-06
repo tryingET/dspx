@@ -1,0 +1,34 @@
+# Project configuration for DSPy + Codex Exec + MLflow (example)
+#
+# DOCSTRING:
+# - This file is the canonical dspx configuration template. Downstream tools
+#   or projects (e.g., invoice extractors) may COPY this file into their
+#   working directory on first run so that configuration (MLflow and provider)
+#   is self-contained and easy to edit locally.
+# - Expected behavior for downstream projects:
+#     1) If no local ./config.toml exists, copy this file there.
+#     2) Set the environment variable DSPX_CONFIG to point to the local copy.
+#     3) Call dspx.config_loader.load_config_env() and
+#        dspx.tracing.enable_mlflow_from_env() before making LM calls.
+# - You can also set DSPX_CONFIG explicitly to use a shared config elsewhere.
+# - MLflow points to a remote tracking server (e.g., a NAS). Adjust the
+#   tracking_uri as needed for your environment.
+
+[mlflow]
+# Enable/disable autolog (set to false to disable)
+enable = true
+# Point to your MLflow server (e.g., Synology NAS Docker)
+# Example with host-port 50000 mapping to container 5000:
+tracking_uri = "http://100.106.114.10:50000"
+experiment = "DSPy"
+
+[codex]
+# Default Codex Exec model and behavior
+model = "gpt-5"
+reasoning_effort = "minimal"
+bypass = true  # maps to --dangerously-bypass-approvals-and-sandbox
+search = false  # codex web_search optional; using DSPy tools instead
+
+[provider]
+# Select the LM provider via registry (default: codex-exec)
+name = "codex-exec"

@@ -1,9 +1,16 @@
 [project]
 name = "dspx"
 version = "0.1.0"
-description = "Add your description here"
+description = "DSPy + Codex Exec integrations and CLIs"
 readme = "README.md"
 requires-python = ">=3.13"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
 dependencies = [
     "beautifulsoup4>=4.13.5",
     "dspy-ai>=3.0.2",

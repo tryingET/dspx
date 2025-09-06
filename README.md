@@ -9,6 +9,14 @@ Prerequisites
 - Python 3.13+ (this project is initialized with 3.13)
 - uv package manager (https://docs.astral.sh/uv/)
 
+Configuration
+-------------
+- This repo ships `config.example.toml`. Copy it to a local `config.toml` and edit as needed:
+
+  cp config.example.toml config.toml
+
+- You can also point `DSPX_CONFIG` to any config path. The loader searches the nearest `config.toml` if none is set.
+
 Files
 -----
 - `codex_exec_lm.py`: DSPy-compatible wrapper around `codex exec`.
@@ -22,6 +30,12 @@ Files
 - `submodules/ovllm`: Git submodule pointing to https://github.com/MaximeRivest/ovllm
 - `vibegen.py`: Adapter CLI that uses vibe-dspy's `SignatureGenerator` but configures DSPy to use Codex Exec.
 - `viberefine.py`: Interactive refine CLI using vibe-dspy + Codex Exec. Lets you review/improve the generated signature with quick feedback.
+
+Project Template
+----------------
+For a reusable setup guide when starting new projects with DSPy + dspx CodexExec + attachments + MLflow, see:
+
+- `~/programming/dspy-dspx-attachments-mlflow.md`
 
 Architecture & Vision
 ---------------------
@@ -191,6 +205,11 @@ Mermaid → DSPy Programs
 
   just mermaid-stdin name="my_flow"
   # paste the Mermaid, then Ctrl-D
+
+
+License
+-------
+AGPL-3.0. See `LICENSE`.
 
 - Output goes to `generated/workflows/<name or hash>/` as `program_<variant>.py` plus the original `workflow.mmd`.
 

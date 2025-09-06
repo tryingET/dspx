@@ -8,3 +8,19 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Local config
+config.toml
+
+# Generated artifacts and caches
+generated/
+*.db
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# OS/editor junk
+.DS_Store
+*.log
+.env
+*.tmp
