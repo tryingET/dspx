@@ -1,6 +1,11 @@
 Using DSPy with Codex Exec as the Active LM
 ===========================================
 
+[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![mypy](https://img.shields.io/badge/type--checking-mypy-informational)](#type-checking)
+
 This example shows how to use the OpenAI Codex CLI's execution mode (`codex exec`) as the language model for a DSPy program, via a small wrapper `CodexExecLM`.
 
 Prerequisites
@@ -76,6 +81,14 @@ Install, Update, Build
 - Update (uv tool install): `uv tool install --force .` in repo.
 - Build packages: `just build` (uses `uv build`, outputs to `dist/`).
 - Publish (PyPI): set `PYPI_TOKEN` then `just publish`.
+
+Type Checking
+-------------
+- Enforced in CI via `just typecheck` (runs `uvx mypy`).
+- Local run: `just typecheck`
+- Pre-commit uses ruff hooks by default; run mypy manually or rely on CI.
+- Excludes: `submodules/`, `generated/`, and `examples/`.
+
 
 Release Cycle
 -------------
