@@ -161,13 +161,10 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
         )
     # Optional MLflow logging (guarded)
     try:
-        from dspx.tracing import ensure_run_from_env
+        from dspx.tracing import ensure_run_with_standard_tags
 
-        if ensure_run_from_env(
-            tags={
-                "service": "codegen",
-                "template_version": req.template_version or "v1",
-            }
+        if ensure_run_with_standard_tags(
+            "codegen", template_version=req.template_version or "v1"
         ):
             import mlflow
             from dspx.cache import sha256_text
@@ -182,6 +179,17 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
                 mlflow.log_text(res.code, "codegen_output.txt")  # type: ignore[attr-defined]
             except Exception:
                 mlflow.log_dict({"code": res.code}, "codegen_output.json")  # type: ignore[attr-defined]
+            # Attach manifest for reproducibility
+            try:
+                man = {
+                    "template_version": req.template_version or "v1",
+                    "language": req.language or "python",
+                    "spec_len": len(req.spec),
+                    "code_hash_prefix": int(sha256_text(res.code)[:8], 16) % 1_000_000,
+                }
+                mlflow.log_dict(man, "codegen_manifest.json")  # type: ignore[attr-defined]
+            except Exception:
+                pass
             mlflow.log_metrics(
                 {
                     "codegen.code_hash_prefix": int(sha256_text(res.code)[:8], 16)

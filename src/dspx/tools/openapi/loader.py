@@ -118,7 +118,7 @@ def load_spec(
 def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Extract operations keyed by operationId with basic metadata.
 
-    Returns mapping opId -> { method, path, server, parameters }.
+    Returns mapping opId -> { method, path, server, parameters, requestBody, responses, tags }.
     """
     ops: Dict[str, Dict[str, Any]] = {}
     base_server = None
@@ -185,11 +185,43 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                     "required": bool(rb.get("required", False)),
                     "schema": schema,
                 }
+            # Response schemas summary (per status code)
+            responses = {}
+            if isinstance(op.get("responses"), dict):
+                for status, resp in op["responses"].items():
+                    if not isinstance(resp, dict):
+                        continue
+                    ct = []
+                    schema = None
+                    try:
+                        content = resp.get("content") or {}
+                        if isinstance(content, dict) and content:
+                            ct = list(content.keys())
+                            # Prefer JSON schema when present
+                            if "application/json" in content and isinstance(
+                                content["application/json"], dict
+                            ):
+                                schema = content["application/json"].get("schema")
+                            else:
+                                # Pick first content type with schema
+                                for _, desc in content.items():
+                                    if isinstance(desc, dict) and "schema" in desc:
+                                        schema = desc.get("schema")
+                                        break
+                    except Exception:
+                        pass
+                    responses[str(status)] = {
+                        "contentTypes": ct,
+                        "schema": schema,
+                    }
+            tags = op.get("tags") if isinstance(op.get("tags"), list) else []
             ops[str(op_id)] = {
                 "method": method.upper(),
                 "path": path,
                 "server": item_server or "",
                 "parameters": merged_params,
                 "requestBody": req_body,
+                "responses": responses,
+                "tags": tags,
             }
     return ops

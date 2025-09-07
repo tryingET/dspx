@@ -134,3 +134,90 @@ def test_openapi_ops_method_and_paths_output(tmp_path: Path) -> None:
         .stdout
     )
     assert "GET /u" in out2 and "POST /u" not in out2
+
+
+def test_openapi_ops_tags_filter_and_response_schema(tmp_path: Path) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "paths": {
+            "/users": {
+                "get": {
+                    "operationId": "listUsers",
+                    "tags": ["users"],
+                    "responses": {
+                        "200": {
+                            "description": "ok",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "items": {"type": "array"},
+                                            "total": {"type": "integer"},
+                                        },
+                                    }
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+            "/admin": {
+                "get": {
+                    "operationId": "adminGet",
+                    "tags": ["admin"],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            },
+        },
+    }
+    p = tmp_path / "spec3.json"
+    p.write_text(__import__("json").dumps(spec), encoding="utf-8")
+    from typer.testing import CliRunner
+
+    # tags filter should return only matching ops
+    out = (
+        CliRunner()
+        .invoke(app, ["tools", "openapi", "ops", str(p), "--tags", "users"])
+        .stdout
+    )
+    assert "listUsers" in out and "adminGet" not in out
+
+    # describe should include responses and schema details
+    out2 = (
+        CliRunner()
+        .invoke(
+            app,
+            [
+                "tools",
+                "openapi",
+                "describe",
+                "--spec",
+                str(p),
+                "--op",
+                "listUsers",
+            ],
+        )
+        .stdout
+    )
+    assert "responses:" in out2 and "200" in out2 and "properties:" in out2
+    # JSON describe includes responses
+    js = (
+        CliRunner()
+        .invoke(
+            app,
+            [
+                "tools",
+                "openapi",
+                "describe",
+                "--spec",
+                str(p),
+                "--op",
+                "listUsers",
+                "--json",
+            ],
+        )
+        .stdout
+    )
+    j = __import__("json").loads(js)
+    assert "responses" in j and "200" in j["responses"]

@@ -79,7 +79,6 @@ def ensure_run_from_env(
         import mlflow
     except Exception:
         return False
-
     try:
         if mlflow.active_run() is not None:  # type: ignore[attr-defined]
             if tags:
@@ -103,3 +102,41 @@ def ensure_run_from_env(
         return True
     except Exception:
         return False
+
+
+def standard_tags(
+    service: str,
+    *,
+    template_version: Optional[str] = None,
+    extra: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    """Build a standard tag set for MLflow runs.
+
+    Includes:
+    - service: one of signature/module/codegen/mermaid/tools/openapi
+    - template_version: when provided
+    - provider: from $DSPX_PROVIDER when present
+    """
+    import os as _os
+
+    tags: Dict[str, str] = {"service": service}
+    if template_version:
+        tags["template_version"] = template_version
+    prov = _os.getenv("DSPX_PROVIDER")
+    if prov:
+        tags["provider"] = prov
+    if extra:
+        tags.update({k: v for k, v in extra.items() if v is not None})
+    return tags
+
+
+def ensure_run_with_standard_tags(
+    service: str,
+    *,
+    template_version: Optional[str] = None,
+    extra: Optional[Dict[str, str]] = None,
+) -> bool:
+    """Ensure a run is active and set standard tags for consistency."""
+    return ensure_run_from_env(
+        tags=standard_tags(service, template_version=template_version, extra=extra)
+    )

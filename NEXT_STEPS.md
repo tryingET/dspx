@@ -6,27 +6,35 @@ work and refinements.
 
 ## Phase 7 — Adapter Registry (datasets/eval/stores)
 
-Goal: connectors for datasets (CSV/Parquet/MLflow), stores (MLflow/SQL/object),
-eval adapters, and simple metrics.
+Status: DONE (MVP)
 
-- Deliverables
+- Implemented
   - `dspx/adapters/{datasets,stores,eval}.py` with lightweight interfaces.
   - CSV/Parquet loader, MLflow dataset reference, simple metrics (accuracy/F1).
+  - Local object store for examples/tests.
+  - Adapters CLI: `dspx adapters list`, `dspx adapters dataset describe`.
   - Unit tests with small fixtures, no network.
 
 - Acceptance
   - Adapters usable by services and optimizers; tests deterministic.
 
+- Next
+  - Add dataset split helpers and shims for HF datasets (offline where possible).
+  - Expand eval metrics (ROUGE/BLEU, confusion matrix utils).
+  - Optional: `dspx adapters eval run` to compute metrics on pairs.
+
 ## Phase 8 — Server API (optional)
 
-Goal: expose HTTP endpoints for `signature`, `module`, `mermaid` workflows.
+Status: PARTIAL (MVP)
 
-- Deliverables
-  - `dspx-server` (FastAPI) for `/signature`, `/module`, `/mermaid`.
-  - Basic auth/token, request/response DTOs, MLflow tags.
+- Implemented
+  - `dspx-server` (FastAPI) for `/signature`, `/module`, `/mermaid` served via Granian.
+  - Request/response DTOs; ASGI smoke tests using TestClient.
 
-- Acceptance
-  - Smoke tests; local run <2s; documented usage.
+- Next
+  - Add token auth hardening and rate‑limit options.
+  - Document env flags and Granian CLI usage; docker example.
+  - MLflow tags already standardized; consider request metadata tagging.
 
 ## Phase 9 — Policy, Safety, Sandboxing
 
@@ -52,15 +60,15 @@ Goal: enable third-party providers/tools/generators via entry points.
 
 ## Refinements (Near-term 80/20)
 
-- OpenAPI: enhance validation (arrays/enums/nested objects), `ops --method` and
-  `--paths` added; `describe --json` for programmatic use; next add `--tags`
-  and response schemas.
-- MLflow: attach manifests and generated code as artifacts; standardize tags
-  (`service`, `template_version`, `provider`).
-- Templates: expand module/codegen templates (multi-output, additional languages).
-- Caching: expose CLI flags to bypass/inspect cache; include cache key in meta files.
-- Docs: end-to-end tutorial using Mermaid + OpenAPI node with env/mapping, and
-  adapter usage once Phase 7 is in place.
+- OpenAPI: now includes `ops --tags` and `describe --json` with response schema summaries.
+  Next: strengthen validation for arrays/enums/nested objects and provide examples.
+- MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached.
+  Next: add run naming/grouping and simple budget/time metrics across services.
+- Templates: expand module/codegen templates (multi‑output, additional languages).
+- Caching: `--no-cache`, `--cache-info` shipped; meta includes cache key/file.
+  Next: `dspx cache` subcommands (list/show/clear) and small stats.
+- Docs: added end‑to‑end tutorial (`docs/TUTORIAL_E2E.md`) showing Mermaid + OpenAPI + CSV adapters.
+  Next: extend with a runnable OpenAPI node example and adapters CLI usage.
 
 ## Day-to-Day Checklist
 

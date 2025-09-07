@@ -133,11 +133,9 @@ def run_generate(
         cache_write("module", key, {"code": art.code, "metadata": art.metadata})
     # Optional MLflow logging (guarded)
     try:
-        from dspx.tracing import ensure_run_from_env
+        from dspx.tracing import ensure_run_with_standard_tags
 
-        if ensure_run_from_env(
-            tags={"service": "module", "template_version": tv or "v1"}
-        ):
+        if ensure_run_with_standard_tags("module", template_version=tv or "v1"):
             import mlflow
             from dspx.cache import sha256_text
 
@@ -153,6 +151,18 @@ def run_generate(
                 mlflow.log_text(art.code, f"{spec.name}.py")  # type: ignore[attr-defined]
             except Exception:
                 mlflow.log_dict({"code": art.code}, f"{spec.name}.json")  # type: ignore[attr-defined]
+            # Attach manifest for reproducibility
+            try:
+                man = {
+                    "template_version": tv or "v1",
+                    "uses_signature": bool(use_signature),
+                    "name": spec.name,
+                    "inputs": inputs,
+                    "outputs": outputs,
+                }
+                mlflow.log_dict(man, f"{spec.name}.manifest.json")  # type: ignore[attr-defined]
+            except Exception:
+                pass
             mlflow.log_metrics(
                 {
                     "module.code_hash_prefix": int(sha256_text(art.code)[:8], 16)

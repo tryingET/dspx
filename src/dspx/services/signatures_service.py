@@ -147,13 +147,10 @@ def run_generate_dto(
         )
     # Optional MLflow logging (guarded)
     try:
-        from dspx.tracing import ensure_run_from_env
+        from dspx.tracing import ensure_run_with_standard_tags
 
-        if ensure_run_from_env(
-            tags={
-                "service": "signature",
-                "template_version": req.template_version or "v1",
-            }
+        if ensure_run_with_standard_tags(
+            "signature", template_version=req.template_version or "v1"
         ):
             import mlflow
             from dspx.cache import sha256_text
@@ -169,6 +166,16 @@ def run_generate_dto(
                 mlflow.log_text(res.code, "signature.py")  # type: ignore[attr-defined]
             except Exception:
                 mlflow.log_dict({"code": res.code}, "signature.json")  # type: ignore[attr-defined]
+            # Attach a tiny manifest for reproducibility
+            try:
+                manifest = {
+                    "template_version": req.template_version or "v1",
+                    "prompt_len": len(req.prompt),
+                    "code_hash": sha256_text(res.code),
+                }
+                mlflow.log_dict(manifest, "signature_manifest.json")  # type: ignore[attr-defined]
+            except Exception:
+                pass
             mlflow.log_metrics(
                 {
                     "signature.code_hash_prefix": int(sha256_text(res.code)[:8], 16)

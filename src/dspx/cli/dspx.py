@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+import os
 from typing import List, Optional
 
 import typer
@@ -17,6 +18,7 @@ from dspx.services.signatures_service import run_generate_dto
 from dspx.services.codegen_service import run_dto as codegen_run_dto
 from dspx.services.module_service import run_generate as module_run_generate
 from dspx.services.mermaid_workflow_service import generate_programs
+from dspx.adapters import datasets as _datasets
 
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -24,11 +26,15 @@ sig_app = typer.Typer(no_args_is_help=True)
 mermaid_app = typer.Typer(no_args_is_help=True)
 tools_app = typer.Typer(no_args_is_help=True)
 openapi_app = typer.Typer(no_args_is_help=True)
+adapters_app = typer.Typer(no_args_is_help=True)
+adapters_dataset_app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(sig_app, name="signature", help="Signature operations")
 app.add_typer(mermaid_app, name="mermaid", help="Mermaid workflow operations")
 app.add_typer(tools_app, name="tools", help="Tools and integrations")
 tools_app.add_typer(openapi_app, name="openapi", help="OpenAPI loader/caller")
+app.add_typer(adapters_app, name="adapters", help="Adapters (datasets/eval/stores)")
+adapters_app.add_typer(adapters_dataset_app, name="dataset", help="Dataset adapters")
 
 
 def _ensure_env(provider: Optional[str]) -> None:
@@ -49,8 +55,12 @@ def signature_gen(
     class_name: Optional[str] = typer.Option(None, help="Optional class name override"),
     provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
+    no_cache: bool = typer.Option(False, help="Bypass on-disk cache for this run"),
+    cache_info: bool = typer.Option(False, help="Print cache key and path info"),
 ) -> None:
     _ensure_env(provider)
+    if no_cache:
+        os.environ["DSPX_CACHE_ENABLE"] = "0"
     req = SignatureGenRequest(
         prompt=prompt,
         template_version=template_version,
@@ -63,11 +73,28 @@ def signature_gen(
         # Write a small metadata file with content hash
         try:
             from dspx.cache import sha256_text
+            from dspx.cache import make_key, cache_dir
+
+            cls = str(class_name or "GeneratedSignature")
+            cache_key = make_key(
+                {
+                    "kind": "signature",
+                    "prompt": prompt,
+                    "template_version": template_version,
+                    "class_name": cls,
+                    "options": {"class_name": class_name} if class_name else {},
+                }
+            )
+            cfile = cache_dir() / "signature" / f"{cache_key}.json"
 
             meta = {
                 "hash": sha256_text(res.code),
                 "template_version": template_version,
                 "class_name": class_name or res.signature_name or "",
+                "cache_key": cache_key,
+                "cache_file": str(cfile),
+                "cache_enabled": os.getenv("DSPX_CACHE_ENABLE", "1")
+                not in {"0", "false", "False", ""},
             }
             (outfile.parent / (outfile.name + ".meta.json")).write_text(
                 __import__("json").dumps(meta, ensure_ascii=False, indent=2),
@@ -75,9 +102,50 @@ def signature_gen(
             )
         except Exception:
             pass
+        # Log artifacts to MLflow when enabled
+        try:
+            from dspx.tracing import ensure_run_with_standard_tags
+            import mlflow
+
+            ensure_run_with_standard_tags(
+                "signature", template_version=template_version
+            )
+            try:
+                mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            meta_path = outfile.parent / (outfile.name + ".meta.json")
+            if meta_path.exists():
+                try:
+                    mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            pass
         typer.echo(str(outfile))
     else:
         sys.stdout.write(res.code)
+        if cache_info:
+            try:
+                from dspx.cache import make_key, cache_dir
+
+                cls = str(class_name or "GeneratedSignature")
+                cache_key = make_key(
+                    {
+                        "kind": "signature",
+                        "prompt": prompt,
+                        "template_version": template_version,
+                        "class_name": cls,
+                        "options": {"class_name": class_name} if class_name else {},
+                    }
+                )
+                cfile = cache_dir() / "signature" / f"{cache_key}.json"
+                typer.echo(
+                    f"cache_key={cache_key} cache_file={cfile} exists={cfile.exists()}",
+                    err=True,
+                )
+            except Exception:
+                pass
 
 
 @sig_app.command("refine")
@@ -123,8 +191,12 @@ def module_gen(
     ),
     provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
+    no_cache: bool = typer.Option(False, help="Bypass on-disk cache for this run"),
+    cache_info: bool = typer.Option(False, help="Print cache key and path info"),
 ) -> None:
     _ensure_env(provider)
+    if no_cache:
+        os.environ["DSPX_CACHE_ENABLE"] = "0"
     spec = ModuleSpec(
         name=name,
         description=description,
@@ -139,6 +211,20 @@ def module_gen(
         # Write metadata
         try:
             from dspx.cache import sha256_text
+            from dspx.cache import make_key, cache_dir
+
+            cache_key = make_key(
+                {
+                    "kind": "module",
+                    "name": name,
+                    "description": description,
+                    "inputs": input,
+                    "outputs": output,
+                    "use_signature": bool(use_signature),
+                    "template_version": template_version,
+                }
+            )
+            cfile = cache_dir() / "module" / f"{cache_key}.json"
 
             (outfile.parent / (outfile.name + ".meta.json")).write_text(
                 __import__("json").dumps(
@@ -149,6 +235,10 @@ def module_gen(
                         "name": name,
                         "inputs": input,
                         "outputs": output,
+                        "cache_key": cache_key,
+                        "cache_file": str(cfile),
+                        "cache_enabled": os.getenv("DSPX_CACHE_ENABLE", "1")
+                        not in {"0", "false", "False", ""},
                     },
                     ensure_ascii=False,
                     indent=2,
@@ -157,9 +247,49 @@ def module_gen(
             )
         except Exception:
             pass
+        # MLflow logging of artifacts
+        try:
+            from dspx.tracing import ensure_run_with_standard_tags
+            import mlflow
+
+            ensure_run_with_standard_tags("module", template_version=template_version)
+            try:
+                mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            meta_path = outfile.parent / (outfile.name + ".meta.json")
+            if meta_path.exists():
+                try:
+                    mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            pass
         typer.echo(str(outfile))
     else:
         sys.stdout.write(art.code)
+        if cache_info:
+            try:
+                from dspx.cache import make_key, cache_dir
+
+                cache_key = make_key(
+                    {
+                        "kind": "module",
+                        "name": name,
+                        "description": description,
+                        "inputs": input,
+                        "outputs": output,
+                        "use_signature": bool(use_signature),
+                        "template_version": template_version,
+                    }
+                )
+                cfile = cache_dir() / "module" / f"{cache_key}.json"
+                typer.echo(
+                    f"cache_key={cache_key} cache_file={cfile} exists={cfile.exists()}",
+                    err=True,
+                )
+            except Exception:
+                pass
 
 
 @app.command("codegen")
@@ -173,8 +303,12 @@ def codegen(
     ),
     provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
+    no_cache: bool = typer.Option(False, help="Bypass on-disk cache for this run"),
+    cache_info: bool = typer.Option(False, help="Print cache key and path info"),
 ) -> None:
     _ensure_env(provider)
+    if no_cache:
+        os.environ["DSPX_CACHE_ENABLE"] = "0"
     req = CodegenRequest(
         spec=spec, language=language, template_version=template_version
     )
@@ -185,6 +319,18 @@ def codegen(
         # Write metadata
         try:
             from dspx.cache import sha256_text
+            from dspx.cache import make_key, cache_dir
+
+            cache_key = make_key(
+                {
+                    "kind": "codegen",
+                    "spec": spec,
+                    "language": (language or "python"),
+                    "template_version": template_version,
+                    "options": {},
+                }
+            )
+            cfile = cache_dir() / "codegen" / f"{cache_key}.json"
 
             (outfile.parent / (outfile.name + ".meta.json")).write_text(
                 __import__("json").dumps(
@@ -193,6 +339,10 @@ def codegen(
                         "language": language or "python",
                         "template_version": template_version,
                         "spec_len": len(spec),
+                        "cache_key": cache_key,
+                        "cache_file": str(cfile),
+                        "cache_enabled": os.getenv("DSPX_CACHE_ENABLE", "1")
+                        not in {"0", "false", "False", ""},
                     },
                     ensure_ascii=False,
                     indent=2,
@@ -201,9 +351,47 @@ def codegen(
             )
         except Exception:
             pass
+        # MLflow logging of artifacts
+        try:
+            from dspx.tracing import ensure_run_with_standard_tags
+            import mlflow
+
+            ensure_run_with_standard_tags("codegen", template_version=template_version)
+            try:
+                mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            meta_path = outfile.parent / (outfile.name + ".meta.json")
+            if meta_path.exists():
+                try:
+                    mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            pass
         typer.echo(str(outfile))
     else:
         sys.stdout.write(res.code)
+        if cache_info:
+            try:
+                from dspx.cache import make_key, cache_dir
+
+                cache_key = make_key(
+                    {
+                        "kind": "codegen",
+                        "spec": spec,
+                        "language": (language or "python"),
+                        "template_version": template_version,
+                        "options": {},
+                    }
+                )
+                cfile = cache_dir() / "codegen" / f"{cache_key}.json"
+                typer.echo(
+                    f"cache_key={cache_key} cache_file={cfile} exists={cfile.exists()}",
+                    err=True,
+                )
+            except Exception:
+                pass
 
 
 def _read_mermaid(path: Optional[Path]) -> str:
@@ -286,6 +474,9 @@ def openapi_ops(
     method: Optional[str] = typer.Option(
         None, help="Filter by HTTP method (GET, POST, ...)"
     ),
+    tags: Optional[str] = typer.Option(
+        None, help="Filter by comma-separated tags (any match)"
+    ),
     paths: bool = typer.Option(False, help="Print METHOD PATH instead of operationId"),
 ) -> None:
     from dspx.tools.openapi import load_spec, extract_operations
@@ -295,6 +486,9 @@ def openapi_ops(
     ops = extract_operations(data)
     flt = (grep or "").lower()
     mflt = (method or "").strip().upper()
+    tagset = None
+    if tags:
+        tagset = {t.strip().lower() for t in tags.split(",") if t.strip()}
     for k in sorted(ops.keys()):
         if flt:
             path = str(ops[k].get("path", ""))
@@ -302,6 +496,10 @@ def openapi_ops(
                 continue
         if mflt and str(ops[k].get("method", "")).upper() != mflt:
             continue
+        if tagset:
+            op_tags = [str(t).lower() for t in (ops[k].get("tags") or [])]
+            if not any(t in op_tags for t in tagset):
+                continue
         if paths:
             typer.echo(
                 f"{str(ops[k].get('method', '')).upper()} {ops[k].get('path', '')}"
@@ -379,6 +577,8 @@ def openapi_describe(
             "server": info.get("server") or None,
             "parameters": [],
             "requestBody": None,
+            "responses": info.get("responses") or {},
+            "tags": info.get("tags") or [],
         }
         params = info.get("parameters") or []
         if isinstance(params, list):
@@ -411,6 +611,10 @@ def openapi_describe(
     typer.echo(f"path: {info.get('path', '')}")
     if info.get("server"):
         typer.echo(f"server: {info.get('server')}")
+    if info.get("tags"):
+        typer.echo("tags:")
+        for t in info.get("tags"):
+            typer.echo(f"  - {t}")
     params = info.get("parameters") or []
     typer.echo("parameters:")
     if isinstance(params, list) and params:
@@ -448,6 +652,37 @@ def openapi_describe(
                 typer.echo("  properties: (none)")
         else:
             typer.echo("  schema: (unstructured)")
+    else:
+        typer.echo("  (none)")
+    # Responses summary
+    typer.echo("responses:")
+    resps = info.get("responses") or {}
+    if isinstance(resps, dict) and resps:
+        for code, desc in resps.items():
+            try:
+                schema = (desc or {}).get("schema") if isinstance(desc, dict) else None
+                cts = (
+                    (desc or {}).get("contentTypes") if isinstance(desc, dict) else None
+                )
+                typer.echo(f"  - {code} contentTypes={cts or []}")
+                if isinstance(schema, dict):
+                    t = schema.get("type")
+                    if t == "object":
+                        props = schema.get("properties") or {}
+                        reqs = set(schema.get("required") or [])
+                        if props:
+                            typer.echo("    properties:")
+                            for name, ps in props.items():
+                                ty = (ps or {}).get("type", "")
+                                typer.echo(
+                                    f"      - {name}: type={ty} required={'true' if name in reqs else 'false'}"
+                                )
+                        else:
+                            typer.echo("    properties: (none)")
+                    else:
+                        typer.echo(f"    schema.type={t}")
+            except Exception:
+                pass
     else:
         typer.echo("  (none)")
 
@@ -554,6 +789,73 @@ def tools_run(
         typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
     except Exception:
         typer.echo(str(out))
+
+
+# --- Adapters CLI ---
+
+
+@adapters_app.command("list")
+def adapters_list() -> None:
+    # Keep this list in sync with adapters package
+    for line in [
+        "dataset.csv",
+        "dataset.parquet",
+        "dataset.mlflow",
+        "eval.accuracy",
+        "eval.f1_binary",
+        "store.local_object",
+    ]:
+        typer.echo(line)
+
+
+@adapters_dataset_app.command("describe")
+def adapters_dataset_describe(
+    type: str = typer.Option(..., "--type", "-t", help="csv|parquet|mlflow"),
+    path: Optional[Path] = typer.Option(None, "--path", "-p", help="File path"),
+    run_id: Optional[str] = typer.Option(None, help="MLflow run_id (mlflow only)"),
+    artifact_path: Optional[str] = typer.Option(
+        None, help="MLflow artifact path (mlflow only)"
+    ),
+    nrows: int = typer.Option(5, help="Preview rows for csv/parquet"),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    t = type.strip().lower()
+    if t in {"csv", "parquet"}:
+        if not path:
+            raise typer.Exit(code=2)
+        if t == "csv":
+            ds = _datasets.CSVDataset(str(path), nrows=nrows)
+        else:
+            ds = _datasets.ParquetDataset(str(path), nrows=nrows)
+        try:
+            rows = ds.load()
+        except Exception as e:
+            typer.echo(f"error: {e}")
+            raise typer.Exit(code=1)
+        cols = list(rows[0].keys()) if rows else []
+        out = {"type": t, "path": str(path), "columns": cols, "rows": rows}
+    elif t == "mlflow":
+        if not run_id or not artifact_path:
+            raise typer.Exit(code=2)
+        ref = _datasets.MLflowDatasetRef(run_id=run_id, artifact_path=artifact_path)
+        out = ref.describe()
+    else:
+        raise typer.Exit(code=2)
+    if json_out:
+        import json as _json
+
+        typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        if out.get("type") == "mlflow_artifact":
+            typer.echo(
+                f"mlflow dataset: run_id={out['run_id']} artifact_path={out['artifact_path']}"
+            )
+        else:
+            typer.echo(f"type: {out['type']} path: {out['path']}")
+            typer.echo("columns: " + ", ".join(out.get("columns") or []))
+            typer.echo("rows:")
+            for r in out.get("rows", [])[:nrows]:
+                typer.echo(str(r))
 
 
 def main() -> None:
