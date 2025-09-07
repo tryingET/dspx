@@ -28,6 +28,7 @@ tools_app = typer.Typer(no_args_is_help=True)
 openapi_app = typer.Typer(no_args_is_help=True)
 adapters_app = typer.Typer(no_args_is_help=True)
 adapters_dataset_app = typer.Typer(no_args_is_help=True)
+adapters_eval_app = typer.Typer(no_args_is_help=True)
 cache_app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(sig_app, name="signature", help="Signature operations")
@@ -36,6 +37,7 @@ app.add_typer(tools_app, name="tools", help="Tools and integrations")
 tools_app.add_typer(openapi_app, name="openapi", help="OpenAPI loader/caller")
 app.add_typer(adapters_app, name="adapters", help="Adapters (datasets/eval/stores)")
 adapters_app.add_typer(adapters_dataset_app, name="dataset", help="Dataset adapters")
+adapters_app.add_typer(adapters_eval_app, name="eval", help="Evaluation helpers")
 app.add_typer(cache_app, name="cache", help="Inspect and manage the on-disk cache")
 
 
@@ -110,7 +112,9 @@ def signature_gen(
             import mlflow
 
             ensure_run_with_standard_tags(
-                "signature", template_version=template_version
+                "signature",
+                template_version=template_version,
+                run_name=f"signature-{class_name or res.signature_name or ''}",
             )
             try:
                 mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
@@ -254,7 +258,9 @@ def module_gen(
             from dspx.tracing import ensure_run_with_standard_tags
             import mlflow
 
-            ensure_run_with_standard_tags("module", template_version=template_version)
+            ensure_run_with_standard_tags(
+                "module", template_version=template_version, run_name=f"module-{name}"
+            )
             try:
                 mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
             except Exception:
@@ -358,7 +364,11 @@ def codegen(
             from dspx.tracing import ensure_run_with_standard_tags
             import mlflow
 
-            ensure_run_with_standard_tags("codegen", template_version=template_version)
+            ensure_run_with_standard_tags(
+                "codegen",
+                template_version=template_version,
+                run_name=f"codegen-{language or 'python'}",
+            )
             try:
                 mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
             except Exception:
@@ -858,6 +868,58 @@ def adapters_dataset_describe(
             typer.echo("rows:")
             for r in out.get("rows", [])[:nrows]:
                 typer.echo(str(r))
+
+
+@adapters_eval_app.command("run")
+def adapters_eval_run(
+    csv: Path = typer.Option(..., "--csv", help="CSV path containing labels"),
+    truth_col: str = typer.Option(..., "--truth-col", help="Column for ground truth"),
+    pred_col: str = typer.Option(..., "--pred-col", help="Column for predictions"),
+    metric: str = typer.Option(
+        ...,
+        "--metric",
+        help="accuracy|f1 (binary F1)",
+    ),
+    positive_label: Optional[str] = typer.Option(
+        None, "--positive-label", help="Label considered positive for F1"
+    ),
+    json_out: bool = typer.Option(True, "--json", help="Output JSON"),
+) -> None:
+    import json as _json
+    import pandas as pd
+    from dspx.adapters.eval import accuracy, f1_binary
+
+    df = pd.read_csv(str(csv))
+    if truth_col not in df.columns or pred_col not in df.columns:
+        raise typer.Exit(code=2)
+    y_true = df[truth_col].tolist()
+    y_pred = df[pred_col].tolist()
+
+    # Normalize booleans from common textual forms
+    def _parse_bool(x: object) -> object:
+        if isinstance(x, bool):
+            return x
+        s = str(x).strip().lower()
+        if s in {"true", "1", "yes"}:
+            return True
+        if s in {"false", "0", "no"}:
+            return False
+        return x
+
+    y_true = [_parse_bool(v) for v in y_true]
+    y_pred = [_parse_bool(v) for v in y_pred]
+    m = metric.strip().lower()
+    if m == "accuracy":
+        val = accuracy(y_true, y_pred)
+    elif m == "f1":
+        val = f1_binary(y_true, y_pred, positive_label=positive_label)
+    else:
+        raise typer.Exit(code=2)
+    out = {"metric": m, "value": float(val)}
+    if json_out:
+        typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(f"{m}: {val:.6f}")
 
 
 # --- Cache CLI ---

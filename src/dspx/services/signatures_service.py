@@ -60,6 +60,9 @@ def run_generate_dto(
     If `req.template_version` starts with 'simple', a deterministic template is used
     (no LM calls). Otherwise, falls back to vibe-dspy generation.
     """
+    import time as _time
+
+    t0 = _time.time()
     # Fast path: template-only generation for deterministic tests
     if (req.template_version or "").startswith("simple"):
         cls_name = str(req.options.get("class_name") or "GeneratedSignature")
@@ -150,7 +153,9 @@ def run_generate_dto(
         from dspx.tracing import ensure_run_with_standard_tags
 
         if ensure_run_with_standard_tags(
-            "signature", template_version=req.template_version or "v1"
+            "signature",
+            template_version=req.template_version or "v1",
+            run_name=f"signature-{res.signature_name or ''}",
         ):
             import mlflow
             from dspx.cache import sha256_text
@@ -179,7 +184,8 @@ def run_generate_dto(
             mlflow.log_metrics(
                 {
                     "signature.code_hash_prefix": int(sha256_text(res.code)[:8], 16)
-                    % 1_000_000
+                    % 1_000_000,
+                    "service.duration_ms": (_time.time() - t0) * 1000.0,
                 }
             )  # type: ignore[attr-defined]
     except Exception:

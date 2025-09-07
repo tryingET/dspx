@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Protocol, Sequence
+import random
 
 
 class DatasetAdapter(Protocol):
@@ -107,6 +108,61 @@ class MLflowDatasetRef:
                     f"Unsupported artifact type for dataset: {local.name}"
                 )
             return df.to_dict(orient="records")
+
+
+def train_test_split(
+    records: List[Dict[str, Any]], *, test_size: float = 0.2, seed: int = 42
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Deterministic train/test split using a seeded shuffle.
+
+    - `test_size` in (0, 1). Rounds down the train size.
+    - Returns (train, test).
+    """
+    if not (0.0 < test_size < 1.0):
+        raise ValueError("test_size must be in (0,1)")
+    idxs = list(range(len(records)))
+    rnd = random.Random(seed)
+    rnd.shuffle(idxs)
+    n_test = int(round(len(records) * test_size))
+    test_idx = set(idxs[:n_test])
+    train: List[Dict[str, Any]] = []
+    test: List[Dict[str, Any]] = []
+    for i, r in enumerate(records):
+        (test if i in test_idx else train).append(r)
+    return train, test
+
+
+def train_val_test_split(
+    records: List[Dict[str, Any]],
+    *,
+    ratios: Sequence[float] = (0.8, 0.1, 0.1),
+    seed: int = 42,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Deterministic train/val/test split by ratios using a seeded shuffle."""
+    if len(ratios) != 3:
+        raise ValueError("ratios must be a sequence of three floats")
+    total = sum(ratios)
+    if not (0.99 <= total <= 1.01):
+        raise ValueError("ratios must sum to 1.0")
+    idxs = list(range(len(records)))
+    rnd = random.Random(seed)
+    rnd.shuffle(idxs)
+    n = len(records)
+    n_train = int(round(n * ratios[0]))
+    n_val = int(round(n * ratios[1]))
+    train_idx = set(idxs[:n_train])
+    val_idx = set(idxs[n_train : n_train + n_val])
+    train: List[Dict[str, Any]] = []
+    val: List[Dict[str, Any]] = []
+    test: List[Dict[str, Any]] = []
+    for i, r in enumerate(records):
+        if i in train_idx:
+            train.append(r)
+        elif i in val_idx:
+            val.append(r)
+        else:
+            test.append(r)
+    return train, val, test
 
 
 def from_path(path: str | Path, **kwargs: Any) -> DatasetAdapter:

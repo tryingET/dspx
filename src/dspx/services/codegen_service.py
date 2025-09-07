@@ -143,6 +143,9 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
     full_spec = format_codegen_spec(
         req.spec, req.language, version=req.template_version or "v1"
     )
+    import time as _time
+
+    t0 = _time.time()
     result = codegen(spec=full_spec)
     text = result.code if hasattr(result, "code") else str(result)
     res = CodegenResult(code=text, language=req.language, raw_text=str(result))
@@ -164,7 +167,9 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
         from dspx.tracing import ensure_run_with_standard_tags
 
         if ensure_run_with_standard_tags(
-            "codegen", template_version=req.template_version or "v1"
+            "codegen",
+            template_version=req.template_version or "v1",
+            run_name=f"codegen-{req.language or 'python'}",
         ):
             import mlflow
             from dspx.cache import sha256_text
@@ -193,7 +198,8 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
             mlflow.log_metrics(
                 {
                     "codegen.code_hash_prefix": int(sha256_text(res.code)[:8], 16)
-                    % 1_000_000
+                    % 1_000_000,
+                    "service.duration_ms": (_time.time() - t0) * 1000.0,
                 }
             )  # type: ignore[attr-defined]
     except Exception:

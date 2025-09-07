@@ -109,6 +109,7 @@ def standard_tags(
     *,
     template_version: Optional[str] = None,
     extra: Optional[Dict[str, str]] = None,
+    group: Optional[str] = None,
 ) -> Dict[str, str]:
     """Build a standard tag set for MLflow runs.
 
@@ -125,6 +126,9 @@ def standard_tags(
     prov = _os.getenv("DSPX_PROVIDER")
     if prov:
         tags["provider"] = prov
+    grp = group or _os.getenv("DSPX_RUN_GROUP")
+    if grp:
+        tags["run_group"] = grp
     if extra:
         tags.update({k: v for k, v in extra.items() if v is not None})
     return tags
@@ -135,8 +139,17 @@ def ensure_run_with_standard_tags(
     *,
     template_version: Optional[str] = None,
     extra: Optional[Dict[str, str]] = None,
+    run_name: Optional[str] = None,
+    group: Optional[str] = None,
 ) -> bool:
-    """Ensure a run is active and set standard tags for consistency."""
+    """Ensure a run is active and set standard tags for consistency.
+
+    If no run is active and MLflow is enabled, starts a run with `run_name`
+    (or `$MLFLOW_RUN_NAME`), and sets standard tags (including optional group).
+    """
     return ensure_run_from_env(
-        tags=standard_tags(service, template_version=template_version, extra=extra)
+        run_name=run_name,
+        tags=standard_tags(
+            service, template_version=template_version, extra=extra, group=group
+        ),
     )

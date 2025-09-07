@@ -31,6 +31,9 @@ def run_generate(
     - If `use_signature=True`, embeds a generated Signature class above the Module and wires Predict.
     - LM-backed generation is reserved for future versions; current implementation focuses on templates.
     """
+    import time as _time
+
+    t0 = _time.time()
     tv = (
         (spec.options or {}).get("template_version")
         if hasattr(spec, "options")
@@ -135,7 +138,9 @@ def run_generate(
     try:
         from dspx.tracing import ensure_run_with_standard_tags
 
-        if ensure_run_with_standard_tags("module", template_version=tv or "v1"):
+        if ensure_run_with_standard_tags(
+            "module", template_version=tv or "v1", run_name=f"module-{spec.name}"
+        ):
             import mlflow
             from dspx.cache import sha256_text
 
@@ -166,7 +171,8 @@ def run_generate(
             mlflow.log_metrics(
                 {
                     "module.code_hash_prefix": int(sha256_text(art.code)[:8], 16)
-                    % 1_000_000
+                    % 1_000_000,
+                    "service.duration_ms": (_time.time() - t0) * 1000.0,
                 }
             )  # type: ignore[attr-defined]
     except Exception:

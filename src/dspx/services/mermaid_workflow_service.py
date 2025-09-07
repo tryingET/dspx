@@ -665,10 +665,15 @@ def generate_programs(
 
     # MLflow: attach artifacts and standard tags (best-effort)
     try:
-        from dspx.tracing import ensure_run_from_env
+        from dspx.tracing import ensure_run_with_standard_tags
         import mlflow
 
-        ensure_run_from_env(tags={"service": "mermaid", "program_name": base})
+        ensure_run_with_standard_tags(
+            "mermaid",
+            template_version="v1",
+            run_name=f"mermaid-{base}",
+            extra={"program_name": base},
+        )
         # Log generated files as artifacts
         for p in produced:
             try:
