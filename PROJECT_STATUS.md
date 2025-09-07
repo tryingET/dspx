@@ -10,7 +10,7 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~8–9s (`just test`) with 48 passing tests.
+- Tests: local suite runs in ~8–9s (`just test`) with 56 passing tests.
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
@@ -27,9 +27,10 @@ decisions, and readiness against the vision plan.
   operation extraction (merged params, body schema, response schemas, tags),
   caller (host allowlist, basic validation), registry integration (dynamic tools),
   CLI (`tools openapi` with `ops --tags`, `describe --json`).
-- Adapters (Phase 7 MVP): dataset adapters (CSV/Parquet, MLflow artifact ref),
-  eval metrics (accuracy, F1 binary), local object store; Adapters CLI
-  (`dspx adapters list`, `dspx adapters dataset describe`).
+- Adapters (Phase 7 MVP+): dataset adapters (CSV/Parquet, MLflow artifact ref),
+  eval metrics (accuracy, F1 binary, confusion, ROUGE‑1 F1, BLEU‑1), local object store;
+  Adapters CLI (`dspx adapters list`, `dspx adapters dataset describe`,
+  `dspx adapters dataset split`, `dspx adapters eval run`, `dspx adapters eval run2`).
 - Server: FastAPI app with `/signature`, `/module`, `/mermaid` endpoints; served by
   Granian; smoke‑tested via ASGI TestClient.
 - CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters), plus legacy demos;
@@ -37,7 +38,8 @@ decisions, and readiness against the vision plan.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
   (`service`, `template_version`, `provider`) and artifact/manifest logging.
 - Caching/Repro: content‑hash caching for generation services; manifests and
-  meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta.
+  meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta;
+  Cache management CLI: `dspx cache info|list|show|clear`.
 
 ## Documents
 
@@ -55,11 +57,12 @@ decisions, and readiness against the vision plan.
 - Phase 4 — Unified CLI (skeleton): DONE (`dspx`).
 - Phase 5 — OpenAPI Toolpack (MVP): DONE (loader/caller/registry/CLI, YAML+URL support,
   basic validation and caching). Mermaid nodes can call OpenAPI ops via labels.
-  Recent DX: `ops --tags`, `describe --json`, response schema printing.
+  Recent DX: `ops --tags`, `describe --json`, response schema printing, and
+  validation for enums/arrays/shallow nested objects.
 - Phase 6 — Caching & Repro Metadata: DONE (cache + manifests/meta). Recent DX: CLI
   `--no-cache`, `--cache-info` and meta includes cache keys/paths.
-- Phase 7 — Adapter Registry: DONE (MVP) — CSV/Parquet loaders, MLflow dataset ref,
-  accuracy/F1 metrics, local object store, tests.
+- Phase 7 — Adapter Registry: DONE (MVP+) — CSV/Parquet loaders, MLflow dataset ref,
+  accuracy/F1/confusion/ROUGE‑1/BLUE‑1 metrics, dataset split CLI, local object store, tests.
 - Phase 8 — Server API (optional): PARTIAL (FastAPI app + Granian runner; endpoints for
   `/signature`, `/module`, `/mermaid`; smoke tests). Next: auth options, DTO polishing.
 - Phase 9 — Policy, Safety, Sandboxing: PARTIAL (allowlists; more to do).
@@ -77,4 +80,5 @@ decisions, and readiness against the vision plan.
 
 - Stable, deterministic tests without external providers (currently ~9s locally).
 - DTOs and manifests adopted across services; CLIs documented.
-- Next: harden server API (Phase 8), stronger policy (Phase 9), and plugin basics (Phase 10).
+- Next: harden server API (Phase 8), stronger policy (Phase 9), plugins (Phase 10),
+  and richer adapter features (stratified splits, macro/micro metrics).

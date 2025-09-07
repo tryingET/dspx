@@ -19,9 +19,11 @@ Status: DONE (MVP)
   - Adapters usable by services and optimizers; tests deterministic.
 
 - Next
-  - Add dataset split helpers and shims for HF datasets (offline where possible).
-  - Expand eval metrics (ROUGE/BLEU, confusion matrix utils).
-  - Optional: `dspx adapters eval run` to compute metrics on pairs.
+  - DONE: dataset split helpers + CLI (`adapters dataset split`).
+  - DONE: eval metrics (confusion matrix, ROUGE‑1 F1, BLEU‑1) and eval CLI
+    (`adapters eval run`, `adapters eval run2`).
+  - Next: stratified splits by label and optional group‑aware splitting; macro/micro
+    averaging for ROUGE/BLEU; ROC‑AUC and per‑class precision/recall.
 
 ## Phase 8 — Server API (optional)
 
@@ -34,7 +36,7 @@ Status: PARTIAL (MVP)
 - Next
   - Add token auth hardening and rate‑limit options.
   - Document env flags and Granian CLI usage; docker example.
-  - MLflow tags already standardized; consider request metadata tagging.
+  - MLflow: run naming/grouping and duration metric shipped; consider request metadata tagging.
 
 ## Phase 9 — Policy, Safety, Sandboxing
 
@@ -60,15 +62,18 @@ Goal: enable third-party providers/tools/generators via entry points.
 
 ## Refinements (Near-term 80/20)
 
-- OpenAPI: now includes `ops --tags` and `describe --json` with response schema summaries.
-  Next: strengthen validation for arrays/enums/nested objects and provide examples.
-- MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached.
-  Next: add run naming/grouping and simple budget/time metrics across services.
+- OpenAPI: now includes `ops --tags` and `describe --json` with response schema summaries;
+  added validation for enums/arrays/shallow nested objects. Next: widen coverage for complex
+  nested schemas and arrays of objects with deeper constraints.
+- MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
+  added run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP`,
+  and `service.duration_ms` metric. Next: simple budget/time caps and aggregate metrics per service.
 - Templates: expand module/codegen templates (multi‑output, additional languages).
-- Caching: `--no-cache`, `--cache-info` shipped; meta includes cache key/file.
-  Next: `dspx cache` subcommands (list/show/clear) and small stats.
+- Caching: `--no-cache`, `--cache-info` shipped; meta includes cache key/file. Added
+  `dspx cache` subcommands (info/list/show/clear). Next: size summaries by kind and
+  selective pruning by age/size.
 - Docs: added end‑to‑end tutorial (`docs/TUTORIAL_E2E.md`) showing Mermaid + OpenAPI + CSV adapters.
-  Next: extend with a runnable OpenAPI node example and adapters CLI usage.
+  Next: extend with runnable OpenAPI node example and adapters split/eval examples.
 
 ## Day-to-Day Checklist
 
