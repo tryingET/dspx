@@ -28,6 +28,7 @@ tools_app = typer.Typer(no_args_is_help=True)
 openapi_app = typer.Typer(no_args_is_help=True)
 adapters_app = typer.Typer(no_args_is_help=True)
 adapters_dataset_app = typer.Typer(no_args_is_help=True)
+cache_app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(sig_app, name="signature", help="Signature operations")
 app.add_typer(mermaid_app, name="mermaid", help="Mermaid workflow operations")
@@ -35,6 +36,7 @@ app.add_typer(tools_app, name="tools", help="Tools and integrations")
 tools_app.add_typer(openapi_app, name="openapi", help="OpenAPI loader/caller")
 app.add_typer(adapters_app, name="adapters", help="Adapters (datasets/eval/stores)")
 adapters_app.add_typer(adapters_dataset_app, name="dataset", help="Dataset adapters")
+app.add_typer(cache_app, name="cache", help="Inspect and manage the on-disk cache")
 
 
 def _ensure_env(provider: Optional[str]) -> None:
@@ -856,6 +858,125 @@ def adapters_dataset_describe(
             typer.echo("rows:")
             for r in out.get("rows", [])[:nrows]:
                 typer.echo(str(r))
+
+
+# --- Cache CLI ---
+
+
+@cache_app.command("info")
+def cache_info_cmd() -> None:
+    from dspx.cache import cache_dir, cache_enabled
+
+    p = cache_dir()
+    enabled = cache_enabled()
+    total = 0
+    count = 0
+    if p.exists():
+        for f in p.rglob("*"):
+            if f.is_file():
+                try:
+                    total += f.stat().st_size
+                    count += 1
+                except Exception:
+                    pass
+    typer.echo(f"dir: {p}")
+    typer.echo(f"enabled: {str(enabled).lower()}")
+    typer.echo(f"files: {count}")
+    typer.echo(f"size_bytes: {total}")
+
+
+@cache_app.command("list")
+def cache_list(
+    kind: Optional[str] = typer.Option(None, help="Cache kind to filter"),
+) -> None:
+    from dspx.cache import cache_dir
+
+    base = cache_dir()
+    kinds = [kind] if kind else []
+    if not kinds:
+        # List subdirs under cache dir
+        if base.exists():
+            for d in sorted([p for p in base.iterdir() if p.is_dir()]):
+                kinds.append(d.name)
+    for k in kinds:
+        d = base / k
+        if not d.exists() or not d.is_dir():
+            continue
+        for f in sorted(d.glob("*.json")):
+            key = f.stem
+            typer.echo(f"{k}:{key} -> {f}")
+
+
+@cache_app.command("show")
+def cache_show(
+    kind: str = typer.Option(
+        ..., "--kind", "-k", help="Cache kind (signature/module/...)"
+    ),
+    key: str = typer.Option(..., "--key", help="Cache key (sha256 hex)"),
+) -> None:
+    import json as _json
+    from dspx.cache import cache_dir
+
+    f = cache_dir() / kind / f"{key}.json"
+    if not f.exists():
+        raise typer.Exit(code=2)
+    try:
+        typer.echo(
+            _json.dumps(
+                _json.loads(f.read_text(encoding="utf-8")), ensure_ascii=False, indent=2
+            )
+        )
+    except Exception:
+        typer.echo(f.read_text(encoding="utf-8"))
+
+
+@cache_app.command("clear")
+def cache_clear(
+    kind: Optional[str] = typer.Option(
+        None, "--kind", "-k", help="Cache kind to clear"
+    ),
+    key: Optional[str] = typer.Option(
+        None, "--key", help="Specific cache key to remove"
+    ),
+    all_: bool = typer.Option(False, "--all", help="Clear entire cache directory"),
+) -> None:
+    from dspx.cache import cache_dir
+
+    base = cache_dir()
+    if all_:
+        # Remove all files under cache dir
+        if base.exists():
+            for f in base.rglob("*.json"):
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+        typer.echo("cleared: all")
+        return
+    if key and not kind:
+        typer.echo("error: --key requires --kind", err=True)
+        raise typer.Exit(code=2)
+    if kind and key:
+        f = base / kind / f"{key}.json"
+        if f.exists():
+            try:
+                f.unlink()
+                typer.echo(f"cleared: {kind}:{key}")
+                return
+            except Exception:
+                pass
+        raise typer.Exit(code=2)
+    if kind and not key:
+        d = base / kind
+        if d.exists():
+            for f in d.glob("*.json"):
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+        typer.echo(f"cleared: {kind}")
+        return
+    raise typer.Exit(code=2)
 
 
 def main() -> None:
