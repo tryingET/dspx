@@ -14,7 +14,9 @@ decisions, and readiness against the vision plan.
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
-- Configuration: example `config.toml.example` added; `config.toml` is git‑ignored.
+- Configuration: consolidated example config `example.toml` (copy to `config.toml`); `config.toml` is git‑ignored.
+- Examples: Mermaid sample updated to a pedagogical flow (Unterrichtsstörungen, DE) for a more practical demo.
+- Tooling: `Justfile` includes `bench-mlflow` to run a single MLflow‑logged benchmark across providers.
 
 ## Current Components
 
@@ -40,9 +42,11 @@ decisions, and readiness against the vision plan.
 - CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters), plus legacy demos;
   `dspx-server` launcher.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
-  (`service`, `template_version`, `provider`) and artifact/manifest logging.
+  (`service`, `template_version`, `provider`, optional `run_group`) and artifact/manifest logging.
   Per‑service budgets recorded via `service.budget_ms` tag and
   `service.duration_ms`/`service.budget_exceeded` metrics.
+  dspy traces: `mlflow.dspy.autolog` configured to attach spans to the active named run
+  (no implicit run creation), with stable run naming in CLI (`signature-*`, `codegen-*`, `module-*`, `mermaid-*`).
 - Caching/Repro: content‑hash caching for generation services; manifests and
   meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta;
   Cache management CLI: `dspx cache info|list|show|clear`.
@@ -80,9 +84,10 @@ decisions, and readiness against the vision plan.
     provider gating in registry; tool enforcement wrapper in registry; root CLI policy flags;
     optional sandbox worktree for Codex provider (`DSPX_SANDBOX_WORKTREE=1`).
   - Implemented: per‑service budgets with MLflow tagging/metrics; CLI `--budget-ms` for signature/module/codegen.
+  - Implemented: run naming + `mlflow.dspy.autolog(create_run=False)` to attach traces to named runs; simple duration traces added to mermaid and non‑DTO signature paths.
   - Remaining: host allowlists for web tools; destructive confirmation for mutating ops via CLI;
     token redaction hardening; category‑level gating (e.g., `filesystem.write`),
-    and stronger sandbox isolation options.
+    stronger sandbox isolation options; optional parent/child nested runs for workflow‑level grouping.
 - Phase 10 — Plugins & Extension Points: NOT STARTED.
 
 ## Risks & Dependencies

@@ -58,6 +58,7 @@ Goal: strengthen policy for tool/provider gating and isolation.
   - Policy engine for tool/provider allow/deny with budgets/timeouts. (IN PROGRESS)
   - Optional isolated worktrees for code-exec; explicit destructive prompts. (PARTIAL)
   - CLI flags and config propagation. (DONE)
+  - Tracing: ensure dspy spans attach to active named runs; stable run naming in CLI.
 
 - Implemented
   - Tool & provider gating via env (allow/deny) with root CLI flags:
@@ -68,6 +69,8 @@ Goal: strengthen policy for tool/provider gating and isolation.
   - Optional sandbox worktree for Codex Exec (`DSPX_SANDBOX_WORKTREE=1`).
   - Per‑service budgets (env or CLI `--budget-ms`) recorded in MLflow: `service.budget_ms` tag,
     metrics `service.duration_ms`, `service.budget_exceeded`.
+  - Tracing improvements: `mlflow.dspy.autolog` configured not to create runs (attach to active);
+    CLI starts named runs early and refines names; added duration metrics to mermaid and non‑DTO signature paths.
 
 - Next
   - Host allowlists for web tools (fetch/scrape) + CLI `--allow-host` integration.
@@ -75,6 +78,7 @@ Goal: strengthen policy for tool/provider gating and isolation.
   - Token redaction hardening in logs/manifests.
   - Capability category gating (e.g., `filesystem.write`, `code.exec`) at policy level.
   - Stronger sandbox isolation options for code‑exec providers (env allowlist, RO mounts).
+  - Optional parent/child nested runs (workflow → service) for hierarchical trace views.
 
 - Acceptance
   - Policies enforced across tools/providers; deny/allow and mutation tests pass;
@@ -97,7 +101,8 @@ Goal: enable third-party providers/tools/generators via entry points.
   nested schemas and arrays of objects with deeper constraints.
 - MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
   run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP`;
-  per‑service budgets (`--budget-ms`) with `service.duration_ms` and `service.budget_exceeded`. Next:
+  per‑service budgets (`--budget-ms`) with `service.duration_ms` and `service.budget_exceeded`;
+  dspy autolog attached to active named runs. Next: optional parent run per bench/workflow and
   aggregate per‑workflow budgets and summary artifacts.
 - Templates: expand module/codegen templates (multi‑output, additional languages).
 - Caching: `--no-cache`, `--cache-info` shipped; meta includes cache key/file. Added
@@ -106,7 +111,8 @@ Goal: enable third-party providers/tools/generators via entry points.
 - Docs: added end‑to‑end tutorial (`docs/TUTORIAL_E2E.md`) showing Mermaid + OpenAPI + CSV adapters.
   Next: extend with runnable OpenAPI node example and adapters split/eval examples.
   Added: server docs (`docs/SERVER.md`) and quickstart in README.
-  Added: `config.toml.example`; `config.toml` is git‑ignored and discovered automatically.
+  Added: `example.toml`; `config.toml` is git‑ignored and discovered automatically.
+  Mermaid example updated to a pedagogical workflow (Unterrichtsstörungen, DE).
 
 ## Day-to-Day Checklist
 
