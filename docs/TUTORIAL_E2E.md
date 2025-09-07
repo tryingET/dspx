@@ -79,3 +79,20 @@ uvx dspx codegen "A CLI that prints hi" -l python --outfile gen.py
 ```
 
 You should see artifacts (`*.py`, `*.meta.json`, `manifest.json` for Mermaid) in the MLflow run.
+
+8) Grouping runs and naming runs
+
+Set a run group to help filter related executions in MLflow, and provide clearer run names automatically used by the CLIs and services:
+
+```
+export MLFLOW_ENABLE=1
+export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+export DSPX_RUN_GROUP=my-demo
+
+# Named runs appear as signature-<class>, module-<name>, codegen-<lang>, mermaid-<flow>
+uvx dspx signature gen "Extract names" --template-version simple-v1 --outfile sig.py
+uvx dspx module-gen -n Summarizer -d "Summarize" --template-version simple-v1 --outfile mod.py
+uvx dspx codegen "A CLI that prints hi" -l python --outfile gen.py
+```
+
+Check MLflow UI: runs have tag `run_group=my-demo` and a `service.duration_ms` metric for quick timing.

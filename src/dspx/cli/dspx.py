@@ -870,6 +870,70 @@ def adapters_dataset_describe(
                 typer.echo(str(r))
 
 
+@adapters_dataset_app.command("split")
+def adapters_dataset_split(
+    csv: Path = typer.Option(..., "--csv", help="CSV path to split"),
+    outdir: Path = typer.Option(..., "--outdir", help="Output directory for splits"),
+    test_size: Optional[float] = typer.Option(None, help="Test fraction (0-1)"),
+    ratios: Optional[str] = typer.Option(
+        None, help="Comma-separated ratios train,val,test that sum to 1"
+    ),
+    seed: int = typer.Option(42, help="Random seed for shuffling"),
+    json_out: bool = typer.Option(True, "--json", help="Output JSON summary"),
+) -> None:
+    import json as _json
+    import pandas as pd
+    from dspx.adapters.datasets import (
+        train_test_split as _tts,
+        train_val_test_split as _tvts,
+    )
+
+    df = pd.read_csv(str(csv))
+    records = df.to_dict(orient="records")
+    outdir.mkdir(parents=True, exist_ok=True)
+    summary = {"input": str(csv), "outdir": str(outdir)}
+    if ratios:
+        try:
+            parts = [float(x.strip()) for x in ratios.split(",")]
+        except Exception:
+            raise typer.Exit(code=2)
+        tr, va, te = _tvts(records, ratios=tuple(parts), seed=seed)
+        pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
+        pd.DataFrame(va).to_csv(outdir / "val.csv", index=False)
+        pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
+        summary.update(
+            {
+                "train": str(outdir / "train.csv"),
+                "val": str(outdir / "val.csv"),
+                "test": str(outdir / "test.csv"),
+                "counts": {"train": len(tr), "val": len(va), "test": len(te)},
+            }
+        )
+    else:
+        ts = 0.2 if test_size is None else float(test_size)
+        tr, te = _tts(records, test_size=ts, seed=seed)
+        pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
+        pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
+        summary.update(
+            {
+                "train": str(outdir / "train.csv"),
+                "test": str(outdir / "test.csv"),
+                "counts": {"train": len(tr), "test": len(te)},
+            }
+        )
+    if json_out:
+        typer.echo(_json.dumps(summary, ensure_ascii=False, indent=2))
+    else:
+        if "val" in summary:
+            typer.echo(
+                f"train={summary['counts']['train']} val={summary['counts']['val']} test={summary['counts']['test']}"
+            )
+        else:
+            typer.echo(
+                f"train={summary['counts']['train']} test={summary['counts']['test']}"
+            )
+
+
 @adapters_eval_app.command("run")
 def adapters_eval_run(
     csv: Path = typer.Option(..., "--csv", help="CSV path containing labels"),
@@ -878,7 +942,7 @@ def adapters_eval_run(
     metric: str = typer.Option(
         ...,
         "--metric",
-        help="accuracy|f1 (binary F1)",
+        help="accuracy|f1|confusion|rouge1_f1|bleu1",
     ),
     positive_label: Optional[str] = typer.Option(
         None, "--positive-label", help="Label considered positive for F1"
@@ -887,7 +951,13 @@ def adapters_eval_run(
 ) -> None:
     import json as _json
     import pandas as pd
-    from dspx.adapters.eval import accuracy, f1_binary
+    from dspx.adapters.eval import (
+        accuracy,
+        f1_binary,
+        confusion_matrix_binary,
+        rouge1_f1,
+        bleu1,
+    )
 
     df = pd.read_csv(str(csv))
     if truth_col not in df.columns or pred_col not in df.columns:
@@ -913,6 +983,22 @@ def adapters_eval_run(
         val = accuracy(y_true, y_pred)
     elif m == "f1":
         val = f1_binary(y_true, y_pred, positive_label=positive_label)
+    elif m == "confusion":
+        cm = confusion_matrix_binary(y_true, y_pred, positive_label=positive_label)
+        out = {"metric": m, **cm}
+        if json_out:
+            typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(f"tp={cm['tp']} tn={cm['tn']} fp={cm['fp']} fn={cm['fn']}")
+        return
+    elif m == "rouge1_f1":
+        refs = [str(v) for v in y_true]
+        cands = [str(v) for v in y_pred]
+        val = rouge1_f1(refs, cands)
+    elif m == "bleu1":
+        refs = [str(v) for v in y_true]
+        cands = [str(v) for v in y_pred]
+        val = bleu1(refs, cands)
     else:
         raise typer.Exit(code=2)
     out = {"metric": m, "value": float(val)}
@@ -920,6 +1006,71 @@ def adapters_eval_run(
         typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
     else:
         typer.echo(f"{m}: {val:.6f}")
+
+
+@adapters_eval_app.command("run2")
+def adapters_eval_run2(
+    csv_true: Path = typer.Option(..., "--csv-true", help="CSV with ground truth"),
+    csv_pred: Path = typer.Option(..., "--csv-pred", help="CSV with predictions"),
+    id_col: str = typer.Option("id", "--id-col", help="Join key column"),
+    truth_col: str = typer.Option("y", "--truth-col", help="Truth column in csv_true"),
+    pred_col: str = typer.Option("yhat", "--pred-col", help="Pred column in csv_pred"),
+    metric: str = typer.Option(
+        ...,
+        "--metric",
+        help="accuracy|f1|confusion|rouge1_f1|bleu1",
+    ),
+    positive_label: Optional[str] = typer.Option(
+        None, "--positive-label", help="Label considered positive for F1/confusion"
+    ),
+    json_out: bool = typer.Option(True, "--json", help="Output JSON"),
+) -> None:
+    import json as _json
+    import pandas as pd
+    from dspx.adapters.eval import (
+        accuracy,
+        f1_binary,
+        confusion_matrix_binary,
+        rouge1_f1,
+        bleu1,
+    )
+
+    df_t = pd.read_csv(str(csv_true))[[id_col, truth_col]]
+    df_p = pd.read_csv(str(csv_pred))[[id_col, pred_col]]
+    merged = pd.merge(df_t, df_p, on=id_col, how="inner", suffixes=("_t", "_p"))
+    y_true = merged[truth_col].tolist()
+    y_pred = merged[pred_col].tolist()
+    m = metric.strip().lower()
+    if m == "accuracy":
+        val = accuracy(y_true, y_pred)
+        out = {"metric": m, "value": float(val), "count": int(len(merged))}
+    elif m == "f1":
+        val = f1_binary(y_true, y_pred, positive_label=positive_label)
+        out = {"metric": m, "value": float(val), "count": int(len(merged))}
+    elif m == "confusion":
+        cm = confusion_matrix_binary(y_true, y_pred, positive_label=positive_label)
+        out = {"metric": m, **cm, "count": int(len(merged))}
+    elif m == "rouge1_f1":
+        refs = [str(v) for v in y_true]
+        cands = [str(v) for v in y_pred]
+        val = rouge1_f1(refs, cands)
+        out = {"metric": m, "value": float(val), "count": int(len(merged))}
+    elif m == "bleu1":
+        refs = [str(v) for v in y_true]
+        cands = [str(v) for v in y_pred]
+        val = bleu1(refs, cands)
+        out = {"metric": m, "value": float(val), "count": int(len(merged))}
+    else:
+        raise typer.Exit(code=2)
+    if json_out:
+        typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        if "value" in out:
+            typer.echo(f"{m}: {out['value']:.6f} (n={out['count']})")
+        else:
+            typer.echo(
+                f"tp={out['tp']} tn={out['tn']} fp={out['fp']} fn={out['fn']} (n={out['count']})"
+            )
 
 
 # --- Cache CLI ---
