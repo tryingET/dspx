@@ -74,8 +74,17 @@ def call_operation(
                     raise ValueError(f"Missing required query parameter: {name}")
             # Basic type checks for query params
             if where == "query" and "schema" in p and p.get("name") in params:
-                t = (p.get("schema") or {}).get("type")
+                schema = p.get("schema") or {}
+                t = schema.get("type")
+                enum = (
+                    schema.get("enum") if isinstance(schema.get("enum"), list) else None
+                )
                 val = params.get(p.get("name"))
+                if enum is not None:
+                    if str(val) not in {str(x) for x in enum}:
+                        raise ValueError(
+                            f"Invalid value for query param {p.get('name')}: must be one of {enum}"
+                        )
                 if t == "integer":
                     try:
                         int(str(val))
@@ -96,6 +105,43 @@ def call_operation(
                         raise ValueError(
                             f"Invalid type for query param {p.get('name')}: expected boolean"
                         )
+                elif t == "array":
+                    items = schema.get("items") or {}
+                    itype = items.get("type")
+                    # Expect list-like in params (programmatic usage)
+                    if not isinstance(val, (list, tuple)):
+                        raise ValueError(
+                            f"Invalid type for query param {p.get('name')}: expected array/list"
+                        )
+                    if itype == "integer":
+                        for el in val:
+                            try:
+                                int(str(el))
+                            except Exception:
+                                raise ValueError(
+                                    f"Invalid item type in array param {p.get('name')}: expected integer"
+                                )
+                    elif itype == "number":
+                        for el in val:
+                            try:
+                                float(str(el))
+                            except Exception:
+                                raise ValueError(
+                                    f"Invalid item type in array param {p.get('name')}: expected number"
+                                )
+                    elif itype == "boolean":
+                        for el in val:
+                            if str(el).lower() not in {
+                                "true",
+                                "false",
+                                "1",
+                                "0",
+                                "yes",
+                                "no",
+                            }:
+                                raise ValueError(
+                                    f"Invalid item type in array param {p.get('name')}: expected boolean"
+                                )
     except ValueError:
         # Surface validation errors
         raise
@@ -124,8 +170,15 @@ def call_operation(
                     for name, ps in properties.items():
                         if name not in body:
                             continue
-                        t = (ps or {}).get("type")
+                        ps = ps or {}
+                        t = ps.get("type")
                         val = body.get(name)
+                        # enum constraint
+                        if isinstance(ps.get("enum"), list) and val is not None:
+                            if str(val) not in {str(x) for x in ps["enum"]}:
+                                raise ValueError(
+                                    f"Invalid value for body property {name}: must be one of {ps['enum']}"
+                                )
                         if t == "integer":
                             try:
                                 int(val)
@@ -150,6 +203,89 @@ def call_operation(
                         elif t == "string":
                             # allow any value; we'll stringify
                             pass
+                        elif t == "array":
+                            items = ps.get("items") or {}
+                            itype = items.get("type")
+                            if not isinstance(val, list):
+                                raise ValueError(
+                                    f"Invalid type for body property {name}: expected array"
+                                )
+                            if itype == "integer":
+                                for el in val:
+                                    try:
+                                        int(el)
+                                    except Exception:
+                                        raise ValueError(
+                                            f"Invalid item type in body array {name}: expected integer"
+                                        )
+                            elif itype == "number":
+                                for el in val:
+                                    try:
+                                        float(el)
+                                    except Exception:
+                                        raise ValueError(
+                                            f"Invalid item type in body array {name}: expected number"
+                                        )
+                            elif itype == "boolean":
+                                for el in val:
+                                    if not isinstance(el, bool):
+                                        sval = str(el).lower()
+                                        if sval not in {
+                                            "true",
+                                            "false",
+                                            "1",
+                                            "0",
+                                            "yes",
+                                            "no",
+                                        }:
+                                            raise ValueError(
+                                                f"Invalid item type in body array {name}: expected boolean"
+                                            )
+                            elif itype == "string":
+                                for el in val:
+                                    if not isinstance(el, str):
+                                        raise ValueError(
+                                            f"Invalid item type in body array {name}: expected string"
+                                        )
+                        elif t == "object":
+                            # shallow nested object validation
+                            if not isinstance(val, dict):
+                                raise ValueError(
+                                    f"Invalid type for body property {name}: expected object"
+                                )
+                            sub_props = ps.get("properties") or {}
+                            sub_required = set(ps.get("required") or [])
+                            for r in sub_required:
+                                if r not in val:
+                                    raise ValueError(
+                                        f"Missing required nested property {name}.{r}"
+                                    )
+                            for sub_name, sps in sub_props.items():
+                                if sub_name not in val:
+                                    continue
+                                sps = sps or {}
+                                st = sps.get("type")
+                                sv = val.get(sub_name)
+                                if st == "integer":
+                                    try:
+                                        int(sv)
+                                    except Exception:
+                                        raise ValueError(
+                                            f"Invalid type for nested property {name}.{sub_name}: expected integer"
+                                        )
+                                elif st == "number":
+                                    try:
+                                        float(sv)
+                                    except Exception:
+                                        raise ValueError(
+                                            f"Invalid type for nested property {name}.{sub_name}: expected number"
+                                        )
+                                elif st == "boolean":
+                                    if not isinstance(sv, bool):
+                                        raise ValueError(
+                                            f"Invalid type for nested property {name}.{sub_name}: expected boolean"
+                                        )
+                                # strings/arrays/objects deeper are accepted as-is (keep shallow)
     except ValueError:
         raise
     except Exception:
