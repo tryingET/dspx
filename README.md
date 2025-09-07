@@ -16,9 +16,9 @@ Prerequisites
 
 Configuration
 -------------
-- This repo ships `config.example.toml`. Copy it to a local `config.toml` and edit as needed:
+- This repo ships `example.toml`. Copy it to a local `config.toml` and edit as needed:
 
-  cp config.example.toml config.toml
+  cp example.toml config.toml
 
 - You can also point `DSPX_CONFIG` to any config path. The loader searches the nearest `config.toml` if none is set.
 
@@ -436,7 +436,7 @@ Synology NAS (Docker) Example
 
 - Then point this project at the NAS:
 
-  - Update `config.toml` → `[mlflow].tracking_uri = "http://NAS_IP:50000"`
+- Update `config.toml` → `[mlflow].tracking_uri = "http://NAS_IP:50000"`
   - Or export `MLFLOW_TRACKING_URI=http://NAS_IP:50000`
   - Optionally set a run name prefix per machine/project:
 
@@ -445,7 +445,7 @@ Synology NAS (Docker) Example
 Config file (no more long env lines)
 ------------------------------------
 - Project reads `config.toml` at startup and sets env vars automatically.
-- Example (see `config.toml` in repo):
+- Example (start from `example.toml` in the repo):
 
   [mlflow]
   enable = true
