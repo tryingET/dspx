@@ -1,6 +1,18 @@
 graph TD
-  A[Start] --> B{Is OK?}
-  B -->|Yes| C[Do Thing]
-  B -->|No| D[Fix]
-  C --> E[End]
-  D --> E[End]
+  Start["Unterrichtsbeginn"] --> Beobachtung{"Störung wahrgenommen?"}
+  Beobachtung -->|Nein| Normal["Regulärer Unterricht"] --> Ende["Dokumentation kurz: keine Störung"]
+  Beobachtung -->|Ja| Einordnung{"Störungsgrad"}
+  Einordnung -->|Niedrig| Deesk1["Nonverbale Hinweise / Nähe / Blickkontakt"]
+  Einordnung -->|Mittel| Deesk2["Kurze Ich‑Botschaft, Regel erinnern, Alternativen anbieten"]
+  Einordnung -->|Hoch| Deesk3["Kurzgespräch außerhalb / Time‑out / Kollegiale Hilfe"]
+  Deesk1 --> Pruefen{"Wirksam?"}
+  Deesk2 --> Pruefen
+  Deesk3 --> Pruefen
+  Pruefen -->|Ja| Rueckkehr["Zum Lernprozess zurückführen"]
+  Pruefen -->|Nein| Eskalation{"Eskalieren?"}
+  Eskalation -->|Nein| Anpassung["Intervention anpassen"]
+  Eskalation -->|Ja| Massnahme["Maßnahmenplan: Elternkontakt, Vereinbarung, Schulsozialarbeit"]
+  Rueckkehr --> Nachbereitung["Dokumentation + kurze Reflexion"]
+  Anpassung --> Pruefen
+  Massnahme --> Nachbereitung
+  Nachbereitung --> Ende["Ende"]
