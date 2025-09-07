@@ -5,24 +5,21 @@ import os
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from dspx.dtos import SignatureGenRequest, ModuleSpec
 from dspx.services.signatures_service import run_generate_dto
 from dspx.services.module_service import run_generate as module_run_generate
 from dspx.services.mermaid_workflow_service import generate_programs
-
-
-def _check_auth(authorization: Optional[str]) -> None:
-    token = os.getenv("DSPX_SERVER_TOKEN")
-    if not token:
-        return
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    provided = authorization.split(" ", 1)[1]
-    if provided != token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+from dspx.server.security import (
+    AuthGuard,
+    RateLimitConfig,
+    RateLimitMiddleware,
+    UnauthorizedError,
+    stats as _stats,
+)
 
 
 class SignatureRequest(BaseModel):
@@ -64,12 +61,30 @@ class MermaidResponse(BaseModel):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="DSPx Server", version="0.1.0")
+    guard = AuthGuard.from_env()
+    # Rate limiting
+    rl_cfg = RateLimitConfig.from_env()
+    if rl_cfg.enabled:
+        app.add_middleware(RateLimitMiddleware, config=rl_cfg)
+
+    @app.exception_handler(UnauthorizedError)
+    async def _unauth_handler(request: Request, exc: UnauthorizedError):  # type: ignore[no-untyped-def]
+        _stats.status_401 += 1
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "unauthorized",
+                "detail": str(exc) or "unauthorized",
+                "status": 401,
+            },
+        )
 
     @app.post("/signature", response_model=SignatureResponse)
     def post_signature(
         req: SignatureRequest, authorization: Optional[str] = Header(default=None)
     ):
-        _check_auth(authorization)
+        _stats.requests_total += 1
+        guard.check(authorization)
         os.environ.setdefault("MLFLOW_ENABLE", "0")
         options = {"class_name": req.class_name} if req.class_name else {}
         dto = SignatureGenRequest(
@@ -82,7 +97,8 @@ def create_app() -> FastAPI:
     def post_module(
         req: ModuleRequest, authorization: Optional[str] = Header(default=None)
     ):
-        _check_auth(authorization)
+        _stats.requests_total += 1
+        guard.check(authorization)
         os.environ.setdefault("MLFLOW_ENABLE", "0")
         spec = ModuleSpec(
             name=req.name,
@@ -98,7 +114,8 @@ def create_app() -> FastAPI:
     def post_mermaid(
         req: MermaidRequest, authorization: Optional[str] = Header(default=None)
     ):
-        _check_auth(authorization)
+        _stats.requests_total += 1
+        guard.check(authorization)
         os.environ.setdefault("MLFLOW_ENABLE", "0")
         with TemporaryDirectory() as td:
             out = generate_programs(

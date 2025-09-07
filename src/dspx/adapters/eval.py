@@ -177,3 +177,156 @@ def bleu1(refs: Sequence[str], cands: Sequence[str]) -> float:
     else:
         bp = 1.0 if total_cand > total_ref else math.exp(1.0 - (total_ref / total_cand))
     return float(bp * prec)
+
+
+def rouge1_f1_macro(refs: Sequence[str], cands: Sequence[str]) -> float:
+    """Macro-averaged ROUGE-1 F1 over pairs.
+
+    Computes per-pair unigram F1 then averages. Returns 0.0 for empty inputs.
+    """
+    if len(refs) != len(cands):
+        raise ValueError("refs and cands must have same length")
+    n = len(refs)
+    if n == 0:
+        return 0.0
+
+    def _pair_f1(r: str, c: str) -> float:
+        rt = _tokenize(r)
+        ct = _tokenize(c)
+        if not rt and not ct:
+            return 0.0
+        from collections import Counter
+
+        rc = Counter(rt)
+        cc = Counter(ct)
+        overlap = sum(min(rc[t], cc[t]) for t in set(rc) | set(cc))
+        if overlap == 0:
+            return 0.0
+        precision = overlap / max(len(ct), 1)
+        recall = overlap / max(len(rt), 1)
+        if precision + recall == 0:
+            return 0.0
+        return 2 * precision * recall / (precision + recall)
+
+    return sum(_pair_f1(r, c) for r, c in zip(refs, cands)) / float(n)
+
+
+def bleu1_macro(refs: Sequence[str], cands: Sequence[str]) -> float:
+    """Macro-averaged BLEU-1 (unigram precision with brevity penalty).
+
+    Computes per-pair BLEU-1 then averages.
+    """
+    if len(refs) != len(cands):
+        raise ValueError("refs and cands must have same length")
+    n = len(refs)
+    if n == 0:
+        return 0.0
+    import math
+    from collections import Counter
+
+    def _pair_bleu(r: str, c: str) -> float:
+        rt = _tokenize(r)
+        ct = _tokenize(c)
+        if not ct:
+            return 0.0
+        rc = Counter(rt)
+        cc = Counter(ct)
+        matches = sum(min(cc[t], rc[t]) for t in cc)
+        prec = matches / len(ct)
+        bp = 1.0 if len(ct) > len(rt) else math.exp(1.0 - (len(rt) / max(len(ct), 1)))
+        return float(bp * prec)
+
+    return sum(_pair_bleu(r, c) for r, c in zip(refs, cands)) / float(n)
+
+
+def roc_auc_binary(
+    y_true: Sequence[object],
+    y_scores: Sequence[object],
+    *,
+    positive_label: object | None = None,
+) -> float:
+    """Compute ROC-AUC for binary classification given scores.
+
+    - y_true may contain bools/ints/strings; positive class is inferred similarly to f1_binary:
+      True if any booleans present; else 1 if any ints present; else requires positive_label.
+    - y_scores are treated as floats.
+    - Returns 0.5 for degenerate cases with no pos or no neg examples.
+    """
+    if len(y_true) != len(y_scores):
+        raise ValueError("y_true and y_scores must have the same length")
+    n = len(y_true)
+    if n == 0:
+        return 0.0
+
+    # Determine positive label
+    inferred = positive_label
+    if inferred is None:
+        if any(isinstance(v, bool) for v in y_true):
+            inferred = True
+        elif any(isinstance(v, int) for v in y_true):
+            inferred = 1
+        else:
+            raise ValueError(
+                "positive_label must be provided for non-bool/non-int labels"
+            )
+
+    # Convert y_true to 0/1 and scores to float
+    yb: List[int] = [1 if v == inferred else 0 for v in y_true]
+    try:
+        scores: List[float] = [float(s) for s in y_scores]
+    except Exception as e:
+        raise ValueError("y_scores must be numeric") from e
+
+    n_pos = sum(yb)
+    n_neg = len(yb) - n_pos
+    if n_pos == 0 or n_neg == 0:
+        return 0.5
+
+    # Mann–Whitney U: probability a random positive has higher score than a random negative
+    # AUC = (sum of ranks for positives - n_pos*(n_pos+1)/2) / (n_pos*n_neg)
+    # We compute ranks with average ties.
+    order = sorted(range(n), key=lambda i: scores[i])
+    ranks = [0.0] * n
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and scores[order[j + 1]] == scores[order[i]]:
+            j += 1
+        avg_rank = (i + j + 2) / 2.0  # 1-based average rank
+        for k in range(i, j + 1):
+            ranks[order[k]] = avg_rank
+        i = j + 1
+    sum_pos_ranks = sum(r for r, y in zip(ranks, yb) if y == 1)
+    auc = (sum_pos_ranks - (n_pos * (n_pos + 1) / 2.0)) / (n_pos * n_neg)
+    return float(auc)
+
+
+def precision_recall_per_class(
+    y_true: Sequence[object], y_pred: Sequence[object]
+) -> Dict[str, Dict[str, float]]:
+    """Compute per-class precision and recall.
+
+    - Returns mapping: {label: {precision, recall, support}} with label stringified.
+    - Precision/recall default to 0.0 when denominators are 0.
+    """
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true and y_pred must have the same length")
+    labels = set(y_true) | set(y_pred)
+    out: Dict[str, Dict[str, float]] = {}
+    for lab in labels:
+        tp = fp = fn = 0
+        for t, p in zip(y_true, y_pred):
+            if p == lab and t == lab:
+                tp += 1
+            elif p == lab and t != lab:
+                fp += 1
+            elif p != lab and t == lab:
+                fn += 1
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        out[str(lab)] = {
+            "precision": float(prec),
+            "recall": float(rec),
+            "support": float(sum(1 for t in y_true if t == lab)),
+        }
+    return out

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Protocol, Sequence
 import random
+import hashlib
 
 
 class DatasetAdapter(Protocol):
@@ -163,6 +164,244 @@ def train_val_test_split(
         else:
             test.append(r)
     return train, val, test
+
+
+def _stable_rng_for_key(seed: int, key: object) -> random.Random:
+    """Create a deterministic Random based on seed and an arbitrary key.
+
+    Uses sha256 over the composite to avoid process-dependent Python hash salt.
+    """
+    h = hashlib.sha256(f"{seed}|{repr(key)}".encode("utf-8")).digest()
+    # Reduce to 64-bit int for Random seed
+    sub = int.from_bytes(h[:8], byteorder="big", signed=False)
+    return random.Random((seed ^ sub) & ((1 << 64) - 1))
+
+
+def stratified_train_test_split(
+    records: List[Dict[str, Any]],
+    *,
+    label_key: str,
+    test_size: float = 0.2,
+    seed: int = 42,
+    group_key: Optional[str] = None,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Stratified train/test split.
+
+    - If `group_key` is provided, keeps all rows with the same group value in the same split
+      (group-aware stratification via greedy assignment by label distribution).
+    - Deterministic for a given seed.
+    - Returns (train, test).
+    """
+    if not (0.0 < test_size < 1.0):
+        raise ValueError("test_size must be in (0,1)")
+    if not records:
+        return [], []
+    # Validate keys
+    for i, r in enumerate(records):
+        if label_key not in r:
+            raise KeyError(f"label_key '{label_key}' missing at row {i}")
+        if group_key is not None and group_key not in r:
+            raise KeyError(f"group_key '{group_key}' missing at row {i}")
+
+    if group_key is None:
+        # Per-label stratification without grouping
+        by_label: Dict[object, List[int]] = {}
+        for idx, r in enumerate(records):
+            by_label.setdefault(r[label_key], []).append(idx)
+        test_idx: set[int] = set()
+        for lbl, idxs in by_label.items():
+            rng = _stable_rng_for_key(seed, lbl)
+            idxs_local = list(idxs)
+            rng.shuffle(idxs_local)
+            n = len(idxs_local)
+            n_test = int(round(n * test_size))
+            test_idx.update(idxs_local[:n_test])
+        train, test = [], []
+        for i, r in enumerate(records):
+            (test if i in test_idx else train).append(r)
+        return train, test
+
+    # Group-aware stratification: assign whole groups to partitions
+    # Build groups and label distributions per group
+    group_to_idxs: Dict[object, List[int]] = {}
+    for idx, r in enumerate(records):
+        group_to_idxs.setdefault(r[group_key], []).append(idx)
+    labels = {r[label_key] for r in records}
+    # Targets per label for each partition
+    total_label_counts: Dict[object, int] = {}
+    for r in records:
+        total_label_counts[r[label_key]] = total_label_counts.get(r[label_key], 0) + 1
+    target = {
+        0: {
+            lbl: int(round(cnt * (1.0 - test_size)))
+            for lbl, cnt in total_label_counts.items()
+        },
+        1: {
+            lbl: total_label_counts[lbl]
+            - int(round(total_label_counts[lbl] * (1.0 - test_size)))
+            for lbl in labels
+        },
+    }
+    # Current counts per partition
+    current = {0: {lbl: 0 for lbl in labels}, 1: {lbl: 0 for lbl in labels}}
+
+    # Deterministic shuffled group order
+    rng = random.Random(seed)
+    groups = list(group_to_idxs.keys())
+    rng.shuffle(groups)
+
+    assign: Dict[object, int] = {}
+    for g in groups:
+        # group label counts
+        glc: Dict[object, int] = {lbl: 0 for lbl in labels}
+        for i in group_to_idxs[g]:
+            gl = records[i][label_key]
+            glc[gl] = glc.get(gl, 0) + 1
+        # Choose partition to minimize squared error to target after adding group
+        best_p = None
+        best_score = None
+        for p in (0, 1):
+            score = 0.0
+            for lbl in labels:
+                after = current[p][lbl] + glc[lbl]
+                tgt = target[p][lbl]
+                d = after - tgt
+                score += float(d * d)
+            if best_score is None or score < best_score - 1e-9:
+                best_score = score
+                best_p = p
+        assert best_p is not None
+        assign[g] = best_p
+        for lbl in labels:
+            current[best_p][lbl] += glc[lbl]
+
+    train, test = [], []
+    for g, p in assign.items():
+        dest = test if p == 1 else train
+        for i in group_to_idxs[g]:
+            dest.append(records[i])
+    return train, test
+
+
+def stratified_train_val_test_split(
+    records: List[Dict[str, Any]],
+    *,
+    label_key: str,
+    ratios: Sequence[float] = (0.8, 0.1, 0.1),
+    seed: int = 42,
+    group_key: Optional[str] = None,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Stratified train/val/test split.
+
+    - If `group_key` is provided, keeps groups intact using a greedy assignment
+      to approximate per-label targets across the three partitions.
+    - Deterministic for a given seed.
+    - Returns (train, val, test).
+    """
+    if len(ratios) != 3:
+        raise ValueError("ratios must be a sequence of three floats")
+    total = float(sum(ratios))
+    if not (0.99 <= total <= 1.01):
+        raise ValueError("ratios must sum to 1.0")
+    if not records:
+        return [], [], []
+    for i, r in enumerate(records):
+        if label_key not in r:
+            raise KeyError(f"label_key '{label_key}' missing at row {i}")
+        if group_key is not None and group_key not in r:
+            raise KeyError(f"group_key '{group_key}' missing at row {i}")
+
+    if group_key is None:
+        # Per-label stratification without grouping
+        by_label: Dict[object, List[int]] = {}
+        for idx, r in enumerate(records):
+            by_label.setdefault(r[label_key], []).append(idx)
+        train_idx: set[int] = set()
+        val_idx: set[int] = set()
+        for lbl, idxs in by_label.items():
+            rng = _stable_rng_for_key(seed, lbl)
+            idxs_local = list(idxs)
+            rng.shuffle(idxs_local)
+            n = len(idxs_local)
+            n_train = int(round(n * ratios[0]))
+            n_val = int(round(n * ratios[1]))
+            # Remaining implicitly go to test
+            train_idx.update(idxs_local[:n_train])
+            val_idx.update(idxs_local[n_train : n_train + n_val])
+        train: List[Dict[str, Any]] = []
+        val: List[Dict[str, Any]] = []
+        test: List[Dict[str, Any]] = []
+        for i, r in enumerate(records):
+            if i in train_idx:
+                train.append(r)
+            elif i in val_idx:
+                val.append(r)
+            else:
+                test.append(r)
+        return train, val, test
+
+    # Group-aware 3-way stratification
+    group_to_idxs: Dict[object, List[int]] = {}
+    for idx, r in enumerate(records):
+        group_to_idxs.setdefault(r[group_key], []).append(idx)
+    labels = {r[label_key] for r in records}
+    total_label_counts: Dict[object, int] = {}
+    for r in records:
+        total_label_counts[r[label_key]] = total_label_counts.get(r[label_key], 0) + 1
+    target = {
+        0: {
+            lbl: int(round(total_label_counts[lbl] * float(ratios[0])))
+            for lbl in labels
+        },
+        1: {
+            lbl: int(round(total_label_counts[lbl] * float(ratios[1])))
+            for lbl in labels
+        },
+        2: {
+            lbl: total_label_counts[lbl]
+            - int(round(total_label_counts[lbl] * float(ratios[0])))
+            - int(round(total_label_counts[lbl] * float(ratios[1])))
+            for lbl in labels
+        },
+    }
+    current = {
+        0: {lbl: 0 for lbl in labels},
+        1: {lbl: 0 for lbl in labels},
+        2: {lbl: 0 for lbl in labels},
+    }
+
+    rng = random.Random(seed)
+    groups = list(group_to_idxs.keys())
+    rng.shuffle(groups)
+
+    assign: Dict[object, int] = {}
+    for g in groups:
+        glc: Dict[object, int] = {lbl: 0 for lbl in labels}
+        for i in group_to_idxs[g]:
+            gl = records[i][label_key]
+            glc[gl] = glc.get(gl, 0) + 1
+        best_p = None
+        best_score = None
+        for p in (0, 1, 2):
+            score = 0.0
+            for lbl in labels:
+                after = current[p][lbl] + glc[lbl]
+                tgt = target[p][lbl]
+                d = after - tgt
+                score += float(d * d)
+            if best_score is None or score < best_score - 1e-9:
+                best_score = score
+                best_p = p
+        assert best_p is not None
+        assign[g] = best_p
+        for lbl in labels:
+            current[best_p][lbl] += glc[lbl]
+
+    parts: Dict[int, List[Dict[str, Any]]] = {0: [], 1: [], 2: []}
+    for g, p in assign.items():
+        for i in group_to_idxs[g]:
+            parts[p].append(records[i])
+    return parts[0], parts[1], parts[2]
 
 
 def from_path(path: str | Path, **kwargs: Any) -> DatasetAdapter:

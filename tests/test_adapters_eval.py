@@ -1,6 +1,13 @@
 import pytest
 
-from dspx.adapters.eval import accuracy, f1_binary
+from dspx.adapters.eval import (
+    accuracy,
+    f1_binary,
+    roc_auc_binary,
+    precision_recall_per_class,
+    rouge1_f1_macro,
+    bleu1_macro,
+)
 
 
 def test_accuracy_basic_and_edge_cases() -> None:
@@ -29,3 +36,33 @@ def test_f1_binary_requires_label_for_strings() -> None:
     f1 = f1_binary(["cat", "dog"], ["cat", "cat"], positive_label="cat")
     # true positives=1, fp=1, fn=0 -> precision=0.5, recall=1.0 -> f1=0.666..
     assert f1 == pytest.approx(2 / 3)
+
+
+def test_roc_auc_binary_basic() -> None:
+    # Classic example: AUC = 0.75
+    y_true = [0, 0, 1, 1]
+    scores = [0.1, 0.4, 0.35, 0.8]
+    auc = roc_auc_binary(y_true, scores)
+    assert auc == pytest.approx(0.75)
+
+
+def test_precision_recall_per_class() -> None:
+    y_true = ["cat", "dog", "cat", "mouse", "dog", "dog"]
+    y_pred = ["cat", "cat", "dog", "mouse", "dog", "mouse"]
+    res = precision_recall_per_class(y_true, y_pred)
+    assert set(res.keys()) == {"cat", "dog", "mouse"}
+    # Sanity checks
+    assert 0.0 <= res["cat"]["precision"] <= 1.0
+    assert 0.0 <= res["cat"]["recall"] <= 1.0
+
+
+def test_macro_text_metrics() -> None:
+    refs = ["a", "a b"]
+    cands = ["a", "b"]
+    # Expected macro values approx
+    # rouge macro ≈ (1.0 + 2/3)/2 = 0.8333, micro ≈ 0.8
+    r_macro = rouge1_f1_macro(refs, cands)
+    assert r_macro == pytest.approx(0.83333, rel=1e-3)
+    # bleu macro ≈ (1 + exp(-1))/2 ≈ 0.6839
+    b_macro = bleu1_macro(refs, cands)
+    assert b_macro == pytest.approx(0.6839, rel=1e-3)

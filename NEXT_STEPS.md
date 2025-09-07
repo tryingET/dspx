@@ -6,7 +6,7 @@ work and refinements.
 
 ## Phase 7 — Adapter Registry (datasets/eval/stores)
 
-Status: DONE (MVP)
+Status: DONE (MVP+)
 
 - Implemented
   - `dspx/adapters/{datasets,stores,eval}.py` with lightweight interfaces.
@@ -22,21 +22,29 @@ Status: DONE (MVP)
   - DONE: dataset split helpers + CLI (`adapters dataset split`).
   - DONE: eval metrics (confusion matrix, ROUGE‑1 F1, BLEU‑1) and eval CLI
     (`adapters eval run`, `adapters eval run2`).
-  - Next: stratified splits by label and optional group‑aware splitting; macro/micro
-    averaging for ROUGE/BLEU; ROC‑AUC and per‑class precision/recall.
+  - DONE: stratified splits by label and optional group‑aware splitting (CLI flags, tests).
+  - DONE: macro/micro averaging for ROUGE/BLEU (CLI `--average`).
+  - DONE: ROC‑AUC and per‑class precision/recall (CLI `--metric` selections, tests).
+  - Next: add stratified multi‑class group balancing options; optional min‑count
+    constraints; PR curve utilities and calibration metrics.
 
 ## Phase 8 — Server API (optional)
 
-Status: PARTIAL (MVP)
+Status: DONE (MVP+)
 
 - Implemented
   - `dspx-server` (FastAPI) for `/signature`, `/module`, `/mermaid` served via Granian.
-  - Request/response DTOs; ASGI smoke tests using TestClient.
+  - Request/response DTOs; ASGI tests using TestClient.
+  - Bearer auth (env tokens or file; optional); standardized JSON 401 errors.
+  - Rate limiting (per‑identity and global; per‑path overrides); 429 JSON errors.
+  - Trusted proxies (CIDR) for X‑Forwarded‑For handling.
+  - Structured request logging; lightweight counters; docs at `docs/SERVER.md`.
 
 - Next
-  - Add token auth hardening and rate‑limit options.
-  - Document env flags and Granian CLI usage; docker example.
-  - MLflow: run naming/grouping and duration metric shipped; consider request metadata tagging.
+  - Distributed rate limiting backend (optional) for multi‑worker deployments.
+  - Expose a small `/metrics` for counters (guarded by env) or integrate Prometheus.
+  - DTO polish and request metadata tagging for MLflow when enabled.
+  - Harden logging config guidance; example JSON formatter setup.
 
 ## Phase 9 — Policy, Safety, Sandboxing
 
@@ -74,9 +82,10 @@ Goal: enable third-party providers/tools/generators via entry points.
   selective pruning by age/size.
 - Docs: added end‑to‑end tutorial (`docs/TUTORIAL_E2E.md`) showing Mermaid + OpenAPI + CSV adapters.
   Next: extend with runnable OpenAPI node example and adapters split/eval examples.
+  Added: server docs (`docs/SERVER.md`) and quickstart in README.
 
 ## Day-to-Day Checklist
 
-- Run `just test` before and after changes; target <5s locally.
+ - Run `just test` before and after changes; target ~<9s locally.
 - Keep docs in sync (VISION/ARCHITECTURE/NEXT_STEPS) with major changes.
 - Prefer small, scoped PRs per phase/sub-phase; include acceptance notes.

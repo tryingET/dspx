@@ -879,13 +879,21 @@ def adapters_dataset_split(
         None, help="Comma-separated ratios train,val,test that sum to 1"
     ),
     seed: int = typer.Option(42, help="Random seed for shuffling"),
-    json_out: bool = typer.Option(True, "--json", help="Output JSON summary"),
+    stratify_col: Optional[str] = typer.Option(
+        None, help="Column name for label stratification"
+    ),
+    group_col: Optional[str] = typer.Option(
+        None, help="Optional group column to keep groups intact"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON summary"),
 ) -> None:
     import json as _json
     import pandas as pd
     from dspx.adapters.datasets import (
         train_test_split as _tts,
         train_val_test_split as _tvts,
+        stratified_train_test_split as _stts,
+        stratified_train_val_test_split as _stvts,
     )
 
     df = pd.read_csv(str(csv))
@@ -897,7 +905,23 @@ def adapters_dataset_split(
             parts = [float(x.strip()) for x in ratios.split(",")]
         except Exception:
             raise typer.Exit(code=2)
-        tr, va, te = _tvts(records, ratios=tuple(parts), seed=seed)
+        # If stratify requested, ensure columns exist and use stratified split
+        if stratify_col:
+            if stratify_col not in df.columns:
+                typer.echo(f"error: stratify_col '{stratify_col}' not found")
+                raise typer.Exit(code=2)
+            if group_col and group_col not in df.columns:
+                typer.echo(f"error: group_col '{group_col}' not found")
+                raise typer.Exit(code=2)
+            tr, va, te = _stvts(
+                records,
+                label_key=str(stratify_col),
+                ratios=tuple(parts),
+                seed=seed,
+                group_key=str(group_col) if group_col else None,
+            )
+        else:
+            tr, va, te = _tvts(records, ratios=tuple(parts), seed=seed)
         pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
         pd.DataFrame(va).to_csv(outdir / "val.csv", index=False)
         pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
@@ -911,7 +935,22 @@ def adapters_dataset_split(
         )
     else:
         ts = 0.2 if test_size is None else float(test_size)
-        tr, te = _tts(records, test_size=ts, seed=seed)
+        if stratify_col:
+            if stratify_col not in df.columns:
+                typer.echo(f"error: stratify_col '{stratify_col}' not found")
+                raise typer.Exit(code=2)
+            if group_col and group_col not in df.columns:
+                typer.echo(f"error: group_col '{group_col}' not found")
+                raise typer.Exit(code=2)
+            tr, te = _stts(
+                records,
+                label_key=str(stratify_col),
+                test_size=ts,
+                seed=seed,
+                group_key=str(group_col) if group_col else None,
+            )
+        else:
+            tr, te = _tts(records, test_size=ts, seed=seed)
         pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
         pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
         summary.update(
@@ -921,17 +960,8 @@ def adapters_dataset_split(
                 "counts": {"train": len(tr), "test": len(te)},
             }
         )
-    if json_out:
-        typer.echo(_json.dumps(summary, ensure_ascii=False, indent=2))
-    else:
-        if "val" in summary:
-            typer.echo(
-                f"train={summary['counts']['train']} val={summary['counts']['val']} test={summary['counts']['test']}"
-            )
-        else:
-            typer.echo(
-                f"train={summary['counts']['train']} test={summary['counts']['test']}"
-            )
+    # Always emit JSON for deterministic CLI consumption
+    typer.echo(_json.dumps(summary, ensure_ascii=False, indent=2))
 
 
 @adapters_eval_app.command("run")
@@ -942,10 +972,13 @@ def adapters_eval_run(
     metric: str = typer.Option(
         ...,
         "--metric",
-        help="accuracy|f1|confusion|rouge1_f1|bleu1",
+        help="accuracy|f1|confusion|roc_auc|rouge1_f1|bleu1|per_class_pr",
     ),
     positive_label: Optional[str] = typer.Option(
         None, "--positive-label", help="Label considered positive for F1"
+    ),
+    average: str = typer.Option(
+        "micro", "--average", help="Averaging for text metrics (micro|macro)"
     ),
     json_out: bool = typer.Option(True, "--json", help="Output JSON"),
 ) -> None:
@@ -957,6 +990,10 @@ def adapters_eval_run(
         confusion_matrix_binary,
         rouge1_f1,
         bleu1,
+        rouge1_f1_macro,
+        bleu1_macro,
+        roc_auc_binary,
+        precision_recall_per_class,
     )
 
     df = pd.read_csv(str(csv))
@@ -991,14 +1028,37 @@ def adapters_eval_run(
         else:
             typer.echo(f"tp={cm['tp']} tn={cm['tn']} fp={cm['fp']} fn={cm['fn']}")
         return
+    elif m == "roc_auc":
+        try:
+            val = roc_auc_binary(y_true, y_pred, positive_label=positive_label)
+        except Exception:
+            # Try converting predictions to floats
+            try:
+                scores = [float(v) for v in y_pred]
+            except Exception:
+                raise typer.Exit(code=2)
+            val = roc_auc_binary(y_true, scores, positive_label=positive_label)
     elif m == "rouge1_f1":
         refs = [str(v) for v in y_true]
         cands = [str(v) for v in y_pred]
-        val = rouge1_f1(refs, cands)
+        avg = (average or "micro").strip().lower()
+        val = rouge1_f1(refs, cands) if avg == "micro" else rouge1_f1_macro(refs, cands)
     elif m == "bleu1":
         refs = [str(v) for v in y_true]
         cands = [str(v) for v in y_pred]
-        val = bleu1(refs, cands)
+        avg = (average or "micro").strip().lower()
+        val = bleu1(refs, cands) if avg == "micro" else bleu1_macro(refs, cands)
+    elif m == "per_class_pr":
+        per = precision_recall_per_class(y_true, y_pred)
+        out = {"metric": m, "classes": per}
+        if json_out:
+            typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+        else:
+            for k, v in per.items():
+                typer.echo(
+                    f"{k}: precision={v['precision']:.4f} recall={v['recall']:.4f}"
+                )
+        return
     else:
         raise typer.Exit(code=2)
     out = {"metric": m, "value": float(val)}
@@ -1018,10 +1078,13 @@ def adapters_eval_run2(
     metric: str = typer.Option(
         ...,
         "--metric",
-        help="accuracy|f1|confusion|rouge1_f1|bleu1",
+        help="accuracy|f1|confusion|roc_auc|rouge1_f1|bleu1|per_class_pr",
     ),
     positive_label: Optional[str] = typer.Option(
         None, "--positive-label", help="Label considered positive for F1/confusion"
+    ),
+    average: str = typer.Option(
+        "micro", "--average", help="Averaging for text metrics (micro|macro)"
     ),
     json_out: bool = typer.Option(True, "--json", help="Output JSON"),
 ) -> None:
@@ -1033,6 +1096,10 @@ def adapters_eval_run2(
         confusion_matrix_binary,
         rouge1_f1,
         bleu1,
+        rouge1_f1_macro,
+        bleu1_macro,
+        roc_auc_binary,
+        precision_recall_per_class,
     )
 
     df_t = pd.read_csv(str(csv_true))[[id_col, truth_col]]
@@ -1050,16 +1117,41 @@ def adapters_eval_run2(
     elif m == "confusion":
         cm = confusion_matrix_binary(y_true, y_pred, positive_label=positive_label)
         out = {"metric": m, **cm, "count": int(len(merged))}
+    elif m == "roc_auc":
+        try:
+            val = roc_auc_binary(y_true, y_pred, positive_label=positive_label)
+        except Exception:
+            try:
+                scores = [float(v) for v in y_pred]
+            except Exception:
+                raise typer.Exit(code=2)
+            val = roc_auc_binary(y_true, scores, positive_label=positive_label)
+        out = {"metric": m, "value": float(val), "count": int(len(merged))}
     elif m == "rouge1_f1":
         refs = [str(v) for v in y_true]
         cands = [str(v) for v in y_pred]
-        val = rouge1_f1(refs, cands)
-        out = {"metric": m, "value": float(val), "count": int(len(merged))}
+        avg = (average or "micro").strip().lower()
+        val = rouge1_f1(refs, cands) if avg == "micro" else rouge1_f1_macro(refs, cands)
+        out = {
+            "metric": m,
+            "value": float(val),
+            "count": int(len(merged)),
+            "average": avg,
+        }
     elif m == "bleu1":
         refs = [str(v) for v in y_true]
         cands = [str(v) for v in y_pred]
-        val = bleu1(refs, cands)
-        out = {"metric": m, "value": float(val), "count": int(len(merged))}
+        avg = (average or "micro").strip().lower()
+        val = bleu1(refs, cands) if avg == "micro" else bleu1_macro(refs, cands)
+        out = {
+            "metric": m,
+            "value": float(val),
+            "count": int(len(merged)),
+            "average": avg,
+        }
+    elif m == "per_class_pr":
+        per = precision_recall_per_class(y_true, y_pred)
+        out = {"metric": m, "classes": per, "count": int(len(merged))}
     else:
         raise typer.Exit(code=2)
     if json_out:

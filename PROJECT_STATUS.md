@@ -10,7 +10,7 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~8–9s (`just test`) with 56 passing tests.
+- Tests: local suite runs in ~8–11s (`just test`) with 71 passing tests.
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
@@ -28,11 +28,13 @@ decisions, and readiness against the vision plan.
   caller (host allowlist, basic validation), registry integration (dynamic tools),
   CLI (`tools openapi` with `ops --tags`, `describe --json`).
 - Adapters (Phase 7 MVP+): dataset adapters (CSV/Parquet, MLflow artifact ref),
-  eval metrics (accuracy, F1 binary, confusion, ROUGE‑1 F1, BLEU‑1), local object store;
-  Adapters CLI (`dspx adapters list`, `dspx adapters dataset describe`,
-  `dspx adapters dataset split`, `dspx adapters eval run`, `dspx adapters eval run2`).
+  eval metrics (accuracy, F1 binary, confusion, ROUGE‑1 F1, BLEU‑1, ROC‑AUC, per‑class precision/recall),
+  macro/micro averaging for ROUGE/BLEU, local object store; Adapters CLI (`dspx adapters list`,
+  `dspx adapters dataset describe`, `dspx adapters dataset split`, `dspx adapters eval run`,
+  `dspx adapters eval run2`).
 - Server: FastAPI app with `/signature`, `/module`, `/mermaid` endpoints; served by
-  Granian; smoke‑tested via ASGI TestClient.
+  Granian; Bearer auth (env‑driven, tokens/file), rate limiting (per‑identity and global),
+  trusted proxies for X‑Forwarded‑For, standardized JSON errors, structured logs; tested via ASGI TestClient.
 - CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters), plus legacy demos;
   `dspx-server` launcher.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
@@ -62,9 +64,11 @@ decisions, and readiness against the vision plan.
 - Phase 6 — Caching & Repro Metadata: DONE (cache + manifests/meta). Recent DX: CLI
   `--no-cache`, `--cache-info` and meta includes cache keys/paths.
 - Phase 7 — Adapter Registry: DONE (MVP+) — CSV/Parquet loaders, MLflow dataset ref,
-  accuracy/F1/confusion/ROUGE‑1/BLUE‑1 metrics, dataset split CLI, local object store, tests.
-- Phase 8 — Server API (optional): PARTIAL (FastAPI app + Granian runner; endpoints for
-  `/signature`, `/module`, `/mermaid`; smoke tests). Next: auth options, DTO polishing.
+  accuracy/F1/confusion/ROUGE‑1/BLUE‑1 metrics, dataset split CLI, stratified and group‑aware splits,
+  ROC‑AUC and per‑class precision/recall, macro/micro averaging for ROUGE/BLEU; local object store; tests.
+- Phase 8 — Server API (optional): DONE (MVP+) — FastAPI app + Granian runner; endpoints for
+  `/signature`, `/module`, `/mermaid`; Bearer auth (env), rate‑limit options (per‑path, identity/global),
+  trusted proxies (XFF), standardized JSON errors, basic structured logging; tests and docs.
 - Phase 9 — Policy, Safety, Sandboxing: PARTIAL (allowlists; more to do).
 - Phase 10 — Plugins & Extension Points: NOT STARTED.
 
@@ -78,7 +82,7 @@ decisions, and readiness against the vision plan.
 
 ## Success Criteria (near-term)
 
-- Stable, deterministic tests without external providers (currently ~9s locally).
+- Stable, deterministic tests without external providers (currently ~8–11s locally).
 - DTOs and manifests adopted across services; CLIs documented.
-- Next: harden server API (Phase 8), stronger policy (Phase 9), plugins (Phase 10),
-  and richer adapter features (stratified splits, macro/micro metrics).
+- Next: stronger policy (Phase 9), plugins (Phase 10), and richer adapter features
+  (e.g., stratified/group constraints, additional metrics), plus optional distributed rate limiting.

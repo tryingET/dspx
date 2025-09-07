@@ -113,6 +113,49 @@ OpenAPI Tools & Workflows
   - Upstream input supports JSON envelope: `{ "params": {...}, "body": {...}, "headers": {...}, "timeout": 10 }`.
   - The generated program auto‑registers the toolpack using env (`DSPX_OPENAPI_SPEC_<P>`) or a mapping file under `generated/openapi/<prefix>.json`.
 
+Server (FastAPI) & Security
+---------------------------
+Run the optional HTTP server (`dspx-server`, FastAPI + Granian) to expose endpoints:
+
+- Endpoints: `POST /signature`, `POST /module`, `POST /mermaid`
+- Start (Granian): `granian --interface asgi --host 127.0.0.1 --port 8000 dspx.server.app:app`
+
+Auth (opt‑in):
+- Single token: `export DSPX_SERVER_TOKEN='s3cr3t'`
+- Multiple tokens: `export DSPX_SERVER_TOKENS='tok1,tok2'`
+- Token file (one per line): `export DSPX_SERVER_TOKEN_FILE=/path/tokens.txt`
+- Require auth (defaults to on when any token present): `export DSPX_AUTH_REQUIRED=1`
+- Call with header: `Authorization: Bearer <token>`
+
+Rate limiting (opt‑in):
+- Enable: `export DSPX_RATE_LIMIT_ENABLED=1`
+- Default cap: `export DSPX_RATE_LIMIT_DEFAULT='60/min,10/sec'`
+- Per‑path caps (JSON): `export DSPX_RATE_LIMIT_PATHS='{"POST /module":"5/min"}'`
+- Identity: `export DSPX_RATE_LIMIT_IDENTITY=token` (or `ip`)
+- Trusted proxies (use X‑Forwarded‑For): `export DSPX_TRUSTED_PROXIES=1`
+
+More docs: see docs/SERVER.md
+
+Standardized error responses:
+- 401: `{ "error": "unauthorized", "detail": "...", "status": 401 }`
+- 429: `{ "error": "rate_limited", "detail": "limit exceeded", "status": 429 }`
+
+Quick curl examples:
+
+  # Signature (requires token if enabled)
+  curl -sS -X POST http://127.0.0.1:8000/signature \
+    -H "Authorization: Bearer $DSPX_SERVER_TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d '{"prompt":"Echo signature","template_version":"simple-v1"}'
+
+  # Module with per-path rate limit override
+  export DSPX_RATE_LIMIT_ENABLED=1
+  export DSPX_RATE_LIMIT_PATHS='{"POST /module":"1/sec"}'
+  curl -sS -X POST http://127.0.0.1:8000/module \
+    -H "Authorization: Bearer $DSPX_SERVER_TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d '{"name":"M","description":"","inputs":[],"outputs":[]}'
+
 Install, Update, Build
 ----------------------
 - Dev install (editable): `uv pip install -e .` — exposes console scripts.
