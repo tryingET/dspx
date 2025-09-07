@@ -885,6 +885,10 @@ def adapters_dataset_split(
     group_col: Optional[str] = typer.Option(
         None, help="Optional group column to keep groups intact"
     ),
+    group_balance: str = typer.Option(
+        "instances",
+        help="When using --group-col with stratification, balance per label by 'instances' or 'groups'",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Output JSON summary"),
 ) -> None:
     import json as _json
@@ -919,6 +923,7 @@ def adapters_dataset_split(
                 ratios=tuple(parts),
                 seed=seed,
                 group_key=str(group_col) if group_col else None,
+                group_balance=group_balance,
             )
         else:
             tr, va, te = _tvts(records, ratios=tuple(parts), seed=seed)
@@ -948,6 +953,7 @@ def adapters_dataset_split(
                 test_size=ts,
                 seed=seed,
                 group_key=str(group_col) if group_col else None,
+                group_balance=group_balance,
             )
         else:
             tr, te = _tts(records, test_size=ts, seed=seed)

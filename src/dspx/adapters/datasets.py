@@ -184,11 +184,16 @@ def stratified_train_test_split(
     test_size: float = 0.2,
     seed: int = 42,
     group_key: Optional[str] = None,
+    group_balance: str = "instances",
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Stratified train/test split.
 
-    - If `group_key` is provided, keeps all rows with the same group value in the same split
-      (group-aware stratification via greedy assignment by label distribution).
+    - If `group_key` is provided, keeps all rows with the same group value in
+      the same split (group-aware stratification). The `group_balance` option
+      controls the balancing objective across labels:
+        - "instances" (default): balance per-label instance counts.
+        - "groups": balance per-label group counts (a group contributes at
+          most 1 to a label regardless of how many instances it contains).
     - Deterministic for a given seed.
     - Returns (train, test).
     """
@@ -222,28 +227,59 @@ def stratified_train_test_split(
         return train, test
 
     # Group-aware stratification: assign whole groups to partitions
+    if group_balance not in {"instances", "groups"}:
+        raise ValueError("group_balance must be 'instances' or 'groups'")
     # Build groups and label distributions per group
     group_to_idxs: Dict[object, List[int]] = {}
     for idx, r in enumerate(records):
         group_to_idxs.setdefault(r[group_key], []).append(idx)
     labels = {r[label_key] for r in records}
-    # Targets per label for each partition
-    total_label_counts: Dict[object, int] = {}
-    for r in records:
-        total_label_counts[r[label_key]] = total_label_counts.get(r[label_key], 0) + 1
-    target = {
-        0: {
-            lbl: int(round(cnt * (1.0 - test_size)))
-            for lbl, cnt in total_label_counts.items()
-        },
-        1: {
-            lbl: total_label_counts[lbl]
-            - int(round(total_label_counts[lbl] * (1.0 - test_size)))
-            for lbl in labels
-        },
-    }
-    # Current counts per partition
-    current = {0: {lbl: 0 for lbl in labels}, 1: {lbl: 0 for lbl in labels}}
+
+    if group_balance == "instances":
+        # Targets per label for each partition based on instance counts
+        total_label_counts: Dict[object, int] = {}
+        for r in records:
+            total_label_counts[r[label_key]] = (
+                total_label_counts.get(r[label_key], 0) + 1
+            )
+        target = {
+            0: {
+                lbl: int(round(cnt * (1.0 - test_size)))
+                for lbl, cnt in total_label_counts.items()
+            },
+            1: {
+                lbl: total_label_counts[lbl]
+                - int(round(total_label_counts[lbl] * (1.0 - test_size)))
+                for lbl in labels
+            },
+        }
+        # Current counts per partition
+        current = {0: {lbl: 0 for lbl in labels}, 1: {lbl: 0 for lbl in labels}}
+    else:
+        # Targets per label based on number of groups containing the label at least once
+        # Compute group -> label presence (0/1)
+        group_label_presence: Dict[object, Dict[object, int]] = {}
+        for g, idxs in group_to_idxs.items():
+            pres: Dict[object, int] = {lbl: 0 for lbl in labels}
+            for i in idxs:
+                pres[records[i][label_key]] = 1
+            group_label_presence[g] = pres
+        total_groups_per_label: Dict[object, int] = {lbl: 0 for lbl in labels}
+        for pres in group_label_presence.values():
+            for lbl, v in pres.items():
+                total_groups_per_label[lbl] += int(v)
+        target = {
+            0: {
+                lbl: int(round(total_groups_per_label[lbl] * (1.0 - test_size)))
+                for lbl in labels
+            },
+            1: {
+                lbl: total_groups_per_label[lbl]
+                - int(round(total_groups_per_label[lbl] * (1.0 - test_size)))
+                for lbl in labels
+            },
+        }
+        current = {0: {lbl: 0 for lbl in labels}, 1: {lbl: 0 for lbl in labels}}
 
     # Deterministic shuffled group order
     rng = random.Random(seed)
@@ -252,11 +288,17 @@ def stratified_train_test_split(
 
     assign: Dict[object, int] = {}
     for g in groups:
-        # group label counts
-        glc: Dict[object, int] = {lbl: 0 for lbl in labels}
-        for i in group_to_idxs[g]:
-            gl = records[i][label_key]
-            glc[gl] = glc.get(gl, 0) + 1
+        # Group label signal per chosen balance objective
+        if group_balance == "instances":
+            glc: Dict[object, int] = {lbl: 0 for lbl in labels}
+            for i in group_to_idxs[g]:
+                gl = records[i][label_key]
+                glc[gl] = glc.get(gl, 0) + 1
+        else:
+            # groups mode: presence only (0/1)
+            glc = {lbl: 0 for lbl in labels}
+            for i in group_to_idxs[g]:
+                glc[records[i][label_key]] = 1
         # Choose partition to minimize squared error to target after adding group
         best_p = None
         best_score = None
@@ -290,11 +332,16 @@ def stratified_train_val_test_split(
     ratios: Sequence[float] = (0.8, 0.1, 0.1),
     seed: int = 42,
     group_key: Optional[str] = None,
+    group_balance: str = "instances",
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Stratified train/val/test split.
 
     - If `group_key` is provided, keeps groups intact using a greedy assignment
       to approximate per-label targets across the three partitions.
+      The `group_balance` option controls the balancing objective across labels:
+        - "instances" (default): balance per-label instance counts.
+        - "groups": balance per-label group counts (a group contributes at
+          most 1 to a label regardless of how many instances it contains).
     - Deterministic for a given seed.
     - Returns (train, val, test).
     """
@@ -341,29 +388,62 @@ def stratified_train_val_test_split(
         return train, val, test
 
     # Group-aware 3-way stratification
+    if group_balance not in {"instances", "groups"}:
+        raise ValueError("group_balance must be 'instances' or 'groups'")
     group_to_idxs: Dict[object, List[int]] = {}
     for idx, r in enumerate(records):
         group_to_idxs.setdefault(r[group_key], []).append(idx)
     labels = {r[label_key] for r in records}
-    total_label_counts: Dict[object, int] = {}
-    for r in records:
-        total_label_counts[r[label_key]] = total_label_counts.get(r[label_key], 0) + 1
-    target = {
-        0: {
-            lbl: int(round(total_label_counts[lbl] * float(ratios[0])))
-            for lbl in labels
-        },
-        1: {
-            lbl: int(round(total_label_counts[lbl] * float(ratios[1])))
-            for lbl in labels
-        },
-        2: {
-            lbl: total_label_counts[lbl]
-            - int(round(total_label_counts[lbl] * float(ratios[0])))
-            - int(round(total_label_counts[lbl] * float(ratios[1])))
-            for lbl in labels
-        },
-    }
+    if group_balance == "instances":
+        total_label_counts: Dict[object, int] = {}
+        for r in records:
+            total_label_counts[r[label_key]] = (
+                total_label_counts.get(r[label_key], 0) + 1
+            )
+        target = {
+            0: {
+                lbl: int(round(total_label_counts[lbl] * float(ratios[0])))
+                for lbl in labels
+            },
+            1: {
+                lbl: int(round(total_label_counts[lbl] * float(ratios[1])))
+                for lbl in labels
+            },
+            2: {
+                lbl: total_label_counts[lbl]
+                - int(round(total_label_counts[lbl] * float(ratios[0])))
+                - int(round(total_label_counts[lbl] * float(ratios[1])))
+                for lbl in labels
+            },
+        }
+    else:
+        # groups mode: balance number of groups containing each label
+        group_label_presence: Dict[object, Dict[object, int]] = {}
+        for g, idxs in group_to_idxs.items():
+            pres: Dict[object, int] = {lbl: 0 for lbl in labels}
+            for i in idxs:
+                pres[records[i][label_key]] = 1
+            group_label_presence[g] = pres
+        total_groups_per_label: Dict[object, int] = {lbl: 0 for lbl in labels}
+        for pres in group_label_presence.values():
+            for lbl, v in pres.items():
+                total_groups_per_label[lbl] += int(v)
+        target = {
+            0: {
+                lbl: int(round(total_groups_per_label[lbl] * float(ratios[0])))
+                for lbl in labels
+            },
+            1: {
+                lbl: int(round(total_groups_per_label[lbl] * float(ratios[1])))
+                for lbl in labels
+            },
+            2: {
+                lbl: total_groups_per_label[lbl]
+                - int(round(total_groups_per_label[lbl] * float(ratios[0])))
+                - int(round(total_groups_per_label[lbl] * float(ratios[1])))
+                for lbl in labels
+            },
+        }
     current = {
         0: {lbl: 0 for lbl in labels},
         1: {lbl: 0 for lbl in labels},
@@ -376,10 +456,15 @@ def stratified_train_val_test_split(
 
     assign: Dict[object, int] = {}
     for g in groups:
-        glc: Dict[object, int] = {lbl: 0 for lbl in labels}
-        for i in group_to_idxs[g]:
-            gl = records[i][label_key]
-            glc[gl] = glc.get(gl, 0) + 1
+        if group_balance == "instances":
+            glc: Dict[object, int] = {lbl: 0 for lbl in labels}
+            for i in group_to_idxs[g]:
+                gl = records[i][label_key]
+                glc[gl] = glc.get(gl, 0) + 1
+        else:
+            glc = {lbl: 0 for lbl in labels}
+            for i in group_to_idxs[g]:
+                glc[records[i][label_key]] = 1
         best_p = None
         best_score = None
         for p in (0, 1, 2):

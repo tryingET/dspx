@@ -29,9 +29,10 @@ decisions, and readiness against the vision plan.
   CLI (`tools openapi` with `ops --tags`, `describe --json`).
 - Adapters (Phase 7 MVP+): dataset adapters (CSV/Parquet, MLflow artifact ref),
   eval metrics (accuracy, F1 binary, confusion, ROUGE‑1 F1, BLEU‑1, ROC‑AUC, per‑class precision/recall),
-  macro/micro averaging for ROUGE/BLEU, local object store; Adapters CLI (`dspx adapters list`,
-  `dspx adapters dataset describe`, `dspx adapters dataset split`, `dspx adapters eval run`,
-  `dspx adapters eval run2`).
+  macro/micro averaging for ROUGE/BLEU, stratified and group‑aware splits with
+  group‑balancing modes (`instances|groups`) via `--group-balance`, local object store;
+  Adapters CLI (`dspx adapters list`, `dspx adapters dataset describe`,
+  `dspx adapters dataset split`, `dspx adapters eval run`, `dspx adapters eval run2`).
 - Server: FastAPI app with `/signature`, `/module`, `/mermaid` endpoints; served by
   Granian; Bearer auth (env‑driven, tokens/file), rate limiting (per‑identity and global),
   trusted proxies for X‑Forwarded‑For, standardized JSON errors, structured logs; tested via ASGI TestClient.
@@ -64,8 +65,9 @@ decisions, and readiness against the vision plan.
 - Phase 6 — Caching & Repro Metadata: DONE (cache + manifests/meta). Recent DX: CLI
   `--no-cache`, `--cache-info` and meta includes cache keys/paths.
 - Phase 7 — Adapter Registry: DONE (MVP+) — CSV/Parquet loaders, MLflow dataset ref,
-  accuracy/F1/confusion/ROUGE‑1/BLUE‑1 metrics, dataset split CLI, stratified and group‑aware splits,
-  ROC‑AUC and per‑class precision/recall, macro/micro averaging for ROUGE/BLEU; local object store; tests.
+  accuracy/F1/confusion/ROUGE‑1/BLUE‑1 metrics, dataset split CLI, stratified and group‑aware splits
+  with group‑balancing options (`instances|groups`), ROC‑AUC and per‑class precision/recall,
+  macro/micro averaging for ROUGE/BLEU; local object store; tests.
 - Phase 8 — Server API (optional): DONE (MVP+) — FastAPI app + Granian runner; endpoints for
   `/signature`, `/module`, `/mermaid`; Bearer auth (env), rate‑limit options (per‑path, identity/global),
   trusted proxies (XFF), standardized JSON errors, basic structured logging; tests and docs.

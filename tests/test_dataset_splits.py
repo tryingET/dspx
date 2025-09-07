@@ -54,3 +54,63 @@ def test_group_aware_stratified_split_keeps_groups_together() -> None:
     assert train_groups.isdisjoint(test_groups)
     # Total records conserved
     assert len(tr) + len(te) == len(recs)
+
+
+def _group_label_counts_by_partition(
+    part: list[dict], label_key: str, group_key: str
+) -> dict[object, set[object]]:
+    # returns mapping label -> set of groups present in that partition
+    out: dict[object, set[object]] = {}
+    for r in part:
+        out.setdefault(r[label_key], set()).add(r[group_key])
+    return out
+
+
+def test_group_balance_groups_vs_instances() -> None:
+    # Construct groups with imbalanced sizes so 'instances' and 'groups' differ
+    # A: one big group + two small groups; B: one big group + two small groups
+    recs = []
+    # A label groups
+    for _ in range(10):
+        recs.append({"y": "A", "grp": "a_big"})
+    for _ in range(1):
+        recs.append({"y": "A", "grp": "a_small1"})
+    for _ in range(1):
+        recs.append({"y": "A", "grp": "a_small2"})
+    # B label groups
+    for _ in range(10):
+        recs.append({"y": "B", "grp": "b_big"})
+    for _ in range(1):
+        recs.append({"y": "B", "grp": "b_small1"})
+    for _ in range(1):
+        recs.append({"y": "B", "grp": "b_small2"})
+
+    # Compare instances vs groups balance at 50/50 split
+    tr_i, te_i = stratified_train_test_split(
+        recs,
+        label_key="y",
+        test_size=0.5,
+        seed=123,
+        group_key="grp",
+        group_balance="instances",
+    )
+    tr_g, te_g = stratified_train_test_split(
+        recs,
+        label_key="y",
+        test_size=0.5,
+        seed=123,
+        group_key="grp",
+        group_balance="groups",
+    )
+
+    # Count number of distinct groups per label in each partition
+    gi_tr = _group_label_counts_by_partition(tr_i, "y", "grp")
+    gi_te = _group_label_counts_by_partition(te_i, "y", "grp")
+    gg_tr = _group_label_counts_by_partition(tr_g, "y", "grp")
+    gg_te = _group_label_counts_by_partition(te_g, "y", "grp")
+
+    # For each label, the groups mode should not be worse than instances mode
+    for lab in {"A", "B"}:
+        diff_i = abs(len(gi_tr.get(lab, set())) - len(gi_te.get(lab, set())))
+        diff_g = abs(len(gg_tr.get(lab, set())) - len(gg_te.get(lab, set())))
+        assert diff_g <= diff_i

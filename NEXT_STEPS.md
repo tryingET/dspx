@@ -25,8 +25,10 @@ Status: DONE (MVP+)
   - DONE: stratified splits by label and optional group‑aware splitting (CLI flags, tests).
   - DONE: macro/micro averaging for ROUGE/BLEU (CLI `--average`).
   - DONE: ROC‑AUC and per‑class precision/recall (CLI `--metric` selections, tests).
-  - Next: add stratified multi‑class group balancing options; optional min‑count
-    constraints; PR curve utilities and calibration metrics.
+  - DONE: stratified multi‑class group‑balancing options for splits; CLI
+    `--group-balance` with `instances|groups` and deterministic tests.
+  - Next: optional min‑count constraints for labels/partitions; PR curve
+    utilities and calibration metrics.
 
 ## Phase 8 — Server API (optional)
 

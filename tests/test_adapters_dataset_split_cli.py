@@ -69,3 +69,44 @@ def test_dataset_split_ratios(tmp_path: Path) -> None:
     assert len(tr) + len(va) + len(te) == 10
     ids = set(tr["id"]).union(set(va["id"]))
     assert ids.isdisjoint(set(te["id"]))
+
+
+def test_dataset_split_with_group_balance_flag(tmp_path: Path) -> None:
+    p = tmp_path / "data.csv"
+    # Create simple dataset with groups and labels
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {
+            "id": list(range(24)),
+            "y": ["A"] * 10 + ["A"] * 2 + ["B"] * 10 + ["B"] * 2,
+            "grp": ["a_big"] * 10
+            + ["a_small1"] * 2
+            + ["b_big"] * 10
+            + ["b_small1"] * 2,
+        }
+    )
+    df.to_csv(p, index=False)
+    outdir = tmp_path / "splits_groups"
+    out = runner.invoke(
+        app,
+        [
+            "adapters",
+            "dataset",
+            "split",
+            "--csv",
+            str(p),
+            "--outdir",
+            str(outdir),
+            "--test-size",
+            "0.5",
+            "--stratify-col",
+            "y",
+            "--group-col",
+            "grp",
+            "--group-balance",
+            "groups",
+        ],
+    ).stdout
+    data = json.loads(out)
+    assert Path(data["train"]).exists() and Path(data["test"]).exists()
