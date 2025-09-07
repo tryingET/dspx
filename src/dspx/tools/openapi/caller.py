@@ -5,6 +5,13 @@ from typing import Any, Dict, Mapping, Optional
 from urllib.parse import urljoin, urlparse
 
 from dspx.dtos import OpenAPICallRequest, OpenAPICallResult
+from dspx.policy import (
+    bypass as _policy_bypass,
+    allow_network_mutate as _policy_allow_mutate,
+    allowed_http_methods as _policy_allowed_methods,
+    disallowed_http_methods as _policy_disallowed_methods,
+    enforce_network_mutate as _policy_enforce_mutate,
+)
 import time as _time
 from dspx.tracing import ensure_run_from_env
 
@@ -302,6 +309,23 @@ def call_operation(
         tok = "{" + str(k) + "}"
         if tok not in path:
             query[k] = v
+
+    # Method policy enforcement (mutations)
+    if not _policy_bypass():
+        allow_set = _policy_allowed_methods()
+        deny_set = _policy_disallowed_methods()
+        if allow_set is not None and method not in allow_set:
+            raise PermissionError(f"HTTP method '{method}' not allowed by policy")
+        if method in deny_set:
+            raise PermissionError(f"HTTP method '{method}' denied by policy")
+        if (
+            _policy_enforce_mutate()
+            and method in {"POST", "PUT", "PATCH", "DELETE"}
+            and not _policy_allow_mutate()
+        ):
+            raise PermissionError(
+                f"Mutating HTTP method '{method}' requires DSPX_POLICY_ALLOW_NETWORK_MUTATE=1"
+            )
 
     close_client = False
     if client is None:

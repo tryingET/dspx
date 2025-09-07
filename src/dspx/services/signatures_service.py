@@ -13,6 +13,7 @@ from dspx.lm_base import LMBase
 from dspx.dtos import SignatureGenRequest, SignatureGenResult
 from dspx.templates import render_simple_signature, format_signature_prompt
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
+import os as _os
 
 
 def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
@@ -100,6 +101,17 @@ def run_generate_dto(
     load_config_env()
     enable_mlflow_from_env()
 
+    # Budget: propagate provider timeouts if set, and log later
+    budget_ms_env = _os.getenv("DSPX_BUDGET_SIGNATURE_MS")
+    budget_ms = (
+        int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
+    )
+    if budget_ms:
+        # best-effort propagate to known providers
+        secs = max(1, int((budget_ms + 999) // 1000))
+        for name in ("CODEX_TIMEOUT", "CLAUDE_TIMEOUT", "GEMINI_TIMEOUT"):
+            _os.environ[name] = str(secs)
+
     ensure_default_providers()
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
@@ -181,13 +193,21 @@ def run_generate_dto(
                 mlflow.log_dict(manifest, "signature_manifest.json")  # type: ignore[attr-defined]
             except Exception:
                 pass
-            mlflow.log_metrics(
-                {
-                    "signature.code_hash_prefix": int(sha256_text(res.code)[:8], 16)
-                    % 1_000_000,
-                    "service.duration_ms": (_time.time() - t0) * 1000.0,
-                }
-            )  # type: ignore[attr-defined]
+            duration_ms = (_time.time() - t0) * 1000.0
+            metrics = {
+                "signature.code_hash_prefix": int(sha256_text(res.code)[:8], 16)
+                % 1_000_000,
+                "service.duration_ms": duration_ms,
+            }
+            if budget_ms is not None:
+                try:
+                    mlflow.set_tag("service.budget_ms", str(budget_ms))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+                metrics["service.budget_exceeded"] = (
+                    1.0 if duration_ms > float(budget_ms) else 0.0
+                )
+            mlflow.log_metrics(metrics)  # type: ignore[attr-defined]
     except Exception:
         pass
     return res

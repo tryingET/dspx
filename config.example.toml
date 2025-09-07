@@ -19,7 +19,7 @@
 enable = true
 # Point to your MLflow server (e.g., Synology NAS Docker)
 # Example with host-port 50000 mapping to container 5000:
-tracking_uri = "http://100.106.114.10:50000"
+tracking_uri = "<url>:5000"
 experiment = "DSPy"
 
 [codex]

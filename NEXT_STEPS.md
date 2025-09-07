@@ -27,8 +27,10 @@ Status: DONE (MVP+)
   - DONE: ROC‑AUC and per‑class precision/recall (CLI `--metric` selections, tests).
   - DONE: stratified multi‑class group‑balancing options for splits; CLI
     `--group-balance` with `instances|groups` and deterministic tests.
-  - Next: optional min‑count constraints for labels/partitions; PR curve
-    utilities and calibration metrics.
+  - DONE: optional min‑count constraints for labels/partitions (CLI `--min-per-label`).
+  - DONE: PR curve utilities (`pr_curve`) and calibration metrics (ECE via `ece`).
+  - Next: additional text metrics (e.g., BERTScore), per‑class ROC/PR summaries, and
+    export helpers for plotting.
 
 ## Phase 8 — Server API (optional)
 
@@ -53,12 +55,30 @@ Status: DONE (MVP+)
 Goal: strengthen policy for tool/provider gating and isolation.
 
 - Deliverables
-  - Policy engine for tool/provider allow/deny with budgets/timeouts.
-  - Optional isolated worktrees for code-exec; explicit destructive prompts.
-  - CLI flags and config propagation.
+  - Policy engine for tool/provider allow/deny with budgets/timeouts. (IN PROGRESS)
+  - Optional isolated worktrees for code-exec; explicit destructive prompts. (PARTIAL)
+  - CLI flags and config propagation. (DONE)
+
+- Implemented
+  - Tool & provider gating via env (allow/deny) with root CLI flags:
+    `--allowed-tools`, `--disallowed-tools`, `--allowed-providers`, `--disallowed-providers`,
+    `--max-timeout`, `--allow-network-mutate`, `--allowed-http-methods`, `--disallowed-http-methods`.
+  - Tools wrapped with policy checks and timeout clamp; providers gated on creation.
+  - OpenAPI caller respects method allow/deny and (optionally enforced) mutation guard.
+  - Optional sandbox worktree for Codex Exec (`DSPX_SANDBOX_WORKTREE=1`).
+  - Per‑service budgets (env or CLI `--budget-ms`) recorded in MLflow: `service.budget_ms` tag,
+    metrics `service.duration_ms`, `service.budget_exceeded`.
+
+- Next
+  - Host allowlists for web tools (fetch/scrape) + CLI `--allow-host` integration.
+  - Destructive‑op confirmation in CLI for mutating OpenAPI/tools (unless bypassed by policy).
+  - Token redaction hardening in logs/manifests.
+  - Capability category gating (e.g., `filesystem.write`, `code.exec`) at policy level.
+  - Stronger sandbox isolation options for code‑exec providers (env allowlist, RO mounts).
 
 - Acceptance
-  - Policies enforced in tools and providers; tests for deny/allow flows.
+  - Policies enforced across tools/providers; deny/allow and mutation tests pass;
+    budgets visible in MLflow runs under configured experiment.
 
 ## Phase 10 — Plugins & Extension Points
 
@@ -76,8 +96,9 @@ Goal: enable third-party providers/tools/generators via entry points.
   added validation for enums/arrays/shallow nested objects. Next: widen coverage for complex
   nested schemas and arrays of objects with deeper constraints.
 - MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
-  added run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP`,
-  and `service.duration_ms` metric. Next: simple budget/time caps and aggregate metrics per service.
+  run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP`;
+  per‑service budgets (`--budget-ms`) with `service.duration_ms` and `service.budget_exceeded`. Next:
+  aggregate per‑workflow budgets and summary artifacts.
 - Templates: expand module/codegen templates (multi‑output, additional languages).
 - Caching: `--no-cache`, `--cache-info` shipped; meta includes cache key/file. Added
   `dspx cache` subcommands (info/list/show/clear). Next: size summaries by kind and
@@ -85,6 +106,7 @@ Goal: enable third-party providers/tools/generators via entry points.
 - Docs: added end‑to‑end tutorial (`docs/TUTORIAL_E2E.md`) showing Mermaid + OpenAPI + CSV adapters.
   Next: extend with runnable OpenAPI node example and adapters split/eval examples.
   Added: server docs (`docs/SERVER.md`) and quickstart in README.
+  Added: `config.toml.example`; `config.toml` is git‑ignored and discovered automatically.
 
 ## Day-to-Day Checklist
 

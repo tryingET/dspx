@@ -100,3 +100,47 @@ def test_adapters_eval_run_roc_auc_and_macro_text(tmp_path: Path) -> None:
     ).stdout
     d2 = json.loads(out2)
     assert d2["metric"] == "rouge1_f1" and d2["value"] > 0 and d2["value"] <= 1
+
+
+def test_adapters_eval_run_pr_curve_and_ece(tmp_path: Path) -> None:
+    # pr_curve with numeric predictions
+    p = tmp_path / "scores2.csv"
+    p.write_text("y,yhat\n0,0.1\n0,0.4\n1,0.35\n1,0.8\n", encoding="utf-8")
+    out = runner.invoke(
+        app,
+        [
+            "adapters",
+            "eval",
+            "run",
+            "--csv",
+            str(p),
+            "--truth-col",
+            "y",
+            "--pred-col",
+            "yhat",
+            "--metric",
+            "pr_curve",
+        ],
+    ).stdout
+    data = json.loads(out)
+    assert data["metric"] == "pr_curve" and len(data["thresholds"]) > 0
+
+    # ece
+    out2 = runner.invoke(
+        app,
+        [
+            "adapters",
+            "eval",
+            "run",
+            "--csv",
+            str(p),
+            "--truth-col",
+            "y",
+            "--pred-col",
+            "yhat",
+            "--metric",
+            "ece",
+        ],
+    ).stdout
+    d2 = json.loads(out2)
+    assert d2["metric"] == "ece" and 0.0 <= d2["value"] <= 1.0

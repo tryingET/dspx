@@ -330,3 +330,115 @@ def precision_recall_per_class(
             "support": float(sum(1 for t in y_true if t == lab)),
         }
     return out
+
+
+# --- PR Curve and Calibration ---
+
+
+def pr_curve_binary(
+    y_true: Sequence[object],
+    y_scores: Sequence[object],
+    *,
+    positive_label: object | None = None,
+) -> Dict[str, List[float]]:
+    """Compute precision-recall curve for binary classification.
+
+    Returns a dict with keys: thresholds, precision, recall.
+    Uses all unique score thresholds sorted descending.
+    """
+    if len(y_true) != len(y_scores):
+        raise ValueError("y_true and y_scores must have the same length")
+    # Determine positive label like in roc_auc
+    inferred = positive_label
+    if inferred is None:
+        if any(isinstance(v, bool) for v in y_true):
+            inferred = True
+        elif any(isinstance(v, int) for v in y_true):
+            inferred = 1
+        else:
+            raise ValueError(
+                "positive_label must be provided for non-bool/non-int labels"
+            )
+    yb: List[int] = [1 if v == inferred else 0 for v in y_true]
+    try:
+        scores: List[float] = [float(s) for s in y_scores]
+    except Exception as e:
+        raise ValueError("y_scores must be numeric") from e
+
+    # Sort by score descending
+    order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+    sorted_scores = [scores[i] for i in order]
+    sorted_true = [yb[i] for i in order]
+    # Unique thresholds
+    thresholds = sorted(set(sorted_scores), reverse=True)
+    precisions: List[float] = []
+    recalls: List[float] = []
+    # Compute cumulative TP/FP as threshold moves
+    tp = 0
+    fp = 0
+    total_pos = sum(yb)
+    i = 0
+    for thr in thresholds:
+        while i < len(sorted_scores) and sorted_scores[i] >= thr:
+            if sorted_true[i] == 1:
+                tp += 1
+            else:
+                fp += 1
+            i += 1
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 1.0
+        rec = tp / total_pos if total_pos > 0 else 0.0
+        precisions.append(float(prec))
+        recalls.append(float(rec))
+    return {"thresholds": thresholds, "precision": precisions, "recall": recalls}
+
+
+def expected_calibration_error_binary(
+    y_true: Sequence[object],
+    y_scores: Sequence[object],
+    *,
+    positive_label: object | None = None,
+    n_bins: int = 10,
+) -> float:
+    """Compute Expected Calibration Error (ECE) with equal-width bins on [0,1].
+
+    Scores are clamped to [0,1]. Returns 0.0 for empty inputs.
+    """
+    if len(y_true) != len(y_scores):
+        raise ValueError("y_true and y_scores must have the same length")
+    n = len(y_true)
+    if n == 0:
+        return 0.0
+    inferred = positive_label
+    if inferred is None:
+        if any(isinstance(v, bool) for v in y_true):
+            inferred = True
+        elif any(isinstance(v, int) for v in y_true):
+            inferred = 1
+        else:
+            raise ValueError(
+                "positive_label must be provided for non-bool/non-int labels"
+            )
+    yb: List[int] = [1 if v == inferred else 0 for v in y_true]
+    try:
+        scores: List[float] = [float(s) for s in y_scores]
+    except Exception as e:
+        raise ValueError("y_scores must be numeric") from e
+    # Clamp to [0,1]
+    scores = [0.0 if s < 0.0 else 1.0 if s > 1.0 else s for s in scores]
+    # Bin edges
+
+    ece = 0.0
+    for b in range(n_bins):
+        lo = b / n_bins
+        hi = (b + 1) / n_bins
+        idxs = [
+            i
+            for i, s in enumerate(scores)
+            if (s >= lo and (s < hi or (b == n_bins - 1 and s <= hi)))
+        ]
+        if not idxs:
+            continue
+        conf = sum(scores[i] for i in idxs) / len(idxs)
+        acc = sum(yb[i] for i in idxs) / len(idxs)
+        ece += (len(idxs) / n) * abs(acc - conf)
+    return float(ece)

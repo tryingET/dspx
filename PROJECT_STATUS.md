@@ -6,14 +6,15 @@ decisions, and readiness against the vision plan.
 ## Snapshot
 
 - Baseline branch created: `version/vision-baseline` (frozen snapshot).
-- Unified CLI available: `dspx` (signature/module/codegen/mermaid/tools) and
+- Unified CLI available: `dspx` (signature/module/codegen/mermaid/tools/adapters/cache) and
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~8–11s (`just test`) with 71 passing tests.
+- Tests: local suite runs in ~10–13s (`just test`) with 83 passing tests.
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
+- Configuration: example `config.toml.example` added; `config.toml` is git‑ignored.
 
 ## Current Components
 
@@ -40,6 +41,8 @@ decisions, and readiness against the vision plan.
   `dspx-server` launcher.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
   (`service`, `template_version`, `provider`) and artifact/manifest logging.
+  Per‑service budgets recorded via `service.budget_ms` tag and
+  `service.duration_ms`/`service.budget_exceeded` metrics.
 - Caching/Repro: content‑hash caching for generation services; manifests and
   meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta;
   Cache management CLI: `dspx cache info|list|show|clear`.
@@ -71,7 +74,15 @@ decisions, and readiness against the vision plan.
 - Phase 8 — Server API (optional): DONE (MVP+) — FastAPI app + Granian runner; endpoints for
   `/signature`, `/module`, `/mermaid`; Bearer auth (env), rate‑limit options (per‑path, identity/global),
   trusted proxies (XFF), standardized JSON errors, basic structured logging; tests and docs.
-- Phase 9 — Policy, Safety, Sandboxing: PARTIAL (allowlists; more to do).
+- Phase 9 — Policy, Safety, Sandboxing: IN PROGRESS
+  - Implemented: env‑driven policy engine for tool/provider allow/deny; optional max timeout clamp;
+    HTTP method allow/deny and guarded mutation (POST/PUT/PATCH/DELETE) enforcement;
+    provider gating in registry; tool enforcement wrapper in registry; root CLI policy flags;
+    optional sandbox worktree for Codex provider (`DSPX_SANDBOX_WORKTREE=1`).
+  - Implemented: per‑service budgets with MLflow tagging/metrics; CLI `--budget-ms` for signature/module/codegen.
+  - Remaining: host allowlists for web tools; destructive confirmation for mutating ops via CLI;
+    token redaction hardening; category‑level gating (e.g., `filesystem.write`),
+    and stronger sandbox isolation options.
 - Phase 10 — Plugins & Extension Points: NOT STARTED.
 
 ## Risks & Dependencies

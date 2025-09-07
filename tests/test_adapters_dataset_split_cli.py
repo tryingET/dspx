@@ -110,3 +110,33 @@ def test_dataset_split_with_group_balance_flag(tmp_path: Path) -> None:
     ).stdout
     data = json.loads(out)
     assert Path(data["train"]).exists() and Path(data["test"]).exists()
+
+
+def test_dataset_split_min_per_label_flag(tmp_path: Path) -> None:
+    p = tmp_path / "data2.csv"
+    df = pd.DataFrame({"id": list(range(10)), "y": ["A"] * 8 + ["B", "B"]})
+    df.to_csv(p, index=False)
+    outdir = tmp_path / "splits_min"
+    out = runner.invoke(
+        app,
+        [
+            "adapters",
+            "dataset",
+            "split",
+            "--csv",
+            str(p),
+            "--outdir",
+            str(outdir),
+            "--test-size",
+            "0.1",
+            "--stratify-col",
+            "y",
+            "--min-per-label",
+            "1",
+        ],
+    ).stdout
+    data = json.loads(out)
+    tr = pd.read_csv(data["train"])  # type: ignore[arg-type]
+    te = pd.read_csv(data["test"])  # type: ignore[arg-type]
+    # Ensure at least one 'B' in both splits
+    assert (tr["y"] == "B").sum() >= 1 and (te["y"] == "B").sum() >= 1

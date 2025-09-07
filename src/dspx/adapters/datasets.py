@@ -185,6 +185,7 @@ def stratified_train_test_split(
     seed: int = 42,
     group_key: Optional[str] = None,
     group_balance: str = "instances",
+    min_per_label: Optional[int] = None,
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Stratified train/test split.
 
@@ -199,6 +200,8 @@ def stratified_train_test_split(
     """
     if not (0.0 < test_size < 1.0):
         raise ValueError("test_size must be in (0,1)")
+    if min_per_label is not None and min_per_label < 0:
+        raise ValueError("min_per_label must be >= 0 when provided")
     if not records:
         return [], []
     # Validate keys
@@ -220,6 +223,18 @@ def stratified_train_test_split(
             rng.shuffle(idxs_local)
             n = len(idxs_local)
             n_test = int(round(n * test_size))
+            if min_per_label is not None:
+                m = int(min_per_label)
+                if n < 2 * m:
+                    raise ValueError(
+                        f"Label '{lbl}' has only {n} rows; cannot satisfy min_per_label={m} across 2 splits"
+                    )
+                lower = m
+                upper = n - m
+                if n_test < lower:
+                    n_test = lower
+                elif n_test > upper:
+                    n_test = upper
             test_idx.update(idxs_local[:n_test])
         train, test = [], []
         for i, r in enumerate(records):
@@ -253,6 +268,23 @@ def stratified_train_test_split(
                 for lbl in labels
             },
         }
+        # Enforce min constraints by adjusting targets within feasible bounds
+        if min_per_label is not None:
+            m = int(min_per_label)
+            for lbl, cnt in total_label_counts.items():
+                if cnt < 2 * m:
+                    raise ValueError(
+                        f"Label '{lbl}' has only {cnt} rows; cannot satisfy min_per_label={m} across 2 splits"
+                    )
+                low = m
+                up = cnt - m
+                t1 = target[1][lbl]
+                if t1 < low:
+                    t1 = low
+                elif t1 > up:
+                    t1 = up
+                target[1][lbl] = t1
+                target[0][lbl] = cnt - t1
         # Current counts per partition
         current = {0: {lbl: 0 for lbl in labels}, 1: {lbl: 0 for lbl in labels}}
     else:
@@ -279,6 +311,23 @@ def stratified_train_test_split(
                 for lbl in labels
             },
         }
+        if min_per_label is not None:
+            # Interpret min_per_label as a minimum number of groups per label here
+            m = int(min_per_label)
+            for lbl, cnt in total_groups_per_label.items():
+                if cnt < 2 * m:
+                    raise ValueError(
+                        f"Label '{lbl}' has only {cnt} groups; cannot satisfy min_per_label={m} across 2 splits"
+                    )
+                low = m
+                up = cnt - m
+                t1 = target[1][lbl]
+                if t1 < low:
+                    t1 = low
+                elif t1 > up:
+                    t1 = up
+                target[1][lbl] = t1
+                target[0][lbl] = cnt - t1
         current = {0: {lbl: 0 for lbl in labels}, 1: {lbl: 0 for lbl in labels}}
 
     # Deterministic shuffled group order
@@ -333,6 +382,7 @@ def stratified_train_val_test_split(
     seed: int = 42,
     group_key: Optional[str] = None,
     group_balance: str = "instances",
+    min_per_label: Optional[int] = None,
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Stratified train/val/test split.
 
@@ -350,6 +400,8 @@ def stratified_train_val_test_split(
     total = float(sum(ratios))
     if not (0.99 <= total <= 1.01):
         raise ValueError("ratios must sum to 1.0")
+    if min_per_label is not None and min_per_label < 0:
+        raise ValueError("min_per_label must be >= 0 when provided")
     if not records:
         return [], [], []
     for i, r in enumerate(records):
@@ -372,6 +424,56 @@ def stratified_train_val_test_split(
             n = len(idxs_local)
             n_train = int(round(n * ratios[0]))
             n_val = int(round(n * ratios[1]))
+            if min_per_label is not None:
+                m = int(min_per_label)
+                if n < 3 * m:
+                    raise ValueError(
+                        f"Label '{lbl}' has only {n} rows; cannot satisfy min_per_label={m} across 3 splits"
+                    )
+                n_test = n - n_train - n_val
+                # Raise to minima
+                n_train = max(n_train, m)
+                n_val = max(n_val, m)
+                n_test = max(n_test, m)
+                # Reduce if necessary to match total, not going below m
+                while (n_train + n_val + n_test) > n:
+                    # reduce the partition with largest above-min slack
+                    choices = [
+                        (n_train - m, 0),
+                        (n_val - m, 1),
+                        (n_test - m, 2),
+                    ]
+                    choices.sort(reverse=True)
+                    reduced = False
+                    for excess, idxp in choices:
+                        if excess > 0:
+                            if idxp == 0:
+                                n_train -= 1
+                            elif idxp == 1:
+                                n_val -= 1
+                            else:
+                                n_test -= 1
+                            reduced = True
+                            break
+                    if not reduced:
+                        break
+                while (n_train + n_val + n_test) < n:
+                    # allocate to partition with largest deficit vs desired
+                    desired_tr = int(round(n * ratios[0]))
+                    desired_va = int(round(n * ratios[1]))
+                    desired_te = n - desired_tr - desired_va
+                    diffs = [
+                        desired_tr - n_train,
+                        desired_va - n_val,
+                        desired_te - n_test,
+                    ]
+                    i = max(range(3), key=lambda k: diffs[k])
+                    if i == 0:
+                        n_train += 1
+                    elif i == 1:
+                        n_val += 1
+                    else:
+                        n_test += 1
             # Remaining implicitly go to test
             train_idx.update(idxs_local[:n_train])
             val_idx.update(idxs_local[n_train : n_train + n_val])
@@ -416,6 +518,46 @@ def stratified_train_val_test_split(
                 for lbl in labels
             },
         }
+        if min_per_label is not None:
+            m = int(min_per_label)
+            for lbl, cnt in total_label_counts.items():
+                if cnt < 3 * m:
+                    raise ValueError(
+                        f"Label '{lbl}' has only {cnt} rows; cannot satisfy min_per_label={m} across 3 splits"
+                    )
+                t0, t1, t2 = target[0][lbl], target[1][lbl], target[2][lbl]
+                t0 = max(t0, m)
+                t1 = max(t1, m)
+                t2 = max(t2, m)
+                while (t0 + t1 + t2) > cnt:
+                    choices = [
+                        (t0 - m, 0),
+                        (t1 - m, 1),
+                        (t2 - m, 2),
+                    ]
+                    choices.sort(reverse=True)
+                    for excess, idxp in choices:
+                        if excess > 0:
+                            if idxp == 0:
+                                t0 -= 1
+                            elif idxp == 1:
+                                t1 -= 1
+                            else:
+                                t2 -= 1
+                            break
+                while (t0 + t1 + t2) < cnt:
+                    desired0 = int(round(cnt * float(ratios[0])))
+                    desired1 = int(round(cnt * float(ratios[1])))
+                    desired2 = cnt - desired0 - desired1
+                    diffs = [desired0 - t0, desired1 - t1, desired2 - t2]
+                    iadd = max(range(3), key=lambda k: diffs[k])
+                    if iadd == 0:
+                        t0 += 1
+                    elif iadd == 1:
+                        t1 += 1
+                    else:
+                        t2 += 1
+                target[0][lbl], target[1][lbl], target[2][lbl] = t0, t1, t2
     else:
         # groups mode: balance number of groups containing each label
         group_label_presence: Dict[object, Dict[object, int]] = {}
@@ -444,6 +586,47 @@ def stratified_train_val_test_split(
                 for lbl in labels
             },
         }
+        if min_per_label is not None:
+            # Interpret min_per_label as minimum group count per label per partition
+            m = int(min_per_label)
+            for lbl, cnt in total_groups_per_label.items():
+                if cnt < 3 * m:
+                    raise ValueError(
+                        f"Label '{lbl}' has only {cnt} groups; cannot satisfy min_per_label={m} across 3 splits"
+                    )
+                t0, t1, t2 = target[0][lbl], target[1][lbl], target[2][lbl]
+                t0 = max(t0, m)
+                t1 = max(t1, m)
+                t2 = max(t2, m)
+                while (t0 + t1 + t2) > cnt:
+                    choices = [
+                        (t0 - m, 0),
+                        (t1 - m, 1),
+                        (t2 - m, 2),
+                    ]
+                    choices.sort(reverse=True)
+                    for excess, idxp in choices:
+                        if excess > 0:
+                            if idxp == 0:
+                                t0 -= 1
+                            elif idxp == 1:
+                                t1 -= 1
+                            else:
+                                t2 -= 1
+                            break
+                while (t0 + t1 + t2) < cnt:
+                    desired0 = int(round(cnt * float(ratios[0])))
+                    desired1 = int(round(cnt * float(ratios[1])))
+                    desired2 = cnt - desired0 - desired1
+                    diffs = [desired0 - t0, desired1 - t1, desired2 - t2]
+                    iadd = max(range(3), key=lambda k: diffs[k])
+                    if iadd == 0:
+                        t0 += 1
+                    elif iadd == 1:
+                        t1 += 1
+                    else:
+                        t2 += 1
+                target[0][lbl], target[1][lbl], target[2][lbl] = t0, t1, t2
     current = {
         0: {lbl: 0 for lbl in labels},
         1: {lbl: 0 for lbl in labels},

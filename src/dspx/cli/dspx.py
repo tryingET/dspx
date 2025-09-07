@@ -50,6 +50,59 @@ def _ensure_env(provider: Optional[str]) -> None:
     enable_mlflow_from_env()
 
 
+@app.callback()
+def _policy_callback(
+    bypass_permissions: bool = typer.Option(
+        False, "--bypass-permissions", help="Bypass policy checks (unsafe)"
+    ),
+    allowed_tools: Optional[str] = typer.Option(
+        None, "--allowed-tools", help="Comma list of allowed tool names"
+    ),
+    disallowed_tools: Optional[str] = typer.Option(
+        None, "--disallowed-tools", help="Comma list of denied tool names"
+    ),
+    allowed_providers: Optional[str] = typer.Option(
+        None, "--allowed-providers", help="Comma list of allowed provider names"
+    ),
+    disallowed_providers: Optional[str] = typer.Option(
+        None, "--disallowed-providers", help="Comma list of denied provider names"
+    ),
+    max_timeout: Optional[float] = typer.Option(
+        None, "--max-timeout", help="Max timeout (s) to allow for tool calls"
+    ),
+    allow_network_mutate: bool = typer.Option(
+        False,
+        "--allow-network-mutate",
+        help="Allow HTTP POST/PUT/PATCH/DELETE in tools",
+    ),
+    allowed_http_methods: Optional[str] = typer.Option(
+        None, "--allowed-http-methods", help="Comma list of allowed HTTP methods"
+    ),
+    disallowed_http_methods: Optional[str] = typer.Option(
+        None, "--disallowed-http-methods", help="Comma list of denied HTTP methods"
+    ),
+) -> None:
+    # Export policy envs for downstream modules
+    if bypass_permissions:
+        os.environ["DSPX_POLICY_BYPASS"] = "1"
+    if allowed_tools is not None:
+        os.environ["DSPX_POLICY_ALLOWED_TOOLS"] = str(allowed_tools)
+    if disallowed_tools is not None:
+        os.environ["DSPX_POLICY_DISALLOWED_TOOLS"] = str(disallowed_tools)
+    if allowed_providers is not None:
+        os.environ["DSPX_POLICY_ALLOWED_PROVIDERS"] = str(allowed_providers)
+    if disallowed_providers is not None:
+        os.environ["DSPX_POLICY_DISALLOWED_PROVIDERS"] = str(disallowed_providers)
+    if max_timeout is not None:
+        os.environ["DSPX_POLICY_MAX_TIMEOUT"] = str(max_timeout)
+    if allow_network_mutate:
+        os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = "1"
+    if allowed_http_methods is not None:
+        os.environ["DSPX_POLICY_ALLOWED_HTTP_METHODS"] = str(allowed_http_methods)
+    if disallowed_http_methods is not None:
+        os.environ["DSPX_POLICY_DISALLOWED_HTTP_METHODS"] = str(disallowed_http_methods)
+
+
 @sig_app.command("gen")
 def signature_gen(
     prompt: str = typer.Argument(..., help="Natural language description"),
@@ -61,10 +114,15 @@ def signature_gen(
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
     no_cache: bool = typer.Option(False, help="Bypass on-disk cache for this run"),
     cache_info: bool = typer.Option(False, help="Print cache key and path info"),
+    budget_ms: Optional[int] = typer.Option(
+        None, help="Time budget in ms (logs to MLflow; may clamp provider timeout)"
+    ),
 ) -> None:
     _ensure_env(provider)
     if no_cache:
         os.environ["DSPX_CACHE_ENABLE"] = "0"
+    if budget_ms is not None:
+        os.environ["DSPX_BUDGET_SIGNATURE_MS"] = str(int(budget_ms))
     req = SignatureGenRequest(
         prompt=prompt,
         template_version=template_version,
@@ -199,10 +257,15 @@ def module_gen(
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
     no_cache: bool = typer.Option(False, help="Bypass on-disk cache for this run"),
     cache_info: bool = typer.Option(False, help="Print cache key and path info"),
+    budget_ms: Optional[int] = typer.Option(
+        None, help="Time budget in ms (logs to MLflow)"
+    ),
 ) -> None:
     _ensure_env(provider)
     if no_cache:
         os.environ["DSPX_CACHE_ENABLE"] = "0"
+    if budget_ms is not None:
+        os.environ["DSPX_BUDGET_MODULE_MS"] = str(int(budget_ms))
     spec = ModuleSpec(
         name=name,
         description=description,
@@ -313,10 +376,15 @@ def codegen(
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
     no_cache: bool = typer.Option(False, help="Bypass on-disk cache for this run"),
     cache_info: bool = typer.Option(False, help="Print cache key and path info"),
+    budget_ms: Optional[int] = typer.Option(
+        None, help="Time budget in ms (logs to MLflow; may clamp provider timeout)"
+    ),
 ) -> None:
     _ensure_env(provider)
     if no_cache:
         os.environ["DSPX_CACHE_ENABLE"] = "0"
+    if budget_ms is not None:
+        os.environ["DSPX_BUDGET_CODEGEN_MS"] = str(int(budget_ms))
     req = CodegenRequest(
         spec=spec, language=language, template_version=template_version
     )
@@ -889,6 +957,10 @@ def adapters_dataset_split(
         "instances",
         help="When using --group-col with stratification, balance per label by 'instances' or 'groups'",
     ),
+    min_per_label: Optional[int] = typer.Option(
+        None,
+        help="Minimum per-label count per partition (applies only to stratified splits)",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Output JSON summary"),
 ) -> None:
     import json as _json
@@ -924,6 +996,7 @@ def adapters_dataset_split(
                 seed=seed,
                 group_key=str(group_col) if group_col else None,
                 group_balance=group_balance,
+                min_per_label=min_per_label,
             )
         else:
             tr, va, te = _tvts(records, ratios=tuple(parts), seed=seed)
@@ -954,6 +1027,7 @@ def adapters_dataset_split(
                 seed=seed,
                 group_key=str(group_col) if group_col else None,
                 group_balance=group_balance,
+                min_per_label=min_per_label,
             )
         else:
             tr, te = _tts(records, test_size=ts, seed=seed)
@@ -978,7 +1052,7 @@ def adapters_eval_run(
     metric: str = typer.Option(
         ...,
         "--metric",
-        help="accuracy|f1|confusion|roc_auc|rouge1_f1|bleu1|per_class_pr",
+        help="accuracy|f1|confusion|roc_auc|rouge1_f1|bleu1|per_class_pr|pr_curve|ece",
     ),
     positive_label: Optional[str] = typer.Option(
         None, "--positive-label", help="Label considered positive for F1"
@@ -1000,6 +1074,8 @@ def adapters_eval_run(
         bleu1_macro,
         roc_auc_binary,
         precision_recall_per_class,
+        pr_curve_binary,
+        expected_calibration_error_binary,
     )
 
     df = pd.read_csv(str(csv))
@@ -1064,6 +1140,32 @@ def adapters_eval_run(
                 typer.echo(
                     f"{k}: precision={v['precision']:.4f} recall={v['recall']:.4f}"
                 )
+        return
+    elif m == "pr_curve":
+        try:
+            scores = [float(v) for v in y_pred]
+        except Exception:
+            raise typer.Exit(code=2)
+        curve = pr_curve_binary(y_true, scores, positive_label=positive_label)
+        out = {"metric": m, **curve}
+        if json_out:
+            typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(f"points={len(curve['thresholds'])}")
+        return
+    elif m == "ece":
+        try:
+            scores = [float(v) for v in y_pred]
+        except Exception:
+            raise typer.Exit(code=2)
+        val = expected_calibration_error_binary(
+            y_true, scores, positive_label=positive_label
+        )
+        out = {"metric": m, "value": float(val)}
+        if json_out:
+            typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(f"ece: {val:.6f}")
         return
     else:
         raise typer.Exit(code=2)

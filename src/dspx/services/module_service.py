@@ -8,6 +8,7 @@ from dspx.services.signatures_service import run_generate_dto
 from dspx.templates.module_templates import render_module_skeleton
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
 from dspx.templates.signature_templates import render_simple_signature
+import os as _os
 
 
 def _sig_class_name(module_name: str) -> str:
@@ -34,6 +35,11 @@ def run_generate(
     import time as _time
 
     t0 = _time.time()
+    # Budget logging (module service is template-only by default)
+    budget_ms_env = _os.getenv("DSPX_BUDGET_MODULE_MS")
+    budget_ms = (
+        int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
+    )
     tv = (
         (spec.options or {}).get("template_version")
         if hasattr(spec, "options")
@@ -168,13 +174,21 @@ def run_generate(
                 mlflow.log_dict(man, f"{spec.name}.manifest.json")  # type: ignore[attr-defined]
             except Exception:
                 pass
-            mlflow.log_metrics(
-                {
-                    "module.code_hash_prefix": int(sha256_text(art.code)[:8], 16)
-                    % 1_000_000,
-                    "service.duration_ms": (_time.time() - t0) * 1000.0,
-                }
-            )  # type: ignore[attr-defined]
+            duration_ms = (_time.time() - t0) * 1000.0
+            metrics = {
+                "module.code_hash_prefix": int(sha256_text(art.code)[:8], 16)
+                % 1_000_000,
+                "service.duration_ms": duration_ms,
+            }
+            if budget_ms is not None:
+                try:
+                    mlflow.set_tag("service.budget_ms", str(budget_ms))  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+                metrics["service.budget_exceeded"] = (
+                    1.0 if duration_ms > float(budget_ms) else 0.0
+                )
+            mlflow.log_metrics(metrics)  # type: ignore[attr-defined]
     except Exception:
         pass
     return art

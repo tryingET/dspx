@@ -15,7 +15,19 @@ _TOOLS: Dict[str, Callable[..., Any]] = {}
 
 
 def register_tool(name: str, func: Callable[..., Any]) -> None:
-    _TOOLS[name] = func
+    # Wrap with policy enforcement
+    def _wrapped(*args: Any, **kwargs: Any) -> Any:
+        # Import policy lazily; if unavailable, skip enforcement
+        try:
+            from dspx.policy import check_tool_allowed, apply_timeout_policy
+        except Exception:
+            return func(*args, **kwargs)
+        check_tool_allowed(name)
+        if kwargs:
+            kwargs = apply_timeout_policy(kwargs)
+        return func(*args, **kwargs)
+
+    _TOOLS[name] = _wrapped
 
 
 def get_tool(name: str) -> Callable[..., Any]:

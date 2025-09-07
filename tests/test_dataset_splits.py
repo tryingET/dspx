@@ -4,6 +4,7 @@ from dspx.adapters.datasets import (
     train_test_split,
     train_val_test_split,
     stratified_train_test_split,
+    stratified_train_val_test_split,
 )
 
 
@@ -114,3 +115,44 @@ def test_group_balance_groups_vs_instances() -> None:
         diff_i = abs(len(gi_tr.get(lab, set())) - len(gi_te.get(lab, set())))
         diff_g = abs(len(gg_tr.get(lab, set())) - len(gg_te.get(lab, set())))
         assert diff_g <= diff_i
+
+
+def test_stratified_min_per_label_two_way() -> None:
+    # 8 of A, 2 of B; with test_size small, default rounding may give 0 B in test.
+    # With min_per_label=1, ensure both splits have at least 1 B.
+    recs = [{"i": i, "y": "A"} for i in range(8)] + [
+        {"i": 8, "y": "B"},
+        {"i": 9, "y": "B"},
+    ]
+    tr, te = stratified_train_test_split(
+        recs, label_key="y", test_size=0.1, seed=123, min_per_label=1
+    )
+    # Count B in each split
+    b_train = sum(1 for r in tr if r["y"] == "B")
+    b_test = sum(1 for r in te if r["y"] == "B")
+    assert b_train >= 1 and b_test >= 1
+    # Deterministic for the same seed
+    tr2, te2 = stratified_train_test_split(
+        recs, label_key="y", test_size=0.1, seed=123, min_per_label=1
+    )
+    assert tr == tr2 and te == te2
+
+
+def test_stratified_min_per_label_three_way() -> None:
+    # 6 A, 3 B; with ratios, ensure each partition gets at least 1 B
+    recs = [{"i": i, "y": "A"} for i in range(6)] + [
+        {"i": 6, "y": "B"},
+        {"i": 7, "y": "B"},
+        {"i": 8, "y": "B"},
+    ]
+    tr, va, te = stratified_train_val_test_split(
+        recs,
+        label_key="y",
+        ratios=(0.7, 0.2, 0.1),
+        seed=7,
+        min_per_label=1,
+    )
+    b_tr = sum(1 for r in tr if r["y"] == "B")
+    b_va = sum(1 for r in va if r["y"] == "B")
+    b_te = sum(1 for r in te if r["y"] == "B")
+    assert b_tr >= 1 and b_va >= 1 and b_te >= 1

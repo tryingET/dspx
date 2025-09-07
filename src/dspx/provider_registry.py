@@ -4,6 +4,7 @@ from typing import Callable, Dict
 import os
 
 from .capabilities import ProviderCapabilities
+from .policy import check_provider_allowed
 
 
 class ProviderFactory:
@@ -24,6 +25,7 @@ def register_provider(
 
 
 def create(name: str) -> object:
+    check_provider_allowed(name)
     return _REGISTRY[name].factory()
 
 

@@ -7,6 +7,8 @@ from dspx.adapters.eval import (
     precision_recall_per_class,
     rouge1_f1_macro,
     bleu1_macro,
+    pr_curve_binary,
+    expected_calibration_error_binary,
 )
 
 
@@ -66,3 +68,17 @@ def test_macro_text_metrics() -> None:
     # bleu macro ≈ (1 + exp(-1))/2 ≈ 0.6839
     b_macro = bleu1_macro(refs, cands)
     assert b_macro == pytest.approx(0.6839, rel=1e-3)
+
+
+def test_pr_curve_and_ece() -> None:
+    y_true = [0, 0, 1, 1]
+    scores = [0.1, 0.4, 0.35, 0.8]
+    curve = pr_curve_binary(y_true, scores)
+    assert set(curve.keys()) == {"thresholds", "precision", "recall"}
+    assert len(curve["thresholds"]) == len(set(scores))
+    # recall should be non-decreasing
+    rec = curve["recall"]
+    assert all(rec[i] <= rec[i + 1] for i in range(len(rec) - 1))
+    # ECE should be finite in [0,1]
+    ece = expected_calibration_error_binary(y_true, [0.0, 0.3, 0.7, 1.0])
+    assert 0.0 <= ece <= 1.0
