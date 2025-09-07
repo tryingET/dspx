@@ -96,3 +96,32 @@ uvx dspx codegen "A CLI that prints hi" -l python --outfile gen.py
 ```
 
 Check MLflow UI: runs have tag `run_group=my-demo` and a `service.duration_ms` metric for quick timing.
+
+9) Dataset splits with stratification and group balancing
+
+Use the adapters CLI to create deterministic splits from a CSV. Start with a simple dataset containing columns `id`, `label`, and `session_id` (or any group identifier).
+
+Two-way split (80/20) with label stratification and group awareness; balance per-label by groups so each label's groups are evenly distributed regardless of group sizes:
+
+```
+uvx dspx adapters dataset split \
+  --csv data.csv \
+  --outdir splits_demo \
+  --test-size 0.2 \
+  --stratify-col label \
+  --group-col session_id \
+  --group-balance groups
+```
+
+Three-way split with ratios and per-instance balancing (default):
+
+```
+uvx dspx adapters dataset split \
+  --csv data.csv \
+  --outdir splits_demo3 \
+  --ratios 0.7,0.2,0.1 \
+  --stratify-col label \
+  --group-col session_id
+```
+
+The command prints a JSON summary with output file paths and counts. You can load and inspect the resulting CSVs in your workflow or pipeline.

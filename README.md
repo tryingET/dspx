@@ -113,6 +113,45 @@ OpenAPI Tools & Workflows
   - Upstream input supports JSON envelope: `{ "params": {...}, "body": {...}, "headers": {...}, "timeout": 10 }`.
   - The generated program auto‑registers the toolpack using env (`DSPX_OPENAPI_SPEC_<P>`) or a mapping file under `generated/openapi/<prefix>.json`.
 
+Adapters: Datasets & Eval
+-------------------------
+- Train/test split from a CSV (prints JSON with output paths and counts):
+
+  dspx adapters dataset split --csv data.csv --outdir splits --test-size 0.3
+
+- Stratified split by label with group awareness; balance per-label by groups (not instances):
+
+  dspx adapters dataset split \
+    --csv data.csv \
+    --outdir splits_g \
+    --test-size 0.5 \
+    --stratify-col label \
+    --group-col session_id \
+    --group-balance groups
+
+- Three-way stratified split with ratios and default per-instance balancing:
+
+  dspx adapters dataset split \
+    --csv data.csv \
+    --outdir splits_3 \
+    --ratios 0.7,0.2,0.1 \
+    --stratify-col label \
+    --group-col session_id
+
+- Evaluate predictions from a single CSV:
+
+  dspx adapters eval run --csv preds.csv --truth-col y --pred-col yhat --metric accuracy
+
+- Join two CSVs by id and evaluate ROC-AUC:
+
+  dspx adapters eval run2 \
+    --csv-true truth.csv \
+    --csv-pred scores.csv \
+    --id-col id \
+    --truth-col y \
+    --pred-col score \
+    --metric roc_auc
+
 Server (FastAPI) & Security
 ---------------------------
 Run the optional HTTP server (`dspx-server`, FastAPI + Granian) to expose endpoints:
