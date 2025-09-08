@@ -16,7 +16,7 @@ decisions, and readiness against the vision plan.
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
 - Configuration: consolidated example config `example.toml` (copy to `config.toml`); `config.toml` is git‑ignored.
 - Examples: Mermaid sample updated to a pedagogical flow (Unterrichtsstörungen, DE) for a more practical demo.
-- Tooling: `Justfile` includes `bench-mlflow` to run a single MLflow‑logged benchmark across providers.
+- Tooling: `Justfile` includes `bench-mlflow` to run a single MLflow‑logged benchmark across providers. The task now exports `DSPX_RUN_GROUP` so all child CLI runs receive a consistent `run_group` tag in MLflow. Recipes were updated to run CLIs from source via `uv run -m` (no need to install console scripts with `uvx`).
 
 ## Current Components
 
@@ -42,7 +42,7 @@ decisions, and readiness against the vision plan.
 - CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters), plus legacy demos;
   `dspx-server` launcher.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
-  (`service`, `template_version`, `provider`, optional `run_group`) and artifact/manifest logging.
+  (`service`, `template_version`, `provider`, optional `run_group`) and artifact/manifest logging. `run_group` is populated from `DSPX_RUN_GROUP` (now exported by `bench-mlflow`) and applied consistently via `ensure_run_with_standard_tags()` across CLIs (including Mermaid SIG).
   Per‑service budgets recorded via `service.budget_ms` tag and
   `service.duration_ms`/`service.budget_exceeded` metrics.
   dspy traces: `mlflow.dspy.autolog` configured to attach spans to the active named run

@@ -14,13 +14,26 @@ Usage:
 from __future__ import annotations
 
 import os
-from typing import Optional, Dict
+
+__all__ = [
+    "enable_mlflow_from_env",
+    "ensure_run_from_env",
+    "standard_tags",
+    "ensure_run_with_standard_tags",
+]
 
 
-def _truthy(val: Optional[str]) -> bool:
+def _truthy(val: str | None) -> bool:
+    """Return True if the given string-like value is truthy.
+
+    Treat None as True (default-enabled behavior). Handles common falsy
+    variants like 0, false, no (case-insensitive, with surrounding whitespace
+    ignored).
+    """
     if val is None:
         return True  # default enabled
-    return val not in {"", "0", "false", "False", "no", "No"}
+    s = val.strip().lower()
+    return s not in {"", "0", "false", "no"}
 
 
 def enable_mlflow_from_env() -> bool:
@@ -44,9 +57,16 @@ def enable_mlflow_from_env() -> bool:
     try:
         mlflow.set_tracking_uri(uri)
         mlflow.set_experiment(exp)
-        # Enable DSPy autologging
-        # Requires MLflow >= 2.18 (provided via uv dependency)
-        mlflow.dspy.autolog()
+        # Enable DSPy autologging (MLflow >= 2.18). Fallback to generic
+        # autolog if the dspy integration is unavailable for any reason.
+        try:
+            if hasattr(mlflow, "dspy") and hasattr(mlflow.dspy, "autolog"):
+                mlflow.dspy.autolog()
+            else:  # pragma: no cover - depends on mlflow version
+                mlflow.autolog(disable=False)  # type: ignore[attr-defined]
+        except Exception:
+            # Avoid failing if autolog cannot be enabled; continue best-effort
+            pass
 
         # If a run name is provided and no run is active, start one so the
         # name shows up in the UI. Scripts can still override by starting
@@ -64,7 +84,7 @@ def enable_mlflow_from_env() -> bool:
 
 
 def ensure_run_from_env(
-    run_name: Optional[str] = None, tags: Optional[Dict[str, str]] = None
+    run_name: str | None = None, tags: dict[str, str] | None = None
 ) -> bool:
     """Ensure an MLflow run is active, using env/defaults when needed.
 
@@ -107,10 +127,10 @@ def ensure_run_from_env(
 def standard_tags(
     service: str,
     *,
-    template_version: Optional[str] = None,
-    extra: Optional[Dict[str, str]] = None,
-    group: Optional[str] = None,
-) -> Dict[str, str]:
+    template_version: str | None = None,
+    extra: dict[str, str] | None = None,
+    group: str | None = None,
+) -> dict[str, str]:
     """Build a standard tag set for MLflow runs.
 
     Includes:
@@ -118,15 +138,13 @@ def standard_tags(
     - template_version: when provided
     - provider: from $DSPX_PROVIDER when present
     """
-    import os as _os
-
-    tags: Dict[str, str] = {"service": service}
+    tags: dict[str, str] = {"service": service}
     if template_version:
         tags["template_version"] = template_version
-    prov = _os.getenv("DSPX_PROVIDER")
+    prov = os.getenv("DSPX_PROVIDER")
     if prov:
         tags["provider"] = prov
-    grp = group or _os.getenv("DSPX_RUN_GROUP")
+    grp = group or os.getenv("DSPX_RUN_GROUP")
     if grp:
         tags["run_group"] = grp
     if extra:
@@ -137,10 +155,10 @@ def standard_tags(
 def ensure_run_with_standard_tags(
     service: str,
     *,
-    template_version: Optional[str] = None,
-    extra: Optional[Dict[str, str]] = None,
-    run_name: Optional[str] = None,
-    group: Optional[str] = None,
+    template_version: str | None = None,
+    extra: dict[str, str] | None = None,
+    run_name: str | None = None,
+    group: str | None = None,
 ) -> bool:
     """Ensure a run is active and set standard tags for consistency.
 

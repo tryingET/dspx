@@ -332,10 +332,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         pass
     # MLflow: attach artifacts and tags (best-effort)
     try:
-        from dspx.tracing import ensure_run_from_env
+        from dspx.tracing import ensure_run_with_standard_tags
         import mlflow
 
-        ensure_run_from_env(tags={"service": "mermaid_sig", "program_name": base})
+        # Ensure a run is active and attach standard tags (includes run_group)
+        ensure_run_with_standard_tags("mermaid_sig", extra={"program_name": base})
         for fname in [
             "signatures.py",
             "program_sigpredict.py",

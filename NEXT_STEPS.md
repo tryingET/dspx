@@ -100,10 +100,9 @@ Goal: enable third-party providers/tools/generators via entry points.
   added validation for enums/arrays/shallow nested objects. Next: widen coverage for complex
   nested schemas and arrays of objects with deeper constraints.
 - MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
-  run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP`;
+  run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP` (now exported by the `bench-mlflow` recipe);
   per‑service budgets (`--budget-ms`) with `service.duration_ms` and `service.budget_exceeded`;
-  dspy autolog attached to active named runs. Next: optional parent run per bench/workflow and
-  aggregate per‑workflow budgets and summary artifacts.
+  dspy autolog attached to active named runs. Mermaid SIG now uses `ensure_run_with_standard_tags(...)` so `run_group` is applied consistently. Next: optional parent run per bench/workflow and aggregate per‑workflow budgets and summary artifacts.
 - Templates: expand module/codegen templates (multi‑output, additional languages).
 - Caching: `--no-cache`, `--cache-info` shipped; meta includes cache key/file. Added
   `dspx cache` subcommands (info/list/show/clear). Next: size summaries by kind and
@@ -113,6 +112,12 @@ Goal: enable third-party providers/tools/generators via entry points.
   Added: server docs (`docs/SERVER.md`) and quickstart in README.
   Added: `example.toml`; `config.toml` is git‑ignored and discovered automatically.
   Mermaid example updated to a pedagogical workflow (Unterrichtsstörungen, DE).
+
+## DX Notes (Updated)
+
+- Justfile now runs all CLIs from source using `uv run -m dspx.cli.<module>`, removing the requirement to install console scripts via `uvx`/`uv tool install`. If you prefer global‑ish commands, you can still run `just tool-install` and call `uvx dspx-*` manually.
+- `bench-mlflow` sets and exports `DSPX_RUN_GROUP` and ensures `MLFLOW_ENABLE=1` by default, so MLflow runs are grouped and visible when a tracking server is reachable (use `just mlflow-up`).
+- Some provider-backed demos (e.g., Claude/Gemini) require their respective CLIs and credentials; failures will surface as non‑zero rc in bench output.
 
 ## Day-to-Day Checklist
 

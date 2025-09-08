@@ -83,21 +83,21 @@ mlflow-up:
 mlflow-down:
   docker compose down
 
-# Run the DSPy + Codex Exec example
+# Run the DSPy + Codex Exec example (from source)
 example:
-  uvx dspx-example
+  uv run -q python -m dspx.cli.example_predict
 
-# Generate a DSPy signature using vibe-dspy (Codex Exec configured)
+# Generate a DSPy signature using vibe-dspy (from source)
 vibegen prompt:
-  uvx dspx-vibegen "{{prompt}}"
+  uv run -q python -m dspx.cli.vibegen "{{prompt}}"
 
-# Refine a DSPy signature (non-interactive) and optionally write to file
+# Refine a DSPy signature (non-interactive) and optionally write to file (from source)
 viberefine prompt out="generated/refined_sig.py":
-  uvx dspx-viberefine --non-interactive -o "{{out}}" "{{prompt}}"
+  uv run -q python -m dspx.cli.viberefine --non-interactive -o "{{out}}" "{{prompt}}"
 
-# Generate code from a spec (prints or writes a file)
+# Generate code from a spec (prints or writes a file) from source
 codegen spec lang="python" out="generated/codegen_out.py":
-  uvx dspx-codegen -l "{{lang}}" -o "{{out}}" "{{spec}}"
+  uv run -q python -m dspx.cli.codegen -l "{{lang}}" -o "{{out}}" "{{spec}}"
 
 # Quick smoke run: example + gen/refine/codegen
 smoke:
@@ -106,39 +106,57 @@ smoke:
   just viberefine "Echo signature for smoke"
   just codegen "A Python CLI that prints 'smoke ok'" python generated/smoke_cli.py
 
-# Run minimal ReAct agent with optional tools
+# Run minimal ReAct agent with optional tools (from source)
 agent question tools="retrieve_stub" iters="3":
-  uvx dspx-agent --tools "{{tools}}" --iters {{iters}} "{{question}}"
+  uv run -q python -m dspx.cli.agent_demo --tools "{{tools}}" --iters {{iters}} "{{question}}"
 
-# Web search via DuckDuckGo
+# Web search via DuckDuckGo (from source)
 web-search query k="5":
-  uvx dspx-tools search -k {{k}} "{{query}}"
+  uv run -q python -m dspx.cli.tools_demo search -k {{k}} "{{query}}"
 
-# HTTP GET a URL and print metadata
+# HTTP GET a URL and print metadata (from source)
 web-fetch url:
-  uvx dspx-tools fetch "{{url}}"
+  uv run -q python -m dspx.cli.tools_demo fetch "{{url}}"
 
-# Fetch and extract text; optional CSS selector
+# Fetch and extract text; optional CSS selector (from source)
 web-scrape url selector="":
-  uvx dspx-tools scrape --selector "{{selector}}" "{{url}}"
+  uv run -q python -m dspx.cli.tools_demo scrape --selector "{{selector}}" "{{url}}"
 
-# Preview CSV/JSON/Parquet schema + head
+# Preview CSV/JSON/Parquet schema + head (from source)
 data-preview path nrows="5":
-  uvx dspx-tools preview --nrows {{nrows}} "{{path}}"
+  uv run -q python -m dspx.cli.tools_demo preview --nrows {{nrows}} "{{path}}"
 
-# Generate DSPy programs from a Mermaid flowchart
+# Generate DSPy programs from a Mermaid flowchart (from source)
 mermaid file name="" variants="predict,cot,react":
-  uvx dspx-mermaid -f "{{file}}" -n "{{name}}" -v "{{variants}}"
+  uv run -q python -m dspx.cli.mermaid2dspy -f "{{file}}" -n "{{name}}" -v "{{variants}}"
 
-# Paste Mermaid to stdin and generate programs
+# Paste Mermaid to stdin and generate programs (from source)
 mermaid-stdin name="" variants="predict,cot,react":
-  echo "Paste Mermaid, then Ctrl-D:" && uvx dspx-mermaid -n "{{name}}" -v "{{variants}}"
+  echo "Paste Mermaid, then Ctrl-D:" && uv run -q python -m dspx.cli.mermaid2dspy -n "{{name}}" -v "{{variants}}"
 
 
-# Mermaid → DSPy with signature-per-node program (vibe-dspy)
+# Mermaid → DSPy with signature-per-node program (vibe-dspy, from source)
 dspx-mermaid file name="" provider="":
   if [ "{{provider}}" != "" ]; then \
-    DSPX_PROVIDER={{provider}} uvx dspx-mermaid-sig -f "{{file}}" -n "{{name}}" ; \
+    DSPX_PROVIDER={{provider}} uv run -q python -m dspx.cli.dspx_mermaid2dspy -f "{{file}}" -n "{{name}}" ; \
   else \
-    uvx dspx-mermaid-sig -f "{{file}}" -n "{{name}}" ; \
+    uv run -q python -m dspx.cli.dspx_mermaid2dspy -f "{{file}}" -n "{{name}}" ; \
   fi
+
+# Benchmark CLI flows with MLflow enabled (one example per type)
+# Usage: just bench-mlflow
+bench-mlflow:
+  bash -lc 'set -e; export DSPX_RUN_GROUP="cli-bench-$(date +%Y%m%d-%H%M%S)"; export MLFLOW_ENABLE="${MLFLOW_ENABLE:-1}"; echo "[bench] run_group=$DSPX_RUN_GROUP"; \
+    SIG="Summarize a middle school science passage into 3 key points."; \
+    if uv run -q python -m dspx.cli.dspx signature gen --provider codex-exec --template-version v1 --budget-ms 30000 "$SIG" >/dev/null 2>&1; then echo "provider=codex-exec kind=signature rc=0"; else echo "provider=codex-exec kind=signature rc=$?"; fi; \
+    if uv run -q python -m dspx.cli.dspx signature gen --provider claude-cli --template-version v1 --budget-ms 30000 "$SIG" >/dev/null 2>&1; then echo "provider=claude-cli kind=signature rc=0"; else echo "provider=claude-cli kind=signature rc=$?"; fi; \
+    SPEC="A Python CLI that prints 10 random fraction addition practice problems for grade 6"; \
+    if uv run -q python -m dspx.cli.dspx codegen --provider codex-exec --template-version v1 --budget-ms 240000 "$SPEC" >/dev/null 2>&1; then echo "provider=codex-exec kind=codegen rc=0"; else echo "provider=codex-exec kind=codegen rc=$?"; fi; \
+    if uv run -q python -m dspx.cli.dspx codegen --provider claude-cli --template-version v1 --budget-ms 240000 "$SPEC" >/dev/null 2>&1; then echo "provider=claude-cli kind=codegen rc=0"; else echo "provider=claude-cli kind=codegen rc=$?"; fi; \
+    if uv run -q python -m dspx.cli.dspx module-gen --name LessonSummarizer --description "Summarize middle school readings into key points" --input text --output summary --budget-ms 30000 >/dev/null 2>&1; then echo "provider=none kind=module rc=0"; else echo "provider=none kind=module rc=$?"; fi; \
+    WF=examples/workflows/sample_flow/workflow.mmd; \
+    if uv run -q python -m dspx.cli.dspx mermaid gen --file "$WF" --name bench --variants predict,cot >/dev/null 2>&1; then echo "provider=none kind=mermaid-gen rc=0"; else echo "provider=none kind=mermaid-gen rc=$?"; fi; \
+    export DSPX_POLICY_ENFORCE_NETWORK_MUTATE=0; export DSPX_BUDGET_SIGNATURE_MS=60000; \
+    if CODEX_TIMEOUT=60 uv run -q python -m dspx.cli.dspx mermaid sig --file "$WF" --name benchsig --provider codex-exec >/dev/null 2>&1; then echo "provider=codex-exec kind=mermaid-sig rc=0"; else echo "provider=codex-exec kind=mermaid-sig rc=$?"; fi; \
+    if CLAUDE_TIMEOUT=60 uv run -q python -m dspx.cli.dspx mermaid sig --file "$WF" --name benchsig --provider claude-cli >/dev/null 2>&1; then echo "provider=claude-cli kind=mermaid-sig rc=0"; else echo "provider=claude-cli kind=mermaid-sig rc=$?"; fi; \
+    echo "[bench] done. Group: $DSPX_RUN_GROUP"'
