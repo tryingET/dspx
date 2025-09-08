@@ -124,6 +124,8 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         *,
         binary: str = "claude",
         output_format: str = "text",
+        model: Optional[str] = None,
+        fallback_model: Optional[str] = None,
         append_system_prompt: Optional[str] = None,
         allowed_tools: Optional[Iterable[str] | str] = None,
         disallowed_tools: Optional[Iterable[str] | str] = None,
@@ -145,6 +147,8 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         self.binary = binary
         self.output_format = output_format
         self.append_system_prompt = append_system_prompt
+        self.model = model
+        self.fallback_model = fallback_model
         self.allowed_tools = allowed_tools
         self.disallowed_tools = disallowed_tools
         self.permission_mode = permission_mode
@@ -363,6 +367,11 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         # Respect output format
         if self.output_format:
             cmd.extend(["--output-format", self.output_format])
+        # Model selection and fallback
+        if self.model:
+            cmd.extend(["--model", self.model])
+        if self.fallback_model:
+            cmd.extend(["--fallback-model", self.fallback_model])
         # Options
         if self.append_system_prompt:
             cmd.extend(["--append-system-prompt", self.append_system_prompt])

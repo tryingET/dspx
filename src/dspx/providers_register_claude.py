@@ -26,6 +26,8 @@ def _env_list(name: str) -> Optional[Iterable[str]]:
 def _factory() -> ClaudeHeadlessLM:
     binary = os.getenv("CLAUDE_BIN", "claude")
     fmt = os.getenv("CLAUDE_OUTPUT_FORMAT", "text")
+    model = os.getenv("CLAUDE_MODEL") or None
+    fb_model = os.getenv("CLAUDE_FALLBACK_MODEL") or None
     append = os.getenv("CLAUDE_APPEND_SYSTEM_PROMPT") or None
     allowed = _env_list("CLAUDE_ALLOWED_TOOLS")
     disallowed = _env_list("CLAUDE_DISALLOWED_TOOLS")
@@ -41,6 +43,8 @@ def _factory() -> ClaudeHeadlessLM:
     return ClaudeHeadlessLM(
         binary=binary,
         output_format=fmt,
+        model=model,
+        fallback_model=fb_model,
         append_system_prompt=append,
         allowed_tools=allowed,
         disallowed_tools=disallowed,

@@ -152,7 +152,7 @@ bench-mlflow:
     if uv run -q python -m dspx.cli.dspx signature gen --provider claude-cli --template-version v1 --budget-ms 30000 "$SIG" >/dev/null 2>&1; then echo "provider=claude-cli kind=signature rc=0"; else echo "provider=claude-cli kind=signature rc=$?"; fi; \
     SPEC="A Python CLI that prints 10 random fraction addition practice problems for grade 6"; \
     if uv run -q python -m dspx.cli.dspx codegen --provider codex-exec --template-version v1 --budget-ms 240000 "$SPEC" >/dev/null 2>&1; then echo "provider=codex-exec kind=codegen rc=0"; else echo "provider=codex-exec kind=codegen rc=$?"; fi; \
-    if uv run -q python -m dspx.cli.dspx codegen --provider claude-cli --template-version v1 --budget-ms 240000 "$SPEC" >/dev/null 2>&1; then echo "provider=claude-cli kind=codegen rc=0"; else echo "provider=claude-cli kind=codegen rc=$?"; fi; \
+    if CLAUDE_MODEL=sonnet uv run -q python -m dspx.cli.dspx codegen --provider claude-cli --template-version v1 --budget-ms 240000 "$SPEC" >/dev/null 2>&1; then echo "provider=claude-cli kind=codegen rc=0"; else echo "provider=claude-cli kind=codegen rc=$?"; fi; \
     if uv run -q python -m dspx.cli.dspx module-gen --name LessonSummarizer --description "Summarize middle school readings into key points" --input text --output summary --budget-ms 30000 >/dev/null 2>&1; then echo "provider=none kind=module rc=0"; else echo "provider=none kind=module rc=$?"; fi; \
     WF=examples/workflows/sample_flow/workflow.mmd; \
     if uv run -q python -m dspx.cli.dspx mermaid gen --file "$WF" --name bench --variants predict,cot >/dev/null 2>&1; then echo "provider=none kind=mermaid-gen rc=0"; else echo "provider=none kind=mermaid-gen rc=$?"; fi; \
