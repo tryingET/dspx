@@ -10,7 +10,7 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~10–13s (`just test`) with 83 passing tests.
+- Tests: local suite runs in ~8–10s (`just test`) with 86 passing tests.
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
@@ -39,7 +39,7 @@ decisions, and readiness against the vision plan.
 - Server: FastAPI app with `/signature`, `/module`, `/mermaid` endpoints; served by
   Granian; Bearer auth (env‑driven, tokens/file), rate limiting (per‑identity and global),
   trusted proxies for X‑Forwarded‑For, standardized JSON errors, structured logs; tested via ASGI TestClient.
-- CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters), plus legacy demos;
+- CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters, and `tools web fetch|scrape` with per‑call host allowlists), plus legacy demos;
   `dspx-server` launcher.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
   (`service`, `template_version`, `provider`, optional `run_group`) and artifact/manifest logging. `run_group` is populated from `DSPX_RUN_GROUP` (now exported by `bench-mlflow`) and applied consistently via `ensure_run_with_standard_tags()` across CLIs (including Mermaid SIG).
@@ -83,9 +83,10 @@ decisions, and readiness against the vision plan.
     HTTP method allow/deny and guarded mutation (POST/PUT/PATCH/DELETE) enforcement;
     provider gating in registry; tool enforcement wrapper in registry; root CLI policy flags;
     optional sandbox worktree for Codex provider (`DSPX_SANDBOX_WORKTREE=1`).
+    Web tools now enforce per‑call host allowlists with CLI integration (`dspx tools web fetch|scrape --allow-host`).
   - Implemented: per‑service budgets with MLflow tagging/metrics; CLI `--budget-ms` for signature/module/codegen.
   - Implemented: run naming + `mlflow.dspy.autolog(create_run=False)` to attach traces to named runs; simple duration traces added to mermaid and non‑DTO signature paths.
-  - Remaining: host allowlists for web tools; destructive confirmation for mutating ops via CLI;
+  - Remaining: destructive confirmation for mutating ops via CLI;
     token redaction hardening; category‑level gating (e.g., `filesystem.write`),
     stronger sandbox isolation options; optional parent/child nested runs for workflow‑level grouping.
 - Phase 10 — Plugins & Extension Points: NOT STARTED.

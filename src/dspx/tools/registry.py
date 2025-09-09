@@ -9,6 +9,7 @@ import httpx
 from bs4 import BeautifulSoup
 import pandas as pd
 from duckduckgo_search import DDGS
+from urllib.parse import urlparse
 
 
 _TOOLS: Dict[str, Callable[..., Any]] = {}
@@ -117,12 +118,35 @@ def register_openapi_operations(
     return names
 
 
+def _host_allowed(url: str, allowed_hosts: Optional[Mapping[str, bool]]) -> bool:
+    if not allowed_hosts:
+        return True
+    host = urlparse(url).hostname or ""
+    return bool(allowed_hosts.get(host, False))
+
+
 def _web_fetch(
-    url: str, *, headers: Optional[Dict[str, str]] = None, timeout: float = 15.0
+    url: str,
+    *,
+    headers: Optional[Dict[str, str]] = None,
+    timeout: float = 15.0,
+    allowed_hosts: Optional[Mapping[str, bool]] = None,
+    client: Optional[httpx.Client] = None,
 ) -> Dict[str, Any]:
-    """Fetch a URL and return status, headers subset, and text (truncated)."""
-    with httpx.Client(follow_redirects=True, timeout=timeout) as client:
-        resp = client.get(url, headers=headers)
+    """Fetch a URL and return status, headers subset, and text (truncated).
+
+    - Enforces optional host allowlist via `allowed_hosts` mapping: {host: True}.
+    - Accepts optional httpx.Client for testing.
+    """
+    if not _host_allowed(url, allowed_hosts):
+        raise PermissionError(f"Host not allowed for URL: {url}")
+
+    close_client = False
+    if client is None:
+        client = httpx.Client(follow_redirects=True, timeout=timeout)
+        close_client = True
+    try:
+        resp = client.get(url, headers=headers, timeout=timeout)
         text = resp.text
         max_len = 100_000
         if len(text) > max_len:
@@ -135,6 +159,9 @@ def _web_fetch(
             "text": text,
             "url": str(resp.url),
         }
+    finally:
+        if close_client:
+            client.close()
 
 
 def _web_search(query: str, k: int = 5, safe: str = "moderate") -> List[Dict[str, Any]]:
@@ -157,10 +184,17 @@ def _web_search(query: str, k: int = 5, safe: str = "moderate") -> List[Dict[str
 
 
 def _web_scrape(
-    url: str, *, selector: Optional[str] = None, timeout: float = 15.0
+    url: str,
+    *,
+    selector: Optional[str] = None,
+    timeout: float = 15.0,
+    allowed_hosts: Optional[Mapping[str, bool]] = None,
+    client: Optional[httpx.Client] = None,
 ) -> Dict[str, Any]:
     """Fetch a URL and extract text; optionally restrict via CSS selector."""
-    result = _web_fetch(url, timeout=timeout)
+    result = _web_fetch(
+        url, timeout=timeout, allowed_hosts=allowed_hosts, client=client
+    )
     html = result.get("text", "")
     soup = BeautifulSoup(html, "html.parser")
     if selector:

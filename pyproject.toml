@@ -39,6 +39,12 @@ exclude = "^(submodules/|generated/)"
 warn_unused_ignores = false
 check_untyped_defs = false
 
+[tool.pytest.ini_options]
+filterwarnings = [
+  # Silence upstream MLflow/protobuf deprecation warning during tests
+  "ignore:.*label\\(\\) is deprecated.*:DeprecationWarning:mlflow\\.store\\.tracking\\.rest_store",
+]
+
 [project.scripts]
 "dspx-example" = "dspx.cli.example_predict:main"
 "dspx-codegen" = "dspx.cli.codegen:main"

@@ -71,9 +71,11 @@ Goal: strengthen policy for tool/provider gating and isolation.
     metrics `service.duration_ms`, `service.budget_exceeded`.
   - Tracing improvements: `mlflow.dspy.autolog` configured not to create runs (attach to active);
     CLI starts named runs early and refines names; added duration metrics to mermaid and non‑DTO signature paths.
+  - Host allowlists for web tools (fetch/scrape) with CLI integration:
+    `dspx tools web fetch|scrape` now accepts `--allow-host <host>` and enforces per-call
+    host allowlists. Added tests for allowed/denied hosts using httpx MockTransport.
 
 - Next
-  - Host allowlists for web tools (fetch/scrape) + CLI `--allow-host` integration.
   - Destructive‑op confirmation in CLI for mutating OpenAPI/tools (unless bypassed by policy).
   - Token redaction hardening in logs/manifests.
   - Capability category gating (e.g., `filesystem.write`, `code.exec`) at policy level.
@@ -127,30 +129,5 @@ Goal: enable third-party providers/tools/generators via entry points.
 
 ## Test Warnings
 
-- MLflow DeprecationWarnings observed during tests (harmless, informational):
-  - Source: `mlflow.store.tracking.rest_store:262`
-  - Message: `DeprecationWarning: label() is deprecated. Use is_required() or is_repeated() instead.`
-  - Seen in:
-    - `tests/test_cache_controls_cli.py::test_signature_codegen_module_meta_has_cache_key` (2x)
-    - `tests/test_server_api.py::test_server_signature_and_module_and_mermaid` (2x)
-
-- Suppression options (pick one):
-  - Add to `pyproject.toml`:
-
-    ```toml
-    [tool.pytest.ini_options]
-    filterwarnings = [
-      "ignore:.*label\\(\\) is deprecated.*:DeprecationWarning:mlflow\\.store\\.tracking\\.rest_store",
-    ]
-    ```
-
-  - Or create `pytest.ini`:
-
-    ```ini
-    [pytest]
-    filterwarnings =
-        ignore:.*label\(\) is deprecated.*:DeprecationWarning:mlflow\.store\.tracking\.rest_store
-    ```
-
-  - Or one-off run:
-    - `PYTHONWARNINGS="ignore:.*label\\(\\) is deprecated.*:DeprecationWarning:mlflow\\.store\\.tracking\\.rest_store" pytest -q`
+The previous MLflow/protobuf DeprecationWarning for `label()` is now suppressed at test time
+via `pyproject.toml` under `[tool.pytest.ini_options].filterwarnings`. Test runs are warning-free.
