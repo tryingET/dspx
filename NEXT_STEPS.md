@@ -43,6 +43,11 @@ Status: DONE (MVP+)
   - Rate limiting (per‑identity and global; per‑path overrides); 429 JSON errors.
   - Trusted proxies (CIDR) for X‑Forwarded‑For handling.
   - Structured request logging; lightweight counters; docs at `docs/SERVER.md`.
+  - Developer DX: Just recipes for server lifecycle:
+    `start` (bounded timeout, default 3s), `start-timed` (explicit
+    short run), `start-forever` (no timeout), `stop` (kill listeners).
+    Default bind host/port: `127.0.0.1:33213` to avoid Granian
+    "invalid IP address syntax" seen with `localhost` on some systems.
 
 - Next
   - Distributed rate limiting backend (optional) for multi‑worker deployments.
@@ -118,6 +123,12 @@ Goal: enable third-party providers/tools/generators via entry points.
 ## DX Notes (Updated)
 
 - Justfile now runs all CLIs from source using `uv run -m dspx.cli.<module>`, removing the requirement to install console scripts via `uvx`/`uv tool install`. If you prefer global‑ish commands, you can still run `just tool-install` and call `uvx dspx-*` manually.
+- Server helpers in Justfile:
+  - `just start` → bounded timeout (default 3s) for quick smoke runs.
+  - `just start N [host] [port]` → run for N seconds at host:port.
+  - `just start-forever` → long‑running server, no timeout.
+  - `just stop [port]` → best‑effort kill of port listeners.
+  Default: `127.0.0.1:33213`.
 - `bench-mlflow` sets and exports `DSPX_RUN_GROUP` and ensures `MLFLOW_ENABLE=1` by default, so MLflow runs are grouped and visible when a tracking server is reachable (use `just mlflow-up`).
 - Some provider-backed demos (e.g., Claude/Gemini) require their respective CLIs and credentials; failures will surface as non‑zero rc in bench output.
 

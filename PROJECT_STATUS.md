@@ -16,7 +16,15 @@ decisions, and readiness against the vision plan.
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
 - Configuration: consolidated example config `example.toml` (copy to `config.toml`); `config.toml` is git‑ignored.
 - Examples: Mermaid sample updated to a pedagogical flow (Unterrichtsstörungen, DE) for a more practical demo.
-- Tooling: `Justfile` includes `bench-mlflow` to run a single MLflow‑logged benchmark across providers. The task now exports `DSPX_RUN_GROUP` so all child CLI runs receive a consistent `run_group` tag in MLflow. Recipes were updated to run CLIs from source via `uv run -m` (no need to install console scripts with `uvx`).
+- Tooling: `Justfile` includes `bench-mlflow` to run a single
+  MLflow‑logged benchmark across providers. The task now exports
+  `DSPX_RUN_GROUP` so all child CLI runs receive a consistent
+  `run_group` tag in MLflow. Recipes were updated to run CLIs from
+  source via `uv run -m` (no need to install console scripts with
+  `uvx`). Server DX improved: `just start` now runs the FastAPI server
+  with a bounded timeout (default 3s) on `127.0.0.1:33213`, plus
+  helpers `start-timed` (short run), `start-forever` (no timeout), and
+  `stop` (kill listeners on a port).
 
 ## Current Components
 
@@ -39,6 +47,10 @@ decisions, and readiness against the vision plan.
 - Server: FastAPI app with `/signature`, `/module`, `/mermaid` endpoints; served by
   Granian; Bearer auth (env‑driven, tokens/file), rate limiting (per‑identity and global),
   trusted proxies for X‑Forwarded‑For, standardized JSON errors, structured logs; tested via ASGI TestClient.
+  Default port is `33213`. Docs updated with quick `just start` usage
+  and curl examples. Default bind host uses `127.0.0.1` to avoid
+  occasional Granian "invalid IP address syntax" errors seen with
+  `localhost` in certain environments.
 - CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters, and `tools web fetch|scrape` with per‑call host allowlists), plus legacy demos;
   `dspx-server` launcher.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
