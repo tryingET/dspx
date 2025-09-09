@@ -124,3 +124,33 @@ Goal: enable third-party providers/tools/generators via entry points.
  - Run `just test` before and after changes; target ~<9s locally.
 - Keep docs in sync (VISION/ARCHITECTURE/NEXT_STEPS) with major changes.
 - Prefer small, scoped PRs per phase/sub-phase; include acceptance notes.
+
+## Test Warnings
+
+- MLflow DeprecationWarnings observed during tests (harmless, informational):
+  - Source: `mlflow.store.tracking.rest_store:262`
+  - Message: `DeprecationWarning: label() is deprecated. Use is_required() or is_repeated() instead.`
+  - Seen in:
+    - `tests/test_cache_controls_cli.py::test_signature_codegen_module_meta_has_cache_key` (2x)
+    - `tests/test_server_api.py::test_server_signature_and_module_and_mermaid` (2x)
+
+- Suppression options (pick one):
+  - Add to `pyproject.toml`:
+
+    ```toml
+    [tool.pytest.ini_options]
+    filterwarnings = [
+      "ignore:.*label\\(\\) is deprecated.*:DeprecationWarning:mlflow\\.store\\.tracking\\.rest_store",
+    ]
+    ```
+
+  - Or create `pytest.ini`:
+
+    ```ini
+    [pytest]
+    filterwarnings =
+        ignore:.*label\(\) is deprecated.*:DeprecationWarning:mlflow\.store\.tracking\.rest_store
+    ```
+
+  - Or one-off run:
+    - `PYTHONWARNINGS="ignore:.*label\\(\\) is deprecated.*:DeprecationWarning:mlflow\\.store\\.tracking\\.rest_store" pytest -q`
