@@ -18,6 +18,7 @@ generated/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+mlruns/
 
 # OS/editor junk
 .DS_Store
