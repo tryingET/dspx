@@ -79,13 +79,23 @@ Goal: strengthen policy for tool/provider gating and isolation.
   - Host allowlists for web tools (fetch/scrape) with CLI integration:
     `dspx tools web fetch|scrape` now accepts `--allow-host <host>` and enforces per-call
     host allowlists. Added tests for allowed/denied hosts using httpx MockTransport.
+  - Destructive‑op confirmation in CLI for mutating OpenAPI/tools (unless bypassed by policy or `--yes`).
+  - Generic capability category gating for tools via registry wrapper and `_dspx_capabilities`/descriptors
+    (e.g., `network.mutate`, `filesystem.write`, `code.exec`).
+  - Dry‑run support with redacted previews: `tools openapi call --dry-run`, `tools run --dry-run`.
+  - Redaction hardening: URL userinfo, Cookie/Set-Cookie, token/key/secret/password headers redacted
+    in logs/previews where applicable.
+  - Server‑side confirmation gate for mutating endpoints: if `DSPX_CONFIRM_MUTATIONS=1`, `/mermaid` requires
+    `X-DSPX-Confirm: 1`.
+  - Tool descriptors and typed OpenAPI ops introduced: registry now exposes `available_descriptors()`/`get_descriptor()`;
+    CLIs (`tools list|search|describe`) consume descriptor metadata for consistent output.
 
 - Next
-  - Destructive‑op confirmation in CLI for mutating OpenAPI/tools (unless bypassed by policy).
-  - Token redaction hardening in logs/manifests.
-  - Capability category gating (e.g., `filesystem.write`, `code.exec`) at policy level.
   - Stronger sandbox isolation options for code‑exec providers (env allowlist, RO mounts).
+  - Capability gating hooks in providers for `code.exec` capability categories.
   - Optional parent/child nested runs (workflow → service) for hierarchical trace views.
+  - Unify descriptor usage across any remaining tool paths and further reduce ad‑hoc function introspection.
+  - Expand server tooling endpoints (optional) using descriptors + confirmation helper.
 
 - Acceptance
   - Policies enforced across tools/providers; deny/allow and mutation tests pass;
@@ -103,7 +113,7 @@ Goal: enable third-party providers/tools/generators via entry points.
 
 ## Refinements (Near-term 80/20)
 
-- OpenAPI: now includes `ops --tags` and `describe --json` with response schema summaries;
+- OpenAPI: now includes `ops --tags` and `ops --json`, `describe --json` with response schema summaries;
   added validation for enums/arrays/shallow nested objects. Next: widen coverage for complex
   nested schemas and arrays of objects with deeper constraints.
 - MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
@@ -119,6 +129,10 @@ Goal: enable third-party providers/tools/generators via entry points.
   Added: server docs (`docs/SERVER.md`) and quickstart in README.
   Added: `example.toml`; `config.toml` is git‑ignored and discovered automatically.
   Mermaid example updated to a pedagogical workflow (Unterrichtsstörungen, DE).
+- Tools UX: `tools list --json` (capabilities/description/OpenAPI), `tools describe --json --examples`,
+  `tools search --tags --json`, `tools run --dry-run`, and `tools openapi call --dry-run`.
+  Next: unify renderers across all CLIs and expand docs with examples.
+- Adapters: `adapters list` shows descriptions; `adapters dataset split` supports `--dry-run` preview.
 
 ## DX Notes (Updated)
 

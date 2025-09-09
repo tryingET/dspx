@@ -560,34 +560,51 @@ def openapi_ops(
         None, help="Filter by comma-separated tags (any match)"
     ),
     paths: bool = typer.Option(False, help="Print METHOD PATH instead of operationId"),
+    json_out: bool = typer.Option(
+        False, "--json", help="Output JSON list of operations"
+    ),
 ) -> None:
-    from dspx.tools.openapi import load_spec, extract_operations
+    from dspx.tools.openapi import load_spec
+    from dspx.tools.openapi.loader import extract_operation_infos
 
     allowed = {allow_host: True} if allow_host else None
     data = load_spec(str(spec), allowed_hosts=allowed)
-    ops = extract_operations(data)
+    ops = extract_operation_infos(data)
     flt = (grep or "").lower()
     mflt = (method or "").strip().upper()
     tagset = None
     if tags:
         tagset = {t.strip().lower() for t in tags.split(",") if t.strip()}
+    items = []
     for k in sorted(ops.keys()):
         if flt:
-            path = str(ops[k].get("path", ""))
+            path = str(ops[k].path or "")
             if flt not in k.lower() and flt not in path.lower():
                 continue
-        if mflt and str(ops[k].get("method", "")).upper() != mflt:
+        if mflt and str(ops[k].method or "").upper() != mflt:
             continue
         if tagset:
-            op_tags = [str(t).lower() for t in (ops[k].get("tags") or [])]
+            op_tags = [str(t).lower() for t in (ops[k].tags or [])]
             if not any(t in op_tags for t in tagset):
                 continue
-        if paths:
-            typer.echo(
-                f"{str(ops[k].get('method', '')).upper()} {ops[k].get('path', '')}"
+        if json_out:
+            items.append(
+                {
+                    "operationId": k,
+                    "method": str(ops[k].method or "").upper(),
+                    "path": ops[k].path or "",
+                    "tags": ops[k].tags or [],
+                    "summary": ops[k].summary or None,
+                }
             )
+        elif paths:
+            typer.echo(f"{str(ops[k].method or '').upper()} {ops[k].path or ''}")
         else:
             typer.echo(k)
+    if json_out:
+        import json as _json
+
+        typer.echo(_json.dumps(items, ensure_ascii=False, indent=2))
 
 
 @openapi_app.command("call")
@@ -600,15 +617,27 @@ def openapi_call(
         None, help="Allowlisted host (e.g., api.github.com)"
     ),
     timeout: Optional[float] = typer.Option(None, help="Timeout seconds"),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation for mutating operations (POST/PUT/PATCH/DELETE)",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Do not perform the network call; print a preview of the request",
+    ),
 ) -> None:
     import json as _json
-    from dspx.tools.openapi import load_spec, extract_operations
+    from dspx.tools.openapi import load_spec
+    from dspx.tools.openapi.loader import extract_operation_infos
     from dspx.dtos import OpenAPICallRequest
 
     data = load_spec(
         str(spec), allowed_hosts=({allow_host: True} if allow_host else None)
     )
-    ops = extract_operations(data)
+    ops = extract_operation_infos(data)
     if op not in ops:
         raise typer.Exit(code=2)
     pmap = {}
@@ -628,9 +657,60 @@ def openapi_call(
     )
     allowed = {allow_host: True} if allow_host else None
     # Lazy import to avoid httpx in CLI startup path
-    from dspx.tools.openapi.caller import call_operation
+    from dspx.tools.openapi.caller import call_operation, _build_url as _u
 
-    res = call_operation(req, operation=ops[op], allowed_hosts=allowed)
+    # Destructive-op confirmation unless bypassed by policy/flag
+    method = str(ops[op].method or "GET").upper()
+    if method in {"POST", "PUT", "PATCH", "DELETE"}:
+        from dspx.policy import bypass as _p_bypass, allow_network_mutate as _p_allow
+
+        if not _p_bypass() and not _p_allow() and not yes:
+            # Build URL preview (best-effort)
+            server = str(ops[op].server or "")
+            path = str(ops[op].path or "")
+            preview = path
+            try:
+                # lightweight import to render and redact URL
+                from dspx.tools.openapi.caller import _build_url as _u
+
+                try:
+                    from dspx.redaction import redact_url as _redact
+                except Exception:  # pragma: no cover
+
+                    def _redact(u: str) -> str:  # type: ignore
+                        return u
+
+                preview = _redact(_u(server, path, pmap))
+            except Exception:
+                pass
+            prompt = f"About to perform {method} {preview}. Continue? [y/N]"
+            if not typer.confirm(prompt, default=False):
+                typer.echo(
+                    "aborted: confirmation required for mutating operation. "
+                    "Use --yes or set DSPX_POLICY_ALLOW_NETWORK_MUTATE=1",
+                    err=True,
+                )
+                raise typer.Exit(code=2)
+
+    if dry_run:
+        # Print a redacted preview
+        server = str(ops[op].server or "")
+        path = str(ops[op].path or "")
+        url = path
+        try:
+            from dspx.redaction import redact_url as _redact
+        except Exception:  # pragma: no cover
+
+            def _redact(u: str) -> str:  # type: ignore
+                return u
+
+        try:
+            url = _redact(_u(server, path, pmap))
+        except Exception:
+            pass
+        typer.echo(f"[dry-run] {method} {url}")
+        return
+    res = call_operation(req, operation=ops[op].model_dump(), allowed_hosts=allowed)
     # Print raw_text for user-friendly output
     typer.echo(res.raw_text or "")
 
@@ -642,10 +722,11 @@ def openapi_describe(
     allow_host: Optional[str] = typer.Option(None, help="Allowlisted host for URL"),
     json_out: bool = typer.Option(False, "--json", help="Output JSON summary"),
 ) -> None:
-    from dspx.tools.openapi import load_spec, extract_operations
+    from dspx.tools.openapi import load_spec
+    from dspx.tools.openapi.loader import extract_operation_infos
 
     data = load_spec(spec, allowed_hosts=({allow_host: True} if allow_host else None))
-    ops = extract_operations(data)
+    ops = extract_operation_infos(data)
     if op not in ops:
         raise typer.Exit(code=2)
     info = ops[op]
@@ -654,15 +735,15 @@ def openapi_describe(
 
         out = {
             "operationId": op,
-            "method": str(info.get("method", "")).upper(),
-            "path": info.get("path", ""),
-            "server": info.get("server") or None,
+            "method": str(info.method or "").upper(),
+            "path": info.path or "",
+            "server": info.server or None,
             "parameters": [],
             "requestBody": None,
-            "responses": info.get("responses") or {},
-            "tags": info.get("tags") or [],
+            "responses": info.responses or {},
+            "tags": info.tags or [],
         }
-        params = info.get("parameters") or []
+        params = info.parameters or []
         if isinstance(params, list):
             for p in params:
                 if not isinstance(p, dict):
@@ -679,7 +760,7 @@ def openapi_describe(
                         ),
                     }
                 )
-        rb = info.get("requestBody")
+        rb = info.requestBody
         if isinstance(rb, dict):
             out["requestBody"] = {
                 "required": bool(rb.get("required", False)),
@@ -689,15 +770,15 @@ def openapi_describe(
         return
     # Text output
     typer.echo(f"operationId: {op}")
-    typer.echo(f"method: {info.get('method', '').upper()}")
-    typer.echo(f"path: {info.get('path', '')}")
-    if info.get("server"):
-        typer.echo(f"server: {info.get('server')}")
-    if info.get("tags"):
+    typer.echo(f"method: {str(info.method or '').upper()}")
+    typer.echo(f"path: {info.path or ''}")
+    if info.server:
+        typer.echo(f"server: {info.server}")
+    if info.tags:
         typer.echo("tags:")
-        for t in info.get("tags"):
+        for t in info.tags:
             typer.echo(f"  - {t}")
-    params = info.get("parameters") or []
+    params = info.parameters or []
     typer.echo("parameters:")
     if isinstance(params, list) and params:
         for p in params:
@@ -714,7 +795,7 @@ def openapi_describe(
             typer.echo(f"  - {where}:{name} required={str(required).lower()} type={t}")
     else:
         typer.echo("  - (none)")
-    rb = info.get("requestBody")
+    rb = info.requestBody
     typer.echo("requestBody:")
     if isinstance(rb, dict) and (rb.get("required") or rb.get("schema")):
         req = bool(rb.get("required", False))
@@ -738,7 +819,7 @@ def openapi_describe(
         typer.echo("  (none)")
     # Responses summary
     typer.echo("responses:")
-    resps = info.get("responses") or {}
+    resps = info.responses or {}
     if isinstance(resps, dict) and resps:
         for code, desc in resps.items():
             try:
@@ -884,12 +965,111 @@ def tools_web_scrape(
 
 
 @tools_app.command("list")
-def tools_list() -> None:
-    from dspx.tools.registry import ensure_default_tools, available
+def tools_list(
+    json_out: bool = typer.Option(False, "--json", help="Output JSON with metadata"),
+) -> None:
+    from dspx.tools.registry import ensure_default_tools, available_descriptors
+    from dspx.ui.renderers import tool_descriptor_to_json, tool_descriptor_to_list_text
+    import json as _json
 
     ensure_default_tools()
-    for n in available():
-        typer.echo(n)
+    descs = available_descriptors()
+    if json_out:
+        items = [tool_descriptor_to_json(d) for d in descs]
+        typer.echo(_json.dumps(items, ensure_ascii=False, indent=2))
+    else:
+        for d in descs:
+            typer.echo(tool_descriptor_to_list_text(d))
+
+
+@tools_app.command("describe")
+def tools_describe(
+    name: str = typer.Argument(..., help="Tool name"),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON details"),
+    examples: bool = typer.Option(
+        False, "--examples", help="Include usage examples/hints"
+    ),
+) -> None:
+    from dspx.tools.registry import ensure_default_tools, get_descriptor, get_tool
+    from dspx.ui.renderers import tool_descriptor_to_json, tool_descriptor_describe_text
+    import json as _json
+
+    ensure_default_tools()
+    try:
+        desc = get_descriptor(name)
+    except Exception:
+        # Fallback descriptor from function
+        fn = get_tool(name)
+        from dspx.tools.descriptors import ToolDescriptor
+
+        try:
+            caps = list(getattr(fn, "_dspx_capabilities", []) or [])
+        except Exception:
+            caps = []
+        try:
+            descr = getattr(fn, "_dspx_description", None) or None
+            descr = str(descr) if descr else None
+        except Exception:
+            descr = None
+        desc = ToolDescriptor(name=name, capabilities=caps, description=descr)
+
+    # Build example hints
+    ex: list[str] = []
+    if examples:
+        if desc.kind == "openapi" and desc.openapi is not None:
+            host = None
+            try:
+                from urllib.parse import urlparse as _urlparse
+
+                u = _urlparse(str(desc.openapi.server or ""))
+                host = u.hostname
+            except Exception:
+                host = None
+            ex.append(
+                "dspx tools openapi call --spec <SPEC.json> --op "
+                + (desc.openapi.operation_id)
+                + (f" --allow-host {host}" if host else "")
+                + " --params k=v"
+            )
+            ex.append(f"dspx tools run {name} --params k=v")
+        else:
+            mapping = {
+                "web_fetch": [
+                    "dspx tools web fetch --allow-host example.com https://example.com",
+                    "dspx tools run web_fetch --params url=https://example.com",
+                ],
+                "web_scrape": [
+                    "dspx tools web scrape --allow-host example.com --selector h1 https://example.com",
+                    "dspx tools run web_scrape --params url=https://example.com,selector=h1",
+                ],
+                "data_preview": [
+                    "dspx tools run data_preview --params path=./data.csv"
+                ],
+                "repo_summary": ["dspx tools run repo_summary --params root=."],
+                "db_schema": [
+                    "dspx tools run db_schema --params url=sqlite:///generated/sixe.db"
+                ],
+                "kb_summary": ["dspx tools run kb_summary --params path=./docs"],
+                "ontology_summary": [
+                    "dspx tools run ontology_summary --params path=./src"
+                ],
+            }
+            ex.extend(mapping.get(name, []))
+
+    if json_out:
+        payload = tool_descriptor_to_json(desc)
+        # Enrich with full OpenAPI details for describe JSON
+        if desc.kind == "openapi" and desc.openapi is not None:
+            payload["parameters"] = desc.openapi.parameters or []
+            payload["requestBody"] = desc.openapi.requestBody or None
+            payload["responses"] = desc.openapi.responses or {}
+        if ex:
+            payload["examples"] = ex
+        typer.echo(_json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(
+            tool_descriptor_describe_text(desc, examples=ex if examples else None)
+        )
 
 
 @tools_app.command("run")
@@ -899,9 +1079,20 @@ def tools_run(
         None, help="Comma-separated k=v pairs for 'params'"
     ),
     body_json: Optional[Path] = typer.Option(None, help="JSON file for 'body'"),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation for mutating operations (OpenAPI POST/PUT/PATCH/DELETE)",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Do not execute the tool; print a preview (OpenAPI: METHOD URL)",
+    ),
 ) -> None:
     import json as _json
-    from dspx.tools.registry import ensure_default_tools, get_tool
+    from dspx.tools.registry import ensure_default_tools, get_tool, get_descriptor
 
     ensure_default_tools()
     fn = get_tool(name)
@@ -915,6 +1106,165 @@ def tools_run(
     body = None
     if body_json:
         body = _json.loads(body_json.read_text(encoding="utf-8"))
+    # Destructive-op confirmation for OpenAPI tools (unless bypassed)
+    try:
+        is_openapi = bool(getattr(fn, "_dspx_is_openapi_tool", False))
+    except Exception:
+        is_openapi = False
+    if is_openapi:
+        # Use descriptor-based confirmation/preview
+        try:
+            desc = get_descriptor(name)
+        except Exception:
+            desc = None
+        from dspx.ui.confirmations import build_preview
+
+        if dry_run:
+            if desc is None:
+                # Build a minimal descriptor from function attributes
+                from dspx.tools.descriptors import ToolDescriptor
+                from dspx.tools.openapi.models import OpenAPIOperationInfo
+
+                method = str(getattr(fn, "_dspx_openapi_method", "GET"))
+                server = str(getattr(fn, "_dspx_openapi_server", ""))
+                path = str(getattr(fn, "_dspx_openapi_path", ""))
+                caps = (
+                    ["network.mutate"]
+                    if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+                    else ["network.read"]
+                )
+                opi = OpenAPIOperationInfo(
+                    operation_id=name, method=method, path=path, server=server
+                )
+                desc = ToolDescriptor(
+                    name=name, capabilities=caps, kind="openapi", openapi=opi
+                )
+            preview = build_preview(desc, pmap)
+            typer.echo(f"[dry-run] {preview}")
+            return
+        if desc is not None:
+            from dspx.ui.confirmations import needs_confirmation
+
+            need = needs_confirmation(desc)
+            if (
+                not need
+                and getattr(desc, "kind", "") == "openapi"
+                and getattr(desc, "openapi", None) is not None
+            ):
+                try:
+                    m = str(desc.openapi.method or "").upper()
+                    need = m in {"POST", "PUT", "PATCH", "DELETE"}
+                except Exception:
+                    need = False
+            if need and not yes:
+                preview = build_preview(desc, pmap)
+                if not typer.confirm(
+                    f"About to perform {preview}. Continue? [y/N]", default=False
+                ):
+                    typer.echo(
+                        "aborted: confirmation required for mutating operation. "
+                        "Use --yes or set DSPX_POLICY_ALLOW_NETWORK_MUTATE=1",
+                        err=True,
+                    )
+                    raise typer.Exit(code=2)
+        else:
+            # No descriptor found: fallback to method-based prompt
+            try:
+                method_eff = str(getattr(fn, "_dspx_openapi_method", "GET")).upper()
+            except Exception:
+                method_eff = "GET"
+            from dspx.policy import (
+                bypass as _p_bypass,
+                allow_network_mutate as _p_allow,
+            )
+
+            if (
+                method_eff in {"POST", "PUT", "PATCH", "DELETE"}
+                and not _p_bypass()
+                and not _p_allow()
+                and not yes
+            ):
+                server = str(getattr(fn, "_dspx_openapi_server", ""))
+                path = str(getattr(fn, "_dspx_openapi_path", ""))
+                preview = f"{method_eff} {path or '(unknown path)'}"
+                if not typer.confirm(
+                    f"About to perform {preview}. Continue? [y/N]", default=False
+                ):
+                    typer.echo(
+                        "aborted: confirmation required for mutating operation. "
+                        "Use --yes or set DSPX_POLICY_ALLOW_NETWORK_MUTATE=1",
+                        err=True,
+                    )
+                    raise typer.Exit(code=2)
+    # Generic capability-based confirmation for other tools
+    if dry_run and not is_openapi:
+        try:
+            desc = get_descriptor(name)
+        except Exception:
+            desc = None
+        import json as _json
+
+        if desc is not None:
+            payload = {
+                "tool": desc.name,
+                "capabilities": desc.capabilities,
+                "params": pmap or {},
+                "body": body or None,
+            }
+        else:
+            # Fallback to function attributes
+            try:
+                caps = list(getattr(fn, "_dspx_capabilities", []) or [])
+            except Exception:
+                caps = []
+            payload = {
+                "tool": name,
+                "capabilities": caps,
+                "params": pmap or {},
+                "body": body or None,
+            }
+        typer.echo(_json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    if not is_openapi:
+        try:
+            desc = get_descriptor(name)
+        except Exception:
+            desc = None
+        if desc is not None:
+            from dspx.ui.confirmations import needs_confirmation
+
+            if needs_confirmation(desc) and not yes:
+                cap_list = (
+                    ", ".join(sorted(desc.capabilities))
+                    if desc.capabilities
+                    else "mutating"
+                )
+                prompt = f"About to run tool '{name}' with capabilities: {cap_list}. Continue? [y/N]"
+                if not typer.confirm(prompt, default=False):
+                    typer.echo(
+                        "aborted: confirmation required for mutating capability. "
+                        "Use --yes or set DSPX_POLICY_BYPASS=1",
+                        err=True,
+                    )
+                    raise typer.Exit(code=2)
+        else:
+            # Fallback to function capability attributes
+            try:
+                caps = set(getattr(fn, "_dspx_capabilities", []) or [])
+            except Exception:
+                caps = set()
+            mutating_caps = {"network.mutate", "filesystem.write", "code.exec"}
+            if caps & mutating_caps and not yes:
+                if not typer.confirm(
+                    f"About to run tool '{name}' with capabilities: {', '.join(sorted(caps))}. Continue? [y/N]",
+                    default=False,
+                ):
+                    typer.echo(
+                        "aborted: confirmation required for mutating capability. "
+                        "Use --yes or set DSPX_POLICY_BYPASS=1",
+                        err=True,
+                    )
+                    raise typer.Exit(code=2)
     out = fn(params=pmap or None, body=body)
     # Try to dump nicely if dict-like
     try:
@@ -923,21 +1273,81 @@ def tools_run(
         typer.echo(str(out))
 
 
+@tools_app.command("search")
+def tools_search(
+    query: str = typer.Argument(..., help="Query string to match name/description"),
+    tags: Optional[str] = typer.Option(
+        None, "--tags", help="Comma-separated tag filters"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON with metadata"),
+) -> None:
+    from dspx.tools.registry import ensure_default_tools, available_descriptors
+    from dspx.ui.renderers import tool_descriptor_to_json, tool_descriptor_to_list_text
+    import json as _json
+
+    ensure_default_tools()
+    q = query.strip().lower()
+    tagset = None
+    if tags:
+        tagset = {t.strip().lower() for t in tags.split(",") if t.strip()}
+
+    items = []
+    for d in available_descriptors():
+        nm = d.name.lower()
+        desc_text = (d.description or "").lower()
+        match_q = not q or (q in nm or q in desc_text)
+        op_tags = [
+            str(t).lower()
+            for t in (d.openapi.tags if (d.kind == "openapi" and d.openapi) else [])
+        ]
+        match_tags = True
+        if tagset:
+            match_tags = any(t in op_tags for t in tagset)
+        if not (match_q and match_tags):
+            continue
+        if json_out:
+            items.append(tool_descriptor_to_json(d))
+        else:
+            typer.echo(tool_descriptor_to_list_text(d))
+    if json_out:
+        typer.echo(_json.dumps(items, ensure_ascii=False, indent=2))
+
+
 # --- Adapters CLI ---
 
 
 @adapters_app.command("list")
-def adapters_list() -> None:
+def adapters_list(
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
     # Keep this list in sync with adapters package
-    for line in [
+    items = [
         "dataset.csv",
         "dataset.parquet",
         "dataset.mlflow",
         "eval.accuracy",
         "eval.f1_binary",
         "store.local_object",
-    ]:
-        typer.echo(line)
+    ]
+    descs = {
+        "dataset.csv": "CSV dataset loader",
+        "dataset.parquet": "Parquet dataset loader",
+        "dataset.mlflow": "MLflow dataset reference",
+        "eval.accuracy": "Accuracy metric",
+        "eval.f1_binary": "F1 (binary) metric",
+        "store.local_object": "Local object store",
+    }
+    if json_out:
+        import json as _json
+
+        typer.echo(_json.dumps(items, ensure_ascii=False, indent=2))
+    else:
+        for line in items:
+            d = descs.get(line)
+            if d:
+                typer.echo(f"{line} - {d}")
+            else:
+                typer.echo(line)
 
 
 @adapters_dataset_app.command("describe")
@@ -1014,6 +1424,9 @@ def adapters_dataset_split(
         help="Minimum per-label count per partition (applies only to stratified splits)",
     ),
     json_out: bool = typer.Option(False, "--json", help="Output JSON summary"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Plan splits without writing files"
+    ),
 ) -> None:
     import json as _json
     import pandas as pd
@@ -1026,7 +1439,8 @@ def adapters_dataset_split(
 
     df = pd.read_csv(str(csv))
     records = df.to_dict(orient="records")
-    outdir.mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        outdir.mkdir(parents=True, exist_ok=True)
     summary = {"input": str(csv), "outdir": str(outdir)}
     if ratios:
         try:
@@ -1052,9 +1466,10 @@ def adapters_dataset_split(
             )
         else:
             tr, va, te = _tvts(records, ratios=tuple(parts), seed=seed)
-        pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
-        pd.DataFrame(va).to_csv(outdir / "val.csv", index=False)
-        pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
+        if not dry_run:
+            pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
+            pd.DataFrame(va).to_csv(outdir / "val.csv", index=False)
+            pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
         summary.update(
             {
                 "train": str(outdir / "train.csv"),
@@ -1083,8 +1498,9 @@ def adapters_dataset_split(
             )
         else:
             tr, te = _tts(records, test_size=ts, seed=seed)
-        pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
-        pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
+        if not dry_run:
+            pd.DataFrame(tr).to_csv(outdir / "train.csv", index=False)
+            pd.DataFrame(te).to_csv(outdir / "test.csv", index=False)
         summary.update(
             {
                 "train": str(outdir / "train.csv"),
@@ -1104,13 +1520,18 @@ def adapters_eval_run(
     metric: str = typer.Option(
         ...,
         "--metric",
-        help="accuracy|f1|confusion|roc_auc|rouge1_f1|bleu1|per_class_pr|pr_curve|ece",
+        help="accuracy|f1|confusion|roc_auc|roc_curve|rouge1_f1|bleu1|bertscore_f1|per_class_pr|pr_curve|ece",
     ),
     positive_label: Optional[str] = typer.Option(
         None, "--positive-label", help="Label considered positive for F1"
     ),
     average: str = typer.Option(
         "micro", "--average", help="Averaging for text metrics (micro|macro)"
+    ),
+    outdir: Optional[Path] = typer.Option(
+        None,
+        "--out",
+        help="Directory to export CSVs for supported metrics (pr_curve, roc_curve, per_class_pr)",
     ),
     json_out: bool = typer.Option(True, "--json", help="Output JSON"),
 ) -> None:
@@ -1125,9 +1546,12 @@ def adapters_eval_run(
         rouge1_f1_macro,
         bleu1_macro,
         roc_auc_binary,
+        roc_curve_binary,
         precision_recall_per_class,
         pr_curve_binary,
         expected_calibration_error_binary,
+        bertscore_f1,
+        bertscore_f1_macro,
     )
 
     df = pd.read_csv(str(csv))
@@ -1185,6 +1609,31 @@ def adapters_eval_run(
     elif m == "per_class_pr":
         per = precision_recall_per_class(y_true, y_pred)
         out = {"metric": m, "classes": per}
+        if out and out is not None:
+            if out is not None:
+                pass
+        # Export CSV when requested
+        if outdir:
+            try:
+                outdir.mkdir(parents=True, exist_ok=True)
+                import csv
+
+                with open(
+                    outdir / "per_class_pr.csv", "w", encoding="utf-8", newline=""
+                ) as f:
+                    w = csv.writer(f)
+                    w.writerow(["class", "precision", "recall", "support"])
+                    for k, v in per.items():
+                        w.writerow(
+                            [
+                                k,
+                                v.get("precision", 0.0),
+                                v.get("recall", 0.0),
+                                v.get("support", 0.0),
+                            ]
+                        )
+            except Exception:
+                pass
         if json_out:
             typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
         else:
@@ -1193,12 +1642,81 @@ def adapters_eval_run(
                     f"{k}: precision={v['precision']:.4f} recall={v['recall']:.4f}"
                 )
         return
+    elif m == "bertscore_f1":
+        refs = [str(v) for v in y_true]
+        cands = [str(v) for v in y_pred]
+        avg = (average or "micro").strip().lower()
+        # Optional configuration via envs
+        model = os.getenv("DSPX_BERTSCORE_MODEL")
+        lang = os.getenv("DSPX_BERTSCORE_LANG", "en")
+        rescale = os.getenv("DSPX_BERTSCORE_RESCALE", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        try:
+            val = (
+                bertscore_f1(
+                    refs, cands, model=model, lang=lang, rescale_with_baseline=rescale
+                )
+                if avg == "micro"
+                else bertscore_f1_macro(
+                    refs, cands, model=model, lang=lang, rescale_with_baseline=rescale
+                )
+            )
+        except ImportError as e:
+            typer.echo(f"error: {e}", err=True)
+            raise typer.Exit(code=2)
     elif m == "pr_curve":
         try:
             scores = [float(v) for v in y_pred]
         except Exception:
             raise typer.Exit(code=2)
         curve = pr_curve_binary(y_true, scores, positive_label=positive_label)
+        if outdir:
+            try:
+                outdir.mkdir(parents=True, exist_ok=True)
+                import csv
+
+                with open(
+                    outdir / "pr_curve.csv", "w", encoding="utf-8", newline=""
+                ) as f:
+                    w = csv.writer(f)
+                    w.writerow(["threshold", "precision", "recall"])
+                    for t, p, r in zip(
+                        curve["thresholds"], curve["precision"], curve["recall"]
+                    ):
+                        w.writerow([t, p, r])
+            except Exception:
+                pass
+        out = {"metric": m, **curve}
+        if json_out:
+            typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(f"points={len(curve['thresholds'])}")
+        return
+    elif m == "roc_curve":
+        try:
+            scores = [float(v) for v in y_pred]
+        except Exception:
+            raise typer.Exit(code=2)
+        curve = roc_curve_binary(y_true, scores, positive_label=positive_label)
+        if outdir:
+            try:
+                outdir.mkdir(parents=True, exist_ok=True)
+                import csv
+
+                with open(
+                    outdir / "roc_curve.csv", "w", encoding="utf-8", newline=""
+                ) as f:
+                    w = csv.writer(f)
+                    w.writerow(["threshold", "tpr", "fpr"])
+                    for t, tp, fp in zip(
+                        curve["thresholds"], curve["tpr"], curve["fpr"]
+                    ):
+                        w.writerow([t, tp, fp])
+            except Exception:
+                pass
         out = {"metric": m, **curve}
         if json_out:
             typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
@@ -1238,13 +1756,18 @@ def adapters_eval_run2(
     metric: str = typer.Option(
         ...,
         "--metric",
-        help="accuracy|f1|confusion|roc_auc|rouge1_f1|bleu1|per_class_pr",
+        help="accuracy|f1|confusion|roc_auc|roc_curve|rouge1_f1|bleu1|bertscore_f1|per_class_pr|pr_curve",
     ),
     positive_label: Optional[str] = typer.Option(
         None, "--positive-label", help="Label considered positive for F1/confusion"
     ),
     average: str = typer.Option(
         "micro", "--average", help="Averaging for text metrics (micro|macro)"
+    ),
+    outdir: Optional[Path] = typer.Option(
+        None,
+        "--out",
+        help="Directory to export CSVs for supported metrics (pr_curve, roc_curve, per_class_pr)",
     ),
     json_out: bool = typer.Option(True, "--json", help="Output JSON"),
 ) -> None:
@@ -1260,6 +1783,10 @@ def adapters_eval_run2(
         bleu1_macro,
         roc_auc_binary,
         precision_recall_per_class,
+        pr_curve_binary,
+        roc_curve_binary,
+        bertscore_f1,
+        bertscore_f1_macro,
     )
 
     df_t = pd.read_csv(str(csv_true))[[id_col, truth_col]]
@@ -1309,9 +1836,106 @@ def adapters_eval_run2(
             "count": int(len(merged)),
             "average": avg,
         }
+    elif m == "bertscore_f1":
+        refs = [str(v) for v in y_true]
+        cands = [str(v) for v in y_pred]
+        avg = (average or "micro").strip().lower()
+        model = os.getenv("DSPX_BERTSCORE_MODEL")
+        lang = os.getenv("DSPX_BERTSCORE_LANG", "en")
+        rescale = os.getenv("DSPX_BERTSCORE_RESCALE", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        try:
+            val = (
+                bertscore_f1(
+                    refs, cands, model=model, lang=lang, rescale_with_baseline=rescale
+                )
+                if avg == "micro"
+                else bertscore_f1_macro(
+                    refs, cands, model=model, lang=lang, rescale_with_baseline=rescale
+                )
+            )
+        except ImportError as e:
+            typer.echo(f"error: {e}", err=True)
+            raise typer.Exit(code=2)
+        out = {
+            "metric": m,
+            "value": float(val),
+            "count": int(len(merged)),
+            "average": avg,
+        }
     elif m == "per_class_pr":
         per = precision_recall_per_class(y_true, y_pred)
         out = {"metric": m, "classes": per, "count": int(len(merged))}
+        if outdir:
+            try:
+                outdir.mkdir(parents=True, exist_ok=True)
+                import csv
+
+                with open(
+                    outdir / "per_class_pr.csv", "w", encoding="utf-8", newline=""
+                ) as f:
+                    w = csv.writer(f)
+                    w.writerow(["class", "precision", "recall", "support"])
+                    for k, v in per.items():
+                        w.writerow(
+                            [
+                                k,
+                                v.get("precision", 0.0),
+                                v.get("recall", 0.0),
+                                v.get("support", 0.0),
+                            ]
+                        )
+            except Exception:
+                pass
+    elif m == "pr_curve":
+        try:
+            scores = [float(v) for v in y_pred]
+        except Exception:
+            raise typer.Exit(code=2)
+        curve = pr_curve_binary(y_true, scores, positive_label=positive_label)
+        if outdir:
+            try:
+                outdir.mkdir(parents=True, exist_ok=True)
+                import csv
+
+                with open(
+                    outdir / "pr_curve.csv", "w", encoding="utf-8", newline=""
+                ) as f:
+                    w = csv.writer(f)
+                    w.writerow(["threshold", "precision", "recall"])
+                    for t, p, r in zip(
+                        curve["thresholds"], curve["precision"], curve["recall"]
+                    ):
+                        w.writerow([t, p, r])
+            except Exception:
+                pass
+        out = {"metric": m, **curve, "count": int(len(merged))}
+    elif m == "roc_curve":
+        try:
+            scores = [float(v) for v in y_pred]
+        except Exception:
+            raise typer.Exit(code=2)
+        curve = roc_curve_binary(y_true, scores, positive_label=positive_label)
+        if outdir:
+            try:
+                outdir.mkdir(parents=True, exist_ok=True)
+                import csv
+
+                with open(
+                    outdir / "roc_curve.csv", "w", encoding="utf-8", newline=""
+                ) as f:
+                    w = csv.writer(f)
+                    w.writerow(["threshold", "tpr", "fpr"])
+                    for t, tp, fp in zip(
+                        curve["thresholds"], curve["tpr"], curve["fpr"]
+                    ):
+                        w.writerow([t, tp, fp])
+            except Exception:
+                pass
+        out = {"metric": m, **curve, "count": int(len(merged))}
     else:
         raise typer.Exit(code=2)
     if json_out:

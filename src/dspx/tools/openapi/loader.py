@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, Mapping, Optional
+from .models import OpenAPIOperationInfo
 import os
 from urllib.parse import urlparse
 import httpx
@@ -80,6 +81,13 @@ def load_spec(
     - Supports JSON and YAML (via PyYAML) formats.
     """
     if _is_url(path):
+        # Capability: network.read for remote spec fetching
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("network.read")
         if not _host_allowed(path, allowed_hosts):
             raise PermissionError(f"Host not allowed for spec URL: {path}")
         pth = _cache_path(path)
@@ -152,6 +160,12 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                 # derive naive op id
                 op_id = f"{method}_{path.strip('/').replace('/', '_').replace('{', '').replace('}', '')}"
             op_params = op.get("parameters") or []
+            # Optional summary/description for metadata
+            summary = None
+            try:
+                summary = op.get("summary") or op.get("description")
+            except Exception:
+                summary = None
             # Merge path-level and op-level parameters; op-level overrides duplicates by (name,in)
             merged_params: list[dict] = []
             seen: set[tuple[str, str]] = set()
@@ -223,5 +237,34 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                 "requestBody": req_body,
                 "responses": responses,
                 "tags": tags,
+                "summary": summary,
             }
     return ops
+
+
+
+
+def extract_operation_infos(spec: Dict[str, Any]) -> Dict[str, OpenAPIOperationInfo]:
+    """Typed variant of extract_operations.
+
+    Returns mapping opId -> OpenAPIOperationInfo.
+    """
+    raw = extract_operations(spec)
+    out: Dict[str, OpenAPIOperationInfo] = {}
+    for op_id, info in raw.items():
+        try:
+            out[op_id] = OpenAPIOperationInfo(
+                operation_id=op_id,
+                method=str(info.get("method", "")).upper(),
+                path=str(info.get("path", "")),
+                server=str(info.get("server") or "") or None,
+                tags=list(info.get("tags") or []),
+                summary=info.get("summary") or None,
+                parameters=list(info.get("parameters") or []),
+                requestBody=(info.get("requestBody") or None),
+                responses=dict(info.get("responses") or {}),
+            )
+        except Exception:
+            # Best-effort; skip invalid
+            continue
+    return out

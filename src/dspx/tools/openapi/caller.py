@@ -15,6 +15,13 @@ from dspx.policy import (
 import time as _time
 from dspx.tracing import ensure_run_from_env
 
+try:
+    from dspx.redaction import redact_url as _redact_url
+except Exception:  # pragma: no cover
+
+    def _redact_url(u: str) -> str:  # type: ignore
+        return u
+
 
 def _build_url(server: str, path: str, params: Mapping[str, Any]) -> str:
     """Replace path params like {id} and join with server.
@@ -318,6 +325,16 @@ def call_operation(
             raise PermissionError(f"HTTP method '{method}' not allowed by policy")
         if method in deny_set:
             raise PermissionError(f"HTTP method '{method}' denied by policy")
+        # Capability gating: network.read vs network.mutate
+    try:
+        from dspx.policy import check_capability as _cap
+    except Exception:
+        _cap = None  # type: ignore
+    if _cap is not None:
+        if method in {"POST", "PUT", "PATCH", "DELETE"}:
+            _cap("network.mutate")
+        else:
+            _cap("network.read")
         if (
             _policy_enforce_mutate()
             and method in {"POST", "PUT", "PATCH", "DELETE"}
@@ -363,12 +380,13 @@ def call_operation(
             ):
                 import mlflow
 
+                # Redact URL before logging
                 mlflow.log_params(
                     {
                         "openapi.method": method,
                         "openapi.path": path,
                         "openapi.server": server or "",
-                        "openapi.url": url,
+                        "openapi.url": _redact_url(url),
                     }
                 )  # type: ignore[attr-defined]
                 mlflow.log_metrics(

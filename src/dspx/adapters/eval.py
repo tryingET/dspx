@@ -442,3 +442,133 @@ def expected_calibration_error_binary(
         acc = sum(yb[i] for i in idxs) / len(idxs)
         ece += (len(idxs) / n) * abs(acc - conf)
     return float(ece)
+
+
+# --- Optional: BERTScore (text similarity) ---
+
+
+def bertscore_f1(
+    refs: Sequence[str],
+    cands: Sequence[str],
+    *,
+    model: str | None = None,
+    lang: str | None = "en",
+    rescale_with_baseline: bool = False,
+) -> float:
+    """Compute average BERTScore F1 over pairs of strings.
+
+    This is an optional metric that requires the `bert-score` package.
+
+    - Returns 0.0 for empty inputs.
+    - Raises ValueError on length mismatch.
+    - Lazily imports `bert_score` to avoid hard dependency.
+    - `model` corresponds to `model_type` in bert-score; when not provided,
+      `lang` (default 'en') guides the default model selection.
+    """
+    if len(refs) != len(cands):
+        raise ValueError("refs and cands must have same length")
+    n = len(refs)
+    if n == 0:
+        return 0.0
+    try:
+        from bert_score import score as _bs_score  # type: ignore
+    except Exception as e:  # pragma: no cover - exercised only when missing
+        raise ImportError(
+            "bertscore_f1 requires the 'bert-score' package. Install via 'uv add bert-score' or 'pip install bert-score'."
+        ) from e
+
+    # bert_score.score expects (cands, refs)
+    P, R, F1 = _bs_score(
+        list(cands),
+        list(refs),
+        model_type=model,
+        lang=lang,
+        rescale_with_baseline=rescale_with_baseline,
+        verbose=False,
+    )
+    try:
+        # Torch tensors: take mean over pairs
+        return float(F1.mean().item())
+    except Exception:
+        # Fallback in case different tensor type; convert to python floats first
+        vals = [float(x) for x in F1]
+        return sum(vals) / float(len(vals))
+
+
+def bertscore_f1_macro(
+    refs: Sequence[str],
+    cands: Sequence[str],
+    *,
+    model: str | None = None,
+    lang: str | None = "en",
+    rescale_with_baseline: bool = False,
+) -> float:
+    """Alias of bertscore_f1 for consistency with other text metrics.
+
+    BERTScore is defined per pair; we aggregate by simple mean across pairs.
+    """
+    return bertscore_f1(
+        refs,
+        cands,
+        model=model,
+        lang=lang,
+        rescale_with_baseline=rescale_with_baseline,
+    )
+
+
+# --- ROC Curve ---
+
+
+def roc_curve_binary(
+    y_true: Sequence[object],
+    y_scores: Sequence[object],
+    *,
+    positive_label: object | None = None,
+) -> Dict[str, List[float]]:
+    """Compute ROC curve points (thresholds, tpr, fpr) for binary classification.
+
+    - thresholds sorted descending over unique scores.
+    - Returns dict with keys: thresholds, tpr, fpr.
+    """
+    if len(y_true) != len(y_scores):
+        raise ValueError("y_true and y_scores must have the same length")
+    n = len(y_true)
+    if n == 0:
+        return {"thresholds": [], "tpr": [], "fpr": []}
+    inferred = positive_label
+    if inferred is None:
+        if any(isinstance(v, bool) for v in y_true):
+            inferred = True
+        elif any(isinstance(v, int) for v in y_true):
+            inferred = 1
+        else:
+            raise ValueError(
+                "positive_label must be provided for non-bool/non-int labels"
+            )
+    yb: List[int] = [1 if v == inferred else 0 for v in y_true]
+    try:
+        scores: List[float] = [float(s) for s in y_scores]
+    except Exception as e:
+        raise ValueError("y_scores must be numeric") from e
+    # Sort by score descending
+    order = sorted(range(n), key=lambda i: scores[i], reverse=True)
+    sorted_scores = [scores[i] for i in order]
+    sorted_true = [yb[i] for i in order]
+    thresholds = sorted(set(sorted_scores), reverse=True)
+    tpr: List[float] = []
+    fpr: List[float] = []
+    P = sum(yb)
+    N = n - P
+    tp = 0
+    fp = 0
+    i = 0
+    for thr in thresholds:
+        while i < n and sorted_scores[i] >= thr:
+            if sorted_true[i] == 1:
+                tp += 1
+            else:
+                fp += 1
+            i += 1
+        tpr.append(tp / P if P > 0 else 0.0)
+        fpr.append(fp / N if N > 0 else 0.0)
+    return {"thresholds": thresholds, "tpr": tpr, "fpr": fpr}

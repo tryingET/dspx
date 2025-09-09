@@ -70,6 +70,39 @@ def enforce_network_mutate() -> bool:
     return str(v).strip().lower() in {"1", "true", "yes", "on"}
 
 
+# --- Capability gating ---
+
+
+def allowed_capabilities() -> set[str] | None:
+    """Comma-separated capability allowlist, e.g., 'network.read,network.mutate'.
+
+    When set, only listed capabilities are allowed (unless bypass is enabled).
+    """
+    v = _as_set(_env("DSPX_POLICY_ALLOWED_CAPS"))
+    return {c.strip().lower() for c in v} if v is not None else None
+
+
+def disallowed_capabilities() -> set[str]:
+    v = _as_set(_env("DSPX_POLICY_DISALLOWED_CAPS")) or set()
+    return {c.strip().lower() for c in v}
+
+
+def check_capability(cap: str) -> None:
+    """Enforce capability allow/deny policy, unless bypassed.
+
+    Known caps used by dspx: 'network.read', 'network.mutate'.
+    """
+    if bypass():
+        return
+    cap = cap.strip().lower()
+    allow = allowed_capabilities()
+    deny = disallowed_capabilities()
+    if allow is not None and cap not in allow:
+        raise PermissionError(f"capability '{cap}' is not allowed by policy")
+    if cap in deny:
+        raise PermissionError(f"capability '{cap}' is denied by policy")
+
+
 def check_tool_allowed(name: str) -> None:
     if bypass():
         return

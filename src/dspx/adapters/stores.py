@@ -44,14 +44,35 @@ class LocalObjectStore(StoreAdapter):
         return full
 
     def put_text(self, rel_path: str, text: str) -> str:
+        # Capability: filesystem.write
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("filesystem.write")
         dest = self._full(rel_path)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(text, encoding="utf-8")
         return str(dest)
 
     def get_text(self, rel_path: str) -> str:
+        # Capability: filesystem.read
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("filesystem.read")
         src = self._full(rel_path)
         return src.read_text(encoding="utf-8")
 
     def exists(self, rel_path: str) -> bool:
+        # Capability: filesystem.read (metadata)
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("filesystem.read")
         return self._full(rel_path).exists()

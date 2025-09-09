@@ -212,6 +212,13 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         if shutil.which(self.binary) is None and not self._bin_warned:
             self._warn_missing_binary()
         t0 = time.time()
+        # Capability: code.exec
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("code.exec")
         proc = subprocess.run(
             cmd,
             cwd=self.cwd or None,
@@ -265,6 +272,13 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         if shutil.which(self.binary) is None and not self._bin_warned:
             self._warn_missing_binary()
         t0 = time.time()
+        # Capability: code.exec
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("code.exec")
         proc = subprocess.run(
             cmd,
             cwd=self.cwd or None,
@@ -303,6 +317,13 @@ class ClaudeHeadlessLM(DSPyBaseLM, InternalLMBase):
         env = os.environ.copy()
         env.update(self.env)
         cmd = self._build_command(query)
+        # Capability: code.exec
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("code.exec")
         p = subprocess.Popen(
             cmd,
             cwd=self.cwd or None,

@@ -10,7 +10,7 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~8–10s (`just test`) with 86 passing tests.
+- Tests: local suite runs in ~10–12s (`just test`) with 121 passing tests (1 skipped).
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
@@ -30,14 +30,15 @@ decisions, and readiness against the vision plan.
 
 - Providers: CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, MultiProviderLM, Stub LM.
 - Core: LMBase + ProviderCapabilities, DTOs (Signatures, Modules, Programs,
-  Codegen, OpenAPI Call), ToolRegistry.
+  Codegen, OpenAPI Call), ToolRegistry, typed descriptors for tools (`ToolDescriptor`) and
+  typed OpenAPI operations (`OpenAPIOperationInfo`).
 - Services: SignatureService (vibe + DTO), RefineService (vibe),
   CodegenService (DTO), ModuleService (MVP), MermaidWorkflowService
   (variants + sig‑per‑node; emits ProgramGraph/Artifact + manifest).
 - OpenAPI Toolpack (MVP+): loader (JSON/YAML, URL with allowlists + cache),
   operation extraction (merged params, body schema, response schemas, tags),
   caller (host allowlist, basic validation), registry integration (dynamic tools),
-  CLI (`tools openapi` with `ops --tags`, `describe --json`).
+  CLI (`tools openapi` with `ops --tags|--json`, `describe --json`, `call --dry-run`).
 - Adapters (Phase 7 MVP+): dataset adapters (CSV/Parquet, MLflow artifact ref),
   eval metrics (accuracy, F1 binary, confusion, ROUGE‑1 F1, BLEU‑1, ROC‑AUC, per‑class precision/recall),
   macro/micro averaging for ROUGE/BLEU, stratified and group‑aware splits with
@@ -53,6 +54,9 @@ decisions, and readiness against the vision plan.
   `localhost` in certain environments.
 - CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters, and `tools web fetch|scrape` with per‑call host allowlists), plus legacy demos;
   `dspx-server` launcher.
+  Tools UX additions: `tools list --json` (capabilities/description/OpenAPI info),
+  `tools describe [--json|--examples]`, `tools search [--tags] [--json]`, generic `--dry-run`
+  for `tools run` and `tools openapi call` with redacted previews.
 - Tracing: MLflow integration (opt‑in via env) with standardized tags
   (`service`, `template_version`, `provider`, optional `run_group`) and artifact/manifest logging. `run_group` is populated from `DSPX_RUN_GROUP` (now exported by `bench-mlflow`) and applied consistently via `ensure_run_with_standard_tags()` across CLIs (including Mermaid SIG).
   Per‑service budgets recorded via `service.budget_ms` tag and
@@ -98,9 +102,16 @@ decisions, and readiness against the vision plan.
     Web tools now enforce per‑call host allowlists with CLI integration (`dspx tools web fetch|scrape --allow-host`).
   - Implemented: per‑service budgets with MLflow tagging/metrics; CLI `--budget-ms` for signature/module/codegen.
   - Implemented: run naming + `mlflow.dspy.autolog(create_run=False)` to attach traces to named runs; simple duration traces added to mermaid and non‑DTO signature paths.
-  - Remaining: destructive confirmation for mutating ops via CLI;
-    token redaction hardening; category‑level gating (e.g., `filesystem.write`),
-    stronger sandbox isolation options; optional parent/child nested runs for workflow‑level grouping.
+  - Implemented (new): destructive‑op confirmation in CLI for mutating OpenAPI/tools
+    (policy‑aware with `--yes` and `--allow-network-mutate`), capability category gating for
+    tools via registry wrapper + descriptors, dry‑run previews for OpenAPI/tools with redacted URLs,
+    typed descriptors (`ToolDescriptor`) and typed OpenAPI operations (`OpenAPIOperationInfo`),
+    and server‑side confirmation gate for mutating endpoint `/mermaid` controlled by
+    `DSPX_CONFIRM_MUTATIONS` + `X-DSPX-Confirm` header. Token redaction hardened (URL userinfo,
+    Cookie/Set-Cookie, token/key/secret/password headers) and applied to previews/outputs.
+  - Remaining: stronger sandbox isolation options; capability gating for `code.exec` in providers;
+    optional parent/child nested runs for workflow‑level grouping; further redaction coverage and
+    audit trails; unify descriptors across any remaining tool paths.
 - Phase 10 — Plugins & Extension Points: NOT STARTED.
 
 ## Risks & Dependencies
@@ -113,7 +124,7 @@ decisions, and readiness against the vision plan.
 
 ## Success Criteria (near-term)
 
-- Stable, deterministic tests without external providers (currently ~8–11s locally).
+- Stable, deterministic tests without external providers (currently ~10–12s locally).
 - DTOs and manifests adopted across services; CLIs documented.
-- Next: stronger policy (Phase 9), plugins (Phase 10), and richer adapter features
-  (e.g., stratified/group constraints, additional metrics), plus optional distributed rate limiting.
+- Next: stronger policy (Phase 9), plugins (Phase 10), richer adapter features,
+  and optional distributed rate limiting. Expand descriptor usage and server tooling endpoints.

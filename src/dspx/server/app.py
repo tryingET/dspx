@@ -112,11 +112,30 @@ def create_app() -> FastAPI:
 
     @app.post("/mermaid", response_model=MermaidResponse)
     def post_mermaid(
-        req: MermaidRequest, authorization: Optional[str] = Header(default=None)
+        req: MermaidRequest,
+        authorization: Optional[str] = Header(default=None),
+        x_dspx_confirm: Optional[str] = Header(default=None),
     ):
         _stats.requests_total += 1
         guard.check(authorization)
         os.environ.setdefault("MLFLOW_ENABLE", "0")
+        # Optional server-side confirmation gate for mutating operations
+        # When DSPX_CONFIRM_MUTATIONS=1, require X-DSPX-Confirm: 1 for endpoints
+        # that perform filesystem writes or potential side effects.
+        if str(os.getenv("DSPX_CONFIRM_MUTATIONS", "0")).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }:
+            if str(x_dspx_confirm or "").strip().lower() not in {"1", "true", "yes"}:
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "error": "confirmation_required",
+                        "detail": "Mutation requires confirmation header X-DSPX-Confirm: 1",
+                        "status": 403,
+                    },
+                )
         with TemporaryDirectory() as td:
             out = generate_programs(
                 req.mermaid,
@@ -140,6 +159,61 @@ def create_app() -> FastAPI:
             produced = [Path(p).name for p in out]
             return MermaidResponse(name=name, produced=produced, manifest=manifest)
 
+    # Optional /metrics endpoint (guarded by env DSPX_METRICS_ENABLED)
+    if str(os.getenv("DSPX_METRICS_ENABLED", "0")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+
+        @app.get("/metrics")
+        def get_metrics(request: Request):  # type: ignore[no-untyped-def]
+            # Content negotiation: Prometheus text when requested
+            fmt = request.query_params.get("format")
+            accept = (request.headers.get("accept") or "").lower()
+            if fmt == "prom" or "text/plain" in accept:
+                c = _stats.snapshot()
+                lines = [
+                    "# HELP dspx_requests_total Total HTTP requests.",
+                    "# TYPE dspx_requests_total counter",
+                    f"dspx_requests_total {c.get('requests_total', 0)}",
+                    "# HELP dspx_status_401_total Unauthorized responses.",
+                    "# TYPE dspx_status_401_total counter",
+                    f"dspx_status_401_total {c.get('status_401', 0)}",
+                    "# HELP dspx_status_429_total Rate-limited responses.",
+                    "# TYPE dspx_status_429_total counter",
+                    f"dspx_status_429_total {c.get('status_429', 0)}",
+                ]
+                from fastapi import Response
+
+                return Response(
+                    "\n".join(lines) + "\n",
+                    media_type="text/plain; version=0.0.4; charset=utf-8",
+                )
+            c = _stats.snapshot()
+            return {"status": "ok", **c}
+
+        @app.get("/metrics-prom")
+        def get_metrics_prom():  # type: ignore[no-untyped-def]
+            c = _stats.snapshot()
+            lines = [
+                "# HELP dspx_requests_total Total HTTP requests.",
+                "# TYPE dspx_requests_total counter",
+                f"dspx_requests_total {c.get('requests_total', 0)}",
+                "# HELP dspx_status_401_total Unauthorized responses.",
+                "# TYPE dspx_status_401_total counter",
+                f"dspx_status_401_total {c.get('status_401', 0)}",
+                "# HELP dspx_status_429_total Rate-limited responses.",
+                "# TYPE dspx_status_429_total counter",
+                f"dspx_status_429_total {c.get('status_429', 0)}",
+            ]
+            from fastapi import Response
+
+            return Response(
+                "\n".join(lines) + "\n",
+                media_type="text/plain; version=0.0.4; charset=utf-8",
+            )
+
     return app
 
 
@@ -147,11 +221,11 @@ def main() -> None:
     """Start the ASGI server using Granian.
 
     Environment variables:
-    - DSPX_SERVER_HOST (default 127.0.0.1)
-    - DSPX_SERVER_PORT (default 8000)
+    - DSPX_SERVER_HOST (default localhost)
+    - DSPX_SERVER_PORT (default 33213)
     """
-    host = os.getenv("DSPX_SERVER_HOST", "127.0.0.1")
-    port = int(os.getenv("DSPX_SERVER_PORT", "8000"))
+    host = os.getenv("DSPX_SERVER_HOST", "localhost")
+    port = int(os.getenv("DSPX_SERVER_PORT", "33213"))
     try:
         from granian import Granian
 

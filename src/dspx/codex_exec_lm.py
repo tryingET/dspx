@@ -204,6 +204,14 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
             os.close(fd)
             cmd_for_run.extend(["--output-last-message", last_msg_file])
 
+        # Capability: code.exec
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("code.exec")
+
         t0 = time.time()
         proc = subprocess.run(
             cmd_for_run,
@@ -414,6 +422,13 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
             os.close(fd)
             cmd_for_run.extend(["--output-last-message", last_msg_file])
 
+        # Capability: code.exec
+        try:
+            from dspx.policy import check_capability as _cap
+        except Exception:
+            _cap = None  # type: ignore
+        if _cap is not None:
+            _cap("code.exec")
         t0 = time.time()
         proc = subprocess.run(
             cmd_for_run,
