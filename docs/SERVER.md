@@ -11,9 +11,19 @@ Overview
 
 Run
 ---
-Use Granian (recommended) or any ASGI server:
+Use Granian (recommended) or any ASGI server. Defaults can be overridden via `DSPX_SERVER_HOST` and `DSPX_SERVER_PORT`.
 
-  granian --interface asgi --host 127.0.0.1 --port 8000 dspx.server.app:app
+Options:
+
+- Granian directly:
+
+    granian --interface asgi --host localhost --port 33213 dspx.server.app:app
+
+- Just recipe (convenient):
+
+    just start
+    # or
+    just start host=0.0.0.0 port=33213
 
 Auth (Bearer tokens)
 --------------------
@@ -49,7 +59,7 @@ Docker Compose Example
     dspx:
       image: ghcr.io/your-org/dspx:latest
       command: >
-        granian --interface asgi --host 0.0.0.0 --port 8000 dspx.server.app:app
+        granian --interface asgi --host 0.0.0.0 --port 33213 dspx.server.app:app
       environment:
         - DSPX_SERVER_TOKENS=tok1,tok2
         - DSPX_RATE_LIMIT_ENABLED=1
@@ -57,7 +67,7 @@ Docker Compose Example
         - DSPX_RATE_LIMIT_GLOBAL=200/min
         - DSPX_TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
       ports:
-        - "8000:8000"
+        - "33213:33213"
 
 Notes
 -----

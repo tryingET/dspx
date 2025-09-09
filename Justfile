@@ -160,3 +160,51 @@ bench-mlflow:
     if CODEX_TIMEOUT=60 uv run -q python -m dspx.cli.dspx mermaid sig --file "$WF" --name benchsig --provider codex-exec >/dev/null 2>&1; then echo "provider=codex-exec kind=mermaid-sig rc=0"; else echo "provider=codex-exec kind=mermaid-sig rc=$?"; fi; \
     if CLAUDE_TIMEOUT=60 uv run -q python -m dspx.cli.dspx mermaid sig --file "$WF" --name benchsig --provider claude-cli >/dev/null 2>&1; then echo "provider=claude-cli kind=mermaid-sig rc=0"; else echo "provider=claude-cli kind=mermaid-sig rc=$?"; fi; \
     echo "[bench] done. Group: $DSPX_RUN_GROUP"'
+
+# Start the FastAPI server (Granian)
+# Usage (positional args):
+#   just start                 # 3s on 127.0.0.1:33213 (default)
+#   just start 10              # 10s on 127.0.0.1:33213
+#   just start 5 0.0.0.0 33213 # 5s on 0.0.0.0:33213
+start secs="3" host="127.0.0.1" port="33213":
+  if [ "{{secs}}" != "" ]; then \
+    echo "Starting DSPx server on http://{{host}}:{{port}} for {{secs}}s ..."; \
+    timeout {{secs}}s env UV_LINK_MODE=copy uv run -q granian --interface asgi --host {{host}} --port {{port}} dspx.server.app:app || code=$?; \
+    if [ "${code:-0}" -eq 124 ]; then echo "Timed out after {{secs}}s (expected)."; exit 0; elif [ "${code:-0}" -ne 0 ]; then echo "Server exited with code ${code:-0}."; exit "${code:-0}"; fi; \
+  else \
+    echo "Starting DSPx server on http://{{host}}:{{port}} ..."; \
+    env UV_LINK_MODE=copy uv run -q granian --interface asgi --host {{host}} --port {{port}} dspx.server.app:app; \
+  fi
+
+# Start the FastAPI server but stop it after a short timeout
+# Usage (positional params):
+#   just start-timed                    # 3s on 127.0.0.1:33213
+#   just start-timed 5                  # 5s on 127.0.0.1:33213
+#   just start-timed 3 0.0.0.0 33213    # 3s on 0.0.0.0:33213
+start-timed secs="3" host="127.0.0.1" port="33213":
+  echo "Starting DSPx server on http://{{host}}:{{port}} for {{secs}}s ..."
+  timeout {{secs}}s env UV_LINK_MODE=copy uv run -q granian --interface asgi --host {{host}} --port {{port}} dspx.server.app:app || code=$?
+  if [ "${code:-0}" -eq 124 ]; then \
+    echo "Timed out after {{secs}}s (expected)."; \
+    exit 0; \
+  elif [ "${code:-0}" -ne 0 ]; then \
+    echo "Server exited with code ${code:-0}."; \
+    exit "${code:-0}"; \
+  fi
+
+# Stop any process listening on the DSPx port (best-effort)
+stop port="33213":
+  PIDS=$(lsof -t -i TCP:{{port}} -sTCP:LISTEN 2>/dev/null || true)
+  if [ -n "$PIDS" ]; then \
+    echo "Stopping PIDs: $PIDS on :{{port}}"; \
+    kill -TERM $PIDS || true; \
+    sleep 1; \
+    kill -0 $PIDS 2>/dev/null && kill -KILL $PIDS || true; \
+  else \
+    echo "No listeners on :{{port}}"; \
+  fi
+
+# Run server without timeout (explicit)
+start-forever host="127.0.0.1" port="33213":
+  echo "Starting DSPx server on http://{{host}}:{{port}} (no timeout) ..."
+  env UV_LINK_MODE=copy uv run -q granian --interface asgi --host {{host}} --port {{port}} dspx.server.app:app

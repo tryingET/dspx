@@ -157,7 +157,8 @@ Server (FastAPI) & Security
 Run the optional HTTP server (`dspx-server`, FastAPI + Granian) to expose endpoints:
 
 - Endpoints: `POST /signature`, `POST /module`, `POST /mermaid`
-- Start (Granian): `granian --interface asgi --host 127.0.0.1 --port 8000 dspx.server.app:app`
+- Start (Granian): `granian --interface asgi --host localhost --port 33213 dspx.server.app:app`
+- Or with Just: `just start` (override via `just start host=0.0.0.0 port=33213`)
 
 Auth (opt‑in):
 - Single token: `export DSPX_SERVER_TOKEN='s3cr3t'`
@@ -182,7 +183,7 @@ Standardized error responses:
 Quick curl examples:
 
   # Signature (requires token if enabled)
-  curl -sS -X POST http://127.0.0.1:8000/signature \
+  curl -sS -X POST http://localhost:33213/signature \
     -H "Authorization: Bearer $DSPX_SERVER_TOKEN" \
     -H 'Content-Type: application/json' \
     -d '{"prompt":"Echo signature","template_version":"simple-v1"}'
@@ -190,7 +191,7 @@ Quick curl examples:
   # Module with per-path rate limit override
   export DSPX_RATE_LIMIT_ENABLED=1
   export DSPX_RATE_LIMIT_PATHS='{"POST /module":"1/sec"}'
-  curl -sS -X POST http://127.0.0.1:8000/module \
+  curl -sS -X POST http://localhost:33213/module \
     -H "Authorization: Bearer $DSPX_SERVER_TOKEN" \
     -H 'Content-Type: application/json' \
     -d '{"name":"M","description":"","inputs":[],"outputs":[]}'
