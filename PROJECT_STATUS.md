@@ -10,13 +10,13 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~10–14s (`just test`) with 130 passing tests (3 skipped).
+- Tests: local suite runs in ~10–12s (`just test`) with 134 passing tests (3 skipped); forced offline/deterministic defaults in tests (`DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
 - Configuration: consolidated example config `example.toml` (copy to `config.toml`); `config.toml` is git‑ignored.
 - Examples: Mermaid sample updated to a pedagogical flow (Unterrichtsstörungen, DE) for a more practical demo.
-- OpenRouter: provider available (`DSPX_PROVIDER=openrouter`) plus `.env.example` and Just recipes (`or-codegen`, `or-signature`, timed variants) designed to work with 1Password `op run` + `op://...` env references (no secrets in CLI flags).
+- OpenRouter: provider available (`DSPX_PROVIDER=openrouter`) plus `.env.example` and Just recipes (`or-codegen`, `or-signature`, timed variants) designed to work with 1Password `op run` + `op://...` env references (no secrets in CLI flags; `openrouter-env` avoids printing secrets).
 - Tooling: `Justfile` includes `bench-mlflow` to run a single
   MLflow‑logged benchmark across providers. The task now exports
   `DSPX_RUN_GROUP` so all child CLI runs receive a consistent
@@ -40,11 +40,11 @@ decisions, and readiness against the vision plan.
   a loadable program directory (via `dspy.load`), with explicit IO (`--input/--output-key` or `io_spec()`),
   metric options (`exact|contains|f1`), per‑output weighting (`--output-weight` or `output_weights()`),
   and optional output normalization (`normalize_output(...)`). Reflection LM can be split from the
-  student LM (`--reflection-provider`), defaulting to Codex Exec.
+  student LM (`--reflection-provider`), defaulting to Codex Exec. Manifests include DSPx version + Python environment for auditability.
 - OpenAPI Toolpack (MVP+): loader (JSON/YAML, URL with allowlists + cache),
   operation extraction (merged params, body schema, response schemas, tags),
   caller (host allowlist, basic validation), registry integration (dynamic tools),
-  CLI (`tools openapi` with `ops --tags|--json`, `describe --json`, `call --dry-run`).
+  CLI (`tools openapi` with `ops --tags|--json`, `describe --json`, `call --dry-run`) and expanded schema validation (`additionalProperties`, `nullable`, `multipleOf`, etc.).
 - Adapters (Phase 7 MVP+): dataset adapters (CSV/Parquet, MLflow artifact ref),
   eval metrics (accuracy, F1 binary, confusion, ROUGE‑1 F1, BLEU‑1, ROC‑AUC, per‑class precision/recall),
   macro/micro averaging for ROUGE/BLEU, stratified and group‑aware splits with
@@ -58,7 +58,7 @@ decisions, and readiness against the vision plan.
   and curl examples. Default bind host uses `127.0.0.1` to avoid
   occasional Granian "invalid IP address syntax" errors seen with
   `localhost` in certain environments.
-- CLIs: `dspx` (signature/module/codegen/mermaid/tools/adapters, and `tools web fetch|scrape` with per‑call host allowlists), plus legacy demos;
+- CLIs: `dspx` (signature/module/codegen/mermaid/providers/tools/adapters, and `tools web fetch|scrape` with per‑call host allowlists), plus legacy demos;
   `dspx-server` launcher.
   Tools UX additions: `tools list --json` (capabilities/description/OpenAPI info),
   `tools describe [--json|--examples]`, `tools search [--tags] [--json]`, generic `--dry-run`
@@ -93,7 +93,7 @@ decisions, and readiness against the vision plan.
 - Phase 5 — OpenAPI Toolpack (MVP): DONE (loader/caller/registry/CLI, YAML+URL support,
   basic validation and caching). Mermaid nodes can call OpenAPI ops via labels.
   Recent DX: `ops --tags`, `describe --json`, response schema printing, and
-  validation for enums/arrays/shallow nested objects.
+  validation for enums/arrays/shallow nested objects plus `additionalProperties` and `nullable` handling.
 - Phase 6 — Caching & Repro Metadata: DONE (cache + manifests/meta). Recent DX: CLI
   `--no-cache`, `--cache-info` and meta includes cache keys/paths.
 - Phase 7 — Adapter Registry: DONE (MVP+) — CSV/Parquet loaders, MLflow dataset ref,
@@ -103,6 +103,7 @@ decisions, and readiness against the vision plan.
 - Phase 8 — Server API (optional): DONE (MVP+) — FastAPI app + Granian runner; endpoints for
   `/signature`, `/module`, `/mermaid`; Bearer auth (env), rate‑limit options (per‑path, identity/global),
   trusted proxies (XFF), standardized JSON errors, basic structured logging; tests and docs.
+  Optional `/metrics` endpoint can be enabled for lightweight counters (`DSPX_METRICS_ENABLED=1`).
 - Phase 9 — Policy, Safety, Sandboxing: IN PROGRESS
   - Implemented: env‑driven policy engine for tool/provider allow/deny; optional max timeout clamp;
     HTTP method allow/deny and guarded mutation (POST/PUT/PATCH/DELETE) enforcement;

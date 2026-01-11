@@ -21,6 +21,7 @@ Configuration
   cp example.toml config.toml
 
 - You can also point `DSPX_CONFIG` to any config path. The loader searches the nearest `config.toml` if none is set.
+- Provider selection defaults to `DSPX_PROVIDER=codex-exec`; override with `DSPX_PROVIDER=...` (or `dspx --provider ...`) to select another provider such as `openrouter`.
 - Secrets: `.env` is supported (git-ignored) and is loaded automatically by `just` recipes. Put `OPENROUTER_API_KEY=...` there if you use OpenRouter.
 
 Files
@@ -55,22 +56,19 @@ Architecture & Vision
 
 Quick Start (uv)
 ----------------
-1) Initialize (already done here, but safe to run):
+1) Install deps and run tests:
 
-   uv init
+   just install
+   just test
 
-2) Add dependencies (already added):
-
-   uv add dspy-ai
-
-3) Verify Codex CLI works and you are logged in:
+2) Verify Codex CLI works and you are logged in:
 
    codex --version
    codex auth whoami
 
-4) Run the example via uvx (console script):
+3) Run the example (from source):
 
-   uvx dspx-example
+   just example
 
 It configures DSPy to use Codex Exec with `gpt-5`, minimal reasoning effort, and bypassed approvals/sandbox. Codex may write and run code under the hood; the final answer prints to stdout.
 
@@ -78,30 +76,34 @@ Unified CLI (dspx)
 ------------------
 - Signature (deterministic template):
 
-  dspx signature gen "Extract names" --template-version simple-v1 --class-name Sig_Names -o generated/sig.py
+  just dspx signature gen "Extract names" --template-version simple-v1 --class-name Sig_Names --outfile generated/sig.py
 
 - Module generation (deterministic template):
 
-  dspx module-gen -n Summarizer -d "Summarizes text" -i text -o summary --template-version simple-v1 > generated/module.py
+  just dspx module-gen -n Summarizer -d "Summarizes text" -i text -o summary --template-version simple-v1 --outfile generated/module.py
 
 - Codegen (deterministic template):
 
-  dspx codegen 'A CLI that prints "hello"' -l python --template-version simple-v1 > generated/hello.py
+  just dspx codegen 'A CLI that prints "hello"' --language python --template-version simple-v1 --outfile generated/hello.py
 
 - Mermaid workflows (multiple variants):
 
-  dspx mermaid gen -f path/to/diagram.mmd -n flow -v predict,cot,react
+  just dspx mermaid gen -f path/to/diagram.mmd -n flow -v predict,cot,react
 
 - Mermaid with signature‑per‑node (vibe‑dspy):
 
-  dspx mermaid sig -f path/to/diagram.mmd -n flow --provider codex-exec
+  just dspx mermaid sig -f path/to/diagram.mmd -n flow --provider codex-exec
+
+- Provider smoke (debugging provider config quickly):
+
+  just dspx providers smoke --json
 
 OpenRouter Provider
 -------------------
-- Set `OPENROUTER_API_KEY` and select the provider:
+- Create `.env` from `.env.example` (git-ignored) and set your key:
 
-  export OPENROUTER_API_KEY=...
-  export DSPX_PROVIDER=openrouter
+  cp .env.example .env
+  # recommended: OPENROUTER_API_KEY=op://... (resolved via `op run`)
 
 - Safer alternatives (avoid putting secrets on the command line):
   - File: `dspx --openrouter-api-key-file /path/key.txt ...`
@@ -114,7 +116,7 @@ OpenRouter Provider
   OPENROUTER_API_KEY="op://Vault/Item/field" op run -- dspx signature gen "..."
 
 - Justfile shortcuts (recommended):
-  - Create `.env` from `.env.example` and set your `OPENROUTER_API_KEY` reference.
+  - Ensure 1Password CLI `op` is installed and authenticated.
   - Run: `just openrouter-codegen "A python program that prints hello"`
   - Run: `just openrouter-signature "Extract names from text"`
   - Even simpler (no quotes/flags): `just or-codegen Write a python script that prints hello`
@@ -224,9 +226,10 @@ Quick curl examples:
 
 Install, Update, Build
 ----------------------
-- Dev install (editable): `uv pip install -e .` — exposes console scripts.
-- Run commands without install: `uv run dspx-multi-demo ...` or
-  `python -m dspx.cli.multi_demo ...`.
+- Dev install (editable, optional): `just dev-install` — exposes console scripts.
+- Run commands without install:
+  - Unified CLI: `just dspx ...` (runs from source via `uv run -m`).
+  - Multi demo: `uv run -q python -m dspx.cli.multi_demo ...`.
 - Update (editable install): `git pull` (code updates immediately).
 - Update (uv tool install): `uv tool install --force .` in repo.
 - Build packages: `just build` (uses `uv build`, outputs to `dist/`).
@@ -319,8 +322,8 @@ Submodule: vibe-dspy
   - Use PYTHONPATH to point to its `src` directory when running code:
 
   # install project console scripts
-  uv sync && uv pip install -e .
-  uvx dspx-example
+  just install
+  just example
 
   - Or set PYTHONPATH in your shell/session for convenience.
 
@@ -342,11 +345,11 @@ Code Generator CLI
 ------------------
 - Generate code (prints to stdout by default):
 
-  uv run dspx-codegen "Create a Python CLI that says hello"
+  just dspx codegen "Create a Python CLI that says hello"
 
 - Language hint and write to file:
 
-  uv run dspx-codegen -l python -o hello.py "CLI that prints 'Hello, world!'"
+  just dspx codegen "CLI that prints 'Hello, world!'" --language python --outfile hello.py
 
 - Environment variables to control Codex behavior:
 
@@ -356,7 +359,7 @@ Code Generator CLI
 
   Example with explicit model:
 
-  uv run env CODEX_MODEL=gpt-4.1 dspx-codegen -l python -o hello.py "CLI that prints 'Hello'"
+  CODEX_MODEL=gpt-4.1 just dspx codegen "CLI that prints 'Hello'" --language python --outfile hello.py
 
 Mermaid → DSPy Programs
 -----------------------
@@ -378,17 +381,17 @@ AGPL-3.0. See `LICENSE`.
 
 - Extra variant: `clarity` (Constraints→Learn→Abduce→Robust-plan→Intervene→Trace→Yield). Example:
 
-  uv run dspx-mermaid -f path/to/diagram.mmd -v clarity -n my_flow
+  just dspx mermaid gen -f path/to/diagram.mmd -n my_flow -v clarity
 
 Vibe-DSPy (Codex Exec) Adapter
 ------------------------------
 - Generate a DSPy signature using vibe-dspy with Codex Exec as the LM:
 
-  uv run dspx-vibegen "Count birds in an image and describe each"
+  just vibegen "Count birds in an image and describe each"
 
 - Wrap the signature into a runnable script that configures Codex Exec and save it:
 
-  uv run dspx-vibegen --wrap-script -o generated/birds_sig.py "Count birds in an image and describe each"
+  uv run -q python -m dspx.cli.vibegen --wrap-script -o generated/birds_sig.py "Count birds in an image and describe each"
 
 - Control model/flags via env (same as the rest of this repo):
   - `CODEX_MODEL` (default: `gpt-5`)
@@ -399,15 +402,15 @@ Interactive Refine
 ------------------
 - Run refine with Codex Exec (interactive):
 
-  uv run dspx-viberefine --attempts 3 "Extract topics and sentiment from support tickets"
+  uv run -q python -m dspx.cli.viberefine --attempts 3 "Extract topics and sentiment from support tickets"
 
 - Non-interactive (accept first draft) and save to file:
 
-  uv run dspx-viberefine --non-interactive -o generated/tickets_sig.py "Extract topics and sentiment from support tickets"
+  just viberefine "Extract topics and sentiment from support tickets" out="generated/tickets_sig.py"
 
 - Wrap into runnable script that configures Codex Exec:
 
-  uv run dspx-viberefine --non-interactive --wrap-script -o generated/tickets_script.py "Extract topics and sentiment from support tickets"
+  uv run -q python -m dspx.cli.viberefine --non-interactive --wrap-script -o generated/tickets_script.py "Extract topics and sentiment from support tickets"
 
 Tracing with MLflow
 -------------------
@@ -423,7 +426,7 @@ Tracing with MLflow
 
   uv run env MLFLOW_ENABLE=1 MLFLOW_TRACKING_URI=http://127.0.0.1:5000 MLFLOW_EXPERIMENT=DSPy \
     MLFLOW_RUN_NAME="local-test-$(date +%Y%m%d-%H%M%S)" \
-    dspx-example
+    python -m dspx.cli.example_predict
 
 - Or inside your script, after configuring providers:
 
@@ -601,7 +604,7 @@ Task Runner
   just codegen "A Python CLI that prints 'ok'"
   just smoke      # run a small suite
 
-  uv run dspx-viberefine --non-interactive "Classify sentiment"
+  just dspx signature refine "Classify sentiment"
 
 What gets logged
 - DSPy predictions and steps (inputs/outputs, LM config, tools) appear under the selected experiment's Traces tab in the MLflow UI.

@@ -45,6 +45,14 @@ Rate limiting
 - Global caps (across identities): `DSPX_RATE_LIMIT_GLOBAL='100/min'`
 - Per-path global caps (JSON): `DSPX_RATE_LIMIT_GLOBAL_PATHS='{"/signature":"30/min"}'`
 
+Metrics (optional)
+------------------
+The server can expose lightweight counters for health/debugging.
+
+- Enable: `DSPX_METRICS_ENABLED=1`
+- JSON: `GET /metrics`
+- Prometheus text: `GET /metrics?format=prom` (or send `Accept: text/plain`), or `GET /metrics-prom`
+
 Errors (standardized JSON)
 -------------------------
 - Unauthorized: `{ "error": "unauthorized", "detail": "missing bearer token", "status": 401 }`

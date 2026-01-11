@@ -4,7 +4,7 @@ End-to-End Tutorial: Mermaid + OpenAPI + CSV
 Goal: generate DSPy programs from a Mermaid flow, call an OpenAPI endpoint, and preview a local CSV using the new adapters.
 
 Prereqs
-- Python 3.13 with `uv` and project installed (`just dev-install`).
+- Python 3.13 with `uv` and project deps installed (`just install`).
 - Optional: MLflow server (Docker compose: `just mlflow-up`).
 
 1) Prepare a simple Mermaid workflow
@@ -19,7 +19,7 @@ graph TD
 Run and inspect outputs under `generated/workflows/demo`:
 
 ```
-uvx dspx mermaid gen -f flow.mmd -n demo -v predict
+just dspx mermaid gen -f flow.mmd -n demo -v predict
 ls generated/workflows/demo
 ```
 
@@ -27,29 +27,29 @@ ls generated/workflows/demo
 Assume a local spec `spec.json` (or a URL with `--allow-host`). Filter by tag and by method/path:
 
 ```
-uvx dspx tools openapi ops spec.json --tags users --method GET --paths
+just dspx tools openapi ops spec.json --tags users --method GET --paths
 ```
 
 Describe an operation, including request/response schemas (use `--json` for machine-readable output):
 
 ```
-uvx dspx tools openapi describe --spec spec.json --op listUsers
-uvx dspx tools openapi describe --spec spec.json --op listUsers --json | jq .
+just dspx tools openapi describe --spec spec.json --op listUsers
+just dspx tools openapi describe --spec spec.json --op listUsers --json | jq .
 ```
 
 4) Register OpenAPI tools (optional for agents/programs)
 Persist a mapping to configure environments consistently and print exports:
 
 ```
-uvx dspx tools openapi load -p gh --spec ./spec.json
-uvx dspx tools openapi env -p gh
+just dspx tools openapi load -p gh --spec ./spec.json
+just dspx tools openapi env -p gh
 ```
 
 5) Use the CSV dataset adapter
 Preview a local CSV with schema and head rows via the tools registry, or directly via the adapter API:
 
 ```
-uvx dspx-tools preview ./data.csv
+just data-preview ./data.csv
 ```
 
 Python snippet (SDK):
@@ -65,8 +65,8 @@ All CLI generators write a `.meta.json` next to outputs with a `cache_key` and `
 Bypass cache or inspect cache info:
 
 ```
-uvx dspx signature gen "Extract names" --template-version simple-v1 --outfile sig.py --no-cache
-uvx dspx signature gen "Extract names" --template-version simple-v1 --cache-info > /dev/null
+just dspx signature gen "Extract names" --template-version simple-v1 --outfile sig.py --no-cache
+just dspx signature gen "Extract names" --template-version simple-v1 --cache-info > /dev/null
 ```
 
 7) Observability (optional)
@@ -75,7 +75,7 @@ Enable MLflow to record inputs/outputs and attach artifacts/manifests:
 ```
 export MLFLOW_ENABLE=1
 export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
-uvx dspx codegen "A CLI that prints hi" -l python --outfile gen.py
+just dspx codegen "A CLI that prints hi" -l python --outfile gen.py
 ```
 
 You should see artifacts (`*.py`, `*.meta.json`, `manifest.json` for Mermaid) in the MLflow run.
@@ -90,9 +90,9 @@ export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
 export DSPX_RUN_GROUP=my-demo
 
 # Named runs appear as signature-<class>, module-<name>, codegen-<lang>, mermaid-<flow>
-uvx dspx signature gen "Extract names" --template-version simple-v1 --outfile sig.py
-uvx dspx module-gen -n Summarizer -d "Summarize" --template-version simple-v1 --outfile mod.py
-uvx dspx codegen "A CLI that prints hi" -l python --outfile gen.py
+just dspx signature gen "Extract names" --template-version simple-v1 --outfile sig.py
+just dspx module-gen -n Summarizer -d "Summarize" --template-version simple-v1 --outfile mod.py
+just dspx codegen "A CLI that prints hi" -l python --outfile gen.py
 ```
 
 Check MLflow UI: runs have tag `run_group=my-demo` and a `service.duration_ms` metric for quick timing.
@@ -104,7 +104,7 @@ Use the adapters CLI to create deterministic splits from a CSV. Start with a sim
 Two-way split (80/20) with label stratification and group awareness; balance per-label by groups so each label's groups are evenly distributed regardless of group sizes:
 
 ```
-uvx dspx adapters dataset split \
+just dspx adapters dataset split \
   --csv data.csv \
   --outdir splits_demo \
   --test-size 0.2 \
@@ -116,7 +116,7 @@ uvx dspx adapters dataset split \
 Three-way split with ratios and per-instance balancing (default):
 
 ```
-uvx dspx adapters dataset split \
+just dspx adapters dataset split \
   --csv data.csv \
   --outdir splits_demo3 \
   --ratios 0.7,0.2,0.1 \

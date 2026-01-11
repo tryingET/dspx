@@ -51,12 +51,16 @@ Validation Coverage (Current)
   - `allOf`: shallow merge for object schemas (properties + required; later wins).
   - Combinators: basic `oneOf|anyOf` handling (passes when any branch validates).
   - Bounds: `minLength|maxLength|pattern` for strings; `minimum|maximum|exclusiveMinimum|exclusiveMaximum` for numbers/integers; `minItems|maxItems` for arrays.
+  - Objects: `minProperties|maxProperties` and `additionalProperties` (false rejects unknown keys; schema validates extras).
+  - Nullable: OpenAPI `nullable: true` and JSON Schema `type: ["...", "null"]` accept `null` values.
+  - Numeric: `multipleOf` (best-effort float-safe check).
+  - Const: `const` (exact match).
 
 Limitations (Deliberate)
 ------------------------
 - No remote `$ref` resolution (only local `#/components/...`).
 - `allOf` merge is shallow (object-ish only); deep conflict semantics are intentionally conservative.
-- No advanced constraints (`format`, numeric/string multiples, `additionalProperties`, `not`, tuple-typed arrays, etc.).
+- No advanced constraints (`format`, `not`, tuple-typed arrays, etc.).
 - Arrays with tuple typing (`items: [..]`) are treated as unconstrained.
 - Only `application/json` request bodies are validated.
 

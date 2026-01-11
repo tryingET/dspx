@@ -24,6 +24,7 @@ from dspx.adapters import datasets as _datasets
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 sig_app = typer.Typer(no_args_is_help=True)
 mermaid_app = typer.Typer(no_args_is_help=True)
+providers_app = typer.Typer(no_args_is_help=True)
 tools_app = typer.Typer(no_args_is_help=True)
 openapi_app = typer.Typer(no_args_is_help=True)
 web_app = typer.Typer(no_args_is_help=True)
@@ -35,6 +36,7 @@ optimize_app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(sig_app, name="signature", help="Signature operations")
 app.add_typer(mermaid_app, name="mermaid", help="Mermaid workflow operations")
+app.add_typer(providers_app, name="providers", help="Provider utilities")
 app.add_typer(tools_app, name="tools", help="Tools and integrations")
 tools_app.add_typer(openapi_app, name="openapi", help="OpenAPI loader/caller")
 tools_app.add_typer(web_app, name="web", help="Web tools (fetch/scrape)")
@@ -52,6 +54,158 @@ def _ensure_env(provider: Optional[str]) -> None:
         os.environ["DSPX_PROVIDER"] = provider
     load_config_env()
     enable_mlflow_from_env()
+
+
+@providers_app.command("list")
+def providers_list(
+    json_out: bool = typer.Option(False, "--json", help="Output JSON list"),
+) -> None:
+    from dspx.provider_registry import ensure_default_providers, available
+
+    _ensure_env(None)
+    ensure_default_providers()
+    names = sorted(available().keys())
+    if json_out:
+        import json as _json
+
+        typer.echo(_json.dumps(names, ensure_ascii=False, indent=2))
+    else:
+        for n in names:
+            typer.echo(n)
+
+
+@providers_app.command("capabilities")
+def providers_capabilities(
+    provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    from dspx.provider_registry import ensure_default_providers, capabilities as _caps
+
+    _ensure_env(provider)
+    ensure_default_providers()
+    name = provider or os.getenv("DSPX_PROVIDER") or "codex-exec"
+    caps = _caps(name)
+    payload = {
+        "provider": name,
+        "supports_tools": bool(getattr(caps, "supports_tools", False)),
+        "code_exec": bool(getattr(caps, "code_exec", False)),
+        "json_mode": bool(getattr(caps, "json_mode", False)),
+        "multi_turn": bool(getattr(caps, "multi_turn", False)),
+    }
+    if json_out:
+        import json as _json
+
+        typer.echo(_json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        for k, v in payload.items():
+            typer.echo(f"{k}: {v}")
+
+
+@providers_app.command("smoke")
+def providers_smoke(
+    prompt: str = typer.Argument(
+        "Reply with the single word: hello", help="Short prompt to send"
+    ),
+    provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
+    timeout_s: Optional[float] = typer.Option(
+        None, help="Timeout seconds (best-effort)"
+    ),
+    max_tokens: Optional[int] = typer.Option(
+        16, help="Max tokens (best-effort; provider-dependent)"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    import time as _time
+
+    from dspx.dtos import LMRequest
+    from dspx.provider_registry import ensure_default_providers, create_from_env
+
+    _ensure_env(provider)
+    ensure_default_providers()
+
+    if timeout_s is not None:
+        secs = str(float(timeout_s))
+        for env_k in (
+            "CODEX_TIMEOUT",
+            "CLAUDE_TIMEOUT",
+            "GEMINI_TIMEOUT",
+            "OPENROUTER_TIMEOUT",
+        ):
+            os.environ[env_k] = secs
+
+    name = provider or os.getenv("DSPX_PROVIDER") or "codex-exec"
+    lm = create_from_env(default="codex-exec")
+
+    t0 = _time.time()
+    text = ""
+    ok = False
+    err = None
+    try:
+        if hasattr(lm, "generate"):
+            try:
+                res = lm.generate(  # type: ignore[attr-defined]
+                    LMRequest(prompt=prompt), max_tokens=max_tokens
+                )
+            except TypeError:
+                res = lm.generate(LMRequest(prompt=prompt))  # type: ignore[attr-defined]
+            text = str((getattr(res, "outputs", None) or [""])[0]).strip()
+        else:
+            try:
+                resp = lm.forward(prompt=prompt, max_tokens=max_tokens)  # type: ignore[attr-defined]
+            except TypeError:
+                resp = lm.forward(prompt=prompt)  # type: ignore[attr-defined]
+            try:
+                text = str(((resp.get("choices") or [{}])[0]).get("text") or "").strip()
+            except Exception:
+                text = str(resp).strip()
+        ok = True
+    except Exception as e:
+        err = str(e)
+    t1 = _time.time()
+
+    payload = {
+        "ok": ok,
+        "provider": name,
+        "model": getattr(lm, "model", None),
+        "duration_ms": (t1 - t0) * 1000.0,
+        "text": text,
+        "error": err,
+    }
+
+    # Best-effort MLflow logging (only when a run is active).
+    try:
+        from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+        mlflow = get_mlflow()
+        if mlflow is not None:
+            ensure_run_with_standard_tags(
+                "providers",
+                run_name=f"provider-smoke-{name}",
+                extra={"provider.smoke_ok": "1" if ok else "0"},
+            )
+            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                try:
+                    mlflow.log_metrics(  # type: ignore[attr-defined]
+                        {"provider.smoke_duration_ms": float(payload["duration_ms"])}
+                    )
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    if json_out:
+        import json as _json
+
+        typer.echo(_json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        if ok:
+            typer.echo(
+                f"ok provider={name} model={payload['model']} duration_ms={payload['duration_ms']:.1f}"
+            )
+            typer.echo(text)
+        else:
+            typer.echo(f"error provider={name}: {err}", err=True)
+            raise typer.Exit(code=2)
 
 
 @optimize_app.command("gepa")
@@ -778,6 +932,7 @@ def openapi_ops(
     from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
 
+    _ensure_env(None)
     allowed = {allow_host: True} if allow_host else None
     data = load_spec(str(spec), allowed_hosts=allowed)
     ops = extract_operation_infos(data)
@@ -845,6 +1000,7 @@ def openapi_call(
     from dspx.tools.openapi.loader import extract_operation_infos
     from dspx.dtos import OpenAPICallRequest
 
+    _ensure_env(None)
     data = load_spec(
         str(spec), allowed_hosts=({allow_host: True} if allow_host else None)
     )
@@ -921,6 +1077,23 @@ def openapi_call(
             pass
         typer.echo(f"[dry-run] {method} {url}")
         return
+
+    # Start an MLflow run for traceability when enabled (local store is fine).
+    try:
+        from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+        mlflow = get_mlflow()
+        if mlflow is not None:
+            ensure_run_with_standard_tags(
+                "openapi",
+                run_name=f"openapi-{op}",
+                extra={
+                    "openapi.operation_id": op,
+                    "openapi.method": method,
+                },
+            )
+    except Exception:
+        pass
     res = call_operation(req, operation=ops[op].model_dump(), allowed_hosts=allowed)
     # Print raw_text for user-friendly output
     typer.echo(res.raw_text or "")
@@ -936,6 +1109,7 @@ def openapi_describe(
     from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
 
+    _ensure_env(None)
     data = load_spec(spec, allowed_hosts=({allow_host: True} if allow_host else None))
     ops = extract_operation_infos(data)
     if op not in ops:
@@ -1100,6 +1274,7 @@ def openapi_load(
     """
     import json as _json
 
+    _ensure_env(None)
     base = outdir or Path("generated/openapi")
     base.mkdir(parents=True, exist_ok=True)
     path = base / f"{prefix}.json"
@@ -1122,6 +1297,7 @@ def openapi_env(
     """Print shell exports for DSPX_OPENAPI_SPEC_<P> and DSPX_OPENAPI_HOST_<P> from a mapping file."""
     import json as _json
 
+    _ensure_env(None)
     path = None
     if map_file and map_file.exists():
         path = map_file

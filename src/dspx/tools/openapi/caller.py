@@ -420,6 +420,21 @@ def _validate_json_value_against_schema(
     if not isinstance(schema, Mapping):
         return
 
+    # OpenAPI 3.0 nullable + JSON Schema null.
+    if value is None:
+        if bool(schema.get("nullable", False)):
+            return
+        t0 = schema.get("type")
+        if t0 == "null":
+            return
+        if isinstance(t0, list) and "null" in {str(x) for x in t0}:
+            return
+
+    # Const constraint
+    if "const" in schema:
+        if value != schema.get("const"):
+            raise ValueError(f"{path}: value must equal const")
+
     # Combinators: oneOf/anyOf
     for key in ("oneOf", "anyOf"):
         if isinstance(schema.get(key), list) and schema[key]:  # type: ignore[index]
@@ -448,6 +463,15 @@ def _validate_json_value_against_schema(
     ):
         if not isinstance(value, Mapping):
             raise ValueError(f"{path}: expected object")
+        # minProperties/maxProperties
+        if isinstance(schema.get("minProperties"), (int, float)) and len(value) < int(
+            schema["minProperties"]
+        ):  # type: ignore[index]
+            raise ValueError(f"{path}: too few properties (< minProperties)")
+        if isinstance(schema.get("maxProperties"), (int, float)) and len(value) > int(
+            schema["maxProperties"]
+        ):  # type: ignore[index]
+            raise ValueError(f"{path}: too many properties (> maxProperties)")
         required = list(schema.get("required") or [])
         for r in required:
             if r not in value:
@@ -485,6 +509,25 @@ def _validate_json_value_against_schema(
                         _depth=_depth + 1,
                         _max=_max,
                     )
+        # additionalProperties
+        addl = schema.get("additionalProperties", True)
+        if addl is False:
+            allowed = set(props.keys()) if isinstance(props, Mapping) else set()
+            extra = [k for k in value.keys() if k not in allowed]
+            if extra:
+                raise ValueError(f"{path}: unexpected properties {sorted(extra)}")
+        elif isinstance(addl, Mapping):
+            allowed = set(props.keys()) if isinstance(props, Mapping) else set()
+            for k in value.keys():
+                if k in allowed:
+                    continue
+                _validate_json_value_against_schema(
+                    value[k],
+                    addl,
+                    path=f"{path}.{k}",
+                    _depth=_depth + 1,
+                    _max=_max,
+                )
         return
 
     # Array
@@ -525,8 +568,22 @@ def _validate_json_value_against_schema(
                 raise ValueError(f"{path}: <= exclusiveMinimum")
             if schema.get("exclusiveMaximum") and v >= int(schema.get("maximum", v)):  # type: ignore[index]
                 raise ValueError(f"{path}: >= exclusiveMaximum")
+        except ValueError:
+            raise
         except Exception:
             pass
+        # multipleOf
+        if isinstance(schema.get("multipleOf"), (int, float)):
+            try:
+                m = float(schema["multipleOf"])  # type: ignore[index]
+                if m != 0.0:
+                    q = float(v) / m
+                    if abs(q - round(q)) > 1e-9:
+                        raise ValueError(f"{path}: not a multipleOf {m}")
+            except ValueError:
+                raise
+            except Exception:
+                pass
         return
     if t == "number":
         try:
@@ -543,8 +600,23 @@ def _validate_json_value_against_schema(
                 raise ValueError(f"{path}: <= exclusiveMinimum")
             if schema.get("exclusiveMaximum") and v >= float(schema.get("maximum", v)):  # type: ignore[index]
                 raise ValueError(f"{path}: >= exclusiveMaximum")
+        except ValueError:
+            raise
         except Exception:
             pass
+        # multipleOf
+        if isinstance(schema.get("multipleOf"), (int, float)):
+            try:
+                v = float(value)
+                m = float(schema["multipleOf"])  # type: ignore[index]
+                if m != 0.0:
+                    q = v / m
+                    if abs(q - round(q)) > 1e-9:
+                        raise ValueError(f"{path}: not a multipleOf {m}")
+            except ValueError:
+                raise
+            except Exception:
+                pass
         return
     if t == "boolean":
         if isinstance(value, bool):
@@ -567,6 +639,8 @@ def _validate_json_value_against_schema(
                 pat = schema["pattern"]  # type: ignore[index]
                 if not _re.compile(pat).search(value):
                     raise ValueError(f"{path}: does not match pattern")
+        except ValueError:
+            raise
         except Exception:
             pass
         return
@@ -647,4 +721,10 @@ def _resolve_schema(
         out["properties"] = new_props
     if isinstance(schema.get("items"), Mapping):
         out["items"] = _resolve_schema(schema["items"], components, _seen)  # type: ignore[index]
+    if isinstance(schema.get("additionalProperties"), Mapping):
+        out["additionalProperties"] = _resolve_schema(
+            schema["additionalProperties"],
+            components,
+            _seen,  # type: ignore[index]
+        )
     return out

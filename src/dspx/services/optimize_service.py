@@ -184,7 +184,21 @@ def _default_gepa_metric(
 ):
     from dspy.teleprompt.gepa.gepa_utils import ScoreWithFeedback
 
-    def metric_fn(gold, pred, trace, pred_name, pred_trace):  # type: ignore[no-untyped-def]
+    def metric_fn(gold, pred, *args, **kwargs):  # type: ignore[no-untyped-def]
+        # DSPy metric call conventions vary by version:
+        # - newer: metric(gold, pred)
+        # - older/GEPA: metric(gold, pred, trace, pred_name, pred_trace)
+        pred_name = None
+        pred_trace = None
+        try:
+            if len(args) >= 3:
+                _trace, pred_name, pred_trace = args[0], args[1], args[2]
+            else:
+                pred_name = kwargs.get("pred_name")
+                pred_trace = kwargs.get("pred_trace")
+                _trace = kwargs.get("trace")
+        except Exception:
+            pass
         weighted = 0.0
         weight_sum = 0.0
         feedback_lines: List[str] = []
@@ -385,6 +399,8 @@ def run_gepa_optimize(
     manifest = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "dspy_version": getattr(dspy, "__version__", "unknown"),
+        "dspx_version": _dspx_version(),
+        "python": _python_env(),
         "program": {
             "path": str(program_path),
             "sha256": _sha256_file(program_path),
@@ -431,7 +447,8 @@ def run_gepa_optimize(
         },
     }
     (out_dir / "manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
 
     return GEPAResult(
@@ -444,3 +461,27 @@ def run_gepa_optimize(
         student_provider=manifest["providers"]["student"]["name"],
         reflection_provider=manifest["providers"]["reflection"]["name"],
     )
+
+
+def _dspx_version() -> str | None:
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            return version("dspx")
+        except PackageNotFoundError:
+            return None
+    except Exception:
+        return None
+
+
+def _python_env() -> dict[str, str]:
+    import platform
+    import sys
+
+    return {
+        "executable": sys.executable,
+        "version": sys.version,
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+    }

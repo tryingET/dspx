@@ -6,17 +6,17 @@ work and refinements.
 
 ## Publish (CLI-first toolkit) — near-term checklist
 
-- Decide default provider posture: ship with `DSPX_PROVIDER=openrouter` support but keep offline/deterministic tests as default.
+- Default provider posture: keep default `DSPX_PROVIDER=codex-exec`; document `DSPX_PROVIDER=openrouter` as opt-in; keep tests offline/deterministic by default (forced `DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
 - Ensure OpenRouter + 1Password DX is crisp:
   - `cp .env.example .env` (git-ignored), set `OPENROUTER_API_KEY=op://...`.
   - `just openrouter-whoami`, `just or-codegen ...`, `just or-codegen-timed ...`.
 - GEPA on Codex: validate the “optimize loop” UX end-to-end with your own program:
   - `dspx optimize gepa --program prog.py --train train.csv --out optimized/ --max-metric-calls 20`
   - Prefer explicit IO/weights for reproducibility: `--input ... --output-key ... --output-weight key=1.0`.
-  - Ensure the saved `optimized/manifest.json` matches what you expect for CI auditability.
+  - Ensure the saved `optimized/manifest.json` matches what you expect for CI auditability (includes DSPx version + Python environment).
 - MLflow observability: follow and execute `docs/MLFLOW_OBSERVABILITY_PLAN.md` (fix tracking URI semantics, run lifecycle, and CI-safe toggles).
 - Confirm `signature refine` parity: run once with `MLFLOW_ENABLE=1` and verify it produces a `signature-refine` run with standard tags and artifacts (and stays no-op when disabled).
-- Docs sweep: README quickstart uses the same “.env + just” flow; SERVER.md clarifies `127.0.0.1` vs `0.0.0.0` for Docker/NAS.
+- Docs sweep: README quickstart uses the same “.env + just” flow; SERVER.md clarifies `127.0.0.1` vs `0.0.0.0` for Docker/NAS; docs mention optional `/metrics` (`DSPX_METRICS_ENABLED=1`).
 - Release hygiene: bump version, `just release new=x.y.z`, tag, publish.
 
 ## Phase 7 — Adapter Registry (datasets/eval/stores)
@@ -66,7 +66,7 @@ Status: DONE (MVP+)
 
 - Next
   - Distributed rate limiting backend (optional) for multi‑worker deployments.
-  - Expose a small `/metrics` for counters (guarded by env) or integrate Prometheus.
+  - Integrate Prometheus properly (optional) or expose more detailed metrics (still guarded by env).
   - DTO polish and request metadata tagging for MLflow when enabled.
   - Harden logging config guidance; example JSON formatter setup.
 
@@ -134,8 +134,8 @@ Goal: enable third-party providers/tools/generators via entry points.
 ## Refinements (Near-term 80/20)
 
 - OpenAPI: now includes `ops --tags` and `ops --json`, `describe --json` with response schema summaries;
-  added validation for enums/arrays/nested objects plus local `$ref` + shallow `allOf` merge, and basic bounds (`minLength`, `pattern`, `minimum/maximum`). Next: widen coverage for more schema constraints and response schemas.
-- OpenRouter: keep the “.env + just” path first-class; consider adding a small “provider smoke” command that runs a single short prompt with budgets and prints provider metadata.
+  added validation for enums/arrays/nested objects plus local `$ref` + shallow `allOf` merge, and basic bounds (`minLength`, `pattern`, `minimum/maximum`). Also supports `additionalProperties`, `nullable`, `multipleOf`, and `const`. Next: widen coverage for more schema constraints and response schemas.
+- OpenRouter: keep the “.env + just” path first-class; `dspx providers smoke` exists to quickly validate provider wiring and print metadata.
 - MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
   run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP` (now exported by the `bench-mlflow` recipe);
   per‑service budgets (`--budget-ms`) with `service.duration_ms` and `service.budget_exceeded`;
@@ -168,7 +168,7 @@ Goal: enable third-party providers/tools/generators via entry points.
 
 ## Day-to-Day Checklist
 
- - Run `just test` before and after changes; target ~<9s locally.
+ - Run `just test` before and after changes; target ~<12s locally.
 - Keep docs in sync (VISION/ARCHITECTURE/NEXT_STEPS) with major changes.
 - Prefer small, scoped PRs per phase/sub-phase; include acceptance notes.
 

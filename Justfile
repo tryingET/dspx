@@ -50,6 +50,7 @@ dspx *args:
 _openrouter-preflight:
   if ! command -v op >/dev/null 2>&1; then echo "op CLI not found (install 1Password CLI)"; exit 2; fi
   if [ ! -f .env ]; then echo ".env not found (create one; see .env.example)"; exit 2; fi
+  if ! rg -q '^OPENROUTER_API_KEY=' .env 2>/dev/null; then echo "OPENROUTER_API_KEY not set in .env (see .env.example)"; exit 2; fi
 
 # Debug helpers (run in recipe environment)
 openrouter-whoami:
@@ -58,8 +59,8 @@ openrouter-whoami:
 
 openrouter-env:
   just _openrouter-preflight
-  op run -- printenv OPENROUTER_API_KEY
-  op run -- printenv OPENROUTER_MODEL || true
+  # Do not print secrets; only show whether the key resolves and its length.
+  op run -- bash -lc 'python - <<PY\nimport os\nk=os.getenv(\"OPENROUTER_API_KEY\") or \"\"\nprint(f\"OPENROUTER_API_KEY_set={1 if k else 0} len={len(k)}\")\nprint(f\"OPENROUTER_MODEL={os.getenv(\\\"OPENROUTER_MODEL\\\") or \\\"\\\"}\")\nPY'
 
 openrouter-codegen spec lang="python" template="v1":
   just _openrouter-preflight
@@ -119,6 +120,10 @@ gepa program train out val="" output_key="" auto="light" max_metric_calls="":
     AUTO_ARGS="--auto {{auto}}"; \
   fi; \
   uv run -q python -m dspx.cli.dspx optimize gepa --program "{{program}}" --train "{{train}}" --out "{{out}}" $VAL_ARGS $OUT_ARGS $AUTO_ARGS $BUDGET_ARGS
+
+# Deterministic GEPA demo using the stub provider (offline).
+gepa-demo:
+  MLFLOW_ENABLE=0 DSPX_PROVIDER=stub just gepa examples/gepa_demo_program.py examples/gepa_demo_train.csv generated/gepa_demo_optimized "" "" light 2
 
 # GEPA optimization pinned to Codex Exec
 codex-gepa program train out val="" output_key="" auto="light" max_metric_calls="20":
