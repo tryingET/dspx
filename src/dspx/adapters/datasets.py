@@ -74,10 +74,15 @@ class MLflowDatasetRef:
         tracking URI is not available, raise a clear RuntimeError so tests can
         opt to use on-disk datasets instead.
         """
-        try:
-            import mlflow  # type: ignore
-        except Exception as e:  # pragma: no cover - environment dependent
-            raise RuntimeError("mlflow is not available to load dataset") from e
+        from dspx.tracing import get_mlflow, mlflow_enabled
+
+        if not mlflow_enabled():
+            raise RuntimeError(
+                "MLflow is disabled (set MLFLOW_ENABLE=1) so MLflow datasets cannot be loaded"
+            )
+        mlflow = get_mlflow()
+        if mlflow is None:  # pragma: no cover - environment dependent
+            raise RuntimeError("mlflow is not available to load dataset")
         try:
             import pandas as pd  # type: ignore
         except Exception as e:  # pragma: no cover - environment dependent

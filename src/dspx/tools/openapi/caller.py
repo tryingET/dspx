@@ -14,7 +14,6 @@ from dspx.policy import (
     enforce_network_mutate as _policy_enforce_mutate,
 )
 import time as _time
-from dspx.tracing import ensure_run_from_env
 
 try:
     from dspx.redaction import redact_url as _redact_url
@@ -380,24 +379,35 @@ def call_operation(
 
             mlflow = get_mlflow()
             if mlflow is not None:
-                if ensure_run_from_env(
-                    tags={"tool": "openapi", "op_id": request.operation_id}
-                ):
+                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
                     # Redact URL before logging
-                    mlflow.log_params(
-                        {
-                            "openapi.method": method,
-                            "openapi.path": path,
-                            "openapi.server": server or "",
-                            "openapi.url": _redact_url(url),
-                        }
-                    )  # type: ignore[attr-defined]
-                    mlflow.log_metrics(
-                        {
-                            "openapi.status_code": float(resp.status_code),
-                            "openapi.duration_ms": (t1 - t0) * 1000.0,
-                        }
-                    )  # type: ignore[attr-defined]
+                    try:
+                        mlflow.set_tag("tool", "openapi")  # type: ignore[attr-defined]
+                        mlflow.set_tag(  # type: ignore[attr-defined]
+                            "openapi.operation_id", str(request.operation_id)
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        mlflow.log_params(
+                            {
+                                "openapi.method": method,
+                                "openapi.path": path,
+                                "openapi.server": server or "",
+                                "openapi.url": _redact_url(url),
+                            }
+                        )  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                    try:
+                        mlflow.log_metrics(
+                            {
+                                "openapi.status_code": float(resp.status_code),
+                                "openapi.duration_ms": (t1 - t0) * 1000.0,
+                            }
+                        )  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
         except Exception:
             pass
         return result

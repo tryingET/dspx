@@ -31,4 +31,5 @@ search = false  # codex web_search optional; using DSPy tools instead
 
 [provider]
 # Select the LM provider via registry (default: codex-exec)
+# Options include: "codex-exec", "openrouter", "claude-cli", "gemini-cli", "multi", "stub"
 name = "codex-exec"

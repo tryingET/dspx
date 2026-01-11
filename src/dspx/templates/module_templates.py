@@ -32,6 +32,7 @@ def render_module_skeleton(
     outs: List[str] = [o for o in outputs]
     ins = ins or ["context"]
     outs = outs or ["output"]
+    weights = {k: 1.0 for k in outs}
 
     header: List[str] = []
     header.append("import dspy")
@@ -69,6 +70,24 @@ def render_module_skeleton(
         call_args = ", ".join(f"{x}={x}" for x in ins)
         body.append(f"        pred = self.predict({call_args})")
         body.append("        return pred")
+
+    body.append("")
+    body.append("")
+    body.append("def build_student(*, use_cot: bool = False) -> dspy.Module:")
+    body.append(f"    return {cls}(use_cot=use_cot)")
+    body.append("")
+    body.append("def io_spec() -> dict[str, list[str]]:")
+    body.append(f"    return {{'inputs': {ins!r}, 'outputs': {outs!r}}}")
+    body.append("")
+    body.append("def output_weights() -> dict[str, float]:")
+    body.append(f"    return {weights!r}")
+    body.append("")
+    body.append(
+        "def normalize_output("
+        "key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None"
+        ") -> tuple[str, str]:"
+    )
+    body.append("    return gold, pred")
 
     code = "\n".join(header + [""] + body)
     return code if code.endswith("\n") else code + "\n"

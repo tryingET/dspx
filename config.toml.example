@@ -36,7 +36,7 @@ search = false
 
 [provider]
 # Select the LM provider via registry name
-# Options include: "codex-exec", "claude-cli", "gemini-cli", "multi", "stub"
+# Options include: "codex-exec", "openrouter", "claude-cli", "gemini-cli", "multi", "stub"
 name = "codex-exec"
 
 # --- Optional: reference for env-based budgets/timeouts ---

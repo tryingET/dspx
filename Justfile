@@ -101,7 +101,7 @@ or-codegen-timed spec *more:
   just openrouter-codegen-timed "$S" python v1
 
 # GEPA optimization (DSPy) — default provider is DSPX_PROVIDER (defaults to codex-exec)
-gepa program train out val="" output_key="" auto="light" max_metric_calls="":
+gepa program train out val="" output_key="" auto="light" max_metric_calls="" metric="exact":
   if [ "{{val}}" != "" ]; then \
     VAL_ARGS="--val {{val}}"; \
   else \
@@ -119,11 +119,48 @@ gepa program train out val="" output_key="" auto="light" max_metric_calls="":
     BUDGET_ARGS=""; \
     AUTO_ARGS="--auto {{auto}}"; \
   fi; \
-  uv run -q python -m dspx.cli.dspx optimize gepa --program "{{program}}" --train "{{train}}" --out "{{out}}" $VAL_ARGS $OUT_ARGS $AUTO_ARGS $BUDGET_ARGS
+  uv run -q python -m dspx.cli.dspx optimize gepa --program "{{program}}" --train "{{train}}" --out "{{out}}" --metric {{metric}} $VAL_ARGS $OUT_ARGS $AUTO_ARGS $BUDGET_ARGS
 
 # Deterministic GEPA demo using the stub provider (offline).
 gepa-demo:
   MLFLOW_ENABLE=0 DSPX_PROVIDER=stub just gepa examples/gepa_demo_program.py examples/gepa_demo_train.csv generated/gepa_demo_optimized "" "" light 2
+
+# GEPA smoke starting from `module-gen` output (offline; stub provider).
+gepa-modulegen-smoke:
+  TD="$(mktemp -d)"; \
+  echo "[gepa-modulegen-smoke] dir=$TD"; \
+  MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen \
+    --name Student \
+    --description "Answer a short question with a short answer" \
+    --input question \
+    --output answer \
+    --template-version simple-v1 \
+    --outfile "$TD/student.py" >/dev/null; \
+  MLFLOW_ENABLE=0 DSPX_PROVIDER=stub \
+    just gepa "$TD/student.py" examples/gepa_modulegen_train.csv "$TD/optimized" "" "" light 2 contains >/dev/null; \
+  test -f "$TD/optimized/manifest.json"; \
+  echo "[gepa-modulegen-smoke] ok out=$TD/optimized"
+
+# GEPA smoke starting from `module-gen` output (live; Codex Exec; opt-in).
+gepa-modulegen-live:
+  if [ "${DSPX_RUN_LIVE_TESTS:-0}" != "1" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "true" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "yes" ]; then \
+    echo "set DSPX_RUN_LIVE_TESTS=1 to run live Codex GEPA smoke"; exit 0; \
+  fi; \
+  if ! command -v codex >/dev/null 2>&1; then echo "codex CLI not found"; exit 2; fi; \
+  if ! codex auth whoami >/dev/null 2>&1; then echo "codex not authenticated (codex auth whoami)"; exit 2; fi; \
+  TD="$(mktemp -d)"; \
+  echo "[gepa-modulegen-live] dir=$TD"; \
+  MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen \
+    --name Student \
+    --description "Answer a short question with a short answer" \
+    --input question \
+    --output answer \
+    --template-version simple-v1 \
+    --outfile "$TD/student.py" >/dev/null; \
+  DSPX_PROVIDER=codex-exec \
+    just gepa "$TD/student.py" examples/gepa_modulegen_train.csv "$TD/optimized" "" "" light 2 contains >/dev/null; \
+  test -f "$TD/optimized/manifest.json"; \
+  echo "[gepa-modulegen-live] ok out=$TD/optimized"
 
 # GEPA optimization pinned to Codex Exec
 codex-gepa program train out val="" output_key="" auto="light" max_metric_calls="20":
@@ -189,6 +226,20 @@ vibegen prompt:
 # Refine a DSPy signature (non-interactive) and optionally write to file (from source)
 viberefine prompt out="generated/refined_sig.py":
   uv run -q python -m dspx.cli.viberefine --non-interactive -o "{{out}}" "{{prompt}}"
+
+# MLflow smoke: signature refine should create a `signature-refine` run with standard tags and code artifacts.
+mlflow-smoke-signature-refine:
+  TD="$(mktemp -d)"; \
+  echo "[mlflow-smoke-signature-refine] dir=$TD"; \
+  export MLFLOW_ENABLE=1; \
+  export MLFLOW_TRACKING_URI="file:$TD/mlruns"; \
+  export MLFLOW_EXPERIMENT="DSPxSmoke"; \
+  export DSPX_PROVIDER=stub; \
+  uv run -q python -m dspx.cli.dspx signature refine \
+    --attempts 1 \
+    --outfile "$TD/refined_sig.py" \
+    "Reply with the single word: hello" >/dev/null; \
+  DSPX_EXPECT_OUTFILE="refined_sig.py" uv run -q python scripts/smoke_mlflow_signature_refine.py
 
 # Generate code from a spec (prints or writes a file) from source
 codegen spec lang="python" out="generated/codegen_out.py":

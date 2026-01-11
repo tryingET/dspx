@@ -10,10 +10,10 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~10–12s (`just test`) with 134 passing tests (3 skipped); forced offline/deterministic defaults in tests (`DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
+- Tests: local suite runs in ~8–10s (`just test`) with 135 passing tests (3 skipped); forced offline/deterministic defaults in tests (`DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
 - Build: `uv build` succeeds; console scripts resolve.
-- Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
-  end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
+- Docs: updated vision, architecture views, OpenAPI tooling (MVP), end‑to‑end tutorial `docs/TUTORIAL_E2E.md`,
+  and GEPA-from-module-gen guide `docs/GEPA_FROM_MODULE_GEN.md`.
 - Configuration: consolidated example config `example.toml` (copy to `config.toml`); `config.toml` is git‑ignored.
 - Examples: Mermaid sample updated to a pedagogical flow (Unterrichtsstörungen, DE) for a more practical demo.
 - OpenRouter: provider available (`DSPX_PROVIDER=openrouter`) plus `.env.example` and Just recipes (`or-codegen`, `or-signature`, timed variants) designed to work with 1Password `op run` + `op://...` env references (no secrets in CLI flags; `openrouter-env` avoids printing secrets).
@@ -72,6 +72,7 @@ decisions, and readiness against the vision plan.
   MLflow hard-disable: `MLFLOW_ENABLE=0` now prevents `mlflow` imports/calls entirely (no default HTTP tracking fallback, no accidental network retries). A concrete observability fix plan lives in `docs/MLFLOW_OBSERVABILITY_PLAN.md`.
   Signature refine now has MLflow parity: a dedicated `signature-refine` run name with standard tags,
   params/metrics, and artifact logging gated by `mlflow.active_run()` (no implicit runs unless configured).
+  Optional nested runs: `DSPX_MLFLOW_NESTED_RUNS=1` enables parent/child runs for workflows that opt in (currently Mermaid sig-per-node).
 - Caching/Repro: content‑hash caching for generation services; manifests and
   meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta;
   Cache management CLI: `dspx cache info|list|show|clear`.
@@ -119,8 +120,9 @@ decisions, and readiness against the vision plan.
     and server‑side confirmation gate for mutating endpoint `/mermaid` controlled by
     `DSPX_CONFIRM_MUTATIONS` + `X-DSPX-Confirm` header. Token redaction hardened (URL userinfo,
     Cookie/Set-Cookie, token/key/secret/password headers) and applied to previews/outputs.
+  - Implemented (new): module-gen templates now emit GEPA hooks (`build_student()`, `io_spec()`, `output_weights()`, `normalize_output(...)`) so GEPA is copy/pasteable from generated code.
   - Remaining: stronger sandbox isolation options; capability gating for `code.exec` in providers;
-    optional parent/child nested runs for workflow‑level grouping; further redaction coverage and
+    expand nested runs beyond current Mermaid sig-per-node; further redaction coverage and
     audit trails; unify descriptors across any remaining tool paths.
 - Phase 10 — Plugins & Extension Points: NOT STARTED.
 

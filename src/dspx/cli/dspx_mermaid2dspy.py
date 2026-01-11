@@ -60,50 +60,101 @@ def _build_signatures(
     refine: bool = False,
     refine_attempts: int = 3,
     provider: Optional[str] = None,
+    program_name: Optional[str] = None,
 ) -> Tuple[str, Dict[str, str]]:
     """Generate a signatures.py module and return (source, mapping nid->class)."""
     parts: List[str] = []
     mapping: Dict[str, str] = {}
+    # Optional nested MLflow runs for per-node signature generation (workflow→node).
+    try:
+        from contextlib import nullcontext
+        from dspx.tracing import get_mlflow, nested_run_with_tags, standard_tags
+
+        mlflow = get_mlflow()
+    except Exception:
+        mlflow = None
+        nested_run_with_tags = None  # type: ignore[assignment]
+        standard_tags = None  # type: ignore[assignment]
+        nullcontext = None  # type: ignore[assignment]
     for nid, n in nodes.items():
         if n.type == "decision":
             continue
         cls = f"Sig_{nid}"
         prompt = _class_header(cls, n.label or nid, nid)
-        if use_cli:
-            env = os.environ.copy()
-            if provider:
-                env["DSPX_PROVIDER"] = provider
-            if refine:
-                rc, out, err = _run_cli(
-                    "dspx.cli.viberefine",
-                    (["--non-interactive", "-n", str(refine_attempts), prompt]),
-                    env,
-                )
-            else:
-                rc, out, err = _run_cli("dspx.cli.vibegen", ([prompt]), env)
-            if rc != 0:
-                raise SystemExit(
-                    f"CLI generation failed for {nid}: {err.strip()}\nPrompt was: {prompt}"
-                )
-            code = out
-        else:
-            code = service_generate(prompt)
-        # Ensure class name matches (fallback if generator changed it)
-        m = re.search(
-            r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code
-        )
-        if not m or m.group(1) != cls:
-            # Minimal fix: prepend a correct class stub if generator missed it
-            stub = (
-                "import dspy\n\n"
-                f"class {cls}(dspy.Signature):\n"
-                '    """Auto-generated fallback signature.\n'
-                "    NOTE: Generator did not return the expected class name; using fallback.\n"
-                '    """\n'
-                "    context: str = dspy.InputField(desc='Upstream context for this step')\n"
-                "    output: str = dspy.OutputField(desc='Result of this step')\n"
+        # If a parent run is active and nested runs are enabled, create a child run per node.
+        if (
+            mlflow is not None
+            and nested_run_with_tags is not None
+            and standard_tags is not None
+        ):
+            ctx = nested_run_with_tags(
+                run_name=f"signature-node-{nid}",
+                tags=standard_tags(
+                    "signature",
+                    template_version="vibe-v1",
+                    extra={
+                        "program_name": str(program_name or ""),
+                        "mermaid.node_id": str(nid),
+                        "mermaid.node_label": str(n.label or ""),
+                    },
+                ),
             )
-            code = stub
+        else:
+            ctx = nullcontext(False)  # type: ignore[misc]
+        with ctx:
+            if use_cli:
+                env = os.environ.copy()
+                if provider:
+                    env["DSPX_PROVIDER"] = provider
+                if refine:
+                    rc, out, err = _run_cli(
+                        "dspx.cli.viberefine",
+                        (["--non-interactive", "-n", str(refine_attempts), prompt]),
+                        env,
+                    )
+                else:
+                    rc, out, err = _run_cli("dspx.cli.vibegen", ([prompt]), env)
+                if rc != 0:
+                    raise SystemExit(
+                        f"CLI generation failed for {nid}: {err.strip()}\nPrompt was: {prompt}"
+                    )
+                code = out
+            else:
+                code = service_generate(prompt)
+            # Ensure class name matches (fallback if generator changed it)
+            m = re.search(
+                r"class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)", code
+            )
+            if not m or m.group(1) != cls:
+                # Minimal fix: prepend a correct class stub if generator missed it
+                stub = (
+                    "import dspy\n\n"
+                    f"class {cls}(dspy.Signature):\n"
+                    '    """Auto-generated fallback signature.\n'
+                    "    NOTE: Generator did not return the expected class name; using fallback.\n"
+                    '    """\n'
+                    "    context: str = dspy.InputField(desc='Upstream context for this step')\n"
+                    "    output: str = dspy.OutputField(desc='Result of this step')\n"
+                )
+                code = stub
+            # MLflow: attach prompt + generated signature code to the active (nested) run.
+            try:
+                if mlflow is not None:
+                    if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                        try:
+                            mlflow.log_text(  # type: ignore[attr-defined]
+                                prompt, artifact_file=f"prompts/{nid}.txt"
+                            )
+                        except Exception:
+                            pass
+                        try:
+                            mlflow.log_text(  # type: ignore[attr-defined]
+                                code, artifact_file=f"signatures/{cls}.py"
+                            )
+                        except Exception:
+                            pass
+            except Exception:
+                pass
         parts.append(code.strip() + "\n")
         mapping[nid] = cls
     src = "\n\n".join(parts)
@@ -284,6 +335,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     out_root = Path(args.outdir or (Path.cwd() / "generated" / "workflows" / base))
     out_root.mkdir(parents=True, exist_ok=True)
 
+    # Optional workflow-level MLflow run (and parent for nested per-node runs).
+    try:
+        from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+        mlflow = get_mlflow()
+        if mlflow is not None:
+            ensure_run_with_standard_tags("mermaid_sig", extra={"program_name": base})
+    except Exception:
+        pass
+
     # Build signatures.py
     sig_src, mapping = _build_signatures(
         nodes,
@@ -291,6 +352,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         refine=args.refine,
         refine_attempts=args.refine_attempts,
         provider=args.provider,
+        program_name=base,
     )
     (out_root / "signatures.py").write_text(sig_src, encoding="utf-8")
 

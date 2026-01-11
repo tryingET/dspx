@@ -13,6 +13,7 @@ Usage:
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import os
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     "get_mlflow",
     "standard_tags",
     "ensure_run_with_standard_tags",
+    "nested_run_with_tags",
 ]
 
 
@@ -195,3 +197,53 @@ def ensure_run_with_standard_tags(
             service, template_version=template_version, extra=extra, group=group
         ),
     )
+
+
+@contextmanager
+def nested_run_with_tags(
+    *,
+    run_name: str,
+    tags: dict[str, str] | None = None,
+    enabled_env: str = "DSPX_MLFLOW_NESTED_RUNS",
+):
+    """Best-effort nested MLflow run.
+
+    Behavior:
+    - If MLflow is disabled/unavailable, yields False.
+    - If no active parent run exists, yields False (no implicit run creation).
+    - If nested runs are not enabled via env, yields False.
+    - Otherwise starts a nested run and yields True, ending it on exit.
+    """
+    mlflow = get_mlflow()
+    if mlflow is None:
+        yield False
+        return
+    try:
+        parent = mlflow.active_run()  # type: ignore[attr-defined]
+    except Exception:
+        parent = None
+    if parent is None:
+        yield False
+        return
+    if not _truthy(os.getenv(enabled_env, "0")):
+        yield False
+        return
+    started = False
+    try:
+        mlflow.start_run(run_name=run_name, nested=True)  # type: ignore[attr-defined]
+        started = True
+        if tags:
+            for k, v in tags.items():
+                try:
+                    mlflow.set_tag(k, v)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        yield True
+    except Exception:
+        yield False
+    finally:
+        try:
+            if started:
+                mlflow.end_run()  # type: ignore[attr-defined]
+        except Exception:
+            pass

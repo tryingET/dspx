@@ -5,7 +5,10 @@ Goal: generate DSPy programs from a Mermaid flow, call an OpenAPI endpoint, and 
 
 Prereqs
 - Python 3.13 with `uv` and project deps installed (`just install`).
-- Optional: MLflow server (Docker compose: `just mlflow-up`).
+- Optional: `.env` for provider keys / Just recipes: `cp .env.example .env` (git-ignored).
+- Optional: MLflow server:
+  - Local file store (no server): set `MLFLOW_TRACKING_URI=file:./mlruns`.
+  - Docker compose (Synology/NAS-oriented): `just mlflow-up` then set `MLFLOW_TRACKING_URI=http://127.0.0.1:50000` (see `docker-compose.yml`).
 
 1) Prepare a simple Mermaid workflow
 Create `flow.mmd` with a single step and an OpenAPI call:
@@ -74,7 +77,7 @@ Enable MLflow to record inputs/outputs and attach artifacts/manifests:
 
 ```
 export MLFLOW_ENABLE=1
-export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+export MLFLOW_TRACKING_URI=http://127.0.0.1:50000
 just dspx codegen "A CLI that prints hi" -l python --outfile gen.py
 ```
 
@@ -86,7 +89,7 @@ Set a run group to help filter related executions in MLflow, and provide clearer
 
 ```
 export MLFLOW_ENABLE=1
-export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+export MLFLOW_TRACKING_URI=http://127.0.0.1:50000
 export DSPX_RUN_GROUP=my-demo
 
 # Named runs appear as signature-<class>, module-<name>, codegen-<lang>, mermaid-<flow>

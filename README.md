@@ -53,6 +53,7 @@ Architecture & Vision
   - Services: codegen, signature generation (vibe), refine, module generation, mermaid workflows, agents
   - CLI: thin entrypoints delegating to services; unified `dspx` CLI available
 - See docs/VISION.md (principles/roadmap), docs/ARCHITECTURE.md (multi‑view diagrams), and docs/OPENAPI_TOOLING.md (MVP details).
+- Tutorials: docs/TUTORIAL_E2E.md (Mermaid + OpenAPI + CSV), docs/GEPA_FROM_MODULE_GEN.md (GEPA from module-gen).
 
 Quick Start (uv)
 ----------------
@@ -60,6 +61,12 @@ Quick Start (uv)
 
    just install
    just test
+
+   Tests run offline/deterministic by default (they force `DSPX_PROVIDER=stub` and `MLFLOW_ENABLE=0`).
+   Live provider/network tests are opt-in via `DSPX_RUN_LIVE_TESTS=1`.
+
+   Optional (OpenRouter): create `.env` (git-ignored) so Just recipes can load it:
+   - `cp .env.example .env`
 
 2) Verify Codex CLI works and you are logged in:
 
@@ -201,6 +208,10 @@ Rate limiting (opt‑in):
 - Per‑path caps (JSON): `export DSPX_RATE_LIMIT_PATHS='{"POST /module":"5/min"}'`
 - Identity: `export DSPX_RATE_LIMIT_IDENTITY=token` (or `ip`)
 - Trusted proxies (use X‑Forwarded‑For): `export DSPX_TRUSTED_PROXIES=1`
+
+Metrics (opt‑in):
+- Enable: `export DSPX_METRICS_ENABLED=1`
+- JSON: `GET /metrics` (Prometheus text: `GET /metrics?format=prom`)
 
 More docs: see docs/SERVER.md
 
@@ -609,6 +620,7 @@ Task Runner
 What gets logged
 - DSPy predictions and steps (inputs/outputs, LM config, tools) appear under the selected experiment's Traces tab in the MLflow UI.
 - This repo enables autologging automatically when `MLFLOW_ENABLE` is truthy, using settings from `MLFLOW_TRACKING_URI` and `MLFLOW_EXPERIMENT`.
+- If `MLFLOW_ENABLE=0`, DSPx will not import or call MLflow (CI-safe: no accidental tracking-server HTTP retries).
 
 - Non-interactive runs: `auto_mode=True` adds `--full-auto` to avoid prompts.
 - Extra flags: pass `extra_flags=["--json"]` or others in `CodexExecLM(...)`.

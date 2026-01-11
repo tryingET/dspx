@@ -142,53 +142,57 @@ def run_generate(
         cache_write("module", key, {"code": art.code, "metadata": art.metadata})
     # Optional MLflow logging (guarded)
     try:
-        from dspx.tracing import ensure_run_with_standard_tags
+        from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
 
-        if ensure_run_with_standard_tags(
-            "module", template_version=tv or "v1", run_name=f"module-{spec.name}"
-        ):
-            import mlflow
+        mlflow = get_mlflow()
+        if mlflow is not None:
+            ensure_run_with_standard_tags(
+                "module", template_version=tv or "v1", run_name=f"module-{spec.name}"
+            )
             from dspx.cache import sha256_text
 
-            mlflow.log_params(
-                {
-                    "module.name": spec.name,
-                    "module.inputs": ",".join(inputs),
-                    "module.outputs": ",".join(outputs),
-                    "module.use_signature": str(bool(use_signature)),
-                }
-            )  # type: ignore[attr-defined]
-            try:
-                mlflow.log_text(art.code, f"{spec.name}.py")  # type: ignore[attr-defined]
-            except Exception:
-                mlflow.log_dict({"code": art.code}, f"{spec.name}.json")  # type: ignore[attr-defined]
-            # Attach manifest for reproducibility
-            try:
-                man = {
-                    "template_version": tv or "v1",
-                    "uses_signature": bool(use_signature),
-                    "name": spec.name,
-                    "inputs": inputs,
-                    "outputs": outputs,
-                }
-                mlflow.log_dict(man, f"{spec.name}.manifest.json")  # type: ignore[attr-defined]
-            except Exception:
-                pass
-            duration_ms = (_time.time() - t0) * 1000.0
-            metrics = {
-                "module.code_hash_prefix": int(sha256_text(art.code)[:8], 16)
-                % 1_000_000,
-                "service.duration_ms": duration_ms,
-            }
-            if budget_ms is not None:
+            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                mlflow.log_params(
+                    {
+                        "module.name": spec.name,
+                        "module.inputs": ",".join(inputs),
+                        "module.outputs": ",".join(outputs),
+                        "module.use_signature": str(bool(use_signature)),
+                    }
+                )  # type: ignore[attr-defined]
                 try:
-                    mlflow.set_tag("service.budget_ms", str(budget_ms))  # type: ignore[attr-defined]
+                    mlflow.log_text(art.code, f"{spec.name}.py")  # type: ignore[attr-defined]
+                except Exception:
+                    mlflow.log_dict(  # type: ignore[attr-defined]
+                        {"code": art.code}, f"{spec.name}.json"
+                    )
+                # Attach manifest for reproducibility
+                try:
+                    man = {
+                        "template_version": tv or "v1",
+                        "uses_signature": bool(use_signature),
+                        "name": spec.name,
+                        "inputs": inputs,
+                        "outputs": outputs,
+                    }
+                    mlflow.log_dict(man, f"{spec.name}.manifest.json")  # type: ignore[attr-defined]
                 except Exception:
                     pass
-                metrics["service.budget_exceeded"] = (
-                    1.0 if duration_ms > float(budget_ms) else 0.0
-                )
-            mlflow.log_metrics(metrics)  # type: ignore[attr-defined]
+                duration_ms = (_time.time() - t0) * 1000.0
+                metrics = {
+                    "module.code_hash_prefix": int(sha256_text(art.code)[:8], 16)
+                    % 1_000_000,
+                    "service.duration_ms": duration_ms,
+                }
+                if budget_ms is not None:
+                    try:
+                        mlflow.set_tag("service.budget_ms", str(budget_ms))  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                    metrics["service.budget_exceeded"] = (
+                        1.0 if duration_ms > float(budget_ms) else 0.0
+                    )
+                mlflow.log_metrics(metrics)  # type: ignore[attr-defined]
     except Exception:
         pass
     return art

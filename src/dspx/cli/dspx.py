@@ -999,6 +999,8 @@ def openapi_call(
     from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
     from dspx.dtos import OpenAPICallRequest
+    from dspx.tools.descriptors import ToolDescriptor
+    from dspx.ui.confirmations import build_preview, needs_confirmation
 
     _ensure_env(None)
     data = load_spec(
@@ -1024,59 +1026,31 @@ def openapi_call(
     )
     allowed = {allow_host: True} if allow_host else None
     # Lazy import to avoid httpx in CLI startup path
-    from dspx.tools.openapi.caller import call_operation, _build_url as _u
+    from dspx.tools.openapi.caller import call_operation
 
-    # Destructive-op confirmation unless bypassed by policy/flag
     method = str(ops[op].method or "GET").upper()
-    if method in {"POST", "PUT", "PATCH", "DELETE"}:
-        from dspx.policy import bypass as _p_bypass, allow_network_mutate as _p_allow
-
-        if not _p_bypass() and not _p_allow() and not yes:
-            # Build URL preview (best-effort)
-            server = str(ops[op].server or "")
-            path = str(ops[op].path or "")
-            preview = path
-            try:
-                # lightweight import to render and redact URL
-                from dspx.tools.openapi.caller import _build_url as _u
-
-                try:
-                    from dspx.redaction import redact_url as _redact
-                except Exception:  # pragma: no cover
-
-                    def _redact(u: str) -> str:  # type: ignore
-                        return u
-
-                preview = _redact(_u(server, path, pmap))
-            except Exception:
-                pass
-            prompt = f"About to perform {method} {preview}. Continue? [y/N]"
-            if not typer.confirm(prompt, default=False):
-                typer.echo(
-                    "aborted: confirmation required for mutating operation. "
-                    "Use --yes or set DSPX_POLICY_ALLOW_NETWORK_MUTATE=1",
-                    err=True,
-                )
-                raise typer.Exit(code=2)
-
+    desc = ToolDescriptor(
+        name=op,
+        capabilities=["network.mutate"]
+        if method in {"POST", "PUT", "PATCH", "DELETE"}
+        else ["network.read"],
+        kind="openapi",
+        openapi=ops[op],
+    )
+    preview = build_preview(desc, pmap)
     if dry_run:
-        # Print a redacted preview
-        server = str(ops[op].server or "")
-        path = str(ops[op].path or "")
-        url = path
-        try:
-            from dspx.redaction import redact_url as _redact
-        except Exception:  # pragma: no cover
-
-            def _redact(u: str) -> str:  # type: ignore
-                return u
-
-        try:
-            url = _redact(_u(server, path, pmap))
-        except Exception:
-            pass
-        typer.echo(f"[dry-run] {method} {url}")
+        typer.echo(f"[dry-run] {preview}")
         return
+    if needs_confirmation(desc) and not yes:
+        if not typer.confirm(
+            f"About to perform {preview}. Continue? [y/N]", default=False
+        ):
+            typer.echo(
+                "aborted: confirmation required for mutating operation. "
+                "Use --yes or set DSPX_POLICY_ALLOW_NETWORK_MUTATE=1",
+                err=True,
+            )
+            raise typer.Exit(code=2)
 
     # Start an MLflow run for traceability when enabled (local store is fine).
     try:

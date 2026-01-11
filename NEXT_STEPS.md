@@ -15,8 +15,12 @@ work and refinements.
   - Prefer explicit IO/weights for reproducibility: `--input ... --output-key ... --output-weight key=1.0`.
   - Ensure the saved `optimized/manifest.json` matches what you expect for CI auditability (includes DSPx version + Python environment).
 - MLflow observability: follow and execute `docs/MLFLOW_OBSERVABILITY_PLAN.md` (fix tracking URI semantics, run lifecycle, and CI-safe toggles).
+  - Added smoke: `just mlflow-smoke-signature-refine` (creates `signature-refine` run in local file store and asserts tags/artifacts).
+  - Optional: enable nested runs for workflows with `DSPX_MLFLOW_NESTED_RUNS=1` (current: Mermaid sig-per-node).
 - Confirm `signature refine` parity: run once with `MLFLOW_ENABLE=1` and verify it produces a `signature-refine` run with standard tags and artifacts (and stays no-op when disabled).
+  - Shortcut: `just mlflow-smoke-signature-refine`.
 - Docs sweep: README quickstart uses the same “.env + just” flow; SERVER.md clarifies `127.0.0.1` vs `0.0.0.0` for Docker/NAS; docs mention optional `/metrics` (`DSPX_METRICS_ENABLED=1`).
+  - Keep `docs/TUTORIAL_E2E.md` and `docker-compose.yml` consistent on MLflow port/URI semantics.
 - Release hygiene: bump version, `just release new=x.y.z`, tag, publish.
 
 ## Phase 7 — Adapter Registry (datasets/eval/stores)
@@ -112,10 +116,10 @@ Goal: strengthen policy for tool/provider gating and isolation.
 - Next
   - Stronger sandbox isolation options for code‑exec providers (env allowlist, RO mounts).
   - Capability gating hooks in providers for `code.exec` capability categories.
-  - Optional parent/child nested runs (workflow → service) for hierarchical trace views.
+  - Optional parent/child nested runs (workflow → service) for hierarchical trace views (started; expand beyond Mermaid sig-per-node).
   - Unify descriptor usage across any remaining tool paths and further reduce ad‑hoc function introspection.
   - Expand server tooling endpoints (optional) using descriptors + confirmation helper.
-  - Module artifacts for optimization: update `module-gen` templates to emit `build_student()` + `io_spec()` + `output_weights()`/`normalize_output()` stubs by default, so GEPA hooks are discoverable and copy/pasteable.
+  - Module artifacts for optimization: DONE — `module-gen` emits `build_student()` + `io_spec()` + `output_weights()`/`normalize_output()` stubs by default; see `docs/GEPA_FROM_MODULE_GEN.md`.
 
 - Acceptance
   - Policies enforced across tools/providers; deny/allow and mutation tests pass;
