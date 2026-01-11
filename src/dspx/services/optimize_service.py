@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 
 @dataclass
@@ -12,6 +12,7 @@ class GEPAResult:
     output_keys: List[str]
     chosen_output_keys: List[str]
     metric: str
+    output_weights: Dict[str, float]
     student_provider: str
     reflection_provider: str
 
@@ -57,6 +58,37 @@ def _io_spec_from_program(mod: object) -> Optional[Tuple[List[str], List[str]]]:
         "io_spec() must return (inputs: list[str], outputs: list[str]) or "
         "{'inputs': [...], 'outputs': [...]}."
     )
+
+
+def _output_weights_from_program(mod: object) -> Optional[Dict[str, float]]:
+    fn = getattr(mod, "output_weights", None)
+    if fn is None or not callable(fn):
+        return None
+    raw = fn()
+    if not isinstance(raw, dict):
+        raise RuntimeError("output_weights() must return dict[str, float]")
+    out: Dict[str, float] = {}
+    for k, v in raw.items():
+        if not isinstance(k, str):
+            raise RuntimeError("output_weights() keys must be strings")
+        try:
+            out[k] = float(v)
+        except Exception as e:
+            raise RuntimeError(f"output_weights[{k!r}] is not a float") from e
+    return out
+
+
+def _normalize_output_from_program(
+    mod: object,
+) -> Optional[Callable[[str, str, str, Optional[str], object], Tuple[str, str]]]:
+    """
+    Optional program hook:
+      normalize_output(key, gold: str, pred: str, pred_name: str|None, pred_trace) -> (gold, pred)
+    """
+    fn = getattr(mod, "normalize_output", None)
+    if fn is None or not callable(fn):
+        return None
+    return fn  # type: ignore[return-value]
 
 
 def _infer_io_from_student(student: object) -> Tuple[List[str], List[str]]:
@@ -128,11 +160,33 @@ def _f1_score(gold: str, pred: str) -> float:
     return 2.0 * prec * rec / (prec + rec)
 
 
-def _default_gepa_metric(output_keys: List[str], metric: str):
+def _trace_hint(pred_trace: object) -> str:
+    if pred_trace is None:
+        return ""
+    for attr in ("steps", "events", "trace"):
+        try:
+            v = getattr(pred_trace, attr, None)
+            if isinstance(v, list):
+                return f" trace_{attr}_len={len(v)}"
+        except Exception:
+            pass
+    return " trace=1"
+
+
+def _default_gepa_metric(
+    output_keys: List[str],
+    *,
+    metric_name: str,
+    output_weights: Dict[str, float],
+    normalize_output: Optional[
+        Callable[[str, str, str, Optional[str], object], Tuple[str, str]]
+    ],
+):
     from dspy.teleprompt.gepa.gepa_utils import ScoreWithFeedback
 
-    def metric(gold, pred, trace, pred_name, pred_trace):  # type: ignore[no-untyped-def]
-        scores: List[float] = []
+    def metric_fn(gold, pred, trace, pred_name, pred_trace):  # type: ignore[no-untyped-def]
+        weighted = 0.0
+        weight_sum = 0.0
         feedback_lines: List[str] = []
         for k in output_keys:
             try:
@@ -147,26 +201,38 @@ def _default_gepa_metric(output_keys: List[str], metric: str):
             g = str(gold_val).strip()
             p = str(pred_val).strip() if pred_val is not None else ""
 
-            if metric == "exact":
+            if normalize_output is not None:
+                try:
+                    g, p = normalize_output(k, g, p, pred_name, pred_trace)
+                except Exception:
+                    # Best-effort; normalizers must not break optimization.
+                    pass
+
+            if metric_name == "exact":
                 s = 1.0 if p == g else 0.0
-            elif metric == "contains":
+            elif metric_name == "contains":
                 s = 1.0 if (g.lower() in p.lower()) else 0.0
-            elif metric == "f1":
+            elif metric_name == "f1":
                 s = _f1_score(g, p)
             else:
                 raise ValueError("metric must be one of: exact, contains, f1")
 
-            scores.append(float(s))
+            w = float(output_weights.get(k, 1.0))
+            if w < 0:
+                raise ValueError("output weights must be >= 0")
+            weighted += w * float(s)
+            weight_sum += w
             if s >= 0.999:
                 feedback_lines.append(f"{k}: ok")
             else:
                 feedback_lines.append(f"{k}: expected={g!r} got={p!r}")
 
-        score = sum(scores) / max(1, len(scores))
-        fb = " ; ".join(feedback_lines)
+        score = weighted / weight_sum if weight_sum > 0 else 0.0
+        prefix = f"predictor={pred_name}" if pred_name else "predictor=<program>"
+        fb = f"{prefix}{_trace_hint(pred_trace)} " + " ; ".join(feedback_lines)
         return ScoreWithFeedback(score=float(score), feedback=fb)
 
-    return metric
+    return metric_fn
 
 
 def _sha256_file(path: Path) -> str:
@@ -193,6 +259,7 @@ def run_gepa_optimize(
     max_metric_calls: Optional[int] = None,
     max_full_evals: Optional[int] = None,
     metric: str = "exact",
+    output_weights: Optional[Dict[str, float]] = None,
     seed: int = 0,
     nrows: Optional[int] = None,
 ) -> GEPAResult:
@@ -254,6 +321,21 @@ def run_gepa_optimize(
             "No output keys detected; pass output_keys or implement io_spec()"
         )
 
+    weights = dict(output_weights or {})
+    prog_weights = _output_weights_from_program(mod)
+    if prog_weights is not None:
+        weights = dict(prog_weights)
+    for k in list(weights.keys()):
+        if k not in out_keys:
+            raise ValueError(f"Unknown output key in weights: {k}")
+    for k, v in list(weights.items()):
+        try:
+            weights[k] = float(v)
+        except Exception as e:
+            raise ValueError(f"Invalid weight for {k}: {v!r}") from e
+        if weights[k] < 0:
+            raise ValueError("output weights must be >= 0")
+
     train_records = _load_records(Path(train_path), nrows=nrows)
     trainset = _make_examples(train_records, input_keys=in_keys, output_keys=out_keys)
     valset = None
@@ -271,8 +353,15 @@ def run_gepa_optimize(
             "Exactly one of auto, max_metric_calls, max_full_evals must be set."
         )
 
+    normalize_output = _normalize_output_from_program(mod)
+
     gepa = GEPA(
-        _default_gepa_metric(out_keys, metric),
+        _default_gepa_metric(
+            out_keys,
+            metric_name=metric,
+            output_weights=weights,
+            normalize_output=normalize_output,
+        ),
         auto=auto,  # type: ignore[arg-type]
         max_full_evals=max_full_evals,
         max_metric_calls=max_metric_calls,
@@ -322,6 +411,7 @@ def run_gepa_optimize(
         "io": {"inputs": in_keys, "outputs": out_keys},
         "gepa": {
             "metric": metric,
+            "output_weights": weights,
             "auto": auto,
             "max_metric_calls": max_metric_calls,
             "max_full_evals": max_full_evals,
@@ -350,6 +440,7 @@ def run_gepa_optimize(
         output_keys=out_keys,
         chosen_output_keys=out_keys,
         metric=metric,
+        output_weights=weights,
         student_provider=manifest["providers"]["student"]["name"],
         reflection_provider=manifest["providers"]["reflection"]["name"],
     )

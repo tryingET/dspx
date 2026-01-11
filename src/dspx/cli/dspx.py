@@ -100,6 +100,11 @@ def optimize_gepa(
     metric: str = typer.Option(
         "exact", help="Metric: exact|contains|f1 (per output, averaged)"
     ),
+    output_weight: List[str] = typer.Option(
+        [],
+        "--output-weight",
+        help="Per-output weight as key=float (repeatable). Overrides defaults; can also be provided by program output_weights().",
+    ),
     student_provider: Optional[str] = typer.Option(
         None,
         "--student-provider",
@@ -137,6 +142,28 @@ def optimize_gepa(
         raise typer.BadParameter(
             "Exactly one of --auto, --max-metric-calls, --max-full-evals must be set."
         )
+    weights = None
+    if output_weight:
+        weights = {}
+        for item in output_weight:
+            if "=" not in item:
+                raise typer.BadParameter(
+                    "Invalid --output-weight; expected key=float",
+                    param_hint="--output-weight",
+                )
+            k, v = item.split("=", 1)
+            k = k.strip()
+            if not k:
+                raise typer.BadParameter(
+                    "Invalid --output-weight; empty key", param_hint="--output-weight"
+                )
+            try:
+                weights[k] = float(v.strip())
+            except Exception as e:
+                raise typer.BadParameter(
+                    "Invalid --output-weight; value must be float",
+                    param_hint="--output-weight",
+                ) from e
     res = run_gepa_optimize(
         program_path=program,
         train_path=train,
@@ -152,6 +179,7 @@ def optimize_gepa(
         else None,
         max_full_evals=int(max_full_evals) if max_full_evals is not None else None,
         metric=metric,
+        output_weights=weights,
         seed=int(seed),
         nrows=nrows,
     )
@@ -392,10 +420,15 @@ def signature_refine(
     wrap_script: bool = typer.Option(False, help="Wrap output as runnable DSPy script"),
     provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
+    budget_ms: Optional[int] = typer.Option(
+        None, help="Time budget in ms (logs to MLflow)"
+    ),
 ) -> None:
     from dspx.services.refine_service import run_refine as _run_refine
 
     _ensure_env(provider)
+    if budget_ms is not None:
+        os.environ["DSPX_BUDGET_SIGNATURE_MS"] = str(int(budget_ms))
     code = _run_refine(
         prompt,
         attempts=attempts,
@@ -403,7 +436,9 @@ def signature_refine(
         wrap_script=wrap_script,
         outfile=str(outfile) if outfile else None,
     )
-    if not outfile:
+    if outfile:
+        typer.echo(str(outfile))
+    else:
         sys.stdout.write(code)
 
 
