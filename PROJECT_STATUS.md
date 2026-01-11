@@ -10,7 +10,7 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~8–10s (`just test`) with 135 passing tests (3 skipped); forced offline/deterministic defaults in tests (`DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
+- Tests: local suite runs in ~8–10s (`just test`) with 136 passing tests (3 skipped); forced offline/deterministic defaults in tests (`DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), end‑to‑end tutorial `docs/TUTORIAL_E2E.md`,
   and GEPA-from-module-gen guide `docs/GEPA_FROM_MODULE_GEN.md`.
@@ -26,6 +26,7 @@ decisions, and readiness against the vision plan.
   with a bounded timeout (default 3s) on `127.0.0.1:33213`, plus
   helpers `start-timed` (short run), `start-forever` (no timeout), and
   `stop` (kill listeners on a port).
+- Forge (in design): `docs/FORGE.md` defines an intent-first “backlog compiler” to turn one prompt into a WorkOrder + idempotent multi-project GitLab issues (ai-society routing), with offline-safe defaults and policy gating.
 
 ## Current Components
 
@@ -76,6 +77,7 @@ decisions, and readiness against the vision plan.
 - Caching/Repro: content‑hash caching for generation services; manifests and
   meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta;
   Cache management CLI: `dspx cache info|list|show|clear`.
+- Forge (design track): intent→clarify→canonicalize→route→plan→overlaps→GitLab apply pipeline (multi-project, resumable, managed-block issue updates, stable fingerprints), designed to be UI-agnostic (CLI/TUI) via an event protocol.
 
 ## Documents
 
@@ -84,6 +86,7 @@ decisions, and readiness against the vision plan.
   OpenAPI flow, DTOs).
 - `docs/OPENAPI_TOOLING.md`: OpenAPI toolpack MVP (loader/caller, URL+cache,
   policies, CLI, roadmap).
+- `docs/FORGE.md`: Forge spec (v0 contract + implementation-ready design) for ai-society multi-project GitLab issue routing and later artifact packs.
 
 ## Implementation Progress vs. Plan
 
@@ -125,6 +128,7 @@ decisions, and readiness against the vision plan.
     expand nested runs beyond current Mermaid sig-per-node; further redaction coverage and
     audit trails; unify descriptors across any remaining tool paths.
 - Phase 10 — Plugins & Extension Points: NOT STARTED.
+- Forge (ai-society backlog compiler): DESIGN COMPLETE; implementation on branch `feature/forge-gitlab` (WorkOrder + GitLab issues first; packs/evidence later).
 
 ## Risks & Dependencies
 

@@ -207,7 +207,7 @@ Rate limiting (opt‑in):
 - Default cap: `export DSPX_RATE_LIMIT_DEFAULT='60/min,10/sec'`
 - Per‑path caps (JSON): `export DSPX_RATE_LIMIT_PATHS='{"POST /module":"5/min"}'`
 - Identity: `export DSPX_RATE_LIMIT_IDENTITY=token` (or `ip`)
-- Trusted proxies (use X‑Forwarded‑For): `export DSPX_TRUSTED_PROXIES=1`
+- Trusted proxies (use X‑Forwarded‑For): `export DSPX_TRUSTED_PROXIES='10.0.0.0/8,192.168.0.0/16,127.0.0.0/8'` (CIDR list)
 
 Metrics (opt‑in):
 - Enable: `export DSPX_METRICS_ENABLED=1`

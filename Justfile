@@ -47,14 +47,17 @@ dspx *args:
 # OpenRouter wrapper (1Password `op run`)
 # NOTE: We avoid variadic pass-through here because Just interpolation happens in a shell,
 # and it will split multi-word args unless each arg is shell-escaped.
-_openrouter-preflight:
+_op-preflight:
   if ! command -v op >/dev/null 2>&1; then echo "op CLI not found (install 1Password CLI)"; exit 2; fi
+
+_openrouter-preflight:
+  just _op-preflight
   if [ ! -f .env ]; then echo ".env not found (create one; see .env.example)"; exit 2; fi
   if ! rg -q '^OPENROUTER_API_KEY=' .env 2>/dev/null; then echo "OPENROUTER_API_KEY not set in .env (see .env.example)"; exit 2; fi
 
 # Debug helpers (run in recipe environment)
 openrouter-whoami:
-  just _openrouter-preflight
+  just _op-preflight
   op whoami
 
 openrouter-env:

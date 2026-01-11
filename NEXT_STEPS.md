@@ -4,12 +4,38 @@ This document tracks actionable next steps aligned with the phased plan
 in `docs/VISION.md`. Phases 1–6 are complete; below focuses on upcoming
 work and refinements.
 
+## Forge (ai-society multi-project GitLab backlog compiler) — now
+
+Canonical spec: `docs/FORGE.md` (v0 Contract + v0 Design).
+
+- Implement `dspx forge` MVP (issues-first)
+  - `forge intake` (sanitize → multi-choice clarifier → canonical WorkOrder)
+  - `forge route` (auto-route top-3 + override; multi-project allowlist)
+  - `forge plan` (capabilities: implemented/configured/permitted + gap report)
+  - `forge overlaps` (heuristic overlap candidates + resolutions saved)
+  - `forge issues apply` (manifest-first; idempotent create/update; managed-block updates only)
+  - `forge issues close-duplicates` (explicitly gated; operates only on marked duplicates)
+- GitLab integration (self-hosted; multi-project routing)
+  - Env-only token: `DSPX_GITLAB_TOKEN`
+  - Project map: `DSPX_GITLAB_PROJECT_MAP_JSON` / `DSPX_GITLAB_PROJECT_MAP_FILE`
+  - Blast-radius: `DSPX_GITLAB_ALLOWED_PROJECT_KEYS`
+  - Host allowlist: `DSPX_GITLAB_ALLOWED_HOSTS` (defaults to host in base URL)
+  - Issue links: use GitLab issue-links API when available; fallback to markdown refs
+- Determinism + safety invariants (tests)
+  - Stable `workorder_fingerprint` and IssueSpec `fingerprint`
+  - Dry-run default; explicit apply requires policy gates
+  - Managed-block updates preserve human edits
+  - 401/404/429 behavior and token redaction tests (MockTransport)
+- 4D discipline
+  - Always emit `system_definition_card.md` per WorkOrder and reference it in issue managed blocks
+
 ## Publish (CLI-first toolkit) — near-term checklist
 
 - Default provider posture: keep default `DSPX_PROVIDER=codex-exec`; document `DSPX_PROVIDER=openrouter` as opt-in; keep tests offline/deterministic by default (forced `DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
 - Ensure OpenRouter + 1Password DX is crisp:
   - `cp .env.example .env` (git-ignored), set `OPENROUTER_API_KEY=op://...`.
-  - `just openrouter-whoami`, `just or-codegen ...`, `just or-codegen-timed ...`.
+  - `just openrouter-whoami` (requires `op`; does not require `.env`).
+  - `just or-codegen ...`, `just or-codegen-timed ...` (use `.env` + `op run`).
 - GEPA on Codex: validate the “optimize loop” UX end-to-end with your own program:
   - `dspx optimize gepa --program prog.py --train train.csv --out optimized/ --max-metric-calls 20`
   - Prefer explicit IO/weights for reproducibility: `--input ... --output-key ... --output-weight key=1.0`.
