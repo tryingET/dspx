@@ -31,6 +31,7 @@ adapters_app = typer.Typer(no_args_is_help=True)
 adapters_dataset_app = typer.Typer(no_args_is_help=True)
 adapters_eval_app = typer.Typer(no_args_is_help=True)
 cache_app = typer.Typer(no_args_is_help=True)
+optimize_app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(sig_app, name="signature", help="Signature operations")
 app.add_typer(mermaid_app, name="mermaid", help="Mermaid workflow operations")
@@ -41,6 +42,7 @@ app.add_typer(adapters_app, name="adapters", help="Adapters (datasets/eval/store
 adapters_app.add_typer(adapters_dataset_app, name="dataset", help="Dataset adapters")
 adapters_app.add_typer(adapters_eval_app, name="eval", help="Evaluation helpers")
 app.add_typer(cache_app, name="cache", help="Inspect and manage the on-disk cache")
+app.add_typer(optimize_app, name="optimize", help="Program optimization (GEPA, etc.)")
 
 
 def _ensure_env(provider: Optional[str]) -> None:
@@ -50,6 +52,78 @@ def _ensure_env(provider: Optional[str]) -> None:
         os.environ["DSPX_PROVIDER"] = provider
     load_config_env()
     enable_mlflow_from_env()
+
+
+@optimize_app.command("gepa")
+def optimize_gepa(
+    program: Path = typer.Option(
+        ...,
+        "--program",
+        help="Path to a Python file exporting build_student() -> dspy.Module",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    train: Path = typer.Option(
+        ...,
+        "--train",
+        help="Training dataset path (.csv/.parquet) with columns matching module inputs + output",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory to save optimized program (loadable via dspy.load)",
+        file_okay=False,
+        dir_okay=True,
+    ),
+    val: Optional[Path] = typer.Option(
+        None,
+        "--val",
+        help="Optional validation dataset path (.csv/.parquet)",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    output_key: Optional[str] = typer.Option(
+        None,
+        "--output-key",
+        help="Output column/key to score (required if module has multiple outputs)",
+    ),
+    provider: Optional[str] = typer.Option(
+        None,
+        help="Provider (registry name). Defaults to DSPX_PROVIDER (default: codex-exec).",
+    ),
+    auto: str = typer.Option("light", help="GEPA intensity: light|medium|heavy"),
+    max_metric_calls: Optional[int] = typer.Option(
+        None,
+        help="Limit total metric calls (controls GEPA cost/time). If set, --auto is ignored.",
+    ),
+    seed: int = typer.Option(0, help="Deterministic seed for GEPA search"),
+    nrows: Optional[int] = typer.Option(
+        None, help="Optional cap on rows loaded from train/val datasets"
+    ),
+) -> None:
+    from dspx.services.optimize_service import run_gepa_optimize
+
+    _ensure_env(provider)
+    res = run_gepa_optimize(
+        program_path=program,
+        train_path=train,
+        val_path=val,
+        out_dir=out,
+        output_key=output_key,
+        provider=provider,
+        auto=auto,
+        max_metric_calls=int(max_metric_calls)
+        if max_metric_calls is not None
+        else None,
+        seed=int(seed),
+        nrows=nrows,
+    )
+    typer.echo(str(res.out_dir))
 
 
 @app.callback()

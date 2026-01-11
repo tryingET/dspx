@@ -99,6 +99,31 @@ or-codegen-timed spec *more:
   S="{{spec}} {{more}}"; S="${S% }"; \
   just openrouter-codegen-timed "$S" python v1
 
+# GEPA optimization (DSPy) — default provider is DSPX_PROVIDER (defaults to codex-exec)
+gepa program train out val="" output_key="" auto="light" max_metric_calls="":
+  if [ "{{val}}" != "" ]; then \
+    VAL_ARGS="--val {{val}}"; \
+  else \
+    VAL_ARGS=""; \
+  fi; \
+  if [ "{{output_key}}" != "" ]; then \
+    OUT_ARGS="--output-key {{output_key}}"; \
+  else \
+    OUT_ARGS=""; \
+  fi; \
+  if [ "{{max_metric_calls}}" != "" ]; then \
+    BUDGET_ARGS="--max-metric-calls {{max_metric_calls}}"; \
+    AUTO_ARGS=""; \
+  else \
+    BUDGET_ARGS=""; \
+    AUTO_ARGS="--auto {{auto}}"; \
+  fi; \
+  uv run -q python -m dspx.cli.dspx optimize gepa --program "{{program}}" --train "{{train}}" --out "{{out}}" $VAL_ARGS $OUT_ARGS $AUTO_ARGS $BUDGET_ARGS
+
+# GEPA optimization pinned to Codex Exec
+codex-gepa program train out val="" output_key="" auto="light" max_metric_calls="20":
+  DSPX_PROVIDER=codex-exec just gepa "{{program}}" "{{train}}" "{{out}}" "{{val}}" "{{output_key}}" {{auto}} {{max_metric_calls}}
+
 # Build distributables (wheel + sdist)
 build:
   uv build
