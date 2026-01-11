@@ -10,7 +10,7 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~8–9s (`just test`) with 127 passing tests (2 skipped).
+- Tests: local suite runs in ~10–14s (`just test`) with 130 passing tests (3 skipped).
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
@@ -36,6 +36,11 @@ decisions, and readiness against the vision plan.
 - Services: SignatureService (vibe + DTO), RefineService (vibe),
   CodegenService (DTO), ModuleService (MVP), MermaidWorkflowService
   (variants + sig‑per‑node; emits ProgramGraph/Artifact + manifest).
+- Optimization: GEPA runner (`dspx optimize gepa`) that compiles a DSPy program/module and saves
+  a loadable program directory (via `dspy.load`), with explicit IO (`--input/--output-key` or `io_spec()`),
+  metric options (`exact|contains|f1`), per‑output weighting (`--output-weight` or `output_weights()`),
+  and optional output normalization (`normalize_output(...)`). Reflection LM can be split from the
+  student LM (`--reflection-provider`), defaulting to Codex Exec.
 - OpenAPI Toolpack (MVP+): loader (JSON/YAML, URL with allowlists + cache),
   operation extraction (merged params, body schema, response schemas, tags),
   caller (host allowlist, basic validation), registry integration (dynamic tools),
@@ -65,6 +70,8 @@ decisions, and readiness against the vision plan.
   dspy traces: `mlflow.dspy.autolog` configured to attach spans to the active named run
   (no implicit run creation), with stable run naming in CLI (`signature-*`, `codegen-*`, `module-*`, `mermaid-*`).
   MLflow hard-disable: `MLFLOW_ENABLE=0` now prevents `mlflow` imports/calls entirely (no default HTTP tracking fallback, no accidental network retries). A concrete observability fix plan lives in `docs/MLFLOW_OBSERVABILITY_PLAN.md`.
+  Signature refine now has MLflow parity: a dedicated `signature-refine` run name with standard tags,
+  params/metrics, and artifact logging gated by `mlflow.active_run()` (no implicit runs unless configured).
 - Caching/Repro: content‑hash caching for generation services; manifests and
   meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta;
   Cache management CLI: `dspx cache info|list|show|clear`.
@@ -128,7 +135,7 @@ decisions, and readiness against the vision plan.
 
 ## Success Criteria (near-term)
 
-- Stable, deterministic tests without external providers (currently ~4–5s locally).
+- Stable, deterministic tests without external providers (currently ~10–14s locally).
 - DTOs and manifests adopted across services; CLIs documented.
 - Next: stronger policy (Phase 9), plugins (Phase 10), richer adapter features,
   and optional distributed rate limiting. Expand descriptor usage and server tooling endpoints.

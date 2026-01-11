@@ -10,7 +10,12 @@ work and refinements.
 - Ensure OpenRouter + 1Password DX is crisp:
   - `cp .env.example .env` (git-ignored), set `OPENROUTER_API_KEY=op://...`.
   - `just openrouter-whoami`, `just or-codegen ...`, `just or-codegen-timed ...`.
+- GEPA on Codex: validate the “optimize loop” UX end-to-end with your own program:
+  - `dspx optimize gepa --program prog.py --train train.csv --out optimized/ --max-metric-calls 20`
+  - Prefer explicit IO/weights for reproducibility: `--input ... --output-key ... --output-weight key=1.0`.
+  - Ensure the saved `optimized/manifest.json` matches what you expect for CI auditability.
 - MLflow observability: follow and execute `docs/MLFLOW_OBSERVABILITY_PLAN.md` (fix tracking URI semantics, run lifecycle, and CI-safe toggles).
+- Confirm `signature refine` parity: run once with `MLFLOW_ENABLE=1` and verify it produces a `signature-refine` run with standard tags and artifacts (and stays no-op when disabled).
 - Docs sweep: README quickstart uses the same “.env + just” flow; SERVER.md clarifies `127.0.0.1` vs `0.0.0.0` for Docker/NAS.
 - Release hygiene: bump version, `just release new=x.y.z`, tag, publish.
 
@@ -101,6 +106,8 @@ Goal: strengthen policy for tool/provider gating and isolation.
     CLIs (`tools list|search|describe`) consume descriptor metadata for consistent output.
   - MLflow: `MLFLOW_ENABLE=0` is now a hard-disable (no `mlflow` import/calls); no default HTTP tracking URI fallback; added regression test to prevent silent network retries in CI.
   - OpenRouter provider (OpenAI-style chat completions) plus Just recipes and `.env.example` to run via `op run` without secrets in CLI flags; opt-in live test gated by env.
+  - GEPA optimization runner (`dspx optimize gepa`) using Codex Exec by default, with explicit IO, metrics (`exact|contains|f1`), per-output weights, optional output normalization hooks, and optional split reflection provider. Saved outputs include a manifest and copied program source for auditability; opt-in live Codex smoke test gated by `DSPX_RUN_LIVE_TESTS=1`.
+  - Signature refine MLflow parity (standard tags, stable run name, params/artifacts/metrics guarded by active runs).
 
 - Next
   - Stronger sandbox isolation options for code‑exec providers (env allowlist, RO mounts).
@@ -108,6 +115,7 @@ Goal: strengthen policy for tool/provider gating and isolation.
   - Optional parent/child nested runs (workflow → service) for hierarchical trace views.
   - Unify descriptor usage across any remaining tool paths and further reduce ad‑hoc function introspection.
   - Expand server tooling endpoints (optional) using descriptors + confirmation helper.
+  - Module artifacts for optimization: update `module-gen` templates to emit `build_student()` + `io_spec()` + `output_weights()`/`normalize_output()` stubs by default, so GEPA hooks are discoverable and copy/pasteable.
 
 - Acceptance
   - Policies enforced across tools/providers; deny/allow and mutation tests pass;
