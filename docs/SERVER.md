@@ -17,7 +17,9 @@ Options:
 
 - Granian directly:
 
-    granian --interface asgi --host localhost --port 33213 dspx.server.app:app
+    granian --interface asgi --host 127.0.0.1 --port 33213 dspx.server.app:app
+
+For Docker / remote access, bind `--host 0.0.0.0` and put auth + TLS in front (reverse proxy).
 
 - Just recipe (convenient):
 

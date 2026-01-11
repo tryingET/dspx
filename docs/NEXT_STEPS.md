@@ -1,6 +1,8 @@
 Next Steps (Prioritized)
 =======================
 
+**Note:** This file is legacy; the canonical roadmap is `NEXT_STEPS.md` at the repo root.
+
 Phase A — Mermaid → DSPy hardening
 ----------------------------------
 - [ ] Subgraph selection: run a named phase from a full diagram.

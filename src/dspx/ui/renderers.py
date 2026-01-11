@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Mapping
 from dspx.tools.descriptors import ToolDescriptor
 
 
@@ -112,3 +112,53 @@ def tool_descriptor_describe_text(
         for ex in examples:
             lines.append(f"  - {ex}")
     return "\n".join(lines)
+
+
+def schema_example(
+    schema: Mapping[str, Any], depth: int = 0, max_depth: int = 4
+) -> Any:
+    """Generate a small example JSON value from a JSON Schema subset.
+
+    This is best-effort and intentionally simple to keep CLI fast/deterministic.
+    """
+    if depth > max_depth:
+        return None
+    t = schema.get("type")
+    if t == "object" or (t is None and ("properties" in schema)):
+        props = schema.get("properties") or {}
+        if isinstance(props, Mapping):
+            out: Dict[str, Any] = {}
+            for k, ps in list(props.items())[:8]:  # cap props for brevity
+                if isinstance(ps, Mapping):
+                    ex = schema_example(ps, depth + 1, max_depth)
+                    if ex is not None:
+                        out[str(k)] = ex
+            return out
+        return {}
+    if t == "array":
+        items = (
+            schema.get("items") if isinstance(schema.get("items"), Mapping) else None
+        )
+        if items:
+            ex = schema_example(items, depth + 1, max_depth)
+            return [ex]
+        return []
+    if t == "integer":
+        return 0
+    if t == "number":
+        return 0.0
+    if t == "boolean":
+        return False
+    # string or unknown
+    enum = schema.get("enum") if isinstance(schema.get("enum"), list) else None
+    if enum:
+        try:
+            return enum[0]
+        except Exception:
+            pass
+    fmt = schema.get("format")
+    if fmt == "date-time":
+        return "2024-01-01T00:00:00Z"
+    if fmt == "date":
+        return "2024-01-01"
+    return "string"

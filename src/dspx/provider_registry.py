@@ -47,6 +47,13 @@ def ensure_default_providers() -> None:
         except Exception:
             # Ignore if unavailable; callers may still register manually
             pass
+    if "openrouter" not in _REGISTRY:
+        try:
+            from .providers_register_openrouter import register as _reg_openrouter  # type: ignore
+
+            _reg_openrouter()
+        except Exception:
+            pass
     if "claude-cli" not in _REGISTRY:
         try:
             from .providers_register_claude import register as _reg_claude  # type: ignore

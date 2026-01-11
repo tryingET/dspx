@@ -332,25 +332,27 @@ def main(argv: Optional[List[str]] = None) -> int:
         pass
     # MLflow: attach artifacts and tags (best-effort)
     try:
-        from dspx.tracing import ensure_run_with_standard_tags
-        import mlflow
+        from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
 
-        # Ensure a run is active and attach standard tags (includes run_group)
-        ensure_run_with_standard_tags("mermaid_sig", extra={"program_name": base})
-        for fname in [
-            "signatures.py",
-            "program_sigpredict.py",
-            "workflow.mmd",
-            "manifest.json",
-            "program_graph.json",
-            "artifact.json",
-        ]:
-            p = out_root / fname
-            if p.exists():
-                try:
-                    mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
-                except Exception:
-                    pass
+        mlflow = get_mlflow()
+        if mlflow is not None:
+            # Ensure a run is active and attach standard tags (includes run_group)
+            ensure_run_with_standard_tags("mermaid_sig", extra={"program_name": base})
+            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                for fname in [
+                    "signatures.py",
+                    "program_sigpredict.py",
+                    "workflow.mmd",
+                    "manifest.json",
+                    "program_graph.json",
+                    "artifact.json",
+                ]:
+                    p = out_root / fname
+                    if p.exists():
+                        try:
+                            mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
     except Exception:
         pass
     # Write program graph and artifact JSON

@@ -665,33 +665,35 @@ def generate_programs(
 
     # MLflow: attach artifacts and standard tags (best-effort)
     try:
-        from dspx.tracing import ensure_run_with_standard_tags
-        import mlflow
+        from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
 
-        ensure_run_with_standard_tags(
-            "mermaid",
-            template_version="v1",
-            run_name=f"mermaid-{base}",
-            extra={"program_name": base},
-        )
-        # Log generated files as artifacts
-        for p in produced:
-            try:
-                mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
-            except Exception:
-                pass
-        for extra in [
-            "workflow.mmd",
-            "manifest.json",
-            "program_graph.json",
-            "artifact.json",
-        ]:
-            path = out_root / extra
-            if path.exists():
-                try:
-                    mlflow.log_artifact(str(path))  # type: ignore[attr-defined]
-                except Exception:
-                    pass
+        mlflow = get_mlflow()
+        if mlflow is not None:
+            ensure_run_with_standard_tags(
+                "mermaid",
+                template_version="v1",
+                run_name=f"mermaid-{base}",
+                extra={"program_name": base},
+            )
+            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                # Log generated files as artifacts
+                for p in produced:
+                    try:
+                        mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                for extra in [
+                    "workflow.mmd",
+                    "manifest.json",
+                    "program_graph.json",
+                    "artifact.json",
+                ]:
+                    path = out_root / extra
+                    if path.exists():
+                        try:
+                            mlflow.log_artifact(str(path))  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
     except Exception:
         pass
 

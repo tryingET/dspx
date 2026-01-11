@@ -75,9 +75,10 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     if cfg_path and cfg_path.exists():
         data = _load_toml(cfg_path)
 
-    # Sections: [mlflow], [codex], [provider]
+    # Sections: [mlflow], [codex], [openrouter], [provider]
     mlflow = data.get("mlflow", {}) if isinstance(data, dict) else {}
     codex = data.get("codex", {}) if isinstance(data, dict) else {}
+    openrouter = data.get("openrouter", {}) if isinstance(data, dict) else {}
     provider = data.get("provider", {}) if isinstance(data, dict) else {}
 
     # MLflow envs
@@ -90,6 +91,18 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     _set_if_missing("CODEX_REASONING", codex.get("reasoning_effort"))
     _set_if_missing("CODEX_BYPASS", _coerce_bool(codex.get("bypass", True)))
     _set_if_missing("CODEX_SEARCH", _coerce_bool(codex.get("search", False)))
+
+    # OpenRouter envs (avoid secrets in TOML; API key should come from env/CI secrets)
+    _set_if_missing("OPENROUTER_BASE_URL", openrouter.get("base_url"))
+    _set_if_missing("OPENROUTER_MODEL", openrouter.get("model"))
+    _set_if_missing(
+        "OPENROUTER_TIMEOUT",
+        str(openrouter.get("timeout_s"))
+        if openrouter.get("timeout_s") is not None
+        else None,
+    )
+    _set_if_missing("OPENROUTER_HTTP_REFERER", openrouter.get("http_referer"))
+    _set_if_missing("OPENROUTER_APP_TITLE", openrouter.get("app_title"))
 
     # Provider selection env
     _set_if_missing("DSPX_PROVIDER", provider.get("name"))

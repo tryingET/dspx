@@ -10,7 +10,7 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~10–12s (`just test`) with 121 passing tests (1 skipped).
+- Tests: local suite runs in ~4–5s (`just test`) with 124 passing tests (1 skipped).
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
@@ -124,7 +124,7 @@ decisions, and readiness against the vision plan.
 
 ## Success Criteria (near-term)
 
-- Stable, deterministic tests without external providers (currently ~10–12s locally).
+- Stable, deterministic tests without external providers (currently ~4–5s locally).
 - DTOs and manifests adopted across services; CLIs documented.
 - Next: stronger policy (Phase 9), plugins (Phase 10), richer adapter features,
   and optional distributed rate limiting. Expand descriptor usage and server tooling endpoints.

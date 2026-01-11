@@ -14,3 +14,5 @@ class OpenAPIOperationInfo(BaseModel):
     parameters: List[Dict[str, Any]] = []
     requestBody: Optional[Dict[str, Any]] = None
     responses: Dict[str, Any] = {}
+    # Optional: carry components to enable $ref resolution and combinators at call time
+    components: Optional[Dict[str, Any]] = None

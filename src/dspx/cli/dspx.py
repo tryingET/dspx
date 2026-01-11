@@ -54,6 +54,26 @@ def _ensure_env(provider: Optional[str]) -> None:
 
 @app.callback()
 def _policy_callback(
+    openrouter_api_key_file: Optional[Path] = typer.Option(
+        None,
+        "--openrouter-api-key-file",
+        help="Read OPENROUTER_API_KEY from a file (recommended vs passing via CLI).",
+    ),
+    openrouter_api_key_op: Optional[str] = typer.Option(
+        None,
+        "--openrouter-api-key-op",
+        help="Read OPENROUTER_API_KEY via 1Password CLI `op read <ref>` (e.g., op://Vault/Item/field).",
+    ),
+    openrouter_api_key_stdin: bool = typer.Option(
+        False,
+        "--openrouter-api-key-stdin",
+        help="Read OPENROUTER_API_KEY from stdin (e.g., CI).",
+    ),
+    openrouter_api_key_prompt: bool = typer.Option(
+        False,
+        "--openrouter-api-key-prompt",
+        help="Prompt for OPENROUTER_API_KEY (hidden input).",
+    ),
     bypass_permissions: bool = typer.Option(
         False, "--bypass-permissions", help="Bypass policy checks (unsafe)"
     ),
@@ -84,6 +104,48 @@ def _policy_callback(
         None, "--disallowed-http-methods", help="Comma list of denied HTTP methods"
     ),
 ) -> None:
+    # OpenRouter API key injection (avoid leaking secrets via CLI args).
+    # Precedence (only if OPENROUTER_API_KEY not already set):
+    # - --openrouter-api-key-file
+    # - --openrouter-api-key-op
+    # - --openrouter-api-key-stdin
+    # - --openrouter-api-key-prompt
+    if os.getenv("OPENROUTER_API_KEY") is None:
+        try:
+            if openrouter_api_key_file is not None:
+                os.environ["OPENROUTER_API_KEY"] = openrouter_api_key_file.read_text(
+                    encoding="utf-8"
+                ).strip()
+            elif openrouter_api_key_op:
+                import shutil
+                import subprocess
+
+                if shutil.which("op") is None:
+                    raise typer.Exit(code=2)
+                p = subprocess.run(
+                    ["op", "read", str(openrouter_api_key_op)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False,
+                )
+                if p.returncode != 0:
+                    msg = (p.stderr or "").strip() or "op read failed"
+                    typer.echo(msg, err=True)
+                    raise typer.Exit(code=p.returncode)
+                os.environ["OPENROUTER_API_KEY"] = (p.stdout or "").strip()
+            elif openrouter_api_key_stdin:
+                os.environ["OPENROUTER_API_KEY"] = sys.stdin.read().strip()
+            elif openrouter_api_key_prompt:
+                import getpass
+
+                os.environ["OPENROUTER_API_KEY"] = getpass.getpass(
+                    "OPENROUTER_API_KEY: "
+                ).strip()
+        except Exception:
+            # Best-effort; provider will error if key is required and missing.
+            pass
+
     # Export policy envs for downstream modules
     if bypass_permissions:
         os.environ["DSPX_POLICY_BYPASS"] = "1"
@@ -168,24 +230,26 @@ def signature_gen(
             pass
         # Log artifacts to MLflow when enabled
         try:
-            from dspx.tracing import ensure_run_with_standard_tags
-            import mlflow
+            from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
 
-            ensure_run_with_standard_tags(
-                "signature",
-                template_version=template_version,
-                run_name=f"signature-{class_name or res.signature_name or ''}",
-            )
-            try:
-                mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
-            except Exception:
-                pass
-            meta_path = outfile.parent / (outfile.name + ".meta.json")
-            if meta_path.exists():
-                try:
-                    mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
-                except Exception:
-                    pass
+            mlflow = get_mlflow()
+            if mlflow is not None:
+                ensure_run_with_standard_tags(
+                    "signature",
+                    template_version=template_version,
+                    run_name=f"signature-{class_name or res.signature_name or ''}",
+                )
+                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                    try:
+                        mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                    meta_path = outfile.parent / (outfile.name + ".meta.json")
+                    if meta_path.exists():
+                        try:
+                            mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
         except Exception:
             pass
         typer.echo(str(outfile))
@@ -320,22 +384,26 @@ def module_gen(
             pass
         # MLflow logging of artifacts
         try:
-            from dspx.tracing import ensure_run_with_standard_tags
-            import mlflow
+            from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
 
-            ensure_run_with_standard_tags(
-                "module", template_version=template_version, run_name=f"module-{name}"
-            )
-            try:
-                mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
-            except Exception:
-                pass
-            meta_path = outfile.parent / (outfile.name + ".meta.json")
-            if meta_path.exists():
-                try:
-                    mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
-                except Exception:
-                    pass
+            mlflow = get_mlflow()
+            if mlflow is not None:
+                ensure_run_with_standard_tags(
+                    "module",
+                    template_version=template_version,
+                    run_name=f"module-{name}",
+                )
+                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                    try:
+                        mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                    meta_path = outfile.parent / (outfile.name + ".meta.json")
+                    if meta_path.exists():
+                        try:
+                            mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
         except Exception:
             pass
         typer.echo(str(outfile))
@@ -431,24 +499,26 @@ def codegen(
             pass
         # MLflow logging of artifacts
         try:
-            from dspx.tracing import ensure_run_with_standard_tags
-            import mlflow
+            from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
 
-            ensure_run_with_standard_tags(
-                "codegen",
-                template_version=template_version,
-                run_name=f"codegen-{language or 'python'}",
-            )
-            try:
-                mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
-            except Exception:
-                pass
-            meta_path = outfile.parent / (outfile.name + ".meta.json")
-            if meta_path.exists():
-                try:
-                    mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
-                except Exception:
-                    pass
+            mlflow = get_mlflow()
+            if mlflow is not None:
+                ensure_run_with_standard_tags(
+                    "codegen",
+                    template_version=template_version,
+                    run_name=f"codegen-{language or 'python'}",
+                )
+                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                    try:
+                        mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                    meta_path = outfile.parent / (outfile.name + ".meta.json")
+                    if meta_path.exists():
+                        try:
+                            mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
         except Exception:
             pass
         typer.echo(str(outfile))
@@ -732,17 +802,20 @@ def openapi_describe(
     info = ops[op]
     if json_out:
         import json as _json
+        from dspx.tools.descriptors import ToolDescriptor
+        from dspx.ui.renderers import tool_descriptor_to_json, schema_example
 
-        out = {
-            "operationId": op,
-            "method": str(info.method or "").upper(),
-            "path": info.path or "",
-            "server": info.server or None,
-            "parameters": [],
-            "requestBody": None,
-            "responses": info.responses or {},
-            "tags": info.tags or [],
-        }
+        # Use descriptor-based base JSON for consistency
+        desc = ToolDescriptor(name=op, capabilities=[], kind="openapi", openapi=info)
+        out = tool_descriptor_to_json(desc)
+        out.update(
+            {
+                "operationId": op,
+                "parameters": [],
+                "requestBody": None,
+                "responses": info.responses or {},
+            }
+        )
         params = info.parameters or []
         if isinstance(params, list):
             for p in params:
@@ -766,6 +839,22 @@ def openapi_describe(
                 "required": bool(rb.get("required", False)),
                 "schema": rb.get("schema") or None,
             }
+        # Best-effort response examples for application/json schemas
+        try:
+            resps = out.get("responses") or {}
+            if isinstance(resps, dict):
+                for code, rd in list(resps.items()):
+                    if not isinstance(rd, dict):
+                        continue
+                    schema = (
+                        rd.get("schema") if isinstance(rd.get("schema"), dict) else None
+                    )
+                    if schema:
+                        ex = schema_example(schema)
+                        if ex is not None:
+                            rd["example"] = ex
+        except Exception:
+            pass
         typer.echo(_json.dumps(out, ensure_ascii=False, indent=2))
         return
     # Text output
@@ -1960,18 +2049,43 @@ def cache_info_cmd() -> None:
     enabled = cache_enabled()
     total = 0
     count = 0
+    per_kind: dict[str, dict[str, int]] = {}
+    now = __import__("time").time()
+    oldest = None
+    newest = None
     if p.exists():
         for f in p.rglob("*"):
             if f.is_file():
                 try:
                     total += f.stat().st_size
                     count += 1
+                    # per-kind (top-level dir)
+                    try:
+                        kind = f.relative_to(p).parts[0]
+                    except Exception:
+                        kind = "_root"
+                    d = per_kind.setdefault(kind, {"size": 0, "files": 0})
+                    d["size"] += f.stat().st_size
+                    d["files"] += 1
+                    mt = f.stat().st_mtime
+                    if oldest is None or mt < oldest:
+                        oldest = mt
+                    if newest is None or mt > newest:
+                        newest = mt
                 except Exception:
                     pass
     typer.echo(f"dir: {p}")
     typer.echo(f"enabled: {str(enabled).lower()}")
     typer.echo(f"files: {count}")
     typer.echo(f"size_bytes: {total}")
+    if oldest is not None and newest is not None:
+        typer.echo(f"age_oldest_seconds: {int(now - oldest)}")
+        typer.echo(f"age_newest_seconds: {int(now - newest)}")
+    # per-kind breakdown
+    for k in sorted(per_kind.keys()):
+        d = per_kind[k]
+        typer.echo(f"kind.{k}.files: {d['files']}")
+        typer.echo(f"kind.{k}.size_bytes: {d['size']}")
 
 
 @cache_app.command("list")
@@ -2066,6 +2180,72 @@ def cache_clear(
         typer.echo(f"cleared: {kind}")
         return
     raise typer.Exit(code=2)
+
+
+@cache_app.command("prune")
+def cache_prune(
+    kind: Optional[str] = typer.Option(None, help="Cache kind to prune"),
+    max_size_mb: Optional[float] = typer.Option(
+        None, help="Reduce total cache size to at most this many MB"
+    ),
+    older_than_days: Optional[float] = typer.Option(
+        None, help="Delete entries older than this many days"
+    ),
+    dry_run: bool = typer.Option(False, help="Only print what would be deleted"),
+) -> None:
+    """Prune cache by age and/or target size (oldest first)."""
+    from dspx.cache import cache_dir
+    import time
+
+    base = cache_dir()
+    targets: list[tuple[float, int, str]] = []  # (mtime, size, path)
+    now = time.time()
+    if not base.exists():
+        typer.echo("no cache")
+        return
+    root = base if not kind else base / kind
+    for f in root.rglob("*.json"):
+        try:
+            st = f.stat()
+            targets.append((st.st_mtime, st.st_size, str(f)))
+        except Exception:
+            pass
+    # Age prune
+    removed = 0
+    saved = 0
+    keep: set[str] = set()
+    if older_than_days is not None:
+        cutoff = now - older_than_days * 86400.0
+        for mt, sz, path in list(targets):
+            if mt < cutoff:
+                if not dry_run:
+                    try:
+                        __import__("pathlib").Path(path).unlink()
+                        removed += 1
+                    except Exception:
+                        pass
+            else:
+                keep.add(path)
+                saved += sz
+    else:
+        for _, sz, path in targets:
+            keep.add(path)
+            saved += sz
+    # Size prune
+    if max_size_mb is not None and saved > max_size_mb * 1024 * 1024:
+        # delete oldest first among kept
+        kept_list = sorted([(mt, sz, path) for mt, sz, path in targets if path in keep])
+        for mt, sz, path in kept_list:
+            if saved <= max_size_mb * 1024 * 1024:
+                break
+            if not dry_run:
+                try:
+                    __import__("pathlib").Path(path).unlink()
+                    removed += 1
+                except Exception:
+                    pass
+            saved -= sz
+    typer.echo(f"pruned: {removed} files; remaining_bytes: {int(saved)}")
 
 
 def main() -> None:

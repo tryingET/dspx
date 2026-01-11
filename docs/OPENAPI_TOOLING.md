@@ -1,63 +1,82 @@
-OpenAPI Tooling (MVP)
-=====================
+OpenAPI Tooling
+===============
 
-Purpose
--------
-Enable safe access to HTTP APIs described by OpenAPI as first‑class tools integrated into DSPx workflows and the unified CLI.
+Overview
+--------
+OpenAPI‑described HTTP APIs are exposed as safe, policy‑aware tools that can be listed, described, and invoked via the unified `dspx` CLI and from generated workflows.
 
-What’s implemented
-------------------
-- Loader: `dspx.tools.openapi.load_spec(path)`
-  - Loads a local JSON or YAML (via PyYAML) OpenAPI v3 spec.
-- Operation extraction: `extract_operations(spec)`
-  - Returns a dict of `{operationId: {method, path, server, parameters}}`.
+Key Features
+------------
+- Loader: `dspx.tools.openapi.load_spec(path_or_url)`
+  - JSON and YAML (via PyYAML). URLs enforce per‑call host allowlists and support on‑disk caching (`DSPX_OPENAPI_CACHE[=_1_]`, `DSPX_OPENAPI_CACHE_DIR`).
+- Operation extraction: `extract_operation_infos(spec)`
+  - Merges path‑level and op‑level params; captures method, path, server, tags, summary, requestBody schema, and response schemas.
 - Caller: `call_operation(request, operation, allowed_hosts, client=None)`
-  - Builds URL with path params, passes remaining as query, sends with `httpx`.
-  - Enforces host allowlist and validates required path params.
+  - Builds URL from path params; passes others as query; executes via `httpx`.
+  - Validates required path/query params and enforces basic typing and enums.
+  - Deep(er) JSON Schema validation for request bodies (see below).
   - Returns `OpenAPICallResult(status_code, body, headers, raw_text)`.
 - Registry integration: `register_openapi_operations(prefix, spec, allowed_hosts=None)`
-  - Registers tools named `<prefix>.<operationId>` in `ToolRegistry`.
-  - Each tool accepts kwargs: `params`, `body`, `headers`, `timeout`, `method`, `server`, `path`.
+  - Registers `<prefix>.<operationId>` tools with capability tags and policy gates.
+  - Works seamlessly with the root `dspx tools` flow and Mermaid.
 
 CLI
 ---
-- List operations in a spec
-  - `dspx tools openapi ops SPEC.json|yaml`
-- Call an operation directly (one‑shot)
-  - `dspx tools openapi call --spec SPEC --op OPID --allow-host api.example.com --params k=v,...`
-- Persist a mapping file for a prefix (for workflows/env setup)
-  - `dspx tools openapi load -p gh --spec /abs/github.json --allow-host api.github.com`
-  - Writes `generated/openapi/gh.json` with `{prefix,spec,allow_host}`.
-- Print shell exports from mapping (optional convenience)
-  - `dspx tools openapi env -p gh`
+- List operations: `dspx tools openapi ops SPEC --tags users,issues --json`
+- Describe operation: `dspx tools openapi describe --spec SPEC --op OPID --json`
+- Call operation: `dspx tools openapi call --spec SPEC --op OPID --allow-host api.example.com [--dry-run]`
+- Persist mapping for prefixes: `dspx tools openapi load -p gh --spec /abs/github.json --allow-host api.github.com`
+- Print shell exports from mapping: `dspx tools openapi env -p gh`
 
-Mermaid integration
+Mermaid Integration
 -------------------
-- Label a process node to call an operation: `openapi:<prefix>.<operationId>`
-- The generated runtime auto‑registers toolpacks for prefixes used in the graph:
-  - It reads env vars if available: `DSPX_OPENAPI_SPEC_<PREFIX>`, `DSPX_OPENAPI_HOST_<PREFIX>`.
-  - Otherwise it falls back to mapping files: `generated/openapi/<prefix>.json` or `openapi/<prefix>.json`.
-  - Optional env overrides for mapping discovery:
-    - `DSPX_OPENAPI_MAP_<PREFIX>` for a specific file.
-    - `DSPX_OPENAPI_MAP_DIR` for a directory of mapping files.
-- Node input format (from upstream context):
-  - JSON envelope: `{ "params": {...}, "body": {...}, "headers": {...}, "timeout": 10 }`
-  - Or space/newline separated `key=value` tokens (for simple GETs).
+- Node label: `openapi:<prefix>.<operationId>`
+- Runtime auto‑registers toolpacks from env or mapping files under `generated/openapi/`.
+- Upstream input envelope for nodes: `{ "params": {...}, "body": {...}, "headers": {...}, "timeout": 10 }`.
 
 Policy & Safety
 ---------------
-- Host allowlists enforced at call time.
-- Sizes and timeouts are bounded by `httpx` configuration; extend as needed.
-- Secrets should be injected via env/CI secrets; logs should avoid printing sensitive headers.
+- Host allowlists at call time; mutating methods (POST/PUT/PATCH/DELETE) require explicit allowance.
+- Capability gating for `network.read` vs `network.mutate`. Optional dry‑run prints a redacted preview.
+- Redaction covers URL userinfo and sensitive headers; MLflow logging integrates with standard tags.
 
-Testing
--------
-- Use `httpx.MockTransport` for deterministic unit tests.
-- Validate that required path params are supplied; we raise ValueError if missing.
+Validation Coverage (Current)
+-----------------------------
+- Query params: required flags; type checks for `integer|number|boolean|array`; array item types; enum constraints.
+- Request bodies (application/json):
+  - Object: required properties, per‑property types (`string|integer|number|boolean|array|object`), and enums.
+  - Array: item validation for primitives and objects (arrays of objects supported).
+  - Nested objects: validates nested required/primitive types recursively.
+  - `$ref`: resolves local refs under `#/components/schemas/*` (request bodies) and `#/components/parameters/*` (path/query params).
+  - `allOf`: shallow merge for object schemas (properties + required; later wins).
+  - Combinators: basic `oneOf|anyOf` handling (passes when any branch validates).
+  - Bounds: `minLength|maxLength|pattern` for strings; `minimum|maximum|exclusiveMinimum|exclusiveMaximum` for numbers/integers; `minItems|maxItems` for arrays.
+
+Limitations (Deliberate)
+------------------------
+- No remote `$ref` resolution (only local `#/components/...`).
+- `allOf` merge is shallow (object-ish only); deep conflict semantics are intentionally conservative.
+- No advanced constraints (`format`, numeric/string multiples, `additionalProperties`, `not`, tuple-typed arrays, etc.).
+- Arrays with tuple typing (`items: [..]`) are treated as unconstrained.
+- Only `application/json` request bodies are validated.
+
+Examples
+--------
+- Enum query with array:
+
+  dspx tools openapi call --spec spec.yaml --op search \
+    --allow-host api.example.com \
+    --params '{"mode":"any","ids":[1,2]}'
+
+- Array of objects body:
+
+  dspx tools openapi call --spec spec.yaml --op bulkCreate \
+    --allow-host api.example.com \
+    --body '{"items":[{"id":1,"meta":{"tag":"new"}}]}'
 
 Roadmap
 -------
-1) Request validation vs. schema (query/body) with clearer errors.
-2) Optional URL loading for specs (with allowlists and caching).
-3) MLflow logging and redaction for OpenAPI calls.
-4) Typed client generation and richer CLI ergonomics.
+- More complete `$ref` support (response schemas; additional component locations; optional remote refs).
+- More faithful `allOf` semantics (deep merge + conflict handling).
+- Deeper nested arrays/objects with numeric/string bounds.
+- Expanded response schema summaries and example generation.

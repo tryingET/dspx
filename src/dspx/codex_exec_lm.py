@@ -188,9 +188,8 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
                 f"[{ts}] CodexExecLM: launching codex exec (model={self.model_flag or 'default'}, auto={self.auto_mode}, bypass={self.dangerously_bypass})…"
             )
 
-        # Merge env with current process env; Codex Auth typically lives in env.
-        env = os.environ.copy()
-        env.update(self.env)
+        # Merge env with current process env; optionally filter via allowlist.
+        env = self._build_subprocess_env()
         if shutil.which(self.binary) is None and not self._bin_warned:
             self._warn_missing_binary()
 
@@ -295,8 +294,7 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
         query: str = (
             prompt if prompt is not None else self._messages_to_prompt(messages)
         ) or ""
-        env = os.environ.copy()
-        env.update(self.env)
+        env = self._build_subprocess_env()
         if shutil.which(self.binary) is None and not self._bin_warned:
             self._warn_missing_binary()
         last_msg_file: Optional[str] = None
@@ -407,8 +405,7 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
 
         query_str: str = query or ""
         cmd = self._build_command(query_str)
-        env = os.environ.copy()
-        env.update(self.env)
+        env = self._build_subprocess_env()
         if shutil.which(self.binary) is None and not self._bin_warned:
             self._warn_missing_binary()
 
@@ -536,6 +533,67 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
             print(msg)
         except Exception:
             pass
+
+    # --- Sandbox helpers ---
+    def _build_subprocess_env(self) -> Dict[str, str]:
+        """Build the environment for Codex subprocess with optional allow/deny filtering.
+
+        Controls (env vars):
+        - DSPX_CODEX_ENV_ALLOWLIST: comma-separated names or prefixes with '*' suffix
+          (e.g., "PATH,HOME,CODEX_*,OPENAI_*"). If unset/empty, inherit full env.
+        - DSPX_CODEX_ENV_DENYLIST: comma-separated names to drop after allowlist processing.
+        - Minimal baseline always kept: PATH, HOME, USER, LOGNAME, SHELL, TERM, TMPDIR, TEMP, PWD.
+
+        Additionally merges any explicit env passed to CodexExecLM(env=...).
+        """
+        # Start from current process env
+        base = os.environ.copy()
+        # Always keep a minimal baseline set
+        baseline_keep = {
+            "PATH",
+            "HOME",
+            "USER",
+            "LOGNAME",
+            "SHELL",
+            "TERM",
+            "TMPDIR",
+            "TEMP",
+            "PWD",
+        }
+
+        allow_raw = os.getenv("DSPX_CODEX_ENV_ALLOWLIST", "").strip()
+        deny_raw = os.getenv("DSPX_CODEX_ENV_DENYLIST", "").strip()
+
+        # If no allowlist configured, behave as before (inherit all + overrides)
+        if not allow_raw:
+            env = base
+        else:
+            patterns = [p.strip() for p in allow_raw.split(",") if p.strip()]
+
+            def allowed(name: str) -> bool:
+                for p in patterns:
+                    if p.endswith("*"):
+                        if name.startswith(p[:-1]):
+                            return True
+                    elif name == p:
+                        return True
+                return False
+
+            env = {k: v for k, v in base.items() if (k in baseline_keep) or allowed(k)}
+
+        # Apply denylist last
+        if deny_raw:
+            for n in [p.strip() for p in deny_raw.split(",") if p.strip()]:
+                env.pop(n, None)
+
+        # Merge explicit overrides provided to the LM (highest precedence)
+        try:
+            # self.env is set in __init__
+            env.update(self.env)
+        except Exception:
+            pass
+
+        return env
 
 
 class _MinimalResponse:

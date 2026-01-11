@@ -3,7 +3,7 @@ MLflow tracing helper for DSPy + Codex Exec.
 
 Enable by setting env vars before running any CLI/script:
 - MLFLOW_ENABLE=1 (default 1)
-- MLFLOW_TRACKING_URI=http://127.0.0.1:5000 (or your server)
+- MLFLOW_TRACKING_URI=http://127.0.0.1:5000 (optional; if unset, uses local file store)
 - MLFLOW_EXPERIMENT=DSPy (experiment name)
 
 Usage:
@@ -18,6 +18,8 @@ import os
 __all__ = [
     "enable_mlflow_from_env",
     "ensure_run_from_env",
+    "mlflow_enabled",
+    "get_mlflow",
     "standard_tags",
     "ensure_run_with_standard_tags",
 ]
@@ -36,32 +38,55 @@ def _truthy(val: str | None) -> bool:
     return s not in {"", "0", "false", "no"}
 
 
+def mlflow_enabled() -> bool:
+    """Return True if MLflow is enabled by env."""
+    return _truthy(os.getenv("MLFLOW_ENABLE", "1"))
+
+
+def get_mlflow():
+    """Return mlflow module if enabled+importable; otherwise None.
+
+    Centralizes the "MLFLOW_ENABLE=0 means no MLflow side effects" rule.
+    """
+    if not mlflow_enabled():
+        return None
+    try:
+        import mlflow  # type: ignore
+
+        return mlflow
+    except Exception:
+        return None
+
+
 def enable_mlflow_from_env() -> bool:
     """Enable MLflow autolog for DSPy using environment variables.
 
     Returns True if enabled successfully, False otherwise.
     """
-    if not _truthy(os.getenv("MLFLOW_ENABLE", "1")):
+    if not mlflow_enabled():
         return False
 
-    try:
-        import mlflow
-    except Exception:
-        # MLflow not installed; do not fail hard
+    mlflow = get_mlflow()
+    if mlflow is None:
         return False
 
-    uri = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+    uri = os.getenv("MLFLOW_TRACKING_URI")
     exp = os.getenv("MLFLOW_EXPERIMENT", "DSPy")
     run_name = os.getenv("MLFLOW_RUN_NAME")
 
     try:
-        mlflow.set_tracking_uri(uri)
+        if uri:
+            mlflow.set_tracking_uri(uri)
         mlflow.set_experiment(exp)
         # Enable DSPy autologging (MLflow >= 2.18). Fallback to generic
         # autolog if the dspy integration is unavailable for any reason.
         try:
             if hasattr(mlflow, "dspy") and hasattr(mlflow.dspy, "autolog"):
-                mlflow.dspy.autolog()
+                # Prefer "attach only" when supported to avoid implicit run creation.
+                try:
+                    mlflow.dspy.autolog(create_run=False)  # type: ignore[call-arg]
+                except TypeError:  # pragma: no cover
+                    mlflow.dspy.autolog()
             else:  # pragma: no cover - depends on mlflow version
                 mlflow.autolog(disable=False)  # type: ignore[attr-defined]
         except Exception:
@@ -93,11 +118,10 @@ def ensure_run_from_env(
       return True.
     - Honors `MLFLOW_ENABLE` toggle; returns False if disabled or mlflow missing.
     """
-    if not _truthy(os.getenv("MLFLOW_ENABLE", "1")):
+    if not mlflow_enabled():
         return False
-    try:
-        import mlflow
-    except Exception:
+    mlflow = get_mlflow()
+    if mlflow is None:
         return False
     try:
         if mlflow.active_run() is not None:  # type: ignore[attr-defined]

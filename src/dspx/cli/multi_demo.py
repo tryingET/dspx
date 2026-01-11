@@ -162,7 +162,11 @@ def main(argv: List[str] | None = None) -> int:
     # MLflow: log outputs and timings if enabled
     if args.mlflow:
         try:
-            import mlflow
+            from dspx.tracing import get_mlflow
+
+            mlflow = get_mlflow()
+            if mlflow is None or mlflow.active_run() is None:  # type: ignore[attr-defined]
+                return 0
 
             mlflow.log_metric("duration_total_s", t1 - t0)  # type: ignore[attr-defined]
             mlflow.log_text((text or ""), artifact_file="output/final.txt")  # type: ignore[attr-defined]

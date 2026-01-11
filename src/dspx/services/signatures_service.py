@@ -109,7 +109,12 @@ def run_generate_dto(
     if budget_ms:
         # best-effort propagate to known providers
         secs = max(1, int((budget_ms + 999) // 1000))
-        for name in ("CODEX_TIMEOUT", "CLAUDE_TIMEOUT", "GEMINI_TIMEOUT"):
+        for name in (
+            "CODEX_TIMEOUT",
+            "CLAUDE_TIMEOUT",
+            "GEMINI_TIMEOUT",
+            "OPENROUTER_TIMEOUT",
+        ):
             _os.environ[name] = str(secs)
 
     ensure_default_providers()

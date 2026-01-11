@@ -86,22 +86,24 @@ def run(
             pass
         # MLflow: log artifacts (best-effort)
         try:
-            from dspx.tracing import ensure_run_from_env
-            import mlflow
+            from dspx.tracing import ensure_run_from_env, get_mlflow
 
-            ensure_run_from_env(
-                tags={"service": "codegen", "language": language or "python"}
-            )
-            try:
-                mlflow.log_artifact(path)  # type: ignore[attr-defined]
-            except Exception:
-                pass
-            meta_path = path + ".meta.json"
-            if os.path.exists(meta_path):
-                try:
-                    mlflow.log_artifact(meta_path)  # type: ignore[attr-defined]
-                except Exception:
-                    pass
+            mlflow = get_mlflow()
+            if mlflow is not None:
+                ensure_run_from_env(
+                    tags={"service": "codegen", "language": language or "python"}
+                )
+                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                    try:
+                        mlflow.log_artifact(path)  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+                    meta_path = path + ".meta.json"
+                    if os.path.exists(meta_path):
+                        try:
+                            mlflow.log_artifact(meta_path)  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
         except Exception:
             pass
     return code_text
@@ -143,7 +145,12 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
     )
     if budget_ms:
         secs = max(1, int((budget_ms + 999) // 1000))
-        for name in ("CODEX_TIMEOUT", "CLAUDE_TIMEOUT", "GEMINI_TIMEOUT"):
+        for name in (
+            "CODEX_TIMEOUT",
+            "CLAUDE_TIMEOUT",
+            "GEMINI_TIMEOUT",
+            "OPENROUTER_TIMEOUT",
+        ):
             _os.environ[name] = str(secs)
     ensure_default_providers()
     active_lm = lm or create_from_env()

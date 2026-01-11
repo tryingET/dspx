@@ -1,7 +1,5 @@
 set shell := ["bash", "-uc"]
-
-# Load .env if present
-export := "$(test -f .env && set -a && . ./.env && set +a; env)"
+set dotenv-load := true
 
 # List available tasks
 default:
@@ -33,10 +31,73 @@ typecheck:
 test:
   # Run only local tests (none by default); skip submodules' test suites
   if [ -d tests ]; then \
-    uv run -m pytest -q tests || true; \
+    uv run -m pytest -q tests; \
   else \
     echo "no local tests"; \
   fi
+
+# Run unified CLI from source (pass-through)
+# Examples:
+#   just dspx signature gen "Extract names" --template-version simple-v1
+#   just dspx tools list
+dspx *args:
+  # Use bash to preserve argument boundaries reliably.
+  bash -lc 'uv run -q python -m dspx.cli.dspx "$@"' -- {{args}}
+
+# OpenRouter wrapper (1Password `op run`)
+# NOTE: We avoid variadic pass-through here because Just interpolation happens in a shell,
+# and it will split multi-word args unless each arg is shell-escaped.
+_openrouter-preflight:
+  if ! command -v op >/dev/null 2>&1; then echo "op CLI not found (install 1Password CLI)"; exit 2; fi
+  if [ ! -f .env ]; then echo ".env not found (create one; see .env.example)"; exit 2; fi
+
+# Debug helpers (run in recipe environment)
+openrouter-whoami:
+  just _openrouter-preflight
+  op whoami
+
+openrouter-env:
+  just _openrouter-preflight
+  op run -- printenv OPENROUTER_API_KEY
+  op run -- printenv OPENROUTER_MODEL || true
+
+openrouter-codegen spec lang="python" template="v1":
+  just _openrouter-preflight
+  # Rely on Just's dotenv-load for `.env`; `op run` resolves any `op://...` env values.
+  op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx codegen "{{spec}}" --template-version {{template}} --language {{lang}}
+
+openrouter-codegen-timed spec lang="python" template="v1":
+  just _openrouter-preflight
+  # Total wall-clock time from command start to finish (printed to stderr).
+  TIMEFORMAT=$'[openrouter] duration_s=%R\n'; \
+  time op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx codegen "{{spec}}" --template-version {{template}} --language {{lang}}
+
+openrouter-signature prompt template="v1":
+  just _openrouter-preflight
+  op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx signature gen "{{prompt}}" --template-version {{template}}
+
+openrouter-signature-timed prompt template="v1":
+  just _openrouter-preflight
+  TIMEFORMAT=$'[openrouter] duration_s=%R\n'; \
+  time op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx signature gen "{{prompt}}" --template-version {{template}}
+
+# Friendly OpenRouter shortcuts (no flags, no quoting).
+# These accept unquoted multi-word prompts by capturing the remainder.
+or-signature prompt *more:
+  P="{{prompt}} {{more}}"; P="${P% }"; \
+  just openrouter-signature "$P" v1
+
+or-codegen spec *more:
+  S="{{spec}} {{more}}"; S="${S% }"; \
+  just openrouter-codegen "$S" python v1
+
+or-signature-timed prompt *more:
+  P="{{prompt}} {{more}}"; P="${P% }"; \
+  just openrouter-signature-timed "$P" v1
+
+or-codegen-timed spec *more:
+  S="{{spec}} {{more}}"; S="${S% }"; \
+  just openrouter-codegen-timed "$S" python v1
 
 # Build distributables (wheel + sdist)
 build:

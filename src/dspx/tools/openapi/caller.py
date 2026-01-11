@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 from typing import Any, Dict, Mapping, Optional
+import re as _re
 from urllib.parse import urljoin, urlparse
 
 from dspx.dtos import OpenAPICallRequest, OpenAPICallResult
@@ -70,6 +71,7 @@ def call_operation(
     # Validate required path parameters when present in operation description
     try:
         param_specs = operation.get("parameters") or []
+        components = operation.get("components") or {}
         for p in param_specs:
             if not isinstance(p, dict):
                 continue
@@ -87,8 +89,15 @@ def call_operation(
                 if name not in params:
                     raise ValueError(f"Missing required query parameter: {name}")
             # Basic type checks for query params
-            if where == "query" and "schema" in p and p.get("name") in params:
+            if (
+                (where in {"query", "path"})
+                and "schema" in p
+                and p.get("name") in params
+            ):
                 schema = p.get("schema") or {}
+                # Resolve $ref in parameter schema if present
+                if isinstance(schema, dict) and "$ref" in schema:
+                    schema = _resolve_schema(schema, components)
                 t = schema.get("type")
                 enum = (
                     schema.get("enum") if isinstance(schema.get("enum"), list) else None
@@ -101,11 +110,36 @@ def call_operation(
                         )
                 if t == "integer":
                     try:
-                        int(str(val))
+                        iv = int(str(val))
                     except Exception:
                         raise ValueError(
                             f"Invalid type for query param {p.get('name')}: expected integer"
                         )
+                    # path-specific integer bounds
+                    if where == "path":
+                        try:
+                            if "minimum" in schema and iv < int(schema["minimum"]):  # type: ignore[index]
+                                raise ValueError(
+                                    f"Invalid value for param {p.get('name')}: below minimum"
+                                )
+                            if "maximum" in schema and iv > int(schema["maximum"]):  # type: ignore[index]
+                                raise ValueError(
+                                    f"Invalid value for param {p.get('name')}: above maximum"
+                                )
+                            if schema.get("exclusiveMinimum") and iv <= int(
+                                schema.get("minimum", iv)
+                            ):  # type: ignore[index]
+                                raise ValueError(
+                                    f"Invalid value for param {p.get('name')}: <= exclusiveMinimum"
+                                )
+                            if schema.get("exclusiveMaximum") and iv >= int(
+                                schema.get("maximum", iv)
+                            ):  # type: ignore[index]
+                                raise ValueError(
+                                    f"Invalid value for param {p.get('name')}: >= exclusiveMaximum"
+                                )
+                        except Exception:
+                            pass
                 elif t == "number":
                     try:
                         float(str(val))
@@ -156,6 +190,45 @@ def call_operation(
                                 raise ValueError(
                                     f"Invalid item type in array param {p.get('name')}: expected boolean"
                                 )
+                    # Items enum constraint (strings or numbers)
+                    items_enum = (
+                        items.get("enum")
+                        if isinstance(items.get("enum"), list)
+                        else None
+                    )
+                    if items_enum is not None:
+                        allowed = {str(x) for x in items_enum}
+                        for el in val:
+                            if str(el) not in allowed:
+                                raise ValueError(
+                                    f"Invalid item value in array param {p.get('name')}: must be one of {items_enum}"
+                                )
+                # Numeric min/max for integer/number
+                if t in {"integer", "number"}:
+                    try:
+                        v = float(str(val))
+                        if "minimum" in schema and v < float(schema["minimum"]):  # type: ignore[index]
+                            raise ValueError(
+                                f"Invalid value for param {p.get('name')}: below minimum"
+                            )
+                        if "maximum" in schema and v > float(schema["maximum"]):  # type: ignore[index]
+                            raise ValueError(
+                                f"Invalid value for param {p.get('name')}: above maximum"
+                            )
+                        if schema.get("exclusiveMinimum") and v <= float(
+                            schema.get("minimum", v)
+                        ):
+                            raise ValueError(
+                                f"Invalid value for param {p.get('name')}: <= exclusiveMinimum"
+                            )
+                        if schema.get("exclusiveMaximum") and v >= float(
+                            schema.get("maximum", v)
+                        ):
+                            raise ValueError(
+                                f"Invalid value for param {p.get('name')}: >= exclusiveMaximum"
+                            )
+                    except Exception:
+                        pass
     except ValueError:
         # Surface validation errors
         raise
@@ -169,137 +242,13 @@ def call_operation(
         if isinstance(rb, dict):
             required_rb = bool(rb.get("required", False))
             schema = rb.get("schema") or {}
+            components = operation.get("components") or {}
+            if isinstance(schema, dict):
+                schema = _resolve_schema(schema, components)
             if required_rb and body is None:
                 raise ValueError("Missing required request body")
             if body is not None and isinstance(schema, dict):
-                # Only handle simple object schemas with required + properties
-                if schema.get("type") == "object":
-                    required_props = schema.get("required") or []
-                    properties = schema.get("properties") or {}
-                    # required fields present
-                    for prop in required_props:
-                        if prop not in body:
-                            raise ValueError(f"Missing required body property: {prop}")
-                    # basic type checks
-                    for name, ps in properties.items():
-                        if name not in body:
-                            continue
-                        ps = ps or {}
-                        t = ps.get("type")
-                        val = body.get(name)
-                        # enum constraint
-                        if isinstance(ps.get("enum"), list) and val is not None:
-                            if str(val) not in {str(x) for x in ps["enum"]}:
-                                raise ValueError(
-                                    f"Invalid value for body property {name}: must be one of {ps['enum']}"
-                                )
-                        if t == "integer":
-                            try:
-                                int(val)
-                            except Exception:
-                                raise ValueError(
-                                    f"Invalid type for body property {name}: expected integer"
-                                )
-                        elif t == "number":
-                            try:
-                                float(val)
-                            except Exception:
-                                raise ValueError(
-                                    f"Invalid type for body property {name}: expected number"
-                                )
-                        elif t == "boolean":
-                            if not isinstance(val, bool):
-                                sval = str(val).lower()
-                                if sval not in {"true", "false", "1", "0", "yes", "no"}:
-                                    raise ValueError(
-                                        f"Invalid type for body property {name}: expected boolean"
-                                    )
-                        elif t == "string":
-                            # allow any value; we'll stringify
-                            pass
-                        elif t == "array":
-                            items = ps.get("items") or {}
-                            itype = items.get("type")
-                            if not isinstance(val, list):
-                                raise ValueError(
-                                    f"Invalid type for body property {name}: expected array"
-                                )
-                            if itype == "integer":
-                                for el in val:
-                                    try:
-                                        int(el)
-                                    except Exception:
-                                        raise ValueError(
-                                            f"Invalid item type in body array {name}: expected integer"
-                                        )
-                            elif itype == "number":
-                                for el in val:
-                                    try:
-                                        float(el)
-                                    except Exception:
-                                        raise ValueError(
-                                            f"Invalid item type in body array {name}: expected number"
-                                        )
-                            elif itype == "boolean":
-                                for el in val:
-                                    if not isinstance(el, bool):
-                                        sval = str(el).lower()
-                                        if sval not in {
-                                            "true",
-                                            "false",
-                                            "1",
-                                            "0",
-                                            "yes",
-                                            "no",
-                                        }:
-                                            raise ValueError(
-                                                f"Invalid item type in body array {name}: expected boolean"
-                                            )
-                            elif itype == "string":
-                                for el in val:
-                                    if not isinstance(el, str):
-                                        raise ValueError(
-                                            f"Invalid item type in body array {name}: expected string"
-                                        )
-                        elif t == "object":
-                            # shallow nested object validation
-                            if not isinstance(val, dict):
-                                raise ValueError(
-                                    f"Invalid type for body property {name}: expected object"
-                                )
-                            sub_props = ps.get("properties") or {}
-                            sub_required = set(ps.get("required") or [])
-                            for r in sub_required:
-                                if r not in val:
-                                    raise ValueError(
-                                        f"Missing required nested property {name}.{r}"
-                                    )
-                            for sub_name, sps in sub_props.items():
-                                if sub_name not in val:
-                                    continue
-                                sps = sps or {}
-                                st = sps.get("type")
-                                sv = val.get(sub_name)
-                                if st == "integer":
-                                    try:
-                                        int(sv)
-                                    except Exception:
-                                        raise ValueError(
-                                            f"Invalid type for nested property {name}.{sub_name}: expected integer"
-                                        )
-                                elif st == "number":
-                                    try:
-                                        float(sv)
-                                    except Exception:
-                                        raise ValueError(
-                                            f"Invalid type for nested property {name}.{sub_name}: expected number"
-                                        )
-                                elif st == "boolean":
-                                    if not isinstance(sv, bool):
-                                        raise ValueError(
-                                            f"Invalid type for nested property {name}.{sub_name}: expected boolean"
-                                        )
-                                # strings/arrays/objects deeper are accepted as-is (keep shallow)
+                _validate_json_value_against_schema(body, schema, path="body")
     except ValueError:
         raise
     except Exception:
@@ -316,6 +265,58 @@ def call_operation(
         tok = "{" + str(k) + "}"
         if tok not in path:
             query[k] = v
+
+    # Final path param numeric bounds enforcement (defensive)
+    try:
+        param_specs2 = operation.get("parameters") or []
+        components2 = operation.get("components") or {}
+        for p in param_specs2:
+            if not isinstance(p, dict):
+                continue
+            if str(p.get("in", "")).lower() != "path":
+                continue
+            name = str(p.get("name") or "")
+            if not name or name not in params:
+                continue
+            schema = p.get("schema") or {}
+            if isinstance(schema, dict) and "$ref" in schema:
+                schema = _resolve_schema(schema, components2)
+            t = schema.get("type")
+            val = params.get(name)
+            if t == "integer":
+                try:
+                    iv = int(str(val))
+                except Exception:
+                    raise ValueError(
+                        f"Invalid type for path param {name}: expected integer"
+                    )
+                if "minimum" in schema and iv < int(schema["minimum"]):  # type: ignore[index]
+                    raise ValueError(
+                        f"Invalid value for path param {name}: below minimum"
+                    )
+                if "maximum" in schema and iv > int(schema["maximum"]):  # type: ignore[index]
+                    raise ValueError(
+                        f"Invalid value for path param {name}: above maximum"
+                    )
+            elif t == "number":
+                try:
+                    fv = float(str(val))
+                except Exception:
+                    raise ValueError(
+                        f"Invalid type for path param {name}: expected number"
+                    )
+                if "minimum" in schema and fv < float(schema["minimum"]):  # type: ignore[index]
+                    raise ValueError(
+                        f"Invalid value for path param {name}: below minimum"
+                    )
+                if "maximum" in schema and fv > float(schema["maximum"]):  # type: ignore[index]
+                    raise ValueError(
+                        f"Invalid value for path param {name}: above maximum"
+                    )
+    except ValueError:
+        raise
+    except Exception:
+        pass
 
     # Method policy enforcement (mutations)
     if not _policy_bypass():
@@ -375,29 +376,275 @@ def call_operation(
         )
         # Best-effort MLflow logging if enabled via env; avoid starting runs unless requested
         try:
-            if ensure_run_from_env(
-                tags={"tool": "openapi", "op_id": request.operation_id}
-            ):
-                import mlflow
+            from dspx.tracing import get_mlflow
 
-                # Redact URL before logging
-                mlflow.log_params(
-                    {
-                        "openapi.method": method,
-                        "openapi.path": path,
-                        "openapi.server": server or "",
-                        "openapi.url": _redact_url(url),
-                    }
-                )  # type: ignore[attr-defined]
-                mlflow.log_metrics(
-                    {
-                        "openapi.status_code": float(resp.status_code),
-                        "openapi.duration_ms": (t1 - t0) * 1000.0,
-                    }
-                )  # type: ignore[attr-defined]
+            mlflow = get_mlflow()
+            if mlflow is not None:
+                if ensure_run_from_env(
+                    tags={"tool": "openapi", "op_id": request.operation_id}
+                ):
+                    # Redact URL before logging
+                    mlflow.log_params(
+                        {
+                            "openapi.method": method,
+                            "openapi.path": path,
+                            "openapi.server": server or "",
+                            "openapi.url": _redact_url(url),
+                        }
+                    )  # type: ignore[attr-defined]
+                    mlflow.log_metrics(
+                        {
+                            "openapi.status_code": float(resp.status_code),
+                            "openapi.duration_ms": (t1 - t0) * 1000.0,
+                        }
+                    )  # type: ignore[attr-defined]
         except Exception:
             pass
         return result
     finally:
         if close_client:
             client.close()
+
+
+def _validate_json_value_against_schema(
+    value: Any, schema: Mapping[str, Any], *, path: str, _depth: int = 0, _max: int = 6
+) -> None:
+    """Recursive, conservative validation against a subset of JSON Schema used in OpenAPI.
+
+    Supported: type, enum, required, properties, items, oneOf/anyOf, $ref (local), allOf (object merge),
+    and a small set of bounds (min/max length, numeric min/max, min/max items, pattern).
+    Raises ValueError with a helpful message on the first failure.
+    """
+    if _depth > _max:
+        return
+    if not isinstance(schema, Mapping):
+        return
+
+    # Combinators: oneOf/anyOf
+    for key in ("oneOf", "anyOf"):
+        if isinstance(schema.get(key), list) and schema[key]:  # type: ignore[index]
+            errs: list[str] = []
+            for idx, branch in enumerate(schema[key]):  # type: ignore[index]
+                try:
+                    _validate_json_value_against_schema(
+                        value, branch or {}, path=path, _depth=_depth + 1, _max=_max
+                    )
+                    return  # any branch passing is enough
+                except ValueError as e:
+                    errs.append(f"{key}[{idx}]: {e}")
+            raise ValueError(f"{path}: none matched ({'; '.join(errs)})")
+
+    # Enum constraint
+    if isinstance(schema.get("enum"), list):
+        allowed = {str(x) for x in schema["enum"]}  # type: ignore[index]
+        if str(value) not in allowed:
+            raise ValueError(f"{path}: value must be one of {sorted(allowed)}")
+
+    t = schema.get("type")
+
+    # Object (t may be omitted in some specs when properties/required are present)
+    if t == "object" or (
+        t is None and ("properties" in schema or "required" in schema)
+    ):
+        if not isinstance(value, Mapping):
+            raise ValueError(f"{path}: expected object")
+        required = list(schema.get("required") or [])
+        for r in required:
+            if r not in value:
+                raise ValueError(f"{path}: missing required property '{r}'")
+        props = schema.get("properties") or {}
+        if isinstance(props, Mapping):
+            for name, ps in props.items():
+                if name in value:
+                    # quick inline checks for common constraints even if type is missing
+                    try:
+                        if isinstance(ps, Mapping):
+                            v = value[name]
+                            if isinstance(
+                                ps.get("minLength"), (int, float)
+                            ) and isinstance(v, str):
+                                if len(v) < int(ps["minLength"]):  # type: ignore[index]
+                                    raise ValueError(
+                                        f"{path}.{name}: shorter than minLength"
+                                    )
+                            if isinstance(ps.get("pattern"), str) and isinstance(
+                                v, str
+                            ):
+                                if not _re.compile(str(ps.get("pattern"))).search(v):
+                                    raise ValueError(
+                                        f"{path}.{name}: does not match pattern"
+                                    )
+                    except ValueError:
+                        raise
+                    except Exception:
+                        pass
+                    _validate_json_value_against_schema(
+                        value[name],
+                        ps or {},
+                        path=f"{path}.{name}",
+                        _depth=_depth + 1,
+                        _max=_max,
+                    )
+        return
+
+    # Array
+    if t == "array":
+        if not isinstance(value, list):
+            raise ValueError(f"{path}: expected array")
+        items = schema.get("items")
+        if isinstance(items, Mapping):
+            for i, el in enumerate(value):
+                _validate_json_value_against_schema(
+                    el, items, path=f"{path}[{i}]", _depth=_depth + 1, _max=_max
+                )
+        # minItems/maxItems
+        if isinstance(schema.get("minItems"), (int, float)) and len(value) < int(
+            schema["minItems"]
+        ):  # type: ignore[index]
+            raise ValueError(f"{path}: too few items (< minItems)")
+        if isinstance(schema.get("maxItems"), (int, float)) and len(value) > int(
+            schema["maxItems"]
+        ):  # type: ignore[index]
+            raise ValueError(f"{path}: too many items (> maxItems)")
+        return
+
+    # Primitive types
+    if t == "integer":
+        try:
+            int(value)
+        except Exception:
+            raise ValueError(f"{path}: expected integer")
+        # numeric bounds
+        try:
+            v = int(value)
+            if "minimum" in schema and v < int(schema["minimum"]):  # type: ignore[index]
+                raise ValueError(f"{path}: below minimum")
+            if "maximum" in schema and v > int(schema["maximum"]):  # type: ignore[index]
+                raise ValueError(f"{path}: above maximum")
+            if schema.get("exclusiveMinimum") and v <= int(schema.get("minimum", v)):  # type: ignore[index]
+                raise ValueError(f"{path}: <= exclusiveMinimum")
+            if schema.get("exclusiveMaximum") and v >= int(schema.get("maximum", v)):  # type: ignore[index]
+                raise ValueError(f"{path}: >= exclusiveMaximum")
+        except Exception:
+            pass
+        return
+    if t == "number":
+        try:
+            float(value)
+        except Exception:
+            raise ValueError(f"{path}: expected number")
+        try:
+            v = float(value)
+            if "minimum" in schema and v < float(schema["minimum"]):  # type: ignore[index]
+                raise ValueError(f"{path}: below minimum")
+            if "maximum" in schema and v > float(schema["maximum"]):  # type: ignore[index]
+                raise ValueError(f"{path}: above maximum")
+            if schema.get("exclusiveMinimum") and v <= float(schema.get("minimum", v)):  # type: ignore[index]
+                raise ValueError(f"{path}: <= exclusiveMinimum")
+            if schema.get("exclusiveMaximum") and v >= float(schema.get("maximum", v)):  # type: ignore[index]
+                raise ValueError(f"{path}: >= exclusiveMaximum")
+        except Exception:
+            pass
+        return
+    if t == "boolean":
+        if isinstance(value, bool):
+            return
+        raise ValueError(f"{path}: expected boolean")
+    if t == "string":
+        if not isinstance(value, str):
+            raise ValueError(f"{path}: expected string")
+        # minLength/maxLength, pattern
+        try:
+            if isinstance(schema.get("minLength"), (int, float)) and len(value) < int(
+                schema["minLength"]
+            ):  # type: ignore[index]
+                raise ValueError(f"{path}: shorter than minLength")
+            if isinstance(schema.get("maxLength"), (int, float)) and len(value) > int(
+                schema["maxLength"]
+            ):  # type: ignore[index]
+                raise ValueError(f"{path}: longer than maxLength")
+            if isinstance(schema.get("pattern"), str):
+                pat = schema["pattern"]  # type: ignore[index]
+                if not _re.compile(pat).search(value):
+                    raise ValueError(f"{path}: does not match pattern")
+        except Exception:
+            pass
+        return
+    # unknown or unspecified: accept
+    return
+
+
+def _resolve_schema(
+    schema: Mapping[str, Any],
+    components: Mapping[str, Any],
+    _seen: Optional[set[str]] = None,
+) -> Mapping[str, Any]:
+    """Resolve $ref and merge allOf for object schemas (shallow) recursively.
+
+    Only resolves local refs under #/components/schemas. Returns a new dict.
+    """
+    if _seen is None:
+        _seen = set()
+    if not isinstance(schema, Mapping):
+        return schema
+    # $ref resolution
+    if "$ref" in schema and isinstance(schema.get("$ref"), str):
+        ref = str(schema.get("$ref"))
+        if ref in _seen:
+            return {}
+        _seen.add(ref)
+        target: Optional[Mapping[str, Any]] = None
+        try:
+            if ref.startswith("#/components/schemas/") and isinstance(
+                components, Mapping
+            ):
+                key = ref.split("/schemas/")[-1]
+                target = (components.get("schemas") or {}).get(key)  # type: ignore[index]
+        except Exception:
+            target = None
+        if isinstance(target, Mapping):
+            return _resolve_schema(target, components, _seen)
+        # Unresolvable: return as-is
+        return schema
+    # allOf merge (object schemas)
+    if isinstance(schema.get("allOf"), list):
+        merged: Dict[str, Any] = {}
+        required: set[str] = set()
+        props: Dict[str, Any] = {}
+        for part in schema.get("allOf"):  # type: ignore[assignment]
+            part = _resolve_schema(part or {}, components, _seen)
+            if not isinstance(part, Mapping):
+                continue
+            if (
+                part.get("type") == "object"
+                or "properties" in part
+                or "required" in part
+            ):
+                rp = part.get("properties") or {}
+                if isinstance(rp, Mapping):
+                    props.update(rp)  # later wins
+                rr = part.get("required") or []
+                try:
+                    required.update([str(x) for x in rr])
+                except Exception:
+                    pass
+                # carry other object-level constraints conservatively
+        if props or required:
+            merged.update({"type": "object", "properties": props})
+            if required:
+                merged["required"] = sorted(required)
+            # Merge back any additional top-level keywords except allOf
+            for k, v in schema.items():
+                if k not in {"allOf", "properties", "required", "type"}:
+                    merged[k] = v
+            return merged
+    # Recurse into object properties/items
+    out = dict(schema)
+    if isinstance(schema.get("properties"), Mapping):
+        new_props: Dict[str, Any] = {}
+        for k, v in schema["properties"].items():  # type: ignore[index]
+            new_props[k] = _resolve_schema(v, components, _seen)
+        out["properties"] = new_props
+    if isinstance(schema.get("items"), Mapping):
+        out["items"] = _resolve_schema(schema["items"], components, _seen)  # type: ignore[index]
+    return out

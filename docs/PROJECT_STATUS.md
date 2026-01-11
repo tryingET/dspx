@@ -1,6 +1,8 @@
 Project Status
 ==============
 
+**Note:** This file is legacy; the canonical status document is `PROJECT_STATUS.md` at the repo root.
+
 Overview
 --------
 This repo provides a thin, extensible SDK around multiple headless CLI

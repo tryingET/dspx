@@ -21,6 +21,7 @@ Configuration
   cp example.toml config.toml
 
 - You can also point `DSPX_CONFIG` to any config path. The loader searches the nearest `config.toml` if none is set.
+- Secrets: `.env` is supported (git-ignored) and is loaded automatically by `just` recipes. Put `OPENROUTER_API_KEY=...` there if you use OpenRouter.
 
 Files
 -----
@@ -46,7 +47,8 @@ Architecture & Vision
 ---------------------
 - This repo follows a layered design with clear seams for extension:
   - Core: config loader, MLflow tracing, typed DTOs, LM provider base + registry, tool registry
-  - Providers: Codex Exec, Claude CLI, Gemini CLI, Multi‑provider, Stub LM
+- Providers: Codex Exec, Claude CLI, Gemini CLI, Multi‑provider, Stub LM
+  - Also supported: OpenRouter (OpenAI-compatible HTTP API) via provider name `openrouter`
   - Services: codegen, signature generation (vibe), refine, module generation, mermaid workflows, agents
   - CLI: thin entrypoints delegating to services; unified `dspx` CLI available
 - See docs/VISION.md (principles/roadmap), docs/ARCHITECTURE.md (multi‑view diagrams), and docs/OPENAPI_TOOLING.md (MVP details).
@@ -93,6 +95,29 @@ Unified CLI (dspx)
 - Mermaid with signature‑per‑node (vibe‑dspy):
 
   dspx mermaid sig -f path/to/diagram.mmd -n flow --provider codex-exec
+
+OpenRouter Provider
+-------------------
+- Set `OPENROUTER_API_KEY` and select the provider:
+
+  export OPENROUTER_API_KEY=...
+  export DSPX_PROVIDER=openrouter
+
+- Safer alternatives (avoid putting secrets on the command line):
+  - File: `dspx --openrouter-api-key-file /path/key.txt ...`
+  - 1Password CLI: `dspx --openrouter-api-key-op op://Vault/Item/field ...`
+  - Prompt: `dspx --openrouter-api-key-prompt ...`
+  - CI pipe: `printf %s "$OPENROUTER_API_KEY" | dspx --openrouter-api-key-stdin ...`
+
+- 1Password CLI (recommended pattern): use `op run` to inject secrets as env vars:
+
+  OPENROUTER_API_KEY="op://Vault/Item/field" op run -- dspx signature gen "..."
+
+- Justfile shortcuts (recommended):
+  - Create `.env` from `.env.example` and set your `OPENROUTER_API_KEY` reference.
+  - Run: `just openrouter-codegen "A python program that prints hello"`
+  - Run: `just openrouter-signature "Extract names from text"`
+  - Even simpler (no quotes/flags): `just or-codegen Write a python script that prints hello`
 
 OpenAPI Tools & Workflows
 -------------------------
@@ -157,7 +182,8 @@ Server (FastAPI) & Security
 Run the optional HTTP server (`dspx-server`, FastAPI + Granian) to expose endpoints:
 
 - Endpoints: `POST /signature`, `POST /module`, `POST /mermaid`
-- Start (Granian): `granian --interface asgi --host localhost --port 33213 dspx.server.app:app`
+- Start (Granian): `granian --interface asgi --host 127.0.0.1 --port 33213 dspx.server.app:app`
+- For Docker / remote access: bind `--host 0.0.0.0` and put auth + TLS in front (reverse proxy).
 - Or with Just: `just start` (override via `just start host=0.0.0.0 port=33213`)
 
 Auth (opt‑in):

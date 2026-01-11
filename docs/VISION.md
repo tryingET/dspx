@@ -5,6 +5,8 @@ Why this exists
 ---------------
 We want a durable, composable stack for LM-driven programming that: (a) treats the LM as a pluggable runtime (providers/capabilities), (b) exposes high‑leverage services (signatures, refine, codegen, workflows, agents), (c) is safe, observable, and reproducible, and (d) is easy to extend via plugins (providers/tools/generators).
 
+Current emphasis: **CLI-first toolkit** (prove workflows + contracts in real use) → then **platform/plugins** (Phase 10) once the core is battle-tested.
+
 First principles
 ----------------
 - Explicit contracts over implicit prompts: define DTOs for requests/results; keep services pure and testable.
@@ -26,6 +28,7 @@ Layers
 
 - Providers
   - CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, MultiProviderLM.
+  - OpenRouterLM (OpenRouter OpenAI-compatible HTTP API).
   - Capability probing (json/tool/exec/multi_turn) steers service behavior.
 
 - Services
@@ -232,11 +235,11 @@ Tools Catalog (initial)
 -----------------------
 Curated toolpacks registered via ToolRegistry with capability tags and policy gates. All tools honor budgets/timeouts and redact sensitive data in logs.
 
-- OpenAPI (network.readonly|network.mutate)
+- OpenAPI (network.read|network.mutate)
   - Loader/caller with host allowlists and schema validation.
   - CLI: `dspx tools openapi load|ops|call`.
 
-- Web fetch/scrape (network.readonly)
+- Web fetch/scrape (network.read)
   - `fetch(url)`: httpx GET with status/headers/meta; size caps.
   - `scrape(url, selector?)`: fetch + bs4 extraction; optional CSS selector.
   - CLI: `dspx tools web fetch|scrape`.
@@ -258,7 +261,7 @@ Curated toolpacks registered via ToolRegistry with capability tags and policy ga
 - Data preview (filesystem.read)
   - `preview(path, nrows)`: show schema + head for CSV/JSON/Parquet with size/time caps.
 
-Capability tags (examples): `network.readonly`, `network.mutate`, `code.exec`, `filesystem.read`, `filesystem.write`, `db.read`, `db.write`.
+Capability tags (examples): `network.read`, `network.mutate`, `code.exec`, `filesystem.read`, `filesystem.write`, `db.read`, `db.write`.
 
 Adapters Catalog (initial)
 --------------------------
@@ -283,7 +286,7 @@ CLI/SDK exposure (tools/adapters)
 Success Metrics
 ---------------
 - DX: unified CLI helps new users complete a task in <5 minutes.
-- Tests: unit tests (no external deps) <2s; full smoke <5s.
+- Tests: unit tests (no external deps) ~<5s; full smoke <10s (provider-dependent).
 - Repro: cache hit rate >70% in CI; artifacts tagged with inputs/options.
 - Safety: no requests to non‑allowlisted hosts in CI; secrets redacted.
 - Extensibility: external provider/tool plugin authored in <50 lines and loaded via entry point.

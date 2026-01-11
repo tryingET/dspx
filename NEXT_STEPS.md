@@ -89,6 +89,7 @@ Goal: strengthen policy for tool/provider gating and isolation.
     `X-DSPX-Confirm: 1`.
   - Tool descriptors and typed OpenAPI ops introduced: registry now exposes `available_descriptors()`/`get_descriptor()`;
     CLIs (`tools list|search|describe`) consume descriptor metadata for consistent output.
+  - MLflow: `MLFLOW_ENABLE=0` is now a hard-disable (no `mlflow` import/calls); no default HTTP tracking URI fallback; added regression test to prevent silent network retries in CI.
 
 - Next
   - Stronger sandbox isolation options for code‑exec providers (env allowlist, RO mounts).
@@ -114,8 +115,7 @@ Goal: enable third-party providers/tools/generators via entry points.
 ## Refinements (Near-term 80/20)
 
 - OpenAPI: now includes `ops --tags` and `ops --json`, `describe --json` with response schema summaries;
-  added validation for enums/arrays/shallow nested objects. Next: widen coverage for complex
-  nested schemas and arrays of objects with deeper constraints.
+  added validation for enums/arrays/nested objects plus local `$ref` + shallow `allOf` merge, and basic bounds (`minLength`, `pattern`, `minimum/maximum`). Next: widen coverage for more schema constraints and response schemas.
 - MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
   run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP` (now exported by the `bench-mlflow` recipe);
   per‑service budgets (`--budget-ms`) with `service.duration_ms` and `service.budget_exceeded`;

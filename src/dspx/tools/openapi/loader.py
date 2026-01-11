@@ -136,6 +136,8 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         if isinstance(s0, dict) and "url" in s0:
             base_server = str(s0["url"]).rstrip("/")
     paths = spec.get("paths") or {}
+    components = spec.get("components") or {}
+    comp_params = components.get("parameters") if isinstance(components, dict) else None
     if not isinstance(paths, dict):
         return ops
     for path, item in paths.items():
@@ -172,6 +174,19 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             for pr in path_params + list(op_params):
                 if not isinstance(pr, dict):
                     continue
+                # Resolve parameter $ref if present
+                if "$ref" in pr and isinstance(pr.get("$ref"), str):
+                    ref = str(pr.get("$ref"))
+                    try:
+                        if ref.startswith("#/components/parameters/") and isinstance(
+                            comp_params, dict
+                        ):
+                            key = ref.split("/parameters/")[-1]
+                            cand = comp_params.get(key)
+                            if isinstance(cand, dict):
+                                pr = cand
+                    except Exception:
+                        pass
                 nm = str(pr.get("name") or "")
                 pin = str(pr.get("in") or "")
                 key = (nm, pin)
@@ -238,10 +253,10 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                 "responses": responses,
                 "tags": tags,
                 "summary": summary,
+                # Carry components so caller can resolve $ref & allOf
+                "components": components,
             }
     return ops
-
-
 
 
 def extract_operation_infos(spec: Dict[str, Any]) -> Dict[str, OpenAPIOperationInfo]:
@@ -263,6 +278,7 @@ def extract_operation_infos(spec: Dict[str, Any]) -> Dict[str, OpenAPIOperationI
                 parameters=list(info.get("parameters") or []),
                 requestBody=(info.get("requestBody") or None),
                 responses=dict(info.get("responses") or {}),
+                components=(info.get("components") or None),
             )
         except Exception:
             # Best-effort; skip invalid

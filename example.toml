@@ -36,8 +36,23 @@ search = false
 
 [provider]
 # Select the LM provider via registry name
-# Options include: "codex-exec", "claude-cli", "gemini-cli", "multi", "stub"
+# Options include: "codex-exec", "openrouter", "claude-cli", "gemini-cli", "multi", "stub"
 name = "codex-exec"
+
+# OpenRouter (API provider)
+# Notes:
+# - Do NOT put `OPENROUTER_API_KEY` in this file; set it as an env var (CI secret).
+# - These values are optional; env vars win if set.
+[openrouter]
+base_url = "https://openrouter.ai/api/v1"
+model = "meta-llama/llama-3.1-8b-instruct:free"
+timeout_s = 30
+# Optional attribution (recommended by OpenRouter docs)
+http_referer = ""
+app_title = "dspx"
+
+# API key must come from env (recommended: put it in .env, which is git-ignored)
+#   OPENROUTER_API_KEY=...
 
 # --- Optional: reference for env-based budgets/timeouts ---
 # (not read from TOML; set them as env vars alongside this config)
