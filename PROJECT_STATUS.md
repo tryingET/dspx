@@ -10,12 +10,13 @@ decisions, and readiness against the vision plan.
   `dspx-server` (FastAPI ASGI app served by Granian).
 - Canonical Mermaid→signatures CLI: `dspx-mermaid-sig` maps to
   `dspx.cli.dspx_mermaid2dspy:main`.
-- Tests: local suite runs in ~4–5s (`just test`) with 124 passing tests (1 skipped).
+- Tests: local suite runs in ~8–9s (`just test`) with 127 passing tests (2 skipped).
 - Build: `uv build` succeeds; console scripts resolve.
 - Docs: updated vision, architecture views, OpenAPI tooling (MVP), and new
   end‑to‑end tutorial `docs/TUTORIAL_E2E.md`.
 - Configuration: consolidated example config `example.toml` (copy to `config.toml`); `config.toml` is git‑ignored.
 - Examples: Mermaid sample updated to a pedagogical flow (Unterrichtsstörungen, DE) for a more practical demo.
+- OpenRouter: provider available (`DSPX_PROVIDER=openrouter`) plus `.env.example` and Just recipes (`or-codegen`, `or-signature`, timed variants) designed to work with 1Password `op run` + `op://...` env references (no secrets in CLI flags).
 - Tooling: `Justfile` includes `bench-mlflow` to run a single
   MLflow‑logged benchmark across providers. The task now exports
   `DSPX_RUN_GROUP` so all child CLI runs receive a consistent
@@ -28,7 +29,7 @@ decisions, and readiness against the vision plan.
 
 ## Current Components
 
-- Providers: CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, MultiProviderLM, Stub LM.
+- Providers: CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, OpenRouterLM, MultiProviderLM, Stub LM.
 - Core: LMBase + ProviderCapabilities, DTOs (Signatures, Modules, Programs,
   Codegen, OpenAPI Call), ToolRegistry, typed descriptors for tools (`ToolDescriptor`) and
   typed OpenAPI operations (`OpenAPIOperationInfo`).
@@ -63,6 +64,7 @@ decisions, and readiness against the vision plan.
   `service.duration_ms`/`service.budget_exceeded` metrics.
   dspy traces: `mlflow.dspy.autolog` configured to attach spans to the active named run
   (no implicit run creation), with stable run naming in CLI (`signature-*`, `codegen-*`, `module-*`, `mermaid-*`).
+  MLflow hard-disable: `MLFLOW_ENABLE=0` now prevents `mlflow` imports/calls entirely (no default HTTP tracking fallback, no accidental network retries). A concrete observability fix plan lives in `docs/MLFLOW_OBSERVABILITY_PLAN.md`.
 - Caching/Repro: content‑hash caching for generation services; manifests and
   meta files alongside outputs; CLI `--no-cache`, `--cache-info`, cache keys in meta;
   Cache management CLI: `dspx cache info|list|show|clear`.
@@ -117,6 +119,8 @@ decisions, and readiness against the vision plan.
 ## Risks & Dependencies
 
 - External CLIs (codex/claude/gemini) availability and authentication.
+- 1Password CLI (`op`) for resolving `op://...` references in `.env` when using OpenRouter recipes.
+- OpenRouter API availability and networking (only required when the provider is selected).
 - Network access and host allowlists for OpenAPI/Web tools.
 - MLflow availability for tracing (optional; disabled in tests).
 - Submodules present but not required for fast tests.

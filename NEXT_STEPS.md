@@ -4,6 +4,16 @@ This document tracks actionable next steps aligned with the phased plan
 in `docs/VISION.md`. Phases 1–6 are complete; below focuses on upcoming
 work and refinements.
 
+## Publish (CLI-first toolkit) — near-term checklist
+
+- Decide default provider posture: ship with `DSPX_PROVIDER=openrouter` support but keep offline/deterministic tests as default.
+- Ensure OpenRouter + 1Password DX is crisp:
+  - `cp .env.example .env` (git-ignored), set `OPENROUTER_API_KEY=op://...`.
+  - `just openrouter-whoami`, `just or-codegen ...`, `just or-codegen-timed ...`.
+- MLflow observability: follow and execute `docs/MLFLOW_OBSERVABILITY_PLAN.md` (fix tracking URI semantics, run lifecycle, and CI-safe toggles).
+- Docs sweep: README quickstart uses the same “.env + just” flow; SERVER.md clarifies `127.0.0.1` vs `0.0.0.0` for Docker/NAS.
+- Release hygiene: bump version, `just release new=x.y.z`, tag, publish.
+
 ## Phase 7 — Adapter Registry (datasets/eval/stores)
 
 Status: DONE (MVP+)
@@ -90,6 +100,7 @@ Goal: strengthen policy for tool/provider gating and isolation.
   - Tool descriptors and typed OpenAPI ops introduced: registry now exposes `available_descriptors()`/`get_descriptor()`;
     CLIs (`tools list|search|describe`) consume descriptor metadata for consistent output.
   - MLflow: `MLFLOW_ENABLE=0` is now a hard-disable (no `mlflow` import/calls); no default HTTP tracking URI fallback; added regression test to prevent silent network retries in CI.
+  - OpenRouter provider (OpenAI-style chat completions) plus Just recipes and `.env.example` to run via `op run` without secrets in CLI flags; opt-in live test gated by env.
 
 - Next
   - Stronger sandbox isolation options for code‑exec providers (env allowlist, RO mounts).
@@ -116,6 +127,7 @@ Goal: enable third-party providers/tools/generators via entry points.
 
 - OpenAPI: now includes `ops --tags` and `ops --json`, `describe --json` with response schema summaries;
   added validation for enums/arrays/nested objects plus local `$ref` + shallow `allOf` merge, and basic bounds (`minLength`, `pattern`, `minimum/maximum`). Next: widen coverage for more schema constraints and response schemas.
+- OpenRouter: keep the “.env + just” path first-class; consider adding a small “provider smoke” command that runs a single short prompt with budgets and prints provider metadata.
 - MLflow: standardized tags (`service`, `template_version`, `provider`) and artifacts/manifests attached;
   run naming (`signature-*`, `module-*`, `codegen-*`, `mermaid-*`), grouping via `DSPX_RUN_GROUP` (now exported by the `bench-mlflow` recipe);
   per‑service budgets (`--budget-ms`) with `service.duration_ms` and `service.budget_exceeded`;
