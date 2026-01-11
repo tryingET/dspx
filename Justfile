@@ -124,6 +124,10 @@ gepa program train out val="" output_key="" auto="light" max_metric_calls="":
 codex-gepa program train out val="" output_key="" auto="light" max_metric_calls="20":
   DSPX_PROVIDER=codex-exec just gepa "{{program}}" "{{train}}" "{{out}}" "{{val}}" "{{output_key}}" {{auto}} {{max_metric_calls}}
 
+codex-gepa-timed program train out val="" output_key="" auto="light" max_metric_calls="20":
+  TIMEFORMAT=$'[codex-gepa] duration_s=%R\n'; \
+  time just codex-gepa "{{program}}" "{{train}}" "{{out}}" "{{val}}" "{{output_key}}" {{auto}} {{max_metric_calls}}
+
 # Build distributables (wheel + sdist)
 build:
   uv build

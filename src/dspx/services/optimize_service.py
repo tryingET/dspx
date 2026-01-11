@@ -10,7 +10,10 @@ class GEPAResult:
     out_dir: Path
     input_keys: List[str]
     output_keys: List[str]
-    chosen_output_key: str
+    chosen_output_keys: List[str]
+    metric: str
+    student_provider: str
+    reflection_provider: str
 
 
 def _import_program_module(program_path: Path) -> object:
@@ -33,6 +36,26 @@ def _build_student(mod: object) -> object:
         return getattr(mod, "build_student")()
     raise RuntimeError(
         "Program file must export build_student() -> dspy.Module for GEPA optimization"
+    )
+
+
+def _io_spec_from_program(mod: object) -> Optional[Tuple[List[str], List[str]]]:
+    io_spec = getattr(mod, "io_spec", None)
+    if io_spec is None or not callable(io_spec):
+        return None
+    spec = io_spec()
+    if isinstance(spec, tuple) and len(spec) == 2:
+        inputs, outputs = spec
+        if isinstance(inputs, list) and isinstance(outputs, list):
+            return inputs, outputs
+    if isinstance(spec, dict):
+        inputs = spec.get("inputs")
+        outputs = spec.get("outputs")
+        if isinstance(inputs, list) and isinstance(outputs, list):
+            return inputs, outputs
+    raise RuntimeError(
+        "io_spec() must return (inputs: list[str], outputs: list[str]) or "
+        "{'inputs': [...], 'outputs': [...]}."
     )
 
 
@@ -65,44 +88,95 @@ def _make_examples(
     records: Iterable[Dict[str, Any]],
     *,
     input_keys: List[str],
-    output_key: str,
+    output_keys: List[str],
 ) -> List[object]:
     import dspy
 
     out: List[object] = []
     for i, r in enumerate(records):
-        missing = [k for k in ([*input_keys, output_key]) if k not in r]
+        missing = [k for k in ([*input_keys, *output_keys]) if k not in r]
         if missing:
             raise KeyError(f"Missing keys {missing} at row {i}")
-        ex = dspy.Example(**{k: r[k] for k in ([*input_keys, output_key])})
+        ex = dspy.Example(**{k: r[k] for k in ([*input_keys, *output_keys])})
         ex = ex.with_inputs(*input_keys)
         out.append(ex)
     return out
 
 
-def _default_gepa_metric(output_key: str):
+def _tokenize(s: str) -> List[str]:
+    import re
+
+    return [t for t in re.findall(r"[A-Za-z0-9_]+", s.lower()) if t]
+
+
+def _f1_score(gold: str, pred: str) -> float:
+    from collections import Counter
+
+    g = _tokenize(gold)
+    p = _tokenize(pred)
+    if not g and not p:
+        return 1.0
+    if not g or not p:
+        return 0.0
+    cg = Counter(g)
+    cp = Counter(p)
+    overlap = sum((cg & cp).values())
+    prec = overlap / max(1, len(p))
+    rec = overlap / max(1, len(g))
+    if prec + rec == 0.0:
+        return 0.0
+    return 2.0 * prec * rec / (prec + rec)
+
+
+def _default_gepa_metric(output_keys: List[str], metric: str):
     from dspy.teleprompt.gepa.gepa_utils import ScoreWithFeedback
 
     def metric(gold, pred, trace, pred_name, pred_trace):  # type: ignore[no-untyped-def]
-        try:
-            gold_val = getattr(gold, output_key)
-        except Exception:
-            gold_val = gold[output_key]  # type: ignore[index]
-        try:
-            pred_val = getattr(pred, output_key)
-        except Exception:
-            pred_val = pred.get(output_key) if hasattr(pred, "get") else None
+        scores: List[float] = []
+        feedback_lines: List[str] = []
+        for k in output_keys:
+            try:
+                gold_val = getattr(gold, k)
+            except Exception:
+                gold_val = gold[k]  # type: ignore[index]
+            try:
+                pred_val = getattr(pred, k)
+            except Exception:
+                pred_val = pred.get(k) if hasattr(pred, "get") else None
 
-        g = str(gold_val).strip()
-        p = str(pred_val).strip()
-        score = 1.0 if p == g else 0.0
-        if score >= 1.0:
-            fb = "Correct."
-        else:
-            fb = f"Expected {output_key}={g!r} but got {p!r}."
-        return ScoreWithFeedback(score=score, feedback=fb)
+            g = str(gold_val).strip()
+            p = str(pred_val).strip() if pred_val is not None else ""
+
+            if metric == "exact":
+                s = 1.0 if p == g else 0.0
+            elif metric == "contains":
+                s = 1.0 if (g.lower() in p.lower()) else 0.0
+            elif metric == "f1":
+                s = _f1_score(g, p)
+            else:
+                raise ValueError("metric must be one of: exact, contains, f1")
+
+            scores.append(float(s))
+            if s >= 0.999:
+                feedback_lines.append(f"{k}: ok")
+            else:
+                feedback_lines.append(f"{k}: expected={g!r} got={p!r}")
+
+        score = sum(scores) / max(1, len(scores))
+        fb = " ; ".join(feedback_lines)
+        return ScoreWithFeedback(score=float(score), feedback=fb)
 
     return metric
+
+
+def _sha256_file(path: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def run_gepa_optimize(
@@ -110,12 +184,15 @@ def run_gepa_optimize(
     program_path: Path,
     train_path: Path,
     out_dir: Path,
-    output_key: Optional[str] = None,
+    input_keys: Optional[List[str]] = None,
+    output_keys: Optional[List[str]] = None,
     val_path: Optional[Path] = None,
-    provider: Optional[str] = None,
-    auto: str = "light",
+    student_provider: Optional[str] = None,
+    reflection_provider: Optional[str] = None,
+    auto: Optional[str] = "light",
     max_metric_calls: Optional[int] = None,
     max_full_evals: Optional[int] = None,
+    metric: str = "exact",
     seed: int = 0,
     nrows: Optional[int] = None,
 ) -> GEPAResult:
@@ -123,60 +200,83 @@ def run_gepa_optimize(
     Optimize a DSPy program/module via GEPA and save it as a loadable program dir.
 
     Provider selection:
-    - Defaults to DSPX_PROVIDER (provider registry), which defaults to 'codex-exec'.
-    - For GEPA, both the student's LM and GEPA's reflection_lm use the same provider.
+    - student_provider defaults to DSPX_PROVIDER (default: codex-exec).
+    - reflection_provider defaults to student_provider.
 
-    Program requirements (first slice):
+    Program requirements:
     - PROGRAM_PATH must export build_student() -> dspy.Module
-    - The returned module must expose .predict.signature.input_fields/output_fields
+    - Provide IO in one of three ways (in order of preference):
+      1) Pass input_keys/output_keys explicitly
+      2) Export io_spec() -> (inputs, outputs) or {'inputs': [...], 'outputs': [...]}
+      3) Student exposes student.predict.signature.{input_fields,output_fields}
     """
+    import json
+    import os
+    from datetime import datetime, timezone
+
     import dspy
-    from dspx.provider_registry import create_from_env
+    from dspx.provider_registry import create, create_from_env, ensure_default_providers
 
-    if provider:
-        import os
+    ensure_default_providers()
 
-        os.environ["DSPX_PROVIDER"] = provider
+    student_lm = (
+        create(student_provider)
+        if student_provider
+        else create_from_env(default="codex-exec")
+    )
+    reflection_lm = (
+        create(reflection_provider)
+        if reflection_provider
+        else (
+            create(student_provider)
+            if student_provider
+            else create_from_env(default="codex-exec")
+        )
+    )
 
-    lm = create_from_env()
-    # Ensure GEPA + Predict calls use the same LM (CodexExecLM by default).
-    dspy.configure(lm=lm)
+    # Ensure GEPA + Predict calls use the student LM; GEPA reflections use reflection_lm.
+    dspy.configure(lm=student_lm)
 
     mod = _import_program_module(Path(program_path))
     student = _build_student(mod)
-    input_keys, output_keys = _infer_io_from_student(student)
 
-    chosen_output = output_key or (output_keys[0] if len(output_keys) == 1 else None)
-    if not chosen_output:
+    inferred = _io_spec_from_program(mod) or _infer_io_from_student(student)
+    inferred_inputs, inferred_outputs = inferred
+
+    in_keys = list(input_keys or inferred_inputs)
+    out_keys = list(output_keys or inferred_outputs)
+    if not in_keys:
         raise ValueError(
-            "Multiple output fields detected; pass output_key to select one"
+            "No input keys detected; pass input_keys or implement io_spec()"
+        )
+    if not out_keys:
+        raise ValueError(
+            "No output keys detected; pass output_keys or implement io_spec()"
         )
 
     train_records = _load_records(Path(train_path), nrows=nrows)
-    trainset = _make_examples(
-        train_records, input_keys=input_keys, output_key=chosen_output
-    )
+    trainset = _make_examples(train_records, input_keys=in_keys, output_keys=out_keys)
     valset = None
     if val_path is not None:
         val_records = _load_records(Path(val_path), nrows=nrows)
-        valset = _make_examples(
-            val_records, input_keys=input_keys, output_key=chosen_output
-        )
+        valset = _make_examples(val_records, input_keys=in_keys, output_keys=out_keys)
 
     from dspy.teleprompt.gepa.gepa import GEPA
 
-    metric = _default_gepa_metric(chosen_output)
-    # GEPA requires exactly one budget selector: auto OR max_metric_calls OR max_full_evals.
-    auto_arg: Optional[str] = auto
-    if max_metric_calls is not None or max_full_evals is not None:
-        auto_arg = None
+    budget_set = sum(
+        1 for x in (auto, max_metric_calls, max_full_evals) if x is not None
+    )
+    if budget_set != 1:
+        raise ValueError(
+            "Exactly one of auto, max_metric_calls, max_full_evals must be set."
+        )
 
     gepa = GEPA(
-        metric,
-        auto=auto_arg,  # type: ignore[arg-type]
+        _default_gepa_metric(out_keys, metric),
+        auto=auto,  # type: ignore[arg-type]
         max_full_evals=max_full_evals,
         max_metric_calls=max_metric_calls,
-        reflection_lm=lm,  # critical: run reflections on the same provider (codex)
+        reflection_lm=reflection_lm,
         seed=seed,
     )
 
@@ -184,19 +284,72 @@ def run_gepa_optimize(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     # Save the whole program so we can `dspy.load(out_dir)` later without source imports.
-    try:
-        compiled.save(
-            str(out_dir),
-            save_program=True,
-            modules_to_serialize=[mod],  # type: ignore[list-item]
-        )
-    except Exception:
-        # Fallback: save without module-by-value registration.
-        compiled.save(str(out_dir), save_program=True)
+    compiled.save(str(out_dir), save_program=True)
+
+    # Capture source + manifest for auditability and offline repro.
+    source_dir = out_dir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    program_path = Path(program_path).resolve()
+    copied_program = source_dir / program_path.name
+    copied_program.write_bytes(program_path.read_bytes())
+
+    manifest = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "dspy_version": getattr(dspy, "__version__", "unknown"),
+        "program": {
+            "path": str(program_path),
+            "sha256": _sha256_file(program_path),
+            "copied_to": str(copied_program),
+        },
+        "dataset": {
+            "train": {
+                "path": str(Path(train_path)),
+                "sha256": _sha256_file(Path(train_path)),
+                "nrows_cap": nrows,
+                "nrows_loaded": len(train_records),
+            },
+            "val": (
+                {
+                    "path": str(Path(val_path)),
+                    "sha256": _sha256_file(Path(val_path)),
+                    "nrows_cap": nrows,
+                    "nrows_loaded": len(val_records) if val_path is not None else 0,
+                }
+                if val_path is not None
+                else None
+            ),
+        },
+        "io": {"inputs": in_keys, "outputs": out_keys},
+        "gepa": {
+            "metric": metric,
+            "auto": auto,
+            "max_metric_calls": max_metric_calls,
+            "max_full_evals": max_full_evals,
+            "seed": seed,
+        },
+        "providers": {
+            "student": {
+                "name": student_provider or os.getenv("DSPX_PROVIDER", "codex-exec"),
+                "model": getattr(student_lm, "model", None),
+            },
+            "reflection": {
+                "name": reflection_provider
+                or student_provider
+                or os.getenv("DSPX_PROVIDER", "codex-exec"),
+                "model": getattr(reflection_lm, "model", None),
+            },
+        },
+    }
+    (out_dir / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     return GEPAResult(
         out_dir=out_dir,
-        input_keys=input_keys,
-        output_keys=output_keys,
-        chosen_output_key=chosen_output,
+        input_keys=in_keys,
+        output_keys=out_keys,
+        chosen_output_keys=out_keys,
+        metric=metric,
+        student_provider=manifest["providers"]["student"]["name"],
+        reflection_provider=manifest["providers"]["reflection"]["name"],
     )

@@ -87,19 +87,40 @@ def optimize_gepa(
         file_okay=True,
         dir_okay=False,
     ),
-    output_key: Optional[str] = typer.Option(
-        None,
+    input_keys: List[str] = typer.Option(
+        [],
+        "--input",
+        help="Input column/key (repeatable). If omitted, inferred from io_spec() or module signature.",
+    ),
+    output_keys: List[str] = typer.Option(
+        [],
         "--output-key",
-        help="Output column/key to score (required if module has multiple outputs)",
+        help="Output column/key (repeatable). If omitted, inferred from io_spec() or module signature.",
     ),
-    provider: Optional[str] = typer.Option(
+    metric: str = typer.Option(
+        "exact", help="Metric: exact|contains|f1 (per output, averaged)"
+    ),
+    student_provider: Optional[str] = typer.Option(
         None,
-        help="Provider (registry name). Defaults to DSPX_PROVIDER (default: codex-exec).",
+        "--student-provider",
+        help="Provider for student calls (defaults to DSPX_PROVIDER, default: codex-exec).",
     ),
-    auto: str = typer.Option("light", help="GEPA intensity: light|medium|heavy"),
+    reflection_provider: Optional[str] = typer.Option(
+        None,
+        "--reflection-provider",
+        help="Provider for GEPA reflections (defaults to student-provider).",
+    ),
+    auto: Optional[str] = typer.Option(
+        None,
+        help="GEPA intensity: light|medium|heavy (required unless using --max-metric-calls/--max-full-evals).",
+    ),
     max_metric_calls: Optional[int] = typer.Option(
         None,
         help="Limit total metric calls (controls GEPA cost/time). If set, --auto is ignored.",
+    ),
+    max_full_evals: Optional[int] = typer.Option(
+        None,
+        help="Limit full evaluations (alternative GEPA budget selector).",
     ),
     seed: int = typer.Option(0, help="Deterministic seed for GEPA search"),
     nrows: Optional[int] = typer.Option(
@@ -108,18 +129,29 @@ def optimize_gepa(
 ) -> None:
     from dspx.services.optimize_service import run_gepa_optimize
 
-    _ensure_env(provider)
+    _ensure_env(student_provider)
+    budget_set = sum(
+        1 for x in (auto, max_metric_calls, max_full_evals) if x is not None
+    )
+    if budget_set != 1:
+        raise typer.BadParameter(
+            "Exactly one of --auto, --max-metric-calls, --max-full-evals must be set."
+        )
     res = run_gepa_optimize(
         program_path=program,
         train_path=train,
         val_path=val,
         out_dir=out,
-        output_key=output_key,
-        provider=provider,
+        input_keys=input_keys or None,
+        output_keys=output_keys or None,
+        student_provider=student_provider,
+        reflection_provider=reflection_provider,
         auto=auto,
         max_metric_calls=int(max_metric_calls)
         if max_metric_calls is not None
         else None,
+        max_full_evals=int(max_full_evals) if max_full_evals is not None else None,
+        metric=metric,
         seed=int(seed),
         nrows=nrows,
     )
