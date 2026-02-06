@@ -32,6 +32,7 @@ Canonical spec: `docs/FORGE.md` (v0 Contract + v0 Design).
 ## Publish (CLI-first toolkit) — near-term checklist
 
 - Default provider posture: keep default `DSPX_PROVIDER=codex-exec`; document `DSPX_PROVIDER=openrouter` as opt-in; keep tests offline/deterministic by default (forced `DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
+- Pi RPC provider (MVP): DONE (`DSPX_PROVIDER=pi-rpc` via long-lived `pi --mode rpc` subprocess, with fake-process unit tests + opt-in live smoke). Next: optional `pi-rpc` tool wrapper with strict depth/budget guards.
 - Tighten typechecking signal (ty):
   - Decide which ty warnings to fix vs ignore (minimize ignores).
   - Enforce `uvx ty check src --error-on-warning` in CI and `just typecheck`.

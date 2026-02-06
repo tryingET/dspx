@@ -136,6 +136,7 @@ def providers_smoke(
             "CLAUDE_TIMEOUT",
             "GEMINI_TIMEOUT",
             "OPENROUTER_TIMEOUT",
+            "DSPX_PI_TIMEOUT",
         ):
             os.environ[env_k] = secs
 
@@ -190,9 +191,9 @@ def providers_smoke(
                 run_name=f"provider-smoke-{name}",
                 extra={"provider.smoke_ok": "1" if ok else "0"},
             )
-            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            if mlflow.active_run() is not None:
                 try:
-                    mlflow.log_metrics(  # type: ignore[attr-defined]
+                    mlflow.log_metrics(
                         {"provider.smoke_duration_ms": float(duration_ms)}
                     )
                 except Exception:
@@ -534,15 +535,15 @@ def signature_gen(
                     template_version=template_version,
                     run_name=f"signature-{class_name or res.signature_name or ''}",
                 )
-                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                if mlflow.active_run() is not None:
                     try:
-                        mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+                        mlflow.log_artifact(str(outfile))
                     except Exception:
                         pass
                     meta_path = outfile.parent / (outfile.name + ".meta.json")
                     if meta_path.exists():
                         try:
-                            mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                            mlflow.log_artifact(str(meta_path))
                         except Exception:
                             pass
         except Exception:
@@ -695,15 +696,15 @@ def module_gen(
                     template_version=template_version,
                     run_name=f"module-{name}",
                 )
-                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                if mlflow.active_run() is not None:
                     try:
-                        mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+                        mlflow.log_artifact(str(outfile))
                     except Exception:
                         pass
                     meta_path = outfile.parent / (outfile.name + ".meta.json")
                     if meta_path.exists():
                         try:
-                            mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                            mlflow.log_artifact(str(meta_path))
                         except Exception:
                             pass
         except Exception:
@@ -810,15 +811,15 @@ def codegen(
                     template_version=template_version,
                     run_name=f"codegen-{language or 'python'}",
                 )
-                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                if mlflow.active_run() is not None:
                     try:
-                        mlflow.log_artifact(str(outfile))  # type: ignore[attr-defined]
+                        mlflow.log_artifact(str(outfile))
                     except Exception:
                         pass
                     meta_path = outfile.parent / (outfile.name + ".meta.json")
                     if meta_path.exists():
                         try:
-                            mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                            mlflow.log_artifact(str(meta_path))
                         except Exception:
                             pass
         except Exception:
@@ -1533,13 +1534,10 @@ def tools_run(
             from dspx.ui.confirmations import needs_confirmation
 
             need = needs_confirmation(desc)
-            if (
-                not need
-                and getattr(desc, "kind", "") == "openapi"
-                and getattr(desc, "openapi", None) is not None
-            ):
+            opi = getattr(desc, "openapi", None)
+            if not need and getattr(desc, "kind", "") == "openapi" and opi is not None:
                 try:
-                    m = str(desc.openapi.method or "").upper()
+                    m = str(getattr(opi, "method", "") or "").upper()
                     need = m in {"POST", "PUT", "PATCH", "DELETE"}
                 except Exception:
                     need = False

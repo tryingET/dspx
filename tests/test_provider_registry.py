@@ -11,7 +11,9 @@ def test_registry_defaults_available() -> None:
     ensure_default_providers()
     reg = available()
     # At least one provider should be registered by default
-    assert any(k in reg for k in ("codex-exec", "claude-cli", "gemini-cli", "multi"))
+    assert any(
+        k in reg for k in ("codex-exec", "claude-cli", "gemini-cli", "multi", "pi-rpc")
+    )
 
 
 def test_create_from_env_defaults(monkeypatch) -> None:

@@ -2,6 +2,7 @@ from .codex_exec_lm import CodexExecLM
 from .claude_cli_lm import ClaudeHeadlessLM
 from .multi_provider_lm import MultiProviderLM
 from .gemini_cli_lm import GeminiCLILM
+from .pi_rpc_lm import PiRPCLM
 from .validators import (
     non_empty,
     contains_all,
@@ -17,6 +18,7 @@ __all__ = [
     "ClaudeHeadlessLM",
     "MultiProviderLM",
     "GeminiCLILM",
+    "PiRPCLM",
     "non_empty",
     "contains_all",
     "regex",

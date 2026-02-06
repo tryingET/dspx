@@ -48,8 +48,9 @@ Architecture & Vision
 ---------------------
 - This repo follows a layered design with clear seams for extension:
   - Core: config loader, MLflow tracing, typed DTOs, LM provider base + registry, tool registry
-- Providers: Codex Exec, Claude CLI, Gemini CLI, Multi‑provider, Stub LM
+- Providers: Codex Exec, Claude CLI, Gemini CLI, Pi RPC, Multi‑provider, Stub LM
   - Also supported: OpenRouter (OpenAI-compatible HTTP API) via provider name `openrouter`
+  - Pi RPC provider name: `pi-rpc` (long-lived `pi --mode rpc` subprocess)
   - Services: codegen, signature generation (vibe), refine, module generation, mermaid workflows, agents
   - CLI: thin entrypoints delegating to services; unified `dspx` CLI available
 - See docs/VISION.md (principles/roadmap), docs/ARCHITECTURE.md (multi‑view diagrams), and docs/OPENAPI_TOOLING.md (MVP details).
@@ -127,6 +128,18 @@ OpenRouter Provider
   - Run: `just openrouter-codegen "A python program that prints hello"`
   - Run: `just openrouter-signature "Extract names from text"`
   - Even simpler (no quotes/flags): `just or-codegen Write a python script that prints hello`
+
+Pi RPC Provider
+---------------
+- Use pi as a provider (RPC mode, long-lived subprocess):
+
+  DSPX_PROVIDER=pi-rpc just dspx providers smoke --json
+
+- Common env knobs:
+  - `DSPX_PI_BIN` (default: `pi`)
+  - `DSPX_PI_PROVIDER`, `DSPX_PI_MODEL`, `DSPX_PI_THINKING`
+  - `DSPX_PI_TIMEOUT` (seconds)
+  - Safety defaults: `DSPX_PI_NO_TOOLS=1`, `DSPX_PI_NO_SESSION=1`, `DSPX_PI_DISABLE_RESOURCES=1`
 
 OpenAPI Tools & Workflows
 -------------------------

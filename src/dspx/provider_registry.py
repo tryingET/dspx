@@ -41,7 +41,7 @@ def ensure_default_providers() -> None:
     """Ensure built-in providers are registered (idempotent)."""
     if "codex-exec" not in _REGISTRY:
         try:
-            from .providers_register_codex import register as _reg_codex  # type: ignore
+            from .providers_register_codex import register as _reg_codex
 
             _reg_codex()
         except Exception:
@@ -49,37 +49,44 @@ def ensure_default_providers() -> None:
             pass
     if "openrouter" not in _REGISTRY:
         try:
-            from .providers_register_openrouter import register as _reg_openrouter  # type: ignore
+            from .providers_register_openrouter import register as _reg_openrouter
 
             _reg_openrouter()
         except Exception:
             pass
     if "claude-cli" not in _REGISTRY:
         try:
-            from .providers_register_claude import register as _reg_claude  # type: ignore
+            from .providers_register_claude import register as _reg_claude
 
             _reg_claude()
         except Exception:
             pass
     if "multi" not in _REGISTRY:
         try:
-            from .providers_register_multi import register as _reg_multi  # type: ignore
+            from .providers_register_multi import register as _reg_multi
 
             _reg_multi()
         except Exception:
             pass
     if "gemini-cli" not in _REGISTRY:
         try:
-            from .providers_register_gemini import register as _reg_gemini  # type: ignore
+            from .providers_register_gemini import register as _reg_gemini
 
             _reg_gemini()
         except Exception:
             pass
     if "stub" not in _REGISTRY:
         try:
-            from .providers_register_stub import register as _reg_stub  # type: ignore
+            from .providers_register_stub import register as _reg_stub
 
             _reg_stub()
+        except Exception:
+            pass
+    if "pi-rpc" not in _REGISTRY:
+        try:
+            from .providers_register_pi import register as _reg_pi
+
+            _reg_pi()
         except Exception:
             pass
 

@@ -30,7 +30,7 @@ decisions, and readiness against the vision plan.
 
 ## Current Components
 
-- Providers: CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, OpenRouterLM, MultiProviderLM, Stub LM.
+- Providers: CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, OpenRouterLM, PiRPCLM, MultiProviderLM, Stub LM.
 - Core: LMBase + ProviderCapabilities, DTOs (Signatures, Modules, Programs,
   Codegen, OpenAPI Call), ToolRegistry, typed descriptors for tools (`ToolDescriptor`) and
   typed OpenAPI operations (`OpenAPIOperationInfo`).
