@@ -17,7 +17,7 @@ def read_json(path: Path) -> Any:
 def write_yaml(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        import yaml  # type: ignore
+        import yaml
     except Exception as e:  # pragma: no cover
         raise RuntimeError("PyYAML required to write YAML") from e
     text = yaml.safe_dump(
@@ -30,7 +30,7 @@ def write_yaml(path: Path, data: Any) -> None:
 
 def read_yaml(path: Path) -> Any:
     try:
-        import yaml  # type: ignore
+        import yaml
     except Exception as e:  # pragma: no cover
         raise RuntimeError("PyYAML required to read YAML") from e
     return yaml.safe_load(path.read_text(encoding="utf-8"))

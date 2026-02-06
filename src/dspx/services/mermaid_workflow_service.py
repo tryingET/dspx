@@ -675,11 +675,11 @@ def generate_programs(
                 run_name=f"mermaid-{base}",
                 extra={"program_name": base},
             )
-            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            if mlflow.active_run() is not None:
                 # Log generated files as artifacts
                 for p in produced:
                     try:
-                        mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
+                        mlflow.log_artifact(str(p))
                     except Exception:
                         pass
                 for extra in [
@@ -691,7 +691,7 @@ def generate_programs(
                     path = out_root / extra
                     if path.exists():
                         try:
-                            mlflow.log_artifact(str(path))  # type: ignore[attr-defined]
+                            mlflow.log_artifact(str(path))
                         except Exception:
                             pass
     except Exception:

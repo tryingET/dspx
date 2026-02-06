@@ -31,7 +31,7 @@ def _load_toml(path: Path) -> Dict[str, Any]:
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
         assert isinstance(data, dict)
-        return data  # type: ignore[return-value]
+        return data
     except Exception:
         return {}
 

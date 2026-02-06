@@ -4,13 +4,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
 try:
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    from dspy import BaseLM as DSPyBaseLM
 except Exception:  # pragma: no cover
     try:
         from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
     except Exception:  # fallback dummy class
 
-        class DSPyBaseLM:  # type: ignore
+        class DSPyBaseLM:
             def __init__(
                 self, model: str = "stub", model_type: str = "text", **kwargs
             ) -> None:
@@ -59,7 +59,7 @@ class DSpyStubLM(DSPyBaseLM, LMBase):
         )
 
     # Internal DTO entrypoint
-    def generate(self, request: LMRequest, **kwargs) -> LMResponse:  # type: ignore[override]
+    def generate(self, request: LMRequest, **kwargs) -> LMResponse:
         text = self._make_text(request.prompt, None)
         return LMResponse(outputs=[text], model=self.model, usage=None, raw=None)
 

@@ -45,7 +45,7 @@ def build_preview(desc: ToolDescriptor, params: Mapping[str, Any] | None) -> str
                 from dspx.redaction import redact_url as _redact
             except Exception:
 
-                def _redact(u: str) -> str:  # type: ignore
+                def _redact(u: str) -> str:
                     return u
 
             server = desc.openapi.server or ""

@@ -10,6 +10,6 @@ class StubLM(LMBase):
     Mirrors src/dspx/providers/stub.py to match documented path.
     """
 
-    def generate(self, request: LMRequest, **kwargs) -> LMResponse:  # type: ignore[override]
+    def generate(self, request: LMRequest, **kwargs) -> LMResponse:
         text = "stub: " + (request.prompt or "")
         return LMResponse(outputs=[text], model="stub", usage=None, raw=None)

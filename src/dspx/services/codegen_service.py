@@ -93,15 +93,15 @@ def run(
                 ensure_run_from_env(
                     tags={"service": "codegen", "language": language or "python"}
                 )
-                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                if mlflow.active_run() is not None:
                     try:
-                        mlflow.log_artifact(path)  # type: ignore[attr-defined]
+                        mlflow.log_artifact(path)
                     except Exception:
                         pass
                     meta_path = path + ".meta.json"
                     if os.path.exists(meta_path):
                         try:
-                            mlflow.log_artifact(meta_path)  # type: ignore[attr-defined]
+                            mlflow.log_artifact(meta_path)
                         except Exception:
                             pass
         except Exception:
@@ -192,19 +192,17 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
             )
             from dspx.cache import sha256_text
 
-            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            if mlflow.active_run() is not None:
                 mlflow.log_params(
                     {
                         "codegen.language": req.language or "",
                         "codegen.spec_len": len(req.spec),
                     }
-                )  # type: ignore[attr-defined]
+                )
                 try:
-                    mlflow.log_text(res.code, "codegen_output.txt")  # type: ignore[attr-defined]
+                    mlflow.log_text(res.code, "codegen_output.txt")
                 except Exception:
-                    mlflow.log_dict(  # type: ignore[attr-defined]
-                        {"code": res.code}, "codegen_output.json"
-                    )
+                    mlflow.log_dict({"code": res.code}, "codegen_output.json")
                 # Attach manifest for reproducibility
                 try:
                     man = {
@@ -214,7 +212,7 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
                         "code_hash_prefix": int(sha256_text(res.code)[:8], 16)
                         % 1_000_000,
                     }
-                    mlflow.log_dict(man, "codegen_manifest.json")  # type: ignore[attr-defined]
+                    mlflow.log_dict(man, "codegen_manifest.json")
                 except Exception:
                     pass
                 duration_ms = (_time.time() - t0) * 1000.0
@@ -225,13 +223,13 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
                 }
                 if budget_ms is not None:
                     try:
-                        mlflow.set_tag("service.budget_ms", str(budget_ms))  # type: ignore[attr-defined]
+                        mlflow.set_tag("service.budget_ms", str(budget_ms))
                     except Exception:
                         pass
                     metrics["service.budget_exceeded"] = (
                         1.0 if duration_ms > float(budget_ms) else 0.0
                     )
-                mlflow.log_metrics(metrics)  # type: ignore[attr-defined]
+                mlflow.log_metrics(metrics)
     except Exception:
         pass
     return res

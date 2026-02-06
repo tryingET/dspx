@@ -7,14 +7,14 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 # Internal DTO/provider base (optional)
 try:
-    from dspx.dtos import LMRequest, LMResponse  # type: ignore
-    from dspx.lm_base import LMBase as InternalLMBase  # type: ignore
-    from dspx.capabilities import ProviderCapabilities  # type: ignore
+    from dspx.dtos import LMRequest, LMResponse
+    from dspx.lm_base import LMBase as InternalLMBase
+    from dspx.capabilities import ProviderCapabilities
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
 
-    class InternalLMBase:  # type: ignore
+    class InternalLMBase:
         pass
 
     ProviderCapabilities = None  # type: ignore
@@ -23,16 +23,16 @@ except Exception:  # pragma: no cover
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # only for static typing
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    from dspy import BaseLM as DSPyBaseLM
 else:  # pragma: no cover
     try:
-        from dspy import BaseLM as DSPyBaseLM  # type: ignore
+        from dspy import BaseLM as DSPyBaseLM
     except Exception:
         try:
-            from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
+            from dspy.models import BaseLM as DSPyBaseLM
         except Exception:
 
-            class DSPyBaseLM:  # type: ignore
+            class DSPyBaseLM:
                 def __init__(
                     self, model: str = "multi", model_type: str = "text", **kwargs
                 ) -> None:
@@ -124,7 +124,7 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
         return None
 
 
-class MultiProviderLM(DSPyBaseLM, InternalLMBase):
+class MultiProviderLM(DSPyBaseLM):
     """Aggregate multiple BaseLM providers under one interface.
 
     Modes
@@ -224,7 +224,7 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
         )
 
     # Internal DTO entrypoint
-    def generate(self, request: "LMRequest", **kwargs):  # type: ignore[override]
+    def generate(self, request: "LMRequest", **kwargs):
         if LMRequest is None or LMResponse is None:
             raise RuntimeError("Internal DTOs not available")
         if request is None:
@@ -233,9 +233,9 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
         prompt: Optional[str] = None
         messages: Optional[List[Dict[str, Any]]] = None
         if getattr(request, "prompt", None):
-            prompt = request.prompt  # type: ignore[attr-defined]
+            prompt = request.prompt
         else:
-            msgs = getattr(request, "messages", None)  # type: ignore[attr-defined]
+            msgs = getattr(request, "messages", None)
             if msgs is not None:
                 messages = [{"role": m.role, "content": m.content} for m in msgs]
 
@@ -395,7 +395,7 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
                 self._restore_cwd(pr, prev_cwds[j])
             if cleanup_info and self.cleanup_isolated:
                 self._cleanup_isolated(cleanup_info)
-            return [r for r in results if r is not None]  # type: ignore
+            return [r for r in results if r is not None]
 
         # Async polling loop with validation and cancellation
         finished: List[Optional[ProviderResult]] = [None] * len(self.providers)
@@ -500,7 +500,7 @@ class MultiProviderLM(DSPyBaseLM, InternalLMBase):
                 self._cleanup_isolated(cleanup_info)
 
         # No validated winner; use reducer if provided, else first finished
-        candidates: List[ProviderResult] = [r for r in finished if r is not None]  # type: ignore
+        candidates: List[ProviderResult] = [r for r in finished if r is not None]
         if not candidates:
             return []
         if self.reducer is not None:

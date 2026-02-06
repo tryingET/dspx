@@ -178,20 +178,18 @@ def run_generate_dto(
             )
             from dspx.cache import sha256_text
 
-            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            if mlflow.active_run() is not None:
                 mlflow.log_params(
                     {
                         "signature.prompt_len": len(req.prompt),
                         "signature.class_name": res.signature_name or "",
                     }
-                )  # type: ignore[attr-defined]
+                )
                 # Prefer log_text if available; else log_dict
                 try:
-                    mlflow.log_text(res.code, "signature.py")  # type: ignore[attr-defined]
+                    mlflow.log_text(res.code, "signature.py")
                 except Exception:
-                    mlflow.log_dict(  # type: ignore[attr-defined]
-                        {"code": res.code}, "signature.json"
-                    )
+                    mlflow.log_dict({"code": res.code}, "signature.json")
                 # Attach a tiny manifest for reproducibility
                 try:
                     manifest = {
@@ -199,7 +197,7 @@ def run_generate_dto(
                         "prompt_len": len(req.prompt),
                         "code_hash": sha256_text(res.code),
                     }
-                    mlflow.log_dict(manifest, "signature_manifest.json")  # type: ignore[attr-defined]
+                    mlflow.log_dict(manifest, "signature_manifest.json")
                 except Exception:
                     pass
                 duration_ms = (_time.time() - t0) * 1000.0
@@ -210,13 +208,13 @@ def run_generate_dto(
                 }
                 if budget_ms is not None:
                     try:
-                        mlflow.set_tag("service.budget_ms", str(budget_ms))  # type: ignore[attr-defined]
+                        mlflow.set_tag("service.budget_ms", str(budget_ms))
                     except Exception:
                         pass
                     metrics["service.budget_exceeded"] = (
                         1.0 if duration_ms > float(budget_ms) else 0.0
                     )
-                mlflow.log_metrics(metrics)  # type: ignore[attr-defined]
+                mlflow.log_metrics(metrics)
     except Exception:
         pass
     return res

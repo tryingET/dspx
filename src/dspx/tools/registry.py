@@ -36,7 +36,7 @@ def register_tool(
         # Enforce declared capability tags if present on the original function
         caps = getattr(func, "_dspx_capabilities", None)
         try:
-            to_check = list(caps) if caps else []  # type: ignore[arg-type]
+            to_check = list(caps) if caps else []
         except Exception:
             to_check = []
         for cap in to_check:
@@ -346,10 +346,10 @@ def _web_fetch(
             )
         except Exception:
 
-            def _redact_url(u: str) -> str:  # type: ignore
+            def _redact_url(u: str) -> str:
                 return u
 
-            def _redact_headers(h: Mapping[str, str]) -> Dict[str, str]:  # type: ignore
+            def _redact_headers(h: Mapping[str, str]) -> Dict[str, str]:
                 return dict(h)
 
         return {

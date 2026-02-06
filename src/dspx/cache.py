@@ -50,7 +50,7 @@ def read(kind: str, key: str) -> Optional[Dict[str, Any]]:
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
         assert isinstance(data, dict)
-        return data  # type: ignore[return-value]
+        return data
     except Exception:
         return None
 

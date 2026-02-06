@@ -232,7 +232,7 @@ class _TokenBucket:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, config: RateLimitConfig):  # type: ignore[no-untyped-def]
+    def __init__(self, app, config: RateLimitConfig):
         super().__init__(app)
         self.config = config
         # Dict: identity -> key -> list[buckets]
@@ -288,7 +288,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             grules.extend(self.config.global_default)
         return rules, grules
 
-    async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
+    async def dispatch(self, request: Request, call_next):
         if not self.config.enabled:
             return await call_next(request)
         start = time.monotonic()

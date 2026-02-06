@@ -329,7 +329,7 @@ def close_marked_duplicates(
     manifest.decisions.setdefault("closed_duplicates", [])
     for it in to_close:
         project_id = gl.project_id(str(it["project_key"]))
-        iid = int(cast(Any, it["iid"]))
+        iid = int(it["iid"])
         gl.close_issue(project_id, iid)
         results.append(
             {"project_key": it["project_key"], "iid": iid, "action": "close"}

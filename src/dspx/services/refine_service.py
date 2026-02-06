@@ -184,9 +184,9 @@ def run_refine(
     # MLflow logging parity: only log if MLflow is enabled and a run is active.
     if mlflow is not None:
         try:
-            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            if mlflow.active_run() is not None:
                 try:
-                    mlflow.log_params(  # type: ignore[attr-defined]
+                    mlflow.log_params(
                         {
                             "signature.mode": "refine",
                             "signature.attempts": int(attempts),
@@ -201,28 +201,28 @@ def run_refine(
                 # Artifact: code
                 try:
                     name = f"{cls or 'refined_signature'}.py"
-                    mlflow.log_text(code, name)  # type: ignore[attr-defined]
+                    mlflow.log_text(code, name)
                 except Exception:
                     try:
-                        mlflow.log_dict({"code": code}, "refined_signature.json")  # type: ignore[attr-defined]
+                        mlflow.log_dict({"code": code}, "refined_signature.json")
                     except Exception:
                         pass
                 # If outfile exists, log it and its meta
                 if outfile:
                     out_path = Path(outfile)
                     try:
-                        mlflow.log_artifact(str(out_path))  # type: ignore[attr-defined]
+                        mlflow.log_artifact(str(out_path))
                     except Exception:
                         pass
                     meta_path = out_path.parent / (out_path.name + ".meta.json")
                     if meta_path.exists():
                         try:
-                            mlflow.log_artifact(str(meta_path))  # type: ignore[attr-defined]
+                            mlflow.log_artifact(str(meta_path))
                         except Exception:
                             pass
                 duration_ms = (time.time() - t0) * 1000.0
                 try:
-                    mlflow.log_metrics(  # type: ignore[attr-defined]
+                    mlflow.log_metrics(
                         {
                             "service.duration_ms": float(duration_ms),
                             "service.budget_exceeded": float(
@@ -237,14 +237,14 @@ def run_refine(
                     pass
                 if budget_ms is not None:
                     try:
-                        mlflow.set_tag("service.budget_ms", str(int(budget_ms)))  # type: ignore[attr-defined]
+                        mlflow.set_tag("service.budget_ms", str(int(budget_ms)))
                     except Exception:
                         pass
         finally:
             # Close the run if we started it (best-effort).
             if started_run:
                 try:
-                    mlflow.end_run()  # type: ignore[attr-defined]
+                    mlflow.end_run()
                 except Exception:
                     pass
     return code

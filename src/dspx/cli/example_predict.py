@@ -28,10 +28,9 @@ def main() -> int:
     # Optional: debug CodexExecLM history
     if getattr(lm, "history", None):
         last = lm.history[-1]
-        if isinstance(last, dict):
-            print("\n--- Debug: History ---")
-            print("Model:", last.get("model"))
-            print("Usage:", last.get("usage"))
+        print("\n--- Debug: History ---")
+        print("Return code:", getattr(last, "returncode", None))
+        print("Duration (s):", getattr(last, "duration_s", None))
     return 0
 
 

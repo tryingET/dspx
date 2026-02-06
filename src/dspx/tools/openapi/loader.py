@@ -55,12 +55,12 @@ def _load_text(text: str, path_hint: str) -> Dict[str, Any]:
         pass
     # If YAML, parse via PyYAML if available
     try:
-        import yaml  # type: ignore
+        import yaml
 
         data = yaml.safe_load(text)
         if not isinstance(data, dict):
             raise ValueError("YAML did not parse into a dictionary")
-        return data  # type: ignore[return-value]
+        return data
     except ModuleNotFoundError:
         raise ValueError(
             "Failed to parse spec as JSON; install PyYAML to load YAML (pip install pyyaml)."

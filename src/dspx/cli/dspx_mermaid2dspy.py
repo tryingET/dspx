@@ -100,7 +100,7 @@ def _build_signatures(
                 ),
             )
         else:
-            ctx = nullcontext(False)  # type: ignore[misc]
+            ctx = nullcontext(False)
         with ctx:
             if use_cli:
                 env = os.environ.copy()
@@ -140,17 +140,13 @@ def _build_signatures(
             # MLflow: attach prompt + generated signature code to the active (nested) run.
             try:
                 if mlflow is not None:
-                    if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                    if mlflow.active_run() is not None:
                         try:
-                            mlflow.log_text(  # type: ignore[attr-defined]
-                                prompt, artifact_file=f"prompts/{nid}.txt"
-                            )
+                            mlflow.log_text(prompt, artifact_file=f"prompts/{nid}.txt")
                         except Exception:
                             pass
                         try:
-                            mlflow.log_text(  # type: ignore[attr-defined]
-                                code, artifact_file=f"signatures/{cls}.py"
-                            )
+                            mlflow.log_text(code, artifact_file=f"signatures/{cls}.py")
                         except Exception:
                             pass
             except Exception:
@@ -400,7 +396,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         if mlflow is not None:
             # Ensure a run is active and attach standard tags (includes run_group)
             ensure_run_with_standard_tags("mermaid_sig", extra={"program_name": base})
-            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            if mlflow.active_run() is not None:
                 for fname in [
                     "signatures.py",
                     "program_sigpredict.py",
@@ -412,7 +408,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     p = out_root / fname
                     if p.exists():
                         try:
-                            mlflow.log_artifact(str(p))  # type: ignore[attr-defined]
+                            mlflow.log_artifact(str(p))
                         except Exception:
                             pass
     except Exception:

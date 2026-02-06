@@ -68,7 +68,7 @@ def create_app() -> FastAPI:
         app.add_middleware(cast(Any, RateLimitMiddleware), config=rl_cfg)
 
     @app.exception_handler(UnauthorizedError)
-    async def _unauth_handler(request: Request, exc: UnauthorizedError):  # type: ignore[no-untyped-def]
+    async def _unauth_handler(request: Request, exc: UnauthorizedError):
         _stats.status_401 += 1
         return JSONResponse(
             status_code=401,
@@ -167,7 +167,7 @@ def create_app() -> FastAPI:
     }:
 
         @app.get("/metrics")
-        def get_metrics(request: Request):  # type: ignore[no-untyped-def]
+        def get_metrics(request: Request):
             # Content negotiation: Prometheus text when requested
             fmt = request.query_params.get("format")
             accept = (request.headers.get("accept") or "").lower()
@@ -194,7 +194,7 @@ def create_app() -> FastAPI:
             return {"status": "ok", **c}
 
         @app.get("/metrics-prom")
-        def get_metrics_prom():  # type: ignore[no-untyped-def]
+        def get_metrics_prom():
             c = _stats.snapshot()
             lines = [
                 "# HELP dspx_requests_total Total HTTP requests.",

@@ -19,7 +19,7 @@ try:
     from dspx.redaction import redact_url as _redact_url
 except Exception:  # pragma: no cover
 
-    def _redact_url(u: str) -> str:  # type: ignore
+    def _redact_url(u: str) -> str:
         return u
 
 
@@ -117,23 +117,23 @@ def call_operation(
                     # path-specific integer bounds
                     if where == "path":
                         try:
-                            if "minimum" in schema and iv < int(schema["minimum"]):  # type: ignore[index]
+                            if "minimum" in schema and iv < int(schema["minimum"]):
                                 raise ValueError(
                                     f"Invalid value for param {p.get('name')}: below minimum"
                                 )
-                            if "maximum" in schema and iv > int(schema["maximum"]):  # type: ignore[index]
+                            if "maximum" in schema and iv > int(schema["maximum"]):
                                 raise ValueError(
                                     f"Invalid value for param {p.get('name')}: above maximum"
                                 )
                             if schema.get("exclusiveMinimum") and iv <= int(
                                 schema.get("minimum", iv)
-                            ):  # type: ignore[index]
+                            ):
                                 raise ValueError(
                                     f"Invalid value for param {p.get('name')}: <= exclusiveMinimum"
                                 )
                             if schema.get("exclusiveMaximum") and iv >= int(
                                 schema.get("maximum", iv)
-                            ):  # type: ignore[index]
+                            ):
                                 raise ValueError(
                                     f"Invalid value for param {p.get('name')}: >= exclusiveMaximum"
                                 )
@@ -206,11 +206,11 @@ def call_operation(
                 if t in {"integer", "number"}:
                     try:
                         v = float(str(val))
-                        if "minimum" in schema and v < float(schema["minimum"]):  # type: ignore[index]
+                        if "minimum" in schema and v < float(schema["minimum"]):
                             raise ValueError(
                                 f"Invalid value for param {p.get('name')}: below minimum"
                             )
-                        if "maximum" in schema and v > float(schema["maximum"]):  # type: ignore[index]
+                        if "maximum" in schema and v > float(schema["maximum"]):
                             raise ValueError(
                                 f"Invalid value for param {p.get('name')}: above maximum"
                             )
@@ -289,11 +289,11 @@ def call_operation(
                     raise ValueError(
                         f"Invalid type for path param {name}: expected integer"
                     )
-                if "minimum" in schema and iv < int(schema["minimum"]):  # type: ignore[index]
+                if "minimum" in schema and iv < int(schema["minimum"]):
                     raise ValueError(
                         f"Invalid value for path param {name}: below minimum"
                     )
-                if "maximum" in schema and iv > int(schema["maximum"]):  # type: ignore[index]
+                if "maximum" in schema and iv > int(schema["maximum"]):
                     raise ValueError(
                         f"Invalid value for path param {name}: above maximum"
                     )
@@ -304,11 +304,11 @@ def call_operation(
                     raise ValueError(
                         f"Invalid type for path param {name}: expected number"
                     )
-                if "minimum" in schema and fv < float(schema["minimum"]):  # type: ignore[index]
+                if "minimum" in schema and fv < float(schema["minimum"]):
                     raise ValueError(
                         f"Invalid value for path param {name}: below minimum"
                     )
-                if "maximum" in schema and fv > float(schema["maximum"]):  # type: ignore[index]
+                if "maximum" in schema and fv > float(schema["maximum"]):
                     raise ValueError(
                         f"Invalid value for path param {name}: above maximum"
                     )
@@ -379,11 +379,11 @@ def call_operation(
 
             mlflow = get_mlflow()
             if mlflow is not None:
-                if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+                if mlflow.active_run() is not None:
                     # Redact URL before logging
                     try:
-                        mlflow.set_tag("tool", "openapi")  # type: ignore[attr-defined]
-                        mlflow.set_tag(  # type: ignore[attr-defined]
+                        mlflow.set_tag("tool", "openapi")
+                        mlflow.set_tag(
                             "openapi.operation_id", str(request.operation_id)
                         )
                     except Exception:
@@ -396,7 +396,7 @@ def call_operation(
                                 "openapi.server": server or "",
                                 "openapi.url": _redact_url(url),
                             }
-                        )  # type: ignore[attr-defined]
+                        )
                     except Exception:
                         pass
                     try:
@@ -405,7 +405,7 @@ def call_operation(
                                 "openapi.status_code": float(resp.status_code),
                                 "openapi.duration_ms": (t1 - t0) * 1000.0,
                             }
-                        )  # type: ignore[attr-defined]
+                        )
                     except Exception:
                         pass
         except Exception:
@@ -447,9 +447,9 @@ def _validate_json_value_against_schema(
 
     # Combinators: oneOf/anyOf
     for key in ("oneOf", "anyOf"):
-        if isinstance(schema.get(key), list) and schema[key]:  # type: ignore[index]
+        if isinstance(schema.get(key), list) and schema[key]:
             errs: list[str] = []
-            for idx, branch in enumerate(schema[key]):  # type: ignore[index]
+            for idx, branch in enumerate(schema[key]):
                 try:
                     _validate_json_value_against_schema(
                         value, branch or {}, path=path, _depth=_depth + 1, _max=_max
@@ -461,7 +461,7 @@ def _validate_json_value_against_schema(
 
     # Enum constraint
     if isinstance(schema.get("enum"), list):
-        allowed = {str(x) for x in schema["enum"]}  # type: ignore[index]
+        allowed = {str(x) for x in schema["enum"]}
         if str(value) not in allowed:
             raise ValueError(f"{path}: value must be one of {sorted(allowed)}")
 
@@ -476,11 +476,11 @@ def _validate_json_value_against_schema(
         # minProperties/maxProperties
         if isinstance(schema.get("minProperties"), (int, float)) and len(value) < int(
             schema["minProperties"]
-        ):  # type: ignore[index]
+        ):
             raise ValueError(f"{path}: too few properties (< minProperties)")
         if isinstance(schema.get("maxProperties"), (int, float)) and len(value) > int(
             schema["maxProperties"]
-        ):  # type: ignore[index]
+        ):
             raise ValueError(f"{path}: too many properties (> maxProperties)")
         required = list(schema.get("required") or [])
         for r in required:
@@ -497,7 +497,7 @@ def _validate_json_value_against_schema(
                             if isinstance(
                                 ps.get("minLength"), (int, float)
                             ) and isinstance(v, str):
-                                if len(v) < int(ps["minLength"]):  # type: ignore[index]
+                                if len(v) < int(ps["minLength"]):
                                     raise ValueError(
                                         f"{path}.{name}: shorter than minLength"
                                     )
@@ -553,11 +553,11 @@ def _validate_json_value_against_schema(
         # minItems/maxItems
         if isinstance(schema.get("minItems"), (int, float)) and len(value) < int(
             schema["minItems"]
-        ):  # type: ignore[index]
+        ):
             raise ValueError(f"{path}: too few items (< minItems)")
         if isinstance(schema.get("maxItems"), (int, float)) and len(value) > int(
             schema["maxItems"]
-        ):  # type: ignore[index]
+        ):
             raise ValueError(f"{path}: too many items (> maxItems)")
         return
 
@@ -570,13 +570,13 @@ def _validate_json_value_against_schema(
         # numeric bounds
         try:
             v = int(value)
-            if "minimum" in schema and v < int(schema["minimum"]):  # type: ignore[index]
+            if "minimum" in schema and v < int(schema["minimum"]):
                 raise ValueError(f"{path}: below minimum")
-            if "maximum" in schema and v > int(schema["maximum"]):  # type: ignore[index]
+            if "maximum" in schema and v > int(schema["maximum"]):
                 raise ValueError(f"{path}: above maximum")
-            if schema.get("exclusiveMinimum") and v <= int(schema.get("minimum", v)):  # type: ignore[index]
+            if schema.get("exclusiveMinimum") and v <= int(schema.get("minimum", v)):
                 raise ValueError(f"{path}: <= exclusiveMinimum")
-            if schema.get("exclusiveMaximum") and v >= int(schema.get("maximum", v)):  # type: ignore[index]
+            if schema.get("exclusiveMaximum") and v >= int(schema.get("maximum", v)):
                 raise ValueError(f"{path}: >= exclusiveMaximum")
         except ValueError:
             raise
@@ -585,7 +585,7 @@ def _validate_json_value_against_schema(
         # multipleOf
         if isinstance(schema.get("multipleOf"), (int, float)):
             try:
-                m = float(schema["multipleOf"])  # type: ignore[index]
+                m = float(schema["multipleOf"])
                 if m != 0.0:
                     q = float(v) / m
                     if abs(q - round(q)) > 1e-9:
@@ -602,13 +602,13 @@ def _validate_json_value_against_schema(
             raise ValueError(f"{path}: expected number")
         try:
             v = float(value)
-            if "minimum" in schema and v < float(schema["minimum"]):  # type: ignore[index]
+            if "minimum" in schema and v < float(schema["minimum"]):
                 raise ValueError(f"{path}: below minimum")
-            if "maximum" in schema and v > float(schema["maximum"]):  # type: ignore[index]
+            if "maximum" in schema and v > float(schema["maximum"]):
                 raise ValueError(f"{path}: above maximum")
-            if schema.get("exclusiveMinimum") and v <= float(schema.get("minimum", v)):  # type: ignore[index]
+            if schema.get("exclusiveMinimum") and v <= float(schema.get("minimum", v)):
                 raise ValueError(f"{path}: <= exclusiveMinimum")
-            if schema.get("exclusiveMaximum") and v >= float(schema.get("maximum", v)):  # type: ignore[index]
+            if schema.get("exclusiveMaximum") and v >= float(schema.get("maximum", v)):
                 raise ValueError(f"{path}: >= exclusiveMaximum")
         except ValueError:
             raise
@@ -618,7 +618,7 @@ def _validate_json_value_against_schema(
         if isinstance(schema.get("multipleOf"), (int, float)):
             try:
                 v = float(value)
-                m = float(schema["multipleOf"])  # type: ignore[index]
+                m = float(schema["multipleOf"])
                 if m != 0.0:
                     q = v / m
                     if abs(q - round(q)) > 1e-9:
@@ -639,14 +639,14 @@ def _validate_json_value_against_schema(
         try:
             if isinstance(schema.get("minLength"), (int, float)) and len(value) < int(
                 schema["minLength"]
-            ):  # type: ignore[index]
+            ):
                 raise ValueError(f"{path}: shorter than minLength")
             if isinstance(schema.get("maxLength"), (int, float)) and len(value) > int(
                 schema["maxLength"]
-            ):  # type: ignore[index]
+            ):
                 raise ValueError(f"{path}: longer than maxLength")
             if isinstance(schema.get("pattern"), str):
-                pat = schema["pattern"]  # type: ignore[index]
+                pat = schema["pattern"]
                 if not _re.compile(pat).search(value):
                     raise ValueError(f"{path}: does not match pattern")
         except ValueError:
@@ -683,7 +683,7 @@ def _resolve_schema(
                 components, Mapping
             ):
                 key = ref.split("/schemas/")[-1]
-                target = (components.get("schemas") or {}).get(key)  # type: ignore[index]
+                target = (components.get("schemas") or {}).get(key)
         except Exception:
             target = None
         if isinstance(target, Mapping):
@@ -726,15 +726,15 @@ def _resolve_schema(
     out = dict(schema)
     if isinstance(schema.get("properties"), Mapping):
         new_props: Dict[str, Any] = {}
-        for k, v in schema["properties"].items():  # type: ignore[index]
+        for k, v in schema["properties"].items():
             new_props[k] = _resolve_schema(v, components, _seen)
         out["properties"] = new_props
     if isinstance(schema.get("items"), Mapping):
-        out["items"] = _resolve_schema(schema["items"], components, _seen)  # type: ignore[index]
+        out["items"] = _resolve_schema(schema["items"], components, _seen)
     if isinstance(schema.get("additionalProperties"), Mapping):
         out["additionalProperties"] = _resolve_schema(
             schema["additionalProperties"],
             components,
-            _seen,  # type: ignore[index]
+            _seen,
         )
     return out

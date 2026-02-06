@@ -38,9 +38,10 @@ class ParquetDataset(DatasetAdapter):
 
     def load(self) -> List[Dict[str, Any]]:
         # Parquet requires an engine (pyarrow/fastparquet)
-        import pandas as pd  # type: ignore
+        import pandas as pd
 
-        df = pd.read_parquet(self.path, columns=self.columns)
+        cols = list(self.columns) if self.columns is not None else None
+        df = pd.read_parquet(self.path, columns=cols)
         if self.nrows is not None:
             df = df.head(int(self.nrows))
         return df.to_dict(orient="records")
@@ -84,7 +85,7 @@ class MLflowDatasetRef:
         if mlflow is None:  # pragma: no cover - environment dependent
             raise RuntimeError("mlflow is not available to load dataset")
         try:
-            import pandas as pd  # type: ignore
+            import pandas as pd
         except Exception as e:  # pragma: no cover - environment dependent
             raise RuntimeError("pandas is required to load MLflow dataset") from e
 

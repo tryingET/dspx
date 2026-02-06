@@ -10,14 +10,14 @@ import httpx
 
 # Optional internal DTO/provider interface for services
 try:
-    from dspx.dtos import LMRequest, LMResponse  # type: ignore
-    from dspx.lm_base import LMBase as InternalLMBase  # type: ignore
-    from dspx.capabilities import ProviderCapabilities  # type: ignore
+    from dspx.dtos import LMRequest, LMResponse
+    from dspx.lm_base import LMBase as InternalLMBase
+    from dspx.capabilities import ProviderCapabilities
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
 
-    class InternalLMBase:  # type: ignore
+    class InternalLMBase:
         pass
 
     ProviderCapabilities = None  # type: ignore
@@ -26,16 +26,16 @@ except Exception:  # pragma: no cover
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    from dspy import BaseLM as DSPyBaseLM
 else:  # pragma: no cover
     try:
-        from dspy import BaseLM as DSPyBaseLM  # type: ignore
+        from dspy import BaseLM as DSPyBaseLM
     except Exception:
         try:
-            from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
+            from dspy.models import BaseLM as DSPyBaseLM
         except Exception:
 
-            class DSPyBaseLM:  # type: ignore
+            class DSPyBaseLM:
                 def __init__(
                     self, model: str = "openrouter", model_type: str = "text", **kwargs
                 ) -> None:
@@ -97,7 +97,7 @@ class OpenRouterCall:
     ended_at: float
 
 
-class OpenRouterLM(DSPyBaseLM, InternalLMBase):
+class OpenRouterLM(DSPyBaseLM):
     """DSPy-compatible LM that calls OpenRouter's OpenAI-compatible Chat Completions API."""
 
     def __init__(
@@ -230,7 +230,7 @@ class OpenRouterLM(DSPyBaseLM, InternalLMBase):
         if messages is not None:
             msgs = [
                 {"role": m.get("role"), "content": m.get("content")} for m in messages
-            ]  # type: ignore[arg-type]
+            ]
         else:
             q = prompt or ""
             msgs = [{"role": "user", "content": q}]
@@ -242,8 +242,12 @@ class OpenRouterLM(DSPyBaseLM, InternalLMBase):
                 flush=True,
             )
 
+        client = self._client
+        if client is None:
+            raise RuntimeError("OpenRouter HTTP client is not initialized")
+
         t0 = time.time()
-        r = self._client.post(  # type: ignore[union-attr]
+        r = client.post(
             "/chat/completions",
             headers=self._headers(),
             json=self._request_payload(messages=msgs, kwargs=dict(kwargs)),
@@ -278,22 +282,28 @@ class OpenRouterLM(DSPyBaseLM, InternalLMBase):
         if r.status_code >= 400 and self.strict:
             raise RuntimeError(f"OpenRouter API error (status={r.status_code}): {text}")
 
+        usage: dict[str, Any] | None = None
+        if isinstance(raw, dict):
+            raw_usage = raw.get("usage")
+            if isinstance(raw_usage, dict):
+                usage = raw_usage
+
         return _MinimalResponse(
             model=self.model,
             choices=[{"text": text}],
-            usage=(raw.get("usage") if isinstance(raw, dict) else None),
+            usage=usage,
         )
 
-    def generate(self, request: "LMRequest", **kwargs):  # type: ignore[override]
+    def generate(self, request: "LMRequest", **kwargs):
         if LMRequest is None or LMResponse is None:
             raise RuntimeError("Internal DTOs not available")
         if request is None:
             raise ValueError("LMRequest is required")
         if getattr(request, "prompt", None):
-            prompt = request.prompt  # type: ignore[attr-defined]
+            prompt = request.prompt
             resp = self.forward(prompt=prompt, **kwargs)
         else:
-            msgs = getattr(request, "messages", None)  # type: ignore[attr-defined]
+            msgs = getattr(request, "messages", None)
             m = [{"role": mm.role, "content": mm.content} for mm in (msgs or [])]
             resp = self.forward(messages=m, **kwargs)
         text = ""

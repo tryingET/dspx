@@ -53,7 +53,7 @@ def get_mlflow():
     if not mlflow_enabled():
         return None
     try:
-        import mlflow  # type: ignore
+        import mlflow
 
         return mlflow
     except Exception:
@@ -86,11 +86,11 @@ def enable_mlflow_from_env() -> bool:
             if hasattr(mlflow, "dspy") and hasattr(mlflow.dspy, "autolog"):
                 # Prefer "attach only" when supported to avoid implicit run creation.
                 try:
-                    mlflow.dspy.autolog(create_run=False)  # type: ignore[call-arg]
+                    mlflow.dspy.autolog(create_run=False)
                 except TypeError:  # pragma: no cover
                     mlflow.dspy.autolog()
             else:  # pragma: no cover - depends on mlflow version
-                mlflow.autolog(disable=False)  # type: ignore[attr-defined]
+                mlflow.autolog(disable=False)
         except Exception:
             # Avoid failing if autolog cannot be enabled; continue best-effort
             pass
@@ -99,8 +99,8 @@ def enable_mlflow_from_env() -> bool:
         # name shows up in the UI. Scripts can still override by starting
         # their own run explicitly.
         try:
-            if run_name and mlflow.active_run() is None:  # type: ignore[attr-defined]
-                mlflow.start_run(run_name=run_name)  # type: ignore[attr-defined]
+            if run_name and mlflow.active_run() is None:
+                mlflow.start_run(run_name=run_name)
         except Exception:
             # Do not fail tracing if we cannot start a run here
             pass
@@ -126,11 +126,11 @@ def ensure_run_from_env(
     if mlflow is None:
         return False
     try:
-        if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+        if mlflow.active_run() is not None:
             if tags:
                 for k, v in tags.items():
                     try:
-                        mlflow.set_tag(k, v)  # type: ignore[attr-defined]
+                        mlflow.set_tag(k, v)
                     except Exception:
                         pass
             return False
@@ -138,11 +138,11 @@ def ensure_run_from_env(
         rn = run_name or os.getenv("MLFLOW_RUN_NAME")
         if not rn and not os.getenv("MLFLOW_TRACKING_URI"):
             return False
-        mlflow.start_run(run_name=rn)  # type: ignore[attr-defined]
+        mlflow.start_run(run_name=rn)
         if tags:
             for k, v in tags.items():
                 try:
-                    mlflow.set_tag(k, v)  # type: ignore[attr-defined]
+                    mlflow.set_tag(k, v)
                 except Exception:
                     pass
         return True
@@ -219,7 +219,7 @@ def nested_run_with_tags(
         yield False
         return
     try:
-        parent = mlflow.active_run()  # type: ignore[attr-defined]
+        parent = mlflow.active_run()
     except Exception:
         parent = None
     if parent is None:
@@ -230,12 +230,12 @@ def nested_run_with_tags(
         return
     started = False
     try:
-        mlflow.start_run(run_name=run_name, nested=True)  # type: ignore[attr-defined]
+        mlflow.start_run(run_name=run_name, nested=True)
         started = True
         if tags:
             for k, v in tags.items():
                 try:
-                    mlflow.set_tag(k, v)  # type: ignore[attr-defined]
+                    mlflow.set_tag(k, v)
                 except Exception:
                     pass
         yield True
@@ -244,6 +244,6 @@ def nested_run_with_tags(
     finally:
         try:
             if started:
-                mlflow.end_run()  # type: ignore[attr-defined]
+                mlflow.end_run()
         except Exception:
             pass

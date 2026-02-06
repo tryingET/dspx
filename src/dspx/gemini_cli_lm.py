@@ -20,14 +20,14 @@ from typing import Any, Dict, Iterable, List, Optional
 
 # Internal DTO/provider base
 try:
-    from dspx.dtos import LMRequest, LMResponse  # type: ignore
-    from dspx.lm_base import LMBase as InternalLMBase  # type: ignore
-    from dspx.capabilities import ProviderCapabilities  # type: ignore
+    from dspx.dtos import LMRequest, LMResponse
+    from dspx.lm_base import LMBase as InternalLMBase
+    from dspx.capabilities import ProviderCapabilities
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
 
-    class InternalLMBase:  # type: ignore
+    class InternalLMBase:
         pass
 
     ProviderCapabilities = None  # type: ignore
@@ -35,16 +35,16 @@ except Exception:  # pragma: no cover
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # typing-only import to keep mypy happy
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    from dspy import BaseLM as DSPyBaseLM
 else:  # pragma: no cover - runtime fallback binding
     try:
-        from dspy import BaseLM as DSPyBaseLM  # type: ignore
+        from dspy import BaseLM as DSPyBaseLM
     except Exception:
         try:
-            from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
+            from dspy.models import BaseLM as DSPyBaseLM
         except Exception:
 
-            class DSPyBaseLM:  # type: ignore
+            class DSPyBaseLM:
                 def __init__(
                     self, model: str = "gemini-cli", model_type: str = "text", **kwargs
                 ) -> None:
@@ -74,7 +74,7 @@ class _Running:
     started_at: float
 
 
-class GeminiCLILM(DSPyBaseLM, InternalLMBase):
+class GeminiCLILM(DSPyBaseLM):
     def __init__(
         self,
         *,
@@ -112,7 +112,8 @@ class GeminiCLILM(DSPyBaseLM, InternalLMBase):
 
         self._bin_warned = False
         if shutil.which(self.binary) is None and not self._bin_warned:
-            self._warn_missing_binary()
+            self._bin_warned = True
+            _missing_bin(self.binary)
 
     def forward(
         self,
@@ -130,7 +131,8 @@ class GeminiCLILM(DSPyBaseLM, InternalLMBase):
         env = os.environ.copy()
         env.update(self.env)
         if shutil.which(self.binary) is None and not self._bin_warned:
-            self._warn_missing_binary()
+            self._bin_warned = True
+            _missing_bin(self.binary)
         t0 = time.time()
         # Capability: code.exec
         try:
@@ -164,15 +166,15 @@ class GeminiCLILM(DSPyBaseLM, InternalLMBase):
             usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         )
 
-    def generate(self, request: "LMRequest", **kwargs):  # type: ignore[override]
+    def generate(self, request: "LMRequest", **kwargs):
         if LMRequest is None or LMResponse is None:
             raise RuntimeError("Internal DTOs not available")
         if request is None:
             raise ValueError("LMRequest is required")
         if getattr(request, "prompt", None):
-            query = request.prompt  # type: ignore[attr-defined]
+            query = request.prompt
         else:
-            msgs = getattr(request, "messages", None)  # type: ignore[attr-defined]
+            msgs = getattr(request, "messages", None)
             query = self._messages_to_prompt(
                 [{"role": m.role, "content": m.content} for m in (msgs or [])]
             )
@@ -181,7 +183,8 @@ class GeminiCLILM(DSPyBaseLM, InternalLMBase):
         env = os.environ.copy()
         env.update(self.env)
         if shutil.which(self.binary) is None and not self._bin_warned:
-            self._warn_missing_binary()
+            self._bin_warned = True
+            _missing_bin(self.binary)
         t0 = time.time()
         # Capability: code.exec
         try:
@@ -366,13 +369,3 @@ def _warn_msg(binary: str) -> str:
 
 def _missing_bin(binary: str) -> None:
     _print_safe(_warn_msg(binary))
-
-
-# Bind as method to maintain consistency with other providers
-def _warn_missing_binary(self) -> None:  # type: ignore
-    self._bin_warned = True
-    _missing_bin(self.binary)
-
-
-# Attach method dynamically to class (keeps patch minimal)
-setattr(GeminiCLILM, "_warn_missing_binary", _warn_missing_binary)

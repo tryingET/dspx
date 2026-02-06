@@ -35,14 +35,14 @@ from typing import Any, Dict, Iterable, List, Optional
 
 # Optional internal DTO/provider interface for services
 try:
-    from dspx.dtos import LMRequest, LMResponse  # type: ignore
-    from dspx.lm_base import LMBase as InternalLMBase  # type: ignore
-    from dspx.capabilities import ProviderCapabilities  # type: ignore
+    from dspx.dtos import LMRequest, LMResponse
+    from dspx.lm_base import LMBase as InternalLMBase
+    from dspx.capabilities import ProviderCapabilities
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
 
-    class InternalLMBase:  # type: ignore
+    class InternalLMBase:
         pass
 
     ProviderCapabilities = None  # type: ignore
@@ -52,16 +52,16 @@ except Exception:  # pragma: no cover
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # typing-only import to keep mypy happy
-    from dspy import BaseLM as DSPyBaseLM  # type: ignore
+    from dspy import BaseLM as DSPyBaseLM
 else:  # pragma: no cover - runtime fallback binding
     try:
-        from dspy import BaseLM as DSPyBaseLM  # type: ignore
+        from dspy import BaseLM as DSPyBaseLM
     except Exception:
         try:
-            from dspy.models import BaseLM as DSPyBaseLM  # type: ignore
+            from dspy.models import BaseLM as DSPyBaseLM
         except Exception:
 
-            class DSPyBaseLM:  # type: ignore
+            class DSPyBaseLM:
                 def __init__(
                     self, model: str = "codex-exec", model_type: str = "text", **kwargs
                 ) -> None:
@@ -92,7 +92,7 @@ class _Running:
     started_at: float
 
 
-class CodexExecLM(DSPyBaseLM, InternalLMBase):
+class CodexExecLM(DSPyBaseLM):
     """DSPy-compatible LM that proxies calls to `codex exec`.
 
     Parameters
@@ -388,7 +388,7 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
                 pass
 
     # Internal services entrypoint: DTO-based generate()
-    def generate(self, request: "LMRequest", **kwargs):  # type: ignore[override]
+    def generate(self, request: "LMRequest", **kwargs):
         if LMRequest is None or LMResponse is None:
             raise RuntimeError("Internal DTOs not available")
 
@@ -396,9 +396,9 @@ class CodexExecLM(DSPyBaseLM, InternalLMBase):
             raise ValueError("LMRequest is required")
 
         if getattr(request, "prompt", None):
-            query = request.prompt  # type: ignore[attr-defined]
+            query = request.prompt
         else:
-            msgs = getattr(request, "messages", None)  # type: ignore[attr-defined]
+            msgs = getattr(request, "messages", None)
             query = self._messages_to_prompt(
                 [{"role": m.role, "content": m.content} for m in (msgs or [])]
             )

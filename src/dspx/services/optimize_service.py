@@ -88,7 +88,7 @@ def _normalize_output_from_program(
     fn = getattr(mod, "normalize_output", None)
     if fn is None or not callable(fn):
         return None
-    return fn  # type: ignore[return-value]
+    return fn
 
 
 def _infer_io_from_student(student: object) -> Tuple[List[str], List[str]]:
@@ -184,7 +184,7 @@ def _default_gepa_metric(
 ):
     from dspy.teleprompt.gepa.gepa_utils import ScoreWithFeedback
 
-    def metric_fn(gold, pred, *args, **kwargs):  # type: ignore[no-untyped-def]
+    def metric_fn(gold, pred, *args, **kwargs):
         # DSPy metric call conventions vary by version:
         # - newer: metric(gold, pred)
         # - older/GEPA: metric(gold, pred, trace, pred_name, pred_trace)
@@ -206,7 +206,7 @@ def _default_gepa_metric(
             try:
                 gold_val = getattr(gold, k)
             except Exception:
-                gold_val = gold[k]  # type: ignore[index]
+                gold_val = gold[k]
             try:
                 pred_val = getattr(pred, k)
             except Exception:

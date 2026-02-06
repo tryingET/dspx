@@ -165,11 +165,11 @@ def main(argv: List[str] | None = None) -> int:
             from dspx.tracing import get_mlflow
 
             mlflow = get_mlflow()
-            if mlflow is None or mlflow.active_run() is None:  # type: ignore[attr-defined]
+            if mlflow is None or mlflow.active_run() is None:
                 return 0
 
-            mlflow.log_metric("duration_total_s", t1 - t0)  # type: ignore[attr-defined]
-            mlflow.log_text((text or ""), artifact_file="output/final.txt")  # type: ignore[attr-defined]
+            mlflow.log_metric("duration_total_s", t1 - t0)
+            mlflow.log_text((text or ""), artifact_file="output/final.txt")
             # Log per-provider timings from the multi-lm last_results
             lr = getattr(lm, "last_results", [])
             winner = None
@@ -178,13 +178,13 @@ def main(argv: List[str] | None = None) -> int:
                 prov = r.name or (r.model or "provider")
                 mlflow.log_metric(
                     f"provider.{prov}.duration_s", (r.ended_at - r.started_at)
-                )  # type: ignore[attr-defined]
-                mlflow.log_text(r.text or "", artifact_file=f"output/{prov}.txt")  # type: ignore[attr-defined]
+                )
+                mlflow.log_text(r.text or "", artifact_file=f"output/{prov}.txt")
                 if best_end is None or r.ended_at < best_end:
                     best_end = r.ended_at
                     winner = prov
             if winner:
-                mlflow.set_tag("winner", winner)  # type: ignore[attr-defined]
+                mlflow.set_tag("winner", winner)
         except Exception:
             pass
 

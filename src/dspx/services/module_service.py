@@ -151,7 +151,7 @@ def run_generate(
             )
             from dspx.cache import sha256_text
 
-            if mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            if mlflow.active_run() is not None:
                 mlflow.log_params(
                     {
                         "module.name": spec.name,
@@ -159,13 +159,11 @@ def run_generate(
                         "module.outputs": ",".join(outputs),
                         "module.use_signature": str(bool(use_signature)),
                     }
-                )  # type: ignore[attr-defined]
+                )
                 try:
-                    mlflow.log_text(art.code, f"{spec.name}.py")  # type: ignore[attr-defined]
+                    mlflow.log_text(art.code, f"{spec.name}.py")
                 except Exception:
-                    mlflow.log_dict(  # type: ignore[attr-defined]
-                        {"code": art.code}, f"{spec.name}.json"
-                    )
+                    mlflow.log_dict({"code": art.code}, f"{spec.name}.json")
                 # Attach manifest for reproducibility
                 try:
                     man = {
@@ -175,7 +173,7 @@ def run_generate(
                         "inputs": inputs,
                         "outputs": outputs,
                     }
-                    mlflow.log_dict(man, f"{spec.name}.manifest.json")  # type: ignore[attr-defined]
+                    mlflow.log_dict(man, f"{spec.name}.manifest.json")
                 except Exception:
                     pass
                 duration_ms = (_time.time() - t0) * 1000.0
@@ -186,13 +184,13 @@ def run_generate(
                 }
                 if budget_ms is not None:
                     try:
-                        mlflow.set_tag("service.budget_ms", str(budget_ms))  # type: ignore[attr-defined]
+                        mlflow.set_tag("service.budget_ms", str(budget_ms))
                     except Exception:
                         pass
                     metrics["service.budget_exceeded"] = (
                         1.0 if duration_ms > float(budget_ms) else 0.0
                     )
-                mlflow.log_metrics(metrics)  # type: ignore[attr-defined]
+                mlflow.log_metrics(metrics)
     except Exception:
         pass
     return art
