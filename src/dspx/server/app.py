@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 import os
 from tempfile import TemporaryDirectory
 from pathlib import Path
@@ -65,7 +65,7 @@ def create_app() -> FastAPI:
     # Rate limiting
     rl_cfg = RateLimitConfig.from_env()
     if rl_cfg.enabled:
-        app.add_middleware(RateLimitMiddleware, config=rl_cfg)
+        app.add_middleware(cast(Any, RateLimitMiddleware), config=rl_cfg)
 
     @app.exception_handler(UnauthorizedError)
     async def _unauth_handler(request: Request, exc: UnauthorizedError):  # type: ignore[no-untyped-def]

@@ -32,6 +32,10 @@ Canonical spec: `docs/FORGE.md` (v0 Contract + v0 Design).
 ## Publish (CLI-first toolkit) — near-term checklist
 
 - Default provider posture: keep default `DSPX_PROVIDER=codex-exec`; document `DSPX_PROVIDER=openrouter` as opt-in; keep tests offline/deterministic by default (forced `DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`).
+- Tighten typechecking signal (ty):
+  - Decide which ty warnings to fix vs ignore (minimize ignores).
+  - Enforce `uvx ty check src --error-on-warning` in CI and `just typecheck`.
+  - Replace remaining “mypy happy” comments / stale `type: ignore` with ty-friendly typing to reduce noise.
 - Ensure OpenRouter + 1Password DX is crisp:
   - `cp .env.example .env` (git-ignored), set `OPENROUTER_API_KEY=op://...`.
   - `just openrouter-whoami` (requires `op`; does not require `.env`).
@@ -47,6 +51,7 @@ Canonical spec: `docs/FORGE.md` (v0 Contract + v0 Design).
   - Shortcut: `just mlflow-smoke-signature-refine`.
 - Docs sweep: README quickstart uses the same “.env + just” flow; SERVER.md clarifies `127.0.0.1` vs `0.0.0.0` for Docker/NAS; docs mention optional `/metrics` (`DSPX_METRICS_ENABLED=1`).
   - Keep `docs/TUTORIAL_E2E.md` and `docker-compose.yml` consistent on MLflow port/URI semantics.
+- Tech stack docs: keep lane docs in `tech-stack-core`; maintain repo deltas in `docs/tech-stack.local.md` (FastAPI/Granian notes + policy defaults).
 - Release hygiene: bump version, `just release new=x.y.z`, tag, publish.
 
 ## Phase 7 — Adapter Registry (datasets/eval/stores)

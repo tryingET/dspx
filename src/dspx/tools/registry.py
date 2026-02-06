@@ -114,70 +114,88 @@ def get_descriptor(name: str) -> ToolDescriptor:
 def ensure_default_tools() -> None:
     if "web_search" not in _TOOLS:
         try:
-            _web_search._dspx_capabilities = ["network.read"]  # type: ignore[attr-defined]
-            _web_search._dspx_description = "DuckDuckGo text search (network.read)"  # type: ignore[attr-defined]
+            setattr(_web_search, "_dspx_capabilities", ["network.read"])
+            setattr(
+                _web_search,
+                "_dspx_description",
+                "DuckDuckGo text search (network.read)",
+            )
         except Exception:
             pass
         register_tool("web_search", _web_search)
     if "web_fetch" not in _TOOLS:
         try:
-            _web_fetch._dspx_capabilities = ["network.read"]  # type: ignore[attr-defined]
-            _web_fetch._dspx_description = (
-                "HTTP GET a URL and return status/headers/text (network.read)"  # type: ignore[attr-defined]
+            setattr(_web_fetch, "_dspx_capabilities", ["network.read"])
+            setattr(
+                _web_fetch,
+                "_dspx_description",
+                "HTTP GET a URL and return status/headers/text (network.read)",
             )
         except Exception:
             pass
         register_tool("web_fetch", _web_fetch)
     if "web_scrape" not in _TOOLS:
         try:
-            _web_scrape._dspx_capabilities = ["network.read"]  # type: ignore[attr-defined]
-            _web_scrape._dspx_description = (
-                "Fetch a page and extract text or by CSS selector (network.read)"  # type: ignore[attr-defined]
+            setattr(_web_scrape, "_dspx_capabilities", ["network.read"])
+            setattr(
+                _web_scrape,
+                "_dspx_description",
+                "Fetch a page and extract text or by CSS selector (network.read)",
             )
         except Exception:
             pass
         register_tool("web_scrape", _web_scrape)
     if "data_preview" not in _TOOLS:
         try:
-            _data_preview._dspx_capabilities = ["filesystem.read"]  # type: ignore[attr-defined]
-            _data_preview._dspx_description = (
-                "Preview CSV/JSON/Parquet schema and head (filesystem.read)"  # type: ignore[attr-defined]
+            setattr(_data_preview, "_dspx_capabilities", ["filesystem.read"])
+            setattr(
+                _data_preview,
+                "_dspx_description",
+                "Preview CSV/JSON/Parquet schema and head (filesystem.read)",
             )
         except Exception:
             pass
         register_tool("data_preview", _data_preview)
     if "repo_summary" not in _TOOLS:
         try:
-            _repo_summary._dspx_capabilities = ["filesystem.read"]  # type: ignore[attr-defined]
-            _repo_summary._dspx_description = (
-                "Lightweight repository summary from local files (filesystem.read)"  # type: ignore[attr-defined]
+            setattr(_repo_summary, "_dspx_capabilities", ["filesystem.read"])
+            setattr(
+                _repo_summary,
+                "_dspx_description",
+                "Lightweight repository summary from local files (filesystem.read)",
             )
         except Exception:
             pass
         register_tool("repo_summary", _repo_summary)
     if "db_schema" not in _TOOLS:
         try:
-            _db_schema._dspx_capabilities = ["filesystem.read"]  # type: ignore[attr-defined]
-            _db_schema._dspx_description = (
-                "SQLite schema and tiny samples (filesystem.read)"  # type: ignore[attr-defined]
+            setattr(_db_schema, "_dspx_capabilities", ["filesystem.read"])
+            setattr(
+                _db_schema,
+                "_dspx_description",
+                "SQLite schema and tiny samples (filesystem.read)",
             )
         except Exception:
             pass
         register_tool("db_schema", _db_schema)
     if "kb_summary" not in _TOOLS:
         try:
-            _kb_summary._dspx_capabilities = ["filesystem.read"]  # type: ignore[attr-defined]
-            _kb_summary._dspx_description = (
-                "Summarize docs under a path (filesystem.read)"  # type: ignore[attr-defined]
+            setattr(_kb_summary, "_dspx_capabilities", ["filesystem.read"])
+            setattr(
+                _kb_summary,
+                "_dspx_description",
+                "Summarize docs under a path (filesystem.read)",
             )
         except Exception:
             pass
         register_tool("kb_summary", _kb_summary)
     if "ontology_summary" not in _TOOLS:
         try:
-            _ontology_summary._dspx_capabilities = ["filesystem.read"]  # type: ignore[attr-defined]
-            _ontology_summary._dspx_description = (
-                "Synthesize domain model from code/docs (filesystem.read)"  # type: ignore[attr-defined]
+            setattr(_ontology_summary, "_dspx_capabilities", ["filesystem.read"])
+            setattr(
+                _ontology_summary,
+                "_dspx_description",
+                "Synthesize domain model from code/docs (filesystem.read)",
             )
         except Exception:
             pass

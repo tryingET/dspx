@@ -23,9 +23,9 @@ fmt:
 lint:
   uvx ruff check src docs
 
-# Type-check with mypy
+# Type-check with ty
 typecheck:
-  uvx mypy --exclude '^(submodules/|generated/|examples/)' src
+  uvx ty check src
 
 # Run tests (if present)
 test:

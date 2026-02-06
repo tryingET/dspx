@@ -46,6 +46,7 @@ Phase F — Docs and UX
  - [ ] Config behavior: document discovery order (DSPX_CONFIG → nearest config.toml via walk-up).
  - [ ] Observability: print resolved config path and effective MLflow URI/experiment at startup.
  - [ ] Metrics & tags: standardize MLflow params/metrics/tags (lm_model, lm_auto, lm_bypass, issues_count, durations).
+ - [ ] Tech stack: keep lane docs in `tech-stack-core`; maintain repo deltas in `docs/tech-stack.local.md` (FastAPI/Granian + policy defaults).
 
 Phase G — Provider Instrumentation
 ----------------------------------
@@ -124,14 +125,16 @@ Open questions
 
 Phase I — CI & Release
 ----------------------
-- [ ] GitHub Actions: lint (ruff), typecheck (mypy on src), build (uv).
+- [ ] GitHub Actions: lint (ruff), typecheck (ty on src), build (uv).
 - [ ] Publish on tag: build & upload to PyPI (uv publish) with token.
 - [ ] Cache uv and Python for fast CI.
 
 Phase J — Typing and Lint
 -------------------------
-- [ ] Resolve remaining mypy issues in project code (Optional/Union,
+- [ ] Resolve remaining ty issues in project code (Optional/Union,
   container types in multi‑provider and mermaid helpers).
+- [ ] Decide which ty warnings to fix vs ignore; enforce `uvx ty check src --error-on-warning` in CI and `just typecheck`.
+- [ ] Replace “mypy happy” comments / stale `type: ignore` with ty-friendly typing (reduce noise).
 - [ ] Add type stubs for third‑party libs as needed (e.g., pandas‑stubs,
   types‑beautifulsoup4).
-- [ ] Gradually enable stricter mypy flags once baseline is clean.
+- [ ] Gradually enable stricter ty rules once baseline is clean.

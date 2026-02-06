@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Sequence, Dict
+from typing import Any, Dict, List, Sequence, cast
 
 
 def accuracy(y_true: Sequence[object], y_pred: Sequence[object]) -> float:
@@ -273,7 +273,7 @@ def roc_auc_binary(
     # Convert y_true to 0/1 and scores to float
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
     try:
-        scores: List[float] = [float(s) for s in y_scores]
+        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
     except Exception as e:
         raise ValueError("y_scores must be numeric") from e
 
@@ -361,7 +361,7 @@ def pr_curve_binary(
             )
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
     try:
-        scores: List[float] = [float(s) for s in y_scores]
+        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
     except Exception as e:
         raise ValueError("y_scores must be numeric") from e
 
@@ -420,7 +420,7 @@ def expected_calibration_error_binary(
             )
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
     try:
-        scores: List[float] = [float(s) for s in y_scores]
+        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
     except Exception as e:
         raise ValueError("y_scores must be numeric") from e
     # Clamp to [0,1]
@@ -547,7 +547,7 @@ def roc_curve_binary(
             )
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
     try:
-        scores: List[float] = [float(s) for s in y_scores]
+        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
     except Exception as e:
         raise ValueError("y_scores must be numeric") from e
     # Sort by score descending

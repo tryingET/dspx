@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 
 
 @dataclass
@@ -369,7 +369,7 @@ def run_gepa_optimize(
 
     normalize_output = _normalize_output_from_program(mod)
 
-    gepa = GEPA(
+    gepa: Any = GEPA(
         _default_gepa_metric(
             out_keys,
             metric_name=metric,
@@ -379,11 +379,15 @@ def run_gepa_optimize(
         auto=auto,  # type: ignore[arg-type]
         max_full_evals=max_full_evals,
         max_metric_calls=max_metric_calls,
-        reflection_lm=reflection_lm,
+        reflection_lm=cast(Any, reflection_lm),
         seed=seed,
     )
 
-    compiled = gepa.compile(student=student, trainset=trainset, valset=valset)
+    compiled: Any = gepa.compile(
+        student=cast(Any, student),
+        trainset=cast(Any, trainset),
+        valset=cast(Any, valset),
+    )
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     # Save the whole program so we can `dspy.load(out_dir)` later without source imports.
@@ -395,6 +399,13 @@ def run_gepa_optimize(
     program_path = Path(program_path).resolve()
     copied_program = source_dir / program_path.name
     copied_program.write_bytes(program_path.read_bytes())
+
+    student_provider_name = student_provider or os.getenv("DSPX_PROVIDER", "codex-exec")
+    reflection_provider_name = (
+        reflection_provider
+        or student_provider
+        or os.getenv("DSPX_PROVIDER", "codex-exec")
+    )
 
     manifest = {
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -435,13 +446,11 @@ def run_gepa_optimize(
         },
         "providers": {
             "student": {
-                "name": student_provider or os.getenv("DSPX_PROVIDER", "codex-exec"),
+                "name": student_provider_name,
                 "model": getattr(student_lm, "model", None),
             },
             "reflection": {
-                "name": reflection_provider
-                or student_provider
-                or os.getenv("DSPX_PROVIDER", "codex-exec"),
+                "name": reflection_provider_name,
                 "model": getattr(reflection_lm, "model", None),
             },
         },
@@ -458,8 +467,8 @@ def run_gepa_optimize(
         chosen_output_keys=out_keys,
         metric=metric,
         output_weights=weights,
-        student_provider=manifest["providers"]["student"]["name"],
-        reflection_provider=manifest["providers"]["reflection"]["name"],
+        student_provider=str(student_provider_name),
+        reflection_provider=str(reflection_provider_name),
     )
 
 

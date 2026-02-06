@@ -36,7 +36,7 @@ jobs:
       - name: Lint (ruff)
         run: just lint
 
-      - name: Typecheck (mypy)
+      - name: Typecheck (ty)
         run: just typecheck
 
       - name: Tests (pytest)

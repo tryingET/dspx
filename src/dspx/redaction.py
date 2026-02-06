@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Mapping
-from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode, quote
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 _SENSITIVE_KEYS = {
@@ -40,11 +40,10 @@ def redact_url(url: str) -> str:
                     redacted.append((k, "[REDACTED]"))
                 else:
                     redacted.append((k, v))
-            q = urlencode(
-                redacted,
-                quote_via=lambda s, safe, encoding, errors: quote(
-                    s, safe + "[]", encoding, errors
-                ),
+            q = urlencode(redacted)
+            # Keep the marker human-readable (avoid URL-encoding the brackets).
+            q = q.replace("%5BREDACTED%5D", "[REDACTED]").replace(
+                "%5bREDACTED%5d", "[REDACTED]"
             )
         else:
             q = sp.query

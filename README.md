@@ -4,7 +4,7 @@ Using DSPy with Codex Exec as the Active LM
 [![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
-[![mypy](https://img.shields.io/badge/type--checking-mypy-informational)](#type-checking)
+[![ty](https://img.shields.io/badge/type--checking-ty-informational)](#type-checking)
 
 This example shows how to use the OpenAI Codex CLI's execution mode (`codex exec`) as the language model for a DSPy program, via a small wrapper `CodexExecLM`.
 
@@ -248,9 +248,9 @@ Install, Update, Build
 
 Type Checking
 -------------
-- Enforced in CI via `just typecheck` (runs `uvx mypy`).
+- Enforced in CI via `just typecheck` (runs `uvx ty check`).
 - Local run: `just typecheck`
-- Pre-commit uses ruff hooks by default; run mypy manually or rely on CI.
+- Pre-commit uses ruff hooks by default; run ty manually or rely on CI.
 - Excludes: `submodules/`, `generated/`, and `examples/`.
 
 
@@ -594,7 +594,7 @@ This repo follows a simple modern `uv` setup:
 
 - Tasks via Justfile:
   - `just install` / `just dev-install` — sync deps or editable install.
-  - `just fmt` / `just lint` / `just typecheck` — ruff + mypy.
+  - `just fmt` / `just lint` / `just typecheck` — ruff + ty.
   - `just test` — run pytest if present.
   - `just build` / `just publish` — build and publish packages.
   - `just release new=X.Y.Z` — fmt/lint/typecheck/test, bump version, build.

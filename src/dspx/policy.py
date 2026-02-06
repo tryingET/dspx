@@ -121,7 +121,15 @@ def apply_timeout_policy(kwargs: Mapping[str, Any] | None) -> dict[str, Any]:
     mt = max_timeout()
     if mt is not None and "timeout" in out:
         try:
-            t = float(out.get("timeout"))
+            raw = out.get("timeout")
+            if raw is None:
+                return out
+            if isinstance(raw, (int, float)):
+                t = float(raw)
+            elif isinstance(raw, str):
+                t = float(raw)
+            else:
+                return out
             if t > mt:
                 out["timeout"] = mt
         except Exception:
