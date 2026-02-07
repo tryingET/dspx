@@ -1,3 +1,10 @@
+---
+summary: "FastAPI server runtime, auth, rate limit, proxy, and metrics configuration."
+read_when:
+  - "You are modifying server endpoints, auth, rate limits, or deployment defaults."
+  - "You need operational guidance for running dspx-server in dev or prod-like setups."
+---
+
 DSPx Server (FastAPI) — Auth, Rate Limits, Proxies
 ==================================================
 

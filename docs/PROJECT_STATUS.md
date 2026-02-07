@@ -1,3 +1,10 @@
+---
+summary: "Legacy status snapshot; canonical project status is PROJECT_STATUS.md at repo root."
+read_when:
+  - "You need historical context from older status framing."
+  - "You are reconciling legacy status notes with the canonical root status file."
+---
+
 Project Status
 ==============
 

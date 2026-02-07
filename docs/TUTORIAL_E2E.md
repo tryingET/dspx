@@ -1,3 +1,10 @@
+---
+summary: "Practical walkthrough: Mermaid generation + OpenAPI tooling + CSV adapter usage."
+read_when:
+  - "You want a runnable end-to-end path through core DSPx workflows."
+  - "You are validating onboarding flow after CLI/tooling changes."
+---
+
 End-to-End Tutorial: Mermaid + OpenAPI + CSV
 ===========================================
 

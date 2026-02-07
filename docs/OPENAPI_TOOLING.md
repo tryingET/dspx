@@ -1,3 +1,10 @@
+---
+summary: "OpenAPI toolpack behavior, validation coverage, and CLI integration details."
+read_when:
+  - "You are changing OpenAPI loading, validation, or call execution behavior."
+  - "You are extending tools CLI or Mermaid/OpenAPI integration paths."
+---
+
 OpenAPI Tooling
 ===============
 

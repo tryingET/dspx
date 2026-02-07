@@ -1,3 +1,10 @@
+---
+summary: "Multi-view architecture map for DSPx layers, providers, tools, and contracts."
+read_when:
+  - "You need a high-level map before changing services, providers, or tooling."
+  - "You are refactoring CLI/service boundaries or adding new provider/tool runtimes."
+---
+
 DSPx Architecture Overview
 ==========================
 
@@ -33,6 +40,7 @@ graph TD
     Codex["CodexExecLM"]
     Claude["ClaudeHeadlessLM"]
     Gemini["GeminiCLILM"]
+    PiRPC["PiRPCLM"]
     Multi["MultiProviderLM"]
   end
 
@@ -45,6 +53,7 @@ graph TD
     CodexCLI["codex CLI"]
     ClaudeCLI["claude CLI"]
     GeminiCLI["gemini CLI"]
+    PiCLI["pi --mode rpc"]
     DSPy["DSPy"]
     MLflow["MLflow"]
   end
@@ -69,10 +78,12 @@ graph TD
   LMBase --> Codex
   LMBase --> Claude
   LMBase --> Gemini
+  LMBase --> PiRPC
   LMBase --> Multi
   Multi --> Codex
   Multi --> Claude
   Multi --> Gemini
+  Multi --> PiRPC
 
   ToolReg -.-> ToolA
   ToolReg -.-> ToolB
@@ -80,6 +91,7 @@ graph TD
   Codex --> CodexCLI
   Claude --> ClaudeCLI
   Gemini --> GeminiCLI
+  PiRPC --> PiCLI
 
   Tracing --> MLflow
 ```
@@ -119,7 +131,7 @@ sequenceDiagram
   CLI->>Conf: load_config_env
   CLI->>Tr: enable_mlflow_from_env
   CLI->>Reg: create_from_env
-  Reg->>LM: build LM (Codex/Claude/Gemini/Multi)
+  Reg->>LM: build LM (Codex/Claude/Gemini/PiRPC/Multi)
   CLI->>DSPy: dspy.configure(lm=LM)
   CLI->>Vibe: generate_signature(prompt)
   Vibe-->>CLI: code (Signature)
@@ -151,6 +163,7 @@ graph LR
     Codex["CodexExecLM"]
     Claude["ClaudeHeadlessLM"]
     Gemini["GeminiCLILM"]
+    PiRPC["PiRPCLM"]
     Multi["MultiProviderLM"]
   end
 
@@ -164,6 +177,7 @@ graph LR
   ProvReg --> Codex
   ProvReg --> Claude
   ProvReg --> Gemini
+  ProvReg --> PiRPC
   ProvReg --> Multi
 
   ToolReg --> ToolRuntime["Tools at runtime"]
@@ -225,3 +239,16 @@ classDiagram
     +budget: float
   }
 ```
+
+7) Provider Runtime Modes (operational view)
+--------------------------------------------
+
+- One-shot CLI subprocess per call: Codex/Claude/Gemini wrappers.
+- Persistent RPC subprocess: PiRPC (`pi --mode rpc`) to reduce startup overhead
+  across repeated provider calls.
+- HTTP provider: OpenRouter over an OpenAI-compatible API.
+
+This distinction matters for reliability and policy:
+- one-shot mode is simpler to recover but pays startup cost per call,
+- persistent RPC needs lifecycle/timeout/restart handling,
+- HTTP mode depends on network/policy controls and request validation.

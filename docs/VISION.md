@@ -1,3 +1,10 @@
+---
+summary: "First-principles vision and phased roadmap for DSPx architecture evolution."
+read_when:
+  - "You are making architecture, roadmap, or platform-priority decisions."
+  - "You need to align implementation with long-term product and safety goals."
+---
+
 DSPx Vision (First Principles, Durable Design)
 =============================================
 
@@ -27,9 +34,14 @@ Layers
   - ToolRegistry: tool descriptors + policies (allowlisted hosts, timeouts, redaction).
 
 - Providers
-  - CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, MultiProviderLM.
+  - CodexExecLM, ClaudeHeadlessLM, GeminiCLILM, PiRPCLM, MultiProviderLM.
   - OpenRouterLM (OpenRouter OpenAI-compatible HTTP API).
   - Capability probing (json/tool/exec/multi_turn) steers service behavior.
+
+- Provider runtime modes (operationally important)
+  - One-shot CLI providers (Codex/Claude/Gemini): simpler lifecycle, higher per-call startup cost.
+  - Persistent RPC provider (PiRPCLM): lower repeated-call overhead, requires restart/timeout control.
+  - HTTP provider (OpenRouterLM): direct API calls; strongest dependency on network policy and host controls.
 
 - Services
   - SignatureService: prompt → Signature code (vibe‑dspy), returns CodeArtifact.
@@ -136,6 +148,7 @@ graph LR
     Codex["codex CLI"]
     Claude["claude CLI"]
     Gemini["gemini CLI"]
+    PiRPC["pi --mode rpc"]
     APIs["OpenAPI targets"]
   end
 
@@ -151,6 +164,7 @@ graph LR
   Orchestrators --> Codex
   Orchestrators --> Claude
   Orchestrators --> Gemini
+  Orchestrators --> PiRPC
   Orchestrators --> APIs
 ```
 
@@ -301,6 +315,6 @@ Risks and higher‑order effects
 
 Current state
 -------------
-- Codex/Claude/Gemini providers + vibe‑dspy adapters work; MLflow tracing + config are in place.
+- Codex/Claude/Gemini/PiRPC providers + vibe‑dspy adapters work; MLflow tracing + config are in place.
 - Mermaid variants and signature‑per‑node flows generate runnable programs.
 - Next steps are additive; back‑compat maintained via forwarders while unifying CLI.

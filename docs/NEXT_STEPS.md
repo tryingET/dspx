@@ -1,3 +1,10 @@
+---
+summary: "Legacy roadmap snapshot; canonical actionable roadmap lives at repo root."
+read_when:
+  - "You are investigating historical roadmap context or old phase naming."
+  - "You need to compare legacy roadmap wording against root NEXT_STEPS.md."
+---
+
 Next Steps (Prioritized)
 =======================
 
