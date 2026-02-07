@@ -71,7 +71,9 @@ print(rows[:2])
 ```
 
 6) Cache controls and reproducibility
-All CLI generators write a `.meta.json` next to outputs with a `cache_key` and `hash`.
+All CLI generators write a versioned run receipt (`.meta.json`) next to outputs.
+It includes `receipt_version`, `run_kind`, `hash`, `cache_key`, and
+`replay_inputs`.
 Bypass cache or inspect cache info:
 
 ```

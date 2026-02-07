@@ -1,7 +1,7 @@
 # Project Status
 
 Current working branch: `main`.
-Working tree state: dirty (`AGENTS.md` retrieval-discipline edits + `README.md` local-native rewrite finalization + status docs alignment in this pass).
+Working tree state: dirty (run-receipt v1 foundation + replay/explain prep edits not committed yet).
 
 ## Snapshot
 
@@ -24,11 +24,11 @@ Working tree state: dirty (`AGENTS.md` retrieval-discipline edits + `README.md` 
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
 - Default provider fallback is `pi-rpc` (Codex remains optional provider).
 - Latest branch commits:
+  - `cd9cf0c` (`docs(workflow): align local-native docs to cli`)
+  - `5a77a46` (`docs(agents): add retrieval discipline guidance`)
   - `6e5356c` (`docs(status): refresh branch status roadmap`)
   - `40370af` (`docs(signature): document corpus ci gates`)
   - `4860407` (`test(signature): add corpus gate regressions`)
-  - `3c489a1` (`feat(signature): enforce corpus gates in ci`)
-  - `b24fa13` (`docs(signature): document telemetry gates`)
 
 ## Completed on this branch
 
@@ -55,14 +55,19 @@ Working tree state: dirty (`AGENTS.md` retrieval-discipline edits + `README.md` 
 
 ## Local working-tree delta (not committed yet)
 
-- `AGENTS.md` has local retrieval-discipline guidance edits
-  (context/retrieval discipline section additions).
-- `README.md` local-native workflow rewrite finalized and command examples
-  cross-checked against current CLI help:
-  - signature gen/refine + quality summary + corpus parity gate examples
-  - module-gen + GEPA optimize examples
-  - replay/explain posture (artifact/cache-first, MLflow optional)
-- Root status/roadmap docs aligned with README framing:
+- Added run-receipt helper module:
+  - `packages/dspx-core/src/dspx/run_receipts.py`
+- Wired centralized receipt emission/reading:
+  - `packages/dspx-core/src/dspx/cli/dspx.py`
+  - `packages/dspx-core/src/dspx/services/refine_service.py`
+  - `packages/dspx-core/src/dspx/services/codegen_service.py`
+- Added replay/explain contract doc:
+  - `docs/RUN_REPLAY_EXPLAIN.md`
+- Added receipt regression tests:
+  - `tests/test_run_receipts.py`
+- Synced operator/docs context:
+  - `README.md`
+  - `docs/TUTORIAL_E2E.md`
   - `PROJECT_STATUS.md`
   - `NEXT_STEPS.md`
 
@@ -90,24 +95,30 @@ Working tree state: dirty (`AGENTS.md` retrieval-discipline edits + `README.md` 
 - Module + optimization flows available via core CLI:
   - `just dspx module-gen ...`
   - `just dspx optimize gepa ...`
-- Replay/explain posture:
-  - replay source-of-truth: local artifacts/manifests/cache
-  - MLflow: optional explainability sink, never execution gate
+- Replay/explain posture (current local state):
+  - replay source-of-truth: local artifacts + manifests + cache metadata +
+    versioned run receipts (`*.meta.json`, `receipt_version: v1`)
+  - receipt writer/loader centralized in `dspx.run_receipts`
+  - commands emitting v1 receipts: signature gen/refine, module-gen, codegen
+  - MLflow remains optional explainability sink, never execution gate
 
 ## Latest validation snapshot
 
 - `pre-commit run --all-files`: passing (rerun this pass)
 - `just monorepo-check`: passing (rerun this pass)
-- `just test`: passing (`172 passed, 4 skipped`, rerun this pass)
+- `just test`: passing (`174 passed, 4 skipped`, rerun this pass)
 
 ## Known gaps and immediate risks
 
+- First-class replay/explain command surface is still missing:
+  - no `dspx run replay --check-only` yet
+  - no `dspx run explain --from <receipt>` yet
+- Receipt contract is standardized for key generators, but remaining producers
+  (e.g. other manifest/metadata paths) still need explicit coverage audit.
 - Signature telemetry is standardized for signature/refine, but equivalent
   quality contracts are not yet rolled out across module/codegen/mermaid.
 - Runtime telemetry thresholds still need longer live/provider trend windows
   (pi-rpc/openrouter/codex/claude/gemini) before tightening defaults.
-- Replay UX is still artifact/cache-driven; first-class `run replay/explain`
-  command surface remains incomplete.
 - Strict `min` compat track still depends on remote lower-bound tag hygiene
   (keep `dspx-core-v<lower-bound>` tags present on remote).
 
@@ -118,6 +129,7 @@ Working tree state: dirty (`AGENTS.md` retrieval-discipline edits + `README.md` 
 - `docs/SIGNATURE_NATIVE_PIPELINE.md`
 - `docs/MONOREPO_TRANSITION.md`
 - `docs/MLFLOW_OBSERVABILITY_PLAN.md`
+- `docs/RUN_REPLAY_EXPLAIN.md`
 - `PROJECT_STATUS.md`
 - `NEXT_STEPS.md`
 

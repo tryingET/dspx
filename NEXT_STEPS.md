@@ -31,26 +31,63 @@ Acceptance:
 
 ---
 
-## 2) Highest impact: keep local-native docs command-accurate
+## 2) Highest impact: ship `run replay` check-only MVP
 
 Current state:
-- README local-native workflow rewrite is now in place
-  (signature/refine -> module -> GEPA -> replay/explain).
-- Examples were cross-checked against current `dspx` CLI help.
+- Versioned run receipts (`receipt_version: v1`) now exist for
+  signature/module/codegen/refine outputs.
+- First-class CLI replay surface is still missing.
 
 Next actions:
-1. Re-verify README command examples on every CLI flag/behavior change.
-2. Keep signature quality-summary and provider-corpus gate examples aligned
-   with the CI profile.
-3. Keep `PROJECT_STATUS.md` / `NEXT_STEPS.md` synced to README framing.
+1. Add `dspx run replay --from <receipt> --check-only`.
+2. Verify receipt parse + required fields + output hash.
+3. Verify cache linkage (`cache_key`, `cache_file`) and report drift clearly.
+4. Keep command fully local/offline (no MLflow/network requirement).
 
 Acceptance:
-- README commands run as written (modulo provider credentials/live access).
-- No conflicting guidance across README/STATUS/NEXT_STEPS.
+- Replay verification works with `MLFLOW_ENABLE=0`.
+- Exit codes distinguish pass/fail/invalid receipt states.
+- Failures return actionable diagnostics (missing file/hash mismatch/etc.).
 
 ---
 
-## 3) Extend quality contract beyond signatures
+## 3) Next: ship `run explain` local-first MVP
+
+Current state:
+- Explainability data exists in receipts/meta/manifests.
+- MLflow is optional and should remain additive only.
+
+Next actions:
+1. Add `dspx run explain --from <receipt>`.
+2. Build explanation from local receipt/manifest first.
+3. Add optional MLflow enrichment mode that never blocks baseline output.
+
+Acceptance:
+- Explain command works without MLflow.
+- MLflow enrichment gracefully degrades when unavailable.
+- Output clearly separates local facts vs optional traced context.
+
+---
+
+## 4) Harden receipt contract coverage/governance
+
+Current state:
+- Receipt helper is centralized, but not all artifact producers are guaranteed
+  on the same contract yet.
+
+Next actions:
+1. Audit remaining emitters (`mermaid`, optimize artifacts, any legacy paths).
+2. Ensure each producer either emits v1 receipts or explicit manifests.
+3. Add regression tests for schema compatibility + required fields.
+
+Acceptance:
+- Receipt/manifests are consistent across core generators.
+- Backward-compatible fields (`hash`, `cache_key`, `cache_file`,
+  `cache_enabled`) stay stable.
+
+---
+
+## 5) Extend quality contract beyond signatures
 
 Why now:
 - Signature/refine path is hardened first; module/codegen/mermaid should
@@ -68,7 +105,7 @@ Acceptance:
 
 ---
 
-## 4) Calibrate runtime telemetry thresholds
+## 6) Calibrate runtime telemetry thresholds
 
 Current state:
 - CI gate profile is deterministic from provider-corpus fixtures.
@@ -86,24 +123,7 @@ Acceptance:
 
 ---
 
-## 5) Tighten replay + explain UX
-
-Current state:
-- Replay source-of-truth is local artifacts/manifests/cache.
-- MLflow is optional explainability sink.
-
-Next actions:
-1. Document canonical replay path from generated artifacts + cache metadata.
-2. Define/implement first-class replay/explain CLI surface incrementally.
-3. Add tests that verify replay flows remain valid with `MLFLOW_ENABLE=0`.
-
-Acceptance:
-- Replay does not depend on MLflow availability.
-- Explainability remains additive, never execution-gating.
-
----
-
-## 6) Keep forge/core compatibility deterministic (`min` track)
+## 7) Keep forge/core compatibility deterministic (`min` track)
 
 Why:
 - CI `min` compatibility is only as strict as remote lower-bound tag
@@ -121,7 +141,7 @@ Acceptance:
 
 ---
 
-## 7) Keep docs and operator guidance synchronized
+## 8) Keep docs and operator guidance synchronized
 
 Next actions:
 1. Keep these docs aligned on each behavior change:
@@ -131,26 +151,10 @@ Next actions:
    - `docs/MONOREPO_TRANSITION.md`
    - `docs/SIGNATURE_NATIVE_PIPELINE.md`
    - `docs/MLFLOW_OBSERVABILITY_PLAN.md`
+   - `docs/RUN_REPLAY_EXPLAIN.md`
 2. Keep root `PROJECT_STATUS.md` and `NEXT_STEPS.md` as canonical
    status/roadmap docs.
 
 Acceptance:
 - No conflicting setup/command guidance across canonical docs.
 - Handoff context can be copied directly from docs.
-
----
-
-## 8) Upstream leverage path (without adding heavy submodules)
-
-Next actions:
-1. Use sibling clones + editable installs for upstream debugging/patching:
-   - `just upstream-link-dspy path=...`
-   - `just upstream-link-mlflow path=...`
-   - `just upstream-reset`
-2. Keep upstream deps as sibling clones under `~/programming/upstream`
-   (not repo submodules), including `attachments`, `dspy`, `mlflow`.
-3. Prefer upstream PR + released version bump over long-lived local forks.
-
-Acceptance:
-- Upstream fixes can be developed/tested quickly.
-- Repo complexity does not increase via submodule maintenance burden.

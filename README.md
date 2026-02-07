@@ -179,7 +179,7 @@ More:
 
 Replay/source of truth:
 - local generated artifacts (`generated/...`)
-- sidecar metadata (`*.meta.json`)
+- sidecar run receipts (`*.meta.json`, schema `receipt_version: v1`)
 - on-disk cache (`generated/cache/...`)
 
 Inspect cache:
@@ -188,6 +188,9 @@ Inspect cache:
 just dspx cache info
 just dspx cache list
 ```
+
+Replay/explain contract:
+- `docs/RUN_REPLAY_EXPLAIN.md`
 
 Explainability sink (optional):
 - MLflow traces/metrics/artifacts when enabled.
@@ -295,6 +298,7 @@ just test
 - monorepo boundaries: `docs/MONOREPO_TRANSITION.md`
 - GEPA quick path: `docs/GEPA_FROM_MODULE_GEN.md`
 - observability/MLflow: `docs/MLFLOW_OBSERVABILITY_PLAN.md`
+- replay/explain receipts: `docs/RUN_REPLAY_EXPLAIN.md`
 - forge app: `docs/FORGE.md`
 
 ---
