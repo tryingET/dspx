@@ -1,28 +1,5 @@
-[project]
-name = "dspx"
-version = "0.1.0"
-description = "DSPy + Codex Exec integrations and CLIs"
-readme = "README.md"
-requires-python = ">=3.13"
-license = { file = "LICENSE" }
-classifiers = [
-    "License :: OSI Approved :: GNU Affero General Public License v3",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
-    "Typing :: Typed",
-]
-dependencies = [
-    "beautifulsoup4>=4.13.5",
-    "dspy-ai>=3.0.2",
-    "duckduckgo-search>=8.1.1",
-    "httpx>=0.28.1",
-    "mlflow>=2.18.0",
-    "pandas>=2.3.2",
-    "typer>=0.12.5",
-    "pyyaml>=6.0.1",
-    "fastapi>=0.111.0",
-    "granian>=1.4.3",
-]
+[tool.uv.workspace]
+members = ["packages/dspx-core", "apps/forge"]
 
 [dependency-groups]
 dev = [
@@ -37,23 +14,3 @@ filterwarnings = [
   # Silence upstream MLflow/protobuf deprecation warning during tests
   "ignore:.*label\\(\\) is deprecated.*:DeprecationWarning:mlflow\\.store\\.tracking\\.rest_store",
 ]
-
-[project.scripts]
-"dspx-example" = "dspx.cli.example_predict:main"
-"dspx-codegen" = "dspx.cli.codegen:main"
-"dspx-tools" = "dspx.cli.tools_demo:main"
-"dspx-vibegen" = "dspx.cli.vibegen:main"
-"dspx-viberefine" = "dspx.cli.viberefine:main"
-"dspx-mermaid" = "dspx.cli.mermaid2dspy:main"
-"dspx-mermaid-sig" = "dspx.cli.dspx_mermaid2dspy:main"
-"dspx-agent" = "dspx.cli.agent_demo:main"
-"dspx-multi-demo" = "dspx.cli.multi_demo:main"
-"dspx" = "dspx.cli.dspx:main"
-"dspx-server" = "dspx.server.app:main"
-
-[build-system]
-requires = ["uv-build>=0.2"]
-build-backend = "uv_build"
-
-[tool.uv.workspace]
-members = ["packages/dspx-core", "apps/forge"]

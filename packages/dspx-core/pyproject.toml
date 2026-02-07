@@ -20,6 +20,9 @@ dependencies = [
 dspx = "dspx.cli.dspx:main"
 dspx-server = "dspx.server.app:main"
 
+[tool.uv.build-backend]
+module-name = "dspx"
+
 [build-system]
 requires = ["uv-build>=0.2"]
 build-backend = "uv_build"

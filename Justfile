@@ -2,46 +2,44 @@ set shell := ["bash", "-uc"]
 set dotenv-load := true
 set export
 
-PYTHONPATH := "packages/dspx-core/src:apps/forge/src"
-
 # List available tasks
 default:
   @just --list
 
-# Install project dependencies into the uv environment
+# Install workspace dependencies into the uv environment
 install:
-  # Sync uv environment (project deps)
+  # Sync uv environment (workspace deps)
   uv sync
 
-# Install project in editable mode to expose console scripts (dev workflow)
+# Install workspace packages in editable mode to expose console scripts (dev workflow)
 dev-install:
-  # Install project in editable mode to expose console scripts
-  uv pip install -e .
+  # Install core + forge app in editable mode
+  uv pip install -e packages/dspx-core -e apps/forge
 
 # Format code with ruff
 fmt:
-  PYTHONPATH={{PYTHONPATH}} uvx ruff format packages/dspx-core/src apps/forge/src docs
+  uvx ruff format packages/dspx-core/src apps/forge/src docs
 
 # Lint with ruff
 lint:
-  PYTHONPATH={{PYTHONPATH}} uvx ruff check packages/dspx-core/src apps/forge/src docs
+  uvx ruff check packages/dspx-core/src apps/forge/src docs
 
 # Type-check with ty
 typecheck:
-  PYTHONPATH={{PYTHONPATH}} uvx ty check packages/dspx-core/src apps/forge/src
+  uvx ty check packages/dspx-core/src apps/forge/src
 
 # Run tests (if present)
 test:
   # Run only local tests (none by default); skip submodules' test suites
   if [ -d tests ]; then \
-    PYTHONPATH={{PYTHONPATH}} uv run --no-project -m pytest -q tests; \
+    uv run -m pytest -q tests; \
   else \
     echo "no local tests"; \
   fi
 
 # Monorepo boundary guardrail check
 monorepo-check:
-  PYTHONPATH={{PYTHONPATH}} uv run --no-project -q python scripts/check_monorepo_boundaries.py
+  uv run -q python scripts/check_monorepo_boundaries.py
 
 # Run unified CLI from source (pass-through)
 # Examples:
@@ -49,11 +47,11 @@ monorepo-check:
 #   just dspx tools list
 dspx *args:
   # Use bash to preserve argument boundaries reliably.
-  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run --no-project -q python -m dspx.cli.dspx "$@"' -- {{args}}
+  bash -lc 'uv run --package dspx-core -q python -m dspx.cli.dspx "$@"' -- {{args}}
 
 # Forge app CLI from monorepo app boundary
 forge *args:
-  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run --no-project -q python -m dspx_forge.cli "$@"' -- {{args}}
+  bash -lc 'uv run --package dspx-forge -q python -m dspx_forge.cli "$@"' -- {{args}}
 
 # OpenRouter wrapper (1Password `op run`)
 # NOTE: We avoid variadic pass-through here because Just interpolation happens in a shell,
@@ -184,20 +182,21 @@ codex-gepa-timed program train out val="" output_key="" auto="light" max_metric_
   TIMEFORMAT=$'[codex-gepa] duration_s=%R\n'; \
   time just codex-gepa "{{program}}" "{{train}}" "{{out}}" "{{val}}" "{{output_key}}" {{auto}} {{max_metric_calls}}
 
-# Build distributables (wheel + sdist)
+# Build distributables (wheel + sdist) for all workspace packages
 build:
-  uv build
+  uv build --all-packages
 
 # Publish to PyPI (requires PYPI_TOKEN)
 publish:
   if [ -z "${PYPI_TOKEN:-}" ]; then echo "PYPI_TOKEN not set"; exit 1; fi
   uv publish --token "$PYPI_TOKEN"
 
-# Set project version in pyproject.toml
+# Set workspace package versions in package pyproject.toml files
 version new="":
   if [ -z "{{new}}" ]; then echo "usage: just version new=1.2.3"; exit 1; fi
-  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i pyproject.toml
-  echo "set version to {{new}}"
+  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i packages/dspx-core/pyproject.toml
+  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i apps/forge/pyproject.toml
+  echo "set dspx-core + dspx-forge versions to {{new}}"
 
 # Tag the current commit as a release version
 tag v="":
@@ -216,10 +215,10 @@ release new="":
   just build
   echo "Now: just tag v=v{{new}} && just publish (requires PYPI_TOKEN)"
 
-# Install console scripts as a uv tool and run via `uvx` (global-ish)
+# Install workspace console scripts as uv tools (global-ish via uvx)
 tool-install:
-  # Install console scripts as a uv tool (global-ish via uvx)
-  uv tool install .
+  uv tool install packages/dspx-core
+  uv tool install apps/forge
 
 # Start MLflow server via Docker Compose
 mlflow-up:
