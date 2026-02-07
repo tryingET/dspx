@@ -252,3 +252,15 @@ This distinction matters for reliability and policy:
 - one-shot mode is simpler to recover but pays startup cost per call,
 - persistent RPC needs lifecycle/timeout/restart handling,
 - HTTP mode depends on network/policy controls and request validation.
+
+8) Provider Execution Semantics
+-------------------------------
+
+| Provider / mode | Runtime type | Startup overhead | Timeout behavior | Retry/restart behavior | Policy surface | Typical failure modes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Codex (`codex-exec`) | One-shot CLI subprocess | High per call (binary startup + prompt handoff) | Per-call subprocess timeout; hard kill on overrun | Retry by re-invocation; no retained session state | Capability checks (`code.exec`), bypass/sandbox knobs, env allow/deny filtering | CLI missing, auth/session expiry, model errors, non-zero exit with partial output |
+| Claude (`claude-cli`) | One-shot CLI subprocess | High per call | Per-call timeout on subprocess collect | Retry by re-invocation; no process reuse | Tool allow/deny lists, permission mode, capability checks | CLI missing, permission/tool mismatch, CLI output-format drift, timeout |
+| Gemini (`gemini-cli`) | One-shot CLI subprocess | Medium-high per call | Per-call timeout on subprocess collect | Retry by re-invocation | Capability checks + optional extra flags/env | CLI missing, auth/config issues, transient CLI failures |
+| PiRPC (`pi-rpc`) | Persistent RPC subprocess (`pi --mode rpc`) | One-time warm start; low steady-state per call | Per-request timeout plus transport-level timeout guards | Restart subprocess on broken pipe/hang; retries after restart are explicit | Capability checks, pi safety env defaults (`DSPX_PI_NO_TOOLS`, etc.) | RPC desync, transport timeout, subprocess crash, stale session state |
+| OpenRouter (`openrouter`) | HTTP API (OpenAI-compatible) | Low (no local process startup) | HTTP client timeout (connect/read/write) per request | Retry/backoff at caller policy; no local process restart | `network.read` / `network.mutate`, method allow/deny, host allowlist | 401/403 auth, 429 throttling, 5xx upstream errors, schema mismatch |
+| Multi (`multi`) | Composite orchestrator over child providers | Depends on strategy (`sequential_first` sums, `parallel_first` overlaps) | Child provider timeouts + strategy-level completion policy | Delegates retry/restart to children; optional early-abort on validation | Aggregated policy knobs (`policy_bypass`, allowed/disallowed tools), isolation mode controls | Partial child failures, nondeterministic winner timing, uncancellable background CLI work |

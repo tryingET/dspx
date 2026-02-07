@@ -18,6 +18,7 @@ Canonical docs map
 - Server runtime/security: `docs/SERVER.md`
 - OpenAPI tooling: `docs/OPENAPI_TOOLING.md`
 - Policy defaults matrix: `docs/POLICY_DEFAULTS.md`
+- ADR index (decisions): `docs/adr/README.md`
 - Historical/legacy snapshots: `docs/PROJECT_STATUS.md`, `docs/NEXT_STEPS.md`
 
 Prerequisites
