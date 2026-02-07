@@ -31,20 +31,20 @@ Acceptance:
 
 ---
 
-## 2) Highest impact: operationalize the spec-first signature pipeline
+## 2) Highest impact: keep signature quality telemetry operational (now implemented)
 
 Current state:
 - Native signature generation/refine is spec-first and capability-aware.
 - Validation/smoke scoring and bounded retries are active.
-- Golden corpus regression tests exist.
+- Golden corpus + provider-shaped corpus cases exist.
+- Run telemetry and promotion-gate summary command exist:
+  - `dspx signature quality-summary`
+  - metrics: fallback-rate, attempts-used distribution, validation/smoke pass rates.
 
 Next actions:
-1. Promote shared quality metrics in CI/reporting:
-   - fallback-rate
-   - attempts-used distribution
-   - validation/smoke pass rates
-2. Add run-summary emission for signature/refine runs (human-readable + machine-readable).
-3. Add provider-specific corpus cases (pi-rpc/openrouter/codex/claude/gemini) for edge behavior.
+1. Wire quality-summary JSON output into CI artifacts and PR surfaces.
+2. Tune gate thresholds with real provider data (pi-rpc/openrouter/codex/claude/gemini).
+3. Keep corpus growth continuous for new provider edge behaviors.
 
 Acceptance:
 - Quality drift is visible before user-facing regressions.

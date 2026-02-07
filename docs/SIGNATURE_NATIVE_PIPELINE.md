@@ -52,13 +52,16 @@ Phase 2 (done):
 Phase 3 (done):
 - golden corpus regression tests for rendered signatures.
 - pipeline unit tests for retries/spec parsing/validation.
+- provider-shaped corpus cases (pi-rpc/openrouter/codex/claude/gemini) for parser/renderer drift detection.
 
 Phase 4 (next):
 - service-wide smoke/import checks for module/codegen/mermaid signatures.
 - shared quality score contract across services.
 
-Phase 5 (next):
-- CI summary report for signature quality metrics (pass rate, fallback rate, retry depth).
+Phase 5 (done):
+- quality event telemetry (`generated/cache/signature/quality_runs.jsonl` by default).
+- CLI quality aggregation + promotion gates (`dspx signature quality-summary`).
+- run-summary emission hooks for `signature gen` / `signature refine` (`--summary`, `--summary-json-out`).
 
 Implementation details
 ----------------------
@@ -70,6 +73,9 @@ Key modules:
 - `packages/dspx-core/src/dspx/services/refine_service.py`
   - structured refinement memory
   - non-interactive retry budget usage
+- `packages/dspx-core/src/dspx/services/signature_quality.py`
+  - quality event log append/read
+  - aggregate metrics + gate evaluation
 - `packages/dspx-core/src/dspx/templates/signature_templates.py`
   - spec prompt formatting
   - deterministic spec renderer
@@ -77,6 +83,8 @@ Key modules:
 Config knobs:
 - `DSPX_SIGNATURE_MAX_ATTEMPTS` (default 1; bounded)
 - `DSPX_BUDGET_SIGNATURE_MS` (budget + provider timeout propagation)
+- `DSPX_SIGNATURE_QUALITY_ENABLE` (default `1`; set `0` to disable JSONL event logging)
+- `DSPX_SIGNATURE_QUALITY_LOG` (override log file path; default `generated/cache/signature/quality_runs.jsonl`)
 
 Verification / Validation
 -------------------------
@@ -84,6 +92,8 @@ Required checks:
 - Unit tests
   - `tests/test_signature_native_pipeline.py`
   - `tests/test_signature_golden_corpus.py`
+  - `tests/test_signature_provider_corpus.py`
+  - `tests/test_signature_quality_summary.py`
   - `tests/test_refine_service_memory.py`
 - Existing DTO/CLI/server tests must remain green.
 
@@ -98,7 +108,14 @@ Promote
 Promotion gates:
 1. local: format/lint/typecheck/tests green.
 2. CI: core test slice green.
-3. optional live: provider smoke (`DSPX_RUN_LIVE_TESTS=1`) still healthy.
+3. quality gate report:
+   - `dspx signature quality-summary --json --fail-on-gate`
+   - default thresholds:
+     - `fallback_rate <= 0.25`
+     - `attempts_p95 <= 3.0`
+     - `validation_pass_rate >= 0.90`
+     - `smoke_pass_rate >= 0.90`
+4. optional live: provider smoke (`DSPX_RUN_LIVE_TESTS=1`) still healthy.
 
 Rollback posture:
 - `simple-*` deterministic path remains unchanged.
@@ -113,5 +130,6 @@ Publish
   - `just publish-core`
 - Track post-release metrics:
   - fallback usage rate
-  - average attempts used
+  - attempts-used distribution (p95 + histogram)
   - signature validation pass rate
+  - signature smoke pass rate

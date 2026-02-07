@@ -99,6 +99,14 @@ Unified CLI (dspx)
 
   just dspx signature gen "Extract names" --template-version simple-v1 --class-name Sig_Names --outfile generated/sig.py
 
+- Signature quality telemetry summary + gates:
+
+  dspx signature quality-summary --json --fail-on-gate --max-fallback-rate 0.25 --max-attempts-p95 3.0 --min-validation-pass-rate 0.90 --min-smoke-pass-rate 0.90
+
+  # optional per-run summaries
+  dspx signature gen "Extract names" --provider pi-rpc --summary --summary-json-out generated/sig.summary.json
+  dspx signature refine "Extract names" --summary --summary-json-out generated/refine.summary.json
+
 - Module generation (deterministic template):
 
   just dspx module-gen -n Summarizer -d "Summarizes text" -i text -o summary --template-version simple-v1 --outfile generated/module.py

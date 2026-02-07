@@ -159,7 +159,9 @@ Current native internals (spec-first path):
 - stage B: deterministic renderer emits Python class code,
 - validation + smoke checks + scoring,
 - bounded retries with best-candidate selection,
-- deterministic template fallback when validation fails.
+- deterministic template fallback when validation fails,
+- quality telemetry emission (`fallback_used`, attempts-used, validation/smoke pass rates) into JSONL,
+- promotion-gate aggregation via `dspx signature quality-summary`.
 
 4) Plugin & Extension Points
 ----------------------------

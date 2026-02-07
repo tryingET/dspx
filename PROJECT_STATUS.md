@@ -35,7 +35,15 @@ Current working branch: `main`.
   - `tests/test_signature_native_pipeline.py`
   - `tests/test_refine_service_memory.py`
   - `tests/test_signature_golden_corpus.py`
+  - `tests/test_signature_provider_corpus.py`
+  - `tests/test_signature_quality_summary.py`
   - `tests/golden/signature_specs.json`
+  - `tests/golden/signature_provider_cases.json`
+- Operationalized signature quality telemetry and gates:
+  - per-run quality metadata (fallback-used, attempts-used, validation/smoke pass rates)
+  - JSONL event log (`generated/cache/signature/quality_runs.jsonl`, overridable)
+  - CLI gate/report command: `dspx signature quality-summary`
+  - run-summary emission flags for `signature gen` / `signature refine`
 - Added architecture/runbook docs for the pipeline:
   - `docs/SIGNATURE_NATIVE_PIPELINE.md`
   - `README.md` / `docs/ARCHITECTURE.md` updates
@@ -54,6 +62,11 @@ Current working branch: `main`.
   - `simple-*` templates stay deterministic/no-LM
   - LM-backed native path is spec-first and capability-aware
   - bounded retry knob: `DSPX_SIGNATURE_MAX_ATTEMPTS`
+  - quality telemetry knobs:
+    - `DSPX_SIGNATURE_QUALITY_ENABLE`
+    - `DSPX_SIGNATURE_QUALITY_LOG`
+  - promotion gate/report command:
+    - `dspx signature quality-summary --json --fail-on-gate`
 - Quality/test commands:
   - `just fmt`
   - `just lint`
@@ -69,15 +82,14 @@ Current working branch: `main`.
 
 - `pre-commit run --all-files`: passing
 - `just monorepo-check`: passing
-- `just test`: passing (`163 passed, 4 skipped`)
+- `just test`: passing (`170 passed, 4 skipped`)
 
 ## Known gaps and immediate risks
 
 - Strict `min` compat track still depends on remote tag hygiene:
   - keep `dspx-core-v<lower-bound>` tags present on remote (currently `dspx-core-v0.1.0`).
-- Signature quality telemetry is not yet standardized across services:
-  - fallback-rate / attempts-used trend reporting should be promoted to first-class CI visibility.
-- Signature hardening is currently deepest in signature/refine paths; equivalent quality contracts are not yet rolled out uniformly to module/codegen/mermaid outputs.
+- Signature quality telemetry is standardized for signature/refine runs, but still not rolled out uniformly across module/codegen/mermaid services.
+- CI wiring still needs to persist/publish `signature quality-summary` output as a first-class artifact.
 
 ## Canonical docs
 
