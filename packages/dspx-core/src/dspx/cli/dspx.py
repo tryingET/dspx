@@ -33,6 +33,7 @@ adapters_dataset_app = typer.Typer(no_args_is_help=True)
 adapters_eval_app = typer.Typer(no_args_is_help=True)
 cache_app = typer.Typer(no_args_is_help=True)
 optimize_app = typer.Typer(no_args_is_help=True)
+run_app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(sig_app, name="signature", help="Signature operations")
 app.add_typer(mermaid_app, name="mermaid", help="Mermaid workflow operations")
@@ -45,6 +46,7 @@ adapters_app.add_typer(adapters_dataset_app, name="dataset", help="Dataset adapt
 adapters_app.add_typer(adapters_eval_app, name="eval", help="Evaluation helpers")
 app.add_typer(cache_app, name="cache", help="Inspect and manage the on-disk cache")
 app.add_typer(optimize_app, name="optimize", help="Program optimization (GEPA, etc.)")
+app.add_typer(run_app, name="run", help="Replay/explain operations")
 
 
 def _ensure_env(provider: Optional[str], *, tracing: bool = True) -> None:
@@ -996,6 +998,75 @@ def codegen(
                 )
             except Exception:
                 pass
+
+
+@run_app.command("replay")
+def run_replay(
+    from_: Path = typer.Option(
+        ...,
+        "--from",
+        "-f",
+        help="Path to run receipt (.meta.json)",
+    ),
+    check_only: bool = typer.Option(
+        True,
+        "--check-only/--no-check-only",
+        help="Verify receipt/output/cache only (default: check-only)",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    import json as _json
+
+    from dspx.services.run_replay_service import check_run_receipt
+
+    # Replay checks are local-only by contract.
+    prev_mlflow_enable = os.getenv("MLFLOW_ENABLE")
+    os.environ["MLFLOW_ENABLE"] = "0"
+
+    try:
+        if not check_only:
+            typer.echo(
+                "error: execute replay is not implemented yet; use --check-only",
+                err=True,
+            )
+            raise typer.Exit(code=2)
+
+        report = check_run_receipt(from_)
+        status = str(report.get("status") or "invalid")
+
+        if json_out:
+            typer.echo(_json.dumps(report, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(f"status: {status}")
+            typer.echo(f"receipt: {report.get('receipt_path')}")
+            run_kind = report.get("run_kind")
+            if run_kind:
+                typer.echo(f"run_kind: {run_kind}")
+            output_path = report.get("output_path")
+            if output_path:
+                typer.echo(f"output: {output_path}")
+            checks: dict[str, bool] = {}
+            checks_raw = report.get("checks")
+            if isinstance(checks_raw, dict):
+                for name, value in checks_raw.items():
+                    checks[str(name)] = bool(value)
+            for name in sorted(checks.keys()):
+                typer.echo(f"check.{name}: {'ok' if checks[name] else 'fail'}")
+            for warning in report.get("warnings") or []:
+                typer.echo(f"warn: {warning}")
+            for error in report.get("errors") or []:
+                typer.echo(f"error: {error}", err=True)
+
+        if status == "ok":
+            return
+        if status == "failed":
+            raise typer.Exit(code=1)
+        raise typer.Exit(code=2)
+    finally:
+        if prev_mlflow_enable is None:
+            os.environ.pop("MLFLOW_ENABLE", None)
+        else:
+            os.environ["MLFLOW_ENABLE"] = prev_mlflow_enable
 
 
 def _read_mermaid(path: Optional[Path]) -> str:
