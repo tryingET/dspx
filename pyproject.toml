@@ -54,3 +54,6 @@ filterwarnings = [
 [build-system]
 requires = ["uv-build>=0.2"]
 build-backend = "uv_build"
+
+[tool.uv.workspace]
+members = ["packages/dspx-core", "apps/forge"]

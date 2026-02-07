@@ -34,14 +34,14 @@ typecheck:
 test:
   # Run only local tests (none by default); skip submodules' test suites
   if [ -d tests ]; then \
-    PYTHONPATH={{PYTHONPATH}} uv run -m pytest -q tests; \
+    PYTHONPATH={{PYTHONPATH}} uv run --no-project -m pytest -q tests; \
   else \
     echo "no local tests"; \
   fi
 
 # Monorepo boundary guardrail check
 monorepo-check:
-  uv run -q python scripts/check_monorepo_boundaries.py
+  PYTHONPATH={{PYTHONPATH}} uv run --no-project -q python scripts/check_monorepo_boundaries.py
 
 # Run unified CLI from source (pass-through)
 # Examples:
@@ -49,11 +49,11 @@ monorepo-check:
 #   just dspx tools list
 dspx *args:
   # Use bash to preserve argument boundaries reliably.
-  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run -q python -m dspx.cli.dspx "$@"' -- {{args}}
+  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run --no-project -q python -m dspx.cli.dspx "$@"' -- {{args}}
 
 # Forge app CLI from monorepo app boundary
 forge *args:
-  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run -q python -m dspx_forge.cli "$@"' -- {{args}}
+  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run --no-project -q python -m dspx_forge.cli "$@"' -- {{args}}
 
 # OpenRouter wrapper (1Password `op run`)
 # NOTE: We avoid variadic pass-through here because Just interpolation happens in a shell,
