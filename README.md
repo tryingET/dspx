@@ -47,7 +47,7 @@ Files
   - Core CLI entrypoint: `cli/dspx.py`.
   - Example CLIs: `cli/example_predict.py`, `cli/codegen.py`, `cli/vibegen.py`, `cli/viberefine.py`.
 - `apps/forge/src/dspx_forge/`: Forge app package + CLI (`dspx-forge`).
-- `scripts/`: repo automation/guardrails (`check_monorepo_boundaries.py`, compat smoke scripts).
+- `scripts/`: repo automation/guardrails (`check_monorepo_boundaries.py`, `build_signature_provider_quality_log.py`, compat smoke scripts).
 - `docs/`: architecture, status, next steps, and operator guides.
 - `~/programming/upstream/`: sibling upstream clones (recommended for `attachments`, `dspy`, `mlflow`, and patch workflows).
 
@@ -101,7 +101,12 @@ Unified CLI (dspx)
 
 - Signature quality telemetry summary + gates:
 
+  # default gate profile
   dspx signature quality-summary --json --fail-on-gate --max-fallback-rate 0.25 --max-attempts-p95 3.0 --min-validation-pass-rate 0.90 --min-smoke-pass-rate 0.90
+
+  # CI/provider-corpus gate profile (pi-rpc/openrouter/codex/claude/gemini)
+  uv run -q python scripts/build_signature_provider_quality_log.py --out generated/ci/signature_provider_quality.jsonl
+  dspx signature quality-summary --log-path generated/ci/signature_provider_quality.jsonl --run-kind signature-gen --json --fail-on-gate --max-fallback-rate 0.10 --max-attempts-p95 1.0 --min-validation-pass-rate 1.0 --min-smoke-pass-rate 1.0
 
   # optional per-run summaries
   dspx signature gen "Extract names" --provider pi-rpc --summary --summary-json-out generated/sig.summary.json
@@ -288,6 +293,9 @@ Install, Update, Build
 - Package-scoped quality/test slices:
   - Core: `just lint-core && just typecheck-core && just test-core`
   - Forge: `just lint-forge && just typecheck-forge && just test-forge`
+  - Signature provider-corpus gates (CI parity):
+    - `uv run -q python scripts/build_signature_provider_quality_log.py --out generated/ci/signature_provider_quality.jsonl`
+    - `dspx signature quality-summary --log-path generated/ci/signature_provider_quality.jsonl --run-kind signature-gen --json --fail-on-gate --max-fallback-rate 0.10 --max-attempts-p95 1.0 --min-validation-pass-rate 1.0 --min-smoke-pass-rate 1.0`
   - Forge/core wheel compat matrix: `just forge-core-compat-matrix`
     - `min` track expects tag `dspx-core-v<forge lower bound>` (e.g. `dspx-core-v0.1.0`).
 - Update (editable install): `git pull` (code updates immediately).

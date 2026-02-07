@@ -162,6 +162,7 @@ Current native internals (spec-first path):
 - deterministic template fallback when validation fails,
 - quality telemetry emission (`fallback_used`, attempts-used, validation/smoke pass rates) into JSONL,
 - promotion-gate aggregation via `dspx signature quality-summary`.
+- CI enforcement for provider corpus gates (artifact + PR-facing summary in `core` job).
 
 4) Plugin & Extension Points
 ----------------------------

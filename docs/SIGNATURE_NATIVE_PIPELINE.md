@@ -76,6 +76,9 @@ Key modules:
 - `packages/dspx-core/src/dspx/services/signature_quality.py`
   - quality event log append/read
   - aggregate metrics + gate evaluation
+- `packages/dspx-core/src/dspx/services/signature_quality_corpus.py`
+  - provider-corpus event synthesis
+  - strict corpus gate profile used by CI
 - `packages/dspx-core/src/dspx/templates/signature_templates.py`
   - spec prompt formatting
   - deterministic spec renderer
@@ -94,6 +97,7 @@ Required checks:
   - `tests/test_signature_golden_corpus.py`
   - `tests/test_signature_provider_corpus.py`
   - `tests/test_signature_quality_summary.py`
+  - `tests/test_signature_quality_corpus.py`
   - `tests/test_refine_service_memory.py`
 - Existing DTO/CLI/server tests must remain green.
 
@@ -107,8 +111,13 @@ Promote
 -------
 Promotion gates:
 1. local: format/lint/typecheck/tests green.
-2. CI: core test slice green.
-3. quality gate report:
+2. CI: core test slice green + provider-corpus quality gate artifact.
+   - build deterministic corpus log:
+     - `uv run -q python scripts/build_signature_provider_quality_log.py --out generated/ci/signature_provider_quality.jsonl`
+   - evaluate gates:
+     - `dspx signature quality-summary --log-path generated/ci/signature_provider_quality.jsonl --run-kind signature-gen --json --fail-on-gate --max-fallback-rate 0.10 --max-attempts-p95 1.0 --min-validation-pass-rate 1.0 --min-smoke-pass-rate 1.0`
+   - publish artifact: `signature-quality-summary` + PR-facing step summary.
+3. default quality gate report (runtime telemetry log):
    - `dspx signature quality-summary --json --fail-on-gate`
    - default thresholds:
      - `fallback_rate <= 0.25`

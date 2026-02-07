@@ -34,7 +34,7 @@ Automation:
 
 - CI jobs split by concern:
   - workspace smoke + hygiene
-  - `core` quality/tests
+  - `core` quality/tests + signature provider-corpus gate artifact (`signature-quality-summary`)
   - `forge` quality/tests
   - forge/core wheel compatibility (`latest`, `min`)
 - Test slices are marker-based:
