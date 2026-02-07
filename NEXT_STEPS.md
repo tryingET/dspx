@@ -16,42 +16,46 @@ Acceptance:
 - Quality gates stay green.
 - No new boundary violations.
 
-## 1) Close packaging convergence (highest priority)
+## 1) Packaging convergence (baseline closed)
 
-Goal: lock in workspace-native behavior from clean clone.
+Status:
+- Clean-clone smoke flow is formalized and wired into CI.
 
-Next actions:
-- Add/verify clean-clone smoke path in docs + CI-friendly script:
+Implemented:
+- Script: `scripts/clean_clone_smoke.sh`
+- Just wrapper: `just clean-clone-smoke`
+- CI smoke sequence:
   - `uv sync`
   - `just dspx --help`
   - `just forge --help`
   - `just test`
+
+Keep-doing:
 - Review remaining Just recipes for explicit package context where helpful
   (`--package dspx-core` / `--package dspx-forge`) to avoid ambiguity as
   the workspace grows.
 - Keep root as workspace-only (no root runtime package resurrection).
 
 Acceptance:
-- Fresh clone can run the smoke sequence without path hacks.
+- Fresh clone runs smoke sequence without path hacks.
 - No `PYTHONPATH` / `--no-project` workaround reintroduced.
 
-## 2) CI/CD split by package
+## 2) CI/CD split by package (baseline landed)
 
-Goal: package-aware pipeline and release behavior.
+Status:
+- CI now runs package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
 
-Next actions:
-- Create separate CI jobs for:
-  - core lint/typecheck/test
-  - forge lint/typecheck/test
-  - optional integration smoke
+Remaining actions:
 - Define release policy clearly:
   - independent versions for `dspx-core` and `dspx-forge`, or
   - explicitly coupled versioning (documented rationale)
 - Ensure artifacts/publish steps are package-scoped.
+- Optionally tighten test slicing beyond `-k forge` / `-k "not forge"` if the
+  suite grows.
 
 Acceptance:
-- CI shows package-scoped pass/fail.
-- Release process is documented and reproducible.
+- CI shows package-scoped pass/fail. ✅
+- Release process is documented and reproducible. ⏳
 
 ## 3) Docs convergence for split layout and CLI contracts
 

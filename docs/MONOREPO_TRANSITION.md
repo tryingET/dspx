@@ -33,5 +33,16 @@ Back-compat import aliases/forwarders were removed in favor of direct package bo
 ## Next hardening tasks
 
 - Keep workspace-native run/install flow green (`uv sync`, `just dspx ...`, `just forge ...`) without PYTHONPATH shims.
-- Re-home CI/release jobs to package-aware workflows.
+- CI workflows are now package-aware (`core`, `forge`) plus smoke/hygiene jobs; next focus is package-scoped release jobs.
 - Update README/docs command examples to prefer `just dspx ...` and `just forge ...`.
+
+## Clean-clone smoke flow (formalized)
+
+- Script: `scripts/clean_clone_smoke.sh`
+- Just wrapper: `just clean-clone-smoke`
+- Sequence:
+  - `uv sync`
+  - `just dspx --help`
+  - `just forge --help`
+  - `just test`
+- CI now runs this smoke flow in `.github/workflows/ci.yml`.

@@ -17,11 +17,15 @@ This status reflects the **breaking monorepo branch**:
   - `apps/forge`: `module-name = "dspx_forge"`
 - Forge package declares explicit workspace dependency on core (`dspx-core`).
 - Core CLI remains core-only; Forge CLI remains app-only.
+- CI is split into package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
 
 ## Current runtime / packaging behavior
 
 - Workspace install:
   - `uv sync`
+- Clean-clone smoke flow:
+  - `just clean-clone-smoke`
+  - runs: `uv sync`, `just dspx --help`, `just forge --help`, `just test`
 - Core CLI:
   - `just dspx ...`
   - runs: `uv run --package dspx-core -q python -m dspx.cli.dspx ...`
@@ -30,14 +34,22 @@ This status reflects the **breaking monorepo branch**:
   - runs: `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
 - Tests:
   - `just test` runs `uv run -m pytest -q tests`
+  - `just test-core` runs `pytest -k "not forge"`
+  - `just test-forge` runs `pytest -k "forge"`
+- Package-scoped quality recipes:
+  - `just lint-core`, `just typecheck-core`
+  - `just lint-forge`, `just typecheck-forge`
 - Boundary check:
   - `just monorepo-check` runs `scripts/check_monorepo_boundaries.py`
 
 ## Validation snapshot (latest local run)
 
+- `just clean-clone-smoke`: passing.
 - `pre-commit run --all-files`: passing.
 - `just monorepo-check`: passing.
 - `just test`: passing (`150 passed, 4 skipped`).
+- `just test-core`: passing (`141 passed, 4 skipped, 9 deselected`).
+- `just test-forge`: passing (`9 passed, 1 skipped, 144 deselected`).
 
 ## Boundary status
 
@@ -54,10 +66,12 @@ This status reflects the **breaking monorepo branch**:
 
 ## Known gaps and immediate risks
 
-- CI/CD is not yet split cleanly by package (`dspx-core` vs `dspx-forge`).
 - Release/versioning policy is still coupled in helper workflow (both package versions bumped together by `just version`).
-- Full clean-clone smoke sequence should be documented and enforced in CI (`uv sync`, `just dspx --help`, `just forge --help`, `just test`).
 - Some branch docs may still contain stale wording from pre-split architecture.
+
+Recently closed:
+- Clean-clone smoke flow is now formalized via `scripts/clean_clone_smoke.sh` / `just clean-clone-smoke` and enforced in CI.
+- CI now has package-aware jobs for `core` and `forge` quality/test slices.
 
 ## Canonical docs for this branch
 
@@ -69,5 +83,5 @@ This status reflects the **breaking monorepo branch**:
 ## Recommended posture
 
 - Keep boundaries strict and test-enforced.
-- Prioritize package-aware CI/release flow next.
+- Prioritize package-aware release/version policy next.
 - Avoid reintroducing compatibility shims unless required for unblock.

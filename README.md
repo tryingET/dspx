@@ -71,10 +71,11 @@ Architecture & Vision
 
 Quick Start (uv)
 ----------------
-1) Install deps and run tests:
+1) Install deps and run the clean-clone smoke flow:
 
-   just install
-   just test
+   just clean-clone-smoke
+
+   (Equivalent explicit sequence: `uv sync`, `just dspx --help`, `just forge --help`, `just test`.)
 
    Tests run offline/deterministic by default (they force `DSPX_PROVIDER=stub` and `MLFLOW_ENABLE=0`).
    Live provider/network tests are opt-in via `DSPX_RUN_LIVE_TESTS=1`.
@@ -264,9 +265,15 @@ Quick curl examples:
 Install, Update, Build
 ----------------------
 - Dev install (editable, optional): `just dev-install` — exposes console scripts.
+- Clean-clone smoke (used in CI): `just clean-clone-smoke`.
+  - Runs: `uv sync`, `just dspx --help`, `just forge --help`, `just test`.
 - Run commands without install:
   - Unified CLI: `just dspx ...` (runs from source via `uv run -m`).
+  - Forge CLI: `just forge ...`.
   - Multi demo: `uv run -q python -m dspx.cli.multi_demo ...`.
+- Package-scoped quality/test slices:
+  - Core: `just lint-core && just typecheck-core && just test-core`
+  - Forge: `just lint-forge && just typecheck-forge && just test-forge`
 - Update (editable install): `git pull` (code updates immediately).
 - Update (uv tool install): `uv tool install --force .` in repo.
 - Build packages: `just build` (uses `uv build`, outputs to `dist/`).
