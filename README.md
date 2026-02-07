@@ -8,6 +8,18 @@ Using DSPy with Codex Exec as the Active LM
 
 This example shows how to use the OpenAI Codex CLI's execution mode (`codex exec`) as the language model for a DSPy program, via a small wrapper `CodexExecLM`.
 
+Canonical docs map
+------------------
+- Architecture: `docs/ARCHITECTURE.md`
+- Vision/principles: `docs/VISION.md`
+- Current status (canonical): `PROJECT_STATUS.md`
+- Roadmap/next actions (canonical): `NEXT_STEPS.md`
+- Forge design + commands: `docs/FORGE.md`
+- Server runtime/security: `docs/SERVER.md`
+- OpenAPI tooling: `docs/OPENAPI_TOOLING.md`
+- Policy defaults matrix: `docs/POLICY_DEFAULTS.md`
+- Historical/legacy snapshots: `docs/PROJECT_STATUS.md`, `docs/NEXT_STEPS.md`
+
 Prerequisites
 -------------
 - Codex CLI installed and authenticated (e.g., `codex --version`, `codex auth whoami`).

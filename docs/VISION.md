@@ -14,6 +14,19 @@ We want a durable, composable stack for LM-driven programming that: (a) treats t
 
 Current emphasis: **CLI-first toolkit** (prove workflows + contracts in real use) → then **platform/plugins** (Phase 10) once the core is battle-tested.
 
+Current vs Target (matrix)
+--------------------------
+| Area | Current state (implemented now) | Target state (intended end-state) | Gap / next concrete step |
+| --- | --- | --- | --- |
+| Providers | Codex/Claude/Gemini/OpenRouter/PiRPC/Multi are available in the registry. | Provider-first runtime with plugin discovery and explicit capability contracts. | Add entry-point plugin loading and a provider capability/health probe report. |
+| CLI surface | Unified `dspx` exists; legacy forwarders still work. | Single stable CLI surface with versioned command contracts. | Publish a forwarder deprecation plan and centralize command help/examples. |
+| Server | FastAPI MVP (`/signature`, `/module`, `/mermaid`) with auth/rate-limit/metrics toggles. | Full service API with consistent policy semantics and broader endpoint coverage. | Add descriptor/tool endpoints and a production deployment profile doc. |
+| Forge | Issues-first flow is present with dry-run defaults and apply gates. | End-to-end backlog compiler with idempotent multi-project apply + evidence packs. | Harden overlap/audit outputs and add golden end-to-end forge tests. |
+| Policy/Safety | Env/CLI policy gates, mutation confirmations, host allowlists are in place. | Capability-default policy model with explicit auditability across CLI/server/Forge. | Define/enforce canonical defaults in `docs/POLICY_DEFAULTS.md`. |
+| Plugins | Internal registries exist; external plugin loading is not wired. | Entry-point plugins for providers/tools/generators with compatibility checks. | Implement plugin discovery + ship one minimal example plugin. |
+| Observability | MLflow tags/artifacts/metrics are present; nested runs are partial. | Unified workflow→service→tool traces with policy decision events. | Expand nested runs beyond Mermaid sig-per-node and add policy event schema. |
+| Reproducibility | Content-hash cache + manifests/meta for generated artifacts. | Deterministic replay and reproducibility reports from stored run manifests. | Add manifest replay CLI and cache provenance checks in CI. |
+
 First principles
 ----------------
 - Explicit contracts over implicit prompts: define DTOs for requests/results; keep services pure and testable.
@@ -194,6 +207,7 @@ Security, policy, safety
 - Token handling: env scoping, redaction in logs, short‑lived tokens.
 - Permissions: explicit prompts for destructive ops; budget/time gates; dry‑run modes.
 - Sandboxing: optional isolated worktrees/processes for code‑exec providers.
+- Canonical capability defaults and audit posture: `docs/POLICY_DEFAULTS.md`.
 
 Observability, reproducibility, and performance
 ----------------------------------------------
