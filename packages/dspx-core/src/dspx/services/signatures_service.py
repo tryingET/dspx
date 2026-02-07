@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os as _os
 import re
-from typing import Any, Optional
+from typing import Optional
 
 import dspy
 
@@ -13,11 +13,10 @@ from dspx.lm_base import LMBase
 from dspx.provider_registry import create_from_env, ensure_default_providers
 from dspx.templates import format_signature_prompt, render_simple_signature
 from dspx.tracing import enable_mlflow_from_env
-from dspx.upstream_paths import ensure_vibe_on_path
 
 
 def _extract_code_block(text: str) -> str:
-    fence = re.compile(r"```[\\w+-]*\\n([\\s\\S]*?)\\n```", re.MULTILINE)
+    fence = re.compile(r"```[\w+-]*\n([\s\S]*?)\n```", re.MULTILINE)
     m = fence.search(text or "")
     if m:
         return m.group(1).strip()
@@ -26,7 +25,7 @@ def _extract_code_block(text: str) -> str:
 
 def _extract_signature_name(code: str) -> str | None:
     m = re.search(
-        r"^class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*dspy\\.Signature\\s*\\)\\s*:",
+        r"^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)\s*:",
         code or "",
         re.M,
     )
@@ -35,12 +34,12 @@ def _extract_signature_name(code: str) -> str | None:
     return None
 
 
-def _generate_via_native(
+def _generate_native_payload(
     *,
     prompt_for_model: str,
     fallback_description: str,
     class_name_hint: str,
-) -> dict[str, Any]:
+) -> dict[str, str | None]:
     predictor = dspy.Predict("task -> code")
     result = predictor(task=prompt_for_model)
     text = result.code if hasattr(result, "code") else str(result)
@@ -55,51 +54,8 @@ def _generate_via_native(
         "code": code,
         "signature_name": sig_name,
         "task_description": fallback_description,
-        "fields": None,
-        "reasoning": None,
         "backend": "native",
     }
-
-
-def _generate_signature_payload(
-    *,
-    prompt_for_model: str,
-    fallback_description: str,
-    class_name_hint: str,
-) -> dict[str, Any]:
-    ensure_vibe_on_path()
-
-    try:
-        from signature_generator import SignatureGenerator  # type: ignore
-
-        generator = SignatureGenerator()
-        raw = generator.generate_signature(prompt_for_model)
-        code = str(raw.get("code") or "")
-        sig_name = (
-            raw.get("signature_name") or _extract_signature_name(code) or ""
-        ).strip() or None
-
-        if not code or sig_name is None:
-            return _generate_via_native(
-                prompt_for_model=prompt_for_model,
-                fallback_description=fallback_description,
-                class_name_hint=class_name_hint,
-            )
-
-        return {
-            "code": code,
-            "signature_name": sig_name,
-            "task_description": raw.get("task_description") or fallback_description,
-            "fields": raw.get("fields"),
-            "reasoning": raw.get("reasoning"),
-            "backend": "vibe",
-        }
-    except Exception:
-        return _generate_via_native(
-            prompt_for_model=prompt_for_model,
-            fallback_description=fallback_description,
-            class_name_hint=class_name_hint,
-        )
 
 
 def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
@@ -111,7 +67,7 @@ def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    payload = _generate_signature_payload(
+    payload = _generate_native_payload(
         prompt_for_model=format_signature_prompt(prompt, version="v1"),
         fallback_description=prompt,
         class_name_hint="GeneratedSignature",
@@ -125,7 +81,7 @@ def run_generate_dto(
     """DTO-oriented variant that returns structured result.
 
     If `req.template_version` starts with 'simple', a deterministic template is used
-    (no LM calls). Otherwise, uses vibe-dspy when available and a native fallback.
+    (no LM calls). Otherwise, native generation is used via the configured provider.
     """
     import time as _time
 
@@ -163,7 +119,7 @@ def run_generate_dto(
             reasoning=None,
         )
 
-    # LM path (vibe-dspy if available; native fallback otherwise)
+    # LM path (native)
     load_config_env()
     enable_mlflow_from_env()
 
@@ -192,7 +148,7 @@ def run_generate_dto(
     prompt_for_model = format_signature_prompt(
         req.prompt, version=req.template_version or "v1"
     )
-    payload = _generate_signature_payload(
+    payload = _generate_native_payload(
         prompt_for_model=prompt_for_model,
         fallback_description=req.prompt,
         class_name_hint=class_name_hint,
@@ -202,10 +158,10 @@ def run_generate_dto(
         code=str(payload.get("code") or ""),
         signature_name=payload.get("signature_name"),
         task_description=payload.get("task_description"),
-        fields=payload.get("fields"),
-        reasoning=payload.get("reasoning"),
+        fields=None,
+        reasoning=None,
     )
-    backend = str(payload.get("backend") or "unknown")
+    backend = str(payload.get("backend") or "native")
 
     # Cache LM-backed result as well
     key = make_key(

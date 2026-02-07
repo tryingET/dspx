@@ -105,7 +105,7 @@ Next actions:
    - `just upstream-link-dspy path=...`
    - `just upstream-link-mlflow path=...`
    - `just upstream-reset`
-2. Keep upstream deps as sibling clones under `~/programming/upstream` (not repo submodules), including `vibe-dspy`, `attachments`, `dspy`, `mlflow`.
+2. Keep upstream deps as sibling clones under `~/programming/upstream` (not repo submodules), including `attachments`, `dspy`, `mlflow`.
 3. Prefer upstream PR + released version bump over long-lived local forks.
 
 Acceptance:

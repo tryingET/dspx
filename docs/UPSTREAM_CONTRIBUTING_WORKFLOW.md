@@ -1,17 +1,17 @@
 ---
-summary: "Use sibling upstream clones (DSPy/MLflow/vibe-dspy/attachments) instead of adding more submodules."
+summary: "Use sibling upstream clones (DSPy/MLflow/attachments) instead of git submodules."
 read_when:
   - "You need to debug/patch DSPy or MLflow behavior while working in dspx."
-  - "You need to wire vibe-dspy/attachments from local upstream clones."
+  - "You need attachments from a local upstream clone."
   - "You are considering adding new upstream repos as git submodules in this repo."
 ---
 
-# Upstream Contribution Workflow (no new submodules)
+# Upstream Contribution Workflow (no submodules)
 
 ## Decision
 
-For upstream dependencies (especially `dspy`, `mlflow`, `vibe-dspy`, `attachments`),
-prefer **sibling upstream clones** over adding new git submodules in this repo.
+For upstream dependencies (especially `dspy`, `mlflow`, and `attachments`),
+prefer **sibling upstream clones** over git submodules in this repo.
 
 Current repo posture: no git submodules tracked.
 
@@ -28,7 +28,6 @@ cd ~/programming/upstream
 
 git clone https://github.com/stanfordnlp/dspy.git
 git clone https://github.com/mlflow/mlflow.git
-git clone https://github.com/Archelunch/vibe-dspy.git
 git clone https://github.com/MaximeRivest/attachments.git
 ```
 
@@ -40,18 +39,6 @@ From `dspx/`:
 # swap currently installed wheel with editable upstream checkout
 uv pip install -e ~/programming/upstream/dspy
 uv pip install -e ~/programming/upstream/mlflow
-```
-
-For vibe-dspy-backed signature generation, DSPx will auto-discover:
-
-1. `DSPX_VIBE_DSPY_SRC` (explicit `.../vibe-dspy/src`)
-2. `DSPX_UPSTREAM_DIR/vibe-dspy/src` (if set)
-3. `~/programming/upstream/vibe-dspy/src` (default)
-
-Optional explicit pin:
-
-```bash
-export DSPX_VIBE_DSPY_SRC=~/programming/upstream/vibe-dspy/src
 ```
 
 For attachments helpers, use `PYTHONPATH` when needed:

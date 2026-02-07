@@ -10,7 +10,6 @@ from dspx.lm_base import LMBase
 from dspx.provider_registry import create_from_env, ensure_default_providers
 from dspx.templates import format_signature_prompt, render_simple_signature
 from dspx.tracing import enable_mlflow_from_env
-from dspx.upstream_paths import ensure_vibe_on_path
 
 
 def _wrap_script(signature_code: str) -> str:
@@ -42,9 +41,8 @@ def _wrap_script(signature_code: str) -> str:
 def _extract_sig_class_name(code: str) -> str | None:
     import re
 
-    # Best-effort: first class inheriting from dspy.Signature.
     m = re.search(
-        r"^class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*dspy\\.Signature\\s*\\)\\s*:",
+        r"^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)\s*:",
         code,
         re.M,
     )
@@ -56,20 +54,10 @@ def _extract_sig_class_name(code: str) -> str | None:
 def _extract_code_block(text: str) -> str:
     import re
 
-    m = re.search(r"```[\\w+-]*\\n([\\s\\S]*?)\\n```", text or "", re.M)
+    m = re.search(r"```[\w+-]*\n([\s\S]*?)\n```", text or "", re.M)
     if m:
         return m.group(1).strip()
     return (text or "").strip()
-
-
-def _has_vibe() -> bool:
-    ensure_vibe_on_path()
-    try:
-        import signature_generator  # type: ignore  # noqa: F401
-
-        return True
-    except Exception:
-        return False
 
 
 def _native_generate_signature(
@@ -109,11 +97,9 @@ def run_refine(
     budget_ms = (
         int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
     )
-
-    vibe_backend = _has_vibe()
-    backend = "vibe" if vibe_backend else "native"
-    mode = "refine" if vibe_backend else "refine-native"
-    template_version = "refine-v1" if vibe_backend else "refine-v1-native"
+    backend = "native"
+    mode = "refine-native"
+    template_version = "refine-v1"
 
     # Start MLflow run early so DSPy autolog (if enabled) can attach to it.
     started_run = False
@@ -133,51 +119,22 @@ def run_refine(
         mlflow = None
         started_run = False
 
-    if vibe_backend:
-        from signature_generator import SignatureGenerator  # type: ignore
-
-        def reward_fn(args, pred):
-            if non_interactive:
-                return 1.0
-            ans = input("Accept signature? [y/N]: ").strip().lower()
-            if ans in {"y", "yes"}:
-                return 1.0
-            fb = (
-                input("Feedback (leave empty for generic): ").strip()
-                or "Please improve the signature."
-            )
-            return dspy.Prediction(score=0.0, feedback=fb)
-
-        refiner = dspy.Refine(
-            module=SignatureGenerator(), N=attempts, reward_fn=reward_fn, threshold=1.0
+    code = ""
+    current_prompt = prompt
+    for idx in range(max(1, int(attempts))):
+        code = _native_generate_signature(current_prompt)
+        if non_interactive:
+            break
+        ans = input("Accept signature? [y/N]: ").strip().lower()
+        if ans in {"y", "yes"}:
+            break
+        if idx == max(1, int(attempts)) - 1:
+            break
+        feedback = (
+            input("Feedback (leave empty for generic): ").strip()
+            or "Please improve the signature."
         )
-        try:
-            pred = refiner(prompt=prompt)
-            code = SignatureGenerator.generate_code(pred)
-        except Exception:
-            # Fallback to single-shot generation if refine fails
-            gen = SignatureGenerator()
-            result = gen.generate_signature(prompt)
-            code = result.get("code") or ""
-    else:
-        code = ""
-        current_prompt = prompt
-        for idx in range(max(1, int(attempts))):
-            code = _native_generate_signature(current_prompt)
-            if non_interactive:
-                break
-            ans = input("Accept signature? [y/N]: ").strip().lower()
-            if ans in {"y", "yes"}:
-                break
-            if idx == max(1, int(attempts)) - 1:
-                break
-            feedback = (
-                input("Feedback (leave empty for generic): ").strip()
-                or "Please improve the signature."
-            )
-            current_prompt = (
-                f"{prompt.strip()}\n\nRefinement feedback:\n{feedback.strip()}"
-            )
+        current_prompt = f"{prompt.strip()}\n\nRefinement feedback:\n{feedback.strip()}"
 
     if wrap_script:
         code = _wrap_script(code)

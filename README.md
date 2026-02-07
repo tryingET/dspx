@@ -48,7 +48,7 @@ Files
 - `apps/forge/src/dspx_forge/`: Forge app package + CLI (`dspx-forge`).
 - `scripts/`: repo automation/guardrails (`check_monorepo_boundaries.py`, compat smoke scripts).
 - `docs/`: architecture, status, next steps, and operator guides.
-- `~/programming/upstream/`: sibling upstream clones (recommended for `vibe-dspy`, `attachments`, `dspy`, `mlflow`, and patch workflows).
+- `~/programming/upstream/`: sibling upstream clones (recommended for `attachments`, `dspy`, `mlflow`, and patch workflows).
 
 Project Template
 ----------------
@@ -63,7 +63,7 @@ Architecture & Vision
 - Providers: Codex Exec, Claude CLI, Gemini CLI, Pi RPC, Multi‑provider, Stub LM
   - Also supported: OpenRouter (OpenAI-compatible HTTP API) via provider name `openrouter`
   - Pi RPC provider name: `pi-rpc` (long-lived `pi --mode rpc` subprocess)
-  - Services: codegen, signature generation (vibe), refine, module generation, mermaid workflows, agents
+  - Services: codegen, native signature generation, refine, module generation, mermaid workflows, agents
   - CLI: thin entrypoints delegating to services; unified `dspx` CLI available
 - See docs/VISION.md (principles/roadmap), docs/ARCHITECTURE.md (multi‑view diagrams), and docs/OPENAPI_TOOLING.md (MVP details).
 - Tutorials: docs/TUTORIAL_E2E.md (Mermaid + OpenAPI + CSV), docs/GEPA_FROM_MODULE_GEN.md (GEPA from module-gen).
@@ -110,7 +110,7 @@ Unified CLI (dspx)
 
   just dspx mermaid gen -f path/to/diagram.mmd -n flow -v predict,cot,react
 
-- Mermaid with signature‑per‑node (vibe‑dspy):
+- Mermaid with signature‑per‑node (native generator):
 
   just dspx mermaid sig -f path/to/diagram.mmd -n flow --provider codex-exec
 
@@ -377,19 +377,10 @@ The wrapper/example currently passes:
 
 You can adjust these by editing the `CodexExecLM(...)` arguments in `packages/dspx-core/src/dspx/cli/example_predict.py`.
 
-Upstream clone: vibe-dspy
--------------------------
-- Recommended location: `~/programming/upstream/vibe-dspy`
-- Clone:
-
-  mkdir -p ~/programming/upstream
-  git clone https://github.com/Archelunch/vibe-dspy.git ~/programming/upstream/vibe-dspy
-
-- DSPx resolves `signature_generator` in this order:
-  1. `DSPX_VIBE_DSPY_SRC` (explicit path to `.../vibe-dspy/src`)
-  2. `DSPX_UPSTREAM_DIR/vibe-dspy/src` (if `DSPX_UPSTREAM_DIR` is set)
-  3. `~/programming/upstream/vibe-dspy/src` (default)
-- `vibe-dspy` is optional: when unavailable, DSPx falls back to native signature generation.
+Native signature generation
+---------------------------
+- DSPx signature generation/refinement no longer depends on external `vibe-dspy` code.
+- `vibegen` / `viberefine` CLI command names are kept for continuity, but use native DSPx implementation.
 
 Upstream clone: attachments
 ---------------------------
@@ -450,9 +441,9 @@ AGPL-3.0. See `LICENSE`.
 
   just dspx mermaid gen -f path/to/diagram.mmd -n my_flow -v clarity
 
-Vibe-DSPy (Codex Exec) Adapter
-------------------------------
-- Generate a DSPy signature using vibe-dspy with Codex Exec as the LM:
+Native Signature CLI (legacy command names)
+-------------------------------------------
+- Generate a DSPy signature (native DSPx service):
 
   just vibegen "Count birds in an image and describe each"
 
@@ -706,7 +697,7 @@ Project Layout
 - `docs/`: project docs (vision, status, next steps)
 - `examples/`: curated, versioned examples and workflows
 - `generated/`: local outputs (ignored); kept for CLI defaults
-- `~/programming/upstream/`: sibling clones (`vibe-dspy`, `attachments`, `dspy`, `mlflow`, and other upstream patch checkouts)
+- `~/programming/upstream/`: sibling clones (`attachments`, `dspy`, `mlflow`, and other upstream patch checkouts)
 
 Credits & upstream influences
 -----------------------------

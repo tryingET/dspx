@@ -137,7 +137,7 @@ sequenceDiagram
   participant Tr as Tracing
   participant Reg as ProviderRegistry
   participant LM as Provider (LM)
-  participant Vibe as vibe-dspy
+  participant Sig as Native Signature Generator
   participant DSPy as DSPy
   participant ML as MLflow
 
@@ -147,8 +147,8 @@ sequenceDiagram
   CLI->>Reg: create_from_env
   Reg->>LM: build LM (Codex/Claude/Gemini/PiRPC/Multi)
   CLI->>DSPy: dspy.configure(lm=LM)
-  CLI->>Vibe: generate_signature(prompt)
-  Vibe-->>CLI: code (Signature)
+  CLI->>Sig: generate_signature(prompt)
+  Sig-->>CLI: code (Signature)
   CLI->>ML: log params/artifacts
   CLI-->>U: print or write signature code
 ```

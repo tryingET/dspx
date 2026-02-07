@@ -27,7 +27,7 @@ def _read_input(path: Optional[str]) -> str:
 
 
 def _class_header(name: str, label: str, nid: str) -> str:
-    # Prompt for vibe-dspy SignatureGenerator; we constrain the shape to be stable.
+    # Prompt for native signature generation; keep shape stable.
     return (
         "Create a DSPy Signature class for a workflow step.\n"
         f"Step ID: {nid}\n"
@@ -91,7 +91,7 @@ def _build_signatures(
                 run_name=f"signature-node-{nid}",
                 tags=standard_tags(
                     "signature",
-                    template_version="vibe-v1",
+                    template_version="native-v1",
                     extra={
                         "program_name": str(program_name or ""),
                         "mermaid.node_id": str(nid),
@@ -290,7 +290,7 @@ def _emit_program(
 
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Generate DSPy program from Mermaid using vibe-dspy signatures (one per node)"
+        description="Generate DSPy program from Mermaid using native signatures (one per node)"
     )
     ap.add_argument("--file", "-f", help="Path to Mermaid file, or '-' to read stdin")
     ap.add_argument("--name", "-n", help="Workflow name (slug)")
@@ -301,18 +301,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument(
         "--use-cli",
         action="store_true",
-        help="Use CLI tools (vibegen/viberefine) instead of service calls",
+        help="Use CLI wrappers (vibegen/viberefine) instead of direct service calls",
     )
     ap.add_argument(
         "--refine",
         action="store_true",
-        help="Use viberefine (non-interactive) for signatures",
+        help="Use refine wrapper (non-interactive) for signatures",
     )
     ap.add_argument(
         "--refine-attempts",
         type=int,
         default=3,
-        help="Attempts for viberefine when --refine is set",
+        help="Attempts for refine wrapper when --refine is set",
     )
     args = ap.parse_args(argv)
 
@@ -327,7 +327,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not nodes:
         raise SystemExit("No nodes parsed from Mermaid input.")
 
-    base = args.name or "workflow_vibe"
+    base = args.name or "workflow_native"
     out_root = Path(args.outdir or (Path.cwd() / "generated" / "workflows" / base))
     out_root.mkdir(parents=True, exist_ok=True)
 

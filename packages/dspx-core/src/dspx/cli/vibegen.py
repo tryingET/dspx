@@ -35,13 +35,10 @@ def wrap_script(signature_code: str) -> str:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    from dspx.cli.shared import ensure_env_and_tracing, ensure_vibe_path
-
-    ensure_vibe_path()
-    # Local import after path setup
+    from dspx.cli.shared import ensure_env_and_tracing
 
     ap = argparse.ArgumentParser(
-        description="Generate a DSPy signature using vibe-dspy, configured with Codex Exec"
+        description="Generate a DSPy signature using the native DSPx generator"
     )
     ap.add_argument(
         "prompt", help="Natural language description of the desired functionality"

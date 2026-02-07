@@ -64,7 +64,7 @@ Layers
   - HTTP provider (OpenRouterLM): direct API calls; strongest dependency on network policy and host controls.
 
 - Services
-  - SignatureService: prompt → Signature code (vibe‑dspy), returns CodeArtifact.
+  - SignatureService: prompt → Signature code (native DSPx generator), returns CodeArtifact.
   - RefineService: draft Signature → improved Signature (interactive or non‑interactive).
   - CodegenService: spec → code (general purpose generators/templates).
   - MermaidWorkflowService: Mermaid → DSPy programs (predict/cot/react) or signature‑per‑node.
@@ -203,7 +203,7 @@ Goal: treat OpenAPI specs as a dynamic tool source.
 Unified CLI (target)
 --------------------
 - Root: `dspx` with subcommands (keep current scripts as forwarders during transition):
-  - `dspx signature gen|refine` (vibe)
+  - `dspx signature gen|refine` (native)
   - `dspx mermaid gen|sig` (variants vs. signature‑per‑node)
   - `dspx codegen run` (spec → code)
   - `dspx agent run` (tool‑augmented reasoning)
@@ -341,7 +341,7 @@ Risks and higher‑order effects
 
 Current state
 -------------
-- Codex/Claude/Gemini/PiRPC providers + vibe‑dspy adapters work; MLflow tracing + config are in place.
+- Codex/Claude/Gemini/PiRPC providers + native signature/refine generation work; MLflow tracing + config are in place.
 - Mermaid variants and signature‑per‑node flows generate runnable programs.
 - Replay/explain split is explicit: MLflow covers explainability; replay remains manifest/receipt-driven and is being elevated to first-class CLI UX.
 - Next steps are additive; back‑compat maintained via forwarders while unifying CLI.

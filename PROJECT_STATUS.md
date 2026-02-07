@@ -41,8 +41,8 @@ Current working branch: `main`.
   - `just upstream-link-mlflow path=...`
   - `just upstream-reset`
 - Removed legacy duplicate status/roadmap docs under `docs/` to keep root files canonical.
-- Removed all git submodules (`vibe-dspy`, `attachments`, `ovllm`, `dspy`, `codex`); switched to sibling clones under `~/programming/upstream`.
-- Signature generation/refine now treats `vibe-dspy` as optional: auto-discovers sibling clone (`DSPX_VIBE_DSPY_SRC` / `DSPX_UPSTREAM_DIR`) and falls back to native generation when unavailable.
+- Removed all git submodules (`vibe-dspy`, `attachments`, `ovllm`, `dspy`, `codex`); switched to sibling clones under `~/programming/upstream` where needed.
+- Signature generation/refine now uses native DSPx implementation only (no runtime `vibe-dspy` dependency).
 
 ## Current runtime / packaging behavior
 

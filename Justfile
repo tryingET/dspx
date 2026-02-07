@@ -369,7 +369,7 @@ mlflow-down:
 example:
   uv run -q python -m dspx.cli.example_predict
 
-# Generate a DSPy signature using vibe-dspy (from source)
+# Generate a DSPy signature using native DSPx generation (from source)
 vibegen prompt:
   uv run -q python -m dspx.cli.vibegen "{{prompt}}"
 
@@ -431,7 +431,7 @@ mermaid-stdin name="" variants="predict,cot,react":
   echo "Paste Mermaid, then Ctrl-D:" && uv run -q python -m dspx.cli.mermaid2dspy -n "{{name}}" -v "{{variants}}"
 
 
-# Mermaid → DSPy with signature-per-node program (vibe-dspy, from source)
+# Mermaid → DSPy with signature-per-node program (native generator, from source)
 dspx-mermaid file name="" provider="":
   if [ "{{provider}}" != "" ]; then \
     DSPX_PROVIDER={{provider}} uv run -q python -m dspx.cli.dspx_mermaid2dspy -f "{{file}}" -n "{{name}}" ; \

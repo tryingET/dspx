@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import builtins
-
 from dspx.dtos import SignatureGenRequest
 from dspx.services.signatures_service import run_generate_dto
 
@@ -17,23 +15,17 @@ def test_signatures_service_dto_template_only() -> None:
     assert "summarizes text" in res.code
 
 
-def test_signatures_service_dto_native_fallback_when_vibe_missing(monkeypatch) -> None:
+def test_signatures_service_dto_native_generation_with_stub_provider(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
-    monkeypatch.setattr(
-        "dspx.services.signatures_service.ensure_vibe_on_path", lambda: None
+
+    req = SignatureGenRequest(
+        prompt="Classify sentiment",
+        template_version="v1",
+        options={"class_name": "Sig_Sentiment"},
     )
-
-    orig_import = builtins.__import__
-
-    def _fake_import(name, *args, **kwargs):
-        if name == "signature_generator":
-            raise ImportError("forced missing vibe")
-        return orig_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", _fake_import)
-
-    req = SignatureGenRequest(prompt="Classify sentiment", template_version="v1")
     res = run_generate_dto(req)
-    assert "dspy.Signature" in res.code
-    assert "class " in res.code
+    assert res.signature_name == "Sig_Sentiment"
+    assert "class Sig_Sentiment(dspy.Signature):" in res.code
