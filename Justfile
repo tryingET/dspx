@@ -204,7 +204,7 @@ gepa-modulegen-live:
     echo "set DSPX_RUN_LIVE_TESTS=1 to run live Codex GEPA smoke"; exit 0; \
   fi; \
   if ! command -v codex >/dev/null 2>&1; then echo "codex CLI not found"; exit 2; fi; \
-  if ! codex auth whoami >/dev/null 2>&1; then echo "codex not authenticated (codex auth whoami)"; exit 2; fi; \
+  if ! (codex login status >/dev/null 2>&1 || codex auth whoami >/dev/null 2>&1); then echo "codex not authenticated (codex login status)"; exit 2; fi; \
   TD="$(mktemp -d)"; \
   echo "[gepa-modulegen-live] dir=$TD"; \
   MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen \
@@ -218,6 +218,18 @@ gepa-modulegen-live:
     just gepa "$TD/student.py" examples/gepa_modulegen_train.csv "$TD/optimized" "" "" light 2 contains >/dev/null; \
   test -f "$TD/optimized/manifest.json"; \
   echo "[gepa-modulegen-live] ok out=$TD/optimized"
+
+# Pi RPC live smoke (opt-in) with recommended provider/model defaults.
+pi-live-smoke provider="openai-codex" model="gpt-5.1-codex-mini" thinking="" timeout="90":
+  if [ "${DSPX_RUN_LIVE_TESTS:-0}" != "1" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "true" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "yes" ]; then \
+    echo "set DSPX_RUN_LIVE_TESTS=1 to run live Pi RPC smoke"; exit 0; \
+  fi; \
+  if ! command -v pi >/dev/null 2>&1; then echo "pi CLI not found"; exit 2; fi; \
+  DSPX_PI_LIVE_PROVIDER="{{provider}}" \
+  DSPX_PI_LIVE_MODEL="{{model}}" \
+  DSPX_PI_LIVE_THINKING="{{thinking}}" \
+  DSPX_PI_LIVE_TIMEOUT="{{timeout}}" \
+    uv run -m pytest -q tests/test_pi_rpc_provider_live.py -rs
 
 # GEPA optimization pinned to Codex Exec
 codex-gepa program train out val="" output_key="" auto="light" max_metric_calls="20":

@@ -30,5 +30,5 @@ Run:
 - `DSPX_RUN_LIVE_TESTS=1 just gepa-modulegen-live`
 
 Notes:
-- Requires `codex` installed + authenticated (`codex auth whoami`).
+- Requires `codex` installed + authenticated (`codex login status`).
 - Uses the same CSV and a small `--max-metric-calls` budget.

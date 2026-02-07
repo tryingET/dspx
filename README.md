@@ -23,7 +23,7 @@ Canonical docs map
 
 Prerequisites
 -------------
-- Codex CLI installed and authenticated (e.g., `codex --version`, `codex auth whoami`).
+- Codex CLI installed and authenticated (e.g., `codex --version`, `codex login status`).
 - Python 3.13+ (this project is initialized with 3.13)
 - uv package manager (https://docs.astral.sh/uv/)
 
@@ -86,7 +86,7 @@ Quick Start (uv)
 2) Verify Codex CLI works and you are logged in:
 
    codex --version
-   codex auth whoami
+   codex login status
 
 3) Run the example (from source):
 
@@ -148,6 +148,13 @@ Pi RPC Provider
 - Use pi as a provider (RPC mode, long-lived subprocess):
 
   DSPX_PROVIDER=pi-rpc just dspx providers smoke --json
+
+- Live Pi RPC smoke (opt-in; defaults to `openai-codex` + `gpt-5.1-codex-mini`):
+
+  DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke
+
+  # optional override
+  DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke openai-codex gpt-5.1-codex-max
 
 - Common env knobs:
   - `DSPX_PI_BIN` (default: `pi`)
@@ -653,6 +660,7 @@ This repo follows a simple modern `uv` setup:
   - `just publish` / `just publish-core` / `just publish-forge` — publish artifacts.
   - `just release-core new=X.Y.Z` / `just release-forge new=X.Y.Z` — package-scoped release prep.
   - `just forge-core-compat-matrix` — wheel-based forge/core compatibility smoke.
+  - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke` — Pi RPC live smoke.
 - Dev dependencies declared under `[dependency-groups.dev]` for uv.
 - Console scripts defined in `pyproject.toml` under `[project.scripts]`.
 

@@ -16,13 +16,21 @@ from dspx.services.optimize_service import run_gepa_optimize
 def _codex_ready() -> bool:
     if shutil.which("codex") is None:
         return False
-    p = subprocess.run(
+
+    checks = (
+        ["codex", "login", "status"],
         ["codex", "auth", "whoami"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
     )
-    return p.returncode == 0
+    for cmd in checks:
+        p = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if p.returncode == 0:
+            return True
+    return False
 
 
 @pytest.mark.skipif(
@@ -31,7 +39,7 @@ def _codex_ready() -> bool:
 )
 @pytest.mark.skipif(
     not _codex_ready(),
-    reason="codex CLI not available or not authenticated (codex auth whoami)",
+    reason="codex CLI not available or not authenticated (codex login status)",
 )
 def test_gepa_codex_live_smoke(tmp_path: Path) -> None:
     os.environ["DSPX_PROVIDER"] = "codex-exec"
