@@ -187,6 +187,7 @@ def explain_run_receipt(
     report: dict[str, Any] = {
         "status": "ok",
         "receipt_path": str(meta_path),
+        "replay_status": "ok",
         "local_facts": {},
         "replay_checks": {},
         "replay_inputs": {},
@@ -194,12 +195,22 @@ def explain_run_receipt(
         "mlflow_context": {},
         "warnings": [],
         "errors": [],
+        "replay_error_codes": [],
+        "replay_error_details": [],
     }
 
     receipt = load_run_receipt(meta_path)
     if receipt is None:
         report["status"] = "invalid"
+        report["replay_status"] = "invalid"
         report["errors"] = ["receipt not found or invalid JSON object"]
+        report["replay_error_codes"] = ["receipt_invalid_json_object"]
+        report["replay_error_details"] = [
+            {
+                "code": "receipt_invalid_json_object",
+                "message": "receipt not found or invalid JSON object",
+            }
+        ]
         report["mlflow_context"] = _mlflow_context(
             meta_path=meta_path,
             receipt={},
@@ -209,6 +220,7 @@ def explain_run_receipt(
 
     replay_report = check_run_receipt(meta_path)
     replay_status = str(replay_report.get("status") or "invalid")
+    report["replay_status"] = replay_status
     replay_checks = _as_bool_dict(replay_report.get("checks"))
     failed_checks = [k for k, v in replay_checks.items() if not v]
 
@@ -237,10 +249,29 @@ def explain_run_receipt(
 
     replay_errors = replay_report.get("errors")
     replay_warnings = replay_report.get("warnings")
+    replay_error_codes = replay_report.get("error_codes")
+    replay_error_details = replay_report.get("error_details")
     if isinstance(replay_errors, list):
         report["errors"] = [str(v) for v in replay_errors]
     if isinstance(replay_warnings, list):
         report["warnings"] = [str(v) for v in replay_warnings]
+    if isinstance(replay_error_codes, list):
+        report["replay_error_codes"] = [str(v) for v in replay_error_codes]
+    if isinstance(replay_error_details, list):
+        details: list[dict[str, str]] = []
+        for item in replay_error_details:
+            if not isinstance(item, Mapping):
+                details.append({"code": "", "message": str(item)})
+                continue
+            detail: dict[str, str] = {
+                "code": str(item.get("code") or ""),
+                "message": str(item.get("message") or ""),
+            }
+            check = item.get("check")
+            if check not in {None, ""}:
+                detail["check"] = str(check)
+            details.append(detail)
+        report["replay_error_details"] = details
 
     if replay_status == "invalid":
         report["status"] = "invalid"

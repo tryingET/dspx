@@ -170,6 +170,7 @@ def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) 
     assert payload["status"] == "ok"
     assert payload["checks"]["output_hash_match"] is True
     assert payload["checks"]["cache_key_recomputes"] is True
+    assert payload["error_codes"] == []
 
 
 def test_run_replay_fails_on_output_hash_drift(tmp_path: Path, monkeypatch) -> None:
@@ -211,6 +212,12 @@ def test_run_replay_fails_on_output_hash_drift(tmp_path: Path, monkeypatch) -> N
     payload = json.loads(r_replay.stdout)
     assert payload["status"] == "failed"
     assert payload["checks"]["output_hash_match"] is False
+    assert "output_hash_mismatch" in payload["error_codes"]
+    assert any(
+        d.get("code") == "output_hash_mismatch"
+        and d.get("check") == "output_hash_match"
+        for d in payload["error_details"]
+    )
 
 
 def test_run_replay_fails_on_cache_provenance_drift(
@@ -263,6 +270,166 @@ def test_run_replay_fails_on_cache_provenance_drift(
     payload = json.loads(r_replay.stdout)
     assert payload["status"] == "failed"
     assert payload["checks"]["cache_code_hash_matches_receipt"] is False
+    assert "cache_code_hash_mismatch" in payload["error_codes"]
+    assert any(
+        d.get("code") == "cache_code_hash_mismatch"
+        and d.get("check") == "cache_code_hash_matches_receipt"
+        for d in payload["error_details"]
+    )
+
+
+def test_run_replay_fails_on_missing_cache_file(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "sig.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    receipt = json.loads((tmp_path / "sig.py.meta.json").read_text(encoding="utf-8"))
+    cache_file = Path(str(receipt["cache_file"]))
+    assert cache_file.exists()
+    cache_file.unlink()
+
+    r_replay = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(tmp_path / "sig.py.meta.json"),
+            "--check-only",
+            "--json",
+        ],
+    )
+    assert r_replay.exit_code == 1
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "failed"
+    assert payload["checks"]["cache_file_exists"] is False
+    assert "cache_file_missing" in payload["error_codes"]
+    assert any(
+        d.get("code") == "cache_file_missing" and d.get("check") == "cache_file_exists"
+        for d in payload["error_details"]
+    )
+
+
+def test_run_replay_fails_on_wrong_cache_kind_folder(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "mod.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "--name",
+            "Summarizer",
+            "--description",
+            "Summarizes text",
+            "--input",
+            "text",
+            "--output",
+            "summary",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    meta_path = tmp_path / "mod.py.meta.json"
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    cache_file = Path(str(receipt["cache_file"]))
+    wrong_cache_file = cache_file.parent.parent / "signature" / cache_file.name
+    wrong_cache_file.parent.mkdir(parents=True, exist_ok=True)
+    wrong_cache_file.write_text(
+        cache_file.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    receipt["cache_file"] = str(wrong_cache_file)
+    meta_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    r_replay = runner.invoke(
+        app,
+        ["run", "replay", "--from", str(meta_path), "--check-only", "--json"],
+    )
+    assert r_replay.exit_code == 1
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "failed"
+    assert payload["checks"]["cache_kind_matches_run_kind"] is False
+    assert payload["checks"]["cache_file_exists"] is True
+    assert "cache_linkage_kind_mismatch" in payload["error_codes"]
+    assert any(
+        d.get("code") == "cache_linkage_kind_mismatch"
+        and d.get("check") == "cache_kind_matches_run_kind"
+        for d in payload["error_details"]
+    )
+
+
+def test_run_replay_fails_on_malformed_cache_json(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "gen.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "codegen",
+            "A CLI that prints hi",
+            "--language",
+            "python",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    receipt = json.loads((tmp_path / "gen.py.meta.json").read_text(encoding="utf-8"))
+    cache_file = Path(str(receipt["cache_file"]))
+    cache_file.write_text("{ malformed", encoding="utf-8")
+
+    r_replay = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(tmp_path / "gen.py.meta.json"),
+            "--check-only",
+            "--json",
+        ],
+    )
+    assert r_replay.exit_code == 1
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "failed"
+    assert payload["checks"]["cache_file_json_object"] is False
+    assert "cache_file_invalid_json_object" in payload["error_codes"]
+    assert any(
+        d.get("code") == "cache_file_invalid_json_object"
+        and d.get("check") == "cache_file_json_object"
+        for d in payload["error_details"]
+    )
 
 
 def test_run_replay_invalid_receipt_exit_code(tmp_path: Path) -> None:
@@ -276,6 +443,11 @@ def test_run_replay_invalid_receipt_exit_code(tmp_path: Path) -> None:
     assert r_replay.exit_code == 2
     payload = json.loads(r_replay.stdout)
     assert payload["status"] == "invalid"
+    assert "receipt_missing_required_field" in payload["error_codes"]
+    assert any(
+        d.get("code") == "receipt_missing_required_field"
+        for d in payload["error_details"]
+    )
 
 
 def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> None:
@@ -316,10 +488,65 @@ def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> 
     assert r_explain.exit_code == 0
     payload = json.loads(r_explain.stdout)
     assert payload["status"] == "ok"
+    assert payload["replay_status"] == "ok"
     assert payload["local_facts"]["run_kind"] == "signature-gen"
     assert payload["replay_checks"]["output_hash_match"] is True
+    assert payload["replay_error_codes"] == []
+    assert payload["replay_error_details"] == []
     assert payload["mlflow_context"]["requested"] is False
     assert payload["mlflow_context"]["mode"] == "disabled"
+
+
+def test_run_explain_degraded_status_on_drift(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "gen.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "codegen",
+            "A CLI that prints hi",
+            "--language",
+            "python",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    out.write_text("print('drift')\n", encoding="utf-8")
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(tmp_path / "gen.py.meta.json"),
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    assert payload["status"] == "degraded"
+    assert payload["replay_status"] == "failed"
+    assert payload["replay_checks"]["output_hash_match"] is False
+    assert "output_hash_match" in payload["local_facts"]["failed_replay_checks"]
+    assert "output_hash_mismatch" in payload["replay_error_codes"]
+    assert any(
+        d.get("code") == "output_hash_mismatch"
+        and d.get("check") == "output_hash_match"
+        for d in payload["replay_error_details"]
+    )
+    assert any(
+        "replay verification drift detected" in str(w)
+        for w in payload.get("warnings") or []
+    )
 
 
 def test_run_explain_with_mlflow_flag_is_graceful(tmp_path: Path, monkeypatch) -> None:
@@ -359,6 +586,8 @@ def test_run_explain_with_mlflow_flag_is_graceful(tmp_path: Path, monkeypatch) -
     assert r_explain.exit_code == 0
     payload = json.loads(r_explain.stdout)
     assert payload["status"] == "ok"
+    assert payload["replay_status"] == "ok"
+    assert payload["replay_error_codes"] == []
     assert payload["mlflow_context"]["requested"] is True
     assert payload["mlflow_context"]["mode"] == "local-file-store"
     assert "linked_runs" in payload["mlflow_context"]
@@ -375,3 +604,9 @@ def test_run_explain_invalid_receipt_exit_code(tmp_path: Path) -> None:
     assert r_explain.exit_code == 2
     payload = json.loads(r_explain.stdout)
     assert payload["status"] == "invalid"
+    assert payload["replay_status"] == "invalid"
+    assert "receipt_missing_required_field" in payload["replay_error_codes"]
+    assert any(
+        d.get("code") == "receipt_missing_required_field"
+        for d in payload["replay_error_details"]
+    )
