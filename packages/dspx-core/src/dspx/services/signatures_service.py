@@ -24,6 +24,7 @@ from dspx.templates import (
     render_simple_signature,
 )
 from dspx.tracing import enable_mlflow_from_env
+from dspx.services.signature_quality import append_quality_event
 
 
 @dataclass
@@ -35,6 +36,8 @@ class _SignatureCandidate:
     signature_name: str | None
     score: float
     valid: bool
+    ast_valid: bool
+    smoke_valid: bool
     errors: list[str]
 
 
@@ -515,6 +518,8 @@ def _candidate_from_raw(
         signature_name=signature_name,
         score=score_signature_code(code, expected_class_name=expected),
         valid=ok_ast and ok_smoke,
+        ast_valid=ok_ast,
+        smoke_valid=ok_smoke,
         errors=errors,
     )
 
@@ -530,6 +535,34 @@ def _resolve_attempts(options: dict[str, Any] | None = None) -> int:
     except Exception:
         n = 1
     return max(1, min(6, n))
+
+
+def _candidate_quality_summary(
+    candidates: list[_SignatureCandidate],
+    *,
+    max_attempts: int,
+    fallback_used: bool,
+) -> dict[str, Any]:
+    total = len(candidates)
+    validation_pass_count = sum(1 for c in candidates if c.ast_valid)
+    smoke_pass_count = sum(1 for c in candidates if c.smoke_valid)
+
+    return {
+        "attempts_used": int(total),
+        "max_attempts": int(max_attempts),
+        "attempts_exhausted": bool(total >= max(1, int(max_attempts))),
+        "fallback_used": bool(fallback_used),
+        "validation_pass_count": int(validation_pass_count),
+        "validation_total": int(total),
+        "validation_pass_rate": (
+            float(validation_pass_count) / float(total) if total > 0 else 0.0
+        ),
+        "smoke_pass_count": int(smoke_pass_count),
+        "smoke_total": int(total),
+        "smoke_pass_rate": (
+            float(smoke_pass_count) / float(total) if total > 0 else 0.0
+        ),
+    }
 
 
 def _generate_native_payload(
@@ -572,6 +605,11 @@ def _generate_native_payload(
 
     if not candidates:
         code = render_simple_signature(class_name_hint, fallback_description)
+        quality = _candidate_quality_summary(
+            candidates,
+            max_attempts=max_attempts,
+            fallback_used=True,
+        )
         return {
             "code": code,
             "signature_name": class_name_hint,
@@ -579,9 +617,10 @@ def _generate_native_payload(
             "backend": "native",
             "strategy": "spec-first",
             "candidate_source": "fallback",
-            "attempts_used": 0,
             "candidate_score": 0.0,
             "json_mode": bool(json_mode),
+            "candidate_valid": False,
+            **quality,
         }
 
     best = max(
@@ -594,6 +633,12 @@ def _generate_native_payload(
         ),
     )
 
+    quality = _candidate_quality_summary(
+        candidates,
+        max_attempts=max_attempts,
+        fallback_used=best.source == "fallback",
+    )
+
     return {
         "code": best.code,
         "signature_name": best.signature_name,
@@ -601,10 +646,11 @@ def _generate_native_payload(
         "backend": "native",
         "strategy": "spec-first",
         "candidate_source": best.source,
-        "attempts_used": len(candidates),
         "candidate_score": float(best.score),
         "json_mode": bool(json_mode),
         "candidate_valid": bool(best.valid),
+        "candidate_errors": list(best.errors),
+        **quality,
     }
 
 
@@ -656,6 +702,28 @@ def run_generate_dto(
     # Fast path: template-only generation for deterministic tests
     if (req.template_version or "").startswith("simple"):
         cls_name = str(req.options.get("class_name") or "GeneratedSignature")
+        run_kind = str(req.options.get("run_kind") or "signature-gen")
+        simple_metadata: dict[str, Any] = {
+            "run_kind": run_kind,
+            "provider": "template",
+            "backend": "template",
+            "strategy": "simple",
+            "candidate_source": "template",
+            "candidate_score": 100.0,
+            "candidate_valid": True,
+            "attempts_used": 1,
+            "max_attempts": 1,
+            "attempts_exhausted": True,
+            "fallback_used": False,
+            "validation_pass_count": 1,
+            "validation_total": 1,
+            "validation_pass_rate": 1.0,
+            "smoke_pass_count": 1,
+            "smoke_total": 1,
+            "smoke_pass_rate": 1.0,
+            "json_mode": False,
+        }
+
         key = make_key(
             {
                 "kind": "signature",
@@ -672,11 +740,24 @@ def run_generate_dto(
                     code=cached["code"],
                     signature_name=cls_name,
                     task_description=cached.get("task_description") or req.prompt,
+                    metadata=simple_metadata,
                 )
         code = render_simple_signature(cls_name, req.prompt)
         if cache_enabled():
             cache_write(
-                "signature", key, {"code": code, "task_description": req.prompt}
+                "signature",
+                key,
+                {
+                    "code": code,
+                    "task_description": req.prompt,
+                    "backend": "template",
+                    "strategy": "simple",
+                    "candidate_source": "template",
+                    "attempts_used": 1,
+                    "fallback_used": False,
+                    "validation_pass_rate": 1.0,
+                    "smoke_pass_rate": 1.0,
+                },
             )
         return SignatureGenResult(
             code=code,
@@ -684,6 +765,7 @@ def run_generate_dto(
             task_description=req.prompt,
             fields=None,
             reasoning=None,
+            metadata=simple_metadata,
         )
 
     # LM path (native)
@@ -747,14 +829,44 @@ def run_generate_dto(
         enforce_class_name=enforce_class_name,
     )
 
+    backend = str(payload.get("backend") or "native")
+    run_kind = str(req.options.get("run_kind") or "signature-gen")
+    quality_metadata: dict[str, Any] = {
+        "run_kind": run_kind,
+        "provider": provider_name,
+        "backend": backend,
+        "strategy": str(payload.get("strategy") or "spec-first"),
+        "candidate_source": str(payload.get("candidate_source") or "fallback"),
+        "candidate_score": float(payload.get("candidate_score") or 0.0),
+        "candidate_valid": bool(payload.get("candidate_valid")),
+        "candidate_errors": list(payload.get("candidate_errors") or []),
+        "attempts_used": int(payload.get("attempts_used") or 0),
+        "max_attempts": int(payload.get("max_attempts") or max_attempts),
+        "attempts_exhausted": bool(payload.get("attempts_exhausted", False)),
+        "fallback_used": bool(
+            payload.get("fallback_used")
+            or str(payload.get("candidate_source") or "") == "fallback"
+        ),
+        "validation_pass_count": int(payload.get("validation_pass_count") or 0),
+        "validation_total": int(payload.get("validation_total") or 0),
+        "validation_pass_rate": float(payload.get("validation_pass_rate") or 0.0),
+        "smoke_pass_count": int(payload.get("smoke_pass_count") or 0),
+        "smoke_total": int(payload.get("smoke_total") or 0),
+        "smoke_pass_rate": float(payload.get("smoke_pass_rate") or 0.0),
+        "json_mode": bool(payload.get("json_mode")),
+        "template_version": req.template_version or "v1",
+        "prompt_len": len(req.prompt),
+        "signature_name": str(payload.get("signature_name") or class_name_hint),
+    }
+
     res = SignatureGenResult(
         code=str(payload.get("code") or ""),
         signature_name=payload.get("signature_name"),
         task_description=payload.get("task_description"),
         fields=None,
         reasoning=None,
+        metadata=quality_metadata,
     )
-    backend = str(payload.get("backend") or "native")
 
     # Cache LM-backed result as well
     key = make_key(
@@ -776,8 +888,20 @@ def run_generate_dto(
                 "strategy": payload.get("strategy") or "spec-first",
                 "candidate_source": payload.get("candidate_source") or "fallback",
                 "attempts_used": int(payload.get("attempts_used") or 1),
+                "fallback_used": bool(quality_metadata.get("fallback_used", False)),
+                "max_attempts": int(payload.get("max_attempts") or max_attempts),
+                "validation_pass_rate": float(
+                    payload.get("validation_pass_rate") or 0.0
+                ),
+                "smoke_pass_rate": float(payload.get("smoke_pass_rate") or 0.0),
             },
         )
+
+    try:
+        append_quality_event(quality_metadata)
+    except Exception:
+        pass
+
     # Optional MLflow logging (guarded)
     try:
         from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
@@ -801,8 +925,12 @@ def run_generate_dto(
                         "signature.prompt_len": len(req.prompt),
                         "signature.class_name": res.signature_name or "",
                         "signature.backend": backend,
+                        "signature.run_kind": run_kind,
                         "signature.json_mode": bool(json_mode),
                         "signature.attempts": int(payload.get("attempts_used") or 1),
+                        "signature.max_attempts": int(
+                            payload.get("max_attempts") or max_attempts
+                        ),
                         "signature.candidate_source": str(
                             payload.get("candidate_source") or "fallback"
                         ),
@@ -819,11 +947,23 @@ def run_generate_dto(
                         "template_version": req.template_version or "v1",
                         "prompt_len": len(req.prompt),
                         "code_hash": sha256_text(res.code),
+                        "provider": provider_name,
+                        "run_kind": run_kind,
                         "backend": backend,
                         "strategy": payload.get("strategy") or "spec-first",
                         "candidate_source": payload.get("candidate_source")
                         or "fallback",
+                        "fallback_used": bool(
+                            quality_metadata.get("fallback_used", False)
+                        ),
                         "attempts_used": int(payload.get("attempts_used") or 1),
+                        "max_attempts": int(
+                            payload.get("max_attempts") or max_attempts
+                        ),
+                        "validation_pass_rate": float(
+                            payload.get("validation_pass_rate") or 0.0
+                        ),
+                        "smoke_pass_rate": float(payload.get("smoke_pass_rate") or 0.0),
                     }
                     mlflow.log_dict(manifest, "signature_manifest.json")
                 except Exception:
@@ -835,6 +975,18 @@ def run_generate_dto(
                     "service.duration_ms": duration_ms,
                     "signature.candidate_score": float(
                         payload.get("candidate_score") or 0.0
+                    ),
+                    "signature.attempts_used": float(
+                        payload.get("attempts_used") or 0.0
+                    ),
+                    "signature.fallback_used": float(
+                        1.0 if quality_metadata.get("fallback_used") else 0.0
+                    ),
+                    "signature.validation_pass_rate": float(
+                        payload.get("validation_pass_rate") or 0.0
+                    ),
+                    "signature.smoke_pass_rate": float(
+                        payload.get("smoke_pass_rate") or 0.0
                     ),
                 }
                 if budget_ms is not None:

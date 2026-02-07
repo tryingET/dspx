@@ -472,6 +472,10 @@ def signature_gen(
     budget_ms: Optional[int] = typer.Option(
         None, help="Time budget in ms (logs to MLflow; may clamp provider timeout)"
     ),
+    summary: bool = typer.Option(False, help="Print run summary to stderr"),
+    summary_json_out: Optional[Path] = typer.Option(
+        None, help="Write machine-readable run summary JSON"
+    ),
 ) -> None:
     _ensure_env(provider)
     if no_cache:
@@ -484,6 +488,27 @@ def signature_gen(
         options={"class_name": class_name} if class_name else {},
     )
     res = run_generate_dto(req)
+    summary_payload = dict(res.metadata or {})
+
+    if summary_json_out is not None:
+        summary_json_out.parent.mkdir(parents=True, exist_ok=True)
+        summary_json_out.write_text(
+            __import__("json").dumps(summary_payload, ensure_ascii=False, indent=2)
+            + "\n",
+            encoding="utf-8",
+        )
+
+    if summary and summary_payload:
+        typer.echo(
+            "signature summary "
+            f"provider={summary_payload.get('provider', '-')} "
+            f"attempts={summary_payload.get('attempts_used', 0)}/{summary_payload.get('max_attempts', 0)} "
+            f"fallback={summary_payload.get('fallback_used', False)} "
+            f"validation={float(summary_payload.get('validation_pass_rate') or 0.0):.2f} "
+            f"smoke={float(summary_payload.get('smoke_pass_rate') or 0.0):.2f}",
+            err=True,
+        )
+
     if outfile:
         outfile.parent.mkdir(parents=True, exist_ok=True)
         outfile.write_text(res.code, encoding="utf-8")
@@ -512,6 +537,7 @@ def signature_gen(
                 "cache_file": str(cfile),
                 "cache_enabled": os.getenv("DSPX_CACHE_ENABLE", "1")
                 not in {"0", "false", "False", ""},
+                "run_summary": summary_payload,
             }
             (outfile.parent / (outfile.name + ".meta.json")).write_text(
                 __import__("json").dumps(meta, ensure_ascii=False, indent=2),
@@ -580,6 +606,10 @@ def signature_refine(
     budget_ms: Optional[int] = typer.Option(
         None, help="Time budget in ms (logs to MLflow)"
     ),
+    summary: bool = typer.Option(False, help="Print run summary to stderr"),
+    summary_json_out: Optional[Path] = typer.Option(
+        None, help="Write machine-readable run summary JSON"
+    ),
 ) -> None:
     from dspx.services.refine_service import run_refine as _run_refine
 
@@ -593,10 +623,103 @@ def signature_refine(
         wrap_script=wrap_script,
         outfile=str(outfile) if outfile else None,
     )
+
+    summary_payload: dict[str, Any] = {
+        "run_kind": "signature-refine",
+        "provider": provider or os.getenv("DSPX_PROVIDER") or "pi-rpc",
+        "attempts_requested": int(attempts),
+        "non_interactive": bool(non_interactive),
+        "wrap_script": bool(wrap_script),
+        "prompt_len": len(prompt or ""),
+    }
+
+    if outfile:
+        meta_path = outfile.parent / (outfile.name + ".meta.json")
+        if meta_path.exists():
+            try:
+                loaded = __import__("json").loads(meta_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    summary_payload.update(loaded)
+            except Exception:
+                pass
+
+    if summary_json_out is not None:
+        summary_json_out.parent.mkdir(parents=True, exist_ok=True)
+        summary_json_out.write_text(
+            __import__("json").dumps(summary_payload, ensure_ascii=False, indent=2)
+            + "\n",
+            encoding="utf-8",
+        )
+
+    if summary:
+        typer.echo(
+            "refine summary "
+            f"provider={summary_payload.get('provider', '-')} "
+            f"attempts={summary_payload.get('attempts', summary_payload.get('attempts_requested', 0))} "
+            f"rounds={summary_payload.get('rounds', 0)} "
+            f"feedback={summary_payload.get('feedback_count', 0)}",
+            err=True,
+        )
+
     if outfile:
         typer.echo(str(outfile))
     else:
         sys.stdout.write(code)
+
+
+@sig_app.command("quality-summary")
+def signature_quality_summary(
+    log_path: Optional[Path] = typer.Option(
+        None,
+        help="Path to signature quality JSONL (default: generated/cache/signature/quality_runs.jsonl)",
+    ),
+    provider: Optional[str] = typer.Option(None, help="Filter by provider"),
+    run_kind: Optional[str] = typer.Option(
+        None, help="Filter by run kind (signature-gen/signature-refine)"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON summary"),
+    fail_on_gate: bool = typer.Option(
+        False, "--fail-on-gate", help="Exit with code 2 when any gate fails"
+    ),
+    max_fallback_rate: float = typer.Option(0.25, help="Gate: maximum fallback rate"),
+    max_attempts_p95: float = typer.Option(3.0, help="Gate: maximum attempts-used p95"),
+    min_validation_pass_rate: float = typer.Option(
+        0.90, help="Gate: minimum validation pass rate"
+    ),
+    min_smoke_pass_rate: float = typer.Option(
+        0.90, help="Gate: minimum smoke pass rate"
+    ),
+) -> None:
+    import json as _json
+
+    from dspx.services.signature_quality import (
+        SignatureQualityGate,
+        evaluate_quality_gates,
+        format_quality_summary,
+        read_quality_events,
+        summarize_quality_events,
+    )
+
+    events = read_quality_events(log_path)
+    summary = summarize_quality_events(events, provider=provider, run_kind=run_kind)
+    gate_eval = evaluate_quality_gates(
+        summary,
+        gate=SignatureQualityGate(
+            max_fallback_rate=float(max_fallback_rate),
+            max_attempts_p95=float(max_attempts_p95),
+            min_validation_pass_rate=float(min_validation_pass_rate),
+            min_smoke_pass_rate=float(min_smoke_pass_rate),
+        ),
+    )
+
+    payload = {"summary": summary, "gates": gate_eval}
+    if json_out:
+        typer.echo(_json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(format_quality_summary(summary, gate_eval))
+
+    if fail_on_gate and not bool(gate_eval.get("overall_pass")):
+        raise typer.Exit(code=2)
 
 
 @app.command("module-gen")

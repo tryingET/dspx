@@ -49,6 +49,7 @@ class SignatureGenResult(BaseModel):
     task_description: Optional[str] = None
     fields: Optional[List[Dict[str, Any]]] = None
     reasoning: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ModuleSpec(BaseModel):

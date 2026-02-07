@@ -95,6 +95,7 @@ def _native_generate_signature(
     options: dict[str, object] = {
         "class_name": class_name,
         "max_attempts": max(1, int(attempts)),
+        "run_kind": "signature-refine",
     }
     if constraints:
         options["constraints"] = list(constraints)
