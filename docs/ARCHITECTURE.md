@@ -114,7 +114,7 @@ graph LR
   Sig --> SigRef["refine"]
   DSPX --> Mod["module-gen"]
   DSPX --> Opt["optimize"]
-  DSPX --> Run["run (replay check-only live; explain planned)"]
+  DSPX --> Run["run (replay + explain local-first MVP live)"]
   DSPX --> Mermaid["mermaid"]
   Mermaid --> MGen["gen"]
   Mermaid --> MSig["sig"]

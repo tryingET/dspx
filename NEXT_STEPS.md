@@ -31,42 +31,45 @@ Acceptance:
 
 ---
 
-## 2) Highest impact now: ship `run explain` local-first MVP
+## 2) Highest impact now: harden replay/explain drift coverage
 
 Current state:
-- Replay verification is now first-class (`dspx run replay --check-only`).
-- Explainability data already exists in receipts/meta/manifests.
-- MLflow remains optional and must stay additive only.
+- `dspx run replay --check-only` and `dspx run explain` are both live.
+- Replay already validates schema/hash/cache linkage/provenance.
+- Explain is local-first (`local_facts` + `replay_checks`) and supports
+  optional best-effort MLflow enrichment (`--with-mlflow`).
 
 Next actions:
-1. Add `dspx run explain --from <receipt>` in core CLI (`dspx run ...`).
-2. Build explanation output from local receipt/manifest first.
-3. Add optional MLflow enrichment mode that never blocks baseline output.
-4. Add tests for no-MLflow/no-network behavior and graceful enrichment fallback.
+1. Add focused replay tests for remaining drift classes:
+   - missing cache file
+   - wrong cache kind folder
+   - malformed cache JSON payload
+2. Extend explain tests for degraded-status reporting on drifted receipts.
+3. Tighten replay diagnostics to keep machine-readable error taxonomy stable.
 
 Acceptance:
-- Explain command works with `MLFLOW_ENABLE=0`.
-- Output clearly separates local facts vs optional traced context.
-- Non-local enrichment failures never fail baseline explain output.
+- Replay/explain checks remain deterministic and offline in CI.
+- Drift diagnostics are explicit, stable, and actionable.
+- Explain status clearly signals `ok` vs `degraded` vs `invalid`.
 
 ---
 
-## 3) Harden `run replay` drift coverage + provenance strictness
+## 3) Reconcile legacy/LM cache-key provenance edge cases
 
 Current state:
-- `dspx run replay --from <receipt> --check-only` validates schema, output hash,
-  cache linkage, and cache provenance.
+- Replay recomputes cache key from receipt replay inputs.
+- Template paths are deterministic; legacy/LM signatures may have historical
+  key-shape drift risk.
 
 Next actions:
-1. Add focused tests for additional drift classes (missing cache file,
-   wrong kind folder, malformed cache JSON).
-2. Audit/reconcile legacy LM signature cache-key shape vs replay recomputation.
-3. Add optional strict mode once more artifact producers emit stable receipts.
+1. Audit historical signature receipts + LM cache key payload shapes.
+2. Decide policy: normalize writer payloads vs add compatibility fallback map.
+3. Add regression tests that pin accepted compatibility behavior.
 
 Acceptance:
-- Replay checks remain deterministic and offline in CI.
-- Drift diagnostics stay actionable and machine-readable.
 - Replay key/provenance checks are consistent across template + LM paths.
+- No false drift for known historical receipt shapes.
+- Compatibility behavior is documented and test-guarded.
 
 ---
 

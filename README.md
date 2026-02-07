@@ -197,9 +197,22 @@ just dspx run replay --from generated/sig_names.py.meta.json --check-only
 just dspx run replay --from generated/sig_names.py.meta.json --check-only --json
 ```
 
-Exit codes:
+Replay exit codes:
 - `0`: verification passed
 - `1`: receipt parsed, but drift detected (hash/cache/provenance)
+- `2`: invalid receipt/arguments
+
+Local-first explain (receipt/manifest facts first):
+
+```bash
+just dspx run explain --from generated/sig_names.py.meta.json
+just dspx run explain --from generated/sig_names.py.meta.json --json
+# optional best-effort MLflow linkage scan:
+just dspx run explain --from generated/sig_names.py.meta.json --with-mlflow --json
+```
+
+Explain exit codes:
+- `0`: explanation generated (`ok` or `degraded`)
 - `2`: invalid receipt/arguments
 
 Replay/explain contract:

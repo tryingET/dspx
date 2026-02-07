@@ -89,8 +89,19 @@ Exit codes:
 - `1`: parsed receipt but drift detected
 - `2`: invalid receipt/arguments
 
-## Next step (`run explain`)
+## Explain command (implemented MVP)
 
-- `dspx run explain` should work from receipt/manifest alone and optionally
-  merge MLflow context when present.
-- Missing MLflow must never block baseline explanation output.
+`dspx run explain --from <receipt>` now provides local-first explanation:
+- parses receipt and reports local facts (`run_kind`, provider, output/cache)
+- includes replay check results as deterministic baseline facts
+- separates optional MLflow context into `mlflow_context`
+
+Optional enrichment mode:
+- `--with-mlflow` enables best-effort MLflow linkage enrichment
+- local file-store linkage is inferred from artifact names
+- remote tracking URIs degrade gracefully with explicit notes
+- enrichment failures never block baseline explanation output
+
+Exit codes:
+- `0`: explanation generated (`ok` or `degraded`)
+- `2`: invalid receipt/arguments

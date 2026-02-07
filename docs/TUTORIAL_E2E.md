@@ -88,6 +88,13 @@ just dspx run replay --from sig.py.meta.json --check-only
 just dspx run replay --from sig.py.meta.json --check-only --json
 ```
 
+Explain a run from local receipt facts (MLflow enrichment optional):
+
+```
+just dspx run explain --from sig.py.meta.json --json
+just dspx run explain --from sig.py.meta.json --with-mlflow --json
+```
+
 7) Observability (optional)
 Enable MLflow to record inputs/outputs and attach artifacts/manifests:
 

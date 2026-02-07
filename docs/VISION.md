@@ -25,7 +25,7 @@ Current vs Target (matrix)
 | Policy/Safety | Env/CLI policy gates, mutation confirmations, host allowlists are in place. | Capability-default policy model with explicit auditability across CLI/server/Forge. | Define/enforce canonical defaults in `docs/POLICY_DEFAULTS.md`. |
 | Plugins | Internal registries exist; external plugin loading is not wired. | Entry-point plugins for providers/tools/generators with compatibility checks. | Implement plugin discovery + ship one minimal example plugin. |
 | Observability | MLflow tags/artifacts/metrics are present; nested runs are partial. | Explainability via unified workflow→service→tool traces with policy decision events. | Expand nested runs beyond Mermaid sig-per-node and add a stable policy-event schema. |
-| Reproducibility | Content-hash cache + manifests/meta for generated artifacts. | Deterministic replay driven by run receipts/manifests (independent of MLflow availability). | Run-receipt schema + `dspx run replay --check-only` landed; next add `run explain` + CI cache provenance hardening. |
+| Reproducibility | Content-hash cache + manifests/meta for generated artifacts. | Deterministic replay driven by run receipts/manifests (independent of MLflow availability). | Run-receipt schema + `dspx run replay --check-only` + `dspx run explain` landed; next harden CI cache provenance coverage and strictness. |
 
 Core and app boundaries (current repo shape)
 --------------------------------------------
