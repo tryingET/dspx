@@ -1,7 +1,7 @@
 # Project Status
 
 Current working branch: `main`.
-Working tree state: dirty (run-receipt v1 foundation + replay/explain prep edits not committed yet).
+Working tree state: dirty (run replay MVP implementation + docs/tests updates not committed yet).
 
 ## Snapshot
 
@@ -24,11 +24,11 @@ Working tree state: dirty (run-receipt v1 foundation + replay/explain prep edits
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
 - Default provider fallback is `pi-rpc` (Codex remains optional provider).
 - Latest branch commits:
+  - `f8cfe00` (`docs(replay): document receipt-first replay plan`)
+  - `ede761e` (`test(replay): cover receipt schema emission`)
+  - `1678c50` (`feat(replay): add versioned run receipts`)
   - `cd9cf0c` (`docs(workflow): align local-native docs to cli`)
   - `5a77a46` (`docs(agents): add retrieval discipline guidance`)
-  - `6e5356c` (`docs(status): refresh branch status roadmap`)
-  - `40370af` (`docs(signature): document corpus ci gates`)
-  - `4860407` (`test(signature): add corpus gate regressions`)
 
 ## Completed on this branch
 
@@ -55,19 +55,20 @@ Working tree state: dirty (run-receipt v1 foundation + replay/explain prep edits
 
 ## Local working-tree delta (not committed yet)
 
-- Added run-receipt helper module:
-  - `packages/dspx-core/src/dspx/run_receipts.py`
-- Wired centralized receipt emission/reading:
-  - `packages/dspx-core/src/dspx/cli/dspx.py`
-  - `packages/dspx-core/src/dspx/services/refine_service.py`
-  - `packages/dspx-core/src/dspx/services/codegen_service.py`
-- Added replay/explain contract doc:
-  - `docs/RUN_REPLAY_EXPLAIN.md`
-- Added receipt regression tests:
+- Added first-class replay checker service:
+  - `packages/dspx-core/src/dspx/services/run_replay_service.py`
+- Added first-class CLI surface:
+  - `dspx run replay --from <receipt> --check-only`
+  - implemented in `packages/dspx-core/src/dspx/cli/dspx.py`
+- Added replay behavior coverage:
   - `tests/test_run_receipts.py`
-- Synced operator/docs context:
+  - covers pass/fail/invalid receipt states and drift detection
+- Synced user/operator docs to current behavior:
   - `README.md`
   - `docs/TUTORIAL_E2E.md`
+  - `docs/RUN_REPLAY_EXPLAIN.md`
+  - `docs/ARCHITECTURE.md`
+  - `docs/VISION.md`
   - `PROJECT_STATUS.md`
   - `NEXT_STEPS.md`
 
@@ -100,19 +101,26 @@ Working tree state: dirty (run-receipt v1 foundation + replay/explain prep edits
     versioned run receipts (`*.meta.json`, `receipt_version: v1`)
   - receipt writer/loader centralized in `dspx.run_receipts`
   - commands emitting v1 receipts: signature gen/refine, module-gen, codegen
+  - first-class replay verifier: `dspx run replay --from <receipt> --check-only`
+  - replay verifier checks: receipt schema + output hash + cache linkage/provenance
+  - replay verifier exit codes: `0` pass, `1` drift, `2` invalid receipt/args
   - MLflow remains optional explainability sink, never execution gate
 
 ## Latest validation snapshot
 
-- `pre-commit run --all-files`: passing (rerun this pass)
-- `just monorepo-check`: passing (rerun this pass)
-- `just test`: passing (`174 passed, 4 skipped`, rerun this pass)
+- `pre-commit run --all-files`: passing (rerun on current tree)
+- `just monorepo-check`: passing (rerun on current tree)
+- `just test`: passing (`178 passed, 4 skipped`, rerun on current tree)
+- `just typecheck`: passing (no new regressions observed)
 
 ## Known gaps and immediate risks
 
-- First-class replay/explain command surface is still missing:
-  - no `dspx run replay --check-only` yet
-  - no `dspx run explain --from <receipt>` yet
+- Replay checker MVP is shipped, but execution/explain surfaces are incomplete:
+  - `dspx run replay --check-only` exists
+  - `dspx run replay --no-check-only` intentionally not implemented yet
+  - `dspx run explain --from <receipt>` not implemented yet
+- Replay cache-key/provenance logic should be audited for LM/legacy signature
+  paths to avoid false drift in mixed historical artifacts.
 - Receipt contract is standardized for key generators, but remaining producers
   (e.g. other manifest/metadata paths) still need explicit coverage audit.
 - Signature telemetry is standardized for signature/refine, but equivalent

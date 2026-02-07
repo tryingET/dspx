@@ -189,6 +189,19 @@ just dspx cache info
 just dspx cache list
 ```
 
+Receipt-first replay check (local/offline):
+
+```bash
+just dspx run replay --from generated/sig_names.py.meta.json --check-only
+# CI-friendly payload:
+just dspx run replay --from generated/sig_names.py.meta.json --check-only --json
+```
+
+Exit codes:
+- `0`: verification passed
+- `1`: receipt parsed, but drift detected (hash/cache/provenance)
+- `2`: invalid receipt/arguments
+
 Replay/explain contract:
 - `docs/RUN_REPLAY_EXPLAIN.md`
 

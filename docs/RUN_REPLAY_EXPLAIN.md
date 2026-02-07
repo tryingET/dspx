@@ -71,13 +71,26 @@ Current writers using this contract:
 - `dspx codegen`
 - legacy `dspx.cli.codegen` service path
 
-## Rules for future replay/explain commands
+## Replay command (implemented MVP)
 
-- `dspx run replay` should read receipt first, then verify:
-  - output hash
-  - cache linkage
-  - required replay inputs
-- Initial mode should be `--check-only` by default.
+`dspx run replay --from <receipt> --check-only` now performs local checks:
+- receipt parse + schema validation (`receipt_version: v1`, required fields,
+  required `replay_inputs` keys)
+- output artifact existence + output hash verification
+- cache linkage verification (`cache_key`, `cache_file`, run-kind cache folder)
+- cache provenance verification (recomputed `cache_key`, cached `code` hash)
+
+Operational guarantees:
+- replay command forces local/offline posture (`MLFLOW_ENABLE=0`)
+- no provider/network/MLflow dependency for baseline replay verification
+
+Exit codes:
+- `0`: verification passed
+- `1`: parsed receipt but drift detected
+- `2`: invalid receipt/arguments
+
+## Next step (`run explain`)
+
 - `dspx run explain` should work from receipt/manifest alone and optionally
   merge MLflow context when present.
-- Never require network for replay verification.
+- Missing MLflow must never block baseline explanation output.

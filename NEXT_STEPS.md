@@ -31,41 +31,42 @@ Acceptance:
 
 ---
 
-## 2) Highest impact: ship `run replay` check-only MVP
+## 2) Highest impact now: ship `run explain` local-first MVP
 
 Current state:
-- Versioned run receipts (`receipt_version: v1`) now exist for
-  signature/module/codegen/refine outputs.
-- First-class CLI replay surface is still missing.
+- Replay verification is now first-class (`dspx run replay --check-only`).
+- Explainability data already exists in receipts/meta/manifests.
+- MLflow remains optional and must stay additive only.
 
 Next actions:
-1. Add `dspx run replay --from <receipt> --check-only`.
-2. Verify receipt parse + required fields + output hash.
-3. Verify cache linkage (`cache_key`, `cache_file`) and report drift clearly.
-4. Keep command fully local/offline (no MLflow/network requirement).
+1. Add `dspx run explain --from <receipt>` in core CLI (`dspx run ...`).
+2. Build explanation output from local receipt/manifest first.
+3. Add optional MLflow enrichment mode that never blocks baseline output.
+4. Add tests for no-MLflow/no-network behavior and graceful enrichment fallback.
 
 Acceptance:
-- Replay verification works with `MLFLOW_ENABLE=0`.
-- Exit codes distinguish pass/fail/invalid receipt states.
-- Failures return actionable diagnostics (missing file/hash mismatch/etc.).
+- Explain command works with `MLFLOW_ENABLE=0`.
+- Output clearly separates local facts vs optional traced context.
+- Non-local enrichment failures never fail baseline explain output.
 
 ---
 
-## 3) Next: ship `run explain` local-first MVP
+## 3) Harden `run replay` drift coverage + provenance strictness
 
 Current state:
-- Explainability data exists in receipts/meta/manifests.
-- MLflow is optional and should remain additive only.
+- `dspx run replay --from <receipt> --check-only` validates schema, output hash,
+  cache linkage, and cache provenance.
 
 Next actions:
-1. Add `dspx run explain --from <receipt>`.
-2. Build explanation from local receipt/manifest first.
-3. Add optional MLflow enrichment mode that never blocks baseline output.
+1. Add focused tests for additional drift classes (missing cache file,
+   wrong kind folder, malformed cache JSON).
+2. Audit/reconcile legacy LM signature cache-key shape vs replay recomputation.
+3. Add optional strict mode once more artifact producers emit stable receipts.
 
 Acceptance:
-- Explain command works without MLflow.
-- MLflow enrichment gracefully degrades when unavailable.
-- Output clearly separates local facts vs optional traced context.
+- Replay checks remain deterministic and offline in CI.
+- Drift diagnostics stay actionable and machine-readable.
+- Replay key/provenance checks are consistent across template + LM paths.
 
 ---
 

@@ -81,6 +81,13 @@ just dspx signature gen "Extract names" --template-version simple-v1 --outfile s
 just dspx signature gen "Extract names" --template-version simple-v1 --cache-info > /dev/null
 ```
 
+Replay-check a generated artifact from its receipt (offline/local-only):
+
+```
+just dspx run replay --from sig.py.meta.json --check-only
+just dspx run replay --from sig.py.meta.json --check-only --json
+```
+
 7) Observability (optional)
 Enable MLflow to record inputs/outputs and attach artifacts/manifests:
 
