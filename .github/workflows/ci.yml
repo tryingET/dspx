@@ -110,3 +110,27 @@ jobs:
 
       - name: Test forge slice (pytest)
         run: just test-forge
+
+  forge-core-compat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        core-track: [latest, min]
+
+    steps:
+      - name: Checkout (full history for tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Forge/core wheel compat (${{ matrix.core-track }})
+        run: bash scripts/forge_core_compat_smoke.sh ${{ matrix.core-track }}

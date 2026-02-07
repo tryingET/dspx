@@ -69,6 +69,15 @@ test-forge:
     echo "no local tests"; \
   fi
 
+# Forge/core wheel-compat smoke (latest core)
+forge-core-compat mode="latest":
+  bash scripts/forge_core_compat_smoke.sh "{{mode}}"
+
+# Forge/core wheel-compat matrix (min + latest core)
+forge-core-compat-matrix:
+  just forge-core-compat latest
+  just forge-core-compat min
+
 # Clean-clone smoke flow for workspace packaging convergence
 clean-clone-smoke:
   bash scripts/clean_clone_smoke.sh
