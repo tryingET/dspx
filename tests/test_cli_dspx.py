@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import os
+
 from typer.testing import CliRunner
 
-from dspx.cli.dspx import app
+import dspx.cli.dspx as dspx_cli
 
 
+app = dspx_cli.app
 runner = CliRunner()
 
 
@@ -89,3 +92,54 @@ def test_cli_mermaid_gen_creates_files(tmp_path: Path, monkeypatch) -> None:
         assert (outdir / "workflow.mmd").exists()
     finally:
         os.chdir(cwd)
+
+
+def test_cli_readonly_providers_list_skips_mlflow_bootstrap(monkeypatch) -> None:
+    def _boom() -> bool:
+        raise AssertionError("read-only providers list must not bootstrap MLflow")
+
+    monkeypatch.setattr(dspx_cli, "enable_mlflow_from_env", _boom)
+    result = runner.invoke(app, ["providers", "list"])
+    assert result.exit_code == 0
+    assert "stub" in result.stdout
+
+
+def test_cli_readonly_openapi_ops_skips_mlflow_bootstrap(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def _boom() -> bool:
+        raise AssertionError("read-only openapi ops must not bootstrap MLflow")
+
+    monkeypatch.setattr(dspx_cli, "enable_mlflow_from_env", _boom)
+    spec = {
+        "openapi": "3.0.0",
+        "info": {"title": "demo", "version": "1.0.0"},
+        "paths": {
+            "/ping": {
+                "get": {
+                    "operationId": "ping",
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    spec_path = tmp_path / "spec.json"
+    spec_path.write_text(json.dumps(spec), encoding="utf-8")
+
+    result = runner.invoke(app, ["tools", "openapi", "ops", str(spec_path)])
+    assert result.exit_code == 0
+    assert "ping" in result.stdout
+
+
+def test_cli_signature_gen_still_bootstraps_mlflow(monkeypatch) -> None:
+    calls = {"n": 0}
+
+    def _count() -> bool:
+        calls["n"] += 1
+        return False
+
+    monkeypatch.setattr(dspx_cli, "enable_mlflow_from_env", _count)
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    result = runner.invoke(app, ["signature", "gen", "Extract names from text"])
+    assert result.exit_code == 0
+    assert calls["n"] >= 1

@@ -18,6 +18,7 @@ Canonical docs map
 - Server runtime/security: `docs/SERVER.md`
 - OpenAPI tooling: `docs/OPENAPI_TOOLING.md`
 - Policy defaults matrix: `docs/POLICY_DEFAULTS.md`
+- Upstream contribution workflow (DSPy/MLflow): `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
 - ADR index (decisions): `docs/adr/README.md`
 - Historical/legacy snapshots: `docs/PROJECT_STATUS.md`, `docs/NEXT_STEPS.md`
 
@@ -505,6 +506,12 @@ Tracing with MLflow
   enable_mlflow_from_env()
   ensure_run_from_env()  # uses $MLFLOW_RUN_NAME if provided
 
+- Read-only CLI metadata commands intentionally skip MLflow bootstrap so they stay
+  offline/instant even if `config.toml` points to a remote tracking URI:
+  - `dspx providers list`
+  - `dspx providers capabilities`
+  - `dspx tools openapi ops|describe|env|load`
+
 Run naming
 ----------
 - Set a run name via env to keep experiments organized:
@@ -654,6 +661,7 @@ This repo follows a simple modern `uv` setup:
 
 - Tasks via Justfile:
   - `just install` / `just dev-install` — sync deps or editable install.
+  - `just upstream-link-dspy path=...` / `just upstream-link-mlflow path=...` / `just upstream-reset` — upstream sibling-clone workflow (no new submodules).
   - `just fmt` / `just lint` / `just typecheck` — ruff + ty.
   - `just test` / `just test-core` / `just test-forge` — marker-based pytest slices (`forge` vs non-`forge`).
   - `just build` / `just build-core` / `just build-forge` — build packages.

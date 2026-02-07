@@ -47,13 +47,14 @@ app.add_typer(cache_app, name="cache", help="Inspect and manage the on-disk cach
 app.add_typer(optimize_app, name="optimize", help="Program optimization (GEPA, etc.)")
 
 
-def _ensure_env(provider: Optional[str]) -> None:
+def _ensure_env(provider: Optional[str], *, tracing: bool = True) -> None:
     if provider:
         import os
 
         os.environ["DSPX_PROVIDER"] = provider
     load_config_env()
-    enable_mlflow_from_env()
+    if tracing:
+        enable_mlflow_from_env()
 
 
 @providers_app.command("list")
@@ -62,7 +63,7 @@ def providers_list(
 ) -> None:
     from dspx.provider_registry import ensure_default_providers, available
 
-    _ensure_env(None)
+    _ensure_env(None, tracing=False)
     ensure_default_providers()
     names = sorted(available().keys())
     if json_out:
@@ -81,7 +82,7 @@ def providers_capabilities(
 ) -> None:
     from dspx.provider_registry import ensure_default_providers, capabilities as _caps
 
-    _ensure_env(provider)
+    _ensure_env(provider, tracing=False)
     ensure_default_providers()
     name = provider or os.getenv("DSPX_PROVIDER") or "codex-exec"
     caps = _caps(name)
@@ -934,7 +935,7 @@ def openapi_ops(
     from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
 
-    _ensure_env(None)
+    _ensure_env(None, tracing=False)
     allowed = {allow_host: True} if allow_host else None
     data = load_spec(str(spec), allowed_hosts=allowed)
     ops = extract_operation_infos(data)
@@ -1085,7 +1086,7 @@ def openapi_describe(
     from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
 
-    _ensure_env(None)
+    _ensure_env(None, tracing=False)
     data = load_spec(spec, allowed_hosts=({allow_host: True} if allow_host else None))
     ops = extract_operation_infos(data)
     if op not in ops:
@@ -1250,7 +1251,7 @@ def openapi_load(
     """
     import json as _json
 
-    _ensure_env(None)
+    _ensure_env(None, tracing=False)
     base = outdir or Path("generated/openapi")
     base.mkdir(parents=True, exist_ok=True)
     path = base / f"{prefix}.json"
@@ -1273,7 +1274,7 @@ def openapi_env(
     """Print shell exports for DSPX_OPENAPI_SPEC_<P> and DSPX_OPENAPI_HOST_<P> from a mapping file."""
     import json as _json
 
-    _ensure_env(None)
+    _ensure_env(None, tracing=False)
     path = None
     if map_file and map_file.exists():
         path = map_file

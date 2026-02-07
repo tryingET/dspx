@@ -37,8 +37,16 @@ read_when:
 
 ## Current failure mode (why tests/CI can stall)
 
-- Some CLI paths called `mlflow.log_*` even when `MLFLOW_ENABLE=0`.
-- MLflow “fluent” APIs can implicitly create a run; if `MLFLOW_TRACKING_URI` points to an HTTP server, that triggers network retries (slow/stall).
+- MLflow “fluent” APIs can implicitly create a run; if `MLFLOW_TRACKING_URI` points to an HTTP server, that can trigger network retries (slow/stall).
+- Any CLI path that eagerly bootstraps MLflow can inherit that latency if tracing is not scoped.
+
+### Implemented hardening (current)
+
+- Read-only CLI metadata commands no longer bootstrap MLflow by default:
+  - `dspx providers list`
+  - `dspx providers capabilities`
+  - `dspx tools openapi ops|describe|env|load`
+- Mutating/generative flows still bootstrap tracing (best-effort) where observability is useful.
 
 ## Design (how tracing should work in DSPx)
 

@@ -27,9 +27,10 @@ issues_app = typer.Typer(no_args_is_help=True)
 app.add_typer(issues_app, name="issues", help="GitLab issues (apply/close-duplicates)")
 
 
-def _ensure_env() -> None:
+def _ensure_env(*, tracing: bool = False) -> None:
     load_config_env()
-    enable_mlflow_from_env()
+    if tracing:
+        enable_mlflow_from_env()
 
 
 @app.command("intake")

@@ -16,6 +16,20 @@ dev-install:
   # Install core + forge app in editable mode
   uv pip install -e packages/dspx-core -e apps/forge
 
+# Link local DSPy checkout (sibling clone) for upstream patching workflow
+upstream-link-dspy path="":
+  if [ -z "{{path}}" ]; then echo "usage: just upstream-link-dspy path=~/programming/upstream/dspy"; exit 1; fi
+  uv pip install -e "{{path}}"
+
+# Link local MLflow checkout (sibling clone) for upstream patching workflow
+upstream-link-mlflow path="":
+  if [ -z "{{path}}" ]; then echo "usage: just upstream-link-mlflow path=~/programming/upstream/mlflow"; exit 1; fi
+  uv pip install -e "{{path}}"
+
+# Reset environment back to locked/released dependencies
+upstream-reset:
+  uv sync
+
 # Format code with ruff
 fmt:
   uvx ruff format packages/dspx-core/src apps/forge/src docs

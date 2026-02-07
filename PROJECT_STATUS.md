@@ -31,6 +31,9 @@ This status reflects the **breaking monorepo branch**:
 - Core CLI:
   - `just dspx ...`
   - runs: `uv run --package dspx-core -q python -m dspx.cli.dspx ...`
+  - read-only metadata commands skip MLflow bootstrap to stay offline/instant:
+    - `providers list`, `providers capabilities`
+    - `tools openapi ops`, `tools openapi describe`, `tools openapi env`, `tools openapi load`
 - Forge CLI:
   - `just forge ...`
   - runs: `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
@@ -62,9 +65,10 @@ This status reflects the **breaking monorepo branch**:
 - `just clean-clone-smoke`: passing.
 - `pre-commit run --all-files`: passing.
 - `just monorepo-check`: passing.
-- `just test`: passing (`151 passed, 4 skipped`).
-- `just test-core`: passing (`141 passed, 4 skipped, 10 deselected`).
-- `just test-forge`: passing (`10 passed, 1 skipped, 144 deselected`).
+- `just dspx providers list`: passing without forcing `MLFLOW_ENABLE=0` (read-only/instant path).
+- `just test`: passing (`154 passed, 4 skipped`).
+- `just test-core`: passing (`144 passed, 4 skipped, 10 deselected`).
+- `just test-forge`: passing (`10 passed, 1 skipped, 147 deselected`).
 - `just forge-core-compat-matrix`: passing (both tracks green; `min` track resolves via `dspx-core-v0.1.0`).
 - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`: passing.
 - `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_optimize_gepa_codex_live.py -rs`: passing.
@@ -96,6 +100,7 @@ Recently closed:
 - CI now runs forge/core compatibility matrix smoke against latest and minimum-supported core tracks.
 - Codex live-readiness checks now support modern `codex login status` (with legacy fallback) and Pi live smoke has a dedicated recipe (`just pi-live-smoke`).
 - Forge/core test slicing now uses explicit `pytest.mark.forge` markers (`just test-core` / `just test-forge`).
+- Read-only core CLI metadata commands now skip MLflow bootstrap to avoid remote tracking stalls.
 
 ## Canonical docs for this branch
 

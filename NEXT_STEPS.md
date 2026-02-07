@@ -49,6 +49,7 @@ Status:
 - CI runs package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene.
 - CI includes forge/core compatibility matrix (`latest`, `min`) via wheel installs.
 - Forge/core test slices now use explicit `pytest.mark.forge` marker selection.
+- Read-only core CLI metadata commands now skip MLflow bootstrap (offline/instant behavior even with remote tracking URI in config).
 - Release workflows exist for package tags:
   - `.github/workflows/release-core.yml` (`dspx-core-v*`)
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
@@ -79,6 +80,7 @@ Next actions:
   - `PROJECT_STATUS.md`
   - `NEXT_STEPS.md`
   - `docs/MONOREPO_TRANSITION.md`
+  - `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
 - Keep CLI contract explicit:
   - `dspx` = core
   - `dspx-forge` / `just forge` = app
