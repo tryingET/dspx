@@ -31,29 +31,50 @@ Acceptance:
 
 ---
 
-## 2) Highest impact: keep signature quality telemetry operational (now implemented)
+## 2) Highest impact: land pending signature-quality CI wiring
 
 Current state:
-- Native signature generation/refine is spec-first and capability-aware.
-- Validation/smoke scoring and bounded retries are active.
-- Golden corpus + provider-shaped corpus cases exist.
-- Run telemetry and promotion-gate summary command exist:
-  - `dspx signature quality-summary`
-  - metrics: fallback-rate, attempts-used distribution, validation/smoke pass rates.
+- Working tree contains uncommitted changes that wire CI enforcement:
+  - provider-corpus log builder (`scripts/build_signature_provider_quality_log.py`)
+  - strict corpus gate profile (`packages/dspx-core/src/dspx/services/signature_quality_corpus.py`)
+  - CI gate run + artifact + PR summary (`.github/workflows/ci.yml`)
+- Local validation is green (`pre-commit`, `monorepo-check`, `just test`).
 
 Next actions:
-1. Wire quality-summary JSON output into CI artifacts and PR surfaces.
-2. Tune gate thresholds with real provider data (pi-rpc/openrouter/codex/claude/gemini).
-3. Keep corpus growth continuous for new provider edge behaviors.
+1. Keep the change-set scoped/reviewable and commit the CI-gate wiring slice.
+2. Push branch and verify GitHub `core` job behavior:
+   - quality gate command runs with `--json --fail-on-gate`
+   - `signature-quality-summary` artifact is uploaded
+   - PR-facing summary table is rendered in job summary.
+3. If needed, run one intentional threshold-tightening test branch to confirm failure path is obvious/auditable.
 
 Acceptance:
-- Quality drift is visible before user-facing regressions.
-- Retry/fallback behavior remains bounded and auditable.
+- CI fails when corpus quality gates fail.
+- CI always publishes gate JSON/log artifacts.
+- Reviewers can read a concise gate summary directly in PR/job UI.
+
+---
+
+## 3) Calibrate signature quality gates with runtime telemetry
+
+Current state:
+- CI gates are strict and deterministic from provider-corpus fixtures.
+- Runtime telemetry exists (`generated/cache/signature/quality_runs.jsonl`) but is not yet used as a CI gate source.
+
+Next actions:
+1. Collect rolling telemetry windows from real provider runs (pi-rpc/openrouter/codex/claude/gemini).
+2. Recalibrate default/runtime thresholds using observed trend data (not only corpus fixtures).
+3. Keep provider corpus growth continuous for new edge-shape regressions.
+4. Consider explicit per-provider gate checks once sample volume is stable.
+
+Acceptance:
+- Deterministic corpus gates stay strict.
+- Runtime thresholds are justified by tracked provider trend data.
 - Corpus growth catches provider-specific regressions deterministically.
 
 ---
 
-## 3) Extend the same quality contract beyond signatures
+## 4) Extend the same quality contract beyond signatures
 
 Why now:
 - Signature/refine path is hardened first; module/codegen/mermaid should converge on the same quality posture.
@@ -69,7 +90,7 @@ Acceptance:
 
 ---
 
-## 4) Keep forge/core compatibility deterministic (`min` track)
+## 5) Keep forge/core compatibility deterministic (`min` track)
 
 Why:
 - CI `min` compatibility is only as strict as remote lower-bound tag availability.
@@ -85,7 +106,7 @@ Acceptance:
 
 ---
 
-## 5) Keep forge/core test slicing robust
+## 6) Keep forge/core test slicing robust
 
 Current state:
 - Slices are marker-based (`pytest.mark.forge`) instead of name-based `-k` filters.
@@ -102,7 +123,7 @@ Acceptance:
 
 ---
 
-## 6) Continue MLflow hardening with offline-first CLI behavior
+## 7) Continue MLflow hardening with offline-first CLI behavior
 
 Current state:
 - Read-only metadata commands skip MLflow bootstrap and stay instant.
@@ -118,7 +139,7 @@ Acceptance:
 
 ---
 
-## 7) Keep docs and operator guidance synchronized
+## 8) Keep docs and operator guidance synchronized
 
 Next actions:
 1. Keep these docs aligned on each behavior change:
@@ -136,7 +157,7 @@ Acceptance:
 
 ---
 
-## 8) Upstream leverage path (without adding heavy submodules)
+## 9) Upstream leverage path (without adding heavy submodules)
 
 Next actions:
 1. Use sibling clones + editable installs for upstream debugging/patching:
