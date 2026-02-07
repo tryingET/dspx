@@ -5,67 +5,69 @@ This status reflects the **breaking monorepo branch**:
 
 ## Snapshot
 
-- Monorepo split executed (no Forge compatibility shims).
-- Core code moved from `src/dspx` to:
+- Monorepo split is active (no Forge compatibility shims in core).
+- Core code lives in:
   - `packages/dspx-core/src/dspx`
-- Forge app extracted to:
+- Forge app lives in:
   - `apps/forge/src/dspx_forge`
-- Core no longer contains Forge modules (`src/dspx/forge` removed).
-- Core CLI no longer mounts `forge` commands.
-- Forge now has dedicated app CLI (`dspx_forge.cli`).
-- New package manifests added:
-  - `packages/dspx-core/pyproject.toml`
-  - `apps/forge/pyproject.toml`
-- Workspace wiring added in root `pyproject.toml`:
+- Root `pyproject.toml` is now workspace-only:
   - `[tool.uv.workspace] members = ["packages/dspx-core", "apps/forge"]`
-- Root `pyproject.toml` now acts as a workspace root (not a publishable runtime package).
+- Per-package build metadata is explicit:
+  - `packages/dspx-core`: `module-name = "dspx"`
+  - `apps/forge`: `module-name = "dspx_forge"`
+- Forge package declares explicit workspace dependency on core (`dspx-core`).
+- Core CLI remains core-only; Forge CLI remains app-only.
 
-## Current runtime usage
+## Current runtime / packaging behavior
 
+- Workspace install:
+  - `uv sync`
 - Core CLI:
   - `just dspx ...`
-  - runs `uv run --package dspx-core -q python -m dspx.cli.dspx ...`.
+  - runs: `uv run --package dspx-core -q python -m dspx.cli.dspx ...`
 - Forge CLI:
   - `just forge ...`
-  - runs `uv run --package dspx-forge -q python -m dspx_forge.cli ...`.
+  - runs: `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
 - Tests:
-  - `just test`
-  - runs `uv run -m pytest -q tests` from workspace context.
+  - `just test` runs `uv run -m pytest -q tests`
+- Boundary check:
+  - `just monorepo-check` runs `scripts/check_monorepo_boundaries.py`
 
-## Validation snapshot
+## Validation snapshot (latest local run)
 
 - `pre-commit run --all-files`: passing.
-- `just test`: passing (`150 passed, 4 skipped`).
 - `just monorepo-check`: passing.
+- `just test`: passing (`150 passed, 4 skipped`).
 
 ## Boundary status
 
 - Rule: `apps/* -> core`, never reverse.
-- Guardrail script updated to current layout:
-  - `scripts/check_monorepo_boundaries.py`
-- Core import of `dspx_forge` is denied by guardrail.
+- Guardrail script: `scripts/check_monorepo_boundaries.py`.
+- Core import of `dspx_forge.*` is denied by guardrail.
 
 ## What changed from prior architecture
 
-- Previous transition path (shims/forwarders) was removed on this branch.
-- This branch is intentionally **breaking** for older paths:
+- Previous transition forwarders/shims were removed on this branch.
+- This branch remains intentionally **breaking** for legacy paths:
   - old `dspx forge ...` under core CLI
-  - old `dspx.forge.*` module imports
+  - old `dspx.forge.*` imports
 
-## Known gaps
+## Known gaps and immediate risks
 
-- Full clean-clone verification still needed after workspace packaging updates.
-- Some docs still contain stale pre-split language.
-- CI/release jobs not yet fully package-aware (`dspx-core` + `dspx-forge`).
+- CI/CD is not yet split cleanly by package (`dspx-core` vs `dspx-forge`).
+- Release/versioning policy is still coupled in helper workflow (both package versions bumped together by `just version`).
+- Full clean-clone smoke sequence should be documented and enforced in CI (`uv sync`, `just dspx --help`, `just forge --help`, `just test`).
+- Some branch docs may still contain stale wording from pre-split architecture.
 
-## Documents to treat as canonical for this branch
+## Canonical docs for this branch
 
-- `docs/MONOREPO_TRANSITION.md` (branch-specific transition state)
-- `apps/forge/README.md` (Forge app boundary)
-- `packages/dspx-core/README.md` (core boundary)
+- `docs/MONOREPO_TRANSITION.md`
+- `apps/forge/README.md`
+- `packages/dspx-core/README.md`
+- `NEXT_STEPS.md`
 
 ## Recommended posture
 
-- Treat this branch as monorepo migration sandbox.
-- Avoid adding new compatibility shims unless strictly required for unblock.
-- Prioritize package/CI/doc convergence next.
+- Keep boundaries strict and test-enforced.
+- Prioritize package-aware CI/release flow next.
+- Avoid reintroducing compatibility shims unless required for unblock.

@@ -2,93 +2,94 @@
 
 This plan is for `feature/full-monorepo-breaking` after the hard split.
 
-## 0) Stabilize the new baseline (now)
+## 0) Keep baseline stable (always)
 
-- Keep using:
-  - `just test`
+- Run routinely:
+  - `pre-commit run --all-files`
   - `just monorepo-check`
-- Ensure no new core imports of app modules (`dspx_forge.*`).
-- Keep diffs reviewable; batch related migration work when it improves momentum.
+  - `just test`
+- Keep boundary strict:
+  - allowed: `apps/* -> core`
+  - forbidden: `core -> apps/*` (`dspx_forge.*`)
 
-## 1) Packaging convergence (highest priority)
+Acceptance:
+- Quality gates stay green.
+- No new boundary violations.
 
-Goal: workspace-native install/run with no `PYTHONPATH` or `--no-project` workaround.
+## 1) Close packaging convergence (highest priority)
 
-- Root role chosen: Option A (pure workspace root; no publishable root runtime package).
-- Keep per-package build metadata explicit:
-  - `packages/dspx-core`: `module-name = "dspx"`
-  - `apps/forge`: `module-name = "dspx_forge"`
-- Keep app-to-core linkage explicit in Forge packaging (`dspx-core` workspace source).
-- Ensure commands work in a clean env with:
+Goal: lock in workspace-native behavior from clean clone.
+
+Next actions:
+- Add/verify clean-clone smoke path in docs + CI-friendly script:
   - `uv sync`
-  - `just dspx ...`
-  - `just forge ...`
+  - `just dspx --help`
+  - `just forge --help`
+  - `just test`
+- Review remaining Just recipes for explicit package context where helpful
+  (`--package dspx-core` / `--package dspx-forge`) to avoid ambiguity as
+  the workspace grows.
+- Keep root as workspace-only (no root runtime package resurrection).
 
 Acceptance:
-- No errors from stale `src/dspx` expectations.
-- Local setup works from clean clone with documented commands.
+- Fresh clone can run the smoke sequence without path hacks.
+- No `PYTHONPATH` / `--no-project` workaround reintroduced.
 
-## 2) CLI contract decisions
+## 2) CI/CD split by package
 
-Goal: explicit product surfaces after split.
+Goal: package-aware pipeline and release behavior.
 
-- Keep `dspx` as core-only CLI.
-- Keep Forge under separate CLI (`dspx-forge` / `just forge`).
-- Decide whether to add optional app dispatch in core CLI later (plugin-based) or keep strict separation.
-
-Acceptance:
-- CLI contracts documented and consistent in help/README/docs.
-
-## 3) CI/CD split
-
-Goal: package-aware pipelines.
-
-- Separate checks/jobs:
-  - core tests/lint/typecheck
-  - forge app tests/lint/typecheck
-  - integration smoke (optional)
-- Release workflow:
-  - independent versioning for `dspx-core` and `dspx-forge` (or explicitly coupled policy).
+Next actions:
+- Create separate CI jobs for:
+  - core lint/typecheck/test
+  - forge lint/typecheck/test
+  - optional integration smoke
+- Define release policy clearly:
+  - independent versions for `dspx-core` and `dspx-forge`, or
+  - explicitly coupled versioning (documented rationale)
+- Ensure artifacts/publish steps are package-scoped.
 
 Acceptance:
-- CI green with package-scoped jobs.
-- Release steps documented.
+- CI shows package-scoped pass/fail.
+- Release process is documented and reproducible.
 
-## 4) Docs cleanup (branch-wide)
+## 3) Docs convergence for split layout and CLI contracts
 
-- Update stale references to old layout (`src/dspx/forge`, `dspx forge ...` in core).
-- Refresh:
+Goal: docs match actual branch behavior.
+
+Next actions:
+- Sweep docs for stale references to old layout/commands.
+- Keep these in sync on each structural change:
   - `README.md`
-  - `docs/ARCHITECTURE.md`
-  - `docs/VISION.md`
-  - any command examples affected by split
-- Keep `PROJECT_STATUS.md` and this file synchronized after each structural change.
+  - `PROJECT_STATUS.md`
+  - `NEXT_STEPS.md`
+  - `docs/MONOREPO_TRANSITION.md`
+- Keep CLI contract explicit:
+  - `dspx` = core
+  - `dspx-forge` / `just forge` = app
 
 Acceptance:
-- Docs reflect actual commands/layout on this branch.
+- No conflicting command or layout guidance across canonical docs.
 
-## 5) Forge hardening in app boundary
+## 4) Forge hardening within app boundary
 
-- Continue Forge feature work in `apps/forge/src/dspx_forge` only.
+Goal: continue Forge work without boundary regressions.
+
+Next actions:
 - Expand tests around:
   - GitLab apply idempotency
-  - overlap decisions/duplicate close flow
+  - overlap/duplicate resolution flow
   - policy gate behavior
-- Preserve offline/deterministic default behavior in tests.
+- Keep test defaults offline/deterministic.
 
 Acceptance:
-- Forge tests stay green without coupling back into core internals.
+- Forge features advance with green tests and strict core/app separation.
 
-## 6) Optional later: pluginized app discovery
+## 5) Optional later: pluginized app discovery
 
-- If needed, add explicit app/plugin discovery in core (entry points/config driven), not direct imports.
+- If app discovery is needed, implement via explicit plugin/entry-point
+  mechanisms in core.
+- Avoid direct imports from core into app modules.
 
 Acceptance:
 - Core remains app-agnostic by default.
-
-## Daily checklist
-
-- `pre-commit run --all-files`
-- `just test`
-- `just monorepo-check`
-- Update docs when command/layout behavior changes.
