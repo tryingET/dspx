@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import subprocess
 import sys
 
 
 def test_mlflow_disabled_does_not_import_mlflow() -> None:
     env = dict(os.environ)
+    repo = Path(__file__).resolve().parents[1]
+    extra = (
+        f"{repo / 'packages' / 'dspx-core' / 'src'}:{repo / 'apps' / 'forge' / 'src'}"
+    )
+    env["PYTHONPATH"] = extra + (
+        ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    )
     env["MLFLOW_ENABLE"] = "0"
     env["MLFLOW_TRACKING_URI"] = "http://127.0.0.1:1"
     code = (

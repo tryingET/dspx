@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from dspx.apps.forge_app.io import write_json
-from dspx.apps.forge_app.models import WorkOrderDoc
-from dspx.apps.forge_app.fingerprints import slugify
+from dspx_forge.io import write_json
+from dspx_forge.models import WorkOrderDoc
+from dspx_forge.fingerprints import slugify
 
 
 def compute_overlaps(doc: WorkOrderDoc) -> dict[str, Any]:
@@ -16,7 +16,7 @@ def compute_overlaps(doc: WorkOrderDoc) -> dict[str, Any]:
 
     # Keep deterministic/offline by default.
     try:
-        from dspx.apps.forge_app.gitlab_client import (
+        from dspx_forge.gitlab_client import (
             GitLabClient,
             load_gitlab_config_from_env,
         )

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dspx.forge.workorder import build_workorder, write_workorder
-from dspx.forge.issues import build_issue_spec
+from dspx_forge.workorder import build_workorder, write_workorder
+from dspx_forge.issues import build_issue_spec
 
 
 def test_forge_apply_writes_manifest_before_network(
@@ -17,8 +17,8 @@ def test_forge_apply_writes_manifest_before_network(
     paths = write_workorder(tmp_path / "generated" / "forge", wo)
     spec = build_issue_spec(wo)
 
-    import dspx.forge.issues as issues_mod
-    from dspx.forge.gitlab_client import GitLabConfig
+    import dspx_forge.issues as issues_mod
+    from dspx_forge.gitlab_client import GitLabConfig
 
     cfg = GitLabConfig(
         base_url="https://gitlab.example.com",

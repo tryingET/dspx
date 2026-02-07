@@ -1,5 +1,8 @@
 set shell := ["bash", "-uc"]
 set dotenv-load := true
+set export
+
+PYTHONPATH := "packages/dspx-core/src:apps/forge/src"
 
 # List available tasks
 default:
@@ -17,21 +20,21 @@ dev-install:
 
 # Format code with ruff
 fmt:
-  uvx ruff format src docs
+  PYTHONPATH={{PYTHONPATH}} uvx ruff format packages/dspx-core/src apps/forge/src docs
 
 # Lint with ruff
 lint:
-  uvx ruff check src docs
+  PYTHONPATH={{PYTHONPATH}} uvx ruff check packages/dspx-core/src apps/forge/src docs
 
 # Type-check with ty
 typecheck:
-  uvx ty check src
+  PYTHONPATH={{PYTHONPATH}} uvx ty check packages/dspx-core/src apps/forge/src
 
 # Run tests (if present)
 test:
   # Run only local tests (none by default); skip submodules' test suites
   if [ -d tests ]; then \
-    uv run -m pytest -q tests; \
+    PYTHONPATH={{PYTHONPATH}} uv run -m pytest -q tests; \
   else \
     echo "no local tests"; \
   fi
@@ -46,7 +49,11 @@ monorepo-check:
 #   just dspx tools list
 dspx *args:
   # Use bash to preserve argument boundaries reliably.
-  bash -lc 'uv run -q python -m dspx.cli.dspx "$@"' -- {{args}}
+  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run -q python -m dspx.cli.dspx "$@"' -- {{args}}
+
+# Forge app CLI from monorepo app boundary
+forge *args:
+  bash -lc 'PYTHONPATH={{PYTHONPATH}} uv run -q python -m dspx_forge.cli "$@"' -- {{args}}
 
 # OpenRouter wrapper (1Password `op run`)
 # NOTE: We avoid variadic pass-through here because Just interpolation happens in a shell,

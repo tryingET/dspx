@@ -6,10 +6,10 @@ from pathlib import Path
 import secrets
 from typing import Optional
 
-from dspx.apps.forge_app.fingerprints import stable_sha256, workorder_id_from_title
-from dspx.apps.forge_app.io import write_yaml
-from dspx.apps.forge_app.io import read_yaml
-from dspx.apps.forge_app.models import (
+from dspx_forge.fingerprints import stable_sha256, workorder_id_from_title
+from dspx_forge.io import write_yaml
+from dspx_forge.io import read_yaml
+from dspx_forge.models import (
     AcceptanceTest,
     Constraint,
     Intent,
@@ -21,8 +21,8 @@ from dspx.apps.forge_app.models import (
     WorkOrder,
     WorkOrderDoc,
 )
-from dspx.apps.forge_app.sanitize import sanitize_text
-from dspx.apps.forge_app.system_definition import render_system_definition_card
+from dspx_forge.sanitize import sanitize_text
+from dspx_forge.system_definition import render_system_definition_card
 
 
 @dataclass(frozen=True)

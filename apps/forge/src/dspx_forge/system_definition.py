@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dspx.apps.forge_app.models import WorkOrder
+from dspx_forge.models import WorkOrder
 
 
 def render_system_definition_card(wo: WorkOrder) -> str:

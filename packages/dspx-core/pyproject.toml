@@ -1,0 +1,25 @@
+[project]
+name = "dspx-core"
+version = "0.1.0"
+description = "DSPx core runtime, providers, services, and CLI"
+requires-python = ">=3.13"
+dependencies = [
+  "beautifulsoup4>=4.13.5",
+  "dspy-ai>=3.0.2",
+  "duckduckgo-search>=8.1.1",
+  "httpx>=0.28.1",
+  "mlflow>=2.18.0",
+  "pandas>=2.3.2",
+  "typer>=0.12.5",
+  "pyyaml>=6.0.1",
+  "fastapi>=0.111.0",
+  "granian>=1.4.3",
+]
+
+[project.scripts]
+dspx = "dspx.cli.dspx:main"
+dspx-server = "dspx.server.app:main"
+
+[build-system]
+requires = ["uv-build>=0.2"]
+build-backend = "uv_build"

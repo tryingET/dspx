@@ -6,16 +6,16 @@ import os
 from pathlib import Path
 from typing import Any, Optional, cast
 
-from dspx.apps.forge_app.fingerprints import slugify, stable_sha256
-from dspx.apps.forge_app.io import read_json, write_json, write_yaml
-from dspx.apps.forge_app.issue_text import build_managed_block, upsert_managed_block
-from dspx.apps.forge_app.models import (
+from dspx_forge.fingerprints import slugify, stable_sha256
+from dspx_forge.io import read_json, write_json, write_yaml
+from dspx_forge.issue_text import build_managed_block, upsert_managed_block
+from dspx_forge.models import (
     IssueSpec,
     IssueSpecDoc,
     ManifestDoc,
     WorkOrderDoc,
 )
-from dspx.apps.forge_app.gitlab_client import GitLabClient, load_gitlab_config_from_env
+from dspx_forge.gitlab_client import GitLabClient, load_gitlab_config_from_env
 
 
 @dataclass(frozen=True)

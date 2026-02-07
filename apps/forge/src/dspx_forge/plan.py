@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Any, Dict
 import os
 
-from dspx.apps.forge_app.io import write_json
-from dspx.apps.forge_app.models import PlanDoc, WorkOrderDoc
+from dspx_forge.io import write_json
+from dspx_forge.models import PlanDoc, WorkOrderDoc
 
 
 def _configured_gitlab() -> bool:

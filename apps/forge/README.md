@@ -1,13 +1,17 @@
-# Forge app boundary (scaffold)
+# Forge app boundary
 
-Forge becomes an optional app surface on top of `dspx-core`.
+Forge is an optional app surface on top of `dspx-core`.
 
 Current state:
-- Forge implementation now lives at `src/dspx/apps/forge_app/*`.
-- Legacy `src/dspx/forge/*` modules remain as compatibility aliases.
-- CLI uses `dspx.apps.forge_compat` as transition facade.
+- Forge implementation lives in `apps/forge/src/dspx_forge`.
+- Core package no longer owns Forge modules.
+- Core CLI (`dspx`) no longer mounts `forge` commands.
 
-Boundary intent:
-- App code depends on core contracts/services.
-- No reverse dependency from core into app internals.
-- CLI compatibility (`dspx forge ...`) is preserved via forwarding during migration.
+Use Forge CLI directly:
+- `just forge intake ...`
+- `just forge plan ...`
+- `just forge issues apply ...`
+
+Dependency intent:
+- apps depend on core (`dspx`).
+- core never depends on app packages.

@@ -45,80 +45,35 @@ def _iter_imports(tree: ast.AST) -> list[tuple[int, str]]:
     return items
 
 
-def _is_forge_import(name: str) -> bool:
-    return (
-        name == "dspx.forge"
-        or name.startswith("dspx.forge.")
-        or name == "forge"
-        or name.startswith("forge.")
-    )
+def _is_forge_app_import(name: str) -> bool:
+    return name == "dspx_forge" or name.startswith("dspx_forge.")
 
 
-def _is_app_surface_import(name: str) -> bool:
-    return name == "dspx.apps" or name.startswith("dspx.apps.")
-
-
-def _check_src_core_no_forge(root: Path) -> list[Violation]:
+def _check_core_no_app_imports(root: Path) -> list[Violation]:
     violations: list[Violation] = []
-    for path in _iter_python_files(root, Path("src/dspx")):
-        rel = path.relative_to(root)
-        if rel.parts[:3] == ("src", "dspx", "forge"):
-            continue
-        if rel.parts[:3] == ("src", "dspx", "apps"):
-            continue
-        if rel.parts[:3] == ("src", "dspx", "cli"):
-            continue
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(rel))
-        except SyntaxError:
-            continue
-        for lineno, name in _iter_imports(tree):
-            if _is_forge_import(name):
-                violations.append(
-                    Violation(
-                        path=rel,
-                        lineno=lineno,
-                        import_name=name,
-                        reason="core module imports forge app module",
-                    )
-                )
-            elif _is_app_surface_import(name):
-                violations.append(
-                    Violation(
-                        path=rel,
-                        lineno=lineno,
-                        import_name=name,
-                        reason="core module imports app surface module",
-                    )
-                )
-    return violations
-
-
-def _check_packages_core_no_apps(root: Path) -> list[Violation]:
-    violations: list[Violation] = []
-    for path in _iter_python_files(root, Path("packages/dspx-core")):
+    for path in _iter_python_files(root, Path("packages/dspx-core/src/dspx")):
         rel = path.relative_to(root)
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(rel))
         except SyntaxError:
             continue
         for lineno, name in _iter_imports(tree):
-            if name == "apps" or name.startswith("apps."):
+            if _is_forge_app_import(name):
                 violations.append(
                     Violation(
                         path=rel,
                         lineno=lineno,
                         import_name=name,
-                        reason="dspx-core must not import apps",
+                        reason="dspx-core must not import forge app modules",
                     )
                 )
-            elif name == "dspx.forge" or name.startswith("dspx.forge."):
+            elif name == "apps" or name.startswith("apps."):
                 violations.append(
                     Violation(
                         path=rel,
                         lineno=lineno,
                         import_name=name,
-                        reason="dspx-core must not import forge app internals",
+                        reason="dspx-core must not import app packages",
                     )
                 )
     return violations
@@ -158,8 +113,7 @@ def _check_apps_no_cross_app_imports(root: Path) -> list[Violation]:
 
 def collect_violations(root: Path) -> list[Violation]:
     violations: list[Violation] = []
-    violations.extend(_check_src_core_no_forge(root))
-    violations.extend(_check_packages_core_no_apps(root))
+    violations.extend(_check_core_no_app_imports(root))
     violations.extend(_check_apps_no_cross_app_imports(root))
     return violations
 

@@ -17,7 +17,7 @@ repos:
         exclude: ^examples/
       - id: ty
         name: ty (uvx)
-        entry: uvx ty check src
+        entry: uvx ty check packages/dspx-core/src apps/forge/src
         language: system
         types: [python]
         pass_filenames: false

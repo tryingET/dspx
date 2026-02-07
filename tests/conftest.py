@@ -1,6 +1,19 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+for _p in (
+    _REPO_ROOT / "packages" / "dspx-core" / "src",
+    _REPO_ROOT / "apps" / "forge" / "src",
+):
+    s = str(_p)
+    if s not in sys.path:
+        sys.path.insert(0, s)
 
 
 @pytest.fixture(autouse=True)

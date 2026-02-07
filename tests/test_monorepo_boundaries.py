@@ -24,29 +24,18 @@ def test_monorepo_boundary_check_passes_on_repo() -> None:
     assert res.returncode == 0, res.stdout + res.stderr
 
 
-def test_monorepo_boundary_check_detects_core_importing_forge(tmp_path: Path) -> None:
-    bad_file = tmp_path / "src" / "dspx" / "services" / "bad.py"
-    bad_file.parent.mkdir(parents=True, exist_ok=True)
-    bad_file.write_text(
-        "from dspx.forge.workorder import build_workorder\n", encoding="utf-8"
-    )
-
-    res = _run_check(tmp_path)
-    assert res.returncode == 1
-    out = (res.stdout + res.stderr).lower()
-    assert "core module imports forge app module" in out
-
-
-def test_monorepo_boundary_check_detects_core_importing_app_surface(
+def test_monorepo_boundary_check_detects_core_importing_forge_app(
     tmp_path: Path,
 ) -> None:
-    bad_file = tmp_path / "src" / "dspx" / "services" / "bad.py"
+    bad_file = (
+        tmp_path / "packages" / "dspx-core" / "src" / "dspx" / "services" / "bad.py"
+    )
     bad_file.parent.mkdir(parents=True, exist_ok=True)
     bad_file.write_text(
-        "from dspx.apps.forge_compat import build_workorder\n", encoding="utf-8"
+        "from dspx_forge.workorder import build_workorder\n", encoding="utf-8"
     )
 
     res = _run_check(tmp_path)
     assert res.returncode == 1
     out = (res.stdout + res.stderr).lower()
-    assert "core module imports app surface module" in out
+    assert "dspx-core must not import forge app modules" in out

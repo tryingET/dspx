@@ -1,105 +1,36 @@
 ---
-summary: "Phased, non-breaking plan to split DSPx into core package plus optional Forge app."
+summary: "Breaking-branch monorepo transition: core extracted, Forge split as optional app."
 read_when:
-  - "You are changing package boundaries or moving Forge/core code."
-  - "You need migration sequencing, compatibility, or rollback guidance."
+  - "You are working on monorepo structure, package boundaries, or CLI ownership."
+  - "You need current boundary rules for core vs app code."
 ---
 
-# Monorepo Transition Plan
+# Monorepo Transition (breaking branch)
 
-## Goal
+## Outcome on this branch
 
-- Canonical kernel: `dspx-core`.
-- Optional app boundary: Forge (`apps/forge`).
-- Keep current runtime/CLI/import behavior stable during transition.
+- Core source moved to: `packages/dspx-core/src/dspx`
+- Forge app source moved to: `apps/forge/src/dspx_forge`
+- Core CLI (`dspx`) contains core/tooling commands only.
+- Forge commands moved to dedicated app CLI: `dspx_forge.cli` (`just forge ...`).
+- No legacy Forge compatibility shims in core runtime.
 
-## Dependency Rule (non-negotiable)
+## Boundary rule
 
-- Allowed: `apps/* -> core`.
-- Forbidden: `core -> apps/*`.
-- During transition, treat `src/dspx/forge` as app code and avoid new imports into core runtime modules.
+- Allowed: `apps/* -> core`
+- Forbidden: `core -> apps/*`
 
-## What moves now vs later
+Automated guardrail:
+- `scripts/check_monorepo_boundaries.py`
+- `just monorepo-check`
 
-Move now (safe scaffold):
-- Create boundary folders:
-  - `packages/dspx-core/`
-  - `apps/forge/`
-- Add boundary docs and import guardrails.
-- Keep all executable code in existing `src/dspx/` layout.
+## Migration notes
 
-Move later (after guardrails + green CI):
-- Extract core modules from `src/dspx/` into `packages/dspx-core/` in small batches.
-- Move Forge implementation behind app boundary (`apps/forge/`) with compatibility shims.
-- Preserve `dspx forge ...` behavior via forwarding layer until deprecation window is complete.
+This branch intentionally allows breaking changes to accelerate the transition.
+Back-compat import aliases/forwarders were removed in favor of direct package boundaries.
 
-## Phases
+## Next hardening tasks
 
-### Phase 1 — Scaffold (non-breaking)
-
-Scope:
-- Directory scaffolding only.
-- Boundary READMEs.
-
-Acceptance:
-- New paths exist and document ownership/dependency direction.
-- No runtime import paths changed.
-- Existing tests/CLI remain green.
-
-### Phase 2 — Guardrails (lightweight + practical)
-
-Scope:
-- Document import rules.
-- Add automated check for forbidden reverse imports.
-
-Acceptance:
-- CI/local check fails on core importing app modules.
-- Current repo passes check without code moves.
-
-### Phase 3 — Extraction prep (still compatibility-first)
-
-Scope:
-- Introduce forwarding shims and move-safe adapters.
-- Start relocating Forge entry wiring behind app boundary.
-- Centralize CLI Forge imports through a compatibility facade (`dspx.apps.forge_compat`).
-- Move Forge implementation under `dspx.apps.forge_app.*` while preserving legacy `dspx.forge.*` module paths as compatibility aliases.
-
-Acceptance:
-- `dspx forge ...` behavior unchanged.
-- Existing import paths continue to resolve (with shim warnings only if/when enabled).
-- Tests stay green after each small move.
-
-### Phase 4 — Incremental extraction
-
-Scope:
-- Move code in thin vertical slices (module-by-module).
-- Keep each slice independently revertible.
-
-Acceptance per slice:
-- Core/app boundary rules pass.
-- CLI behavior unchanged.
-- Tests green.
-- Diff is small and reviewable.
-
-## Compatibility Strategy
-
-- Keep `src/dspx` as active runtime namespace during transition.
-- Prefer forwarding modules and import shims over immediate hard moves.
-- Preserve existing scripts/CLI command paths (`dspx ...`, including `dspx forge ...`).
-- Deprecate only after replacement path is documented and tested.
-
-## Rollback Strategy
-
-If a migration slice is risky or regresses behavior:
-- Stop at current green commit.
-- Revert only the last slice (small-commit discipline).
-- Keep boundary docs/checks in place; postpone risky move to next slice.
-- Prefer “prepare-only” follow-up PRs over broad rewrites.
-
-## Operational Checklist per PR
-
-- [ ] Boundary rule still holds (`apps -> core`, never reverse).
-- [ ] No runtime behavior changes unless explicitly intended.
-- [ ] `pre-commit run --all-files` passes.
-- [ ] `just test` passes.
-- [ ] Transition docs updated if phase scope changes.
+- Add per-package build/install metadata (`packages/dspx-core/pyproject.toml`, `apps/forge/pyproject.toml`) and workspace wiring.
+- Re-home CI/release jobs to package-aware workflows.
+- Update README/docs command examples to prefer `just dspx ...` and `just forge ...`.
