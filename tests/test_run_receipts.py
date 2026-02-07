@@ -5,6 +5,7 @@ import json
 
 from typer.testing import CliRunner
 
+import dspx.cli.dspx as dspx_cli
 from dspx.cli.dspx import app
 from dspx.run_receipts import build_run_receipt, load_run_receipt, write_run_receipt
 
@@ -126,3 +127,152 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     )
     assert refine_meta["receipt_version"] == "v1"
     assert refine_meta["run_kind"] == "signature-refine"
+
+
+def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "sig.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    def _boom() -> bool:
+        raise AssertionError("run replay must not bootstrap MLflow")
+
+    monkeypatch.setattr(dspx_cli, "enable_mlflow_from_env", _boom)
+    r_replay = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(tmp_path / "sig.py.meta.json"),
+            "--check-only",
+            "--json",
+        ],
+    )
+    assert r_replay.exit_code == 0, r_replay.stdout
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "ok"
+    assert payload["checks"]["output_hash_match"] is True
+    assert payload["checks"]["cache_key_recomputes"] is True
+
+
+def test_run_replay_fails_on_output_hash_drift(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "gen.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "codegen",
+            "A CLI that prints hi",
+            "--language",
+            "python",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    out.write_text("print('drift')\n", encoding="utf-8")
+
+    r_replay = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(tmp_path / "gen.py.meta.json"),
+            "--check-only",
+            "--json",
+        ],
+    )
+    assert r_replay.exit_code == 1
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "failed"
+    assert payload["checks"]["output_hash_match"] is False
+
+
+def test_run_replay_fails_on_cache_provenance_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "mod.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "--name",
+            "Summarizer",
+            "--description",
+            "Summarizes text",
+            "--input",
+            "text",
+            "--output",
+            "summary",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    receipt = json.loads((tmp_path / "mod.py.meta.json").read_text(encoding="utf-8"))
+    cache_file = Path(str(receipt["cache_file"]))
+    cache_payload = json.loads(cache_file.read_text(encoding="utf-8"))
+    cache_payload["code"] = "print('cache drift')\n"
+    cache_file.write_text(json.dumps(cache_payload), encoding="utf-8")
+
+    r_replay = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(tmp_path / "mod.py.meta.json"),
+            "--check-only",
+            "--json",
+        ],
+    )
+    assert r_replay.exit_code == 1
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "failed"
+    assert payload["checks"]["cache_code_hash_matches_receipt"] is False
+
+
+def test_run_replay_invalid_receipt_exit_code(tmp_path: Path) -> None:
+    bad_meta = tmp_path / "bad.meta.json"
+    bad_meta.write_text('{"receipt_version":"v1"}\n', encoding="utf-8")
+
+    r_replay = runner.invoke(
+        app,
+        ["run", "replay", "--from", str(bad_meta), "--check-only", "--json"],
+    )
+    assert r_replay.exit_code == 2
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "invalid"
