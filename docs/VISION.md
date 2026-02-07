@@ -21,14 +21,14 @@ Current vs Target (matrix)
 | Providers | Codex/Claude/Gemini/OpenRouter/PiRPC/Multi are available in the registry. | Provider-first runtime with plugin discovery and explicit capability contracts. | Add entry-point plugin loading and a provider capability/health probe report. |
 | CLI surface | Unified `dspx` exists; legacy forwarders still work. | Single stable CLI surface with versioned command contracts. | Publish a forwarder deprecation plan and centralize command help/examples. |
 | Server | FastAPI MVP (`/signature`, `/module`, `/mermaid`) with auth/rate-limit/metrics toggles. | Full service API with consistent policy semantics and broader endpoint coverage. | Add descriptor/tool endpoints and a production deployment profile doc. |
-| Apps (Forge first) | Forge is implemented in-repo today as one product workflow on top of shared services. | Multi-app monorepo where Forge is optional and isolated from core runtime concerns. | Move Forge under an app boundary (`apps/forge`) and enforce one-way dependency on core contracts. |
+| Apps (Forge first) | Forge lives under `apps/forge` and is isolated from core runtime concerns. | Multi-app monorepo where apps remain optional and isolated from core contracts. | Keep boundary + compat contracts strict (`just monorepo-check`, forge/core compat matrix, lower-bound tag hygiene). |
 | Policy/Safety | Env/CLI policy gates, mutation confirmations, host allowlists are in place. | Capability-default policy model with explicit auditability across CLI/server/Forge. | Define/enforce canonical defaults in `docs/POLICY_DEFAULTS.md`. |
 | Plugins | Internal registries exist; external plugin loading is not wired. | Entry-point plugins for providers/tools/generators with compatibility checks. | Implement plugin discovery + ship one minimal example plugin. |
 | Observability | MLflow tags/artifacts/metrics are present; nested runs are partial. | Explainability via unified workflow→service→tool traces with policy decision events. | Expand nested runs beyond Mermaid sig-per-node and add a stable policy-event schema. |
 | Reproducibility | Content-hash cache + manifests/meta for generated artifacts. | Deterministic replay driven by run receipts/manifests (independent of MLflow availability). | Define run-receipt schema + add `dspx run replay` and cache provenance checks in CI. |
 
-Core and app boundaries (target repo shape)
--------------------------------------------
+Core and app boundaries (current repo shape)
+--------------------------------------------
 - Core (`packages/dspx-core`) is the product: provider/runtime abstraction, Signatures/Modules/Optimize services, policy engine, receipts for replay/explain.
 - Apps (`apps/*`) are optional consumers: Forge is first, but not architecture-defining for core.
 - Dependency rule: apps depend on core; core never depends on app code.
@@ -237,7 +237,7 @@ Implementation Plan (phased)
 
 Phase 0 — Stabilize & Document
 - Align docs and diagrams; build/tests green (<3s local). Deliver README, VISION (this), ARCHITECTURE, OPENAPI_TOOLING.
-- Establish monorepo package boundaries (`packages/dspx-core`, `apps/*`) with one-way dependency rules.
+- Maintain/enforce monorepo package boundaries (`packages/dspx-core`, `apps/*`) with one-way dependency rules.
 
 Phase 1 — Contracts & Abstractions
 - Introduce LMBase + ProviderCapabilities; add DTOs (v1) including Modules/Programs; add StubLM. Unit tests run with no external providers.

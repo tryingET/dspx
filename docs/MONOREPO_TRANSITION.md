@@ -1,68 +1,64 @@
 ---
-summary: "Breaking-branch monorepo transition: core extracted, Forge split as optional app."
+summary: "Current monorepo layout and guardrails on main (core + Forge split)."
 read_when:
-  - "You are working on monorepo structure, package boundaries, or CLI ownership."
-  - "You need current boundary rules for core vs app code."
+  - "You are changing package boundaries, CLI ownership, or workspace topology."
+  - "You are touching forge/core compatibility policy, release tags, or monorepo CI jobs."
 ---
 
-# Monorepo Transition (breaking branch)
+# Monorepo Layout & Guardrails (`main`)
 
-## Outcome on this branch
+## Current state (enforced)
 
-- Core source moved to: `packages/dspx-core/src/dspx`
-- Forge app source moved to: `apps/forge/src/dspx_forge`
-- Core CLI (`dspx`) contains core/tooling commands only.
-- Forge commands moved to dedicated app CLI: `dspx_forge.cli` (`just forge ...`).
-- Root `pyproject.toml` is workspace-only (no root runtime package).
-- No legacy Forge compatibility shims in core runtime.
+- Core package lives at `packages/dspx-core/src/dspx`.
+- Forge app package lives at `apps/forge/src/dspx_forge`.
+- Root `pyproject.toml` is workspace-only (`[tool.uv.workspace]`).
+- Core and Forge are validated in package-aware CI jobs.
 
-## Boundary rule
+## Boundary invariant (non-negotiable)
 
 - Allowed: `apps/* -> core`
 - Forbidden: `core -> apps/*`
+- Never import `dspx_forge.*` from core.
 
-Automated guardrail:
-- `scripts/check_monorepo_boundaries.py`
+Automation:
+- Guardrail script: `scripts/check_monorepo_boundaries.py`
+- Just wrapper: `just monorepo-check`
+
+## CLI ownership
+
+- Core commands: `dspx` (`just dspx ...`)
+- Forge app commands: `dspx-forge` (`just forge ...`)
+- Forge is **not** a subcommand namespace under `dspx`.
+
+## CI/test/package checks
+
+- CI jobs split by concern:
+  - workspace smoke + hygiene
+  - `core` quality/tests
+  - `forge` quality/tests
+  - forge/core wheel compatibility (`latest`, `min`)
+- Test slices are marker-based:
+  - `just test-core` → `pytest -m "not forge"`
+  - `just test-forge` → `pytest -m "forge"`
+
+## Forge/core compatibility contract
+
+- Forge dependency bound in `apps/forge/pyproject.toml`:
+  - `dspx-core>=0.1.0,<0.2.0` (example current range)
+- `min` compat track resolves core from tag:
+  - `dspx-core-v<lower-bound>` (example: `dspx-core-v0.1.0`)
+- Lower-bound tags must exist on remote for deterministic CI.
+
+## Operator checklist
+
+Run routinely:
+- `pre-commit run --all-files`
 - `just monorepo-check`
+- `just test`
+- `just forge-core-compat-matrix`
 
-## Migration notes
-
-This branch intentionally allows breaking changes to accelerate the transition.
-Back-compat import aliases/forwarders were removed in favor of direct package boundaries.
-
-## Next hardening tasks
-
-- Keep workspace-native run/install flow green (`uv sync`, `just dspx ...`, `just forge ...`) without PYTHONPATH shims.
-- CI workflows are package-aware (`core`, `forge`) plus smoke/hygiene jobs.
-- Forge/core pytest slicing uses explicit `pytest.mark.forge` markers (`just test-core` / `just test-forge`).
-- CI now runs forge/core compatibility matrix smoke (`latest`, `min`) via wheel installs.
-- Package-scoped release workflows exist (`release-core.yml`, `release-forge.yml`); default policy is independent package versioning.
-- Update README/docs command examples to prefer `just dspx ...` and `just forge ...`.
-
-## Clean-clone smoke flow (formalized)
-
-- Script: `scripts/clean_clone_smoke.sh`
-- Just wrapper: `just clean-clone-smoke`
-- Sequence:
-  - `uv sync`
-  - `just dspx --help`
-  - `just forge --help`
-  - `just test`
-- CI now runs this smoke flow in `.github/workflows/ci.yml`.
-
-## Package-scoped release automation
-
-- Core release workflow: `.github/workflows/release-core.yml`
-  - Trigger: `dspx-core-v*`
-  - Validates tag version matches `packages/dspx-core/pyproject.toml`
-  - Runs core quality gates, builds core artifacts, wheel-smokes `dspx`
-  - Publishes only `dspx_core-*` artifacts
-- Forge release workflow: `.github/workflows/release-forge.yml`
-  - Trigger: `dspx-forge-v*`
-  - Validates tag version matches `apps/forge/pyproject.toml`
-  - Runs forge quality gates, builds forge artifacts, wheel-smokes `dspx-forge`
-  - Publishes only `dspx_forge-*` artifacts
-- Forge package dependency policy:
-  - `apps/forge/pyproject.toml` pins bounded core range (`dspx-core>=0.1.0,<0.2.0`)
-  - CI compat matrix exercises `latest` and `min` core tracks.
-  - `min` track resolves via tag `dspx-core-v<lower-bound>` (e.g. `dspx-core-v0.1.0`).
+When bumping Forge lower bound:
+1. Update `apps/forge/pyproject.toml` bound.
+2. Create/push matching core lower-bound tag (`dspx-core-v<new-lower-bound>`).
+3. Re-run `just forge-core-compat-matrix`.
+4. Update docs: `README.md`, `PROJECT_STATUS.md`, `NEXT_STEPS.md`.

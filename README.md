@@ -12,15 +12,15 @@ Canonical docs map
 ------------------
 - Architecture: `docs/ARCHITECTURE.md`
 - Vision/principles: `docs/VISION.md`
-- Current status (canonical): `PROJECT_STATUS.md`
-- Roadmap/next actions (canonical): `NEXT_STEPS.md`
+- Current status: `PROJECT_STATUS.md`
+- Roadmap/next actions: `NEXT_STEPS.md`
+- Monorepo layout + boundaries: `docs/MONOREPO_TRANSITION.md`
 - Forge design + commands: `docs/FORGE.md`
 - Server runtime/security: `docs/SERVER.md`
 - OpenAPI tooling: `docs/OPENAPI_TOOLING.md`
 - Policy defaults matrix: `docs/POLICY_DEFAULTS.md`
 - Upstream contribution workflow (DSPy/MLflow): `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
 - ADR index (decisions): `docs/adr/README.md`
-- Historical/legacy snapshots: `docs/PROJECT_STATUS.md`, `docs/NEXT_STEPS.md`
 
 Prerequisites
 -------------
@@ -40,17 +40,14 @@ Configuration
 
 Files
 -----
-- `codex_exec_lm.py`: DSPy-compatible wrapper around `codex exec`.
-- `claude_cli_lm.py`: DSPy-compatible wrapper around the `claude` CLI (headless mode).
-- `gemini_cli_lm.py`: DSPy-compatible wrapper around the `gemini` CLI (headless `-p`).
-- `multi_provider_lm.py`: Aggregate multiple providers under one LM (`MultiProviderLM`).
-- `example_predict.py`: A runnable DSPy script using `Predict("question -> answer")`.
-- `codegen.py`: CLI to generate code from a spec using DSPy + Codex Exec.
-- `submodules/vibe-dspy`: Git submodule pointing to https://github.com/Archelunch/vibe-dspy
-- `submodules/attachments`: Git submodule pointing to https://github.com/MaximeRivest/attachments
-- `submodules/ovllm`: Git submodule pointing to https://github.com/MaximeRivest/ovllm
-- `vibegen.py`: Adapter CLI that uses vibe-dspy's `SignatureGenerator` but configures DSPy to use Codex Exec.
-- `viberefine.py`: Interactive refine CLI using vibe-dspy + Codex Exec. Lets you review/improve the generated signature with quick feedback.
+- `packages/dspx-core/src/dspx/`: core runtime package.
+  - Providers/LM wrappers: `*_lm.py` (e.g., `codex_exec_lm.py`, `claude_cli_lm.py`, `gemini_cli_lm.py`, `multi_provider_lm.py`).
+  - Core CLI entrypoint: `cli/dspx.py`.
+  - Example CLIs: `cli/example_predict.py`, `cli/codegen.py`, `cli/vibegen.py`, `cli/viberefine.py`.
+- `apps/forge/src/dspx_forge/`: Forge app package + CLI (`dspx-forge`).
+- `scripts/`: repo automation/guardrails (`check_monorepo_boundaries.py`, compat smoke scripts).
+- `docs/`: architecture, status, next steps, and operator guides.
+- `submodules/`: optional upstream utilities (`vibe-dspy`, `attachments`, `ovllm`, plus local upstream patching submodules).
 
 Project Template
 ----------------
@@ -326,7 +323,7 @@ Release Cycle
 
 Customization
 -------------
-- Change model: set `CODEX_MODEL` env var or edit `model_flag` in `example_predict.py` (e.g., `gpt-5`).
+- Change model: set `CODEX_MODEL` env var or edit `model_flag` in `packages/dspx-core/src/dspx/cli/example_predict.py` (e.g., `gpt-5`).
 
 Claude Code (Headless) Provider
 -------------------------------
@@ -378,7 +375,7 @@ The wrapper/example currently passes:
 - `-c model_reasoning_effort="minimal"`
 - `--dangerously-bypass-approvals-and-sandbox`
 
-You can adjust these by editing the `CodexExecLM(...)` arguments in `example_predict.py`.
+You can adjust these by editing the `CodexExecLM(...)` arguments in `packages/dspx-core/src/dspx/cli/example_predict.py`.
 
 Submodule: vibe-dspy
 --------------------

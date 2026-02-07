@@ -39,6 +39,7 @@ Current working branch: `main`.
   - `just upstream-link-dspy path=...`
   - `just upstream-link-mlflow path=...`
   - `just upstream-reset`
+- Removed legacy duplicate status/roadmap docs under `docs/` to keep root files canonical.
 
 ## Current runtime / packaging behavior
 
@@ -70,6 +71,7 @@ Current working branch: `main`.
 - `just test`: passing (`154 passed, 4 skipped`)
 - `just test-core`: passing (`144 passed, 4 skipped, 10 deselected`)
 - `just test-forge`: passing (`10 passed, 1 skipped, 147 deselected`)
+- `just forge-core-compat-matrix`: passing (`latest` + `min`)
 - `just dspx providers list`: passing without forcing `MLFLOW_ENABLE=0`
 
 ## Known gaps and immediate risks
@@ -78,7 +80,6 @@ Current working branch: `main`.
   - keep `dspx-core-v<lower-bound>` tags present on remote (currently `dspx-core-v0.1.0`).
 - Marker discipline must be maintained:
   - new Forge/boundary tests should carry `pytest.mark.forge` to keep slices accurate.
-- Some docs still carry legacy wording like “breaking branch”; keep wording aligned with current `main` state.
 
 ## Canonical docs
 

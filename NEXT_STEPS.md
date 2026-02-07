@@ -90,7 +90,7 @@ Next actions:
    - `docs/MONOREPO_TRANSITION.md`
    - `docs/MLFLOW_OBSERVABILITY_PLAN.md`
    - `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
-2. Remove stale “breaking branch” wording where it no longer matches `main`.
+2. Avoid duplicate status/roadmap docs; keep root `PROJECT_STATUS.md` and `NEXT_STEPS.md` as canonical.
 
 Acceptance:
 - No conflicting setup/command guidance across canonical docs.

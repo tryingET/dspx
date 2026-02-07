@@ -96,8 +96,8 @@ graph TD
   Tracing --> MLflow
 ```
 
-Core vs App Boundary (monorepo target)
---------------------------------------
+Core vs App Boundary (current)
+------------------------------
 
 - Core package (`packages/dspx-core`) owns provider/runtime contracts, policy, replay/explain receipts, and generation/optimization services.
 - Apps (`apps/*`) are optional product surfaces (Forge first) that consume core APIs.
@@ -122,8 +122,9 @@ graph LR
   DSPX --> Agent["agent"]
   DSPX --> Tools["tools"]
   DSPX --> Prov["providers"]
-  DSPX --> Forge["forge (optional app namespace)"]
 ```
+
+Forge commands live in the separate app CLI (`dspx-forge`, or `just forge ...`).
 
 3) Signature Generation Sequence
 --------------------------------
