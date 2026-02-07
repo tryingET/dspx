@@ -38,6 +38,9 @@ This status reflects the **breaking monorepo branch**:
   - `just test` runs `uv run -m pytest -q tests`
   - `just test-core` runs `pytest -k "not forge"`
   - `just test-forge` runs `pytest -k "forge"`
+- Live smoke helpers:
+  - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke` (defaults: `openai-codex`, `gpt-5.1-codex-mini`)
+  - Codex readiness checks use `codex login status` (with legacy fallback in helper scripts).
 - Package-scoped quality recipes:
   - `just lint-core`, `just typecheck-core`
   - `just lint-forge`, `just typecheck-forge`
@@ -63,6 +66,8 @@ This status reflects the **breaking monorepo branch**:
 - `just test-core`: passing (`141 passed, 4 skipped, 10 deselected`).
 - `just test-forge`: passing (`10 passed, 1 skipped, 144 deselected`).
 - `just forge-core-compat-matrix`: passing (both tracks green; `min` track resolves via `dspx-core-v0.1.0`).
+- `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`: passing.
+- `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_optimize_gepa_codex_live.py -rs`: passing.
 
 ## Boundary status
 
@@ -79,7 +84,8 @@ This status reflects the **breaking monorepo branch**:
 
 ## Known gaps and immediate risks
 
-- Minimum-supported core tag discipline is required (`dspx-core-v<lower-bound>`) to keep `min` compatibility checks strict over time.
+- Strict `min` compat in CI depends on remote tag hygiene; ensure `dspx-core-v0.1.0` (and future lower-bound tags) are pushed and maintained.
+- Forge/core test slicing is currently keyword-based (`-k "forge"` / `-k "not forge"`) and may get brittle as test names evolve.
 - Some branch docs may still contain stale wording from pre-split architecture.
 
 Recently closed:
@@ -88,6 +94,7 @@ Recently closed:
 - Package-scoped release workflows now validate tag/version and publish only the targeted package.
 - Default release policy is now independent package versioning.
 - CI now runs forge/core compatibility matrix smoke against latest and minimum-supported core tracks.
+- Codex live-readiness checks now support modern `codex login status` (with legacy fallback) and Pi live smoke has a dedicated recipe (`just pi-live-smoke`).
 
 ## Canonical docs for this branch
 

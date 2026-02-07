@@ -8,6 +8,9 @@ This plan is for `feature/full-monorepo-breaking` after the hard split.
   - `pre-commit run --all-files`
   - `just monorepo-check`
   - `just test`
+- Optional live sanity checks (opt-in):
+  - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`
+  - `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_optimize_gepa_codex_live.py -rs`
 - Keep boundary strict:
   - allowed: `apps/* -> core`
   - forbidden: `core -> apps/*` (`dspx_forge.*`)
@@ -40,26 +43,29 @@ Acceptance:
 - Fresh clone runs smoke sequence without path hacks.
 - No `PYTHONPATH` / `--no-project` workaround reintroduced.
 
-## 2) CI/CD split by package (baseline landed)
+## 2) Operational hardening for independent versioning (highest priority)
 
 Status:
-- CI now runs package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
-- CI now includes forge/core compatibility matrix smoke (`latest`, `min`) via wheel installs.
-- Release workflows now exist for package tags:
+- CI runs package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene.
+- CI includes forge/core compatibility matrix (`latest`, `min`) via wheel installs.
+- Release workflows exist for package tags:
   - `.github/workflows/release-core.yml` (`dspx-core-v*`)
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
-- Default versioning policy is now independent (`dspx-core` and `dspx-forge` release separately).
+- Default release/version policy is independent (`dspx-core` and `dspx-forge`
+  ship separately).
 
-Remaining actions:
-- Optionally tighten test slicing beyond `-k forge` / `-k "not forge"` if the
-  suite grows.
-- Keep minimum-supported core tags maintained (`dspx-core-v<min>`) so CI `min`
-  track remains strict over time.
+Next actions (ordered):
+1. Keep `min` compatibility strict in remote CI by maintaining/pushing
+   `dspx-core-v<lower-bound>` tags (currently `dspx-core-v0.1.0`).
+2. Tighten forge/core test slicing beyond name-based `-k` filters (prefer markers
+   or path-based slices) as suite grows.
+3. Keep live smoke ergonomics stable (`just pi-live-smoke`, codex readiness via
+   `codex login status`) and update docs when CLI auth UX changes.
 
 Acceptance:
 - CI shows package-scoped pass/fail. ✅
 - Package-scoped publish automation exists. ✅
-- Release policy is explicitly documented. ✅
+- `min` compat track is strict and reproducible on remote CI. ⏳
 
 ## 3) Docs convergence for split layout and CLI contracts
 
