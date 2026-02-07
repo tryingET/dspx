@@ -3,6 +3,11 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pytest
+
+
+pytestmark = pytest.mark.forge
+
 
 def test_forge_depends_on_bounded_core_version_range() -> None:
     pyproject = tomllib.loads(

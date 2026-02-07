@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dspx_forge.workorder import build_workorder, write_workorder
+import pytest
+
 from dspx_forge.issues import build_issue_spec
+from dspx_forge.workorder import build_workorder, write_workorder
+
+
+pytestmark = pytest.mark.forge
 
 
 def test_forge_apply_writes_manifest_before_network(

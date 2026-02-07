@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from dspx_forge.issues import apply_issue_specs, build_issue_spec, default_paths
 from dspx_forge.issue_text import build_managed_block, upsert_managed_block
 from dspx_forge.workorder import build_workorder, write_workorder
+
+
+pytestmark = pytest.mark.forge
 
 
 def test_forge_workorder_fingerprint_stable() -> None:

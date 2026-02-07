@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHECK_SCRIPT = REPO_ROOT / "scripts" / "check_monorepo_boundaries.py"
@@ -24,6 +26,7 @@ def test_monorepo_boundary_check_passes_on_repo() -> None:
     assert res.returncode == 0, res.stdout + res.stderr
 
 
+@pytest.mark.forge
 def test_monorepo_boundary_check_detects_core_importing_forge_app(
     tmp_path: Path,
 ) -> None:

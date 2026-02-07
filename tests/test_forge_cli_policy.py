@@ -3,10 +3,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from dspx_forge.cli import app
 
+
+pytestmark = pytest.mark.forge
 
 runner = CliRunner()
 

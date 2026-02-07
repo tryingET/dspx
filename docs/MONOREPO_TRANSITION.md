@@ -34,6 +34,7 @@ Back-compat import aliases/forwarders were removed in favor of direct package bo
 
 - Keep workspace-native run/install flow green (`uv sync`, `just dspx ...`, `just forge ...`) without PYTHONPATH shims.
 - CI workflows are package-aware (`core`, `forge`) plus smoke/hygiene jobs.
+- Forge/core pytest slicing uses explicit `pytest.mark.forge` markers (`just test-core` / `just test-forge`).
 - CI now runs forge/core compatibility matrix smoke (`latest`, `min`) via wheel installs.
 - Package-scoped release workflows exist (`release-core.yml`, `release-forge.yml`); default policy is independent package versioning.
 - Update README/docs command examples to prefer `just dspx ...` and `just forge ...`.

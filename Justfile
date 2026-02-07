@@ -53,18 +53,18 @@ test:
     echo "no local tests"; \
   fi
 
-# Run core-focused test slice (exclude forge-focused tests)
+# Run core-focused test slice (exclude forge-marked tests)
 test-core:
   if [ -d tests ]; then \
-    uv run -m pytest -q tests -k "not forge"; \
+    uv run -m pytest -q tests -m "not forge"; \
   else \
     echo "no local tests"; \
   fi
 
-# Run forge-focused test slice
+# Run forge-focused test slice (explicit pytest marker)
 test-forge:
   if [ -d tests ]; then \
-    uv run -m pytest -q tests -k "forge"; \
+    uv run -m pytest -q tests -m "forge"; \
   else \
     echo "no local tests"; \
   fi

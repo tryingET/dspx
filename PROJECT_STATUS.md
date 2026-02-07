@@ -36,8 +36,8 @@ This status reflects the **breaking monorepo branch**:
   - runs: `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
 - Tests:
   - `just test` runs `uv run -m pytest -q tests`
-  - `just test-core` runs `pytest -k "not forge"`
-  - `just test-forge` runs `pytest -k "forge"`
+  - `just test-core` runs `pytest -m "not forge"`
+  - `just test-forge` runs `pytest -m "forge"`
 - Live smoke helpers:
   - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke` (defaults: `openai-codex`, `gpt-5.1-codex-mini`)
   - Codex readiness checks use `codex login status` (with legacy fallback in helper scripts).
@@ -85,7 +85,7 @@ This status reflects the **breaking monorepo branch**:
 ## Known gaps and immediate risks
 
 - Strict `min` compat in CI depends on remote tag hygiene; ensure `dspx-core-v0.1.0` (and future lower-bound tags) are pushed and maintained.
-- Forge/core test slicing is currently keyword-based (`-k "forge"` / `-k "not forge"`) and may get brittle as test names evolve.
+- Keep `pytest.mark.forge` coverage current as new Forge/boundary tests land.
 - Some branch docs may still contain stale wording from pre-split architecture.
 
 Recently closed:
@@ -95,6 +95,7 @@ Recently closed:
 - Default release policy is now independent package versioning.
 - CI now runs forge/core compatibility matrix smoke against latest and minimum-supported core tracks.
 - Codex live-readiness checks now support modern `codex login status` (with legacy fallback) and Pi live smoke has a dedicated recipe (`just pi-live-smoke`).
+- Forge/core test slicing now uses explicit `pytest.mark.forge` markers (`just test-core` / `just test-forge`).
 
 ## Canonical docs for this branch
 

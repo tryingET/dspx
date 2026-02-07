@@ -655,7 +655,7 @@ This repo follows a simple modern `uv` setup:
 - Tasks via Justfile:
   - `just install` / `just dev-install` — sync deps or editable install.
   - `just fmt` / `just lint` / `just typecheck` — ruff + ty.
-  - `just test` / `just test-core` / `just test-forge` — pytest slices.
+  - `just test` / `just test-core` / `just test-forge` — marker-based pytest slices (`forge` vs non-`forge`).
   - `just build` / `just build-core` / `just build-forge` — build packages.
   - `just publish` / `just publish-core` / `just publish-forge` — publish artifacts.
   - `just release-core new=X.Y.Z` / `just release-forge new=X.Y.Z` — package-scoped release prep.

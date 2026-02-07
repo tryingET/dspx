@@ -48,6 +48,7 @@ Acceptance:
 Status:
 - CI runs package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene.
 - CI includes forge/core compatibility matrix (`latest`, `min`) via wheel installs.
+- Forge/core test slices now use explicit `pytest.mark.forge` marker selection.
 - Release workflows exist for package tags:
   - `.github/workflows/release-core.yml` (`dspx-core-v*`)
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
@@ -57,8 +58,8 @@ Status:
 Next actions (ordered):
 1. Keep `min` compatibility strict in remote CI by maintaining/pushing
    `dspx-core-v<lower-bound>` tags (currently `dspx-core-v0.1.0`).
-2. Tighten forge/core test slicing beyond name-based `-k` filters (prefer markers
-   or path-based slices) as suite grows.
+2. Keep forge/core marker slicing healthy as suite grows (new Forge/boundary tests
+   should carry `pytest.mark.forge`; consider path split later if needed).
 3. Keep live smoke ergonomics stable (`just pi-live-smoke`, codex readiness via
    `codex login status`) and update docs when CLI auth UX changes.
 
