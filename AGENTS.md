@@ -38,6 +38,14 @@ Scope: this file is repo-local truth for coding agents in `dspx`.
 - run core CLI from source: `just dspx ...`
 - run forge CLI from source: `just forge ...`
 
+## Context/retrieval discipline
+- prefer CLI indexing/search before broad file reads
+- cm quick help (reduced): `cm stats .` → `cm map . --level 2 --format ai` → `cm query <symbol> --format ai` → `cm inspect <file> --format ai` → `cm callers|callees <symbol> --format ai` / `cm trace <from> <to> --format ai`
+- cm full help when needed: `cm -h`; command help: `cm <command> -h`
+- qmd help: `qmd -h` (same as `qmd --help`; no `qmd help` command)
+- knowledge/docs search first: `qmd search|vsearch|query <query>`, then `qmd get <path|#docid>`
+- pull minimal top-k snippets; read full files only when needed for exact edits
+
 ## Delivery checklist (default)
 1) implement a scoped change with meaningful impact
 2) add/adjust tests near changed behavior
