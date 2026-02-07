@@ -7,7 +7,50 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build:
+  workspace-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install just
+        run: sudo apt-get update && sudo apt-get install -y just
+
+      - name: Clean-clone smoke (workspace packaging)
+        run: just clean-clone-smoke
+
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Pre-commit (local hooks)
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
+      - name: Format check (ruff)
+        run: uvx ruff format --check packages/dspx-core/src apps/forge/src docs
+
+  core:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,17 +70,43 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
-      - name: Pre-commit (local hooks)
-        run: uvx pre-commit run --all-files --show-diff-on-failure
+      - name: Boundary guardrail
+        run: just monorepo-check
 
-      - name: Format check (ruff)
-        run: uvx ruff format --check src docs
+      - name: Lint core (ruff)
+        run: just lint-core
 
-      - name: Lint (ruff)
-        run: just lint
+      - name: Typecheck core (ty)
+        run: just typecheck-core
 
-      - name: Typecheck (ty)
-        run: just typecheck
+      - name: Test core slice (pytest)
+        run: just test-core
 
-      - name: Tests (pytest)
-        run: just test
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install just
+        run: sudo apt-get update && sudo apt-get install -y just
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Lint forge (ruff)
+        run: just lint-forge
+
+      - name: Typecheck forge (ty)
+        run: just typecheck-forge
+
+      - name: Test forge slice (pytest)
+        run: just test-forge

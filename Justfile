@@ -20,13 +20,29 @@ dev-install:
 fmt:
   uvx ruff format packages/dspx-core/src apps/forge/src docs
 
-# Lint with ruff
+# Lint with ruff (all package code + docs)
 lint:
   uvx ruff check packages/dspx-core/src apps/forge/src docs
 
-# Type-check with ty
+# Lint core package only
+lint-core:
+  uvx ruff check packages/dspx-core/src
+
+# Lint forge app package only
+lint-forge:
+  uvx ruff check apps/forge/src
+
+# Type-check with ty (all package code)
 typecheck:
   uvx ty check packages/dspx-core/src apps/forge/src
+
+# Type-check core package only
+typecheck-core:
+  uvx ty check packages/dspx-core/src
+
+# Type-check forge app package only
+typecheck-forge:
+  uvx ty check apps/forge/src
 
 # Run tests (if present)
 test:
@@ -36,6 +52,26 @@ test:
   else \
     echo "no local tests"; \
   fi
+
+# Run core-focused test slice (exclude forge-focused tests)
+test-core:
+  if [ -d tests ]; then \
+    uv run -m pytest -q tests -k "not forge"; \
+  else \
+    echo "no local tests"; \
+  fi
+
+# Run forge-focused test slice
+test-forge:
+  if [ -d tests ]; then \
+    uv run -m pytest -q tests -k "forge"; \
+  else \
+    echo "no local tests"; \
+  fi
+
+# Clean-clone smoke flow for workspace packaging convergence
+clean-clone-smoke:
+  bash scripts/clean_clone_smoke.sh
 
 # Monorepo boundary guardrail check
 monorepo-check:
