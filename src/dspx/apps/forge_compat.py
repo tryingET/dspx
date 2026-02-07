@@ -4,28 +4,33 @@ Purpose:
 - Keep `dspx forge ...` behavior stable while introducing an app boundary.
 - Centralize Forge imports behind one module so extraction can happen incrementally.
 
-Current implementation forwards to existing `dspx.forge.*` modules.
+Current implementation forwards through `dspx.apps.forge_app.*` wrappers,
+which currently delegate to legacy `dspx.forge.*` modules.
 """
 
 from __future__ import annotations
 
-from dspx.forge.gitlab_client import (
+from dspx.apps.forge_app.gitlab_client import (
     GitLabConfig,
     GitLabClient,
     load_gitlab_config_from_env,
 )
-from dspx.forge.issues import (
+from dspx.apps.forge_app.issues import (
     apply_issue_specs,
     build_issue_spec,
     close_marked_duplicates,
     default_paths,
     write_issue_specs,
 )
-from dspx.forge.models import Intent, Routing
-from dspx.forge.overlaps import compute_overlaps, write_overlaps
-from dspx.forge.plan import build_plan, write_plan
-from dspx.forge.routing import route_candidates
-from dspx.forge.workorder import build_workorder, load_workorder, write_workorder
+from dspx.apps.forge_app.models import Intent, Routing
+from dspx.apps.forge_app.overlaps import compute_overlaps, write_overlaps
+from dspx.apps.forge_app.plan import build_plan, write_plan
+from dspx.apps.forge_app.routing import route_candidates
+from dspx.apps.forge_app.workorder import (
+    build_workorder,
+    load_workorder,
+    write_workorder,
+)
 
 __all__ = [
     "Intent",
