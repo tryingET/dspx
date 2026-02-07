@@ -1,7 +1,7 @@
 # Project Status
 
 Current working branch: `main`.
-Working tree state: dirty (pending CI signature-quality gate wiring + docs/tests sync).
+Working tree state: dirty (`AGENTS.md` retrieval-discipline edits + `README.md` local-native rewrite finalization + status docs alignment in this pass).
 
 ## Snapshot
 
@@ -15,60 +15,56 @@ Working tree state: dirty (pending CI signature-quality gate wiring + docs/tests
   - forbidden: `core -> apps/*` (no `dspx_forge.*` imports from core)
 - CI is package-aware and split:
   - workspace smoke + hygiene
-  - `core` quality/tests + provider-corpus signature quality gate enforcement
+  - `core` quality/tests + signature provider-corpus gate enforcement
   - `forge` quality/tests
   - forge/core wheel compatibility matrix (`latest`, `min`)
-  - signature quality JSON artifact + PR-facing step summary (`signature-quality-summary`)
+  - signature quality artifact + PR-facing summary (`signature-quality-summary`)
 - Package-scoped release workflows are in place:
   - `.github/workflows/release-core.yml` (`dspx-core-v*`)
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
-- Default provider fallback is `pi-rpc` (Codex remains available as optional provider).
-- Recent branch work landed as three commits:
-  - `d0a3631` (`feat(signature): add quality telemetry gates`)
-  - `c2a0611` (`test(signature): add quality telemetry regressions`)
+- Default provider fallback is `pi-rpc` (Codex remains optional provider).
+- Latest branch commits:
+  - `6e5356c` (`docs(status): refresh branch status roadmap`)
+  - `40370af` (`docs(signature): document corpus ci gates`)
+  - `4860407` (`test(signature): add corpus gate regressions`)
+  - `3c489a1` (`feat(signature): enforce corpus gates in ci`)
   - `b24fa13` (`docs(signature): document telemetry gates`)
+
+## Completed on this branch
+
+- Signature generation/refine is native DSPx (no runtime `vibe-dspy` dependency).
+- Native signature pipeline hardened:
+  - spec-first generation (schema -> deterministic render)
+  - provider-capability-aware prompting (`json_mode` vs non-JSON)
+  - validation/smoke scoring + bounded retries + best-candidate selection
+  - structured refinement memory
+- Signature telemetry + gates implemented:
+  - per-run quality metadata
+  - JSONL event log (`generated/cache/signature/quality_runs.jsonl`)
+  - `dspx signature quality-summary`
+  - run summaries for `signature gen` / `signature refine`
+- Provider-shaped coverage extended:
+  - parser/renderer corpus tests
+  - deterministic provider-corpus gate profile
+  - CI gate enforcement + artifact + PR summary
+- Supporting additions landed:
+  - `packages/dspx-core/src/dspx/services/signature_quality_corpus.py`
+  - `scripts/build_signature_provider_quality_log.py`
+  - `tests/test_signature_quality_corpus.py`
+  - doc updates in architecture/monorepo/signature pipeline/status docs
 
 ## Local working-tree delta (not committed yet)
 
-- CI core job now enforces signature provider-corpus quality gates and publishes a PR-facing summary:
-  - `.github/workflows/ci.yml`
-- Added deterministic provider-corpus quality helpers:
-  - `packages/dspx-core/src/dspx/services/signature_quality_corpus.py`
-  - `scripts/build_signature_provider_quality_log.py`
-- Added regression coverage for corpus gate profile:
-  - `tests/test_signature_quality_corpus.py`
-- Synced docs for the above behavior:
-  - `README.md`, `docs/SIGNATURE_NATIVE_PIPELINE.md`, `docs/MONOREPO_TRANSITION.md`, `docs/ARCHITECTURE.md`
-
-## Completed recently
-
-- Removed all git submodules (`vibe-dspy`, `attachments`, `ovllm`, `dspy`, `codex`); switched to sibling clones under `~/programming/upstream` where needed.
-- Signature generation/refine now uses native DSPx implementation only (no runtime `vibe-dspy` dependency).
-- Native signature pipeline upgraded:
-  - spec-first generation (structured schema → deterministic code rendering)
-  - provider-capability-aware prompting (`json_mode` vs non-JSON strategy)
-  - validation/smoke scoring + bounded retries + best-candidate selection
-  - structured refinement memory (constraints/feedback model)
-- Added signature regression coverage:
-  - `tests/test_signature_native_pipeline.py`
-  - `tests/test_refine_service_memory.py`
-  - `tests/test_signature_golden_corpus.py`
-  - `tests/test_signature_provider_corpus.py`
-  - `tests/test_signature_quality_summary.py`
-  - `tests/test_signature_quality_corpus.py`
-  - `tests/golden/signature_specs.json`
-  - `tests/golden/signature_provider_cases.json`
-- Operationalized signature quality telemetry and gates:
-  - per-run quality metadata (fallback-used, attempts-used, validation/smoke pass rates)
-  - JSONL event log (`generated/cache/signature/quality_runs.jsonl`, overridable)
-  - CLI gate/report command: `dspx signature quality-summary`
-  - provider-corpus gate profile + CI log builder (`scripts/build_signature_provider_quality_log.py`)
-  - CI enforcement in `core` job with artifact + PR summary (`signature-quality-summary`)
-  - CI thresholds sourced from `PROVIDER_CORPUS_GATE` to avoid workflow/config drift
-  - run-summary emission flags for `signature gen` / `signature refine`
-- Added architecture/runbook docs for the pipeline:
-  - `docs/SIGNATURE_NATIVE_PIPELINE.md`
-  - `README.md` / `docs/ARCHITECTURE.md` updates
+- `AGENTS.md` has local retrieval-discipline guidance edits
+  (context/retrieval discipline section additions).
+- `README.md` local-native workflow rewrite finalized and command examples
+  cross-checked against current CLI help:
+  - signature gen/refine + quality summary + corpus parity gate examples
+  - module-gen + GEPA optimize examples
+  - replay/explain posture (artifact/cache-first, MLflow optional)
+- Root status/roadmap docs aligned with README framing:
+  - `PROJECT_STATUS.md`
+  - `NEXT_STEPS.md`
 
 ## Current runtime / packaging behavior
 
@@ -80,59 +76,54 @@ Working tree state: dirty (pending CI signature-quality gate wiring + docs/tests
 - Forge CLI:
   - `just forge ...`
   - runs `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
-- Signature generation behavior:
-  - `simple-*` templates stay deterministic/no-LM
-  - LM-backed native path is spec-first and capability-aware
-  - bounded retry knob: `DSPX_SIGNATURE_MAX_ATTEMPTS`
+- Signature behavior:
+  - `simple-*` templates: deterministic/no-LM
+  - native LM-backed path: spec-first, validation-gated, bounded retries
   - quality telemetry knobs:
     - `DSPX_SIGNATURE_QUALITY_ENABLE`
     - `DSPX_SIGNATURE_QUALITY_LOG`
-  - promotion gate/report command:
-    - `dspx signature quality-summary --json --fail-on-gate`
-  - CI/provider-corpus gate profile:
-    - `uv run -q python scripts/build_signature_provider_quality_log.py --out generated/ci/signature_provider_quality.jsonl`
-    - `dspx signature quality-summary --log-path generated/ci/signature_provider_quality.jsonl --run-kind signature-gen --json --fail-on-gate --max-fallback-rate 0.10 --max-attempts-p95 1.0 --min-validation-pass-rate 1.0 --min-smoke-pass-rate 1.0`
-    - CI loads these threshold values from `dspx.services.signature_quality_corpus.PROVIDER_CORPUS_GATE`
-  - per-run summary emission:
-    - `dspx signature gen --summary --summary-json-out ...`
-    - `dspx signature refine --summary --summary-json-out ...`
-- Quality/test commands:
-  - `just fmt`
-  - `just lint`
-  - `just typecheck`
-  - `just test`
-  - `just monorepo-check`
-  - `just forge-core-compat-matrix`
-- Live optional checks:
-  - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`
-  - `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_pi_rpc_provider_live.py -rs`
+  - gate/report command:
+    - `just dspx signature quality-summary --json --fail-on-gate`
+  - CI provider-corpus profile:
+    - build log: `uv run -q python scripts/build_signature_provider_quality_log.py --out generated/ci/signature_provider_quality.jsonl`
+    - evaluate: `just dspx signature quality-summary --log-path generated/ci/signature_provider_quality.jsonl --run-kind signature-gen --json --fail-on-gate --max-fallback-rate 0.10 --max-attempts-p95 1.0 --min-validation-pass-rate 1.0 --min-smoke-pass-rate 1.0`
+- Module + optimization flows available via core CLI:
+  - `just dspx module-gen ...`
+  - `just dspx optimize gepa ...`
+- Replay/explain posture:
+  - replay source-of-truth: local artifacts/manifests/cache
+  - MLflow: optional explainability sink, never execution gate
 
 ## Latest validation snapshot
 
-- `pre-commit run --all-files`: passing
-- `just monorepo-check`: passing
-- `just test`: passing (`172 passed, 4 skipped`)
+- `pre-commit run --all-files`: passing (rerun this pass)
+- `just monorepo-check`: passing (rerun this pass)
+- `just test`: passing (`172 passed, 4 skipped`, rerun this pass)
 
 ## Known gaps and immediate risks
 
-- Strict `min` compat track still depends on remote tag hygiene:
-  - keep `dspx-core-v<lower-bound>` tags present on remote (currently `dspx-core-v0.1.0`).
-- Signature quality telemetry is standardized for signature/refine runs, but still not rolled out uniformly across module/codegen/mermaid services.
-- CI signature gates now use deterministic provider-corpus data; runtime telemetry trend gating (rolling provider windows) is still manual/offline.
+- Signature telemetry is standardized for signature/refine, but equivalent
+  quality contracts are not yet rolled out across module/codegen/mermaid.
+- Runtime telemetry thresholds still need longer live/provider trend windows
+  (pi-rpc/openrouter/codex/claude/gemini) before tightening defaults.
+- Replay UX is still artifact/cache-driven; first-class `run replay/explain`
+  command surface remains incomplete.
+- Strict `min` compat track still depends on remote lower-bound tag hygiene
+  (keep `dspx-core-v<lower-bound>` tags present on remote).
 
 ## Canonical docs
 
+- `README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/SIGNATURE_NATIVE_PIPELINE.md`
 - `docs/MONOREPO_TRANSITION.md`
 - `docs/MLFLOW_OBSERVABILITY_PLAN.md`
-- `docs/SIGNATURE_NATIVE_PIPELINE.md`
-- `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
-- `apps/forge/README.md`
-- `packages/dspx-core/README.md`
+- `PROJECT_STATUS.md`
 - `NEXT_STEPS.md`
 
 ## Recommended posture
 
-- Keep boundaries strict and test-enforced.
-- Keep release policy independent per package.
-- Keep signature pipeline hardening measurable (quality metrics + corpus growth + bounded retries).
-- Prefer upstream fixes via sibling clones + upstream PRs over adding new heavy submodules.
+- Keep boundary guardrail strict and continuously tested.
+- Keep local-native signature/module/GEPA loop as product center.
+- Keep replay artifact-first and explainability optional.
+- Keep docs synchronized with real CLI behavior after each scoped change.
