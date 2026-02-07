@@ -390,7 +390,8 @@ def run_gepa_optimize(
     )
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    # Save the whole program so we can `dspy.load(out_dir)` later without source imports.
+    # Save the whole program so we can load it later without source imports.
+    # DSPy 3.1+ requires: `dspy.load(out_dir, allow_pickle=True)`.
     compiled.save(str(out_dir), save_program=True)
 
     # Capture source + manifest for auditability and offline repro.
