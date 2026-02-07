@@ -1,110 +1,90 @@
-# Project Status (monorepo breaking branch)
+# Project Status
 
-This status reflects the **breaking monorepo branch**:
-`feature/full-monorepo-breaking`.
+Current working branch: `main`.
 
 ## Snapshot
 
-- Monorepo split is active (no Forge compatibility shims in core).
-- Core code lives in:
-  - `packages/dspx-core/src/dspx`
-- Forge app lives in:
-  - `apps/forge/src/dspx_forge`
-- Root `pyproject.toml` is now workspace-only:
+- Monorepo split is active and enforced.
+  - Core package: `packages/dspx-core/src/dspx`
+  - Forge app package: `apps/forge/src/dspx_forge`
+- Root `pyproject.toml` is workspace-only:
   - `[tool.uv.workspace] members = ["packages/dspx-core", "apps/forge"]`
-- Per-package build metadata is explicit:
-  - `packages/dspx-core`: `module-name = "dspx"`
-  - `apps/forge`: `module-name = "dspx_forge"`
-- Forge package declares explicit bounded dependency on core (`dspx-core>=0.1.0,<0.2.0`) with workspace source override.
-- Core CLI remains core-only; Forge CLI remains app-only.
-- CI is split into package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
-- CI includes forge/core compatibility matrix (`latest`, `min`) via wheel-based smoke.
-- Package-scoped release workflows exist for core/forge tags.
+- Boundary rule is active and tested:
+  - allowed: `apps/* -> core`
+  - forbidden: `core -> apps/*` (no `dspx_forge.*` imports from core)
+- CI is package-aware and split:
+  - workspace smoke + hygiene
+  - `core` quality/tests
+  - `forge` quality/tests
+  - forge/core wheel compatibility matrix (`latest`, `min`)
+- Package-scoped release workflows are in place:
+  - `.github/workflows/release-core.yml` (`dspx-core-v*`)
+  - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
+- Forge/core pytest slicing uses explicit marker-based selection:
+  - `just test-core` => `pytest -m "not forge"`
+  - `just test-forge` => `pytest -m "forge"`
+- Read-only core CLI metadata paths now skip MLflow bootstrap (offline/instant behavior even when `config.toml` has remote tracking URI).
+
+## Completed recently
+
+- Migrated from brittle name-based test slicing (`-k`) to explicit `pytest.mark.forge` slices.
+- Added pytest marker registry in `pyproject.toml`.
+- Hardened read-only CLI behavior:
+  - `dspx providers list`
+  - `dspx providers capabilities`
+  - `dspx tools openapi ops|describe|env|load`
+  no longer bootstrap MLflow.
+- Added upstream contribution workflow doc and helper recipes:
+  - `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
+  - `just upstream-link-dspy path=...`
+  - `just upstream-link-mlflow path=...`
+  - `just upstream-reset`
 
 ## Current runtime / packaging behavior
 
-- Workspace install:
+- Install/sync workspace:
   - `uv sync`
-- Clean-clone smoke flow:
-  - `just clean-clone-smoke`
-  - runs: `uv sync`, `just dspx --help`, `just forge --help`, `just test`
 - Core CLI:
   - `just dspx ...`
-  - runs: `uv run --package dspx-core -q python -m dspx.cli.dspx ...`
-  - read-only metadata commands skip MLflow bootstrap to stay offline/instant:
-    - `providers list`, `providers capabilities`
-    - `tools openapi ops`, `tools openapi describe`, `tools openapi env`, `tools openapi load`
+  - runs `uv run --package dspx-core -q python -m dspx.cli.dspx ...`
 - Forge CLI:
   - `just forge ...`
-  - runs: `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
-- Tests:
-  - `just test` runs `uv run -m pytest -q tests`
-  - `just test-core` runs `pytest -m "not forge"`
-  - `just test-forge` runs `pytest -m "forge"`
-- Live smoke helpers:
-  - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke` (defaults: `openai-codex`, `gpt-5.1-codex-mini`)
-  - Codex readiness checks use `codex login status` (with legacy fallback in helper scripts).
-- Package-scoped quality recipes:
-  - `just lint-core`, `just typecheck-core`
-  - `just lint-forge`, `just typecheck-forge`
-- Forge/core compatibility smoke:
-  - `just forge-core-compat latest`
-  - `just forge-core-compat min`
+  - runs `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
+- Clean clone smoke:
+  - `just clean-clone-smoke`
+  - sequence: `uv sync`, `just dspx --help`, `just forge --help`, `just test`
+- Quality/test commands:
+  - `just test`
+  - `just test-core`
+  - `just test-forge`
+  - `just monorepo-check`
   - `just forge-core-compat-matrix`
-- Boundary check:
-  - `just monorepo-check` runs `scripts/check_monorepo_boundaries.py`
-- Release helpers:
-  - `just release-core`, `just tag-core`, `just publish-core`
-  - `just release-forge`, `just tag-forge`, `just publish-forge`
-- Release workflows:
-  - `.github/workflows/release-core.yml` (`dspx-core-v*` tags)
-  - `.github/workflows/release-forge.yml` (`dspx-forge-v*` tags)
+- Live optional checks:
+  - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`
+  - `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_optimize_gepa_codex_live.py -rs`
 
-## Validation snapshot (latest local run)
+## Latest validation snapshot
 
-- `just clean-clone-smoke`: passing.
-- `pre-commit run --all-files`: passing.
-- `just monorepo-check`: passing.
-- `just dspx providers list`: passing without forcing `MLFLOW_ENABLE=0` (read-only/instant path).
-- `just test`: passing (`154 passed, 4 skipped`).
-- `just test-core`: passing (`144 passed, 4 skipped, 10 deselected`).
-- `just test-forge`: passing (`10 passed, 1 skipped, 147 deselected`).
-- `just forge-core-compat-matrix`: passing (both tracks green; `min` track resolves via `dspx-core-v0.1.0`).
-- `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`: passing.
-- `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_optimize_gepa_codex_live.py -rs`: passing.
-
-## Boundary status
-
-- Rule: `apps/* -> core`, never reverse.
-- Guardrail script: `scripts/check_monorepo_boundaries.py`.
-- Core import of `dspx_forge.*` is denied by guardrail.
-
-## What changed from prior architecture
-
-- Previous transition forwarders/shims were removed on this branch.
-- This branch remains intentionally **breaking** for legacy paths:
-  - old `dspx forge ...` under core CLI
-  - old `dspx.forge.*` imports
+- `pre-commit run --all-files`: passing
+- `just monorepo-check`: passing
+- `just test`: passing (`154 passed, 4 skipped`)
+- `just test-core`: passing (`144 passed, 4 skipped, 10 deselected`)
+- `just test-forge`: passing (`10 passed, 1 skipped, 147 deselected`)
+- `just dspx providers list`: passing without forcing `MLFLOW_ENABLE=0`
 
 ## Known gaps and immediate risks
 
-- Strict `min` compat in CI depends on remote tag hygiene; ensure `dspx-core-v0.1.0` (and future lower-bound tags) are pushed and maintained.
-- Keep `pytest.mark.forge` coverage current as new Forge/boundary tests land.
-- Some branch docs may still contain stale wording from pre-split architecture.
+- Strict `min` compat track depends on remote tag hygiene:
+  - keep `dspx-core-v<lower-bound>` tags present on remote (currently `dspx-core-v0.1.0`).
+- Marker discipline must be maintained:
+  - new Forge/boundary tests should carry `pytest.mark.forge` to keep slices accurate.
+- Some docs still carry legacy wording like “breaking branch”; keep wording aligned with current `main` state.
 
-Recently closed:
-- Clean-clone smoke flow is now formalized via `scripts/clean_clone_smoke.sh` / `just clean-clone-smoke` and enforced in CI.
-- CI now has package-aware jobs for `core` and `forge` quality/test slices.
-- Package-scoped release workflows now validate tag/version and publish only the targeted package.
-- Default release policy is now independent package versioning.
-- CI now runs forge/core compatibility matrix smoke against latest and minimum-supported core tracks.
-- Codex live-readiness checks now support modern `codex login status` (with legacy fallback) and Pi live smoke has a dedicated recipe (`just pi-live-smoke`).
-- Forge/core test slicing now uses explicit `pytest.mark.forge` markers (`just test-core` / `just test-forge`).
-- Read-only core CLI metadata commands now skip MLflow bootstrap to avoid remote tracking stalls.
-
-## Canonical docs for this branch
+## Canonical docs
 
 - `docs/MONOREPO_TRANSITION.md`
+- `docs/MLFLOW_OBSERVABILITY_PLAN.md`
+- `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
 - `apps/forge/README.md`
 - `packages/dspx-core/README.md`
 - `NEXT_STEPS.md`
@@ -112,5 +92,5 @@ Recently closed:
 ## Recommended posture
 
 - Keep boundaries strict and test-enforced.
-- Keep independent package versioning as default; use coupled helpers only if needed.
-- Avoid reintroducing compatibility shims unless required for unblock.
+- Keep default release policy independent per package.
+- Prefer upstream fixes via sibling clones + upstream PRs over adding new heavy submodules.
