@@ -4,8 +4,8 @@ Purpose:
 - Keep `dspx forge ...` behavior stable while introducing an app boundary.
 - Centralize Forge imports behind one module so extraction can happen incrementally.
 
-Current implementation forwards through `dspx.apps.forge_app.*` wrappers,
-which currently delegate to legacy `dspx.forge.*` modules.
+Current implementation forwards through `dspx.apps.forge_app.*` modules.
+Legacy `dspx.forge.*` paths are preserved as compatibility aliases.
 """
 
 from __future__ import annotations

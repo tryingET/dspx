@@ -3,10 +3,9 @@
 Forge becomes an optional app surface on top of `dspx-core`.
 
 Current state:
-- Scaffold only; no code moved yet.
-- Existing Forge runtime remains in `src/dspx/forge` to preserve behavior.
-- CLI currently uses `dspx.apps.forge_compat` as a transition facade.
-- Transitional app wrappers exist at `src/dspx/apps/forge_app/*` (forwarding to legacy Forge modules).
+- Forge implementation now lives at `src/dspx/apps/forge_app/*`.
+- Legacy `src/dspx/forge/*` modules remain as compatibility aliases.
+- CLI uses `dspx.apps.forge_compat` as transition facade.
 
 Boundary intent:
 - App code depends on core contracts/services.
