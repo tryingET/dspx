@@ -1069,6 +1069,87 @@ def run_replay(
             os.environ["MLFLOW_ENABLE"] = prev_mlflow_enable
 
 
+@run_app.command("explain")
+def run_explain(
+    from_: Path = typer.Option(
+        ...,
+        "--from",
+        "-f",
+        help="Path to run receipt (.meta.json)",
+    ),
+    with_mlflow: bool = typer.Option(
+        False,
+        "--with-mlflow",
+        help="Best-effort MLflow enrichment (optional)",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    import json as _json
+
+    from dspx.services.run_explain_service import explain_run_receipt
+
+    prev_mlflow_enable = os.getenv("MLFLOW_ENABLE")
+    if not with_mlflow:
+        os.environ["MLFLOW_ENABLE"] = "0"
+
+    try:
+        report = explain_run_receipt(from_, with_mlflow=with_mlflow)
+        status = str(report.get("status") or "invalid")
+
+        if json_out:
+            typer.echo(_json.dumps(report, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(f"status: {status}")
+            typer.echo(f"receipt: {report.get('receipt_path')}")
+            local_facts: dict[str, Any] = {}
+            local_facts_raw = report.get("local_facts")
+            if isinstance(local_facts_raw, dict):
+                for key, val in local_facts_raw.items():
+                    local_facts[str(key)] = val
+            for key in (
+                "run_kind",
+                "provider",
+                "template_version",
+                "output_path",
+                "cache_file",
+            ):
+                val = local_facts.get(key)
+                if val not in {None, ""}:
+                    typer.echo(f"local.{key}: {val}")
+
+            replay_checks_raw = report.get("replay_checks")
+            replay_checks: dict[str, bool] = {}
+            if isinstance(replay_checks_raw, dict):
+                for key, val in replay_checks_raw.items():
+                    replay_checks[str(key)] = bool(val)
+            for key in sorted(replay_checks.keys()):
+                typer.echo(f"replay.{key}: {'ok' if replay_checks[key] else 'fail'}")
+
+            mlflow_ctx: dict[str, Any] = {}
+            mlflow_ctx_raw = report.get("mlflow_context")
+            if isinstance(mlflow_ctx_raw, dict):
+                for key, val in mlflow_ctx_raw.items():
+                    mlflow_ctx[str(key)] = val
+            typer.echo(f"mlflow.mode: {mlflow_ctx.get('mode') or 'disabled'}")
+            if with_mlflow:
+                linked = mlflow_ctx.get("linked_runs")
+                if isinstance(linked, list):
+                    typer.echo(f"mlflow.linked_runs: {len(linked)}")
+
+            for warning in report.get("warnings") or []:
+                typer.echo(f"warn: {warning}")
+            for err in report.get("errors") or []:
+                typer.echo(f"error: {err}", err=True)
+
+        if status == "invalid":
+            raise typer.Exit(code=2)
+    finally:
+        if prev_mlflow_enable is None:
+            os.environ.pop("MLFLOW_ENABLE", None)
+        else:
+            os.environ["MLFLOW_ENABLE"] = prev_mlflow_enable
+
+
 def _read_mermaid(path: Optional[Path]) -> str:
     if path and str(path) != "-":
         return Path(path).read_text(encoding="utf-8")
