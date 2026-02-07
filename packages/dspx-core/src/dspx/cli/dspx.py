@@ -512,10 +512,10 @@ def signature_gen(
     if outfile:
         outfile.parent.mkdir(parents=True, exist_ok=True)
         outfile.write_text(res.code, encoding="utf-8")
-        # Write a small metadata file with content hash
+        # Write a versioned run receipt for replay/explain.
         try:
-            from dspx.cache import sha256_text
-            from dspx.cache import make_key, cache_dir
+            from dspx.cache import cache_dir, make_key, sha256_text
+            from dspx.run_receipts import build_run_receipt, write_run_receipt
 
             cls = str(class_name or "GeneratedSignature")
             cache_key = make_key(
@@ -528,21 +528,32 @@ def signature_gen(
                 }
             )
             cfile = cache_dir() / "signature" / f"{cache_key}.json"
-
-            meta = {
-                "hash": sha256_text(res.code),
-                "template_version": template_version,
-                "class_name": class_name or res.signature_name or "",
-                "cache_key": cache_key,
-                "cache_file": str(cfile),
-                "cache_enabled": os.getenv("DSPX_CACHE_ENABLE", "1")
-                not in {"0", "false", "False", ""},
-                "run_summary": summary_payload,
+            cache_enabled = os.getenv("DSPX_CACHE_ENABLE", "1") not in {
+                "0",
+                "false",
+                "False",
+                "",
             }
-            (outfile.parent / (outfile.name + ".meta.json")).write_text(
-                __import__("json").dumps(meta, ensure_ascii=False, indent=2),
-                encoding="utf-8",
+            meta = build_run_receipt(
+                run_kind="signature-gen",
+                output_path=outfile,
+                output_hash=sha256_text(res.code),
+                template_version=template_version,
+                cache_key=cache_key,
+                cache_file=str(cfile),
+                cache_enabled=cache_enabled,
+                replay_inputs={
+                    "prompt": prompt,
+                    "template_version": template_version,
+                    "class_name": class_name,
+                    "options": {"class_name": class_name} if class_name else {},
+                },
+                run_summary=summary_payload,
+                extra={
+                    "class_name": class_name or res.signature_name or "",
+                },
             )
+            write_run_receipt(outfile, meta)
         except Exception:
             pass
         # Log artifacts to MLflow when enabled
@@ -635,13 +646,14 @@ def signature_refine(
 
     if outfile:
         meta_path = outfile.parent / (outfile.name + ".meta.json")
-        if meta_path.exists():
-            try:
-                loaded = __import__("json").loads(meta_path.read_text(encoding="utf-8"))
-                if isinstance(loaded, dict):
-                    summary_payload.update(loaded)
-            except Exception:
-                pass
+        try:
+            from dspx.run_receipts import load_run_receipt
+
+            loaded = load_run_receipt(meta_path)
+            if isinstance(loaded, dict):
+                summary_payload.update(loaded)
+        except Exception:
+            pass
 
     if summary_json_out is not None:
         summary_json_out.parent.mkdir(parents=True, exist_ok=True)
@@ -764,10 +776,10 @@ def module_gen(
     if outfile:
         outfile.parent.mkdir(parents=True, exist_ok=True)
         outfile.write_text(art.code, encoding="utf-8")
-        # Write metadata
+        # Write a versioned run receipt for replay/explain.
         try:
-            from dspx.cache import sha256_text
-            from dspx.cache import make_key, cache_dir
+            from dspx.cache import cache_dir, make_key, sha256_text
+            from dspx.run_receipts import build_run_receipt, write_run_receipt
 
             cache_key = make_key(
                 {
@@ -781,26 +793,36 @@ def module_gen(
                 }
             )
             cfile = cache_dir() / "module" / f"{cache_key}.json"
-
-            (outfile.parent / (outfile.name + ".meta.json")).write_text(
-                __import__("json").dumps(
-                    {
-                        "hash": sha256_text(art.code),
-                        "template_version": template_version,
-                        "use_signature": bool(use_signature),
-                        "name": name,
-                        "inputs": input,
-                        "outputs": output,
-                        "cache_key": cache_key,
-                        "cache_file": str(cfile),
-                        "cache_enabled": os.getenv("DSPX_CACHE_ENABLE", "1")
-                        not in {"0", "false", "False", ""},
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
+            cache_enabled = os.getenv("DSPX_CACHE_ENABLE", "1") not in {
+                "0",
+                "false",
+                "False",
+                "",
+            }
+            meta = build_run_receipt(
+                run_kind="module-gen",
+                output_path=outfile,
+                output_hash=sha256_text(art.code),
+                template_version=template_version,
+                cache_key=cache_key,
+                cache_file=str(cfile),
+                cache_enabled=cache_enabled,
+                replay_inputs={
+                    "name": name,
+                    "description": description,
+                    "inputs": list(input),
+                    "outputs": list(output),
+                    "use_signature": bool(use_signature),
+                    "template_version": template_version,
+                },
+                extra={
+                    "use_signature": bool(use_signature),
+                    "name": name,
+                    "inputs": list(input),
+                    "outputs": list(output),
+                },
             )
+            write_run_receipt(outfile, meta)
         except Exception:
             pass
         # MLflow logging of artifacts
@@ -883,10 +905,10 @@ def codegen(
     if outfile:
         outfile.parent.mkdir(parents=True, exist_ok=True)
         outfile.write_text(res.code, encoding="utf-8")
-        # Write metadata
+        # Write a versioned run receipt for replay/explain.
         try:
-            from dspx.cache import sha256_text
-            from dspx.cache import make_key, cache_dir
+            from dspx.cache import cache_dir, make_key, sha256_text
+            from dspx.run_receipts import build_run_receipt, write_run_receipt
 
             cache_key = make_key(
                 {
@@ -898,24 +920,33 @@ def codegen(
                 }
             )
             cfile = cache_dir() / "codegen" / f"{cache_key}.json"
-
-            (outfile.parent / (outfile.name + ".meta.json")).write_text(
-                __import__("json").dumps(
-                    {
-                        "hash": sha256_text(res.code),
-                        "language": language or "python",
-                        "template_version": template_version,
-                        "spec_len": len(spec),
-                        "cache_key": cache_key,
-                        "cache_file": str(cfile),
-                        "cache_enabled": os.getenv("DSPX_CACHE_ENABLE", "1")
-                        not in {"0", "false", "False", ""},
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
+            lang = language or "python"
+            cache_enabled = os.getenv("DSPX_CACHE_ENABLE", "1") not in {
+                "0",
+                "false",
+                "False",
+                "",
+            }
+            meta = build_run_receipt(
+                run_kind="codegen",
+                output_path=outfile,
+                output_hash=sha256_text(res.code),
+                template_version=template_version,
+                cache_key=cache_key,
+                cache_file=str(cfile),
+                cache_enabled=cache_enabled,
+                replay_inputs={
+                    "spec": spec,
+                    "language": lang,
+                    "template_version": template_version,
+                    "options": {},
+                },
+                extra={
+                    "language": lang,
+                    "spec_len": len(spec),
+                },
             )
+            write_run_receipt(outfile, meta)
         except Exception:
             pass
         # MLflow logging of artifacts

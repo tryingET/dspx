@@ -200,9 +200,10 @@ def run_refine(
         out_path = Path(outfile)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(code, encoding="utf-8")
-        # Signature metadata parity with `signature gen`
+        # Signature run receipt parity with `signature gen`.
         try:
             from dspx.cache import cache_dir, make_key, sha256_text
+            from dspx.run_receipts import build_run_receipt, write_run_receipt
 
             cache_key = make_key(
                 {
@@ -219,25 +220,35 @@ def run_refine(
                 }
             )
             cfile = cache_dir() / "signature" / f"{cache_key}.json"
-            meta = {
-                "hash": sha256_text(code),
-                "template_version": template_version,
-                "class_name": cls or "",
-                "cache_key": cache_key,
-                "cache_file": str(cfile),
-                "cache_enabled": False,
-                "mode": mode,
-                "backend": backend,
-                "attempts": int(attempts),
-                "non_interactive": bool(non_interactive),
-                "feedback_count": len(memory.feedback_history),
-                "constraint_count": len(memory.constraints),
-                "rounds": rounds,
-            }
-            (out_path.parent / (out_path.name + ".meta.json")).write_text(
-                __import__("json").dumps(meta, ensure_ascii=False, indent=2) + "\n",
-                encoding="utf-8",
+            meta = build_run_receipt(
+                run_kind="signature-refine",
+                output_path=out_path,
+                output_hash=sha256_text(code),
+                template_version=template_version,
+                cache_key=cache_key,
+                cache_file=str(cfile),
+                cache_enabled=False,
+                replay_inputs={
+                    "prompt": prompt,
+                    "template_version": template_version,
+                    "attempts": int(attempts),
+                    "non_interactive": bool(non_interactive),
+                    "wrap_script": bool(wrap_script),
+                    "feedback": list(memory.feedback_history),
+                    "constraints": list(memory.constraints),
+                },
+                extra={
+                    "class_name": cls or "",
+                    "mode": mode,
+                    "backend": backend,
+                    "attempts": int(attempts),
+                    "non_interactive": bool(non_interactive),
+                    "feedback_count": len(memory.feedback_history),
+                    "constraint_count": len(memory.constraints),
+                    "rounds": rounds,
+                },
             )
+            write_run_receipt(out_path, meta)
         except Exception:
             pass
 

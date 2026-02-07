@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from typing import Optional
 
 import dspy
@@ -70,18 +71,42 @@ def run(
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             f.write(code_text + ("\n" if not code_text.endswith("\n") else ""))
-        # Write a metadata file with hash
+        # Write a versioned run receipt for replay/explain.
         try:
-            from dspx.cache import sha256_text
-            import json as _json
+            from dspx.cache import make_key, cache_dir, sha256_text
+            from dspx.run_receipts import build_run_receipt, write_run_receipt
 
-            meta = {
-                "hash": sha256_text(code_text),
-                "language": language or "python",
-                "spec": spec,
-            }
-            with open(path + ".meta.json", "w", encoding="utf-8") as mf:
-                mf.write(_json.dumps(meta, ensure_ascii=False, indent=2))
+            lang = language or "python"
+            cache_key = make_key(
+                {
+                    "kind": "codegen",
+                    "spec": spec,
+                    "language": lang,
+                    "template_version": "v1",
+                    "options": {},
+                }
+            )
+            cfile = cache_dir() / "codegen" / f"{cache_key}.json"
+            meta = build_run_receipt(
+                run_kind="codegen",
+                output_path=Path(path),
+                output_hash=sha256_text(code_text),
+                template_version="v1",
+                cache_key=cache_key,
+                cache_file=str(cfile),
+                cache_enabled=cache_enabled(),
+                replay_inputs={
+                    "spec": spec,
+                    "language": lang,
+                    "template_version": "v1",
+                    "options": {},
+                },
+                extra={
+                    "language": lang,
+                    "spec_len": len(spec),
+                },
+            )
+            write_run_receipt(Path(path), meta)
         except Exception:
             pass
         # MLflow: log artifacts (best-effort)
