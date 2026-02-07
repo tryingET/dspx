@@ -20,29 +20,25 @@ Current working branch: `main`.
 - Package-scoped release workflows are in place:
   - `.github/workflows/release-core.yml` (`dspx-core-v*`)
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
-- Forge/core pytest slicing uses explicit marker-based selection:
-  - `just test-core` => `pytest -m "not forge"`
-  - `just test-forge` => `pytest -m "forge"`
-- Read-only core CLI metadata paths now skip MLflow bootstrap (offline/instant behavior even when `config.toml` has remote tracking URI).
-- Default provider fallback is now `pi-rpc` (Codex remains available as optional provider).
+- Default provider fallback is `pi-rpc` (Codex remains available as optional provider).
 
 ## Completed recently
 
-- Migrated from brittle name-based test slicing (`-k`) to explicit `pytest.mark.forge` slices.
-- Added pytest marker registry in `pyproject.toml`.
-- Hardened read-only CLI behavior:
-  - `dspx providers list`
-  - `dspx providers capabilities`
-  - `dspx tools openapi ops|describe|env|load`
-  no longer bootstrap MLflow.
-- Added upstream contribution workflow doc and helper recipes:
-  - `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
-  - `just upstream-link-dspy path=...`
-  - `just upstream-link-mlflow path=...`
-  - `just upstream-reset`
-- Removed legacy duplicate status/roadmap docs under `docs/` to keep root files canonical.
 - Removed all git submodules (`vibe-dspy`, `attachments`, `ovllm`, `dspy`, `codex`); switched to sibling clones under `~/programming/upstream` where needed.
 - Signature generation/refine now uses native DSPx implementation only (no runtime `vibe-dspy` dependency).
+- Native signature pipeline upgraded:
+  - spec-first generation (structured schema → deterministic code rendering)
+  - provider-capability-aware prompting (`json_mode` vs non-JSON strategy)
+  - validation/smoke scoring + bounded retries + best-candidate selection
+  - structured refinement memory (constraints/feedback model)
+- Added signature regression coverage:
+  - `tests/test_signature_native_pipeline.py`
+  - `tests/test_refine_service_memory.py`
+  - `tests/test_signature_golden_corpus.py`
+  - `tests/golden/signature_specs.json`
+- Added architecture/runbook docs for the pipeline:
+  - `docs/SIGNATURE_NATIVE_PIPELINE.md`
+  - `README.md` / `docs/ARCHITECTURE.md` updates
 
 ## Current runtime / packaging behavior
 
@@ -54,13 +50,15 @@ Current working branch: `main`.
 - Forge CLI:
   - `just forge ...`
   - runs `uv run --package dspx-forge -q python -m dspx_forge.cli ...`
-- Clean clone smoke:
-  - `just clean-clone-smoke`
-  - sequence: `uv sync`, `just dspx --help`, `just forge --help`, `just test`
+- Signature generation behavior:
+  - `simple-*` templates stay deterministic/no-LM
+  - LM-backed native path is spec-first and capability-aware
+  - bounded retry knob: `DSPX_SIGNATURE_MAX_ATTEMPTS`
 - Quality/test commands:
+  - `just fmt`
+  - `just lint`
+  - `just typecheck`
   - `just test`
-  - `just test-core`
-  - `just test-forge`
   - `just monorepo-check`
   - `just forge-core-compat-matrix`
 - Live optional checks:
@@ -71,23 +69,21 @@ Current working branch: `main`.
 
 - `pre-commit run --all-files`: passing
 - `just monorepo-check`: passing
-- `just test`: passing (`156 passed, 4 skipped`)
-- `just test-core`: passing (`146 passed, 4 skipped, 10 deselected`)
-- `just test-forge`: passing (`10 passed, 1 skipped, 149 deselected`)
-- `just forge-core-compat-matrix`: passing (`latest` + `min`)
-- `just dspx providers list`: passing without forcing `MLFLOW_ENABLE=0`
+- `just test`: passing (`163 passed, 4 skipped`)
 
 ## Known gaps and immediate risks
 
-- Strict `min` compat track depends on remote tag hygiene:
+- Strict `min` compat track still depends on remote tag hygiene:
   - keep `dspx-core-v<lower-bound>` tags present on remote (currently `dspx-core-v0.1.0`).
-- Marker discipline must be maintained:
-  - new Forge/boundary tests should carry `pytest.mark.forge` to keep slices accurate.
+- Signature quality telemetry is not yet standardized across services:
+  - fallback-rate / attempts-used trend reporting should be promoted to first-class CI visibility.
+- Signature hardening is currently deepest in signature/refine paths; equivalent quality contracts are not yet rolled out uniformly to module/codegen/mermaid outputs.
 
 ## Canonical docs
 
 - `docs/MONOREPO_TRANSITION.md`
 - `docs/MLFLOW_OBSERVABILITY_PLAN.md`
+- `docs/SIGNATURE_NATIVE_PIPELINE.md`
 - `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
 - `apps/forge/README.md`
 - `packages/dspx-core/README.md`
@@ -96,5 +92,6 @@ Current working branch: `main`.
 ## Recommended posture
 
 - Keep boundaries strict and test-enforced.
-- Keep default release policy independent per package.
+- Keep release policy independent per package.
+- Keep signature pipeline hardening measurable (quality metrics + corpus growth + bounded retries).
 - Prefer upstream fixes via sibling clones + upstream PRs over adding new heavy submodules.
