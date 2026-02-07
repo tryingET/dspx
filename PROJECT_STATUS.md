@@ -24,6 +24,7 @@ Current working branch: `main`.
   - `just test-core` => `pytest -m "not forge"`
   - `just test-forge` => `pytest -m "forge"`
 - Read-only core CLI metadata paths now skip MLflow bootstrap (offline/instant behavior even when `config.toml` has remote tracking URI).
+- Default provider fallback is now `pi-rpc` (Codex remains available as optional provider).
 
 ## Completed recently
 
@@ -40,7 +41,8 @@ Current working branch: `main`.
   - `just upstream-link-mlflow path=...`
   - `just upstream-reset`
 - Removed legacy duplicate status/roadmap docs under `docs/` to keep root files canonical.
-- Removed `vibe-dspy` and `attachments` git submodules; switched to sibling clones under `~/programming/upstream` with auto-discovery (`DSPX_VIBE_DSPY_SRC` / `DSPX_UPSTREAM_DIR`).
+- Removed all git submodules (`vibe-dspy`, `attachments`, `ovllm`, `dspy`, `codex`); switched to sibling clones under `~/programming/upstream`.
+- Signature generation/refine now treats `vibe-dspy` as optional: auto-discovers sibling clone (`DSPX_VIBE_DSPY_SRC` / `DSPX_UPSTREAM_DIR`) and falls back to native generation when unavailable.
 
 ## Current runtime / packaging behavior
 
@@ -63,15 +65,15 @@ Current working branch: `main`.
   - `just forge-core-compat-matrix`
 - Live optional checks:
   - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`
-  - `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_optimize_gepa_codex_live.py -rs`
+  - `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_pi_rpc_provider_live.py -rs`
 
 ## Latest validation snapshot
 
 - `pre-commit run --all-files`: passing
 - `just monorepo-check`: passing
-- `just test`: passing (`154 passed, 4 skipped`)
-- `just test-core`: passing (`144 passed, 4 skipped, 10 deselected`)
-- `just test-forge`: passing (`10 passed, 1 skipped, 147 deselected`)
+- `just test`: passing (`156 passed, 4 skipped`)
+- `just test-core`: passing (`146 passed, 4 skipped, 10 deselected`)
+- `just test-forge`: passing (`10 passed, 1 skipped, 149 deselected`)
 - `just forge-core-compat-matrix`: passing (`latest` + `min`)
 - `just dspx providers list`: passing without forcing `MLFLOW_ENABLE=0`
 

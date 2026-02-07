@@ -34,10 +34,20 @@ bypass = true
 # Optional: enable Codex web_search flag
 search = false
 
+[pi]
+# Pi RPC defaults (used when provider name is "pi-rpc")
+provider = "openai-codex"
+model = "gpt-5.1-codex-mini"
+thinking = ""
+timeout_s = 90
+no_tools = true
+no_session = true
+disable_resources = true
+
 [provider]
 # Select the LM provider via registry name
-# Options include: "codex-exec", "openrouter", "claude-cli", "gemini-cli", "multi", "stub"
-name = "codex-exec"
+# Options include: "pi-rpc", "openrouter", "claude-cli", "gemini-cli", "codex-exec", "multi", "stub"
+name = "pi-rpc"
 
 # --- Optional: reference for env-based budgets/timeouts ---
 # (not read from TOML; set them as env vars alongside this config)

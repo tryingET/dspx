@@ -91,12 +91,10 @@ def ensure_default_providers() -> None:
             pass
 
 
-def create_from_env(
-    env_var: str = "DSPX_PROVIDER", default: str = "codex-exec"
-) -> object:
+def create_from_env(env_var: str = "DSPX_PROVIDER", default: str = "pi-rpc") -> object:
     """Create an LM instance from the registry based on an env var.
 
-    Defaults to 'codex-exec'. Callers should first call ensure_default_providers().
+    Defaults to 'pi-rpc'. Callers should first call ensure_default_providers().
     """
     name = os.getenv(env_var, default)
     ensure_default_providers()

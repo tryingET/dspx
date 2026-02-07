@@ -54,7 +54,7 @@ def run(
     # LM options (read from env via provider-specific factories)
     # Kept minimal here; provider registry will apply env when creating the LM.
 
-    # Create LM via provider registry (default: codex-exec)
+    # Create LM via provider registry (default: pi-rpc)
     ensure_default_providers()
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)

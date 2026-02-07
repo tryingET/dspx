@@ -23,7 +23,7 @@ Run routinely:
 
 Optional live sanity (opt-in):
 - `DSPX_RUN_LIVE_TESTS=1 just pi-live-smoke`
-- `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_optimize_gepa_codex_live.py -rs`
+- `DSPX_RUN_LIVE_TESTS=1 uv run -m pytest -q tests/test_pi_rpc_provider_live.py -rs`
 
 Acceptance:
 - Quality gates stay green.
@@ -105,7 +105,7 @@ Next actions:
    - `just upstream-link-dspy path=...`
    - `just upstream-link-mlflow path=...`
    - `just upstream-reset`
-2. Keep `vibe-dspy` + `attachments` as sibling clones under `~/programming/upstream` (not repo submodules).
+2. Keep upstream deps as sibling clones under `~/programming/upstream` (not repo submodules), including `vibe-dspy`, `attachments`, `dspy`, `mlflow`.
 3. Prefer upstream PR + released version bump over long-lived local forks.
 
 Acceptance:

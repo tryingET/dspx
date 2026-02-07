@@ -84,7 +84,7 @@ def providers_capabilities(
 
     _ensure_env(provider, tracing=False)
     ensure_default_providers()
-    name = provider or os.getenv("DSPX_PROVIDER") or "codex-exec"
+    name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
     caps = _caps(name)
     payload = {
         "provider": name,
@@ -135,8 +135,8 @@ def providers_smoke(
         ):
             os.environ[env_k] = secs
 
-    name = provider or os.getenv("DSPX_PROVIDER") or "codex-exec"
-    lm = create_from_env(default="codex-exec")
+    name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
+    lm = create_from_env(default="pi-rpc")
 
     t0 = _time.time()
     text = ""
@@ -265,7 +265,7 @@ def optimize_gepa(
     student_provider: Optional[str] = typer.Option(
         None,
         "--student-provider",
-        help="Provider for student calls (defaults to DSPX_PROVIDER, default: codex-exec).",
+        help="Provider for student calls (defaults to DSPX_PROVIDER, default: pi-rpc).",
     ),
     reflection_provider: Optional[str] = typer.Option(
         None,

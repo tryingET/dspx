@@ -281,7 +281,7 @@ def run_gepa_optimize(
     Optimize a DSPy program/module via GEPA and save it as a loadable program dir.
 
     Provider selection:
-    - student_provider defaults to DSPX_PROVIDER (default: codex-exec).
+    - student_provider defaults to DSPX_PROVIDER (default: pi-rpc).
     - reflection_provider defaults to student_provider.
 
     Program requirements:
@@ -303,7 +303,7 @@ def run_gepa_optimize(
     student_lm = (
         create(student_provider)
         if student_provider
-        else create_from_env(default="codex-exec")
+        else create_from_env(default="pi-rpc")
     )
     reflection_lm = (
         create(reflection_provider)
@@ -311,7 +311,7 @@ def run_gepa_optimize(
         else (
             create(student_provider)
             if student_provider
-            else create_from_env(default="codex-exec")
+            else create_from_env(default="pi-rpc")
         )
     )
 
@@ -400,11 +400,9 @@ def run_gepa_optimize(
     copied_program = source_dir / program_path.name
     copied_program.write_bytes(program_path.read_bytes())
 
-    student_provider_name = student_provider or os.getenv("DSPX_PROVIDER", "codex-exec")
+    student_provider_name = student_provider or os.getenv("DSPX_PROVIDER", "pi-rpc")
     reflection_provider_name = (
-        reflection_provider
-        or student_provider
-        or os.getenv("DSPX_PROVIDER", "codex-exec")
+        reflection_provider or student_provider or os.getenv("DSPX_PROVIDER", "pi-rpc")
     )
 
     manifest = {

@@ -1,4 +1,4 @@
-# Project configuration for DSPy + Codex Exec + MLflow (example)
+# Project configuration for DSPx providers + MLflow (example)
 #
 # DOCSTRING:
 # - This file is the canonical dspx configuration template. Downstream tools
@@ -29,7 +29,17 @@ reasoning_effort = "minimal"
 bypass = true  # maps to --dangerously-bypass-approvals-and-sandbox
 search = false  # codex web_search optional; using DSPy tools instead
 
+[pi]
+# Pi RPC defaults (used when provider is "pi-rpc")
+provider = "openai-codex"
+model = "gpt-5.1-codex-mini"
+thinking = ""
+timeout_s = 90
+no_tools = true
+no_session = true
+disable_resources = true
+
 [provider]
-# Select the LM provider via registry (default: codex-exec)
-# Options include: "codex-exec", "openrouter", "claude-cli", "gemini-cli", "multi", "stub"
-name = "codex-exec"
+# Select the LM provider via registry (default: pi-rpc)
+# Options include: "pi-rpc", "openrouter", "claude-cli", "gemini-cli", "codex-exec", "multi", "stub"
+name = "pi-rpc"

@@ -6,10 +6,11 @@ from typing import Optional
 import dspy
 
 from dspx.config_loader import load_config_env
-from dspx.tracing import enable_mlflow_from_env
-from dspx.provider_registry import create_from_env, ensure_default_providers
 from dspx.lm_base import LMBase
-from dspx.upstream_paths import require_vibe_on_path
+from dspx.provider_registry import create_from_env, ensure_default_providers
+from dspx.templates import format_signature_prompt, render_simple_signature
+from dspx.tracing import enable_mlflow_from_env
+from dspx.upstream_paths import ensure_vibe_on_path
 
 
 def _wrap_script(signature_code: str) -> str:
@@ -52,6 +53,38 @@ def _extract_sig_class_name(code: str) -> str | None:
     return None
 
 
+def _extract_code_block(text: str) -> str:
+    import re
+
+    m = re.search(r"```[\\w+-]*\\n([\\s\\S]*?)\\n```", text or "", re.M)
+    if m:
+        return m.group(1).strip()
+    return (text or "").strip()
+
+
+def _has_vibe() -> bool:
+    ensure_vibe_on_path()
+    try:
+        import signature_generator  # type: ignore  # noqa: F401
+
+        return True
+    except Exception:
+        return False
+
+
+def _native_generate_signature(
+    prompt: str, *, class_name: str = "GeneratedSignature"
+) -> str:
+    predictor = dspy.Predict("task -> code")
+    model_prompt = format_signature_prompt(prompt, version="v1")
+    result = predictor(task=model_prompt)
+    text = result.code if hasattr(result, "code") else str(result)
+    code = _extract_code_block(text)
+    if not code or _extract_sig_class_name(code) is None:
+        code = render_simple_signature(class_name, prompt)
+    return code
+
+
 def run_refine(
     prompt: str,
     *,
@@ -76,7 +109,11 @@ def run_refine(
     budget_ms = (
         int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
     )
-    template_version = "refine-v1"
+
+    vibe_backend = _has_vibe()
+    backend = "vibe" if vibe_backend else "native"
+    mode = "refine" if vibe_backend else "refine-native"
+    template_version = "refine-v1" if vibe_backend else "refine-v1-native"
 
     # Start MLflow run early so DSPy autolog (if enabled) can attach to it.
     started_run = False
@@ -90,39 +127,58 @@ def run_refine(
                 "signature",
                 template_version=template_version,
                 run_name="signature-refine",
-                extra={"signature.mode": "refine"},
+                extra={"signature.mode": mode, "signature.backend": backend},
             )
     except Exception:
         mlflow = None
         started_run = False
 
-    require_vibe_on_path()
+    if vibe_backend:
+        from signature_generator import SignatureGenerator  # type: ignore
 
-    from signature_generator import SignatureGenerator  # type: ignore
+        def reward_fn(args, pred):
+            if non_interactive:
+                return 1.0
+            ans = input("Accept signature? [y/N]: ").strip().lower()
+            if ans in {"y", "yes"}:
+                return 1.0
+            fb = (
+                input("Feedback (leave empty for generic): ").strip()
+                or "Please improve the signature."
+            )
+            return dspy.Prediction(score=0.0, feedback=fb)
 
-    def reward_fn(args, pred):
-        if non_interactive:
-            return 1.0
-        ans = input("Accept signature? [y/N]: ").strip().lower()
-        if ans in {"y", "yes"}:
-            return 1.0
-        fb = (
-            input("Feedback (leave empty for generic): ").strip()
-            or "Please improve the signature."
+        refiner = dspy.Refine(
+            module=SignatureGenerator(), N=attempts, reward_fn=reward_fn, threshold=1.0
         )
-        return dspy.Prediction(score=0.0, feedback=fb)
+        try:
+            pred = refiner(prompt=prompt)
+            code = SignatureGenerator.generate_code(pred)
+        except Exception:
+            # Fallback to single-shot generation if refine fails
+            gen = SignatureGenerator()
+            result = gen.generate_signature(prompt)
+            code = result.get("code") or ""
+    else:
+        code = ""
+        current_prompt = prompt
+        for idx in range(max(1, int(attempts))):
+            code = _native_generate_signature(current_prompt)
+            if non_interactive:
+                break
+            ans = input("Accept signature? [y/N]: ").strip().lower()
+            if ans in {"y", "yes"}:
+                break
+            if idx == max(1, int(attempts)) - 1:
+                break
+            feedback = (
+                input("Feedback (leave empty for generic): ").strip()
+                or "Please improve the signature."
+            )
+            current_prompt = (
+                f"{prompt.strip()}\n\nRefinement feedback:\n{feedback.strip()}"
+            )
 
-    refiner = dspy.Refine(
-        module=SignatureGenerator(), N=attempts, reward_fn=reward_fn, threshold=1.0
-    )
-    try:
-        pred = refiner(prompt=prompt)
-        code = SignatureGenerator.generate_code(pred)
-    except Exception:
-        # Fallback to single-shot generation if refine fails
-        gen = SignatureGenerator()
-        result = gen.generate_signature(prompt)
-        code = result.get("code") or ""
     if wrap_script:
         code = _wrap_script(code)
 
@@ -133,7 +189,7 @@ def run_refine(
         out_path.write_text(code, encoding="utf-8")
         # Signature metadata parity with `signature gen`
         try:
-            from dspx.cache import make_key, sha256_text, cache_dir
+            from dspx.cache import cache_dir, make_key, sha256_text
 
             cache_key = make_key(
                 {
@@ -141,7 +197,8 @@ def run_refine(
                     "prompt": prompt,
                     "template_version": template_version,
                     "class_name": cls or "",
-                    "mode": "refine",
+                    "mode": mode,
+                    "backend": backend,
                     "attempts": int(attempts),
                     "non_interactive": bool(non_interactive),
                 }
@@ -154,7 +211,8 @@ def run_refine(
                 "cache_key": cache_key,
                 "cache_file": str(cfile),
                 "cache_enabled": False,
-                "mode": "refine",
+                "mode": mode,
+                "backend": backend,
                 "attempts": int(attempts),
                 "non_interactive": bool(non_interactive),
             }
@@ -172,7 +230,8 @@ def run_refine(
                 try:
                     mlflow.log_params(
                         {
-                            "signature.mode": "refine",
+                            "signature.mode": mode,
+                            "signature.backend": backend,
                             "signature.attempts": int(attempts),
                             "signature.non_interactive": bool(non_interactive),
                             "signature.wrap_script": bool(wrap_script),

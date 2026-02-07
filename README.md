@@ -1,12 +1,12 @@
-Using DSPy with Codex Exec as the Active LM
-===========================================
+DSPx: Provider-Agnostic DSPy Toolkit (Pi RPC First)
+===================================================
 
 [![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![ty](https://img.shields.io/badge/type--checking-ty-informational)](#type-checking)
 
-This example shows how to use the OpenAI Codex CLI's execution mode (`codex exec`) as the language model for a DSPy program, via a small wrapper `CodexExecLM`.
+DSPx is a provider-agnostic toolkit around DSPy. Current default posture is Pi RPC (`pi-rpc`), with additional providers (Codex/Claude/Gemini/OpenRouter/Stub/Multi) available as optional backends.
 
 Canonical docs map
 ------------------
@@ -24,9 +24,10 @@ Canonical docs map
 
 Prerequisites
 -------------
-- Codex CLI installed and authenticated (e.g., `codex --version`, `codex login status`).
 - Python 3.13+ (this project is initialized with 3.13)
 - uv package manager (https://docs.astral.sh/uv/)
+- For Pi RPC provider: `pi` CLI installed (`pi --version`)
+- Optional legacy provider: Codex CLI installed/authenticated (`codex --version`, `codex login status`)
 
 Configuration
 -------------
@@ -35,7 +36,7 @@ Configuration
   cp example.toml config.toml
 
 - You can also point `DSPX_CONFIG` to any config path. The loader searches the nearest `config.toml` if none is set.
-- Provider selection defaults to `DSPX_PROVIDER=codex-exec`; override with `DSPX_PROVIDER=...` (or `dspx --provider ...`) to select another provider such as `openrouter`.
+- Provider selection defaults to `DSPX_PROVIDER=pi-rpc`; override with `DSPX_PROVIDER=...` (or `dspx --provider ...`) to select another provider such as `openrouter`, `claude-cli`, `gemini-cli`, `codex-exec`, or `stub`.
 - Secrets: `.env` is supported (git-ignored) and is loaded automatically by `just` recipes. Put `OPENROUTER_API_KEY=...` there if you use OpenRouter.
 
 Files
@@ -47,8 +48,7 @@ Files
 - `apps/forge/src/dspx_forge/`: Forge app package + CLI (`dspx-forge`).
 - `scripts/`: repo automation/guardrails (`check_monorepo_boundaries.py`, compat smoke scripts).
 - `docs/`: architecture, status, next steps, and operator guides.
-- `submodules/`: optional vendored upstream repos still kept as submodules (`ovllm`, `dspy`, `codex`).
-- `~/programming/upstream/`: sibling upstream clones (recommended for `vibe-dspy`, `attachments`, and patch workflows).
+- `~/programming/upstream/`: sibling upstream clones (recommended for `vibe-dspy`, `attachments`, `dspy`, `mlflow`, and patch workflows).
 
 Project Template
 ----------------
@@ -82,16 +82,15 @@ Quick Start (uv)
    Optional (OpenRouter): create `.env` (git-ignored) so Just recipes can load it:
    - `cp .env.example .env`
 
-2) Verify Codex CLI works and you are logged in:
+2) Verify Pi CLI is available:
 
-   codex --version
-   codex login status
+   pi --version
 
-3) Run the example (from source):
+3) Smoke the configured provider (from source):
 
-   just example
+   just dspx providers smoke --json
 
-It configures DSPy to use Codex Exec with `gpt-5`, minimal reasoning effort, and bypassed approvals/sandbox. Codex may write and run code under the hood; the final answer prints to stdout.
+For legacy Codex-specific example flow, `just example` is still available but no longer the default posture.
 
 Unified CLI (dspx)
 ------------------
@@ -298,7 +297,7 @@ Type Checking
 - Enforced in CI via `just typecheck` (runs `uvx ty check`).
 - Local run: `just typecheck`
 - Pre-commit uses ruff hooks by default; run ty manually or rely on CI.
-- Excludes: `submodules/`, `generated/`, and `examples/`.
+- Excludes: `generated/` and `examples/` (plus external sibling clones outside this repo).
 
 
 Release Cycle
@@ -390,7 +389,7 @@ Upstream clone: vibe-dspy
   1. `DSPX_VIBE_DSPY_SRC` (explicit path to `.../vibe-dspy/src`)
   2. `DSPX_UPSTREAM_DIR/vibe-dspy/src` (if `DSPX_UPSTREAM_DIR` is set)
   3. `~/programming/upstream/vibe-dspy/src` (default)
-  4. legacy fallback `submodules/vibe-dspy/src` (if present)
+- `vibe-dspy` is optional: when unavailable, DSPx falls back to native signature generation.
 
 Upstream clone: attachments
 ---------------------------
@@ -404,12 +403,10 @@ Upstream clone: attachments
 
   uv run env PYTHONPATH=~/programming/upstream/attachments/src python -c "import attachments; print('attachments ok')"
 
-Submodule: ovllm
------------------
-- Path: `submodules/ovllm`
-- Usage: utilities for DSPy workflows; importable via PYTHONPATH:
-
-  uv run env PYTHONPATH=submodules/ovllm python -c "import ovllm; print('ovllm ok')"
+Submodules
+----------
+- This repository no longer tracks git submodules.
+- Prefer sibling clones under `~/programming/upstream`.
 
 Code Generator CLI
 ------------------
@@ -709,5 +706,18 @@ Project Layout
 - `docs/`: project docs (vision, status, next steps)
 - `examples/`: curated, versioned examples and workflows
 - `generated/`: local outputs (ignored); kept for CLI defaults
-- `submodules/`: external utilities kept as submodules (`ovllm`, `dspy`, `codex`)
-- `~/programming/upstream/`: sibling clones (`vibe-dspy`, `attachments`, and other upstream patch checkouts)
+- `~/programming/upstream/`: sibling clones (`vibe-dspy`, `attachments`, `dspy`, `mlflow`, and other upstream patch checkouts)
+
+Credits & upstream influences
+-----------------------------
+Thanks to upstream authors/projects that informed this repo and workflows:
+
+- `vibe-dspy` — https://github.com/Archelunch/vibe-dspy
+- `attachments` — https://github.com/MaximeRivest/attachments
+- `ovllm` — https://github.com/MaximeRivest/ovllm
+- `DSPy` — https://github.com/stanfordnlp/dspy
+- `MLflow` — https://github.com/mlflow/mlflow
+- `Codex CLI` — https://github.com/openai/codex
+- `pi-mono` / `pi-coding-agent` — https://github.com/badlogic/pi-mono
+
+We keep these acknowledgements even where integrations are now optional, replaced, or legacy.

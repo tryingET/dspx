@@ -13,6 +13,8 @@ read_when:
 For upstream dependencies (especially `dspy`, `mlflow`, `vibe-dspy`, `attachments`),
 prefer **sibling upstream clones** over adding new git submodules in this repo.
 
+Current repo posture: no git submodules tracked.
+
 Why:
 - avoids submodule lifecycle friction (`--recurse-submodules`, detached HEADs, CI complexity)
 - keeps `dspx` focused on integration boundaries

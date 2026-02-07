@@ -75,10 +75,11 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     if cfg_path and cfg_path.exists():
         data = _load_toml(cfg_path)
 
-    # Sections: [mlflow], [codex], [openrouter], [provider]
+    # Sections: [mlflow], [codex], [openrouter], [pi], [provider]
     mlflow = data.get("mlflow", {}) if isinstance(data, dict) else {}
     codex = data.get("codex", {}) if isinstance(data, dict) else {}
     openrouter = data.get("openrouter", {}) if isinstance(data, dict) else {}
+    pi = data.get("pi", {}) if isinstance(data, dict) else {}
     provider = data.get("provider", {}) if isinstance(data, dict) else {}
 
     # MLflow envs
@@ -103,6 +104,23 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     )
     _set_if_missing("OPENROUTER_HTTP_REFERER", openrouter.get("http_referer"))
     _set_if_missing("OPENROUTER_APP_TITLE", openrouter.get("app_title"))
+
+    # Pi RPC envs
+    _set_if_missing("DSPX_PI_PROVIDER", pi.get("provider"))
+    _set_if_missing("DSPX_PI_MODEL", pi.get("model"))
+    _set_if_missing("DSPX_PI_THINKING", pi.get("thinking"))
+    _set_if_missing(
+        "DSPX_PI_TIMEOUT",
+        str(pi.get("timeout_s")) if pi.get("timeout_s") is not None else None,
+    )
+    if "no_tools" in pi:
+        _set_if_missing("DSPX_PI_NO_TOOLS", _coerce_bool(pi.get("no_tools")))
+    if "no_session" in pi:
+        _set_if_missing("DSPX_PI_NO_SESSION", _coerce_bool(pi.get("no_session")))
+    if "disable_resources" in pi:
+        _set_if_missing(
+            "DSPX_PI_DISABLE_RESOURCES", _coerce_bool(pi.get("disable_resources"))
+        )
 
     # Provider selection env
     _set_if_missing("DSPX_PROVIDER", provider.get("name"))

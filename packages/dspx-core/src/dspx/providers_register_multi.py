@@ -17,7 +17,7 @@ def _parse_list(env_name: str, default: str) -> List[str]:
 
 def _factory() -> MultiProviderLM:
     ensure_default_providers()
-    names = _parse_list("DSPX_MULTI_PROVIDERS", "codex-exec,claude-cli,gemini-cli")
+    names = _parse_list("DSPX_MULTI_PROVIDERS", "pi-rpc,claude-cli,gemini-cli")
     strategy = os.getenv("DSPX_MULTI_STRATEGY", "sequential_first")
     parallel_isolated = os.getenv("DSPX_MULTI_PARALLEL_ISOLATED", "0") not in {
         "",
@@ -56,9 +56,9 @@ def _factory() -> MultiProviderLM:
         except Exception:
             continue
     if not provs:
-        # fallback to codex if nothing resolves
-        provs = [create("codex-exec")]
-        names = ["codex-exec"]
+        # fallback to pi-rpc if nothing resolves
+        provs = [create("pi-rpc")]
+        names = ["pi-rpc"]
     return MultiProviderLM(
         providers=provs,
         names=names,

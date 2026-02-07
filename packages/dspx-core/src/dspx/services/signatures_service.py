@@ -1,25 +1,109 @@
 from __future__ import annotations
 
+import os as _os
+import re
+from typing import Any, Optional
 
 import dspy
-from typing import Optional
 
-from dspx.config_loader import load_config_env
-from dspx.tracing import enable_mlflow_from_env
-from dspx.provider_registry import create_from_env, ensure_default_providers
-from dspx.lm_base import LMBase
-from dspx.dtos import SignatureGenRequest, SignatureGenResult
-from dspx.templates import render_simple_signature, format_signature_prompt
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
-from dspx.upstream_paths import require_vibe_on_path
-import os as _os
+from dspx.config_loader import load_config_env
+from dspx.dtos import SignatureGenRequest, SignatureGenResult
+from dspx.lm_base import LMBase
+from dspx.provider_registry import create_from_env, ensure_default_providers
+from dspx.templates import format_signature_prompt, render_simple_signature
+from dspx.tracing import enable_mlflow_from_env
+from dspx.upstream_paths import ensure_vibe_on_path
+
+
+def _extract_code_block(text: str) -> str:
+    fence = re.compile(r"```[\\w+-]*\\n([\\s\\S]*?)\\n```", re.MULTILINE)
+    m = fence.search(text or "")
+    if m:
+        return m.group(1).strip()
+    return (text or "").strip()
+
+
+def _extract_signature_name(code: str) -> str | None:
+    m = re.search(
+        r"^class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*dspy\\.Signature\\s*\\)\\s*:",
+        code or "",
+        re.M,
+    )
+    if m:
+        return m.group(1)
+    return None
+
+
+def _generate_via_native(
+    *,
+    prompt_for_model: str,
+    fallback_description: str,
+    class_name_hint: str,
+) -> dict[str, Any]:
+    predictor = dspy.Predict("task -> code")
+    result = predictor(task=prompt_for_model)
+    text = result.code if hasattr(result, "code") else str(result)
+    code = _extract_code_block(text)
+    sig_name = _extract_signature_name(code)
+
+    if not code or sig_name is None:
+        code = render_simple_signature(class_name_hint, fallback_description)
+        sig_name = class_name_hint
+
+    return {
+        "code": code,
+        "signature_name": sig_name,
+        "task_description": fallback_description,
+        "fields": None,
+        "reasoning": None,
+        "backend": "native",
+    }
+
+
+def _generate_signature_payload(
+    *,
+    prompt_for_model: str,
+    fallback_description: str,
+    class_name_hint: str,
+) -> dict[str, Any]:
+    ensure_vibe_on_path()
+
+    try:
+        from signature_generator import SignatureGenerator  # type: ignore
+
+        generator = SignatureGenerator()
+        raw = generator.generate_signature(prompt_for_model)
+        code = str(raw.get("code") or "")
+        sig_name = (
+            raw.get("signature_name") or _extract_signature_name(code) or ""
+        ).strip() or None
+
+        if not code or sig_name is None:
+            return _generate_via_native(
+                prompt_for_model=prompt_for_model,
+                fallback_description=fallback_description,
+                class_name_hint=class_name_hint,
+            )
+
+        return {
+            "code": code,
+            "signature_name": sig_name,
+            "task_description": raw.get("task_description") or fallback_description,
+            "fields": raw.get("fields"),
+            "reasoning": raw.get("reasoning"),
+            "backend": "vibe",
+        }
+    except Exception:
+        return _generate_via_native(
+            prompt_for_model=prompt_for_model,
+            fallback_description=fallback_description,
+            class_name_hint=class_name_hint,
+        )
 
 
 def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
-    """Generate a signature class code string from a natural-language prompt.
-
-    Accepts an optional `lm` of type LMBase to allow tests to inject a stub LM.
-    """
+    """Generate a signature class code string from a natural-language prompt."""
     load_config_env()
     enable_mlflow_from_env()
 
@@ -27,13 +111,12 @@ def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    require_vibe_on_path()
-
-    from signature_generator import SignatureGenerator  # type: ignore
-
-    generator = SignatureGenerator()
-    result = generator.generate_signature(prompt)
-    return result.get("code") or ""
+    payload = _generate_signature_payload(
+        prompt_for_model=format_signature_prompt(prompt, version="v1"),
+        fallback_description=prompt,
+        class_name_hint="GeneratedSignature",
+    )
+    return str(payload.get("code") or "")
 
 
 def run_generate_dto(
@@ -42,7 +125,7 @@ def run_generate_dto(
     """DTO-oriented variant that returns structured result.
 
     If `req.template_version` starts with 'simple', a deterministic template is used
-    (no LM calls). Otherwise, falls back to vibe-dspy generation.
+    (no LM calls). Otherwise, uses vibe-dspy when available and a native fallback.
     """
     import time as _time
 
@@ -80,7 +163,7 @@ def run_generate_dto(
             reasoning=None,
         )
 
-    # LM path (vibe-dspy)
+    # LM path (vibe-dspy if available; native fallback otherwise)
     load_config_env()
     enable_mlflow_from_env()
 
@@ -97,6 +180,7 @@ def run_generate_dto(
             "CLAUDE_TIMEOUT",
             "GEMINI_TIMEOUT",
             "OPENROUTER_TIMEOUT",
+            "DSPX_PI_TIMEOUT",
         ):
             _os.environ[name] = str(secs)
 
@@ -104,20 +188,25 @@ def run_generate_dto(
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    require_vibe_on_path()
-
-    from signature_generator import SignatureGenerator  # type: ignore
-
-    generator = SignatureGenerator()
-    prompt = format_signature_prompt(req.prompt, version=req.template_version or "v1")
-    raw = generator.generate_signature(prompt)
-    res = SignatureGenResult(
-        code=raw.get("code") or "",
-        signature_name=raw.get("signature_name"),
-        task_description=raw.get("task_description"),
-        fields=raw.get("fields"),
-        reasoning=raw.get("reasoning"),
+    class_name_hint = str(req.options.get("class_name") or "GeneratedSignature")
+    prompt_for_model = format_signature_prompt(
+        req.prompt, version=req.template_version or "v1"
     )
+    payload = _generate_signature_payload(
+        prompt_for_model=prompt_for_model,
+        fallback_description=req.prompt,
+        class_name_hint=class_name_hint,
+    )
+
+    res = SignatureGenResult(
+        code=str(payload.get("code") or ""),
+        signature_name=payload.get("signature_name"),
+        task_description=payload.get("task_description"),
+        fields=payload.get("fields"),
+        reasoning=payload.get("reasoning"),
+    )
+    backend = str(payload.get("backend") or "unknown")
+
     # Cache LM-backed result as well
     key = make_key(
         {
@@ -131,7 +220,11 @@ def run_generate_dto(
         cache_write(
             "signature",
             key,
-            {"code": res.code, "task_description": res.task_description},
+            {
+                "code": res.code,
+                "task_description": res.task_description,
+                "backend": backend,
+            },
         )
     # Optional MLflow logging (guarded)
     try:
@@ -143,6 +236,7 @@ def run_generate_dto(
                 "signature",
                 template_version=req.template_version or "v1",
                 run_name=f"signature-{res.signature_name or ''}",
+                extra={"signature.backend": backend},
             )
             from dspx.cache import sha256_text
 
@@ -151,6 +245,7 @@ def run_generate_dto(
                     {
                         "signature.prompt_len": len(req.prompt),
                         "signature.class_name": res.signature_name or "",
+                        "signature.backend": backend,
                     }
                 )
                 # Prefer log_text if available; else log_dict
@@ -164,6 +259,7 @@ def run_generate_dto(
                         "template_version": req.template_version or "v1",
                         "prompt_len": len(req.prompt),
                         "code_hash": sha256_text(res.code),
+                        "backend": backend,
                     }
                     mlflow.log_dict(manifest, "signature_manifest.json")
                 except Exception:

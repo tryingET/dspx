@@ -5,17 +5,6 @@ import sys
 from pathlib import Path
 
 
-def _repo_root(start: Path | None = None) -> Path | None:
-    cur = (start or Path(__file__).resolve()).parent
-    for _ in range(10):
-        if (cur / ".git").exists() or (cur / "pyproject.toml").exists():
-            return cur
-        if cur.parent == cur:
-            break
-        cur = cur.parent
-    return None
-
-
 def vibe_src_candidates() -> list[Path]:
     candidates: list[Path] = []
 
@@ -28,10 +17,6 @@ def vibe_src_candidates() -> list[Path]:
         candidates.append(Path(env_upstream).expanduser() / "vibe-dspy" / "src")
 
     candidates.append(Path("~/programming/upstream/vibe-dspy/src").expanduser())
-
-    root = _repo_root(Path(__file__).resolve())
-    if root is not None:
-        candidates.append(root / "submodules" / "vibe-dspy" / "src")
 
     uniq: list[Path] = []
     seen: set[str] = set()
