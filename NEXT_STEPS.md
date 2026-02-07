@@ -105,7 +105,8 @@ Next actions:
    - `just upstream-link-dspy path=...`
    - `just upstream-link-mlflow path=...`
    - `just upstream-reset`
-2. Prefer upstream PR + released version bump over long-lived local forks.
+2. Keep `vibe-dspy` + `attachments` as sibling clones under `~/programming/upstream` (not repo submodules).
+3. Prefer upstream PR + released version bump over long-lived local forks.
 
 Acceptance:
 - Upstream fixes can be developed/tested quickly.

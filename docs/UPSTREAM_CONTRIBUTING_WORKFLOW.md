@@ -1,16 +1,17 @@
 ---
-summary: "Patch DSPy/MLflow upstream from sibling clones, without adding monorepo submodules."
+summary: "Use sibling upstream clones (DSPy/MLflow/vibe-dspy/attachments) instead of adding more submodules."
 read_when:
   - "You need to debug/patch DSPy or MLflow behavior while working in dspx."
-  - "You are considering adding dspy/mlflow as git submodules in this repo."
+  - "You need to wire vibe-dspy/attachments from local upstream clones."
+  - "You are considering adding new upstream repos as git submodules in this repo."
 ---
 
 # Upstream Contribution Workflow (no new submodules)
 
 ## Decision
 
-For `dspy` and `mlflow`, prefer **sibling upstream clones + editable installs** over
-new git submodules in this repo.
+For upstream dependencies (especially `dspy`, `mlflow`, `vibe-dspy`, `attachments`),
+prefer **sibling upstream clones** over adding new git submodules in this repo.
 
 Why:
 - avoids submodule lifecycle friction (`--recurse-submodules`, detached HEADs, CI complexity)
@@ -25,6 +26,8 @@ cd ~/programming/upstream
 
 git clone https://github.com/stanfordnlp/dspy.git
 git clone https://github.com/mlflow/mlflow.git
+git clone https://github.com/Archelunch/vibe-dspy.git
+git clone https://github.com/MaximeRivest/attachments.git
 ```
 
 ## Use local upstream code in dspx
@@ -35,6 +38,24 @@ From `dspx/`:
 # swap currently installed wheel with editable upstream checkout
 uv pip install -e ~/programming/upstream/dspy
 uv pip install -e ~/programming/upstream/mlflow
+```
+
+For vibe-dspy-backed signature generation, DSPx will auto-discover:
+
+1. `DSPX_VIBE_DSPY_SRC` (explicit `.../vibe-dspy/src`)
+2. `DSPX_UPSTREAM_DIR/vibe-dspy/src` (if set)
+3. `~/programming/upstream/vibe-dspy/src` (default)
+
+Optional explicit pin:
+
+```bash
+export DSPX_VIBE_DSPY_SRC=~/programming/upstream/vibe-dspy/src
+```
+
+For attachments helpers, use `PYTHONPATH` when needed:
+
+```bash
+uv run env PYTHONPATH=~/programming/upstream/attachments/src python -c "import attachments; print('attachments ok')"
 ```
 
 Then run focused checks in `dspx`:

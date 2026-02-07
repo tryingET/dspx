@@ -40,6 +40,7 @@ Current working branch: `main`.
   - `just upstream-link-mlflow path=...`
   - `just upstream-reset`
 - Removed legacy duplicate status/roadmap docs under `docs/` to keep root files canonical.
+- Removed `vibe-dspy` and `attachments` git submodules; switched to sibling clones under `~/programming/upstream` with auto-discovery (`DSPX_VIBE_DSPY_SRC` / `DSPX_UPSTREAM_DIR`).
 
 ## Current runtime / packaging behavior
 

@@ -47,7 +47,8 @@ Files
 - `apps/forge/src/dspx_forge/`: Forge app package + CLI (`dspx-forge`).
 - `scripts/`: repo automation/guardrails (`check_monorepo_boundaries.py`, compat smoke scripts).
 - `docs/`: architecture, status, next steps, and operator guides.
-- `submodules/`: optional upstream utilities (`vibe-dspy`, `attachments`, `ovllm`, plus local upstream patching submodules).
+- `submodules/`: optional vendored upstream repos still kept as submodules (`ovllm`, `dspy`, `codex`).
+- `~/programming/upstream/`: sibling upstream clones (recommended for `vibe-dspy`, `attachments`, and patch workflows).
 
 Project Template
 ----------------
@@ -377,31 +378,31 @@ The wrapper/example currently passes:
 
 You can adjust these by editing the `CodexExecLM(...)` arguments in `packages/dspx-core/src/dspx/cli/example_predict.py`.
 
-Submodule: vibe-dspy
---------------------
-- Initialize after cloning:
+Upstream clone: vibe-dspy
+-------------------------
+- Recommended location: `~/programming/upstream/vibe-dspy`
+- Clone:
 
-  git submodule update --init --recursive
+  mkdir -p ~/programming/upstream
+  git clone https://github.com/Archelunch/vibe-dspy.git ~/programming/upstream/vibe-dspy
 
-- Pull latest upstream changes later:
+- DSPx resolves `signature_generator` in this order:
+  1. `DSPX_VIBE_DSPY_SRC` (explicit path to `.../vibe-dspy/src`)
+  2. `DSPX_UPSTREAM_DIR/vibe-dspy/src` (if `DSPX_UPSTREAM_DIR` is set)
+  3. `~/programming/upstream/vibe-dspy/src` (default)
+  4. legacy fallback `submodules/vibe-dspy/src` (if present)
 
-  git submodule update --remote --merge submodules/vibe-dspy
+Upstream clone: attachments
+---------------------------
+- Recommended location: `~/programming/upstream/attachments`
+- Clone:
 
-- Importing its code in this project (no packaging metadata in upstream):
-  - Use PYTHONPATH to point to its `src` directory when running code:
+  mkdir -p ~/programming/upstream
+  git clone https://github.com/MaximeRivest/attachments.git ~/programming/upstream/attachments
 
-  # install project console scripts
-  just install
-  just example
+- Usage/import check:
 
-  - Or set PYTHONPATH in your shell/session for convenience.
-
-Submodule: attachments
-----------------------
-- Path: `submodules/attachments`
-- Usage: library for rich prompt attachments and docs; importable by setting PYTHONPATH:
-
-  uv run env PYTHONPATH=submodules/attachments/src python -c "import attachments; print('attachments ok')"
+  uv run env PYTHONPATH=~/programming/upstream/attachments/src python -c "import attachments; print('attachments ok')"
 
 Submodule: ovllm
 -----------------
@@ -708,4 +709,5 @@ Project Layout
 - `docs/`: project docs (vision, status, next steps)
 - `examples/`: curated, versioned examples and workflows
 - `generated/`: local outputs (ignored); kept for CLI defaults
-- `submodules/`: external utilities (vibe-dspy, attachments, ovllm)
+- `submodules/`: external utilities kept as submodules (`ovllm`, `dspy`, `codex`)
+- `~/programming/upstream/`: sibling clones (`vibe-dspy`, `attachments`, and other upstream patch checkouts)

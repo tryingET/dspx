@@ -2,8 +2,6 @@ from __future__ import annotations
 
 
 import dspy
-import sys
-from pathlib import Path
 from typing import Optional
 
 from dspx.config_loader import load_config_env
@@ -13,6 +11,7 @@ from dspx.lm_base import LMBase
 from dspx.dtos import SignatureGenRequest, SignatureGenResult
 from dspx.templates import render_simple_signature, format_signature_prompt
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
+from dspx.upstream_paths import require_vibe_on_path
 import os as _os
 
 
@@ -28,23 +27,7 @@ def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    # Ensure vibe-dspy is importable
-    # Find repo root by walking up until 'submodules' or '.git' is found
-    cur = Path(__file__).resolve().parent
-    root = None
-    for _ in range(6):
-        if (
-            (cur / "submodules").exists()
-            or (cur / ".git").exists()
-            or (cur.parent == cur)
-        ):
-            root = cur
-            break
-        cur = cur.parent
-    root = root or Path(__file__).resolve().parents[3]
-    vibe_src = root / "submodules" / "vibe-dspy" / "src"
-    if vibe_src.is_dir() and str(vibe_src) not in sys.path:
-        sys.path.insert(0, str(vibe_src))
+    require_vibe_on_path()
 
     from signature_generator import SignatureGenerator  # type: ignore
 
@@ -121,22 +104,7 @@ def run_generate_dto(
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    # Ensure vibe-dspy is importable (same as run_generate)
-    cur = Path(__file__).resolve().parent
-    root = None
-    for _ in range(6):
-        if (
-            (cur / "submodules").exists()
-            or (cur / ".git").exists()
-            or (cur.parent == cur)
-        ):
-            root = cur
-            break
-        cur = cur.parent
-    root = root or Path(__file__).resolve().parents[3]
-    vibe_src = root / "submodules" / "vibe-dspy" / "src"
-    if vibe_src.is_dir() and str(vibe_src) not in sys.path:
-        sys.path.insert(0, str(vibe_src))
+    require_vibe_on_path()
 
     from signature_generator import SignatureGenerator  # type: ignore
 
