@@ -222,25 +222,91 @@ codex-gepa-timed program train out val="" output_key="" auto="light" max_metric_
 build:
   uv build --all-packages
 
-# Publish to PyPI (requires PYPI_TOKEN)
+# Build distributables for core package only
+build-core:
+  uv build --package dspx-core
+
+# Build distributables for forge package only
+build-forge:
+  uv build --package dspx-forge
+
+# Publish all artifacts in dist/ to PyPI (requires PYPI_TOKEN)
 publish:
   if [ -z "${PYPI_TOKEN:-}" ]; then echo "PYPI_TOKEN not set"; exit 1; fi
   uv publish --token "$PYPI_TOKEN"
 
-# Set workspace package versions in package pyproject.toml files
+# Publish core artifacts only (requires PYPI_TOKEN)
+publish-core:
+  if [ -z "${PYPI_TOKEN:-}" ]; then echo "PYPI_TOKEN not set"; exit 1; fi
+  if ! ls dist/dspx_core-* >/dev/null 2>&1; then echo "no core artifacts in dist/ (run just build-core)"; exit 1; fi
+  uv publish --token "$PYPI_TOKEN" dist/dspx_core-*
+
+# Publish forge artifacts only (requires PYPI_TOKEN)
+publish-forge:
+  if [ -z "${PYPI_TOKEN:-}" ]; then echo "PYPI_TOKEN not set"; exit 1; fi
+  if ! ls dist/dspx_forge-* >/dev/null 2>&1; then echo "no forge artifacts in dist/ (run just build-forge)"; exit 1; fi
+  uv publish --token "$PYPI_TOKEN" dist/dspx_forge-*
+
+# Set core package version in package pyproject.toml
+version-core new="":
+  if [ -z "{{new}}" ]; then echo "usage: just version-core new=1.2.3"; exit 1; fi
+  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i packages/dspx-core/pyproject.toml
+  echo "set dspx-core version to {{new}}"
+
+# Set forge package version in package pyproject.toml
+version-forge new="":
+  if [ -z "{{new}}" ]; then echo "usage: just version-forge new=1.2.3"; exit 1; fi
+  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i apps/forge/pyproject.toml
+  echo "set dspx-forge version to {{new}}"
+
+# Set both package versions (legacy coupled helper)
 version new="":
   if [ -z "{{new}}" ]; then echo "usage: just version new=1.2.3"; exit 1; fi
-  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i packages/dspx-core/pyproject.toml
-  NEW="{{new}}" perl -0777 -pe 's/^(version\s*=\s*")[^"]+(\")/$1$ENV{NEW}$2/m' -i apps/forge/pyproject.toml
+  just version-core new={{new}}
+  just version-forge new={{new}}
   echo "set dspx-core + dspx-forge versions to {{new}}"
 
-# Tag the current commit as a release version
+# Tag the current commit for a core release
+tag-core v="":
+  if [ -z "{{v}}" ]; then echo "usage: just tag-core v=1.2.3"; exit 1; fi
+  git tag "dspx-core-v{{v}}"
+  echo "created tag dspx-core-v{{v}}"
+
+# Tag the current commit for a forge release
+tag-forge v="":
+  if [ -z "{{v}}" ]; then echo "usage: just tag-forge v=1.2.3"; exit 1; fi
+  git tag "dspx-forge-v{{v}}"
+  echo "created tag dspx-forge-v{{v}}"
+
+# Tag the current commit as a generic release version (legacy helper)
 tag v="":
   if [ -z "{{v}}" ]; then echo "usage: just tag v=v1.2.3"; exit 1; fi
   git tag "{{v}}"
   echo "created tag {{v}}"
 
-# One-shot release helper: fmt, lint, test, build
+# One-shot helper for core package release prep
+release-core new="":
+  if [ -z "{{new}}" ]; then echo "usage: just release-core new=1.2.3"; exit 1; fi
+  just monorepo-check
+  just lint-core
+  just typecheck-core
+  just test-core
+  just version-core new={{new}}
+  just build-core
+  echo "Now: just tag-core v={{new}} && just publish-core (requires PYPI_TOKEN)"
+
+# One-shot helper for forge package release prep
+release-forge new="":
+  if [ -z "{{new}}" ]; then echo "usage: just release-forge new=1.2.3"; exit 1; fi
+  just monorepo-check
+  just lint-forge
+  just typecheck-forge
+  just test-forge
+  just version-forge new={{new}}
+  just build-forge
+  echo "Now: just tag-forge v={{new}} && just publish-forge (requires PYPI_TOKEN)"
+
+# One-shot release helper for coupled versioning (legacy)
 release new="":
   if [ -z "{{new}}" ]; then echo "usage: just release new=1.2.3"; exit 1; fi
   just fmt
