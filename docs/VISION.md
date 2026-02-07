@@ -12,7 +12,7 @@ Why this exists
 ---------------
 We want a durable, composable stack for LM-driven programming that: (a) treats the LM as a pluggable runtime (providers/capabilities), (b) exposes high‑leverage services (signatures, refine, codegen, workflows, agents), (c) is safe, observable, and reproducible, and (d) is easy to extend via plugins (providers/tools/generators).
 
-Current emphasis: **CLI-first toolkit** (prove workflows + contracts in real use) → then **platform/plugins** (Phase 10) once the core is battle-tested.
+Current emphasis: **core-first Unix-style toolkit** (Signatures, Modules, Optimization, replay/explain) with apps as optional consumers of the core.
 
 Current vs Target (matrix)
 --------------------------
@@ -21,11 +21,18 @@ Current vs Target (matrix)
 | Providers | Codex/Claude/Gemini/OpenRouter/PiRPC/Multi are available in the registry. | Provider-first runtime with plugin discovery and explicit capability contracts. | Add entry-point plugin loading and a provider capability/health probe report. |
 | CLI surface | Unified `dspx` exists; legacy forwarders still work. | Single stable CLI surface with versioned command contracts. | Publish a forwarder deprecation plan and centralize command help/examples. |
 | Server | FastAPI MVP (`/signature`, `/module`, `/mermaid`) with auth/rate-limit/metrics toggles. | Full service API with consistent policy semantics and broader endpoint coverage. | Add descriptor/tool endpoints and a production deployment profile doc. |
-| Forge | Issues-first flow is present with dry-run defaults and apply gates. | End-to-end backlog compiler with idempotent multi-project apply + evidence packs. | Harden overlap/audit outputs and add golden end-to-end forge tests. |
+| Apps (Forge first) | Forge is implemented in-repo today as one product workflow on top of shared services. | Multi-app monorepo where Forge is optional and isolated from core runtime concerns. | Move Forge under an app boundary (`apps/forge`) and enforce one-way dependency on core contracts. |
 | Policy/Safety | Env/CLI policy gates, mutation confirmations, host allowlists are in place. | Capability-default policy model with explicit auditability across CLI/server/Forge. | Define/enforce canonical defaults in `docs/POLICY_DEFAULTS.md`. |
 | Plugins | Internal registries exist; external plugin loading is not wired. | Entry-point plugins for providers/tools/generators with compatibility checks. | Implement plugin discovery + ship one minimal example plugin. |
-| Observability | MLflow tags/artifacts/metrics are present; nested runs are partial. | Unified workflow→service→tool traces with policy decision events. | Expand nested runs beyond Mermaid sig-per-node and add policy event schema. |
-| Reproducibility | Content-hash cache + manifests/meta for generated artifacts. | Deterministic replay and reproducibility reports from stored run manifests. | Add manifest replay CLI and cache provenance checks in CI. |
+| Observability | MLflow tags/artifacts/metrics are present; nested runs are partial. | Explainability via unified workflow→service→tool traces with policy decision events. | Expand nested runs beyond Mermaid sig-per-node and add a stable policy-event schema. |
+| Reproducibility | Content-hash cache + manifests/meta for generated artifacts. | Deterministic replay driven by run receipts/manifests (independent of MLflow availability). | Define run-receipt schema + add `dspx run replay` and cache provenance checks in CI. |
+
+Core and app boundaries (target repo shape)
+-------------------------------------------
+- Core (`packages/dspx-core`) is the product: provider/runtime abstraction, Signatures/Modules/Optimize services, policy engine, receipts for replay/explain.
+- Apps (`apps/*`) are optional consumers: Forge is first, but not architecture-defining for core.
+- Dependency rule: apps depend on core; core never depends on app code.
+- Release rule: core contracts are semver-stable; apps can iterate faster behind those contracts.
 
 First principles
 ----------------
@@ -33,8 +40,8 @@ First principles
 - Providers are interchangeable: a tiny LMBase interface with capabilities (json, code_exec, tools, multi_turn).
 - Orchestration lives in services: CLIs are thin; services compose providers/tools/DSLs (e.g., Mermaid).
 - Safety and policy by default: allowlists, budgets, and permission gates for tool‑calling and network access.
-- Observability as a feature: MLflow logs for inputs, outputs, decisions, artifacts, and cost/time budgets.
-- Reproducibility: content‑hash inputs + options; write run metadata next to artifacts; support caching.
+- Observability as a feature: MLflow is the default explainability sink for inputs, outputs, decisions, artifacts, and cost/time budgets.
+- Reproducibility: run receipts/manifests are the replay source of truth; replay must work with `MLFLOW_ENABLE=0`.
 - Extensibility: register providers/tools/plugins with capabilities; version contracts (DTOs v1, v2…).
 
 Layers
@@ -68,6 +75,9 @@ Layers
 
 - Storage/Artifacts
   - Filesystem for generated/*.py; SQL/MLflow for traces and structured outcomes.
+
+- App Layer (optional)
+  - Forge and future apps consume core contracts without changing core runtime boundaries.
 
 DSPy Pillars Alignment
 ----------------------
@@ -211,7 +221,8 @@ Security, policy, safety
 
 Observability, reproducibility, and performance
 ----------------------------------------------
-- MLflow: record inputs/options/artifacts; set tags (provider, model, cost); attach previews.
+- MLflow (explainability): record inputs/options/artifacts; set tags (provider, model, cost); attach previews.
+- Run receipts (replay): persist manifest/meta/inputs so runs can be replayed without MLflow.
 - Caching: content hash of inputs + options; artifact reuse; negative caching for failures.
 - Budgets: per‑service time/cost caps with graceful degradation and logs.
 
@@ -226,6 +237,7 @@ Implementation Plan (phased)
 
 Phase 0 — Stabilize & Document
 - Align docs and diagrams; build/tests green (<3s local). Deliver README, VISION (this), ARCHITECTURE, OPENAPI_TOOLING.
+- Establish monorepo package boundaries (`packages/dspx-core`, `apps/*`) with one-way dependency rules.
 
 Phase 1 — Contracts & Abstractions
 - Introduce LMBase + ProviderCapabilities; add DTOs (v1) including Modules/Programs; add StubLM. Unit tests run with no external providers.
@@ -331,4 +343,5 @@ Current state
 -------------
 - Codex/Claude/Gemini/PiRPC providers + vibe‑dspy adapters work; MLflow tracing + config are in place.
 - Mermaid variants and signature‑per‑node flows generate runnable programs.
+- Replay/explain split is explicit: MLflow covers explainability; replay remains manifest/receipt-driven and is being elevated to first-class CLI UX.
 - Next steps are additive; back‑compat maintained via forwarders while unifying CLI.

@@ -31,6 +31,10 @@ read_when:
 3) Absence of `MLFLOW_TRACKING_URI` should be safe:
    - use MLflow’s local file store behavior (no HTTP) unless user opts into HTTP by setting a URI
 
+4) Replay must remain MLflow-independent:
+   - manifests/receipts/meta files are canonical for replay
+   - MLflow is a diagnostic/observability sink, not execution truth
+
 ## Current failure mode (why tests/CI can stall)
 
 - Some CLI paths called `mlflow.log_*` even when `MLFLOW_ENABLE=0`.

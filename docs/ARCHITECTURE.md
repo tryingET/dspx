@@ -95,6 +95,15 @@ graph TD
 
   Tracing --> MLflow
 ```
+
+Core vs App Boundary (monorepo target)
+--------------------------------------
+
+- Core package (`packages/dspx-core`) owns provider/runtime contracts, policy, replay/explain receipts, and generation/optimization services.
+- Apps (`apps/*`) are optional product surfaces (Forge first) that consume core APIs.
+- Dependency direction is strict: `apps/* -> packages/dspx-core`; never reverse.
+- Data rule: receipts/manifests are canonical for replay; MLflow is an optional observability sink for explainability.
+
 2) Unified CLI Map
 ------------------
 
@@ -103,6 +112,9 @@ graph LR
   DSPX["dspx"] --> Sig["signature"]
   Sig --> SigGen["gen"]
   Sig --> SigRef["refine"]
+  DSPX --> Mod["module-gen"]
+  DSPX --> Opt["optimize"]
+  DSPX --> Run["run (replay/explain; planned first-class UX)"]
   DSPX --> Mermaid["mermaid"]
   Mermaid --> MGen["gen"]
   Mermaid --> MSig["sig"]
@@ -110,6 +122,7 @@ graph LR
   DSPX --> Agent["agent"]
   DSPX --> Tools["tools"]
   DSPX --> Prov["providers"]
+  DSPX --> Forge["forge (optional app namespace)"]
 ```
 
 3) Signature Generation Sequence
@@ -264,3 +277,30 @@ This distinction matters for reliability and policy:
 | PiRPC (`pi-rpc`) | Persistent RPC subprocess (`pi --mode rpc`) | One-time warm start; low steady-state per call | Per-request timeout plus transport-level timeout guards | Restart subprocess on broken pipe/hang; retries after restart are explicit | Capability checks, pi safety env defaults (`DSPX_PI_NO_TOOLS`, etc.) | RPC desync, transport timeout, subprocess crash, stale session state |
 | OpenRouter (`openrouter`) | HTTP API (OpenAI-compatible) | Low (no local process startup) | HTTP client timeout (connect/read/write) per request | Retry/backoff at caller policy; no local process restart | `network.read` / `network.mutate`, method allow/deny, host allowlist | 401/403 auth, 429 throttling, 5xx upstream errors, schema mismatch |
 | Multi (`multi`) | Composite orchestrator over child providers | Depends on strategy (`sequential_first` sums, `parallel_first` overlaps) | Child provider timeouts + strategy-level completion policy | Delegates retry/restart to children; optional early-abort on validation | Aggregated policy knobs (`policy_bypass`, allowed/disallowed tools), isolation mode controls | Partial child failures, nondeterministic winner timing, uncancellable background CLI work |
+
+9) Replay vs Explain (data model)
+---------------------------------
+
+| Concern | Primary source of truth | Role of MLflow | Expected behavior when `MLFLOW_ENABLE=0` |
+| --- | --- | --- | --- |
+| Replay (reproducibility) | Run receipts/manifests/meta + cached artifacts | Optional mirror/index only | Replay still works from local artifacts/metadata |
+| Explain (observability) | Runtime events, tags, metrics, artifacts | Primary UI/sink for traces and diagnostics | No MLflow calls; core output still produced |
+
+Principle:
+- Replay must not depend on MLflow internals or availability.
+- MLflow should enrich explainability, not gate execution correctness.
+
+10) Monorepo Package Topology (proposed)
+----------------------------------------
+
+| Path | Role | Must depend on | Must not depend on |
+| --- | --- | --- | --- |
+| `packages/dspx-core` | Canonical toolkit kernel (providers, tools, policy, signatures/modules/optimize, receipts) | Third-party libs only | `apps/*` |
+| `packages/dspx-server` (optional split) | HTTP/API delivery surface over core services | `packages/dspx-core` | `apps/*` |
+| `apps/forge` | Product workflow (backlog compiler / issue automation) | `packages/dspx-core` (+ forge-specific deps) | Any core-internal private module API |
+| `apps/*` (future) | Additional products (run explorer, eval studio, etc.) | `packages/dspx-core` | Other app internals by default |
+
+Guardrails:
+- Keep core release criteria independent from app release cadence.
+- Keep mutating product workflows out of core command critical path.
+- Add contract tests so app upgrades validate against released core APIs.

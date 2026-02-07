@@ -647,6 +647,7 @@ What gets logged
 - DSPy predictions and steps (inputs/outputs, LM config, tools) appear under the selected experiment's Traces tab in the MLflow UI.
 - This repo enables autologging automatically when `MLFLOW_ENABLE` is truthy, using settings from `MLFLOW_TRACKING_URI` and `MLFLOW_EXPERIMENT`.
 - If `MLFLOW_ENABLE=0`, DSPx will not import or call MLflow (CI-safe: no accidental tracking-server HTTP retries).
+- Replay/reproducibility should rely on local manifests/meta/cache artifacts; MLflow is the explainability sink, not the replay source of truth.
 
 - Non-interactive runs: `auto_mode=True` adds `--full-auto` to avoid prompts.
 - Extra flags: pass `extra_flags=["--json"]` or others in `CodexExecLM(...)`.
