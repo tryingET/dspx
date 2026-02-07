@@ -153,6 +153,14 @@ sequenceDiagram
   CLI-->>U: print or write signature code
 ```
 
+Current native internals (spec-first path):
+- provider-capability-aware prompt strategy (JSON-mode vs non-JSON-mode providers),
+- stage A: model emits structured signature schema,
+- stage B: deterministic renderer emits Python class code,
+- validation + smoke checks + scoring,
+- bounded retries with best-candidate selection,
+- deterministic template fallback when validation fails.
+
 4) Plugin & Extension Points
 ----------------------------
 

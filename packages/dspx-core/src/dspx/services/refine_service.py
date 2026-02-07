@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
-
-import dspy
+from typing import Optional, cast
 
 from dspx.config_loader import load_config_env
+from dspx.dtos import SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.provider_registry import create_from_env, ensure_default_providers
-from dspx.templates import format_signature_prompt, render_simple_signature
+from dspx.services.signatures_service import run_generate_dto
 from dspx.tracing import enable_mlflow_from_env
 
 
@@ -51,26 +51,63 @@ def _extract_sig_class_name(code: str) -> str | None:
     return None
 
 
-def _extract_code_block(text: str) -> str:
-    import re
+@dataclass
+class _RefinementMemory:
+    base_prompt: str
+    constraints: list[str] = field(default_factory=list)
+    feedback_history: list[str] = field(default_factory=list)
 
-    m = re.search(r"```[\w+-]*\n([\s\S]*?)\n```", text or "", re.M)
-    if m:
-        return m.group(1).strip()
-    return (text or "").strip()
+    def add_feedback(self, text: str) -> None:
+        t = (text or "").strip()
+        if not t:
+            return
+        self.feedback_history.append(t)
+
+    def build_prompt(self) -> str:
+        task = (self.base_prompt or "").strip()
+        parts = [task]
+        if self.constraints:
+            parts.append(
+                "Constraints:\n"
+                + "\n".join(
+                    f"- {c.strip()}" for c in self.constraints if c and c.strip()
+                )
+            )
+        if self.feedback_history:
+            parts.append(
+                "Refinement feedback history:\n"
+                + "\n".join(
+                    f"- {f.strip()}" for f in self.feedback_history if f and f.strip()
+                )
+            )
+        return "\n\n".join([p for p in parts if p]).strip()
 
 
 def _native_generate_signature(
-    prompt: str, *, class_name: str = "GeneratedSignature"
+    prompt: str,
+    *,
+    class_name: str = "GeneratedSignature",
+    attempts: int = 1,
+    constraints: list[str] | None = None,
+    feedback: list[str] | None = None,
+    lm: Optional[LMBase] = None,
 ) -> str:
-    predictor = dspy.Predict("task -> code")
-    model_prompt = format_signature_prompt(prompt, version="v1")
-    result = predictor(task=model_prompt)
-    text = result.code if hasattr(result, "code") else str(result)
-    code = _extract_code_block(text)
-    if not code or _extract_sig_class_name(code) is None:
-        code = render_simple_signature(class_name, prompt)
-    return code
+    options: dict[str, object] = {
+        "class_name": class_name,
+        "max_attempts": max(1, int(attempts)),
+    }
+    if constraints:
+        options["constraints"] = list(constraints)
+    if feedback:
+        options["feedback"] = list(feedback)
+
+    req = SignatureGenRequest(
+        prompt=prompt,
+        template_version="v1",
+        options=options,
+    )
+    res = run_generate_dto(req, lm=lm)
+    return res.code
 
 
 def run_refine(
@@ -89,8 +126,7 @@ def run_refine(
     enable_mlflow_from_env()
 
     ensure_default_providers()
-    active_lm = lm or create_from_env()
-    dspy.configure(lm=active_lm)
+    active_lm = cast(Optional[LMBase], lm or create_from_env())
 
     t0 = time.time()
     budget_ms_env = os.getenv("DSPX_BUDGET_SIGNATURE_MS")
@@ -98,7 +134,7 @@ def run_refine(
         int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
     )
     backend = "native"
-    mode = "refine-native"
+    mode = "refine"
     template_version = "refine-v1"
 
     # Start MLflow run early so DSPy autolog (if enabled) can attach to it.
@@ -119,22 +155,41 @@ def run_refine(
         mlflow = None
         started_run = False
 
+    memory = _RefinementMemory(base_prompt=prompt)
     code = ""
-    current_prompt = prompt
-    for idx in range(max(1, int(attempts))):
-        code = _native_generate_signature(current_prompt)
-        if non_interactive:
-            break
-        ans = input("Accept signature? [y/N]: ").strip().lower()
-        if ans in {"y", "yes"}:
-            break
-        if idx == max(1, int(attempts)) - 1:
-            break
-        feedback = (
-            input("Feedback (leave empty for generic): ").strip()
-            or "Please improve the signature."
+    rounds = 0
+
+    if non_interactive:
+        rounds = 1
+        code = _native_generate_signature(
+            memory.build_prompt(),
+            class_name="GeneratedSignature",
+            attempts=max(1, int(attempts)),
+            constraints=memory.constraints,
+            feedback=memory.feedback_history,
+            lm=active_lm,
         )
-        current_prompt = f"{prompt.strip()}\n\nRefinement feedback:\n{feedback.strip()}"
+    else:
+        for idx in range(max(1, int(attempts))):
+            rounds += 1
+            code = _native_generate_signature(
+                memory.build_prompt(),
+                class_name="GeneratedSignature",
+                attempts=1,
+                constraints=memory.constraints,
+                feedback=memory.feedback_history,
+                lm=active_lm,
+            )
+            ans = input("Accept signature? [y/N]: ").strip().lower()
+            if ans in {"y", "yes"}:
+                break
+            if idx == max(1, int(attempts)) - 1:
+                break
+            feedback = (
+                input("Feedback (leave empty for generic): ").strip()
+                or "Please improve the signature while preserving prior constraints."
+            )
+            memory.add_feedback(feedback)
 
     if wrap_script:
         code = _wrap_script(code)
@@ -158,6 +213,8 @@ def run_refine(
                     "backend": backend,
                     "attempts": int(attempts),
                     "non_interactive": bool(non_interactive),
+                    "feedback": list(memory.feedback_history),
+                    "constraints": list(memory.constraints),
                 }
             )
             cfile = cache_dir() / "signature" / f"{cache_key}.json"
@@ -172,6 +229,9 @@ def run_refine(
                 "backend": backend,
                 "attempts": int(attempts),
                 "non_interactive": bool(non_interactive),
+                "feedback_count": len(memory.feedback_history),
+                "constraint_count": len(memory.constraints),
+                "rounds": rounds,
             }
             (out_path.parent / (out_path.name + ".meta.json")).write_text(
                 __import__("json").dumps(meta, ensure_ascii=False, indent=2) + "\n",
@@ -194,6 +254,9 @@ def run_refine(
                             "signature.wrap_script": bool(wrap_script),
                             "signature.class_name": cls or "",
                             "signature.prompt_len": len(prompt or ""),
+                            "signature.feedback_count": len(memory.feedback_history),
+                            "signature.constraint_count": len(memory.constraints),
+                            "signature.rounds": rounds,
                         }
                     )
                 except Exception:

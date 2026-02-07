@@ -18,6 +18,7 @@ Canonical docs map
 - Forge design + commands: `docs/FORGE.md`
 - Server runtime/security: `docs/SERVER.md`
 - OpenAPI tooling: `docs/OPENAPI_TOOLING.md`
+- Native signature pipeline: `docs/SIGNATURE_NATIVE_PIPELINE.md`
 - Policy defaults matrix: `docs/POLICY_DEFAULTS.md`
 - Upstream contribution workflow (DSPy/MLflow): `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`
 - ADR index (decisions): `docs/adr/README.md`
@@ -380,6 +381,10 @@ You can adjust these by editing the `CodexExecLM(...)` arguments in `packages/ds
 Native signature generation
 ---------------------------
 - DSPx signature generation/refinement no longer depends on external `vibe-dspy` code.
+- Native generation is now **spec-first** (structured schema → deterministic code rendering), with fallback to deterministic templates when needed.
+- Generation is provider-capability-aware (`json_mode` vs non-JSON providers) and supports bounded retries (`DSPX_SIGNATURE_MAX_ATTEMPTS`).
+- Generated signatures run through validation gates (AST/compile/structure/smoke checks) before final selection.
+- Refinement keeps structured feedback memory instead of raw prompt sprawl.
 - `vibegen` / `viberefine` CLI command names are kept for continuity, but use native DSPx implementation.
 
 Upstream clone: attachments

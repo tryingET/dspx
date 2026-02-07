@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import ast
+import json
 import os as _os
 import re
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any, Optional
 
 import dspy
 
@@ -10,9 +13,29 @@ from dspx.cache import cache_enabled, make_key, read as cache_read, write as cac
 from dspx.config_loader import load_config_env
 from dspx.dtos import SignatureGenRequest, SignatureGenResult
 from dspx.lm_base import LMBase
-from dspx.provider_registry import create_from_env, ensure_default_providers
-from dspx.templates import format_signature_prompt, render_simple_signature
+from dspx.provider_registry import (
+    capabilities as provider_capabilities,
+    create_from_env,
+    ensure_default_providers,
+)
+from dspx.templates import (
+    format_signature_spec_prompt,
+    render_signature_from_spec,
+    render_simple_signature,
+)
 from dspx.tracing import enable_mlflow_from_env
+
+
+@dataclass
+class _SignatureCandidate:
+    attempt: int
+    source: str
+    raw_text: str
+    code: str
+    signature_name: str | None
+    score: float
+    valid: bool
+    errors: list[str]
 
 
 def _extract_code_block(text: str) -> str:
@@ -34,27 +57,554 @@ def _extract_signature_name(code: str) -> str | None:
     return None
 
 
+def _extract_json_blob(text: str) -> str | None:
+    src = (text or "").strip()
+    if not src:
+        return None
+
+    # 1) fenced json block
+    m = re.search(r"```json\s*\n([\s\S]*?)\n```", src, re.I)
+    if m:
+        return m.group(1).strip()
+
+    # 2) generic fence body
+    m = re.search(r"```[\w+-]*\s*\n([\s\S]*?)\n```", src)
+    if m:
+        body = m.group(1).strip()
+        if body.startswith("{") and body.endswith("}"):
+            return body
+
+    # 3) raw json-ish body
+    if src.startswith("{") and src.endswith("}"):
+        return src
+
+    # 4) heuristic: first brace to last brace
+    i = src.find("{")
+    j = src.rfind("}")
+    if i >= 0 and j > i:
+        return src[i : j + 1].strip()
+
+    return None
+
+
+def _sanitize_identifier(name: str, default: str, *, class_name: bool = False) -> str:
+    cleaned = re.sub(r"\W+", "_", (name or "").strip())
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    if not cleaned:
+        cleaned = default
+    if cleaned and cleaned[0].isdigit():
+        cleaned = f"_{cleaned}"
+    if class_name:
+        parts = [p for p in cleaned.split("_") if p]
+        cleaned = "".join(p[:1].upper() + p[1:] for p in parts) or default
+    return cleaned
+
+
+def _sanitize_type_hint(type_hint: str | None) -> str:
+    t = (type_hint or "str").strip()
+    if not t:
+        return "str"
+
+    if t.startswith("Optional[") and t.endswith("]"):
+        inner = _sanitize_type_hint(t[len("Optional[") : -1])
+        return f"Optional[{inner}]"
+
+    if t.startswith("Literal[") and t.endswith("]"):
+        body = t[len("Literal[") : -1].strip()
+        vals = re.findall(r"'([^']+)'|\"([^\"]+)\"", body)
+        flat = [a or b for a, b in vals if (a or b)]
+        if not flat:
+            return "str"
+        encoded = ", ".join(repr(v) for v in flat)
+        return f"Literal[{encoded}]"
+
+    if t.startswith("list[") and t.endswith("]"):
+        inner = _sanitize_type_hint(t[len("list[") : -1])
+        return f"list[{inner}]"
+
+    if t.startswith("dict[") and t.endswith("]"):
+        return "dict[str, Any]"
+
+    if t in {"str", "int", "float", "bool", "Any"}:
+        return t
+
+    return "str"
+
+
+def _force_class_name(code: str, expected: str) -> str:
+    src = code or ""
+    m = re.search(
+        r"^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*dspy\.Signature\s*\)\s*:",
+        src,
+        re.M,
+    )
+    if not m:
+        return src
+    current = m.group(1)
+    if current == expected:
+        return src
+    return src.replace(
+        f"class {current}(dspy.Signature):", f"class {expected}(dspy.Signature):", 1
+    )
+
+
+def _normalize_field_entry(
+    raw: Any,
+    *,
+    role: str,
+    index: int,
+    default_prefix: str,
+) -> dict[str, str]:
+    if isinstance(raw, str):
+        name = _sanitize_identifier(raw, f"{default_prefix}_{index}")
+        return {
+            "name": name,
+            "type": "str",
+            "desc": f"{name.replace('_', ' ')} ({role})",
+        }
+
+    if not isinstance(raw, dict):
+        name = f"{default_prefix}_{index}"
+        return {
+            "name": name,
+            "type": "str",
+            "desc": f"{name.replace('_', ' ')} ({role})",
+        }
+
+    name_raw = str(raw.get("name") or raw.get("field") or f"{default_prefix}_{index}")
+    name = _sanitize_identifier(name_raw, f"{default_prefix}_{index}")
+    desc = str(raw.get("desc") or raw.get("description") or "").strip()
+    if not desc:
+        desc = f"{name.replace('_', ' ')} ({role})"
+
+    return {
+        "name": name,
+        "type": _sanitize_type_hint(str(raw.get("type") or "str")),
+        "desc": desc,
+    }
+
+
+def _dedupe_fields(fields: list[dict[str, str]]) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for f in fields:
+        name = f.get("name") or "field"
+        if name not in seen:
+            seen.add(name)
+            out.append(f)
+            continue
+        suffix = 2
+        while f"{name}_{suffix}" in seen:
+            suffix += 1
+        cloned = dict(f)
+        cloned["name"] = f"{name}_{suffix}"
+        seen.add(cloned["name"])
+        out.append(cloned)
+    return out
+
+
+def _normalize_signature_spec(
+    raw: dict[str, Any],
+    *,
+    class_name_hint: str,
+    fallback_description: str,
+    enforce_class_name: bool,
+) -> dict[str, Any]:
+    raw_name = str(raw.get("class_name") or raw.get("name") or class_name_hint)
+    class_name = _sanitize_identifier(
+        class_name_hint if enforce_class_name else raw_name,
+        class_name_hint,
+        class_name=True,
+    )
+
+    description = str(
+        raw.get("description") or raw.get("docstring") or fallback_description or ""
+    ).strip()
+    if not description:
+        description = "Auto-generated Signature"
+
+    inputs_raw = raw.get("inputs") or raw.get("input_fields") or []
+    outputs_raw = raw.get("outputs") or raw.get("output_fields") or []
+
+    # compatibility: single fields list with role tags
+    if not inputs_raw and not outputs_raw and isinstance(raw.get("fields"), list):
+        in_acc: list[Any] = []
+        out_acc: list[Any] = []
+        for item in raw.get("fields") or []:
+            if (
+                isinstance(item, dict)
+                and str(item.get("role") or "").lower() == "output"
+            ):
+                out_acc.append(item)
+            else:
+                in_acc.append(item)
+        inputs_raw = in_acc
+        outputs_raw = out_acc
+
+    inputs = [
+        _normalize_field_entry(it, role="input", index=i + 1, default_prefix="context")
+        for i, it in enumerate(inputs_raw if isinstance(inputs_raw, list) else [])
+    ]
+    outputs = [
+        _normalize_field_entry(it, role="output", index=i + 1, default_prefix="output")
+        for i, it in enumerate(outputs_raw if isinstance(outputs_raw, list) else [])
+    ]
+
+    inputs = _dedupe_fields(inputs)
+    outputs = _dedupe_fields(outputs)
+
+    if not inputs:
+        inputs = [
+            {
+                "name": "context",
+                "type": "str",
+                "desc": "Upstream context for this step",
+            }
+        ]
+    if not outputs:
+        outputs = [
+            {
+                "name": "output",
+                "type": "str",
+                "desc": "Result of this step",
+            }
+        ]
+
+    return {
+        "class_name": class_name,
+        "description": description,
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+
+
+def _parse_signature_spec(raw_text: str) -> dict[str, Any] | None:
+    blob = _extract_json_blob(raw_text)
+    if not blob:
+        return None
+    try:
+        data = json.loads(blob)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def build_signature_strategy_prompt(
+    prompt: str,
+    *,
+    class_name_hint: str,
+    template_version: str,
+    json_mode: bool,
+    constraints: list[str] | None = None,
+    feedback: list[str] | None = None,
+) -> str:
+    version = "spec-v1"
+    if template_version and template_version.startswith("spec-"):
+        version = template_version
+    return format_signature_spec_prompt(
+        prompt,
+        class_name_hint=class_name_hint,
+        version=version,
+        json_mode=json_mode,
+        constraints=constraints,
+        feedback=feedback,
+    )
+
+
+def validate_signature_code(
+    code: str,
+    *,
+    expected_class_name: str | None = None,
+) -> tuple[bool, list[str]]:
+    errors: list[str] = []
+    src = (code or "").strip()
+    if not src:
+        return False, ["empty_code"]
+
+    try:
+        tree = ast.parse(src)
+    except SyntaxError as e:
+        return False, [f"syntax_error:{e.msg}"]
+
+    sig_classes: list[str] = []
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        for base in node.bases:
+            if isinstance(base, ast.Attribute) and base.attr == "Signature":
+                sig_classes.append(node.name)
+                break
+            if isinstance(base, ast.Name) and base.id == "Signature":
+                sig_classes.append(node.name)
+                break
+
+    if not sig_classes:
+        errors.append("missing_signature_class")
+
+    if expected_class_name and expected_class_name not in sig_classes:
+        errors.append(f"expected_class_missing:{expected_class_name}")
+
+    if "InputField" not in src:
+        errors.append("missing_input_field")
+    if "OutputField" not in src:
+        errors.append("missing_output_field")
+
+    try:
+        compile(tree, "<generated_signature>", "exec")
+    except Exception as e:
+        errors.append(f"compile_error:{e}")
+
+    return (len(errors) == 0), errors
+
+
+def _smoke_signature_code(
+    code: str,
+    *,
+    expected_class_name: str | None = None,
+) -> tuple[bool, list[str]]:
+    errs: list[str] = []
+    ns: dict[str, Any] = {}
+    try:
+        exec(code, ns, ns)
+    except Exception as e:
+        return False, [f"exec_error:{e}"]
+
+    name = expected_class_name or _extract_signature_name(code)
+    if not name:
+        return False, ["class_name_unknown"]
+
+    cls = ns.get(name)
+    if not isinstance(cls, type):
+        return False, [f"class_not_found:{name}"]
+
+    try:
+        if not issubclass(cls, dspy.Signature):
+            errs.append("class_not_dspy_signature")
+    except Exception:
+        errs.append("class_not_dspy_signature")
+
+    return (len(errs) == 0), errs
+
+
+def score_signature_code(
+    code: str,
+    *,
+    expected_class_name: str | None = None,
+) -> float:
+    score = 0.0
+
+    ok_ast, ast_errors = validate_signature_code(
+        code,
+        expected_class_name=expected_class_name,
+    )
+    if ok_ast:
+        score += 60.0
+    else:
+        score -= float(len(ast_errors)) * 8.0
+
+    sig_name = _extract_signature_name(code)
+    if sig_name:
+        score += 8.0
+    if expected_class_name and sig_name == expected_class_name:
+        score += 8.0
+
+    if "InputField" in code:
+        score += 6.0
+    if "OutputField" in code:
+        score += 6.0
+
+    ok_smoke, _ = _smoke_signature_code(code, expected_class_name=expected_class_name)
+    if ok_smoke:
+        score += 12.0
+
+    # Encourage non-trivial specs over fallback shape.
+    if "context: str = dspy.InputField" not in code:
+        score += 3.0
+    if "output: str = dspy.OutputField" not in code:
+        score += 3.0
+
+    return score
+
+
+def _autofix_signature_code(
+    code: str,
+    *,
+    class_name_hint: str,
+    fallback_description: str,
+    enforce_class_name: bool,
+) -> str:
+    src = (code or "").strip()
+    if not src:
+        return render_simple_signature(class_name_hint, fallback_description)
+
+    if _extract_signature_name(src) is None:
+        return render_simple_signature(class_name_hint, fallback_description)
+
+    if enforce_class_name:
+        src = _force_class_name(src, class_name_hint)
+
+    if "import dspy" not in src:
+        src = "import dspy\n\n" + src
+
+    expected = class_name_hint if enforce_class_name else None
+    ok, _ = validate_signature_code(src, expected_class_name=expected)
+    if not ok:
+        return render_simple_signature(class_name_hint, fallback_description)
+
+    return src
+
+
+def _candidate_from_raw(
+    raw_text: str,
+    *,
+    attempt: int,
+    class_name_hint: str,
+    fallback_description: str,
+    enforce_class_name: bool,
+) -> _SignatureCandidate:
+    source = "spec"
+    signature_name: str | None = None
+
+    raw_spec = _parse_signature_spec(raw_text)
+    if raw_spec is not None:
+        norm = _normalize_signature_spec(
+            raw_spec,
+            class_name_hint=class_name_hint,
+            fallback_description=fallback_description,
+            enforce_class_name=enforce_class_name,
+        )
+        code = render_signature_from_spec(
+            norm["class_name"],
+            norm["description"],
+            inputs=norm["inputs"],
+            outputs=norm["outputs"],
+        )
+        signature_name = str(norm["class_name"])
+    else:
+        extracted = _extract_code_block(raw_text)
+        parsed_name = _extract_signature_name(extracted)
+        if parsed_name is None:
+            source = "fallback"
+            code = render_simple_signature(class_name_hint, fallback_description)
+            signature_name = class_name_hint
+        else:
+            source = "code"
+            code = extracted
+            signature_name = parsed_name
+
+    code = _autofix_signature_code(
+        code,
+        class_name_hint=class_name_hint,
+        fallback_description=fallback_description,
+        enforce_class_name=enforce_class_name,
+    )
+    signature_name = _extract_signature_name(code) or class_name_hint
+
+    expected = class_name_hint if enforce_class_name else None
+    ok_ast, ast_errors = validate_signature_code(code, expected_class_name=expected)
+    ok_smoke, smoke_errors = _smoke_signature_code(code, expected_class_name=expected)
+    errors = [*ast_errors, *smoke_errors]
+
+    return _SignatureCandidate(
+        attempt=attempt,
+        source=source,
+        raw_text=raw_text,
+        code=code,
+        signature_name=signature_name,
+        score=score_signature_code(code, expected_class_name=expected),
+        valid=ok_ast and ok_smoke,
+        errors=errors,
+    )
+
+
+def _resolve_attempts(options: dict[str, Any] | None = None) -> int:
+    raw = None
+    if isinstance(options, dict):
+        raw = options.get("max_attempts")
+    if raw is None:
+        raw = _os.getenv("DSPX_SIGNATURE_MAX_ATTEMPTS", "1")
+    try:
+        n = int(raw)
+    except Exception:
+        n = 1
+    return max(1, min(6, n))
+
+
 def _generate_native_payload(
     *,
     prompt_for_model: str,
     fallback_description: str,
     class_name_hint: str,
-) -> dict[str, str | None]:
-    predictor = dspy.Predict("task -> code")
-    result = predictor(task=prompt_for_model)
-    text = result.code if hasattr(result, "code") else str(result)
-    code = _extract_code_block(text)
-    sig_name = _extract_signature_name(code)
+    json_mode: bool,
+    max_attempts: int,
+    enforce_class_name: bool,
+) -> dict[str, Any]:
+    predictor = dspy.Predict("task -> spec_json")
+    candidates: list[_SignatureCandidate] = []
 
-    if not code or sig_name is None:
+    for idx in range(max(1, int(max_attempts))):
+        attempt_prompt = (
+            prompt_for_model
+            + f"\n# Attempt {idx + 1}/{max_attempts}: prioritize schema correctness, then completeness.\n"
+        )
+        result = predictor(task=attempt_prompt)
+        if hasattr(result, "spec_json"):
+            raw_text = str(getattr(result, "spec_json") or "")
+        elif hasattr(result, "code"):
+            raw_text = str(getattr(result, "code") or "")
+        else:
+            raw_text = str(result)
+
+        cand = _candidate_from_raw(
+            raw_text,
+            attempt=idx + 1,
+            class_name_hint=class_name_hint,
+            fallback_description=fallback_description,
+            enforce_class_name=enforce_class_name,
+        )
+        candidates.append(cand)
+
+        # Early stop on high-quality non-fallback candidates.
+        if cand.valid and cand.source != "fallback" and cand.score >= 88.0:
+            break
+
+    if not candidates:
         code = render_simple_signature(class_name_hint, fallback_description)
-        sig_name = class_name_hint
+        return {
+            "code": code,
+            "signature_name": class_name_hint,
+            "task_description": fallback_description,
+            "backend": "native",
+            "strategy": "spec-first",
+            "candidate_source": "fallback",
+            "attempts_used": 0,
+            "candidate_score": 0.0,
+            "json_mode": bool(json_mode),
+        }
+
+    best = max(
+        candidates,
+        key=lambda c: (
+            1 if c.valid else 0,
+            c.score,
+            1 if c.source == "spec" else (0 if c.source == "code" else -1),
+            -c.attempt,
+        ),
+    )
 
     return {
-        "code": code,
-        "signature_name": sig_name,
+        "code": best.code,
+        "signature_name": best.signature_name,
         "task_description": fallback_description,
         "backend": "native",
+        "strategy": "spec-first",
+        "candidate_source": best.source,
+        "attempts_used": len(candidates),
+        "candidate_score": float(best.score),
+        "json_mode": bool(json_mode),
+        "candidate_valid": bool(best.valid),
     }
 
 
@@ -67,10 +617,27 @@ def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
+    provider_name = _os.getenv("DSPX_PROVIDER", "pi-rpc")
+    try:
+        caps = provider_capabilities(provider_name)
+        json_mode = bool(getattr(caps, "json_mode", False))
+    except Exception:
+        json_mode = False
+
+    attempts = _resolve_attempts({})
+    class_name_hint = "GeneratedSignature"
     payload = _generate_native_payload(
-        prompt_for_model=format_signature_prompt(prompt, version="v1"),
+        prompt_for_model=build_signature_strategy_prompt(
+            prompt,
+            class_name_hint=class_name_hint,
+            template_version="v1",
+            json_mode=json_mode,
+        ),
         fallback_description=prompt,
-        class_name_hint="GeneratedSignature",
+        class_name_hint=class_name_hint,
+        json_mode=json_mode,
+        max_attempts=attempts,
+        enforce_class_name=False,
     )
     return str(payload.get("code") or "")
 
@@ -144,14 +711,40 @@ def run_generate_dto(
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    class_name_hint = str(req.options.get("class_name") or "GeneratedSignature")
-    prompt_for_model = format_signature_prompt(
-        req.prompt, version=req.template_version or "v1"
-    )
+    provider_name = _os.getenv("DSPX_PROVIDER", "pi-rpc")
+    try:
+        caps = provider_capabilities(provider_name)
+        json_mode = bool(getattr(caps, "json_mode", False))
+    except Exception:
+        json_mode = False
+
+    class_name_opt = req.options.get("class_name")
+    class_name_hint = str(class_name_opt or "GeneratedSignature")
+    enforce_class_name = bool(class_name_opt)
+
+    constraints = req.options.get("constraints")
+    if not isinstance(constraints, list):
+        constraints = []
+    feedback = req.options.get("feedback")
+    if not isinstance(feedback, list):
+        feedback = []
+
+    max_attempts = _resolve_attempts(req.options)
+
     payload = _generate_native_payload(
-        prompt_for_model=prompt_for_model,
+        prompt_for_model=build_signature_strategy_prompt(
+            req.prompt,
+            class_name_hint=class_name_hint,
+            template_version=req.template_version or "v1",
+            json_mode=json_mode,
+            constraints=constraints,
+            feedback=feedback,
+        ),
         fallback_description=req.prompt,
         class_name_hint=class_name_hint,
+        json_mode=json_mode,
+        max_attempts=max_attempts,
+        enforce_class_name=enforce_class_name,
     )
 
     res = SignatureGenResult(
@@ -180,6 +773,9 @@ def run_generate_dto(
                 "code": res.code,
                 "task_description": res.task_description,
                 "backend": backend,
+                "strategy": payload.get("strategy") or "spec-first",
+                "candidate_source": payload.get("candidate_source") or "fallback",
+                "attempts_used": int(payload.get("attempts_used") or 1),
             },
         )
     # Optional MLflow logging (guarded)
@@ -192,7 +788,10 @@ def run_generate_dto(
                 "signature",
                 template_version=req.template_version or "v1",
                 run_name=f"signature-{res.signature_name or ''}",
-                extra={"signature.backend": backend},
+                extra={
+                    "signature.backend": backend,
+                    "signature.strategy": str(payload.get("strategy") or "spec-first"),
+                },
             )
             from dspx.cache import sha256_text
 
@@ -202,6 +801,11 @@ def run_generate_dto(
                         "signature.prompt_len": len(req.prompt),
                         "signature.class_name": res.signature_name or "",
                         "signature.backend": backend,
+                        "signature.json_mode": bool(json_mode),
+                        "signature.attempts": int(payload.get("attempts_used") or 1),
+                        "signature.candidate_source": str(
+                            payload.get("candidate_source") or "fallback"
+                        ),
                     }
                 )
                 # Prefer log_text if available; else log_dict
@@ -216,6 +820,10 @@ def run_generate_dto(
                         "prompt_len": len(req.prompt),
                         "code_hash": sha256_text(res.code),
                         "backend": backend,
+                        "strategy": payload.get("strategy") or "spec-first",
+                        "candidate_source": payload.get("candidate_source")
+                        or "fallback",
+                        "attempts_used": int(payload.get("attempts_used") or 1),
                     }
                     mlflow.log_dict(manifest, "signature_manifest.json")
                 except Exception:
@@ -225,6 +833,9 @@ def run_generate_dto(
                     "signature.code_hash_prefix": int(sha256_text(res.code)[:8], 16)
                     % 1_000_000,
                     "service.duration_ms": duration_ms,
+                    "signature.candidate_score": float(
+                        payload.get("candidate_score") or 0.0
+                    ),
                 }
                 if budget_ms is not None:
                     try:

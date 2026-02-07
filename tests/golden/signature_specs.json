@@ -1,0 +1,47 @@
+[
+  {
+    "name": "basic_echo",
+    "spec": {
+      "class_name": "SigEcho",
+      "description": "Echo input text",
+      "inputs": [
+        {"name": "text", "type": "str", "desc": "Input text"}
+      ],
+      "outputs": [
+        {"name": "echoed_text", "type": "str", "desc": "Echoed text"}
+      ]
+    },
+    "must_contain": [
+      "class SigEcho(dspy.Signature):",
+      "text: str = dspy.InputField",
+      "echoed_text: str = dspy.OutputField"
+    ],
+    "sha256": "becd07a80b1a20d184ea89c305f73f4056ce76bb3af6b48ff4b88056c7dfd222"
+  },
+  {
+    "name": "typed_optional_literal",
+    "spec": {
+      "class_name": "SigSentiment",
+      "description": "Classify sentiment with optional confidence",
+      "inputs": [
+        {"name": "text", "type": "str", "desc": "Input text"},
+        {"name": "language", "type": "Optional[str]", "desc": "Language hint"}
+      ],
+      "outputs": [
+        {
+          "name": "label",
+          "type": "Literal['positive', 'negative', 'neutral']",
+          "desc": "Predicted label"
+        },
+        {"name": "confidence", "type": "Optional[float]", "desc": "Confidence score"}
+      ]
+    },
+    "must_contain": [
+      "from typing import Literal, Optional",
+      "language: Optional[str] = dspy.InputField",
+      "label: Literal['positive', 'negative', 'neutral'] = dspy.OutputField",
+      "confidence: Optional[float] = dspy.OutputField"
+    ],
+    "sha256": "c24ce492f900d0ae61ed8e52f16bddae888670a06d779b40d1a79b3c8f1bb515"
+  }
+]
