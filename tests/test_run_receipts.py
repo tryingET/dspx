@@ -276,3 +276,102 @@ def test_run_replay_invalid_receipt_exit_code(tmp_path: Path) -> None:
     assert r_replay.exit_code == 2
     payload = json.loads(r_replay.stdout)
     assert payload["status"] == "invalid"
+
+
+def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "sig.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    def _boom() -> bool:
+        raise AssertionError("run explain must not bootstrap MLflow by default")
+
+    monkeypatch.setattr(dspx_cli, "enable_mlflow_from_env", _boom)
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(tmp_path / "sig.py.meta.json"),
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    assert payload["status"] == "ok"
+    assert payload["local_facts"]["run_kind"] == "signature-gen"
+    assert payload["replay_checks"]["output_hash_match"] is True
+    assert payload["mlflow_context"]["requested"] is False
+    assert payload["mlflow_context"]["mode"] == "disabled"
+
+
+def test_run_explain_with_mlflow_flag_is_graceful(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", str(tmp_path / "no_mlruns_yet"))
+
+    out = tmp_path / "gen.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "codegen",
+            "A CLI that prints hi",
+            "--language",
+            "python",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(tmp_path / "gen.py.meta.json"),
+            "--with-mlflow",
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    assert payload["status"] == "ok"
+    assert payload["mlflow_context"]["requested"] is True
+    assert payload["mlflow_context"]["mode"] == "local-file-store"
+    assert "linked_runs" in payload["mlflow_context"]
+
+
+def test_run_explain_invalid_receipt_exit_code(tmp_path: Path) -> None:
+    bad_meta = tmp_path / "bad-explain.meta.json"
+    bad_meta.write_text('{"receipt_version":"v1"}\n', encoding="utf-8")
+
+    r_explain = runner.invoke(
+        app,
+        ["run", "explain", "--from", str(bad_meta), "--json"],
+    )
+    assert r_explain.exit_code == 2
+    payload = json.loads(r_explain.stdout)
+    assert payload["status"] == "invalid"
