@@ -2594,8 +2594,7 @@ def forge_intake(
         dir_okay=True,
     ),
 ) -> None:
-    from dspx.forge.models import Intent, Routing
-    from dspx.forge.workorder import build_workorder, write_workorder
+    from dspx.apps.forge_compat import Intent, Routing, build_workorder, write_workorder
 
     _ensure_env(None)
 
@@ -2673,8 +2672,7 @@ def forge_plan(
         ..., help="Path to workorder.yaml", exists=True, file_okay=True, dir_okay=False
     ),
 ) -> None:
-    from dspx.forge.plan import build_plan, write_plan
-    from dspx.forge.workorder import load_workorder
+    from dspx.apps.forge_compat import build_plan, load_workorder, write_plan
 
     _ensure_env(None)
     doc = load_workorder(workorder)
@@ -2693,8 +2691,7 @@ def forge_route(
 ) -> None:
     import json as _json
 
-    from dspx.forge.routing import route_candidates
-    from dspx.forge.workorder import load_workorder
+    from dspx.apps.forge_compat import load_workorder, route_candidates
 
     _ensure_env(None)
     doc = load_workorder(workorder)
@@ -2731,8 +2728,7 @@ def forge_overlaps(
         ..., help="Path to workorder.yaml", exists=True, file_okay=True, dir_okay=False
     ),
 ) -> None:
-    from dspx.forge.overlaps import compute_overlaps, write_overlaps
-    from dspx.forge.workorder import load_workorder
+    from dspx.apps.forge_compat import compute_overlaps, load_workorder, write_overlaps
 
     _ensure_env(None)
     doc = load_workorder(workorder)
@@ -2754,13 +2750,13 @@ def forge_issues_apply(
 ) -> None:
     import json as _json
 
-    from dspx.forge.issues import (
+    from dspx.apps.forge_compat import (
         apply_issue_specs,
         build_issue_spec,
         default_paths,
+        load_workorder,
         write_issue_specs,
     )
-    from dspx.forge.workorder import load_workorder
 
     _ensure_env(None)
     doc = load_workorder(workorder)
@@ -2769,7 +2765,7 @@ def forge_issues_apply(
     write_issue_specs(paths, specs)
 
     if apply:
-        from dspx.forge.gitlab_client import load_gitlab_config_from_env
+        from dspx.apps.forge_compat import load_gitlab_config_from_env
         from dspx.policy import allow_network_mutate
 
         if not allow_network_mutate():
@@ -2810,13 +2806,12 @@ def forge_issues_close_duplicates(
 ) -> None:
     import json as _json
 
-    from dspx.forge.issues import close_marked_duplicates
-    from dspx.forge.workorder import load_workorder
+    from dspx.apps.forge_compat import close_marked_duplicates, load_workorder
 
     _ensure_env(None)
 
     if apply:
-        from dspx.forge.gitlab_client import load_gitlab_config_from_env
+        from dspx.apps.forge_compat import load_gitlab_config_from_env
         from dspx.policy import allow_network_mutate
 
         if not allow_network_mutate():

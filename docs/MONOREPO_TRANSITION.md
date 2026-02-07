@@ -61,6 +61,7 @@ Acceptance:
 Scope:
 - Introduce forwarding shims and move-safe adapters.
 - Start relocating Forge entry wiring behind app boundary.
+- Centralize CLI Forge imports through a compatibility facade (`dspx.apps.forge_compat`).
 
 Acceptance:
 - `dspx forge ...` behavior unchanged.

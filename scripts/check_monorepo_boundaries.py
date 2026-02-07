@@ -54,11 +54,17 @@ def _is_forge_import(name: str) -> bool:
     )
 
 
+def _is_app_surface_import(name: str) -> bool:
+    return name == "dspx.apps" or name.startswith("dspx.apps.")
+
+
 def _check_src_core_no_forge(root: Path) -> list[Violation]:
     violations: list[Violation] = []
     for path in _iter_python_files(root, Path("src/dspx")):
         rel = path.relative_to(root)
         if rel.parts[:3] == ("src", "dspx", "forge"):
+            continue
+        if rel.parts[:3] == ("src", "dspx", "apps"):
             continue
         if rel.parts[:3] == ("src", "dspx", "cli"):
             continue
@@ -74,6 +80,15 @@ def _check_src_core_no_forge(root: Path) -> list[Violation]:
                         lineno=lineno,
                         import_name=name,
                         reason="core module imports forge app module",
+                    )
+                )
+            elif _is_app_surface_import(name):
+                violations.append(
+                    Violation(
+                        path=rel,
+                        lineno=lineno,
+                        import_name=name,
+                        reason="core module imports app surface module",
                     )
                 )
     return violations
