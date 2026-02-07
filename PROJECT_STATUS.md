@@ -18,6 +18,7 @@ This status reflects the **breaking monorepo branch**:
 - Forge package declares explicit workspace dependency on core (`dspx-core`).
 - Core CLI remains core-only; Forge CLI remains app-only.
 - CI is split into package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
+- Package-scoped release workflows exist for core/forge tags.
 
 ## Current runtime / packaging behavior
 
@@ -41,6 +42,12 @@ This status reflects the **breaking monorepo branch**:
   - `just lint-forge`, `just typecheck-forge`
 - Boundary check:
   - `just monorepo-check` runs `scripts/check_monorepo_boundaries.py`
+- Release helpers:
+  - `just release-core`, `just tag-core`, `just publish-core`
+  - `just release-forge`, `just tag-forge`, `just publish-forge`
+- Release workflows:
+  - `.github/workflows/release-core.yml` (`dspx-core-v*` tags)
+  - `.github/workflows/release-forge.yml` (`dspx-forge-v*` tags)
 
 ## Validation snapshot (latest local run)
 
@@ -66,12 +73,15 @@ This status reflects the **breaking monorepo branch**:
 
 ## Known gaps and immediate risks
 
-- Release/versioning policy is still coupled in helper workflow (both package versions bumped together by `just version`).
+- Final release policy still needs one explicit decision:
+  - keep independent package versions as default, or
+  - keep coupled versioning as policy and document rationale.
 - Some branch docs may still contain stale wording from pre-split architecture.
 
 Recently closed:
 - Clean-clone smoke flow is now formalized via `scripts/clean_clone_smoke.sh` / `just clean-clone-smoke` and enforced in CI.
 - CI now has package-aware jobs for `core` and `forge` quality/test slices.
+- Package-scoped release workflows now validate tag/version and publish only the targeted package.
 
 ## Canonical docs for this branch
 
@@ -83,5 +93,5 @@ Recently closed:
 ## Recommended posture
 
 - Keep boundaries strict and test-enforced.
-- Prioritize package-aware release/version policy next.
+- Finalize and document one release/version policy default.
 - Avoid reintroducing compatibility shims unless required for unblock.

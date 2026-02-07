@@ -276,8 +276,14 @@ Install, Update, Build
   - Forge: `just lint-forge && just typecheck-forge && just test-forge`
 - Update (editable install): `git pull` (code updates immediately).
 - Update (uv tool install): `uv tool install --force .` in repo.
-- Build packages: `just build` (uses `uv build`, outputs to `dist/`).
-- Publish (PyPI): set `PYPI_TOKEN` then `just publish`.
+- Build packages:
+  - all: `just build`
+  - core only: `just build-core`
+  - forge only: `just build-forge`
+- Publish (PyPI): set `PYPI_TOKEN` then:
+  - all artifacts in `dist/`: `just publish`
+  - core only: `just publish-core`
+  - forge only: `just publish-forge`
 
 Type Checking
 -------------
@@ -291,10 +297,20 @@ Release Cycle
 -------------
 - Suggest Semantic Versioning with lightweight cadence:
   - Patch on fixes/docs; minor on features; major for breaking changes.
-  - Tag releases: `just tag v=vX.Y.Z` and create GitHub Release.
-  - Publish when ready: `just publish` (requires `PYPI_TOKEN`).
-- Helper flow: `just release new=X.Y.Z` runs fmt/lint/typecheck/test, bumps
-  version, and builds artifacts; then tag and publish.
+- Package-scoped release flow (recommended):
+  - Core:
+    - prep: `just release-core new=X.Y.Z`
+    - tag: `just tag-core v=X.Y.Z` (creates `dspx-core-vX.Y.Z`)
+    - publish: `just publish-core` (requires `PYPI_TOKEN`)
+  - Forge:
+    - prep: `just release-forge new=X.Y.Z`
+    - tag: `just tag-forge v=X.Y.Z` (creates `dspx-forge-vX.Y.Z`)
+    - publish: `just publish-forge` (requires `PYPI_TOKEN`)
+- GitHub Actions release workflows:
+  - `.github/workflows/release-core.yml` (trigger: `dspx-core-v*`)
+  - `.github/workflows/release-forge.yml` (trigger: `dspx-forge-v*`)
+- Coupled legacy helper remains available:
+  - `just release new=X.Y.Z` / `just tag v=vX.Y.Z` / `just publish`
 
 Customization
 -------------
@@ -628,9 +644,10 @@ This repo follows a simple modern `uv` setup:
 - Tasks via Justfile:
   - `just install` / `just dev-install` — sync deps or editable install.
   - `just fmt` / `just lint` / `just typecheck` — ruff + ty.
-  - `just test` — run pytest if present.
-  - `just build` / `just publish` — build and publish packages.
-  - `just release new=X.Y.Z` — fmt/lint/typecheck/test, bump version, build.
+  - `just test` / `just test-core` / `just test-forge` — pytest slices.
+  - `just build` / `just build-core` / `just build-forge` — build packages.
+  - `just publish` / `just publish-core` / `just publish-forge` — publish artifacts.
+  - `just release-core new=X.Y.Z` / `just release-forge new=X.Y.Z` — package-scoped release prep.
 - Dev dependencies declared under `[dependency-groups.dev]` for uv.
 - Console scripts defined in `pyproject.toml` under `[project.scripts]`.
 
@@ -668,7 +685,8 @@ Notes
 - Ensure your environment has the necessary permissions for code execution if Codex writes/executes files during `--full-auto` runs.
 Project Layout
 --------------
-- `src/`: source code (modules/packages)
+- `packages/dspx-core/src/dspx/`: core runtime/providers/services/tools/CLI
+- `apps/forge/src/dspx_forge/`: Forge app CLI + workflow logic
 - `docs/`: project docs (vision, status, next steps)
 - `examples/`: curated, versioned examples and workflows
 - `generated/`: local outputs (ignored); kept for CLI defaults

@@ -44,7 +44,7 @@ read_when:
 
 ### A) Central gate
 
-- One helper in `src/dspx/tracing.py` owns the rule:
+- One helper in `packages/dspx-core/src/dspx/tracing.py` owns the rule:
   - `mlflow_enabled()` → env-only boolean
   - `get_mlflow()` → returns `mlflow` module only when enabled+importable
 - Every call site must use `get_mlflow()` (or a wrapper that uses it).

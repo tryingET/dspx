@@ -33,7 +33,8 @@ Back-compat import aliases/forwarders were removed in favor of direct package bo
 ## Next hardening tasks
 
 - Keep workspace-native run/install flow green (`uv sync`, `just dspx ...`, `just forge ...`) without PYTHONPATH shims.
-- CI workflows are now package-aware (`core`, `forge`) plus smoke/hygiene jobs; next focus is package-scoped release jobs.
+- CI workflows are package-aware (`core`, `forge`) plus smoke/hygiene jobs.
+- Package-scoped release workflows exist (`release-core.yml`, `release-forge.yml`); next focus is documenting the final versioning policy default.
 - Update README/docs command examples to prefer `just dspx ...` and `just forge ...`.
 
 ## Clean-clone smoke flow (formalized)
@@ -46,3 +47,16 @@ Back-compat import aliases/forwarders were removed in favor of direct package bo
   - `just forge --help`
   - `just test`
 - CI now runs this smoke flow in `.github/workflows/ci.yml`.
+
+## Package-scoped release automation
+
+- Core release workflow: `.github/workflows/release-core.yml`
+  - Trigger: `dspx-core-v*`
+  - Validates tag version matches `packages/dspx-core/pyproject.toml`
+  - Runs core quality gates, builds core artifacts, wheel-smokes `dspx`
+  - Publishes only `dspx_core-*` artifacts
+- Forge release workflow: `.github/workflows/release-forge.yml`
+  - Trigger: `dspx-forge-v*`
+  - Validates tag version matches `apps/forge/pyproject.toml`
+  - Runs forge quality gates, builds forge artifacts, wheel-smokes `dspx-forge`
+  - Publishes only `dspx_forge-*` artifacts

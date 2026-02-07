@@ -44,18 +44,21 @@ Acceptance:
 
 Status:
 - CI now runs package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
+- Release workflows now exist for package tags:
+  - `.github/workflows/release-core.yml` (`dspx-core-v*`)
+  - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
 
 Remaining actions:
-- Define release policy clearly:
+- Decide and document default versioning policy:
   - independent versions for `dspx-core` and `dspx-forge`, or
   - explicitly coupled versioning (documented rationale)
-- Ensure artifacts/publish steps are package-scoped.
 - Optionally tighten test slicing beyond `-k forge` / `-k "not forge"` if the
   suite grows.
 
 Acceptance:
 - CI shows package-scoped pass/fail. ✅
-- Release process is documented and reproducible. ⏳
+- Package-scoped publish automation exists. ✅
+- Release policy is explicitly documented. ⏳
 
 ## 3) Docs convergence for split layout and CLI contracts
 

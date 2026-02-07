@@ -11,7 +11,7 @@ Scope: this file is repo-local truth for coding agents in `dspx`.
 ## Read-first map (pick by task)
 - product/roadmap: `docs/VISION.md`, `PROJECT_STATUS.md`, `NEXT_STEPS.md`
 - architecture seams: `docs/ARCHITECTURE.md`
-- forge work (`dspx forge ...`): `docs/FORGE.md`
+- forge work (`just forge ...` / `dspx-forge ...`): `docs/FORGE.md`
 - OpenAPI tools: `docs/OPENAPI_TOOLING.md`
 - server/auth/rate-limit/metrics: `docs/SERVER.md`
 - tracing/MLflow behavior: `docs/MLFLOW_OBSERVABILITY_PLAN.md`
@@ -19,14 +19,15 @@ Scope: this file is repo-local truth for coding agents in `dspx`.
 - user-facing CLI/docs examples: `README.md`
 
 ## Repo shape
-- CLI entrypoints: `src/dspx/cli/`
-- service layer: `src/dspx/services/`
-- forge pipeline: `src/dspx/forge/`
-- providers: `src/dspx/*_lm.py`, `src/dspx/providers*`
-- tools/openapi: `src/dspx/tools/`
-- server: `src/dspx/server/`
-- contracts: `src/dspx/dtos.py`
-- policy/redaction: `src/dspx/policy.py`, `src/dspx/redaction.py`
+- core CLI entrypoints: `packages/dspx-core/src/dspx/cli/`
+- forge CLI entrypoints: `apps/forge/src/dspx_forge/`
+- core service layer: `packages/dspx-core/src/dspx/services/`
+- forge pipeline: `apps/forge/src/dspx_forge/`
+- core providers: `packages/dspx-core/src/dspx/*_lm.py`, `packages/dspx-core/src/dspx/providers*`
+- core tools/openapi: `packages/dspx-core/src/dspx/tools/`
+- core server: `packages/dspx-core/src/dspx/server/`
+- core contracts: `packages/dspx-core/src/dspx/dtos.py`
+- core policy/redaction: `packages/dspx-core/src/dspx/policy.py`, `packages/dspx-core/src/dspx/redaction.py`
 
 ## Standard commands
 - install: `just install`
@@ -34,7 +35,8 @@ Scope: this file is repo-local truth for coding agents in `dspx`.
 - lint: `just lint`
 - typecheck: `just typecheck`
 - test: `just test`
-- run root CLI from source: `just dspx ...`
+- run core CLI from source: `just dspx ...`
+- run forge CLI from source: `just forge ...`
 
 ## Delivery checklist (default)
 1) implement a scoped change with meaningful impact

@@ -418,12 +418,14 @@ Frontends:
 - JSON mode (later): automation + playback
 
 ## CLI surface (v0)
-- `dspx forge intake "<prompt>"` (interactive clarifier unless `--non-interactive`)
-- `dspx forge plan workorder.yaml`
-- `dspx forge route workorder.yaml` (show top-3 + override)
-- `dspx forge overlaps workorder.yaml`
-- `dspx forge issues apply workorder.yaml [--dry-run|--apply] [--project <key>] [--program <id>]`
-- `dspx forge issues close-duplicates workorder.yaml` (explicitly gated)
+- `just forge intake "<prompt>"` (or `dspx-forge intake ...`; interactive clarifier unless `--non-interactive`)
+- `just forge plan workorder.yaml`
+- `just forge route workorder.yaml` (show top-3 + override)
+- `just forge overlaps workorder.yaml`
+- `just forge issues apply workorder.yaml [--dry-run|--apply] [--project <key>] [--program <id>]`
+- `just forge issues close-duplicates workorder.yaml` (explicitly gated)
+
+Note: core CLI (`dspx`) no longer hosts `forge` subcommands on this branch.
 
 ## Acceptance tests (MVP)
 - intake writes WorkOrder with intent + routing fields + fingerprint
