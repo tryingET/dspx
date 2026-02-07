@@ -1,0 +1,57 @@
+[
+  {
+    "name": "pi_rpc_strict_json",
+    "provider": "pi-rpc",
+    "class_name_hint": "SigPiRpc",
+    "raw": "{\"class_name\":\"SigPiRpc\",\"description\":\"Extract entities from raw text\",\"inputs\":[{\"name\":\"text\",\"type\":\"str\",\"desc\":\"Input text\"}],\"outputs\":[{\"name\":\"entities\",\"type\":\"list[str]\",\"desc\":\"Detected entities\"}]}",
+    "expected_source": "spec",
+    "must_contain": [
+      "class SigPiRpc(dspy.Signature):",
+      "entities: list[str] = dspy.OutputField"
+    ]
+  },
+  {
+    "name": "openrouter_fenced_json",
+    "provider": "openrouter",
+    "class_name_hint": "SigOpenRouter",
+    "raw": "Sure — using the requested schema.\n```json\n{\n  \"class_name\": \"SigOpenRouter\",\n  \"description\": \"Classify sentiment\",\n  \"inputs\": [{\"name\": \"text\", \"type\": \"str\", \"desc\": \"input\"}],\n  \"outputs\": [{\"name\": \"label\", \"type\": \"Literal['positive', 'negative', 'neutral']\", \"desc\": \"sentiment\"}]\n}\n```",
+    "expected_source": "spec",
+    "must_contain": [
+      "class SigOpenRouter(dspy.Signature):",
+      "label: Literal['positive', 'negative', 'neutral'] = dspy.OutputField"
+    ]
+  },
+  {
+    "name": "codex_python_block",
+    "provider": "codex-exec",
+    "class_name_hint": "SigCodex",
+    "raw": "```python\nimport dspy\n\nclass SigCodex(dspy.Signature):\n    \"\"\"Summarize text\"\"\"\n\n    text: str = dspy.InputField(desc='Input text')\n    summary: str = dspy.OutputField(desc='Summary')\n```",
+    "expected_source": "code",
+    "must_contain": [
+      "class SigCodex(dspy.Signature):",
+      "summary: str = dspy.OutputField"
+    ]
+  },
+  {
+    "name": "claude_generic_fence",
+    "provider": "claude-cli",
+    "class_name_hint": "SigClaude",
+    "raw": "```\n{\n  \"name\": \"SigClaude\",\n  \"docstring\": \"Extract action items\",\n  \"fields\": [\n    {\"name\": \"meeting_notes\", \"role\": \"input\", \"type\": \"str\", \"desc\": \"notes\"},\n    {\"name\": \"actions\", \"role\": \"output\", \"type\": \"list[str]\", \"desc\": \"actions\"}\n  ]\n}\n```",
+    "expected_source": "spec",
+    "must_contain": [
+      "class SigClaude(dspy.Signature):",
+      "actions: list[str] = dspy.OutputField"
+    ]
+  },
+  {
+    "name": "gemini_inline_jsonish",
+    "provider": "gemini-cli",
+    "class_name_hint": "SigGemini",
+    "raw": "Result: {\"class_name\":\"SigGemini\",\"description\":\"Route ticket to team\",\"input_fields\":[{\"name\":\"ticket\",\"type\":\"str\",\"desc\":\"ticket body\"}],\"output_fields\":[{\"name\":\"team\",\"type\":\"str\",\"desc\":\"target team\"}]} done",
+    "expected_source": "spec",
+    "must_contain": [
+      "class SigGemini(dspy.Signature):",
+      "team: str = dspy.OutputField"
+    ]
+  }
+]

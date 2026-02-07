@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from dspx.dtos import SignatureGenRequest
+from dspx.services.signature_quality import read_quality_events
 from dspx.services.signatures_service import run_generate_dto
 
 
@@ -13,6 +16,8 @@ def test_signatures_service_dto_template_only() -> None:
     res = run_generate_dto(req)
     assert res.code.startswith("import dspy\n\nclass Sig_Summarize(dspy.Signature):")
     assert "summarizes text" in res.code
+    assert res.metadata.get("strategy") == "simple"
+    assert res.metadata.get("validation_pass_rate") == 1.0
 
 
 def test_signatures_service_dto_native_generation_with_stub_provider(
@@ -29,3 +34,29 @@ def test_signatures_service_dto_native_generation_with_stub_provider(
     res = run_generate_dto(req)
     assert res.signature_name == "Sig_Sentiment"
     assert "class Sig_Sentiment(dspy.Signature):" in res.code
+    assert res.metadata.get("provider") == "stub"
+    assert "fallback_used" in res.metadata
+    assert "validation_pass_rate" in res.metadata
+
+
+def test_signatures_service_emits_quality_event_log(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    log = tmp_path / "quality.jsonl"
+    monkeypatch.setenv("DSPX_SIGNATURE_QUALITY_LOG", str(log))
+
+    req = SignatureGenRequest(
+        prompt="Extract product names",
+        template_version="v1",
+        options={"class_name": "SigProducts"},
+    )
+    res = run_generate_dto(req)
+    assert "class SigProducts(dspy.Signature):" in res.code
+
+    events = read_quality_events(log)
+    assert len(events) == 1
+    assert events[0].get("provider") == "stub"
+    assert events[0].get("run_kind") == "signature-gen"

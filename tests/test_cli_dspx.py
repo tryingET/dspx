@@ -143,3 +143,107 @@ def test_cli_signature_gen_still_bootstraps_mlflow(monkeypatch) -> None:
     result = runner.invoke(app, ["signature", "gen", "Extract names from text"])
     assert result.exit_code == 0
     assert calls["n"] >= 1
+
+
+def test_cli_signature_quality_summary_json_and_gate(tmp_path: Path) -> None:
+    log = tmp_path / "quality.jsonl"
+    log.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "provider": "stub",
+                        "run_kind": "signature-gen",
+                        "attempts_used": 1,
+                        "fallback_used": False,
+                        "validation_pass_count": 1,
+                        "validation_total": 1,
+                        "smoke_pass_count": 1,
+                        "smoke_total": 1,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "provider": "stub",
+                        "run_kind": "signature-gen",
+                        "attempts_used": 2,
+                        "fallback_used": True,
+                        "validation_pass_count": 1,
+                        "validation_total": 2,
+                        "smoke_pass_count": 1,
+                        "smoke_total": 2,
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    ok = runner.invoke(
+        app,
+        [
+            "signature",
+            "quality-summary",
+            "--log-path",
+            str(log),
+            "--json",
+            "--max-fallback-rate",
+            "0.6",
+        ],
+    )
+    assert ok.exit_code == 0
+    payload = json.loads(ok.stdout)
+    assert payload["summary"]["runs_total"] == 2
+    assert abs(float(payload["summary"]["fallback_rate"]) - 0.5) < 1e-9
+
+    fail = runner.invoke(
+        app,
+        [
+            "signature",
+            "quality-summary",
+            "--log-path",
+            str(log),
+            "--fail-on-gate",
+            "--max-fallback-rate",
+            "0.1",
+        ],
+    )
+    assert fail.exit_code == 2
+
+
+def test_cli_signature_run_summary_outputs(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+
+    sig_summary = tmp_path / "sig.summary.json"
+    sig_result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--summary-json-out",
+            str(sig_summary),
+        ],
+    )
+    assert sig_result.exit_code == 0
+    sig_payload = json.loads(sig_summary.read_text(encoding="utf-8"))
+    assert "attempts_used" in sig_payload
+    assert "validation_pass_rate" in sig_payload
+
+    refine_summary = tmp_path / "refine.summary.json"
+    refine_result = runner.invoke(
+        app,
+        [
+            "signature",
+            "refine",
+            "Extract names from text",
+            "--summary-json-out",
+            str(refine_summary),
+        ],
+    )
+    assert refine_result.exit_code == 0
+    refine_payload = json.loads(refine_summary.read_text(encoding="utf-8"))
+    assert refine_payload["run_kind"] == "signature-refine"
+    assert "attempts_requested" in refine_payload
