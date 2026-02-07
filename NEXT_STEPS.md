@@ -44,21 +44,22 @@ Acceptance:
 
 Status:
 - CI now runs package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
+- CI now includes forge/core compatibility matrix smoke (`latest`, `min`) via wheel installs.
 - Release workflows now exist for package tags:
   - `.github/workflows/release-core.yml` (`dspx-core-v*`)
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
+- Default versioning policy is now independent (`dspx-core` and `dspx-forge` release separately).
 
 Remaining actions:
-- Decide and document default versioning policy:
-  - independent versions for `dspx-core` and `dspx-forge`, or
-  - explicitly coupled versioning (documented rationale)
 - Optionally tighten test slicing beyond `-k forge` / `-k "not forge"` if the
   suite grows.
+- Keep minimum-supported core tags maintained (`dspx-core-v<min>`) so CI `min`
+  track remains strict over time.
 
 Acceptance:
 - CI shows package-scoped pass/fail. ✅
 - Package-scoped publish automation exists. ✅
-- Release policy is explicitly documented. ⏳
+- Release policy is explicitly documented. ✅
 
 ## 3) Docs convergence for split layout and CLI contracts
 

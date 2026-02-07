@@ -274,6 +274,8 @@ Install, Update, Build
 - Package-scoped quality/test slices:
   - Core: `just lint-core && just typecheck-core && just test-core`
   - Forge: `just lint-forge && just typecheck-forge && just test-forge`
+  - Forge/core wheel compat matrix: `just forge-core-compat-matrix`
+    - `min` track expects tag `dspx-core-v<forge lower bound>` (e.g. `dspx-core-v0.1.0`).
 - Update (editable install): `git pull` (code updates immediately).
 - Update (uv tool install): `uv tool install --force .` in repo.
 - Build packages:
@@ -295,8 +297,10 @@ Type Checking
 
 Release Cycle
 -------------
+- Default policy: independent package versioning (`dspx-core` and `dspx-forge` release separately).
 - Suggest Semantic Versioning with lightweight cadence:
   - Patch on fixes/docs; minor on features; major for breaking changes.
+- Forge runtime dependency is bounded to a compatible core range (currently `dspx-core>=0.1.0,<0.2.0`).
 - Package-scoped release flow (recommended):
   - Core:
     - prep: `just release-core new=X.Y.Z`
@@ -648,6 +652,7 @@ This repo follows a simple modern `uv` setup:
   - `just build` / `just build-core` / `just build-forge` — build packages.
   - `just publish` / `just publish-core` / `just publish-forge` — publish artifacts.
   - `just release-core new=X.Y.Z` / `just release-forge new=X.Y.Z` — package-scoped release prep.
+  - `just forge-core-compat-matrix` — wheel-based forge/core compatibility smoke.
 - Dev dependencies declared under `[dependency-groups.dev]` for uv.
 - Console scripts defined in `pyproject.toml` under `[project.scripts]`.
 

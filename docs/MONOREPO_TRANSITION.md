@@ -34,7 +34,8 @@ Back-compat import aliases/forwarders were removed in favor of direct package bo
 
 - Keep workspace-native run/install flow green (`uv sync`, `just dspx ...`, `just forge ...`) without PYTHONPATH shims.
 - CI workflows are package-aware (`core`, `forge`) plus smoke/hygiene jobs.
-- Package-scoped release workflows exist (`release-core.yml`, `release-forge.yml`); next focus is documenting the final versioning policy default.
+- CI now runs forge/core compatibility matrix smoke (`latest`, `min`) via wheel installs.
+- Package-scoped release workflows exist (`release-core.yml`, `release-forge.yml`); default policy is independent package versioning.
 - Update README/docs command examples to prefer `just dspx ...` and `just forge ...`.
 
 ## Clean-clone smoke flow (formalized)
@@ -60,3 +61,7 @@ Back-compat import aliases/forwarders were removed in favor of direct package bo
   - Validates tag version matches `apps/forge/pyproject.toml`
   - Runs forge quality gates, builds forge artifacts, wheel-smokes `dspx-forge`
   - Publishes only `dspx_forge-*` artifacts
+- Forge package dependency policy:
+  - `apps/forge/pyproject.toml` pins bounded core range (`dspx-core>=0.1.0,<0.2.0`)
+  - CI compat matrix exercises `latest` and `min` core tracks.
+  - `min` track resolves via tag `dspx-core-v<lower-bound>` (e.g. `dspx-core-v0.1.0`).

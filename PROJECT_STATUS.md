@@ -15,9 +15,10 @@ This status reflects the **breaking monorepo branch**:
 - Per-package build metadata is explicit:
   - `packages/dspx-core`: `module-name = "dspx"`
   - `apps/forge`: `module-name = "dspx_forge"`
-- Forge package declares explicit workspace dependency on core (`dspx-core`).
+- Forge package declares explicit bounded dependency on core (`dspx-core>=0.1.0,<0.2.0`) with workspace source override.
 - Core CLI remains core-only; Forge CLI remains app-only.
 - CI is split into package-aware jobs (`core`, `forge`) plus workspace smoke/hygiene jobs.
+- CI includes forge/core compatibility matrix (`latest`, `min`) via wheel-based smoke.
 - Package-scoped release workflows exist for core/forge tags.
 
 ## Current runtime / packaging behavior
@@ -40,6 +41,10 @@ This status reflects the **breaking monorepo branch**:
 - Package-scoped quality recipes:
   - `just lint-core`, `just typecheck-core`
   - `just lint-forge`, `just typecheck-forge`
+- Forge/core compatibility smoke:
+  - `just forge-core-compat latest`
+  - `just forge-core-compat min`
+  - `just forge-core-compat-matrix`
 - Boundary check:
   - `just monorepo-check` runs `scripts/check_monorepo_boundaries.py`
 - Release helpers:
@@ -54,9 +59,10 @@ This status reflects the **breaking monorepo branch**:
 - `just clean-clone-smoke`: passing.
 - `pre-commit run --all-files`: passing.
 - `just monorepo-check`: passing.
-- `just test`: passing (`150 passed, 4 skipped`).
-- `just test-core`: passing (`141 passed, 4 skipped, 9 deselected`).
-- `just test-forge`: passing (`9 passed, 1 skipped, 144 deselected`).
+- `just test`: passing (`151 passed, 4 skipped`).
+- `just test-core`: passing (`141 passed, 4 skipped, 10 deselected`).
+- `just test-forge`: passing (`10 passed, 1 skipped, 144 deselected`).
+- `just forge-core-compat-matrix`: passing (both tracks green; `min` track resolves via `dspx-core-v0.1.0`).
 
 ## Boundary status
 
@@ -73,15 +79,15 @@ This status reflects the **breaking monorepo branch**:
 
 ## Known gaps and immediate risks
 
-- Final release policy still needs one explicit decision:
-  - keep independent package versions as default, or
-  - keep coupled versioning as policy and document rationale.
+- Minimum-supported core tag discipline is required (`dspx-core-v<lower-bound>`) to keep `min` compatibility checks strict over time.
 - Some branch docs may still contain stale wording from pre-split architecture.
 
 Recently closed:
 - Clean-clone smoke flow is now formalized via `scripts/clean_clone_smoke.sh` / `just clean-clone-smoke` and enforced in CI.
 - CI now has package-aware jobs for `core` and `forge` quality/test slices.
 - Package-scoped release workflows now validate tag/version and publish only the targeted package.
+- Default release policy is now independent package versioning.
+- CI now runs forge/core compatibility matrix smoke against latest and minimum-supported core tracks.
 
 ## Canonical docs for this branch
 
@@ -93,5 +99,5 @@ Recently closed:
 ## Recommended posture
 
 - Keep boundaries strict and test-enforced.
-- Finalize and document one release/version policy default.
+- Keep independent package versioning as default; use coupled helpers only if needed.
 - Avoid reintroducing compatibility shims unless required for unblock.
