@@ -8,17 +8,18 @@ This plan is for `feature/full-monorepo-breaking` after the hard split.
   - `just test`
   - `just monorepo-check`
 - Ensure no new core imports of app modules (`dspx_forge.*`).
-- Keep diffs focused; avoid reintroducing legacy shim paths.
+- Keep diffs reviewable; batch related migration work when it improves momentum.
 
 ## 1) Packaging convergence (highest priority)
 
-Goal: workspace-native install/run without `--no-project` workarounds.
+Goal: workspace-native install/run with no `PYTHONPATH` or `--no-project` workaround.
 
-- Decide root role:
-  - Option A: pure workspace root (no publishable root package).
-  - Option B: thin meta package only.
-- Align `pyproject.toml` + `uv.lock` to chosen model.
-- Ensure commands work in clean env with:
+- Root role chosen: Option A (pure workspace root; no publishable root runtime package).
+- Keep per-package build metadata explicit:
+  - `packages/dspx-core`: `module-name = "dspx"`
+  - `apps/forge`: `module-name = "dspx_forge"`
+- Keep app-to-core linkage explicit in Forge packaging (`dspx-core` workspace source).
+- Ensure commands work in a clean env with:
   - `uv sync`
   - `just dspx ...`
   - `just forge ...`

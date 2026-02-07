@@ -13,5 +13,5 @@ Use Forge CLI directly:
 - `just forge issues apply ...`
 
 Dependency intent:
-- apps depend on core (`dspx`).
+- apps depend on core package (`dspx-core`, module `dspx`).
 - core never depends on app packages.

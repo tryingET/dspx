@@ -37,7 +37,7 @@ Scope: this file is repo-local truth for coding agents in `dspx`.
 - run root CLI from source: `just dspx ...`
 
 ## Delivery checklist (default)
-1) implement minimal scoped change
+1) implement a scoped change with meaningful impact
 2) add/adjust tests near changed behavior
 3) run: `just fmt && just lint && just typecheck && just test`
 4) update docs when behavior/flags/contracts changed

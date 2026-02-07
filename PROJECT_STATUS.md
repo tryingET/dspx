@@ -18,18 +18,19 @@ This status reflects the **breaking monorepo branch**:
   - `apps/forge/pyproject.toml`
 - Workspace wiring added in root `pyproject.toml`:
   - `[tool.uv.workspace] members = ["packages/dspx-core", "apps/forge"]`
+- Root `pyproject.toml` now acts as a workspace root (not a publishable runtime package).
 
 ## Current runtime usage
 
 - Core CLI:
   - `just dspx ...`
-  - runs `python -m dspx.cli.dspx` with monorepo PYTHONPATH.
+  - runs `uv run --package dspx-core -q python -m dspx.cli.dspx ...`.
 - Forge CLI:
   - `just forge ...`
-  - runs `python -m dspx_forge.cli` with monorepo PYTHONPATH.
+  - runs `uv run --package dspx-forge -q python -m dspx_forge.cli ...`.
 - Tests:
   - `just test`
-  - passes with `PYTHONPATH=packages/dspx-core/src:apps/forge/src` and `uv run --no-project`.
+  - runs `uv run -m pytest -q tests` from workspace context.
 
 ## Validation snapshot
 
@@ -53,9 +54,8 @@ This status reflects the **breaking monorepo branch**:
 
 ## Known gaps
 
-- Root project packaging is still transitional for workspace mode.
-- Some root workflows still assume single-package `src/dspx` install semantics.
-- README and architecture docs still contain stale pre-split language.
+- Full clean-clone verification still needed after workspace packaging updates.
+- Some docs still contain stale pre-split language.
 - CI/release jobs not yet fully package-aware (`dspx-core` + `dspx-forge`).
 
 ## Documents to treat as canonical for this branch

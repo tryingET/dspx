@@ -13,6 +13,7 @@ read_when:
 - Forge app source moved to: `apps/forge/src/dspx_forge`
 - Core CLI (`dspx`) contains core/tooling commands only.
 - Forge commands moved to dedicated app CLI: `dspx_forge.cli` (`just forge ...`).
+- Root `pyproject.toml` is workspace-only (no root runtime package).
 - No legacy Forge compatibility shims in core runtime.
 
 ## Boundary rule
@@ -31,6 +32,6 @@ Back-compat import aliases/forwarders were removed in favor of direct package bo
 
 ## Next hardening tasks
 
-- Add per-package build/install metadata (`packages/dspx-core/pyproject.toml`, `apps/forge/pyproject.toml`) and workspace wiring.
+- Keep workspace-native run/install flow green (`uv sync`, `just dspx ...`, `just forge ...`) without PYTHONPATH shims.
 - Re-home CI/release jobs to package-aware workflows.
 - Update README/docs command examples to prefer `just dspx ...` and `just forge ...`.
