@@ -36,6 +36,10 @@ test:
     echo "no local tests"; \
   fi
 
+# Monorepo boundary guardrail check
+monorepo-check:
+  uv run -q python scripts/check_monorepo_boundaries.py
+
 # Run unified CLI from source (pass-through)
 # Examples:
 #   just dspx signature gen "Extract names" --template-version simple-v1
