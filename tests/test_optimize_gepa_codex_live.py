@@ -93,6 +93,6 @@ def test_gepa_codex_live_smoke(tmp_path: Path) -> None:
     )
     assert (res.out_dir / "manifest.json").exists()
 
-    loaded = dspy.load(str(res.out_dir))
+    loaded = dspy.load(str(res.out_dir), allow_pickle=True)
     pred = loaded(question="Reply with the single word: hello")
     assert isinstance(pred, dspy.Prediction)

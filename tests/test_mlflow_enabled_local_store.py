@@ -39,5 +39,15 @@ def test_mlflow_enabled_without_tracking_uri_uses_local_store(
         except Exception:
             pass
 
-    # MLflow's default file store is relative to CWD.
-    assert (tmp_path / "mlruns").exists()
+    # MLflow local default changed across versions:
+    # - older versions: file store under ./mlruns
+    # - newer versions: sqlite backend at ./mlflow.db
+    tracking_uri = str(mlflow.get_tracking_uri())  # type: ignore[attr-defined]
+    if tracking_uri.startswith("sqlite:///"):
+        sqlite_path = tracking_uri.replace("sqlite:///", "", 1)
+        local_sqlite = Path(sqlite_path)
+        if not local_sqlite.is_absolute():
+            local_sqlite = tmp_path / local_sqlite
+        assert local_sqlite.exists()
+    else:
+        assert (tmp_path / "mlruns").exists()

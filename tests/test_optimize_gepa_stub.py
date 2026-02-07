@@ -53,6 +53,6 @@ def test_gepa_optimize_saves_loadable_program(tmp_path: Path) -> None:
 
     assert res.out_dir.exists() and res.out_dir.is_dir()
 
-    loaded = dspy.load(str(res.out_dir))
+    loaded = dspy.load(str(res.out_dir), allow_pickle=True)
     pred = loaded(question="hello")
     assert isinstance(pred, dspy.Prediction)
