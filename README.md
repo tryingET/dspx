@@ -202,6 +202,10 @@ Replay exit codes:
 - `1`: receipt parsed, but drift detected (hash/cache/provenance)
 - `2`: invalid receipt/arguments
 
+Replay JSON diagnostics (stable machine-readable fields):
+- `error_codes`: ordered unique replay issue codes
+- `error_details`: `{code, message, check?}` entries for each issue
+
 Local-first explain (receipt/manifest facts first):
 
 ```bash
@@ -214,6 +218,10 @@ just dspx run explain --from generated/sig_names.py.meta.json --with-mlflow --js
 Explain exit codes:
 - `0`: explanation generated (`ok` or `degraded`)
 - `2`: invalid receipt/arguments
+
+Explain JSON includes replay-derived fields:
+- `replay_status`
+- `replay_error_codes`, `replay_error_details`
 
 Replay/explain contract:
 - `docs/RUN_REPLAY_EXPLAIN.md`

@@ -79,6 +79,23 @@ Current writers using this contract:
 - output artifact existence + output hash verification
 - cache linkage verification (`cache_key`, `cache_file`, run-kind cache folder)
 - cache provenance verification (recomputed `cache_key`, cached `code` hash)
+- stable machine-readable diagnostics in JSON mode:
+  - `error_codes`: ordered unique replay issue codes
+  - `error_details`: per-issue objects (`code`, `message`, optional `check`)
+
+Stable replay issue codes (current v1 taxonomy):
+- receipt validation: `receipt_not_found`, `receipt_invalid_json_object`,
+  `receipt_missing_required_field`, `receipt_unsupported_version`,
+  `receipt_unsupported_run_kind`, `receipt_invalid_output_path`,
+  `receipt_invalid_hash`, `receipt_invalid_cache_key`,
+  `receipt_invalid_cache_file`, `receipt_invalid_cache_enabled`,
+  `receipt_invalid_replay_inputs`, `receipt_replay_inputs_missing_keys`
+- output drift: `output_missing`, `output_hash_mismatch`
+- cache linkage/provenance drift: `cache_linkage_basename_mismatch`,
+  `cache_linkage_kind_mismatch`, `cache_key_recompute_unsupported`,
+  `cache_key_mismatch`, `cache_file_missing`,
+  `cache_file_invalid_json_object`, `cache_code_missing`,
+  `cache_code_hash_mismatch`
 
 Operational guarantees:
 - replay command forces local/offline posture (`MLFLOW_ENABLE=0`)
@@ -94,6 +111,9 @@ Exit codes:
 `dspx run explain --from <receipt>` now provides local-first explanation:
 - parses receipt and reports local facts (`run_kind`, provider, output/cache)
 - includes replay check results as deterministic baseline facts
+- carries replay status/diagnostics explicitly:
+  - `replay_status` (`ok`/`failed`/`invalid`)
+  - `replay_error_codes`, `replay_error_details`
 - separates optional MLflow context into `mlflow_context`
 
 Optional enrichment mode:

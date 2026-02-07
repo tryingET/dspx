@@ -1,7 +1,7 @@
 # Project Status
 
 Current working branch: `main`.
-Working tree state: dirty (run replay+explain MVP implementation + docs/tests updates not committed yet).
+Working tree state: dirty (replay/explain diagnostics hardening in progress).
 
 ## Snapshot
 
@@ -24,11 +24,11 @@ Working tree state: dirty (run replay+explain MVP implementation + docs/tests up
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
 - Default provider fallback is `pi-rpc` (Codex remains optional provider).
 - Latest branch commits:
+  - `7de4b3c` (`docs(replay): sync explain mvp status`)
+  - `0574119` (`test(replay): add explain command coverage`)
+  - `1fad4b7` (`feat(run): add local-first explain command`)
   - `ac331a3` (`docs(replay): sync replay status and roadmap`)
   - `045f03e` (`test(replay): cover replay drift outcomes`)
-  - `12c11f5` (`feat(run): add check-only replay verifier`)
-  - `f8cfe00` (`docs(replay): document receipt-first replay plan`)
-  - `ede761e` (`test(replay): cover receipt schema emission`)
 
 ## Completed on this branch
 
@@ -58,20 +58,19 @@ Working tree state: dirty (run replay+explain MVP implementation + docs/tests up
 
 ## Local working-tree delta (not committed yet)
 
-- Added first-class explain service:
+- Hardened replay diagnostics in core service:
+  - `packages/dspx-core/src/dspx/services/run_replay_service.py`
+  - adds stable machine-readable taxonomy (`error_codes`, `error_details`)
+- Extended explain payload with replay drift diagnostics:
   - `packages/dspx-core/src/dspx/services/run_explain_service.py`
-- Extended `dspx run` CLI surface in core:
-  - `dspx run explain --from <receipt> [--with-mlflow]`
-  - implemented in `packages/dspx-core/src/dspx/cli/dspx.py`
-- Extended replay/explain behavior coverage:
+  - adds `replay_status`, `replay_error_codes`, `replay_error_details`
+- Expanded drift coverage in tests:
   - `tests/test_run_receipts.py`
-  - includes explain local-first, optional MLflow enrichment, invalid receipt cases
-- Synced user/operator docs to current behavior:
+  - adds missing-cache / wrong-kind / malformed-cache-json replay cases
+  - adds explain degraded-status assertion on drift
+- Synced replay/explain docs to new diagnostics contract:
   - `README.md`
-  - `docs/TUTORIAL_E2E.md`
   - `docs/RUN_REPLAY_EXPLAIN.md`
-  - `docs/ARCHITECTURE.md`
-  - `docs/VISION.md`
   - `PROJECT_STATUS.md`
   - `NEXT_STEPS.md`
 
@@ -106,10 +105,13 @@ Working tree state: dirty (run replay+explain MVP implementation + docs/tests up
   - commands emitting v1 receipts: signature gen/refine, module-gen, codegen
   - first-class replay verifier: `dspx run replay --from <receipt> --check-only`
   - replay verifier checks: receipt schema + output hash + cache linkage/provenance
+  - replay verifier diagnostics: stable `error_codes` + `error_details`
   - replay verifier exit codes: `0` pass, `1` drift, `2` invalid receipt/args
   - first-class explain command: `dspx run explain --from <receipt>`
   - explain output is local-first (`local_facts`, `replay_checks`) with optional
     `--with-mlflow` enrichment in separate `mlflow_context`
+  - explain surfaces replay diagnostics (`replay_status`,
+    `replay_error_codes`, `replay_error_details`)
   - MLflow enrichment mode is best-effort; local file-store linkage supported,
     remote URI enrichment degrades gracefully
   - explain exit codes: `0` (`ok`/`degraded`), `2` invalid receipt/args
@@ -119,7 +121,7 @@ Working tree state: dirty (run replay+explain MVP implementation + docs/tests up
 
 - `pre-commit run --all-files`: passing (rerun on current tree)
 - `just monorepo-check`: passing (rerun on current tree)
-- `just test`: passing (`181 passed, 4 skipped`, rerun on current tree)
+- `just test`: passing (`185 passed, 4 skipped`, rerun on current tree)
 - `just typecheck`: passing (rerun on current tree)
 
 ## Known gaps and immediate risks
@@ -127,7 +129,7 @@ Working tree state: dirty (run replay+explain MVP implementation + docs/tests up
 - Replay checker and explain MVP are shipped, but execution/strictness remains:
   - `dspx run replay --check-only` exists
   - `dspx run replay --no-check-only` intentionally not implemented yet
-  - replay drift taxonomy and strict mode still need hardening
+  - replay taxonomy is now explicit; strict-mode policy still needs hardening
 - Replay cache-key/provenance logic should be audited for LM/legacy signature
   paths to avoid false drift in mixed historical artifacts.
 - Explain MLflow enrichment is best-effort and local-file-store-oriented;

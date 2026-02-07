@@ -31,26 +31,28 @@ Acceptance:
 
 ---
 
-## 2) Highest impact now: harden replay/explain drift coverage
+## 2) Highest impact now: enforce replay strictness + compatibility policy
 
 Current state:
-- `dspx run replay --check-only` and `dspx run explain` are both live.
-- Replay already validates schema/hash/cache linkage/provenance.
-- Explain is local-first (`local_facts` + `replay_checks`) and supports
-  optional best-effort MLflow enrichment (`--with-mlflow`).
+- `dspx run replay --check-only` and `dspx run explain` are live and tested.
+- Drift coverage now includes missing cache file, wrong cache kind folder,
+  malformed cache JSON, output drift, and cache provenance drift.
+- Replay JSON now emits stable diagnostics (`error_codes`, `error_details`).
+- Explain now surfaces replay drift explicitly (`replay_status`,
+  `replay_error_codes`, `replay_error_details`) and returns `degraded` on drift.
 
 Next actions:
-1. Add focused replay tests for remaining drift classes:
-   - missing cache file
-   - wrong cache kind folder
-   - malformed cache JSON payload
-2. Extend explain tests for degraded-status reporting on drifted receipts.
-3. Tighten replay diagnostics to keep machine-readable error taxonomy stable.
+1. Define strictness policy for replay diagnostics (`warn` vs `error`) and add
+   optional strict-mode gate semantics.
+2. Add regression coverage that snapshots expected issue-code sets per drift
+   class to prevent accidental taxonomy churn.
+3. Document compatibility policy for legacy receipt/cache shapes before enabling
+   stricter replay enforcement by default.
 
 Acceptance:
-- Replay/explain checks remain deterministic and offline in CI.
-- Drift diagnostics are explicit, stable, and actionable.
-- Explain status clearly signals `ok` vs `degraded` vs `invalid`.
+- Replay diagnostics remain deterministic/offline and taxonomy-stable.
+- Explain continues to classify `ok` vs `degraded` vs `invalid` correctly.
+- Strictness behavior is explicit, documented, and test-guarded.
 
 ---
 
