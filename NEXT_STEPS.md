@@ -31,7 +31,63 @@ Acceptance:
 
 ---
 
-## 2) Highest impact now: enforce replay strictness + compatibility policy
+## 2) Architecture draft kickoff (domain experts)
+
+Prepared handoff packet:
+- `docs/OBSERVABILITY_ARCH_DRAFTS.md`
+- `docs/ARCH_DRAFT_DSPX_NEXT.md`
+- `docs/ARCH_DRAFT_UPSTREAM_MLFLOW.md`
+- `docs/ARCH_DRAFT_UPSTREAM_DSPY.md`
+- templates:
+  - `docs/RFC_TEMPLATE_DSPX_NEXT.md`
+  - `docs/RFC_TEMPLATE_UPSTREAM_MLFLOW.md`
+  - `docs/RFC_TEMPLATE_UPSTREAM_DSPY.md`
+
+Next actions:
+1. Assign owners per packet (DSPx / MLflow / DSPy) and target dates.
+2. Instantiate RFC files from templates (suggested path: `docs/rfc/`):
+   - `RFC-DSPX-OBS-<date>-<slug>.md`
+   - `RFC-MLFLOW-OBS-<date>-<slug>.md`
+   - `RFC-DSPY-CALLBACK-<date>-<slug>.md`
+3. Fill option analysis + decision sections and link upstream issue placeholders.
+4. Capture cross-team open questions and final ownership matrix.
+
+Acceptance:
+- Each packet has owner + dated RFC draft file.
+- Each RFC has A/B/C option tradeoff + chosen direction.
+- Upstream-facing RFCs include issue/PR sequencing notes.
+- Cross-team questions are tracked explicitly.
+
+---
+
+## 3) MLflow lifecycle follow-through (post-hardening)
+
+Current state:
+- Local default backend policy is now deterministic: `sqlite:///mlflow.db`.
+- Run start semantics are explicit (bootstrap does not start runs).
+- DSPy autolog defaults are tuned to avoid GEPA span-start warning floods.
+- URI modes (`file`, `sqlite`, `http`) are covered in regression tests.
+- Explain local enrichment resolves sqlite custom artifact roots via MLflow experiment metadata.
+
+Next actions:
+1. Add optional trace opt-in recipe examples for CI/local (`DSPX_MLFLOW_DSPY_*`).
+2. Split and document ownership explicitly:
+   - DSPx: enrichment orchestration + correlation tags/diagnostics
+   - MLflow upstream: span no-op safety + callback parallel-state hardening
+   - DSPy upstream: callback metadata/lifecycle/context contract (no backend expansion)
+3. Decide whether remote MLflow health checks should be added as explicit preflight
+   command(s) vs left to user infra.
+4. Extend explain enrichment beyond local artifact linkage for remote backends.
+
+Acceptance:
+- Default/offline path stays deterministic and quiet.
+- Operators have explicit opt-in knobs for richer tracing.
+- Ownership split is documented and mapped to issue/PR tracks.
+- Remote-mode expectations are documented and test-scoped.
+
+---
+
+## 4) Highest impact now: enforce replay strictness + compatibility policy
 
 Current state:
 - `dspx run replay --check-only` and `dspx run explain` are live and tested.
@@ -56,7 +112,7 @@ Acceptance:
 
 ---
 
-## 3) Reconcile legacy/LM cache-key provenance edge cases
+## 5) Reconcile legacy/LM cache-key provenance edge cases
 
 Current state:
 - Replay recomputes cache key from receipt replay inputs.
@@ -75,7 +131,7 @@ Acceptance:
 
 ---
 
-## 4) Harden receipt contract coverage/governance
+## 6) Harden receipt contract coverage/governance
 
 Current state:
 - Receipt helper is centralized, but not all artifact producers are guaranteed
@@ -93,7 +149,7 @@ Acceptance:
 
 ---
 
-## 5) Extend quality contract beyond signatures
+## 7) Extend quality contract beyond signatures
 
 Why now:
 - Signature/refine path is hardened first; module/codegen/mermaid should
@@ -111,7 +167,7 @@ Acceptance:
 
 ---
 
-## 6) Calibrate runtime telemetry thresholds
+## 8) Calibrate runtime telemetry thresholds
 
 Current state:
 - CI gate profile is deterministic from provider-corpus fixtures.
@@ -129,7 +185,7 @@ Acceptance:
 
 ---
 
-## 7) Keep forge/core compatibility deterministic (`min` track)
+## 9) Keep forge/core compatibility deterministic (`min` track)
 
 Why:
 - CI `min` compatibility is only as strict as remote lower-bound tag
@@ -147,7 +203,7 @@ Acceptance:
 
 ---
 
-## 8) Keep docs and operator guidance synchronized
+## 10) Keep docs and operator guidance synchronized
 
 Next actions:
 1. Keep these docs aligned on each behavior change:

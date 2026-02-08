@@ -1,7 +1,7 @@
 # Project Status
 
 Current working branch: `main`.
-Working tree state: dirty (replay/explain diagnostics hardening in progress).
+Working tree state: dirty (MLflow lifecycle hardening + observability architecture RFC packet in progress).
 
 ## Snapshot
 
@@ -24,11 +24,11 @@ Working tree state: dirty (replay/explain diagnostics hardening in progress).
   - `.github/workflows/release-forge.yml` (`dspx-forge-v*`)
 - Default provider fallback is `pi-rpc` (Codex remains optional provider).
 - Latest branch commits:
+  - `0bfb015` (`test(compat): adjust mlflow and dspy assertions`)
+  - `c4f5628` (`chore(deps): bump dspy and mlflow floors`)
+  - `600c659` (`docs(replay): sync replay diagnostics docs`)
+  - `52907bf` (`feat(run): harden replay diagnostics`)
   - `7de4b3c` (`docs(replay): sync explain mvp status`)
-  - `0574119` (`test(replay): add explain command coverage`)
-  - `1fad4b7` (`feat(run): add local-first explain command`)
-  - `ac331a3` (`docs(replay): sync replay status and roadmap`)
-  - `045f03e` (`test(replay): cover replay drift outcomes`)
 
 ## Completed on this branch
 
@@ -55,29 +55,58 @@ Working tree state: dirty (replay/explain diagnostics hardening in progress).
 - Replay/explain UX advanced to first-class `dspx run` commands:
   - replay verifier: `dspx run replay --from <receipt> --check-only`
   - local-first explain: `dspx run explain --from <receipt> [--with-mlflow]`
+- MLflow lifecycle hardening landed for `dspy-ai 3.1.3` + `mlflow 3.9.0`:
+  - deterministic local default backend: `sqlite:///mlflow.db`
+  - explicit run start semantics (bootstrap no longer starts runs)
+  - DSPy autolog defaults tuned for GEPA stability (trace collection off by default)
+  - explicit tracking URI mode coverage (`file`, `sqlite`, `http`)
+- Observability architecture handoff packet prepared for domain experts:
+  - DSPx draft, upstream MLflow draft, upstream DSPy draft
+  - matching per-domain RFC templates
 
 ## Local working-tree delta (not committed yet)
 
-- Hardened replay diagnostics in core service:
-  - `packages/dspx-core/src/dspx/services/run_replay_service.py`
-  - adds stable machine-readable taxonomy (`error_codes`, `error_details`)
-- Extended explain payload with replay drift diagnostics:
+- Hardened MLflow lifecycle core helpers:
+  - `packages/dspx-core/src/dspx/tracing.py`
+  - local sqlite default URI policy + explicit run-start semantics
+  - MLflow 3.9 DSPy autolog compatibility + safer defaults
+- Updated explain MLflow linkage mode handling:
   - `packages/dspx-core/src/dspx/services/run_explain_service.py`
-  - adds `replay_status`, `replay_error_codes`, `replay_error_details`
-- Expanded drift coverage in tests:
+  - sqlite tracking URI is treated as local mode (not remote)
+  - sqlite custom artifact roots are discovered via MLflow experiment metadata
+- Updated call sites/tests for deterministic backend policy:
+  - `packages/dspx-core/src/dspx/services/codegen_service.py`
+  - `packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py`
+  - `tests/conftest.py`, `tests/test_test_defaults.py`
+  - `tests/test_mlflow_disable_no_import.py`
+  - `tests/test_mlflow_enabled_local_store.py`
+  - `tests/test_mlflow_nested_runs.py`
+  - `tests/test_mlflow_tracking_uri_modes.py`
+  - `tests/test_mlflow_gepa_tracing.py`
   - `tests/test_run_receipts.py`
-  - adds missing-cache / wrong-kind / malformed-cache-json replay cases
-  - adds explain degraded-status assertion on drift
-- Synced replay/explain docs to new diagnostics contract:
-  - `README.md`
-  - `docs/RUN_REPLAY_EXPLAIN.md`
-  - `PROJECT_STATUS.md`
-  - `NEXT_STEPS.md`
+- Added MLflow regression coverage:
+  - disabled mode side-effect guarantees
+  - local default backend mode
+  - explicit URI mode matrix (`file`, `sqlite`, `http`)
+  - GEPA path warning regression guard
+- Added architecture draft handoff docs for domain experts:
+  - `docs/OBSERVABILITY_ARCH_DRAFTS.md`
+  - `docs/ARCH_DRAFT_DSPX_NEXT.md`
+  - `docs/ARCH_DRAFT_UPSTREAM_MLFLOW.md`
+  - `docs/ARCH_DRAFT_UPSTREAM_DSPY.md`
+- Added per-domain RFC skeletons for fast drafting:
+  - `docs/RFC_TEMPLATE_DSPX_NEXT.md`
+  - `docs/RFC_TEMPLATE_UPSTREAM_MLFLOW.md`
+  - `docs/RFC_TEMPLATE_UPSTREAM_DSPY.md`
 
 ## Current runtime / packaging behavior
 
 - Install/sync workspace:
   - `uv sync`
+- Upstream editable-link workflow (sibling clone patching):
+  - `just upstream-link-dspy path=~/programming/upstream/dspy`
+  - `just upstream-link-mlflow path=~/programming/upstream/mlflow`
+  - `just upstream-reset`
 - Core CLI:
   - `just dspx ...`
   - runs `uv run --package dspx-core -q python -m dspx.cli.dspx ...`
@@ -112,7 +141,7 @@ Working tree state: dirty (replay/explain diagnostics hardening in progress).
     `--with-mlflow` enrichment in separate `mlflow_context`
   - explain surfaces replay diagnostics (`replay_status`,
     `replay_error_codes`, `replay_error_details`)
-  - MLflow enrichment mode is best-effort; local file-store linkage supported,
+  - MLflow enrichment mode is best-effort; local sqlite/file linkage supported,
     remote URI enrichment degrades gracefully
   - explain exit codes: `0` (`ok`/`degraded`), `2` invalid receipt/args
   - MLflow remains optional explainability sink, never execution gate
@@ -121,8 +150,8 @@ Working tree state: dirty (replay/explain diagnostics hardening in progress).
 
 - `pre-commit run --all-files`: passing (rerun on current tree)
 - `just monorepo-check`: passing (rerun on current tree)
-- `just test`: passing (`185 passed, 4 skipped`, rerun on current tree)
-- `just typecheck`: passing (rerun on current tree)
+- `just test`: passing (`192 passed, 4 skipped`, rerun on current tree)
+- `just typecheck`: not rerun in this pass
 
 ## Known gaps and immediate risks
 
@@ -132,8 +161,12 @@ Working tree state: dirty (replay/explain diagnostics hardening in progress).
   - replay taxonomy is now explicit; strict-mode policy still needs hardening
 - Replay cache-key/provenance logic should be audited for LM/legacy signature
   paths to avoid false drift in mixed historical artifacts.
-- Explain MLflow enrichment is best-effort and local-file-store-oriented;
-  remote run linkage/enrichment is not yet implemented.
+- Explain MLflow enrichment is best-effort and local-backend-oriented
+  (sqlite/file); remote run linkage/enrichment is not yet implemented.
+- Opt-in trace mode (`DSPX_MLFLOW_DSPY_LOG_TRACES=1`) can still re-surface
+  upstream span-start noise until MLflow callback/tracing hardening lands upstream.
+- Architecture draft packet + RFC templates are ready, but owner-assigned RFCs and
+  upstream issue/PR execution plans are still pending.
 - Receipt contract is standardized for key generators, but remaining producers
   (e.g. other manifest/metadata paths) still need explicit coverage audit.
 - Signature telemetry is standardized for signature/refine, but equivalent

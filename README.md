@@ -215,6 +215,8 @@ just dspx run explain --from generated/sig_names.py.meta.json --json
 just dspx run explain --from generated/sig_names.py.meta.json --with-mlflow --json
 ```
 
+`--with-mlflow` local scan resolves sqlite custom artifact roots via MLflow experiment metadata when available.
+
 Explain exit codes:
 - `0`: explanation generated (`ok` or `degraded`)
 - `2`: invalid receipt/arguments
@@ -227,13 +229,19 @@ Replay/explain contract:
 - `docs/RUN_REPLAY_EXPLAIN.md`
 
 Explainability sink (optional):
-- MLflow traces/metrics/artifacts when enabled.
+- MLflow artifacts/metrics/tags when enabled.
 - execution must still work with `MLFLOW_ENABLE=0`.
 
-Enable MLflow only when you want tracing:
+MLflow defaults/policy:
+- `MLFLOW_ENABLE=1` + no `MLFLOW_TRACKING_URI` -> local sqlite backend (`sqlite:///mlflow.db`)
+- runs are started explicitly by DSPx commands/services (no implicit run start during bootstrap)
+- DSPy autolog traces are disabled by default to avoid noisy GEPA span warnings
+
+Enable MLflow for local tracing:
 
 ```bash
 export MLFLOW_ENABLE=1
+# optional: omit this for local sqlite default
 export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
 ```
 
@@ -333,6 +341,8 @@ just test
 - GEPA quick path: `docs/GEPA_FROM_MODULE_GEN.md`
 - observability/MLflow: `docs/MLFLOW_OBSERVABILITY_PLAN.md`
 - replay/explain receipts: `docs/RUN_REPLAY_EXPLAIN.md`
+- architecture draft kickoff (DSPx + upstream): `docs/OBSERVABILITY_ARCH_DRAFTS.md`
+- observability RFC templates: `docs/RFC_TEMPLATE_DSPX_NEXT.md`, `docs/RFC_TEMPLATE_UPSTREAM_MLFLOW.md`, `docs/RFC_TEMPLATE_UPSTREAM_DSPY.md`
 - forge app: `docs/FORGE.md`
 
 ---
