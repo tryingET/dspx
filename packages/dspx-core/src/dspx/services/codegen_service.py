@@ -116,7 +116,8 @@ def run(
             mlflow = get_mlflow()
             if mlflow is not None:
                 ensure_run_from_env(
-                    tags={"service": "codegen", "language": language or "python"}
+                    run_name=f"codegen-save-{Path(path).stem}",
+                    tags={"service": "codegen", "language": language or "python"},
                 )
                 if mlflow.active_run() is not None:
                     try:

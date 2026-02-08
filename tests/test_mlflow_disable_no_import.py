@@ -18,11 +18,18 @@ def test_mlflow_disabled_does_not_import_mlflow() -> None:
     env["MLFLOW_ENABLE"] = "0"
     env["MLFLOW_TRACKING_URI"] = "http://127.0.0.1:1"
     code = (
+        "import os\n"
         "import sys\n"
+        "from pathlib import Path\n"
         "import dspx.tracing as t\n"
-        "x = t.get_mlflow()\n"
-        "print(x)\n"
+        "Path('sandbox').mkdir(exist_ok=True)\n"
+        "os.chdir('sandbox')\n"
+        "print(t.get_mlflow())\n"
+        "print(t.enable_mlflow_from_env())\n"
+        "print(t.ensure_run_from_env(run_name='should-not-start'))\n"
         "print('mlflow' in sys.modules)\n"
+        "print(Path('mlflow.db').exists())\n"
+        "print(Path('mlruns').exists())\n"
     )
     p = subprocess.run(
         [sys.executable, "-c", code],
@@ -36,3 +43,7 @@ def test_mlflow_disabled_does_not_import_mlflow() -> None:
     out = (p.stdout or "").strip().splitlines()
     assert out and out[0].strip() == "None"
     assert len(out) >= 2 and out[1].strip() == "False"
+    assert len(out) >= 3 and out[2].strip() == "False"
+    assert len(out) >= 4 and out[3].strip() == "False"
+    assert len(out) >= 5 and out[4].strip() == "False"
+    assert len(out) >= 6 and out[5].strip() == "False"

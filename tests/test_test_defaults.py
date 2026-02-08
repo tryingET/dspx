@@ -7,4 +7,6 @@ def test_suite_defaults_are_offline_and_deterministic() -> None:
 
     assert os.environ.get("DSPX_PROVIDER") == "stub"
     assert os.environ.get("MLFLOW_ENABLE") == "0"
-    assert os.environ.get("MLFLOW_TRACKING_URI") == "file:/tmp/dspx_mlruns_tests"
+    assert (
+        os.environ.get("MLFLOW_TRACKING_URI") == "sqlite:////tmp/dspx_mlflow_tests.db"
+    )

@@ -337,7 +337,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         mlflow = get_mlflow()
         if mlflow is not None:
-            ensure_run_with_standard_tags("mermaid_sig", extra={"program_name": base})
+            ensure_run_with_standard_tags(
+                "mermaid_sig",
+                run_name=f"mermaid-sig-{base}",
+                extra={"program_name": base},
+            )
     except Exception:
         pass
 
@@ -395,7 +399,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         mlflow = get_mlflow()
         if mlflow is not None:
             # Ensure a run is active and attach standard tags (includes run_group)
-            ensure_run_with_standard_tags("mermaid_sig", extra={"program_name": base})
+            ensure_run_with_standard_tags(
+                "mermaid_sig",
+                run_name=f"mermaid-sig-{base}",
+                extra={"program_name": base},
+            )
             if mlflow.active_run() is not None:
                 for fname in [
                     "signatures.py",

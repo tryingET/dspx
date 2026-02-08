@@ -118,7 +118,7 @@ Exit codes:
 
 Optional enrichment mode:
 - `--with-mlflow` enables best-effort MLflow linkage enrichment
-- local file-store linkage is inferred from artifact names
+- local sqlite/file-store linkage is inferred from artifact names (with sqlite artifact-root fallback via MLflow experiment metadata)
 - remote tracking URIs degrade gracefully with explicit notes
 - enrichment failures never block baseline explanation output
 

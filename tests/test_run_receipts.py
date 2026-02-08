@@ -13,6 +13,19 @@ from dspx.run_receipts import build_run_receipt, load_run_receipt, write_run_rec
 runner = CliRunner()
 
 
+def _end_active_mlflow_runs() -> None:
+    try:
+        import mlflow
+    except Exception:
+        return
+
+    try:
+        while mlflow.active_run() is not None:  # type: ignore[attr-defined]
+            mlflow.end_run()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+
 def test_run_receipt_roundtrip(tmp_path: Path) -> None:
     out = tmp_path / "artifact.py"
     out.write_text("print('ok')\n", encoding="utf-8")
@@ -554,43 +567,119 @@ def test_run_explain_with_mlflow_flag_is_graceful(tmp_path: Path, monkeypatch) -
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", str(tmp_path / "no_mlruns_yet"))
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{tmp_path / 'mlflow.db'}")
 
-    out = tmp_path / "gen.py"
-    r_gen = runner.invoke(
-        app,
-        [
-            "codegen",
-            "A CLI that prints hi",
-            "--language",
-            "python",
-            "--template-version",
-            "simple-v1",
-            "--outfile",
-            str(out),
-        ],
-    )
-    assert r_gen.exit_code == 0
+    _end_active_mlflow_runs()
+    try:
+        out = tmp_path / "gen.py"
+        r_gen = runner.invoke(
+            app,
+            [
+                "codegen",
+                "A CLI that prints hi",
+                "--language",
+                "python",
+                "--template-version",
+                "simple-v1",
+                "--outfile",
+                str(out),
+            ],
+        )
+        assert r_gen.exit_code == 0
 
-    r_explain = runner.invoke(
-        app,
-        [
-            "run",
-            "explain",
-            "--from",
-            str(tmp_path / "gen.py.meta.json"),
-            "--with-mlflow",
-            "--json",
-        ],
-    )
-    assert r_explain.exit_code == 0
-    payload = json.loads(r_explain.stdout)
-    assert payload["status"] == "ok"
-    assert payload["replay_status"] == "ok"
-    assert payload["replay_error_codes"] == []
-    assert payload["mlflow_context"]["requested"] is True
-    assert payload["mlflow_context"]["mode"] == "local-file-store"
-    assert "linked_runs" in payload["mlflow_context"]
+        r_explain = runner.invoke(
+            app,
+            [
+                "run",
+                "explain",
+                "--from",
+                str(tmp_path / "gen.py.meta.json"),
+                "--with-mlflow",
+                "--json",
+            ],
+        )
+        assert r_explain.exit_code == 0
+        payload = json.loads(r_explain.stdout)
+        assert payload["status"] == "ok"
+        assert payload["replay_status"] == "ok"
+        assert payload["replay_error_codes"] == []
+        assert payload["mlflow_context"]["requested"] is True
+        assert payload["mlflow_context"]["mode"] == "local-sqlite"
+        assert "linked_runs" in payload["mlflow_context"]
+    finally:
+        _end_active_mlflow_runs()
+
+
+def test_run_explain_with_mlflow_sqlite_custom_artifact_root(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    tracking_db = tmp_path / "tracking" / "mlflow.db"
+    tracking_db.parent.mkdir(parents=True, exist_ok=True)
+    tracking_uri = f"sqlite:///{tracking_db}"
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_uri)
+
+    experiment_name = "DSPxExplainCustomArtifact"
+    artifact_root = tmp_path / "mlflow_custom_artifacts"
+    monkeypatch.setenv("MLFLOW_EXPERIMENT", experiment_name)
+
+    from mlflow import MlflowClient
+
+    _end_active_mlflow_runs()
+    try:
+        client = MlflowClient(tracking_uri=tracking_uri)
+        try:
+            client.create_experiment(
+                experiment_name,
+                artifact_location=artifact_root.resolve().as_uri(),
+            )
+        except Exception:
+            pass
+
+        out = tmp_path / "gen.py"
+        r_gen = runner.invoke(
+            app,
+            [
+                "codegen",
+                "A CLI that prints hi",
+                "--language",
+                "python",
+                "--template-version",
+                "simple-v1",
+                "--outfile",
+                str(out),
+            ],
+        )
+        assert r_gen.exit_code == 0
+
+        r_explain = runner.invoke(
+            app,
+            [
+                "run",
+                "explain",
+                "--from",
+                str(tmp_path / "gen.py.meta.json"),
+                "--with-mlflow",
+                "--json",
+            ],
+        )
+        assert r_explain.exit_code == 0
+        payload = json.loads(r_explain.stdout)
+        assert payload["status"] == "ok"
+        assert payload["mlflow_context"]["mode"] == "local-sqlite"
+
+        linked_runs = payload["mlflow_context"].get("linked_runs") or []
+        assert linked_runs
+        assert any(
+            str(artifact_root) in str(run.get("artifact_uri") or "")
+            for run in linked_runs
+        )
+    finally:
+        _end_active_mlflow_runs()
 
 
 def test_run_explain_invalid_receipt_exit_code(tmp_path: Path) -> None:

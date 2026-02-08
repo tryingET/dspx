@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.parse import unquote, urlparse
 
 from dspx.run_receipts import load_run_receipt
 from dspx.services.run_replay_service import check_run_receipt
@@ -58,14 +59,25 @@ def _resolve_tracking_root(tracking_uri: str | None) -> tuple[Path | None, str, 
 
     Returns (path_or_none, mode, tracking_uri_display).
     mode:
+      - local-sqlite-default
+      - local-sqlite
       - local-file-store
       - remote-uri
+
+    Note: for sqlite tracking, MLflow default artifact location is cwd-local
+    `./mlruns` unless users configured a custom artifact root.
     """
     if not tracking_uri:
         root = (Path.cwd() / "mlruns").resolve()
-        return root, "local-file-store", str(root)
+        return root, "local-sqlite-default", "sqlite:///mlflow.db"
 
     uri = str(tracking_uri).strip()
+    low = uri.lower()
+
+    if low.startswith("sqlite:"):
+        root = (Path.cwd() / "mlruns").resolve()
+        return root, "local-sqlite", uri
+
     if "://" in uri and not uri.startswith("file:"):
         return None, "remote-uri", uri
 
@@ -82,42 +94,156 @@ def _resolve_tracking_root(tracking_uri: str | None) -> tuple[Path | None, str, 
     return root, "local-file-store", str(root)
 
 
-def _find_linked_local_runs(
-    *,
-    tracking_root: Path,
-    artifact_names: set[str],
-    limit: int = 20,
-) -> list[dict[str, Any]]:
-    if not tracking_root.exists() or not tracking_root.is_dir():
+def _local_path_from_uri(uri: str | None) -> Path | None:
+    raw = str(uri or "").strip()
+    if not raw:
+        return None
+
+    parsed = urlparse(raw)
+    if parsed.scheme and parsed.scheme != "file":
+        return None
+
+    if parsed.scheme == "file":
+        if parsed.netloc and parsed.netloc not in {"", "localhost"}:
+            return None
+        path_str = unquote(parsed.path or "")
+        if not path_str:
+            return None
+        path = Path(path_str)
+    else:
+        path = Path(raw).expanduser()
+
+    if not path.is_absolute():
+        path = (Path.cwd() / path).resolve()
+    return path
+
+
+def _artifact_roots_from_mlflow_experiments(tracking_uri: str) -> list[Path]:
+    try:
+        from mlflow.entities import ViewType
+        from mlflow.tracking import MlflowClient
+    except Exception:
         return []
 
-    found: dict[str, dict[str, Any]] = {}
-    for artifact_name in sorted(artifact_names):
-        if not artifact_name:
+    try:
+        client = MlflowClient(tracking_uri=tracking_uri)
+        experiments = client.search_experiments(
+            view_type=ViewType.ACTIVE_ONLY,
+            max_results=5000,
+        )
+    except Exception:
+        return []
+
+    preferred_name = os.getenv("MLFLOW_EXPERIMENT", "DSPy")
+    preferred: list[Path] = []
+    other: list[Path] = []
+    for exp in experiments:
+        loc = getattr(exp, "artifact_location", None)
+        path = _local_path_from_uri(str(loc) if loc is not None else None)
+        if path is None:
             continue
-        for candidate in tracking_root.rglob(artifact_name):
-            run_dir = _artifact_run_dir(candidate)
-            if run_dir is None:
+        if str(getattr(exp, "name", "")) == preferred_name:
+            preferred.append(path)
+        else:
+            other.append(path)
+    return [*preferred, *other]
+
+
+def _candidate_tracking_roots(
+    *,
+    tracking_root: Path | None,
+    tracking_uri: str,
+) -> list[Path]:
+    roots = _artifact_roots_from_mlflow_experiments(tracking_uri)
+    if not roots and tracking_root is not None:
+        roots.append(tracking_root)
+
+    deduped: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        try:
+            key = str(root.resolve())
+        except Exception:
+            key = str(root)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(root)
+    return deduped
+
+
+def _run_meta_from_client(run_id: str, *, tracking_uri: str) -> dict[str, Any]:
+    try:
+        from mlflow.tracking import MlflowClient
+    except Exception:
+        return {}
+
+    try:
+        client = MlflowClient(tracking_uri=tracking_uri)
+        run = client.get_run(run_id)
+    except Exception:
+        return {}
+
+    info = run.info
+    tags = getattr(run.data, "tags", {}) if hasattr(run, "data") else {}
+    run_name = getattr(info, "run_name", None) or (
+        str(tags.get("mlflow.runName")) if isinstance(tags, Mapping) else None
+    )
+
+    out: dict[str, Any] = {
+        "run_id": getattr(info, "run_id", run_id),
+        "experiment_id": str(getattr(info, "experiment_id", "") or ""),
+        "status": getattr(info, "status", None),
+        "lifecycle_stage": getattr(info, "lifecycle_stage", None),
+        "start_time": getattr(info, "start_time", None),
+        "end_time": getattr(info, "end_time", None),
+        "artifact_uri": getattr(info, "artifact_uri", None),
+    }
+    if run_name:
+        out["run_name"] = run_name
+    return out
+
+
+def _find_linked_local_runs(
+    *,
+    tracking_roots: list[Path],
+    artifact_names: set[str],
+    tracking_uri: str,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    found: dict[str, dict[str, Any]] = {}
+    for tracking_root in tracking_roots:
+        if not tracking_root.exists() or not tracking_root.is_dir():
+            continue
+        for artifact_name in sorted(artifact_names):
+            if not artifact_name:
                 continue
+            for candidate in tracking_root.rglob(artifact_name):
+                run_dir = _artifact_run_dir(candidate)
+                if run_dir is None:
+                    continue
 
-            run_id = run_dir.name
-            rec = found.setdefault(
-                run_id,
-                {
-                    "run_id": run_id,
-                    "experiment_id": run_dir.parent.name,
-                    "matched_artifacts": [],
-                },
-            )
-            try:
-                rel = str(candidate.relative_to(run_dir / "artifacts"))
-            except Exception:
-                rel = candidate.name
+                run_id = run_dir.name
+                rec = found.setdefault(
+                    run_id,
+                    {
+                        "run_id": run_id,
+                        "experiment_id": run_dir.parent.name,
+                        "matched_artifacts": [],
+                        "_run_dir": run_dir,
+                    },
+                )
+                try:
+                    rel = str(candidate.relative_to(run_dir / "artifacts"))
+                except Exception:
+                    rel = candidate.name
 
-            matched = rec.get("matched_artifacts")
-            if isinstance(matched, list) and rel not in matched:
-                matched.append(rel)
+                matched = rec.get("matched_artifacts")
+                if isinstance(matched, list) and rel not in matched:
+                    matched.append(rel)
 
+                if len(found) >= limit:
+                    break
             if len(found) >= limit:
                 break
         if len(found) >= limit:
@@ -126,11 +252,16 @@ def _find_linked_local_runs(
     out = list(found.values())
     for rec in out:
         run_id = str(rec.get("run_id") or "")
-        if not run_id:
-            continue
-        exp_id = str(rec.get("experiment_id") or "")
-        run_dir = tracking_root / exp_id / run_id
-        rec.update(_load_mlflow_run_meta(run_dir))
+        run_dir = rec.pop("_run_dir", None)
+        if isinstance(run_dir, Path):
+            rec.update(_load_mlflow_run_meta(run_dir))
+
+        if run_id and (
+            not rec.get("artifact_uri")
+            or not rec.get("status")
+            or not rec.get("start_time")
+        ):
+            rec.update(_run_meta_from_client(run_id, tracking_uri=tracking_uri))
 
     return out
 
@@ -162,15 +293,28 @@ def _mlflow_context(
         ]
         return out
 
-    if not tracking_root.exists() or not tracking_root.is_dir():
-        out["note"] = f"local MLflow tracking directory missing: {tracking_root}"
+    candidate_roots = _candidate_tracking_roots(
+        tracking_root=tracking_root,
+        tracking_uri=tracking_display,
+    )
+    out["scan_roots"] = [str(p) for p in candidate_roots]
+
+    local_roots = [p for p in candidate_roots if p.exists() and p.is_dir()]
+    if not local_roots:
+        if candidate_roots:
+            out["note"] = "local MLflow artifact roots missing: " + ", ".join(
+                str(p) for p in candidate_roots
+            )
+        else:
+            out["note"] = "no local MLflow artifact roots resolved"
         return out
 
     output_name = Path(str(receipt.get("output_path") or "")).name
     artifact_names = {meta_path.name, output_name, "manifest.json"}
     linked_runs = _find_linked_local_runs(
-        tracking_root=tracking_root,
+        tracking_roots=local_roots,
         artifact_names=artifact_names,
+        tracking_uri=tracking_display,
     )
     out["linked_runs"] = linked_runs
 

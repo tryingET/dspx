@@ -1,133 +1,108 @@
 ---
-summary: "Plan: make MLflow observability reliable, fast, and CI-friendly (and truly off when disabled)."
+summary: "MLflow lifecycle policy after dspy-ai 3.1.3 + mlflow 3.9.0: deterministic local backend, explicit run starts, safe DSPy autolog defaults."
 read_when:
-  - "You want to use DSPx inside CI/CD and need deterministic tracing behavior."
-  - "MLflow runs are missing, slow, or trying to reach a tracking server unexpectedly."
-  - "You are changing run naming/tags/artifact logging for services/tools."
+  - "You are changing tracing, MLflow env handling, or run lifecycle behavior."
+  - "You are debugging GEPA warnings, MLflow backend selection, or CI hangs."
+  - "You are updating replay/explain behavior with optional MLflow enrichment."
 ---
 
 # MLflow Observability Plan (DSPx)
 
-## Goal (what “good” looks like)
-
-- Observability is **boring and reliable**: every CLI/service run either logs cleanly (when enabled) or does nothing (when disabled).
-- CI-friendly defaults: **no accidental network** and no long retries unless explicitly configured.
-- Trace model: a single, queryable story per run:
-  - consistent tags (`service`, `provider`, `template_version`, `run_group`, …)
-  - reproducibility artifacts (inputs/options + manifests + generated code)
-  - budgets/latency metrics (duration + exceeded)
-
-## Non‑negotiable invariants
+## Non-negotiable policy
 
 1) `MLFLOW_ENABLE=0` means:
-   - no `mlflow` import
-   - no `mlflow.*` calls
-   - no tracking-server HTTP attempts
+- no `mlflow` import from DSPx tracing helpers
+- no run creation
+- no tracking/network side effects
 
-2) `MLFLOW_ENABLE=1` means:
-   - MLflow logging is best‑effort, but **never blocks core output**
-   - no implicit run creation unless we explicitly decide to start a run
+2) If `MLFLOW_ENABLE=1` and `MLFLOW_TRACKING_URI` is **unset**:
+- DSPx forces deterministic local backend: `sqlite:///mlflow.db`
+- expected local artifact root remains `./mlruns`
 
-3) Absence of `MLFLOW_TRACKING_URI` should be safe:
-   - use MLflow’s local file store behavior (no HTTP) unless user opts into HTTP by setting a URI
+3) Run creation is explicit:
+- bootstrapping tracing does **not** start runs
+- runs start only via `ensure_run_from_env()` / `ensure_run_with_standard_tags()`
+- no implicit run creation based only on tracking URI presence
 
-4) Replay must remain MLflow-independent:
-   - manifests/receipts/meta files are canonical for replay
-   - MLflow is a diagnostic/observability sink, not execution truth
+4) Replay/explain stay local-first:
+- receipts/manifests/cache metadata are execution truth
+- MLflow is optional enrichment sink only
 
-## Current failure mode (why tests/CI can stall)
+## Lifecycle model
 
-- MLflow “fluent” APIs can implicitly create a run; if `MLFLOW_TRACKING_URI` points to an HTTP server, that can trigger network retries (slow/stall).
-- Any CLI path that eagerly bootstraps MLflow can inherit that latency if tracing is not scoped.
+### A) Bootstrap (configuration only)
+`enable_mlflow_from_env()` does:
+- resolve tracking URI (explicit env or default local sqlite)
+- set experiment
+- configure DSPy autolog integration (best-effort)
 
-### Implemented hardening (current)
+It does **not**:
+- start a run
 
-- Read-only CLI metadata commands no longer bootstrap MLflow by default:
-  - `dspx providers list`
-  - `dspx providers capabilities`
-  - `dspx tools openapi ops|describe|env|load`
-- Mutating/generative flows still bootstrap tracing (best-effort) where observability is useful.
+### B) Run start (explicit intent)
+Callers that want MLflow logs must call one of:
+- `ensure_run_from_env(run_name=..., tags=...)`
+- `ensure_run_with_standard_tags(service=..., run_name=..., ...)`
 
-## Design (how tracing should work in DSPx)
+If no run name is available (`run_name`/`MLFLOW_RUN_NAME`), run start is skipped.
 
-### A) Central gate
+### C) Logging
+All call sites must gate logging with:
+- `mlflow = get_mlflow()`
+- `mlflow.active_run() is not None`
 
-- One helper in `packages/dspx-core/src/dspx/tracing.py` owns the rule:
-  - `mlflow_enabled()` → env-only boolean
-  - `get_mlflow()` → returns `mlflow` module only when enabled+importable
-- Every call site must use `get_mlflow()` (or a wrapper that uses it).
+## DSPy autolog semantics (mlflow 3.9)
 
-### B) Run lifecycle
+MLflow 3.9 changed `mlflow.dspy.autolog` API (no `create_run`).
 
-- Default: **do not** create implicit runs.
-- CLI/services that want a run must:
-  - call `ensure_run_with_standard_tags(service, run_name=...)`
-  - then log only if `mlflow.active_run() is not None`
+DSPx policy defaults:
+- autolog enabled in compatibility mode (`DSPX_MLFLOW_DSPY_AUTOLOG=1`)
+- trace collection off by default (`DSPX_MLFLOW_DSPY_LOG_TRACES=0`)
+- MLflow DSPy integration kept quiet by default (`DSPX_MLFLOW_DSPY_SILENT=1`)
 
-### C) Tag contract (minimum viable)
+Rationale:
+- avoids noisy GEPA warnings (`Failed to start span ... NonRecordingSpan ...`)
+- keeps explicit DSPx artifact/metric logging deterministic
 
-- Required tags:
-  - `service`: `signature|module|codegen|mermaid|tools|openapi|...`
-  - `provider`: from `DSPX_PROVIDER` when present
-- Optional but strongly recommended:
-  - `template_version`
-  - `run_group` (propagate via `DSPX_RUN_GROUP`)
-  - `program_name` (Mermaid)
-  - `service.budget_ms` (tag)
+Optional opt-in knobs:
+- `DSPX_MLFLOW_DSPY_LOG_TRACES=1`
+- `DSPX_MLFLOW_DSPY_LOG_TRACES_FROM_COMPILE=1`
+- `DSPX_MLFLOW_DSPY_LOG_TRACES_FROM_EVAL=1`
+- `DSPX_MLFLOW_DSPY_LOG_COMPILES=1`
+- `DSPX_MLFLOW_DSPY_LOG_EVALS=1`
 
-### D) Artifact contract (minimum viable)
+## Tracking URI modes
 
-- Always safe to log:
-  - generated `.py` outputs
-  - `*.meta.json` (cache key + hashes)
-  - manifests (`manifest.json`, `program_graph.json`, `artifact.json`)
-- Never log secrets:
-  - rely on `dspx.redaction` for previews/log text
-  - treat headers/cookies/tokens as sensitive by default
+- unset: `sqlite:///mlflow.db` (DSPx default)
+- `file:...` or local path: local file-store
+- `sqlite:...`: local sqlite backend
+- `http(s)://...`: remote backend (user-managed)
 
-## Implementation checklist (concrete)
+Run explain enrichment (`--with-mlflow`) treats sqlite/file modes as local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata, and remote URIs as best-effort degraded mode.
 
-1) Gate all call sites
-   - replace direct `import mlflow` blocks with `mlflow = get_mlflow()`
-   - skip logging when `mlflow is None`
-   - never call `mlflow.log_*` unless `mlflow.active_run() is not None`
+## Guardrails for contributors
 
-2) Fix defaults
-   - in `enable_mlflow_from_env()`: only set tracking URI when `MLFLOW_TRACKING_URI` is set
-   - for DSPy autolog: prefer `mlflow.dspy.autolog(create_run=False)` when supported
+- never `import mlflow` directly outside `dspx.tracing`
+- never call `mlflow.log_*` without an active run
+- keep read-only CLI commands from bootstrapping tracing
+- keep tests offline/deterministic by default
 
-3) Add regression tests
-   - test that `MLFLOW_ENABLE=0` prevents importing `mlflow` (guard `__import__`)
-   - test “enabled but no tracking uri” stays local (no HTTP) by ensuring it runs without a server
+## Validation checklist
 
-4) CI/CD wiring (GitLab)
-   - decide per pipeline whether MLflow is:
-     - disabled (fastest; default for unit tests), or
-     - enabled to local store (artifact upload), or
-     - enabled to remote tracking server (org-level observability)
-   - recommended envs for remote MLflow:
-     - `MLFLOW_ENABLE=1`
-     - `MLFLOW_TRACKING_URI=https://mlflow.<domain>`
-     - `MLFLOW_EXPERIMENT=ai-society/<project>`
-     - `DSPX_RUN_GROUP=$CI_PIPELINE_ID` (or `$CI_COMMIT_SHA`)
-     - `MLFLOW_RUN_NAME=$CI_JOB_NAME` (optional; DSPx also sets stable per-command run names)
+- disabled mode: no import + no side effects
+- local default mode: uses sqlite + local artifacts
+- explicit URI mode: file/sqlite/http behavior covered
+- nested run behavior: child run does not end parent
+- GEPA path with tracing enabled: no noisy span-start warning flood
 
-5) Documentation update (publish readiness)
-   - document the invariants above in README (short)
-   - document CI recipes + run_group conventions
+## Architecture draft handoff
 
-## Validation (how we know we’re done)
-
-- `just test` has no MLflow HTTP retries when `MLFLOW_ENABLE=0`.
-- With `MLFLOW_ENABLE=1` and no tracking URI, runs are created locally (no server required).
-- With an HTTP tracking URI, runs show:
-  - consistent tags
-  - artifacts attached
-  - budget metrics present when budgets are used
-
-## Self‑critique (risks / what I might be missing)
-
-- Risk: MLflow APIs change; `create_run=False` may not exist in older versions (we need graceful fallback).
-- Risk: “active run required” could drop artifacts silently if a caller forgets to start a run; mitigated by always calling `ensure_run_with_standard_tags(...)` in CLI/service entrypoints.
-- Risk: local file store in CI can bloat artifacts; need retention policy (GitLab artifact TTL) or remote MLflow with pruning.
-- Risk: people will expect OpenTelemetry-style traces; MLflow is “good enough” for artifacts/metrics but not a full tracing system.
+For domain-expert drafting packets:
+- `docs/OBSERVABILITY_ARCH_DRAFTS.md`
+- `docs/ARCH_DRAFT_DSPX_NEXT.md`
+- `docs/ARCH_DRAFT_UPSTREAM_MLFLOW.md`
+- `docs/ARCH_DRAFT_UPSTREAM_DSPY.md`
+- RFC templates:
+  - `docs/RFC_TEMPLATE_DSPX_NEXT.md`
+  - `docs/RFC_TEMPLATE_UPSTREAM_MLFLOW.md`
+  - `docs/RFC_TEMPLATE_UPSTREAM_DSPY.md`

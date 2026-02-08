@@ -6,7 +6,7 @@ from pathlib import Path
 def test_nested_run_does_not_end_parent(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("MLFLOW_ENABLE", "1")
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"file:{tmp_path / 'mlruns'}")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{tmp_path / 'mlflow.db'}")
     monkeypatch.setenv("MLFLOW_EXPERIMENT", "DSPxNestedTest")
     monkeypatch.setenv("DSPX_MLFLOW_NESTED_RUNS", "1")
 

@@ -1,19 +1,21 @@
 """
-MLflow tracing helper for DSPy + Codex Exec.
+MLflow tracing helper for DSPx + DSPy.
 
-Enable by setting env vars before running any CLI/script:
-- MLFLOW_ENABLE=1 (default 1)
-- MLFLOW_TRACKING_URI=http://127.0.0.1:5000 (optional; if unset, uses local file store)
-- MLFLOW_EXPERIMENT=DSPy (experiment name)
+Environment knobs:
+- MLFLOW_ENABLE=1 (default: enabled)
+- MLFLOW_TRACKING_URI=<uri> (optional; when unset DSPx forces local sqlite)
+- MLFLOW_EXPERIMENT=DSPy
 
-Usage:
-    from dspx.tracing import enable_mlflow_from_env
-    enable_mlflow_from_env()
+DSPy autologging knobs (MLflow 3.x):
+- DSPX_MLFLOW_DSPY_AUTOLOG=1 (default)
+- DSPX_MLFLOW_DSPY_LOG_TRACES=0 (default; avoids noisy span warnings in GEPA)
+- DSPX_MLFLOW_DSPY_SILENT=1 (default)
 """
 
 from __future__ import annotations
 
 from contextlib import contextmanager
+import inspect
 import os
 
 __all__ = [
@@ -21,6 +23,7 @@ __all__ = [
     "ensure_run_from_env",
     "mlflow_enabled",
     "get_mlflow",
+    "default_tracking_uri_from_env",
     "standard_tags",
     "ensure_run_with_standard_tags",
     "nested_run_with_tags",
@@ -60,10 +63,88 @@ def get_mlflow():
         return None
 
 
-def enable_mlflow_from_env() -> bool:
-    """Enable MLflow autolog for DSPy using environment variables.
+def default_tracking_uri_from_env() -> str:
+    """Resolve tracking URI with DSPx local-default policy.
 
-    Returns True if enabled successfully, False otherwise.
+    Policy:
+    - explicit MLFLOW_TRACKING_URI wins
+    - otherwise use local sqlite backend (deterministic across MLflow versions)
+    """
+    uri = os.getenv("MLFLOW_TRACKING_URI")
+    if uri and uri.strip():
+        return uri.strip()
+    return "sqlite:///mlflow.db"
+
+
+def _autolog_enabled() -> bool:
+    return _truthy(os.getenv("DSPX_MLFLOW_DSPY_AUTOLOG", "1"))
+
+
+def _bool_env(name: str, default: str) -> bool:
+    return _truthy(os.getenv(name, default))
+
+
+def _enable_dspy_autolog(mlflow) -> None:
+    """Enable DSPy autolog with MLflow-version-aware arguments.
+
+    MLflow 3.x removed `create_run` and added trace/eval/compile flags.
+    We default to trace-disabled mode to avoid noisy GEPA span warnings.
+    """
+    if not _autolog_enabled():
+        return
+    try:
+        dspy_mod = getattr(mlflow, "dspy", None)
+        autolog_fn = getattr(dspy_mod, "autolog", None)
+        if autolog_fn is None:
+            # Fallback for very old integrations.
+            if hasattr(mlflow, "autolog"):
+                try:
+                    mlflow.autolog(disable=False)
+                except Exception:
+                    pass
+            return
+
+        try:
+            params = inspect.signature(autolog_fn).parameters
+        except Exception:
+            params = {}
+
+        # Older API (MLflow <=2.x style)
+        if "create_run" in params:
+            autolog_fn(create_run=False)
+            return
+
+        # MLflow 3.x API.
+        kwargs = {}
+        if "log_traces" in params:
+            kwargs["log_traces"] = _bool_env("DSPX_MLFLOW_DSPY_LOG_TRACES", "0")
+        if "log_traces_from_compile" in params:
+            kwargs["log_traces_from_compile"] = _bool_env(
+                "DSPX_MLFLOW_DSPY_LOG_TRACES_FROM_COMPILE", "0"
+            )
+        if "log_traces_from_eval" in params:
+            kwargs["log_traces_from_eval"] = _bool_env(
+                "DSPX_MLFLOW_DSPY_LOG_TRACES_FROM_EVAL", "0"
+            )
+        if "log_compiles" in params:
+            kwargs["log_compiles"] = _bool_env("DSPX_MLFLOW_DSPY_LOG_COMPILES", "0")
+        if "log_evals" in params:
+            kwargs["log_evals"] = _bool_env("DSPX_MLFLOW_DSPY_LOG_EVALS", "0")
+        if "silent" in params:
+            kwargs["silent"] = _bool_env("DSPX_MLFLOW_DSPY_SILENT", "1")
+        if "disable" in params:
+            kwargs["disable"] = False
+
+        autolog_fn(**kwargs)
+    except Exception:
+        # Never fail core DSPx flow on autolog setup.
+        pass
+
+
+def enable_mlflow_from_env() -> bool:
+    """Enable MLflow using environment variables.
+
+    Returns True if setup succeeded, False otherwise.
     """
     if not mlflow_enabled():
         return False
@@ -72,52 +153,31 @@ def enable_mlflow_from_env() -> bool:
     if mlflow is None:
         return False
 
-    uri = os.getenv("MLFLOW_TRACKING_URI")
+    uri = default_tracking_uri_from_env()
     exp = os.getenv("MLFLOW_EXPERIMENT", "DSPy")
-    run_name = os.getenv("MLFLOW_RUN_NAME")
 
     try:
-        if uri:
-            mlflow.set_tracking_uri(uri)
+        # Stabilize local default backend across MLflow versions.
+        if not os.getenv("MLFLOW_TRACKING_URI"):
+            os.environ["MLFLOW_TRACKING_URI"] = uri
+        mlflow.set_tracking_uri(uri)
         mlflow.set_experiment(exp)
-        # Enable DSPy autologging (MLflow >= 2.18). Fallback to generic
-        # autolog if the dspy integration is unavailable for any reason.
-        try:
-            if hasattr(mlflow, "dspy") and hasattr(mlflow.dspy, "autolog"):
-                # Prefer "attach only" when supported to avoid implicit run creation.
-                try:
-                    mlflow.dspy.autolog(create_run=False)
-                except TypeError:  # pragma: no cover
-                    mlflow.dspy.autolog()
-            else:  # pragma: no cover - depends on mlflow version
-                mlflow.autolog(disable=False)
-        except Exception:
-            # Avoid failing if autolog cannot be enabled; continue best-effort
-            pass
-
-        # If a run name is provided and no run is active, start one so the
-        # name shows up in the UI. Scripts can still override by starting
-        # their own run explicitly.
-        try:
-            if run_name and mlflow.active_run() is None:
-                mlflow.start_run(run_name=run_name)
-        except Exception:
-            # Do not fail tracing if we cannot start a run here
-            pass
+        _enable_dspy_autolog(mlflow)
+        # No implicit run creation here. Runs are started explicitly via ensure_run_*.
         return True
     except Exception:
-        # Fallback to no-op if server not reachable or integration unavailable
+        # Fallback to no-op if backend is unreachable or integration unavailable.
         return False
 
 
 def ensure_run_from_env(
     run_name: str | None = None, tags: dict[str, str] | None = None
 ) -> bool:
-    """Ensure an MLflow run is active, using env/defaults when needed.
+    """Ensure an MLflow run is active using explicit run-start semantics.
 
     - If a run is already active, set provided tags (if any) and return False.
-    - If no run is active, start one with `run_name` or `$MLFLOW_RUN_NAME` and
-      return True.
+    - If no run is active, start one only when a run name is explicitly provided
+      (`run_name` or `$MLFLOW_RUN_NAME`) and return True.
     - Honors `MLFLOW_ENABLE` toggle; returns False if disabled or mlflow missing.
     """
     if not mlflow_enabled():
@@ -134,10 +194,11 @@ def ensure_run_from_env(
                     except Exception:
                         pass
             return False
-        # Avoid implicitly starting runs unless configured via env
+
         rn = run_name or os.getenv("MLFLOW_RUN_NAME")
-        if not rn and not os.getenv("MLFLOW_TRACKING_URI"):
+        if not rn:
             return False
+
         mlflow.start_run(run_name=rn)
         if tags:
             for k, v in tags.items():
@@ -188,8 +249,8 @@ def ensure_run_with_standard_tags(
 ) -> bool:
     """Ensure a run is active and set standard tags for consistency.
 
-    If no run is active and MLflow is enabled, starts a run with `run_name`
-    (or `$MLFLOW_RUN_NAME`), and sets standard tags (including optional group).
+    If no run is active and MLflow is enabled, starts a run only when
+    `run_name` (or `$MLFLOW_RUN_NAME`) is provided.
     """
     return ensure_run_from_env(
         run_name=run_name,
