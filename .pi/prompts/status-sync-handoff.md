@@ -6,6 +6,9 @@ Then provide a ready-to-paste prompt for a new context window.
 
 Optional focus/context: $@
 
+If the focus is System4D extension smoke testing, prefer using:
+- `/status-system4d-extension-handoff`
+
 Execution plan:
 1. Read first:
    - `AGENTS.md`

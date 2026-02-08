@@ -1,0 +1,125 @@
+{
+  "title": "System4D Intake Interview",
+  "description": "First-pass discovery interview before explorer subagents run.",
+  "questions": [
+    {
+      "id": "container_boundary_in",
+      "type": "text",
+      "question": "Boundary (in-scope): What does this workflow own?"
+    },
+    {
+      "id": "container_boundary_out",
+      "type": "text",
+      "question": "Boundary (out-of-scope): What must be excluded?"
+    },
+    {
+      "id": "container_constraints",
+      "type": "multi",
+      "question": "Hard constraints (select all)",
+      "options": [
+        "Backward compatibility",
+        "No network dependency",
+        "No DB mutation",
+        "Security/policy gates",
+        "Timebox/deadline",
+        "Other"
+      ]
+    },
+    {
+      "id": "container_edges",
+      "type": "text",
+      "question": "Edge/integration points: Which systems/teams/interfaces are touched?"
+    },
+    {
+      "id": "container_dependencies",
+      "type": "text",
+      "question": "Dependencies: Which external approvals/releases/resources are required?"
+    },
+    {
+      "id": "container_antigoals",
+      "type": "text",
+      "question": "Anti-goals: What should we explicitly not optimize for now?"
+    },
+    {
+      "id": "compass_driver",
+      "type": "single",
+      "question": "Primary driver (why now?)",
+      "options": [
+        "Reliability incident",
+        "Delivery pressure",
+        "Quality/regression risk",
+        "Compliance/policy",
+        "Cost/performance",
+        "Other"
+      ]
+    },
+    {
+      "id": "compass_outcome",
+      "type": "text",
+      "question": "Outcome: What measurable value should this deliver?"
+    },
+    {
+      "id": "compass_tradeoffs",
+      "type": "multi",
+      "question": "Trade-offs to prioritize (top 2-3)",
+      "options": [
+        "Speed vs robustness",
+        "Simplicity vs flexibility",
+        "Local determinism vs remote enrichment",
+        "Strictness vs compatibility",
+        "Developer UX vs operator control",
+        "Other"
+      ]
+    },
+    {
+      "id": "engine_triggers",
+      "type": "text",
+      "question": "Trigger: What event/action starts this workflow?"
+    },
+    {
+      "id": "engine_states",
+      "type": "text",
+      "question": "States: Which states and transitions matter?"
+    },
+    {
+      "id": "engine_invariants",
+      "type": "text",
+      "question": "Invariants: What must always remain true?"
+    },
+    {
+      "id": "engine_lifecycle",
+      "type": "text",
+      "question": "Lifecycle: How should create/change/archive/retire be handled?"
+    },
+    {
+      "id": "fog_assumptions",
+      "type": "text",
+      "question": "Assumptions: What are we assuming without proof?"
+    },
+    {
+      "id": "fog_risks",
+      "type": "text",
+      "question": "Top risks and early warning signals?"
+    },
+    {
+      "id": "fog_exceptions",
+      "type": "text",
+      "question": "Exceptions/error paths: Which non-happy paths are likely?"
+    },
+    {
+      "id": "fog_debt",
+      "type": "text",
+      "question": "Debt tolerance: What shortcuts are acceptable, and when must they be paid back?"
+    },
+    {
+      "id": "success_criteria",
+      "type": "text",
+      "question": "Success criteria: How will we know this iteration is done?"
+    },
+    {
+      "id": "reference_artifacts",
+      "type": "image",
+      "question": "Optional: Upload architecture sketches or reference artifacts"
+    }
+  ]
+}

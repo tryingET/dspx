@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dspx.local/docs/subagent-runs/schema/system4d-attrs.schema.json",
+  "title": "System4D workflow attributes",
+  "description": "Canonical argument schema for interview intake and subagent kickoff command generation.",
+  "type": "object",
+  "required": ["workflow_version", "run_id", "task_title"],
+  "properties": {
+    "workflow_version": {
+      "type": "string",
+      "description": "Workflow contract version for prompts/extensions/artifacts.",
+      "pattern": "^system4d-v[0-9]+(\\.[0-9]+)*$",
+      "examples": ["system4d-v1.0"]
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Run identifier in YYYYMMDD-slug format.",
+      "pattern": "^[0-9]{8}-[a-z0-9][a-z0-9-]{2,80}$"
+    },
+    "task_title": {
+      "type": "string",
+      "description": "Short human-readable task title used for prompts and handoff.",
+      "minLength": 3,
+      "maxLength": 160
+    },
+    "db_path_or_none": {
+      "type": "string",
+      "description": "SQLite database path when known, otherwise literal 'none'.",
+      "minLength": 1,
+      "maxLength": 512,
+      "examples": ["none", "./mlflow.db", "data/app.sqlite3"]
+    },
+    "driver": {
+      "type": "string",
+      "description": "Compass/Driver: why now.",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "outcome": {
+      "type": "string",
+      "description": "Compass/Outcome: measurable value target.",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "constraints": {
+      "type": "string",
+      "description": "Container/Constraint: hard limits and non-negotiables.",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "boundary": {
+      "type": "string",
+      "description": "Container/Boundary: in-scope and out-of-scope summary.",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "edges_dependencies": {
+      "type": "string",
+      "description": "Container/Edge + Dependency summary.",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "success_criteria": {
+      "type": "string",
+      "description": "Definition of done for this workflow run.",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "extra_context": {
+      "type": "string",
+      "description": "Additional freeform context and assumptions.",
+      "maxLength": 2000
+    }
+  },
+  "$defs": {
+    "interview_intake_args": {
+      "type": "object",
+      "required": ["run_id", "task_title", "db_path_or_none"],
+      "properties": {
+        "workflow_version": { "$ref": "#/properties/workflow_version" },
+        "run_id": { "$ref": "#/properties/run_id" },
+        "task_title": { "$ref": "#/properties/task_title" },
+        "db_path_or_none": { "$ref": "#/properties/db_path_or_none" },
+        "extra_context": { "$ref": "#/properties/extra_context" }
+      },
+      "additionalProperties": false
+    },
+    "kickoff_args": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "task_title",
+        "driver",
+        "outcome",
+        "constraints",
+        "boundary",
+        "edges_dependencies",
+        "db_path_or_none",
+        "success_criteria"
+      ],
+      "properties": {
+        "workflow_version": { "$ref": "#/properties/workflow_version" },
+        "run_id": { "$ref": "#/properties/run_id" },
+        "task_title": { "$ref": "#/properties/task_title" },
+        "driver": { "$ref": "#/properties/driver" },
+        "outcome": { "$ref": "#/properties/outcome" },
+        "constraints": { "$ref": "#/properties/constraints" },
+        "boundary": { "$ref": "#/properties/boundary" },
+        "edges_dependencies": { "$ref": "#/properties/edges_dependencies" },
+        "db_path_or_none": { "$ref": "#/properties/db_path_or_none" },
+        "success_criteria": { "$ref": "#/properties/success_criteria" },
+        "extra_context": { "$ref": "#/properties/extra_context" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

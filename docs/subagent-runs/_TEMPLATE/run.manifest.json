@@ -1,0 +1,41 @@
+{
+  "workflow_version": "system4d-v1.0",
+  "run_id": "<YYYYMMDD-slug>",
+  "task_title": "<fill-me>",
+  "created_at": "<ISO8601>",
+  "updated_at": "<ISO8601>",
+  "status": "intake_pending",
+  "stage_status": {
+    "00_intake": "pending",
+    "10_explorers": "pending",
+    "20_synthesis": "pending",
+    "30_prompt_factory": "pending",
+    "40_domain_drafts": "pending",
+    "50_consensus": "pending",
+    "60_implementation": "pending",
+    "70_qa": "pending",
+    "80_release": "pending",
+    "90_operations": "pending"
+  },
+  "attributes": {
+    "driver": "",
+    "outcome": "",
+    "constraints": "",
+    "boundary": "",
+    "edges_dependencies": "",
+    "db_path_or_none": "none",
+    "success_criteria": "",
+    "extra_context": ""
+  },
+  "gates": {
+    "kickoff_ready": false,
+    "kickoff_gate_checklist": "00-intake/kickoff-gate-checklist.md"
+  },
+  "artifacts": {
+    "intake_brief": "00-intake/brief.md",
+    "interview_questions": "00-intake/interview-4d.questions.json",
+    "interview_responses": "00-intake/interview-4d.responses.md",
+    "writer_synthesis": "20-synthesis/technical-writer.md",
+    "prompt_factory": "30-prompt-factory/master-prompting.md"
+  }
+}
