@@ -98,6 +98,11 @@ Working tree state: dirty (MLflow lifecycle hardening + observability architectu
   - `docs/RFC_TEMPLATE_DSPX_NEXT.md`
   - `docs/RFC_TEMPLATE_UPSTREAM_MLFLOW.md`
   - `docs/RFC_TEMPLATE_UPSTREAM_DSPY.md`
+- Instantiated kickoff RFC drafts + ownership matrix:
+  - `docs/rfc/OBSERVABILITY_KICKOFF_20260207.md`
+  - `docs/rfc/RFC-DSPX-OBS-20260207-mlflow-explain-correlation-v11.md`
+  - `docs/rfc/RFC-MLFLOW-OBS-20260207-dspy-tracing-hardening.md`
+  - `docs/rfc/RFC-DSPY-CALLBACK-20260207-lifecycle-contract-v1.md`
 
 ## Current runtime / packaging behavior
 
@@ -165,8 +170,8 @@ Working tree state: dirty (MLflow lifecycle hardening + observability architectu
   (sqlite/file); remote run linkage/enrichment is not yet implemented.
 - Opt-in trace mode (`DSPX_MLFLOW_DSPY_LOG_TRACES=1`) can still re-surface
   upstream span-start noise until MLflow callback/tracing hardening lands upstream.
-- Architecture draft packet + RFC templates are ready, but owner-assigned RFCs and
-  upstream issue/PR execution plans are still pending.
+- Architecture draft packet kickoff is now instantiated (owner-assigned RFC drafts +
+  sequencing matrix), but upstream issue filing/maintainer alignment is still pending.
 - Receipt contract is standardized for key generators, but remaining producers
   (e.g. other manifest/metadata paths) still need explicit coverage audit.
 - Signature telemetry is standardized for signature/refine, but equivalent

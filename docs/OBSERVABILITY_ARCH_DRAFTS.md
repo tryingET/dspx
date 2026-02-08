@@ -55,6 +55,15 @@ Recommended flow:
 2. fill sections with concrete options + evidence
 3. link upstream issues/PR plan
 
+## Kickoff instantiation (2026-02-07)
+
+- Ownership + sequencing matrix:
+  - `docs/rfc/OBSERVABILITY_KICKOFF_20260207.md`
+- Draft RFCs instantiated:
+  - `docs/rfc/RFC-DSPX-OBS-20260207-mlflow-explain-correlation-v11.md`
+  - `docs/rfc/RFC-MLFLOW-OBS-20260207-dspy-tracing-hardening.md`
+  - `docs/rfc/RFC-DSPY-CALLBACK-20260207-lifecycle-contract-v1.md`
+
 ## Expected output from each domain expert
 
 For each packet, produce:

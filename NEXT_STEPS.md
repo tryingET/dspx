@@ -43,18 +43,24 @@ Prepared handoff packet:
   - `docs/RFC_TEMPLATE_UPSTREAM_MLFLOW.md`
   - `docs/RFC_TEMPLATE_UPSTREAM_DSPY.md`
 
+Current kickoff state:
+- Ownership matrix + sequencing map created:
+  - `docs/rfc/OBSERVABILITY_KICKOFF_20260207.md`
+- RFC drafts instantiated from templates:
+  - `docs/rfc/RFC-DSPX-OBS-20260207-mlflow-explain-correlation-v11.md`
+  - `docs/rfc/RFC-MLFLOW-OBS-20260207-dspy-tracing-hardening.md`
+  - `docs/rfc/RFC-DSPY-CALLBACK-20260207-lifecycle-contract-v1.md`
+- Each draft includes A/B/C options + chosen direction + open questions.
+
 Next actions:
-1. Assign owners per packet (DSPx / MLflow / DSPy) and target dates.
-2. Instantiate RFC files from templates (suggested path: `docs/rfc/`):
-   - `RFC-DSPX-OBS-<date>-<slug>.md`
-   - `RFC-MLFLOW-OBS-<date>-<slug>.md`
-   - `RFC-DSPY-CALLBACK-<date>-<slug>.md`
-3. Fill option analysis + decision sections and link upstream issue placeholders.
-4. Capture cross-team open questions and final ownership matrix.
+1. File upstream umbrella issues from RFC placeholders (MLflow + DSPy).
+2. Convert sequencing map into concrete PR checklists with maintainer feedback.
+3. Sync packet links in handoff/status docs once issue IDs exist.
+4. Keep boundary invariant checks green while implementing DSPx-side PRs.
 
 Acceptance:
-- Each packet has owner + dated RFC draft file.
-- Each RFC has A/B/C option tradeoff + chosen direction.
+- Packet owners and target dates are explicit.
+- Draft RFC files exist and are review-ready.
 - Upstream-facing RFCs include issue/PR sequencing notes.
 - Cross-team questions are tracked explicitly.
 
