@@ -17,3 +17,8 @@ Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
 - Typechecking uses `ty` (not mypy): `uvx ty check src`
 - Commands are standardized in `Justfile` (`just test`, `just fmt`, `just lint`, `just typecheck`).
+- Validation tiers:
+  - install hooks once: `just hooks-install`
+  - pre-commit hook = fast staged checks (ruff/whitespace)
+  - pre-push hook = full gate (`just monorepo-check && just typecheck && just test`)
+  - explicit batch gate: `just verify-full`

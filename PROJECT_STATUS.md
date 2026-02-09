@@ -48,6 +48,11 @@ Working tree state: dirty (System4D workflow/extension updates + Wave-1 DSPx obs
   - forge CLI: `just forge ...`
 - Monorepo boundary enforcement:
   - `just monorepo-check`
+- Commit validation tiers:
+  - hook install: `just hooks-install`
+  - pre-commit (fast): ruff format/check + whitespace (staged files)
+  - pre-push (full): `just monorepo-check && just typecheck && just test`
+  - explicit batch gate: `just verify-full` (run once before push)
 - MLflow runtime policy:
   - `MLFLOW_ENABLE=1` + unset URI => local `sqlite:///mlflow.db`
   - explicit run start semantics still apply (no implicit run creation on bootstrap)
@@ -66,8 +71,8 @@ Executed on current working tree:
 - `uv run -m pytest -q tests -vv -s --maxfail=1 --durations=50` ✅ passing (`196 passed, 4 skipped`)
   - prior hotspot resolved: `tests/test_run_receipts.py::test_run_explain_remote_lookup_flag_graceful` now completes (~3s), no hang
 - `pre-commit run --all-files` ✅ passing
-- `just monorepo-check` ✅ passing
-- `just test` ✅ passing (`196 passed, 4 skipped`)
+- `pre-commit run --hook-stage pre-push verify-pre-push` ✅ passing
+- `just verify-full` ✅ passing
 
 ## Known gaps and immediate risks
 

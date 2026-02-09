@@ -312,12 +312,29 @@ just typecheck-forge
 just test-forge
 ```
 
-Validation loop used on this branch:
+Hook setup (once per clone):
 
 ```bash
-pre-commit run --all-files
-just monorepo-check
-just test
+just hooks-install
+```
+
+Validation tiers:
+
+```bash
+# pre-commit hook (fast, staged-only):
+# - ruff format/check
+# - whitespace check
+
+# pre-push hook (full gate):
+# - just monorepo-check
+# - just typecheck
+# - just test
+```
+
+Batch-commit flow (run once before push):
+
+```bash
+just verify-full
 ```
 
 ---

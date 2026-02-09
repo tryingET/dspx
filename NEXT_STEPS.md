@@ -18,15 +18,17 @@ Acceptance:
 ## 1) Keep baseline stable on every iteration
 
 Actions:
-1. Run:
-   - `pre-commit run --all-files`
-   - `just monorepo-check`
-   - `just test`
-2. Run extra quality gates when touching core runtime contracts:
-   - `just fmt && just lint && just typecheck`
+1. Keep hooks installed (once per clone):
+   - `just hooks-install`
+2. Use tiered validation:
+   - per commit: pre-commit hook (fast staged checks)
+   - per batch/before push: `just verify-full`
+3. Run extra quality gates when touching core runtime contracts:
+   - `just fmt && just lint`
 
 Acceptance:
-- All default gates pass before/after each scoped change.
+- Fast local commit loop stays low-latency.
+- Full gate passes at least once per commit batch before push.
 
 ---
 
