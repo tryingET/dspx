@@ -1,12 +1,27 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import os
+import time
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import unquote, urlparse
 
 from dspx.run_receipts import load_run_receipt
 from dspx.services.run_replay_service import check_run_receipt
+
+_REASON_CODE_VERSION = "v1"
+_REASON_PRECEDENCE: tuple[str, ...] = (
+    "mlflow_disabled",
+    "mlflow_remote_lookup_not_enabled",
+    "mlflow_remote_auth_unavailable",
+    "mlflow_remote_time_budget_exceeded",
+    "mlflow_remote_search_failed",
+    "mlflow_remote_candidate_cap_reached",
+    "mlflow_remote_no_candidate",
+    "mlflow_remote_multi_candidate",
+    "mlflow_tag_contract_violation",
+)
 
 
 def _as_dict(value: Any) -> dict[str, Any]:
@@ -17,6 +32,31 @@ def _as_bool_dict(value: Any) -> dict[str, bool]:
     if not isinstance(value, Mapping):
         return {}
     return {str(k): bool(v) for k, v in value.items()}
+
+
+def _ordered_unique_reason_codes(codes: list[str]) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for code in codes:
+        c = str(code or "").strip()
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        unique.append(c)
+
+    rank = {code: idx for idx, code in enumerate(_REASON_PRECEDENCE)}
+    fallback_rank = len(rank)
+    return sorted(unique, key=lambda c: rank.get(c, fallback_rank))
+
+
+def _service_from_run_kind(run_kind: str) -> str | None:
+    return {
+        "signature-gen": "signature",
+        "signature-refine": "signature",
+        "module-gen": "module",
+        "codegen": "codegen",
+        "mermaid": "mermaid",
+    }.get((run_kind or "").strip().lower())
 
 
 def _artifact_run_dir(artifact_path: Path) -> Path | None:
@@ -266,19 +306,238 @@ def _find_linked_local_runs(
     return out
 
 
+def _truthy_env(name: str, default: str = "1") -> bool:
+    raw = os.getenv(name, default)
+    if raw is None:
+        return True
+    s = str(raw).strip().lower()
+    return s not in {"", "0", "false", "no"}
+
+
+def _quote_filter_value(value: str) -> str:
+    return value.replace("'", "")
+
+
+@contextmanager
+def _temporary_env(overrides: Mapping[str, str]):
+    original: dict[str, str | None] = {
+        str(key): os.environ.get(str(key)) for key in overrides
+    }
+    try:
+        for key, value in overrides.items():
+            os.environ[str(key)] = str(value)
+        yield
+    finally:
+        for key, prior in original.items():
+            if prior is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = prior
+
+
+def _bounded_remote_http_env(*, time_budget_ms: int):
+    budget = max(1, int(time_budget_ms))
+    timeout_seconds = max(1, min(30, (budget + 999) // 1000))
+    return _temporary_env(
+        {
+            "MLFLOW_HTTP_REQUEST_TIMEOUT": str(timeout_seconds),
+            "MLFLOW_DEPLOYMENT_CLIENT_HTTP_REQUEST_TIMEOUT": str(timeout_seconds),
+            "MLFLOW_HTTP_REQUEST_MAX_RETRIES": "0",
+            "MLFLOW_HTTP_REQUEST_BACKOFF_FACTOR": "1",
+            "MLFLOW_HTTP_REQUEST_BACKOFF_JITTER": "0",
+        }
+    )
+
+
+def _remote_search_candidates(
+    *,
+    receipt: Mapping[str, Any],
+    tracking_uri: str,
+    candidate_cap: int,
+    time_budget_ms: int,
+) -> tuple[list[dict[str, Any]], list[str], float]:
+    reasons: list[str] = []
+    started = time.perf_counter()
+
+    try:
+        from mlflow.entities import ViewType
+        from mlflow.tracking import MlflowClient
+    except Exception:
+        elapsed = (time.perf_counter() - started) * 1000.0
+        reasons.append("mlflow_remote_search_failed")
+        return [], reasons, elapsed
+
+    try:
+        with _bounded_remote_http_env(time_budget_ms=time_budget_ms):
+            client = MlflowClient(tracking_uri=tracking_uri)
+            experiments = client.search_experiments(
+                view_type=ViewType.ACTIVE_ONLY,
+                max_results=5000,
+            )
+    except Exception as exc:
+        elapsed = (time.perf_counter() - started) * 1000.0
+        msg = str(exc).lower()
+        if any(
+            token in msg
+            for token in ("401", "403", "unauthorized", "forbidden", "auth")
+        ):
+            reasons.append("mlflow_remote_auth_unavailable")
+        else:
+            reasons.append("mlflow_remote_search_failed")
+        return [], reasons, elapsed
+
+    if (time.perf_counter() - started) * 1000.0 > float(time_budget_ms):
+        elapsed = (time.perf_counter() - started) * 1000.0
+        reasons.append("mlflow_remote_time_budget_exceeded")
+        return [], reasons, elapsed
+
+    exp_ids: list[str] = []
+    for exp in experiments:
+        exp_id = str(getattr(exp, "experiment_id", "") or "")
+        if exp_id:
+            exp_ids.append(exp_id)
+
+    if not exp_ids:
+        elapsed = (time.perf_counter() - started) * 1000.0
+        reasons.append("mlflow_remote_no_candidate")
+        return [], reasons, elapsed
+
+    hints = _as_dict(receipt.get("mlflow_hints"))
+    expected_tags = _as_dict(hints.get("expected_tags"))
+
+    run_kind = str(
+        expected_tags.get("dspx.run_kind") or receipt.get("run_kind") or ""
+    ).strip()
+    template_version = str(
+        expected_tags.get("dspx.template_version")
+        or receipt.get("template_version")
+        or ""
+    ).strip()
+    service = str(
+        expected_tags.get("service") or _service_from_run_kind(run_kind) or ""
+    ).strip()
+
+    filter_candidates: list[str] = []
+    if run_kind and template_version:
+        filter_candidates.append(
+            " and ".join(
+                [
+                    f"tags.dspx.run_kind = '{_quote_filter_value(run_kind)}'",
+                    f"tags.dspx.template_version = '{_quote_filter_value(template_version)}'",
+                ]
+            )
+        )
+    if service and template_version:
+        filter_candidates.append(
+            " and ".join(
+                [
+                    f"tags.service = '{_quote_filter_value(service)}'",
+                    f"tags.template_version = '{_quote_filter_value(template_version)}'",
+                ]
+            )
+        )
+    if service:
+        filter_candidates.append(f"tags.service = '{_quote_filter_value(service)}'")
+    filter_candidates.append("")
+
+    seen_filters: set[str] = set()
+    ordered_filters: list[str] = []
+    for flt in filter_candidates:
+        if flt in seen_filters:
+            continue
+        seen_filters.add(flt)
+        ordered_filters.append(flt)
+
+    runs: list[Any] = []
+    for flt in ordered_filters:
+        if (time.perf_counter() - started) * 1000.0 > float(time_budget_ms):
+            reasons.append("mlflow_remote_time_budget_exceeded")
+            break
+        try:
+            with _bounded_remote_http_env(time_budget_ms=time_budget_ms):
+                runs = list(
+                    client.search_runs(
+                        experiment_ids=exp_ids,
+                        filter_string=flt,
+                        max_results=int(candidate_cap),
+                        order_by=["attributes.start_time DESC"],
+                    )
+                )
+        except Exception as exc:
+            msg = str(exc).lower()
+            if any(
+                token in msg
+                for token in ("401", "403", "unauthorized", "forbidden", "auth")
+            ):
+                reasons.append("mlflow_remote_auth_unavailable")
+            else:
+                reasons.append("mlflow_remote_search_failed")
+            runs = []
+            break
+        if runs:
+            break
+
+    elapsed = (time.perf_counter() - started) * 1000.0
+
+    candidates: list[dict[str, Any]] = []
+    for run in runs[: int(candidate_cap)]:
+        info = getattr(run, "info", None)
+        data = getattr(run, "data", None)
+        tags = _as_dict(getattr(data, "tags", {}))
+        run_name = getattr(info, "run_name", None) or tags.get("mlflow.runName")
+        candidates.append(
+            {
+                "run_id": str(getattr(info, "run_id", "") or ""),
+                "experiment_id": str(getattr(info, "experiment_id", "") or ""),
+                "status": getattr(info, "status", None),
+                "lifecycle_stage": getattr(info, "lifecycle_stage", None),
+                "start_time": getattr(info, "start_time", None),
+                "end_time": getattr(info, "end_time", None),
+                "artifact_uri": getattr(info, "artifact_uri", None),
+                "run_name": run_name,
+            }
+        )
+
+    if len(candidates) >= int(candidate_cap):
+        reasons.append("mlflow_remote_candidate_cap_reached")
+    if not candidates:
+        reasons.append("mlflow_remote_no_candidate")
+    elif len(candidates) > 1:
+        reasons.append("mlflow_remote_multi_candidate")
+
+    return candidates, reasons, elapsed
+
+
 def _mlflow_context(
-    *, meta_path: Path, receipt: Mapping[str, Any], with_mlflow: bool
+    *,
+    meta_path: Path,
+    receipt: Mapping[str, Any],
+    with_mlflow: bool,
+    mlflow_remote_lookup: bool,
 ) -> dict[str, Any]:
+    reasons: list[str] = []
     out: dict[str, Any] = {
         "requested": bool(with_mlflow),
         "mode": "disabled",
+        "lookup_mode": "disabled",
         "tracking_uri": os.getenv("MLFLOW_TRACKING_URI") or "",
         "linked_runs": [],
         "warnings": [],
+        "lookup_steps": [],
+        "degrade_reason_codes": [],
+        "reason_code_version": _REASON_CODE_VERSION,
+        "candidate_count": 0,
+        "matched_count": 0,
+        "remote_candidate_cap": 25,
+        "remote_time_budget_ms": 3000,
+        "remote_elapsed_ms": 0.0,
     }
     if not with_mlflow:
         out["note"] = "mlflow enrichment not requested"
         return out
+
+    if not _truthy_env("MLFLOW_ENABLE", "1"):
+        reasons.append("mlflow_disabled")
 
     tracking_root, mode, tracking_display = _resolve_tracking_root(
         os.getenv("MLFLOW_TRACKING_URI")
@@ -287,17 +546,49 @@ def _mlflow_context(
     out["tracking_uri"] = tracking_display
 
     if tracking_root is None:
-        out["note"] = "remote tracking URI; local linkage scan skipped"
-        out["warnings"] = [
-            "remote MLflow enrichment is not implemented; baseline explain remains local"
-        ]
+        out["lookup_mode"] = "remote-search"
+        out["lookup_steps"] = ["baseline-local-replay", "remote-tag-search"]
+
+        if not mlflow_remote_lookup:
+            out["note"] = "remote tracking URI detected; remote lookup disabled"
+            out["warnings"] = [
+                "remote MLflow lookup disabled (use --mlflow-remote-lookup for bounded search)",
+            ]
+            reasons.append("mlflow_remote_lookup_not_enabled")
+        else:
+            candidates, remote_reasons, elapsed_ms = _remote_search_candidates(
+                receipt=receipt,
+                tracking_uri=tracking_display,
+                candidate_cap=int(out["remote_candidate_cap"]),
+                time_budget_ms=int(out["remote_time_budget_ms"]),
+            )
+            out["linked_runs"] = candidates
+            out["candidate_count"] = len(candidates)
+            out["matched_count"] = 1 if len(candidates) == 1 else 0
+            out["remote_elapsed_ms"] = float(elapsed_ms)
+            reasons.extend(remote_reasons)
+            if candidates:
+                out["note"] = "bounded remote MLflow candidate search completed"
+            else:
+                out["note"] = (
+                    "bounded remote MLflow candidate search found no definitive link"
+                )
+
+        out["degrade_reason_codes"] = _ordered_unique_reason_codes(reasons)
         return out
+
+    out["lookup_mode"] = "local-scan"
 
     candidate_roots = _candidate_tracking_roots(
         tracking_root=tracking_root,
         tracking_uri=tracking_display,
     )
     out["scan_roots"] = [str(p) for p in candidate_roots]
+    out["lookup_steps"] = [
+        "baseline-local-replay",
+        "local-artifact-root-resolution",
+        "local-artifact-linkage-scan",
+    ]
 
     local_roots = [p for p in candidate_roots if p.exists() and p.is_dir()]
     if not local_roots:
@@ -307,6 +598,7 @@ def _mlflow_context(
             )
         else:
             out["note"] = "no local MLflow artifact roots resolved"
+        out["degrade_reason_codes"] = _ordered_unique_reason_codes(reasons)
         return out
 
     output_name = Path(str(receipt.get("output_path") or "")).name
@@ -317,16 +609,23 @@ def _mlflow_context(
         tracking_uri=tracking_display,
     )
     out["linked_runs"] = linked_runs
+    out["candidate_count"] = len(linked_runs)
+    out["matched_count"] = len(linked_runs)
 
     if linked_runs:
         out["note"] = "best-effort local MLflow artifact linkage"
     else:
         out["note"] = "no linked local MLflow runs found"
+
+    out["degrade_reason_codes"] = _ordered_unique_reason_codes(reasons)
     return out
 
 
 def explain_run_receipt(
-    meta_path: Path, *, with_mlflow: bool = False
+    meta_path: Path,
+    *,
+    with_mlflow: bool = False,
+    mlflow_remote_lookup: bool = False,
 ) -> dict[str, Any]:
     report: dict[str, Any] = {
         "status": "ok",
@@ -359,6 +658,7 @@ def explain_run_receipt(
             meta_path=meta_path,
             receipt={},
             with_mlflow=with_mlflow,
+            mlflow_remote_lookup=mlflow_remote_lookup,
         )
         return report
 
@@ -389,6 +689,7 @@ def explain_run_receipt(
         meta_path=meta_path,
         receipt=receipt,
         with_mlflow=with_mlflow,
+        mlflow_remote_lookup=mlflow_remote_lookup,
     )
 
     replay_errors = replay_report.get("errors")

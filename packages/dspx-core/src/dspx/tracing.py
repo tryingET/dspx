@@ -15,6 +15,7 @@ DSPy autologging knobs (MLflow 3.x):
 from __future__ import annotations
 
 from contextlib import contextmanager
+import hashlib
 import inspect
 import os
 
@@ -211,31 +212,156 @@ def ensure_run_from_env(
         return False
 
 
+def _normalize_slug(
+    value: str | None,
+    *,
+    default: str = "unknown",
+    max_len: int = 32,
+) -> str:
+    raw = (value or "").strip().lower()
+    if not raw:
+        return default
+
+    allowed = set("abcdefghijklmnopqrstuvwxyz0123456789._-")
+    cleaned = "".join(ch if ch in allowed else "-" for ch in raw)
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    cleaned = cleaned.strip("-._")
+    if not cleaned:
+        return default
+    if len(cleaned) <= max_len:
+        return cleaned
+
+    digest = hashlib.sha1(cleaned.encode("utf-8")).hexdigest()[:8]
+    keep = max(1, max_len - 9)
+    return f"{cleaned[:keep]}-{digest}"
+
+
+def _normalize_run_kind(value: str | None) -> str:
+    allowed = {
+        "signature-gen",
+        "signature-refine",
+        "module-gen",
+        "codegen",
+        "other",
+    }
+    v = (value or "").strip().lower()
+    return v if v in allowed else "other"
+
+
+def _run_kind_from_service(service: str) -> str:
+    mapped = {
+        "signature": "signature-gen",
+        "module": "module-gen",
+        "codegen": "codegen",
+    }.get((service or "").strip().lower(), "other")
+    return _normalize_run_kind(mapped)
+
+
+def _normalize_output_basename(value: str | None) -> str:
+    base = os.path.basename((value or "").strip())
+    if not base:
+        return "unknown"
+    return _normalize_slug(base, default="unknown", max_len=64)
+
+
+def _normalize_cache_key(value: str | None) -> str | None:
+    raw = (value or "").strip().lower()
+    if not raw:
+        return None
+    if all(ch in "0123456789abcdef" for ch in raw) and len(raw) >= 12:
+        return raw
+    return None
+
+
+def _normalize_hash_prefix(value: str | None, *, width: int = 12) -> str | None:
+    raw = (value or "").strip().lower()
+    if not raw:
+        return None
+    filtered = "".join(ch for ch in raw if ch in "0123456789abcdef")
+    if len(filtered) < width:
+        return None
+    return filtered[:width]
+
+
 def standard_tags(
     service: str,
     *,
     template_version: str | None = None,
     extra: dict[str, str] | None = None,
     group: str | None = None,
+    run_kind: str | None = None,
+    output_basename: str | None = None,
+    cache_key: str | None = None,
+    output_hash: str | None = None,
 ) -> dict[str, str]:
     """Build a standard tag set for MLflow runs.
 
     Includes:
-    - service: one of signature/module/codegen/mermaid/tools/openapi
-    - template_version: when provided
-    - provider: from $DSPX_PROVIDER when present
+    - legacy tags (`service`, `template_version`, `provider`, `run_group`)
+    - DSPx correlation tags (`dspx.*`) for explain/linkage hardening
     """
     tags: dict[str, str] = {"service": service}
     if template_version:
         tags["template_version"] = template_version
+
     prov = os.getenv("DSPX_PROVIDER")
     if prov:
         tags["provider"] = prov
+
     grp = group or os.getenv("DSPX_RUN_GROUP")
     if grp:
         tags["run_group"] = grp
+
+    tags["dspx.run_kind"] = _normalize_run_kind(
+        run_kind or _run_kind_from_service(service)
+    )
+    if template_version:
+        tags["dspx.template_version"] = _normalize_slug(
+            template_version,
+            default="unknown",
+            max_len=32,
+        )
+
+    if output_basename:
+        tags["dspx.output_basename"] = _normalize_output_basename(output_basename)
+
+    normalized_cache_key = _normalize_cache_key(cache_key)
+    if normalized_cache_key:
+        tags["dspx.cache_key"] = normalized_cache_key
+
+    output_hash_prefix = _normalize_hash_prefix(output_hash, width=12)
+    if output_hash_prefix:
+        tags["dspx.output_hash_prefix"] = output_hash_prefix
+
     if extra:
         tags.update({k: v for k, v in extra.items() if v is not None})
+
+    if "dspx.run_kind" in tags:
+        tags["dspx.run_kind"] = _normalize_run_kind(str(tags["dspx.run_kind"]))
+    if "dspx.template_version" in tags:
+        tags["dspx.template_version"] = _normalize_slug(
+            str(tags["dspx.template_version"]),
+            default="unknown",
+            max_len=32,
+        )
+    if "dspx.output_basename" in tags:
+        tags["dspx.output_basename"] = _normalize_output_basename(
+            str(tags["dspx.output_basename"])
+        )
+    if "dspx.cache_key" in tags:
+        ck = _normalize_cache_key(str(tags["dspx.cache_key"]))
+        if ck is None:
+            tags.pop("dspx.cache_key", None)
+        else:
+            tags["dspx.cache_key"] = ck
+    if "dspx.output_hash_prefix" in tags:
+        hp = _normalize_hash_prefix(str(tags["dspx.output_hash_prefix"]), width=12)
+        if hp is None:
+            tags.pop("dspx.output_hash_prefix", None)
+        else:
+            tags["dspx.output_hash_prefix"] = hp
+
     return tags
 
 
@@ -246,6 +372,10 @@ def ensure_run_with_standard_tags(
     extra: dict[str, str] | None = None,
     run_name: str | None = None,
     group: str | None = None,
+    run_kind: str | None = None,
+    output_basename: str | None = None,
+    cache_key: str | None = None,
+    output_hash: str | None = None,
 ) -> bool:
     """Ensure a run is active and set standard tags for consistency.
 
@@ -255,7 +385,14 @@ def ensure_run_with_standard_tags(
     return ensure_run_from_env(
         run_name=run_name,
         tags=standard_tags(
-            service, template_version=template_version, extra=extra, group=group
+            service,
+            template_version=template_version,
+            extra=extra,
+            group=group,
+            run_kind=run_kind,
+            output_basename=output_basename,
+            cache_key=cache_key,
+            output_hash=output_hash,
         ),
     )
 

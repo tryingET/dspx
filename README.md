@@ -213,6 +213,8 @@ just dspx run explain --from generated/sig_names.py.meta.json
 just dspx run explain --from generated/sig_names.py.meta.json --json
 # optional best-effort MLflow linkage scan:
 just dspx run explain --from generated/sig_names.py.meta.json --with-mlflow --json
+# optional bounded remote candidate lookup (remote tracking URIs only; default off):
+just dspx run explain --from generated/sig_names.py.meta.json --with-mlflow --mlflow-remote-lookup --json
 ```
 
 `--with-mlflow` local scan resolves sqlite custom artifact roots via MLflow experiment metadata when available.

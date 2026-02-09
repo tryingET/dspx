@@ -912,6 +912,7 @@ def run_generate_dto(
                 "signature",
                 template_version=req.template_version or "v1",
                 run_name=f"signature-{res.signature_name or ''}",
+                run_kind=run_kind,
                 extra={
                     "signature.backend": backend,
                     "signature.strategy": str(payload.get("strategy") or "spec-first"),

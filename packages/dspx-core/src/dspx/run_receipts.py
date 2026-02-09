@@ -13,6 +13,16 @@ def receipt_path_for_output(output_path: Path) -> Path:
     return output_path.parent / f"{output_path.name}.meta.json"
 
 
+def _service_from_run_kind(run_kind: str) -> str | None:
+    return {
+        "signature-gen": "signature",
+        "signature-refine": "signature",
+        "module-gen": "module",
+        "codegen": "codegen",
+        "mermaid": "mermaid",
+    }.get((run_kind or "").strip().lower())
+
+
 def _json_safe(value: Any) -> Any:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
@@ -21,6 +31,67 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, (list, tuple, set)):
         return [_json_safe(v) for v in value]
     return str(value)
+
+
+def _hash_prefix(value: str | None, *, width: int = 12) -> str:
+    raw = (value or "").strip().lower()
+    if not raw:
+        return ""
+    filtered = "".join(ch for ch in raw if ch in "0123456789abcdef")
+    if len(filtered) < width:
+        return ""
+    return filtered[:width]
+
+
+def build_mlflow_hints(
+    *,
+    run_kind: str,
+    template_version: str | None,
+    output_path: Path,
+    output_hash: str,
+    cache_key: str | None = None,
+    tracking_uri: str | None = None,
+    extra_expected_tags: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build additive receipt hints for MLflow explain correlation.
+
+    Hints are advisory only; replay correctness never depends on them.
+    """
+    run_kind_norm = str(run_kind or "other").strip().lower() or "other"
+    output_basename = output_path.name
+    output_hash_prefix = _hash_prefix(output_hash, width=12)
+
+    expected_tags: dict[str, Any] = {
+        "dspx.run_kind": run_kind_norm,
+        "dspx.output_basename": output_basename,
+    }
+    if template_version:
+        expected_tags["dspx.template_version"] = str(template_version)
+    if cache_key:
+        expected_tags["dspx.cache_key"] = str(cache_key)
+    if output_hash_prefix:
+        expected_tags["dspx.output_hash_prefix"] = output_hash_prefix
+
+    service = _service_from_run_kind(run_kind_norm)
+    if service:
+        expected_tags["service"] = service
+    if template_version:
+        expected_tags["template_version"] = str(template_version)
+
+    for key, val in (extra_expected_tags or {}).items():
+        expected_tags[str(key)] = _json_safe(val)
+
+    observed_uri = (
+        str(tracking_uri)
+        if tracking_uri is not None
+        else str(os.getenv("MLFLOW_TRACKING_URI") or "")
+    )
+
+    return {
+        "tracking_uri_observed": observed_uri,
+        "output_hash_prefix": output_hash_prefix,
+        "expected_tags": _json_safe(expected_tags),
+    }
 
 
 def build_run_receipt(

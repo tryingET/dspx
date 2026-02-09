@@ -135,3 +135,23 @@ def test_ensure_run_requires_explicit_run_name(monkeypatch: pytest.MonkeyPatch) 
 
     assert ensure_run_from_env(tags={"service": "x", "phase": "next"}) is False
     assert ("set_tag", "phase", "next") in backend.calls
+
+
+def test_standard_tags_include_dspx_correlation_fields() -> None:
+    from dspx.tracing import standard_tags
+
+    tags = standard_tags(
+        "signature",
+        template_version="Simple V1",
+        run_kind="signature-gen",
+        output_basename="generated/sig.py",
+        cache_key="a" * 64,
+        output_hash="b" * 64,
+    )
+
+    assert tags["service"] == "signature"
+    assert tags["dspx.run_kind"] == "signature-gen"
+    assert tags["dspx.template_version"] == "simple-v1"
+    assert tags["dspx.output_basename"] == "sig.py"
+    assert tags["dspx.cache_key"] == "a" * 64
+    assert tags["dspx.output_hash_prefix"] == "b" * 12

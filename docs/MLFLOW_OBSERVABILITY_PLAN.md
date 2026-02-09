@@ -78,7 +78,7 @@ Optional opt-in knobs:
 - `sqlite:...`: local sqlite backend
 - `http(s)://...`: remote backend (user-managed)
 
-Run explain enrichment (`--with-mlflow`) treats sqlite/file modes as local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata, and remote URIs as best-effort degraded mode.
+Run explain enrichment (`--with-mlflow`) treats sqlite/file modes as local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata. Remote URIs stay safe by default (no remote lookup) unless `--mlflow-remote-lookup` is explicitly set, in which case bounded remote candidate search is attempted with bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes.
 
 ## Guardrails for contributors
 

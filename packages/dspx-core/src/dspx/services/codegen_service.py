@@ -74,7 +74,11 @@ def run(
         # Write a versioned run receipt for replay/explain.
         try:
             from dspx.cache import make_key, cache_dir, sha256_text
-            from dspx.run_receipts import build_run_receipt, write_run_receipt
+            from dspx.run_receipts import (
+                build_mlflow_hints,
+                build_run_receipt,
+                write_run_receipt,
+            )
 
             lang = language or "python"
             cache_key = make_key(
@@ -87,10 +91,11 @@ def run(
                 }
             )
             cfile = cache_dir() / "codegen" / f"{cache_key}.json"
+            output_hash = sha256_text(code_text)
             meta = build_run_receipt(
                 run_kind="codegen",
                 output_path=Path(path),
-                output_hash=sha256_text(code_text),
+                output_hash=output_hash,
                 template_version="v1",
                 cache_key=cache_key,
                 cache_file=str(cfile),
@@ -104,6 +109,13 @@ def run(
                 extra={
                     "language": lang,
                     "spec_len": len(spec),
+                    "mlflow_hints": build_mlflow_hints(
+                        run_kind="codegen",
+                        template_version="v1",
+                        output_path=Path(path),
+                        output_hash=output_hash,
+                        cache_key=cache_key,
+                    ),
                 },
             )
             write_run_receipt(Path(path), meta)
@@ -111,13 +123,32 @@ def run(
             pass
         # MLflow: log artifacts (best-effort)
         try:
-            from dspx.tracing import ensure_run_from_env, get_mlflow
+            from dspx.cache import make_key, sha256_text
+            from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+            lang = language or "python"
+            cache_key_for_tags = make_key(
+                {
+                    "kind": "codegen",
+                    "spec": spec,
+                    "language": lang,
+                    "template_version": "v1",
+                    "options": {},
+                }
+            )
+            output_hash_for_tags = sha256_text(code_text)
 
             mlflow = get_mlflow()
             if mlflow is not None:
-                ensure_run_from_env(
+                ensure_run_with_standard_tags(
+                    "codegen",
+                    template_version="v1",
                     run_name=f"codegen-save-{Path(path).stem}",
-                    tags={"service": "codegen", "language": language or "python"},
+                    run_kind="codegen",
+                    output_basename=Path(path).name,
+                    cache_key=cache_key_for_tags,
+                    output_hash=output_hash_for_tags,
+                    extra={"language": lang},
                 )
                 if mlflow.active_run() is not None:
                     try:
@@ -215,6 +246,7 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
                 "codegen",
                 template_version=req.template_version or "v1",
                 run_name=f"codegen-{req.language or 'python'}",
+                run_kind="codegen",
             )
             from dspx.cache import sha256_text
 

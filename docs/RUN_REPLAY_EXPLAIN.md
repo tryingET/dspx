@@ -119,7 +119,10 @@ Exit codes:
 Optional enrichment mode:
 - `--with-mlflow` enables best-effort MLflow linkage enrichment
 - local sqlite/file-store linkage is inferred from artifact names (with sqlite artifact-root fallback via MLflow experiment metadata)
-- remote tracking URIs degrade gracefully with explicit notes
+- remote tracking URIs default to safe/no-network mode unless `--mlflow-remote-lookup` is set
+- `--mlflow-remote-lookup` enables bounded remote candidate search (default cap/time-budget fields are reported in `mlflow_context`)
+- remote lookup applies bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes
+- deterministic diagnostics are emitted in `mlflow_context` (`degrade_reason_codes`, `reason_code_version`, `lookup_mode`)
 - enrichment failures never block baseline explanation output
 
 Exit codes:

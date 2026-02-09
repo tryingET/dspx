@@ -150,6 +150,7 @@ def run_refine(
                 "signature",
                 template_version=template_version,
                 run_name="signature-refine",
+                run_kind="signature-refine",
                 extra={"signature.mode": mode, "signature.backend": backend},
             )
     except Exception:
@@ -203,7 +204,11 @@ def run_refine(
         # Signature run receipt parity with `signature gen`.
         try:
             from dspx.cache import cache_dir, make_key, sha256_text
-            from dspx.run_receipts import build_run_receipt, write_run_receipt
+            from dspx.run_receipts import (
+                build_mlflow_hints,
+                build_run_receipt,
+                write_run_receipt,
+            )
 
             cache_key = make_key(
                 {
@@ -220,10 +225,11 @@ def run_refine(
                 }
             )
             cfile = cache_dir() / "signature" / f"{cache_key}.json"
+            output_hash = sha256_text(code)
             meta = build_run_receipt(
                 run_kind="signature-refine",
                 output_path=out_path,
-                output_hash=sha256_text(code),
+                output_hash=output_hash,
                 template_version=template_version,
                 cache_key=cache_key,
                 cache_file=str(cfile),
@@ -246,6 +252,13 @@ def run_refine(
                     "feedback_count": len(memory.feedback_history),
                     "constraint_count": len(memory.constraints),
                     "rounds": rounds,
+                    "mlflow_hints": build_mlflow_hints(
+                        run_kind="signature-refine",
+                        template_version=template_version,
+                        output_path=out_path,
+                        output_hash=output_hash,
+                        cache_key=cache_key,
+                    ),
                 },
             )
             write_run_receipt(out_path, meta)

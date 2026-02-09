@@ -77,6 +77,8 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert sig_meta["run_kind"] == "signature-gen"
     assert sig_meta["output_path"] == str(sig_out)
     assert isinstance(sig_meta.get("replay_inputs"), dict)
+    assert isinstance(sig_meta.get("mlflow_hints"), dict)
+    assert sig_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "signature-gen"
 
     mod_out = tmp_path / "mod.py"
     r_mod = runner.invoke(
@@ -101,6 +103,8 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     mod_meta = json.loads((tmp_path / "mod.py.meta.json").read_text(encoding="utf-8"))
     assert mod_meta["receipt_version"] == "v1"
     assert mod_meta["run_kind"] == "module-gen"
+    assert isinstance(mod_meta.get("mlflow_hints"), dict)
+    assert mod_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "module-gen"
 
     gen_out = tmp_path / "gen.py"
     r_gen = runner.invoke(
@@ -120,6 +124,8 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     gen_meta = json.loads((tmp_path / "gen.py.meta.json").read_text(encoding="utf-8"))
     assert gen_meta["receipt_version"] == "v1"
     assert gen_meta["run_kind"] == "codegen"
+    assert isinstance(gen_meta.get("mlflow_hints"), dict)
+    assert gen_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "codegen"
 
     refine_out = tmp_path / "refined.py"
     r_refine = runner.invoke(
@@ -140,6 +146,11 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     )
     assert refine_meta["receipt_version"] == "v1"
     assert refine_meta["run_kind"] == "signature-refine"
+    assert isinstance(refine_meta.get("mlflow_hints"), dict)
+    assert (
+        refine_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"]
+        == "signature-refine"
+    )
 
 
 def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) -> None:
@@ -508,6 +519,9 @@ def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> 
     assert payload["replay_error_details"] == []
     assert payload["mlflow_context"]["requested"] is False
     assert payload["mlflow_context"]["mode"] == "disabled"
+    assert payload["mlflow_context"]["lookup_mode"] == "disabled"
+    assert payload["mlflow_context"]["reason_code_version"] == "v1"
+    assert payload["mlflow_context"]["degrade_reason_codes"] == []
 
 
 def test_run_explain_degraded_status_on_drift(tmp_path: Path, monkeypatch) -> None:
@@ -605,6 +619,8 @@ def test_run_explain_with_mlflow_flag_is_graceful(tmp_path: Path, monkeypatch) -
         assert payload["replay_error_codes"] == []
         assert payload["mlflow_context"]["requested"] is True
         assert payload["mlflow_context"]["mode"] == "local-sqlite"
+        assert payload["mlflow_context"]["lookup_mode"] == "local-scan"
+        assert payload["mlflow_context"]["reason_code_version"] == "v1"
         assert "linked_runs" in payload["mlflow_context"]
     finally:
         _end_active_mlflow_runs()
@@ -671,6 +687,7 @@ def test_run_explain_with_mlflow_sqlite_custom_artifact_root(
         payload = json.loads(r_explain.stdout)
         assert payload["status"] == "ok"
         assert payload["mlflow_context"]["mode"] == "local-sqlite"
+        assert payload["mlflow_context"]["lookup_mode"] == "local-scan"
 
         linked_runs = payload["mlflow_context"].get("linked_runs") or []
         assert linked_runs
@@ -680,6 +697,99 @@ def test_run_explain_with_mlflow_sqlite_custom_artifact_root(
         )
     finally:
         _end_active_mlflow_runs()
+
+
+def test_run_explain_remote_uri_default_off_lookup(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+
+    out = tmp_path / "sig.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(tmp_path / "sig.py.meta.json"),
+            "--with-mlflow",
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    ctx = payload["mlflow_context"]
+    assert ctx["mode"] == "remote-uri"
+    assert ctx["lookup_mode"] == "remote-search"
+    assert ctx["reason_code_version"] == "v1"
+    assert "mlflow_remote_lookup_not_enabled" in (ctx.get("degrade_reason_codes") or [])
+
+
+def test_run_explain_remote_lookup_flag_graceful(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+
+    out = tmp_path / "sig.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:1")
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(tmp_path / "sig.py.meta.json"),
+            "--with-mlflow",
+            "--mlflow-remote-lookup",
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    ctx = payload["mlflow_context"]
+    assert ctx["mode"] == "remote-uri"
+    assert ctx["lookup_mode"] == "remote-search"
+    assert ctx["reason_code_version"] == "v1"
+    reason_codes = set(ctx.get("degrade_reason_codes") or [])
+    assert reason_codes.intersection(
+        {
+            "mlflow_remote_auth_unavailable",
+            "mlflow_remote_search_failed",
+            "mlflow_remote_no_candidate",
+            "mlflow_remote_time_budget_exceeded",
+        }
+    )
 
 
 def test_run_explain_invalid_receipt_exit_code(tmp_path: Path) -> None:

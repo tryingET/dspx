@@ -147,7 +147,10 @@ def run_generate(
         mlflow = get_mlflow()
         if mlflow is not None:
             ensure_run_with_standard_tags(
-                "module", template_version=tv or "v1", run_name=f"module-{spec.name}"
+                "module",
+                template_version=tv or "v1",
+                run_name=f"module-{spec.name}",
+                run_kind="module-gen",
             )
             from dspx.cache import sha256_text
 

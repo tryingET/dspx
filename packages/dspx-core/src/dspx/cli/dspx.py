@@ -517,7 +517,11 @@ def signature_gen(
         # Write a versioned run receipt for replay/explain.
         try:
             from dspx.cache import cache_dir, make_key, sha256_text
-            from dspx.run_receipts import build_run_receipt, write_run_receipt
+            from dspx.run_receipts import (
+                build_mlflow_hints,
+                build_run_receipt,
+                write_run_receipt,
+            )
 
             cls = str(class_name or "GeneratedSignature")
             cache_key = make_key(
@@ -536,10 +540,11 @@ def signature_gen(
                 "False",
                 "",
             }
+            output_hash = sha256_text(res.code)
             meta = build_run_receipt(
                 run_kind="signature-gen",
                 output_path=outfile,
-                output_hash=sha256_text(res.code),
+                output_hash=output_hash,
                 template_version=template_version,
                 cache_key=cache_key,
                 cache_file=str(cfile),
@@ -553,6 +558,13 @@ def signature_gen(
                 run_summary=summary_payload,
                 extra={
                     "class_name": class_name or res.signature_name or "",
+                    "mlflow_hints": build_mlflow_hints(
+                        run_kind="signature-gen",
+                        template_version=template_version,
+                        output_path=outfile,
+                        output_hash=output_hash,
+                        cache_key=cache_key,
+                    ),
                 },
             )
             write_run_receipt(outfile, meta)
@@ -560,7 +572,20 @@ def signature_gen(
             pass
         # Log artifacts to MLflow when enabled
         try:
+            from dspx.cache import make_key, sha256_text
             from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+            cls = str(class_name or "GeneratedSignature")
+            cache_key_for_tags = make_key(
+                {
+                    "kind": "signature",
+                    "prompt": prompt,
+                    "template_version": template_version,
+                    "class_name": cls,
+                    "options": {"class_name": class_name} if class_name else {},
+                }
+            )
+            output_hash_for_tags = sha256_text(res.code)
 
             mlflow = get_mlflow()
             if mlflow is not None:
@@ -568,6 +593,10 @@ def signature_gen(
                     "signature",
                     template_version=template_version,
                     run_name=f"signature-{class_name or res.signature_name or ''}",
+                    run_kind="signature-gen",
+                    output_basename=outfile.name,
+                    cache_key=cache_key_for_tags,
+                    output_hash=output_hash_for_tags,
                 )
                 if mlflow.active_run() is not None:
                     try:
@@ -781,7 +810,11 @@ def module_gen(
         # Write a versioned run receipt for replay/explain.
         try:
             from dspx.cache import cache_dir, make_key, sha256_text
-            from dspx.run_receipts import build_run_receipt, write_run_receipt
+            from dspx.run_receipts import (
+                build_mlflow_hints,
+                build_run_receipt,
+                write_run_receipt,
+            )
 
             cache_key = make_key(
                 {
@@ -801,10 +834,11 @@ def module_gen(
                 "False",
                 "",
             }
+            output_hash = sha256_text(art.code)
             meta = build_run_receipt(
                 run_kind="module-gen",
                 output_path=outfile,
-                output_hash=sha256_text(art.code),
+                output_hash=output_hash,
                 template_version=template_version,
                 cache_key=cache_key,
                 cache_file=str(cfile),
@@ -822,6 +856,13 @@ def module_gen(
                     "name": name,
                     "inputs": list(input),
                     "outputs": list(output),
+                    "mlflow_hints": build_mlflow_hints(
+                        run_kind="module-gen",
+                        template_version=template_version,
+                        output_path=outfile,
+                        output_hash=output_hash,
+                        cache_key=cache_key,
+                    ),
                 },
             )
             write_run_receipt(outfile, meta)
@@ -829,7 +870,21 @@ def module_gen(
             pass
         # MLflow logging of artifacts
         try:
+            from dspx.cache import make_key, sha256_text
             from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+            cache_key_for_tags = make_key(
+                {
+                    "kind": "module",
+                    "name": name,
+                    "description": description,
+                    "inputs": input,
+                    "outputs": output,
+                    "use_signature": bool(use_signature),
+                    "template_version": template_version,
+                }
+            )
+            output_hash_for_tags = sha256_text(art.code)
 
             mlflow = get_mlflow()
             if mlflow is not None:
@@ -837,6 +892,10 @@ def module_gen(
                     "module",
                     template_version=template_version,
                     run_name=f"module-{name}",
+                    run_kind="module-gen",
+                    output_basename=outfile.name,
+                    cache_key=cache_key_for_tags,
+                    output_hash=output_hash_for_tags,
                 )
                 if mlflow.active_run() is not None:
                     try:
@@ -910,7 +969,11 @@ def codegen(
         # Write a versioned run receipt for replay/explain.
         try:
             from dspx.cache import cache_dir, make_key, sha256_text
-            from dspx.run_receipts import build_run_receipt, write_run_receipt
+            from dspx.run_receipts import (
+                build_mlflow_hints,
+                build_run_receipt,
+                write_run_receipt,
+            )
 
             cache_key = make_key(
                 {
@@ -929,10 +992,11 @@ def codegen(
                 "False",
                 "",
             }
+            output_hash = sha256_text(res.code)
             meta = build_run_receipt(
                 run_kind="codegen",
                 output_path=outfile,
-                output_hash=sha256_text(res.code),
+                output_hash=output_hash,
                 template_version=template_version,
                 cache_key=cache_key,
                 cache_file=str(cfile),
@@ -946,6 +1010,13 @@ def codegen(
                 extra={
                     "language": lang,
                     "spec_len": len(spec),
+                    "mlflow_hints": build_mlflow_hints(
+                        run_kind="codegen",
+                        template_version=template_version,
+                        output_path=outfile,
+                        output_hash=output_hash,
+                        cache_key=cache_key,
+                    ),
                 },
             )
             write_run_receipt(outfile, meta)
@@ -953,7 +1024,19 @@ def codegen(
             pass
         # MLflow logging of artifacts
         try:
+            from dspx.cache import make_key, sha256_text
             from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+            cache_key_for_tags = make_key(
+                {
+                    "kind": "codegen",
+                    "spec": spec,
+                    "language": (language or "python"),
+                    "template_version": template_version,
+                    "options": {},
+                }
+            )
+            output_hash_for_tags = sha256_text(res.code)
 
             mlflow = get_mlflow()
             if mlflow is not None:
@@ -961,6 +1044,10 @@ def codegen(
                     "codegen",
                     template_version=template_version,
                     run_name=f"codegen-{language or 'python'}",
+                    run_kind="codegen",
+                    output_basename=outfile.name,
+                    cache_key=cache_key_for_tags,
+                    output_hash=output_hash_for_tags,
                 )
                 if mlflow.active_run() is not None:
                     try:
@@ -1082,6 +1169,11 @@ def run_explain(
         "--with-mlflow",
         help="Best-effort MLflow enrichment (optional)",
     ),
+    mlflow_remote_lookup: bool = typer.Option(
+        False,
+        "--mlflow-remote-lookup",
+        help="Attempt bounded remote MLflow lookup when tracking URI is remote",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
 ) -> None:
     import json as _json
@@ -1093,7 +1185,11 @@ def run_explain(
         os.environ["MLFLOW_ENABLE"] = "0"
 
     try:
-        report = explain_run_receipt(from_, with_mlflow=with_mlflow)
+        report = explain_run_receipt(
+            from_,
+            with_mlflow=with_mlflow,
+            mlflow_remote_lookup=mlflow_remote_lookup,
+        )
         status = str(report.get("status") or "invalid")
 
         if json_out:
