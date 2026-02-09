@@ -11,6 +11,10 @@ install:
   # Sync uv environment (workspace deps)
   uv sync
 
+# Install git hooks (fast pre-commit + full pre-push validation)
+hooks-install:
+  pre-commit install --hook-type pre-commit --hook-type pre-push
+
 # Install workspace packages in editable mode to expose console scripts (dev workflow)
 dev-install:
   # Install core + forge app in editable mode
@@ -66,6 +70,13 @@ test:
   else \
     echo "no local tests"; \
   fi
+
+# Full validation gate (run once per commit batch / before push)
+verify-full:
+  pre-commit run --all-files
+  just monorepo-check
+  just typecheck
+  just test
 
 # Run core-focused test slice (exclude forge-marked tests)
 test-core:

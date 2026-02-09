@@ -8,6 +8,7 @@ repos:
         types: [python]
         pass_filenames: true
         exclude: ^examples/
+        stages: [pre-commit]
       - id: ruff-check
         name: ruff check (uv)
         entry: uvx ruff check --force-exclude
@@ -15,6 +16,7 @@ repos:
         types: [python]
         pass_filenames: true
         exclude: ^examples/
+        stages: [pre-commit]
       - id: ty
         name: ty (uvx)
         entry: uvx ty check packages/dspx-core/src apps/forge/src
@@ -27,5 +29,12 @@ repos:
         entry: bash -lc 'git diff --check --cached'
         language: system
         pass_filenames: false
+        stages: [pre-commit]
+      - id: verify-pre-push
+        name: verify pre-push (monorepo+typecheck+test)
+        entry: bash -lc 'just monorepo-check && just typecheck && just test'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
 
 default_stages: [pre-commit]
