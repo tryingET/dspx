@@ -1,0 +1,359 @@
+{
+  "title": "System4D Intake Interview — DSPx development session (recovery)",
+  "description": "Stage-0 recovery after timeout. Use recommended options (*) first, then edit only deltas.",
+  "questions": [
+    {
+      "id": "handoff_baseline",
+      "type": "single",
+      "question": "Baseline from handoff: keep or adjust?",
+      "context": "Pick one. Then refine details below.",
+      "codeBlock": {
+        "lang": "yaml",
+        "code": "run_id: 20260208-run-stage-0-intake-interview-for\ntask_title: Run Stage-0 intake interview for:\ndb_path_or_none: mlflow.db\nextra_context: session-recovery: interview status=timeout; resume Stage-0 intake and continue from saved answers\nproject_handoff:\n  branch: main\n  working_tree: dirty (expected)\n  goal: continue DSPx development with interview-first System4D workflow\n  must_keep_in_sync: docs/tests/contracts\n  focus_area: <replace-with-current-focus>"
+      },
+      "options": [
+        "Use baseline as-is",
+        "Use baseline with edits below"
+      ],
+      "recommended": "Use baseline with edits below"
+    },
+    {
+      "id": "dspx_focus_area",
+      "type": "single",
+      "question": "Current DSPx focus area for this session",
+      "options": [
+        "Forge flow (intake/planner/router)",
+        "OpenAPI tooling",
+        "Server behavior (auth/rate-limit/metrics)",
+        "MLflow observability/tracing",
+        "Provider/policy/redaction",
+        "CLI UX + docs alignment",
+        "Other"
+      ],
+      "recommended": "Other"
+    },
+    {
+      "id": "dspx_focus_area_detail",
+      "type": "text",
+      "question": "Focus area detail (replace placeholder): what exact subsystem/problem is in scope now?"
+    },
+    {
+      "id": "container_boundary_in",
+      "type": "multi",
+      "question": "Boundary (in-scope): what does this run own?",
+      "options": [
+        "Stage-0 intake artifacts only (questions/responses/brief/gate)",
+        "Recovery from previous timeout",
+        "Kickoff-readiness prep (without launching kickoff)",
+        "Other"
+      ],
+      "recommended": [
+        "Stage-0 intake artifacts only (questions/responses/brief/gate)",
+        "Recovery from previous timeout",
+        "Kickoff-readiness prep (without launching kickoff)"
+      ]
+    },
+    {
+      "id": "container_boundary_out",
+      "type": "multi",
+      "question": "Boundary (out-of-scope): what must stay excluded now?",
+      "options": [
+        "Stage-1 explorer execution",
+        "Architecture decisions",
+        "Feature implementation/code changes",
+        "Destructive git/file operations",
+        "Other"
+      ],
+      "recommended": [
+        "Stage-1 explorer execution",
+        "Architecture decisions",
+        "Feature implementation/code changes"
+      ]
+    },
+    {
+      "id": "container_constraints",
+      "type": "multi",
+      "question": "Hard constraints (non-negotiable)",
+      "options": [
+        "Backward compatibility",
+        "No network dependency",
+        "No DB mutation",
+        "Security/policy gates",
+        "Timebox/deadline",
+        "Keep docs/tests/contracts in sync",
+        "Dirty working tree is expected",
+        "Other"
+      ],
+      "recommended": [
+        "No DB mutation",
+        "Security/policy gates",
+        "Keep docs/tests/contracts in sync",
+        "Dirty working tree is expected"
+      ]
+    },
+    {
+      "id": "container_edges",
+      "type": "multi",
+      "question": "Edge/integration points touched",
+      "options": [
+        "docs/subagent-runs artifacts",
+        ".pi prompts/extensions (interview/router)",
+        "README/PROJECT_STATUS/NEXT_STEPS",
+        "Tests + quality gates",
+        "DB path resolution for later DB explorer",
+        "Other"
+      ],
+      "recommended": [
+        "docs/subagent-runs artifacts",
+        ".pi prompts/extensions (interview/router)",
+        "DB path resolution for later DB explorer"
+      ]
+    },
+    {
+      "id": "container_dependencies",
+      "type": "multi",
+      "question": "Dependencies required before kickoff",
+      "options": [
+        "Stakeholder answers for required fields",
+        "Explicit focus-area confirmation",
+        "DB path confirmation",
+        "No external approvals needed in Stage-0",
+        "Other"
+      ],
+      "recommended": [
+        "Stakeholder answers for required fields",
+        "Explicit focus-area confirmation",
+        "DB path confirmation"
+      ]
+    },
+    {
+      "id": "container_antigoals",
+      "type": "multi",
+      "question": "Anti-goals (explicitly not optimizing now)",
+      "options": [
+        "Maximum architecture breadth",
+        "Premature implementation",
+        "Tooling rewrites unrelated to intake",
+        "Perfect completeness over timely recovery",
+        "Other"
+      ],
+      "recommended": [
+        "Premature implementation",
+        "Tooling rewrites unrelated to intake"
+      ]
+    },
+    {
+      "id": "compass_driver",
+      "type": "single",
+      "question": "Primary driver (why now?)",
+      "options": [
+        "Reliability incident",
+        "Delivery pressure",
+        "Quality/regression risk",
+        "Compliance/policy",
+        "Workflow recovery after timeout",
+        "Other"
+      ],
+      "recommended": "Workflow recovery after timeout"
+    },
+    {
+      "id": "compass_outcome",
+      "type": "single",
+      "question": "Primary outcome target",
+      "options": [
+        "Kickoff-ready intake packet with required fields complete",
+        "Confirmed focus area + clear success criteria",
+        "Gate PASS for /subagent-4d-kickoff",
+        "Other"
+      ],
+      "recommended": "Kickoff-ready intake packet with required fields complete"
+    },
+    {
+      "id": "compass_tradeoffs",
+      "type": "multi",
+      "question": "Trade-offs to prioritize (top 2-3)",
+      "options": [
+        "Speed vs robustness",
+        "Simplicity vs flexibility",
+        "Local determinism vs remote enrichment",
+        "Strictness vs compatibility",
+        "Developer UX vs operator control",
+        "Other"
+      ],
+      "recommended": [
+        "Speed vs robustness",
+        "Strictness vs compatibility"
+      ]
+    },
+    {
+      "id": "engine_triggers",
+      "type": "single",
+      "question": "Trigger: what starts this Stage-0 flow?",
+      "options": [
+        "Session recovery command (/interview-4d-intake ...)",
+        "Fresh kickoff request",
+        "Router prefill from first message",
+        "Other"
+      ],
+      "recommended": "Session recovery command (/interview-4d-intake ...)"
+    },
+    {
+      "id": "engine_states",
+      "type": "multi",
+      "question": "States/transitions that matter",
+      "options": [
+        "intake_started",
+        "interview_running",
+        "interview_completed",
+        "interview_timed_out",
+        "recovery_required",
+        "gate_pass",
+        "gate_fail",
+        "Other"
+      ],
+      "recommended": [
+        "intake_started",
+        "interview_running",
+        "interview_completed",
+        "gate_pass",
+        "gate_fail"
+      ]
+    },
+    {
+      "id": "engine_invariants",
+      "type": "multi",
+      "question": "Invariants: must always remain true",
+      "options": [
+        "Canonical schema is source of truth",
+        "No kickoff proposal when interview incomplete",
+        "Required kickoff fields must be non-empty",
+        "No DB mutation during intake",
+        "Other"
+      ],
+      "recommended": [
+        "Canonical schema is source of truth",
+        "No kickoff proposal when interview incomplete",
+        "Required kickoff fields must be non-empty",
+        "No DB mutation during intake"
+      ]
+    },
+    {
+      "id": "engine_lifecycle",
+      "type": "single",
+      "question": "Lifecycle handling",
+      "options": [
+        "Retry interview until complete, then re-check gate",
+        "Fallback to markdown Q/A only if tool unavailable",
+        "Abort run and create new RUN_ID",
+        "Other"
+      ],
+      "recommended": "Retry interview until complete, then re-check gate"
+    },
+    {
+      "id": "fog_assumptions",
+      "type": "multi",
+      "question": "Assumptions currently unproven",
+      "options": [
+        "Branch main remains target",
+        "Dirty working tree is expected/acceptable",
+        "mlflow.db is intended DB path",
+        "Focus area will be clarified in this interview",
+        "Other"
+      ],
+      "recommended": [
+        "Dirty working tree is expected/acceptable",
+        "Focus area will be clarified in this interview"
+      ]
+    },
+    {
+      "id": "fog_risks",
+      "type": "multi",
+      "question": "Top risks",
+      "options": [
+        "Scope ambiguity causes wrong exploration",
+        "DB path mismatch causes DB explorer drift",
+        "Missing success criteria blocks gate",
+        "Timeout/cancellation repeats",
+        "Other"
+      ],
+      "recommended": [
+        "Scope ambiguity causes wrong exploration",
+        "DB path mismatch causes DB explorer drift",
+        "Missing success criteria blocks gate"
+      ]
+    },
+    {
+      "id": "fog_exceptions",
+      "type": "multi",
+      "question": "Likely exception/error paths",
+      "options": [
+        "Interview timeout",
+        "Interview cancelled/skipped",
+        "Required fields left blank",
+        "Conflicting constraints",
+        "Other"
+      ],
+      "recommended": [
+        "Interview timeout",
+        "Required fields left blank"
+      ]
+    },
+    {
+      "id": "fog_debt",
+      "type": "single",
+      "question": "Debt tolerance this iteration",
+      "options": [
+        "Allow provisional notes only until interview completes",
+        "Allow partial assumptions into kickoff",
+        "No debt allowed",
+        "Other"
+      ],
+      "recommended": "Allow provisional notes only until interview completes"
+    },
+    {
+      "id": "success_criteria",
+      "type": "multi",
+      "question": "Success criteria (select all required)",
+      "options": [
+        "Required kickoff fields captured from answers",
+        "Hard constraints vs preferences separated",
+        "Invariants documented",
+        "Top 3 risks with mitigations documented",
+        "Open questions for explorers documented",
+        "Gate checklist updated with PASS/FAIL",
+        "Other"
+      ],
+      "recommended": [
+        "Required kickoff fields captured from answers",
+        "Hard constraints vs preferences separated",
+        "Invariants documented",
+        "Top 3 risks with mitigations documented",
+        "Open questions for explorers documented",
+        "Gate checklist updated with PASS/FAIL"
+      ]
+    },
+    {
+      "id": "success_criteria_detail",
+      "type": "text",
+      "question": "Success criteria detail (optional measurable target)"
+    },
+    {
+      "id": "db_path_confirmation",
+      "type": "single",
+      "question": "DB file to inspect in Stage-1 DB explorer (not where interview answers are stored)",
+      "context": "This controls read-only schema/data exploration input only.",
+      "options": [
+        "Use mlflow.db",
+        "Use ./generated/sixe.db",
+        "Keep none and defer",
+        "Other"
+      ],
+      "recommended": "Use mlflow.db"
+    },
+    {
+      "id": "reference_artifacts",
+      "type": "image",
+      "question": "Optional: upload reference artifacts/sketches"
+    }
+  ]
+}

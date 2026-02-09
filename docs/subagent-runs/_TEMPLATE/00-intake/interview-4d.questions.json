@@ -117,6 +117,12 @@
       "question": "Success criteria: How will we know this iteration is done?"
     },
     {
+      "id": "db_path_confirmation",
+      "type": "text",
+      "question": "DB explorer path confirmation (read-only): which DB file should Stage-1 DB explorer inspect?",
+      "context": "This is DB input for exploration only, not where interview answers are stored."
+    },
+    {
       "id": "reference_artifacts",
       "type": "image",
       "question": "Optional: Upload architecture sketches or reference artifacts"

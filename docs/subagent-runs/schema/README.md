@@ -15,5 +15,10 @@ Use it for:
 - extension slot extraction and command synthesis
 - run manifest validation in QA stage
 
+Canonical semantics:
+- `run_id`: authoritative artifact path key for the current run (related handoff run IDs should be annotated, not silently substituted).
+- `db_path_or_none`: Stage-1 DB explorer input path (read-only), not an interview answer storage location.
+- if `db_path_or_none` is explicit and missing locally, kickoff is blocked until a DB-clarification recovery step resolves the path.
+
 Current workflow version:
 - `system4d-v1.0`

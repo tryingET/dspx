@@ -27,6 +27,7 @@ Execution instructions:
    - Codebase explorer (cm-first) -> `10-explorers/codebase.md`
    - Docs explorer (qmd-first) -> `10-explorers/docs.md`
    - DB explorer (sqlite3, read-only, if DB path available) -> `10-explorers/database.md`
+   - DB rule: `DB_PATH_OR_NONE` is Stage-1 DB explorer input path only (not interview answer storage). If explicit DB path is missing at runtime, report blocker and emit DB-clarification recovery command; do not silently swap to another local DB.
 7. Run technical writer synthesis -> `20-synthesis/technical-writer.md`
 8. Run master prompt factory -> `30-prompt-factory/*`
 9. Return concise handoff:

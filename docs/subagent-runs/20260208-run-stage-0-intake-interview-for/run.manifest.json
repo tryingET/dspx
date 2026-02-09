@@ -1,0 +1,68 @@
+{
+  "workflow_version": "system4d-v1.0",
+  "run_id": "20260208-run-stage-0-intake-interview-for",
+  "task_title": "Run Stage-0 intake interview for:",
+  "created_at": "2026-02-08T08:05:00+01:00",
+  "updated_at": "2026-02-08T21:30:43+01:00",
+  "status": "operations_complete",
+  "stage_status": {
+    "00_intake": "complete",
+    "10_explorers": "complete",
+    "20_synthesis": "complete",
+    "30_prompt_factory": "complete",
+    "40_domain_drafts": "complete",
+    "50_consensus": "complete",
+    "60_implementation": "complete",
+    "70_qa": "complete",
+    "80_release": "complete",
+    "90_operations": "complete"
+  },
+  "attributes": {
+    "driver": "Workflow recovery after timeout",
+    "outcome": "Kickoff-ready intake packet with required fields complete",
+    "constraints": "No DB mutation; Security/policy gates; Keep docs/tests/contracts in sync; Dirty working tree is expected",
+    "boundary": "in: Stage-0 intake artifacts only (questions/responses/brief/gate), Recovery from previous timeout, Kickoff-readiness prep (without launching kickoff) | out: Feature implementation/code changes, Destructive git/file operations",
+    "edges_dependencies": "edges: docs/subagent-runs artifacts, .pi prompts/extensions (interview/router), Tests + quality gates, DB path resolution for later DB explorer | dependencies: Stakeholder answers for required fields, Explicit focus-area confirmation, DB path confirmation",
+    "db_path_or_none": "mlflow.db",
+    "success_criteria": "Required kickoff fields captured from answers, Hard constraints vs preferences separated, Invariants documented, Top 3 risks with mitigations documented, Open questions for explorers documented, Gate checklist updated with PASS/FAIL",
+    "extra_context": "handoff:Run Stage-0 intake interview for: - `RUN_ID`: `20260208-dspx-development-session-kickoff` - `TASK_TITLE`: `dspx development session kickoff` - `DB_PATH_OR_NONE`: `mlflow.db` - `EXTRA_CONTEXT`: `Branch: main; Working tree: dirty (expected); Goal: continue DSPx development with interview-first System4D workflow; keep docs/tests/contracts in sync; focus area: <replace-with-current-focus>.`"
+  },
+  "gates": {
+    "kickoff_ready": true,
+    "kickoff_gate_checklist": "00-intake/kickoff-gate-checklist.md"
+  },
+  "artifacts": {
+    "intake_brief": "00-intake/brief.md",
+    "interview_questions": "00-intake/interview-4d.questions.json",
+    "interview_responses": "00-intake/interview-4d.responses.md",
+    "explorer_codebase": "10-explorers/codebase.md",
+    "explorer_docs": "10-explorers/docs.md",
+    "explorer_database": "10-explorers/database.md",
+    "writer_synthesis": "20-synthesis/technical-writer.md",
+    "prompt_factory": "30-prompt-factory/master-prompting.md",
+    "domain_draft_dspx": "40-domain-drafts/dspx-workflow-architecture.md",
+    "domain_draft_mlflow": "40-domain-drafts/mlflow-upstream-architecture.md",
+    "domain_draft_dspy": "40-domain-drafts/dspy-upstream-architecture.md",
+    "consensus_full_sweep": "50-consensus/full-sweep-consensus.md",
+    "implementation_plan": "60-implementation/full-sweep-implementation-plan.md",
+    "implementation_wave1_log": "60-implementation/wave1-execution-log.md",
+    "qa_report": "70-qa/workflow-qa-report.md",
+    "release_signoff": "80-release/workflow-release-signoff.md",
+    "operations_follow_through": "90-operations/operations-follow-through.md"
+  },
+  "notes": {
+    "db_canonical_for_explorer": "mlflow.db",
+    "db_runtime_availability": "available-local-mlflow.db",
+    "domain_expert_packet": [
+      "docs/rfc/OBSERVABILITY_KICKOFF_20260207.md",
+      "docs/rfc/RFC-DSPX-OBS-20260207-mlflow-explain-correlation-v11.md",
+      "docs/rfc/RFC-MLFLOW-OBS-20260207-dspy-tracing-hardening.md",
+      "docs/rfc/RFC-DSPY-CALLBACK-20260207-lifecycle-contract-v1.md"
+    ],
+    "related_handoff_run_ids": [
+      "20260208-dspx-development-session-kickoff"
+    ],
+    "consensus_execution_mode": "full-sweep",
+    "open_blockers": []
+  }
+}

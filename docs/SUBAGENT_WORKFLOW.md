@@ -32,6 +32,12 @@ Inputs:
 - boundaries/constraints
 - optional DB path(s) (auto-discover if missing)
 
+Canonical intake rules:
+- `RUN_ID` from command is authoritative for artifact pathing; if additional run IDs appear in handoff text, record as related IDs (do not silently switch).
+- `DB_PATH_OR_NONE` means Stage-1 DB explorer input path (read-only), not interview answer storage.
+- if command DB path is explicit (not `none`), keep it canonical; interview DB answers can annotate mismatch but must not silently override.
+- hard guard: if explicit DB path is missing locally, propose DB-clarification recovery command first; do not propose kickoff until resolved.
+
 Preferred flow:
 1. run `pi-interview` with `00-intake/interview-4d.questions.json`
 2. capture responses in `00-intake/interview-4d.responses.md`
@@ -135,7 +141,8 @@ Use prompt templates in:
 ## Optional extension automation
 
 - `.pi/extensions/4d-intake-router.ts`
-  - first non-command user message -> editor prefill for `/interview-4d-intake ...`
+  - first non-command user message (pass-through mode) -> message still goes to Pi, while extension parses structured intake fields (`RUN_ID`, `TASK_TITLE`, `DB_PATH_OR_NONE`, `EXTRA_CONTEXT`) and prefills `/interview-4d-intake ...`
+  - if structured fields are missing, fallback heuristics derive task/run/db inputs
   - completed interview + gate pass -> editor prefill for `/subagent-4d-kickoff ...`
   - incomplete interview or gate fail -> editor prefill for recovery rerun command
   - debug commands: `/s4d-router-status`, `/s4d-router-reset`
