@@ -228,10 +228,11 @@ def main() -> None:
     port = int(os.getenv("DSPX_SERVER_PORT", "33213"))
     try:
         from granian import Granian
+        from granian.constants import Interfaces
 
         # Use module:var target to avoid re-creating app per worker
         target = "dspx.server.app:app"
-        server = Granian(target, address=host, port=port, interface="asgi")
+        server = Granian(target, address=host, port=port, interface=Interfaces.ASGI)
         server.serve()
     except Exception as e:  # pragma: no cover - granian may be missing in some envs
         raise SystemExit(
