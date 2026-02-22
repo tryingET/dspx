@@ -350,3 +350,69 @@ def test_cli_codegen_template_config_fast_fails_without_adapter(
         "dspy-template-adapter" in result.stderr
         or "dspy-template-adapter" in result.stdout
     )
+
+
+def test_cli_signature_gen_template_config_fails_on_missing_file(
+    monkeypatch,
+) -> None:
+    """Test that --template-config fails when file doesn't exist (before adapter check)."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "test",
+            "--template-config",
+            "/nonexistent/path/template.yaml",
+        ],
+    )
+
+    # Should exit with code 2
+    assert result.exit_code == 2
+    # Should report file not found (not adapter missing)
+    assert "not found" in result.stderr.lower() or "not found" in result.stdout.lower()
+
+
+def test_cli_module_gen_template_config_fails_on_missing_file(
+    monkeypatch,
+) -> None:
+    """Test that --template-config fails for module-gen when file doesn't exist."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    result = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "-n",
+            "Test",
+            "-i",
+            "x",
+            "-o",
+            "y",
+            "--template-config",
+            "/nonexistent.yaml",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "not found" in result.stderr.lower() or "not found" in result.stdout.lower()
+
+
+def test_cli_codegen_template_config_fails_on_missing_file(monkeypatch) -> None:
+    """Test that --template-config fails for codegen when file doesn't exist."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    result = runner.invoke(
+        app,
+        [
+            "codegen",
+            "test",
+            "--template-config",
+            "/nonexistent.yaml",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "not found" in result.stderr.lower() or "not found" in result.stdout.lower()

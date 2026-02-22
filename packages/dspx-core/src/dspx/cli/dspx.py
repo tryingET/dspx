@@ -525,8 +525,14 @@ def signature_gen(
         help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
     ),
 ) -> None:
-    # Fast-fail if template-config requested but adapter not installed
+    # Fast-fail if template-config requested but file doesn't exist or adapter not installed
     if template_config is not None:
+        if not template_config.exists():
+            typer.echo(
+                f"Error: Template config file not found: {template_config}",
+                err=True,
+            )
+            raise typer.Exit(code=2)
         _require_template_adapter("template-config")
 
     _ensure_env(provider)
@@ -710,8 +716,14 @@ def signature_refine(
 ) -> None:
     from dspx.services.refine_service import run_refine as _run_refine
 
-    # Fast-fail if template-config requested but adapter not installed
+    # Fast-fail if template-config requested but file doesn't exist or adapter not installed
     if template_config is not None:
+        if not template_config.exists():
+            typer.echo(
+                f"Error: Template config file not found: {template_config}",
+                err=True,
+            )
+            raise typer.Exit(code=2)
         _require_template_adapter("template-config")
 
     _ensure_env(provider)
@@ -855,8 +867,14 @@ def module_gen(
         help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
     ),
 ) -> None:
-    # Fast-fail if template-config requested but adapter not installed
+    # Fast-fail if template-config requested but file doesn't exist or adapter not installed
     if template_config is not None:
+        if not template_config.exists():
+            typer.echo(
+                f"Error: Template config file not found: {template_config}",
+                err=True,
+            )
+            raise typer.Exit(code=2)
         _require_template_adapter("template-config")
 
     _ensure_env(provider)
@@ -1027,8 +1045,14 @@ def codegen(
         help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
     ),
 ) -> None:
-    # Fast-fail if template-config requested but adapter not installed
+    # Fast-fail if template-config requested but file doesn't exist or adapter not installed
     if template_config is not None:
+        if not template_config.exists():
+            typer.echo(
+                f"Error: Template config file not found: {template_config}",
+                err=True,
+            )
+            raise typer.Exit(code=2)
         _require_template_adapter("template-config")
 
     _ensure_env(provider)
