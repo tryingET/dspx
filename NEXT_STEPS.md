@@ -85,9 +85,10 @@ These tasks don't require upstream fixes and unblock implementation once upstrea
    - Extend `CodegenRequest.template_adapter: Optional[TemplateAdapterConfig]`
    - Tests in `tests/test_dtos.py` (21 tests)
 
-5. **YAML config schema** — Add JSON Schema for template config validation:
+5. ~~**YAML config schema** — Add JSON Schema for template config validation:~~ ✅ DONE (`31c5f2a`)
    - `docs/schemas/template-adapter-config.schema.json`
-   - Validate at load with line-number error messages
+   - `dspx/schema_validation.py` — validation with line-number error messages
+   - Tests in `tests/test_schema_validation.py` (14 tests)
 
 6. **`--dry-run` flag** — Add to `dspx signature gen --template-config ... --dry-run` to preview rendered messages without LM call
 

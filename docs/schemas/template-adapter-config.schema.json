@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dspx.dev/schemas/template-adapter-config.schema.json",
+  "title": "Template Adapter Configuration",
+  "description": "Configuration schema for dspy-template-adapter integration in DSPx. Provides exact prompt fidelity with user-defined message templates, provider-aware output format selection, and optimizer compatibility.",
+  "type": "object",
+  "properties": {
+    "messages": {
+      "type": "array",
+      "description": "Message templates for the adapter. Each message defines a role and content template.",
+      "items": {
+        "$ref": "#/$defs/TemplateMessage"
+      },
+      "default": [
+        {"role": "system", "content": "{instruction}"},
+        {"role": "user", "content": "{inputs(style='yaml')}"}
+      ],
+      "examples": [
+        [
+          {"role": "system", "content": "You are a precise assistant. {instruction}"},
+          {"role": "user", "content": "{inputs(style='yaml')}"}
+        ],
+        [
+          {"role": "system", "content": "{instruction}"},
+          {"role": "user", "content": "{inputs(style='xml')}"},
+          {"role": "assistant", "content": "{outputs(style='xml')}"}
+        ]
+      ]
+    },
+    "parse_mode": {
+      "type": "string",
+      "enum": ["json", "xml", "full_text", "chat", "auto"],
+      "default": "auto",
+      "description": "Output parsing mode. 'auto' selects based on provider capabilities (json for json_mode providers, xml for Claude, json otherwise). 'chat' falls back to DSPy's ChatAdapter parsing."
+    },
+    "custom_parse_fn": {
+      "type": "string",
+      "description": "Import path to custom parse function with signature: (signature, completion) -> dict. Example: 'myapp.parsing.custom_json_parser'",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$",
+      "examples": [
+        "myapp.parsing.custom_json_parser",
+        "dspx.adapters.parsing.xml_parser"
+      ]
+    },
+    "register_helpers": {
+      "type": "object",
+      "description": "Map of helper name -> import path for custom template functions. These helpers can be used in message templates.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$"
+      },
+      "examples": [
+        {
+          "format_priority": "myapp.template_helpers.format_priority",
+          "escape_xml": "myapp.template_helpers.escape_xml"
+        }
+      ]
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "TemplateMessage": {
+      "type": "object",
+      "description": "A single message template. Supports standard roles plus special directives for demos and history injection.",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["system", "user", "assistant", "demos", "history"],
+          "description": "Message role. 'demos' injects few-shot demonstrations. 'history' injects conversation history."
+        },
+        "content": {
+          "type": "string",
+          "description": "Template content with placeholders like {instruction}, {inputs()}, {outputs()}, {demos()}. Required except for demos/history directives."
+        },
+        "user": {
+          "type": "string",
+          "description": "Custom template for demo user messages (alias for user_template). Only used when role='demos'."
+        },
+        "assistant": {
+          "type": "string",
+          "description": "Custom template for demo assistant messages (alias for assistant_template). Only used when role='demos'."
+        }
+      },
+      "required": ["role"],
+      "additionalProperties": false
+    },
+    "TemplateSlot": {
+      "type": "object",
+      "description": "Documentation of available template slots.",
+      "properties": {
+        "slot": {
+          "type": "string",
+          "enum": ["{instruction}", "{inputs()}", "{outputs()}", "{demos()}", "{history()}"]
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {"slot": "{instruction}", "description": "The signature instruction text (optimizable by MIPRO/COPRO)"},
+        {"slot": "{inputs()}", "description": "Input fields. Options: style='yaml'|'xml'|'json'"},
+        {"slot": "{outputs()}", "description": "Output fields. Options: style='yaml'|'xml'|'json'"},
+        {"slot": "{demos()}", "description": "Few-shot demonstrations from optimizers"},
+        {"slot": "{history()}", "description": "Conversation history for multi-turn"}
+      ]
+    }
+  }
+}
