@@ -82,6 +82,10 @@ Executed on current working tree:
 - Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
 - **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side work: capabilities infrastructure DONE (`11dd6ee`), CLI fast-fail DONE (`a191016`), implementation review DONE (`ac571b5`), TemplateAdapterConfig DTO DONE (`220e0ae` with 21 tests), YAML schema validation DONE (`f4e1408` with 14 tests), --dry-run flag DONE (`aca0912` with 3 tests). **All DSPx-side prerequisites complete.** Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
 
+## Strategic next direction
+
+- **Behavioral Oracle:** Major new capability planned (see `NEXT_STEPS.md` section 8). Transforms passive execution traces into active behavioral assurance through semantic coordinate systems, territory mapping, and predictive drift detection. Builds entirely on existing receipts/cache/MLflow infrastructure—no external dependencies on upstream fixes.
+
 ## Canonical docs
 
 - `README.md`
