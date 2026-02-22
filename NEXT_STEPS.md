@@ -78,7 +78,7 @@ These tasks don't require upstream fixes and unblock implementation once upstrea
 
 3. ~~**CLI fast-fail for missing dep** — When `--template-config` passed, check adapter availability at entrypoint~~ ✅ DONE (`a191016`)
 
-4. ~~**TemplateAdapterConfig DTO** — Add to `dspx/dtos.py`:~~ ✅ DONE (`46be778`)
+4. ~~**TemplateAdapterConfig DTO** — Add to `dspx/dtos.py`:~~ ✅ DONE (`220e0ae`)
    - `TemplateMessage`
    - `TemplateAdapterConfig`
    - Extend `SignatureGenRequest.template_adapter: Optional[TemplateAdapterConfig]`
