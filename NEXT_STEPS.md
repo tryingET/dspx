@@ -5,6 +5,39 @@ Execution mode reference: full-sweep (DSPx + upstream MLflow + upstream DSPy), o
 
 ---
 
+## Multi-Perspective Review Protocol
+
+**Apply this protocol to all waves before marking work complete.**
+
+For each wave, review from multiple expert perspectives and fix bugs systematically:
+
+### Expert Perspectives (use relevant subset)
+
+| Expert | Focus | Key Questions |
+|--------|-------|---------------|
+| **Framework Architect** | Internal contracts, lifecycle, thread-safety | Does this honor existing protocols? Edge cases in async/concurrent flows? |
+| **Provider/Backend Engineer** | Capability discovery, failure modes, heterogeneity | What happens when backends differ? Degradation paths? |
+| **API/DX Specialist** | Library ergonomics, config patterns, error messages | Is this debuggable? Are errors actionable? |
+| **Type Safety Reviewer** | Static analysis, type completeness, `Any` leaks | Does `ty`/`ruff` report clean? Are `# type: ignore` justified? |
+| **Test Coverage Reviewer** | Missing tests, edge cases, regression risk | What scenarios are untested? What would break silently? |
+| **Security/Hardening Reviewer** | Input validation, resource limits, injection vectors | What happens with malformed input? Are there DoS vectors? |
+
+### Review Output Format (per wave)
+
+1. **Bugs found** — Must fix before continuing (P0)
+2. **Design questions** — Decisions needed (P1)
+3. **Test gaps** — Missing coverage (P1)
+4. **Minor improvements** — Nice-to-haves (P2)
+
+### Acceptance Criteria (per wave)
+
+- [ ] All P0 bugs fixed and committed
+- [ ] Design decisions documented in relevant `docs/` file
+- [ ] Missing tests added for touched behavior
+- [ ] `just fmt && just lint && just typecheck && just test` passes
+
+---
+
 ## 0) dspy-template-adapter Integration
 
 **Status:** 🟡 BLOCKED on upstream fixes — Critique complete, issues filed.
@@ -45,10 +78,12 @@ These tasks don't require upstream fixes and unblock implementation once upstrea
 
 3. ~~**CLI fast-fail for missing dep** — When `--template-config` passed, check adapter availability at entrypoint~~ ✅ DONE (`a191016`)
 
-4. **TemplateAdapterConfig DTO** — Add to `dspx/dtos.py`:
+4. ~~**TemplateAdapterConfig DTO** — Add to `dspx/dtos.py`:~~ ✅ DONE (`46be778`)
    - `TemplateMessage`
    - `TemplateAdapterConfig`
    - Extend `SignatureGenRequest.template_adapter: Optional[TemplateAdapterConfig]`
+   - Extend `CodegenRequest.template_adapter: Optional[TemplateAdapterConfig]`
+   - Tests in `tests/test_dtos.py` (21 tests)
 
 5. **YAML config schema** — Add JSON Schema for template config validation:
    - `docs/schemas/template-adapter-config.schema.json`
@@ -66,7 +101,7 @@ Proceed with `DSPxTemplateAdapter` implementation when:
 - [x] DSPx-side ProviderCapabilities contract merged
 - [x] All providers expose `.capabilities` property
 - [x] CLI fast-fail implemented
-- [ ] TemplateAdapterConfig DTO added
+- [x] TemplateAdapterConfig DTO added
 
 ### Implementation Review (multi-perspective)
 
@@ -247,6 +282,14 @@ Actions:
 3. Run extra quality gates when touching core runtime contracts:
    - `just fmt && just lint`
 
+### Multi-Perspective Review (when modifying baseline/tooling)
+
+| Perspective | Review Focus |
+|-------------|--------------|
+| **Framework Architect** | Do hook changes affect CI parity? Local vs CI drift? |
+| **Test Coverage Reviewer** | Are new lint/type rules covered by failing test fixtures? |
+| **DX Specialist** | Are error messages from hooks actionable? |
+
 Acceptance:
 - Fast local commit loop stays low-latency.
 - Full gate passes at least once per commit batch before push.
@@ -263,6 +306,23 @@ Actions:
    - tests/docs synchronization
 2. Ensure commit messages map to one concern each.
 3. Keep remote lookup bounded in explain path (HTTP timeout budget + retries `0`) and retain regression coverage for remote-unreachable URIs.
+
+### Multi-Perspective Review
+
+| Perspective | Files to Review | Key Questions |
+|-------------|-----------------|---------------|
+| **Framework Architect** | `packages/dspx-core/src/dspx/mlflow_*` | Are MLflow callbacks thread-safe? Proper span lifecycle? |
+| **Provider Engineer** | `packages/dspx-core/src/dspx/receipts.py` | Do hints handle missing MLflow gracefully? Remote fallback? |
+| **Type Safety Reviewer** | All modified files | Any new `# type: ignore`? Are MLflow imports guarded? |
+| **Test Coverage Reviewer** | `tests/test_run_receipts.py`, `tests/test_mlflow_*.py` | Timeout tests cover all edge cases? Mock vs real MLflow? |
+| **Security Reviewer** | Remote lookup code | Is remote URL validated? Timeout bounds enforced? |
+
+### Bugs to Check
+
+- [ ] Remote lookup doesn't hang on unreachable URIs (timeout budget enforced)
+- [ ] MLflow import failures don't crash receipt generation
+- [ ] Correlation tags don't leak secrets
+- [ ] Explain path handles both local and remote runs
 
 Acceptance:
 - No mixed concerns per commit.
@@ -282,6 +342,22 @@ Actions:
    - PR3 optional autolog controls
 3. Attach concrete repro notes and downstream impact.
 
+### Multi-Perspective Review
+
+| Perspective | Review Focus |
+|-------------|--------------|
+| **Framework Architect** | Do upstream changes break DSPy callback contract? Span nesting correct? |
+| **Provider Engineer** | Multi-process MLflow scenarios? Distributed tracing? |
+| **Test Coverage Reviewer** | Are there repro scripts for each PR? Stress tests for concurrency? |
+| **Security Reviewer** | Do autolog controls prevent credential leakage? |
+
+### Bugs to Check (upstream integration)
+
+- [ ] Span no-op doesn't break parent span linkage
+- [ ] Callback concurrency doesn't cause race conditions in metrics
+- [ ] Autolog disable actually disables all side effects
+- [ ] Backward compatibility with older MLflow versions
+
 Acceptance:
 - Umbrella + slice checklists exist and are linkable.
 - Scope remains additive/backward compatible by default.
@@ -298,6 +374,22 @@ Actions:
    - PR3 propagation guarantees/stress tests
 3. Keep compatibility semantics explicit (missing vs null, marker rollout).
 
+### Multi-Perspective Review
+
+| Perspective | Review Focus |
+|-------------|--------------|
+| **Framework Architect** | Do compile hooks integrate with optimizer lifecycle? Metadata envelope extensible? |
+| **Provider Engineer** | Propagation works across MultiProviderLM fan-out? |
+| **Type Safety Reviewer** | Are new DSPy types properly re-exported? Breaking changes for downstream? |
+| **Test Coverage Reviewer** | Stress tests cover concurrent optimization? Large program graphs? |
+
+### Bugs to Check (upstream integration)
+
+- [ ] Metadata envelope doesn't break existing callbacks
+- [ ] Compile hooks fire at correct lifecycle points
+- [ ] Propagation guarantees hold under concurrent execution
+- [ ] Legacy callbacks still work (backward compatibility)
+
 Acceptance:
 - Issue/PR decomposition is concrete and test-gated.
 - Legacy callback compatibility is preserved.
@@ -310,6 +402,22 @@ Actions:
 1. Track upstream release readiness checkpoints.
 2. Define dependency floor bump steps + rollback posture.
 3. Re-verify replay/explain behavior after dependency updates.
+
+### Multi-Perspective Review
+
+| Perspective | Review Focus |
+|-------------|--------------|
+| **Framework Architect** | Do upstream releases break DSPx adapter contract? Receipt format compatibility? |
+| **Provider Engineer** | All providers work with new dependency versions? |
+| **Test Coverage Reviewer** | Full test suite passes with new deps? Integration tests? |
+| **Security Reviewer** | Dependency bumps don't introduce vulnerabilities? `pip audit` clean? |
+
+### Bugs to Check (dependency upgrades)
+
+- [ ] Replay determinism preserved with new MLflow/DSPy versions
+- [ ] Explain output format stable across versions
+- [ ] No new transitive dependency conflicts
+- [ ] Rollback procedure tested and documented
 
 Acceptance:
 - Upgrade path and rollback path both documented.
@@ -329,6 +437,23 @@ Actions:
    - `DB_PATH_OR_NONE` semantics unchanged
 3. Keep run artifacts under `docs/subagent-runs/<RUN_ID>/` synchronized.
 
+### Multi-Perspective Review
+
+| Perspective | Files to Review | Key Questions |
+|-------------|-----------------|---------------|
+| **Framework Architect** | Router, extension glue code | Is RUN_ID resolution deterministic? Priority order correct? |
+| **Provider Engineer** | DB path handling | Does DB_PATH_OR_NONE handle missing/invalid paths correctly? |
+| **Type Safety Reviewer** | Extension type stubs | Are extension types properly exported for consumers? |
+| **Test Coverage Reviewer** | Router fixtures, workflow gates | Are all RUN_ID sources tested? Edge cases? |
+| **Security Reviewer** | Extension IPC | Is input sanitized? No injection vectors? |
+
+### Bugs to Check
+
+- [ ] Router behavior deterministic under fixture coverage
+- [ ] Explicit RUN_ID always wins over environment/defaults
+- [ ] DB_PATH_OR_NONE returns None for invalid paths (doesn't crash)
+- [ ] Run artifacts stay synchronized with actual behavior
+
 Acceptance:
 - Router behavior deterministic under fixture coverage.
 - No drift between extension behavior and schema/docs.
@@ -345,6 +470,21 @@ Actions:
    - `docs/MLFLOW_OBSERVABILITY_PLAN.md`
    - `docs/RUN_REPLAY_EXPLAIN.md`
 2. Ensure status/roadmap language matches actual tested behavior.
+
+### Multi-Perspective Review
+
+| Perspective | Review Focus |
+|-------------|--------------|
+| **DX Specialist** | Are CLI examples copy-pasteable? Error messages match docs? |
+| **Test Coverage Reviewer** | Do docs describe tested behavior? Any doc/test drift? |
+| **Framework Architect** | Are architecture claims accurate? Diagrams current? |
+
+### Bugs to Check
+
+- [ ] No contradictory command/flag guidance across canonical docs
+- [ ] New context handoff can be copied directly from docs
+- [ ] Examples in docs match actual CLI output
+- [ ] Version numbers/dependencies in docs are current
 
 Acceptance:
 - No contradictory command/flag guidance across canonical docs.

@@ -68,10 +68,9 @@ Working tree state: clean (commits ready for push).
 ## Latest validation snapshot
 
 Executed on current working tree:
-- `uv run -m pytest -q tests -vv -s --maxfail=1 --durations=50` ✅ passing (`196 passed, 4 skipped`)
+- `uv run -m pytest -q tests` ✅ passing (`232 passed, 4 skipped`)
   - prior hotspot resolved: `tests/test_run_receipts.py::test_run_explain_remote_lookup_flag_graceful` now completes (~3s), no hang
 - `pre-commit run --all-files` ✅ passing
-- `pre-commit run --hook-stage pre-push verify-pre-push` ✅ passing
 - `just verify-full` ✅ passing
 
 ## Known gaps and immediate risks
@@ -81,7 +80,7 @@ Executed on current working tree:
 - Remote MLflow lookup is intentionally bounded/heuristic; not a full remote artifact-verification pipeline.
 - Replay strictness policy (`warn` vs stricter enforcement modes) still needs explicit governance closure.
 - Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
-- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side capabilities infrastructure DONE (`11dd6ee`). CLI fast-fail DONE (`a191016`). Implementation review DONE (`ac571b5`) — bugs fixed, tests added. Remaining: DTOs, YAML schema. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
+- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side work: capabilities infrastructure DONE (`11dd6ee`), CLI fast-fail DONE (`a191016`), implementation review DONE (`ac571b5`), **TemplateAdapterConfig DTO DONE** (`46be778` with 21 tests). Remaining: YAML schema, `--dry-run` flag. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
 
 ## Canonical docs
 
