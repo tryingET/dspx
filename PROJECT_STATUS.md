@@ -15,11 +15,11 @@ Working tree state: clean (commits ready for push).
   - forbidden: `core -> apps/*` (no `dspx_forge.*` imports from core)
 - CI/release are package-aware and split (`core`, `forge`, compat matrix).
 - Latest branch commits:
-  - `11dd6ee` (`✨ feat(capabilities): add structured_output_format for template adapter`)
-  - `fcb5c51` (`🐛 fix(server): use Interfaces enum for Granian interface param`)
-  - `bc43a97` (`📝 docs(status): update roadmap with template adapter integration status`)
-  - `fcb9833` (`📝 docs(template-adapter): add integration architecture critique and upstream issues`)
-  - `55ea2cb` (`📝 docs(workflow): document tiered validation flow`)
+  - `9aead35` (`📝 docs(roadmap): mark implementation review as complete`)
+  - `ac571b5` (`✅ test(multi-provider): add capability aggregation tests`)
+  - `5824660` (`🐛 fix(cli): validate template-config file exists before adapter check`)
+  - `5419957` (`🐛 fix(capabilities): freeze ProviderCapabilities and fix aggregation bugs`)
+  - `7eed65a` (`📝 docs(status): mark CLI fast-fail as complete`)
 
 ## Completed now (branch state)
 
@@ -81,7 +81,7 @@ Executed on current working tree:
 - Remote MLflow lookup is intentionally bounded/heuristic; not a full remote artifact-verification pipeline.
 - Replay strictness policy (`warn` vs stricter enforcement modes) still needs explicit governance closure.
 - Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
-- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side capabilities infrastructure DONE (`11dd6ee`). CLI fast-fail DONE (`a191016`). Remaining: DTOs, YAML schema. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
+- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side capabilities infrastructure DONE (`11dd6ee`). CLI fast-fail DONE (`a191016`). Implementation review DONE (`ac571b5`) — bugs fixed, tests added. Remaining: DTOs, YAML schema. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
 
 ## Canonical docs
 
