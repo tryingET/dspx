@@ -32,21 +32,16 @@ Execution mode reference: full-sweep (DSPx + upstream MLflow + upstream DSPy), o
 
 These tasks don't require upstream fixes and unblock implementation once upstream resolves:
 
-1. **ProviderCapabilities contract** — Define `dspx/capabilities.py` with explicit fields:
-   ```python
-   @dataclass(frozen=True)
-   class ProviderCapabilities:
-       json_mode: bool
-       structured_output_format: Literal["json", "xml", "none"]
-       supports_tools: bool
-   ```
+1. ~~**ProviderCapabilities contract** — Define `dspx/capabilities.py` with explicit fields~~ ✅ DONE (`11dd6ee`)
 
-2. **Capability discovery interface** — Add `capabilities` property to all `*LM` classes:
-   - `ClaudeHeadlessLM.capabilities`
-   - `CodexExecLM.capabilities`
-   - `GeminiCLILM.capabilities`
-   - `OpenRouterLM.capabilities` (query `/models` or static mapping)
-   - `MultiProviderLM.capabilities` — use `all()` for json_mode, not `any()`
+2. ~~**Capability discovery interface** — Add `capabilities` property to all `*LM` classes~~ ✅ DONE (`11dd6ee`)
+   - `ClaudeHeadlessLM.capabilities` — structured_output_format: json|xml based on output_format
+   - `CodexExecLM.capabilities` — json_mode=True, structured_output_format="json"
+   - `GeminiCLILM.capabilities` — structured_output_format="none"
+   - `OpenRouterLM.capabilities` — structured_output_format="none" (model-dependent)
+   - `PiRpcLM.capabilities` — structured_output_format="none"
+   - `DSpyStubLM.capabilities` — structured_output_format="none"
+   - `MultiProviderLM.capabilities` — uses `all()` for json_mode, most restrictive format
 
 3. **CLI fast-fail for missing dep** — When `--template-config` passed, check adapter availability at entrypoint:
    ```python
@@ -72,8 +67,8 @@ Proceed with `DSPxTemplateAdapter` implementation when:
 - [ ] Upstream #1 (XML parser) fixed OR we vendor a patched version
 - [ ] Upstream #2 (JSON markdown) fixed OR we pre-process in wrapper
 - [ ] Upstream #6 (partial demos) fixed OR we filter demos in wrapper
-- [ ] DSPx-side ProviderCapabilities contract merged
-- [ ] All providers expose `.capabilities` property
+- [x] DSPx-side ProviderCapabilities contract merged
+- [x] All providers expose `.capabilities` property
 - [ ] CLI fast-fail implemented
 - [ ] TemplateAdapterConfig DTO added
 

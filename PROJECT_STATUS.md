@@ -1,7 +1,7 @@
 # Project Status
 
 Current working branch: `main`.
-Working tree state: dirty (System4D workflow/extension updates + Wave-1 DSPx observability implementation + run artifacts/docs updates).
+Working tree state: clean (commits ready for push).
 
 ## Snapshot
 
@@ -15,11 +15,11 @@ Working tree state: dirty (System4D workflow/extension updates + Wave-1 DSPx obs
   - forbidden: `core -> apps/*` (no `dspx_forge.*` imports from core)
 - CI/release are package-aware and split (`core`, `forge`, compat matrix).
 - Latest branch commits:
-  - `fb6a8c6` (`✅ test(workflow): add router fixture coverage`)
-  - `2fa8b32` (`✨ feat(extension): add system4d intake router`)
-  - `e1cb0f0` (`✨ feat(workflow): add system4d intake workflow kit`)
-  - `22eebe0` (`🚧 chore(prompts): add rfc expert prompt presets`)
-  - `72337b3` (`📝 docs(observability): instantiate rfc kickoff drafts`)
+  - `11dd6ee` (`✨ feat(capabilities): add structured_output_format for template adapter`)
+  - `fcb5c51` (`🐛 fix(server): use Interfaces enum for Granian interface param`)
+  - `bc43a97` (`📝 docs(status): update roadmap with template adapter integration status`)
+  - `fcb9833` (`📝 docs(template-adapter): add integration architecture critique and upstream issues`)
+  - `55ea2cb` (`📝 docs(workflow): document tiered validation flow`)
 
 ## Completed now (branch state)
 
@@ -81,7 +81,7 @@ Executed on current working tree:
 - Remote MLflow lookup is intentionally bounded/heuristic; not a full remote artifact-verification pipeline.
 - Replay strictness policy (`warn` vs stricter enforcement modes) still needs explicit governance closure.
 - Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
-- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side work (ProviderCapabilities, CLI fast-fail, DTOs) can proceed in parallel. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
+- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side capabilities infrastructure DONE: `ProviderCapabilities.structured_output_format` + all LM classes updated (`11dd6ee`). Remaining: CLI fast-fail, DTOs, YAML schema. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
 
 ## Canonical docs
 
