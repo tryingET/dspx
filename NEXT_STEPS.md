@@ -68,6 +68,79 @@ Proceed with `DSPxTemplateAdapter` implementation when:
 - [x] CLI fast-fail implemented
 - [ ] TemplateAdapterConfig DTO added
 
+### Implementation Review (multi-perspective)
+
+Before proceeding to DTOs and remaining work, review completed implementation from these perspectives:
+
+#### Expert 1: Capabilities Contract Reviewer
+
+**Files to review:**
+- `packages/dspx-core/src/dspx/capabilities.py`
+- `packages/dspx-core/src/dspx/lm_base.py`
+
+**Review lenses:**
+- [ ] Is `ProviderCapabilities` frozen/immutable? (Should use `frozen=True` or `@dataclass(frozen=True)`)
+- [ ] Are defaults sensible for unknown providers? (Current: `json_mode=False`, `structured_output_format="none"`)
+- [ ] Is the `Literal["json", "xml", "none"]` type complete, or should it include `"yaml"`, `"markdown"`?
+- [ ] Are Field descriptions accurate for all fields?
+- [ ] Should `supports_vision` and `supports_audio` be in the base contract or optional extensions?
+
+#### Expert 2: Provider Implementation Reviewer
+
+**Files to review:**
+- `packages/dspx-core/src/dspx/claude_cli_lm.py` (capabilities section)
+- `packages/dspx-core/src/dspx/codex_exec_lm.py` (capabilities section)
+- `packages/dspx-core/src/dspx/gemini_cli_lm.py` (capabilities section)
+- `packages/dspx-core/src/dspx/openrouter_lm.py` (capabilities section)
+- `packages/dspx-core/src/dspx/pi_rpc_lm.py` (capabilities section)
+- `packages/dspx-core/src/dspx/multi_provider_lm.py` (`_combine_caps` function)
+
+**Review lenses:**
+- [ ] Is `ClaudeHeadlessLM.structured_output_format` correct? (Currently: `json` for json mode, else `xml`)
+- [ ] Is `CodexExecLM.json_mode=True` correct? Does Codex actually guarantee valid JSON?
+- [ ] Is `GeminiCLILM.structured_output_format="none"` correct, or does Gemini CLI support JSON?
+- [ ] Is `OpenRouterLM.structured_output_format="none"` too conservative? Should it vary by model?
+- [ ] Does `_combine_caps()` handle edge cases? (empty provider list, None capabilities, missing fields)
+- [ ] Is the `all()` logic for `json_mode` correct in MultiProviderLM?
+- [ ] Is the "most restrictive" logic for `structured_output_format` correct?
+
+#### Expert 3: CLI Integration Reviewer
+
+**Files to review:**
+- `packages/dspx-core/src/dspx/cli/dspx.py` (`_check_template_adapter_available`, `_require_template_adapter`, command options)
+- `tests/test_cli_dspx.py` (fast-fail tests)
+
+**Review lenses:**
+- [ ] Is the availability check cached correctly? (Module-level global, not re-checked per-call)
+- [ ] Does the error message include all install options? (`pip install dspx-core[templates]` vs `pip install dspy-template-adapter`)
+- [ ] Is `--template-config` added to all relevant commands? (Missing: `mermaid sig`, `mermaid gen`?)
+- [ ] Do tests cover all commands with `--template-config`?
+- [ ] Is the exit code consistent (2) across all fast-fail cases?
+- [ ] Should `--template-config` imply `--template-adapter` flag, or are they separate concerns?
+- [ ] What happens if config file doesn't exist? (Should fail before adapter check)
+
+#### Expert 4: Type Safety Reviewer
+
+**Files to review:**
+- All files with `# type: ignore` comments
+- `packages/dspx-core/src/dspx/capabilities.py` (Pydantic model)
+
+**Review lenses:**
+- [ ] Does `ty` report any diagnostics on capabilities code?
+- [ ] Is the `Literal` type for `structured_output_format` properly exported for type checkers?
+- [ ] Are there any `Any` types that should be more specific?
+- [ ] Is the `# type: ignore[import-untyped]` on dspy_template_adapter import justified?
+
+#### Review Output Format
+
+For each expert, produce:
+1. **Bugs found** — Must fix before continuing
+2. **Design questions** — Decisions needed
+3. **Test gaps** — Missing test coverage
+4. **Minor improvements** — Nice-to-haves
+
+**After review:** Fix all bugs, document design decisions, add missing tests before proceeding to DTOs.
+
 ### Critique Reference (preserved)
 
 <details>
