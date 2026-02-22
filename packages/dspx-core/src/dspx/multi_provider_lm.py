@@ -103,6 +103,8 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
     - json_mode: all() — ALL providers must support JSON for safe json_mode use
     - multi_turn: any() — if any provider supports history, aggregate can use it
     - structured_output_format: use most restrictive (prefer 'none' over 'json'/'xml')
+    - supports_vision: any() — if any provider has vision, aggregate can use it
+    - supports_audio: any() — if any provider has audio, aggregate can use it
 
     This ensures template adapter parse_mode auto-selection is safe when using
     MultiProviderLM with heterogeneous providers.
@@ -110,6 +112,10 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
     try:
         if ProviderCapabilities is None:
             return None
+
+        # Handle empty provider list - return safe defaults
+        if not providers:
+            return ProviderCapabilities()
 
         supports_tools = any(
             getattr(getattr(p, "capabilities", None), "supports_tools", False)
@@ -127,6 +133,14 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
         )
         multi_turn = any(
             getattr(getattr(p, "capabilities", None), "multi_turn", False)
+            for p in providers
+        )
+        supports_vision = any(
+            getattr(getattr(p, "capabilities", None), "supports_vision", False)
+            for p in providers
+        )
+        supports_audio = any(
+            getattr(getattr(p, "capabilities", None), "supports_audio", False)
             for p in providers
         )
 
@@ -151,6 +165,8 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
             json_mode=json_mode,
             multi_turn=multi_turn,
             structured_output_format=structured_format,
+            supports_vision=supports_vision,
+            supports_audio=supports_audio,
         )
     except Exception:
         return None

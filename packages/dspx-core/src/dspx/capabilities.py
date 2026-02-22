@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, TypeAlias
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# Type alias for structured output format (reusable for type hints)
+StructuredOutputFormat: TypeAlias = Literal["json", "xml", "none"]
 
 
 class ProviderCapabilities(BaseModel):
@@ -12,7 +16,11 @@ class ProviderCapabilities(BaseModel):
     - Template adapter for parse_mode auto-selection
     - MultiProviderLM for aggregate capability reporting
     - Services for provider-aware behavior selection
+
+    Note: This model is frozen to prevent accidental mutation at runtime.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     supports_tools: bool = Field(
         default=False, description="Whether provider supports function/tool calling"
@@ -26,14 +34,13 @@ class ProviderCapabilities(BaseModel):
     multi_turn: bool = Field(
         default=True, description="Whether provider supports conversation history"
     )
-    structured_output_format: Literal["json", "xml", "none"] = Field(
+    structured_output_format: StructuredOutputFormat = Field(
         default="none",
         description="Preferred structured output format for this provider. "
         "Used by template adapter for parse_mode auto-selection.",
     )
 
-    # Future capability extensions can be added as optional fields
-    # to maintain backward compatibility
+    # Future capability extensions (optional, maintain backward compatibility)
     supports_vision: bool = Field(
         default=False, description="Whether provider can process images"
     )
