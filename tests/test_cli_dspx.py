@@ -416,3 +416,115 @@ def test_cli_codegen_template_config_fails_on_missing_file(monkeypatch) -> None:
 
     assert result.exit_code == 2
     assert "not found" in result.stderr.lower() or "not found" in result.stdout.lower()
+
+
+# --- Tests for --dry-run flag ---
+
+
+def test_cli_signature_gen_dry_run_requires_template_config(monkeypatch) -> None:
+    """Test that --dry-run fails when --template-config is not provided."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "test prompt",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "requires --template-config" in result.stderr.lower()
+
+
+def test_cli_signature_gen_dry_run_validates_config(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Test that --dry-run validates template config."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    # Create invalid config
+    config_file = tmp_path / "invalid.yaml"
+    config_file.write_text(
+        """
+parse_mode: invalid_mode
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "test prompt",
+            "--template-config",
+            str(config_file),
+            "--dry-run",
+        ],
+    )
+
+    # Should fail validation
+    assert result.exit_code == 2
+    assert "validation failed" in result.stderr.lower()
+
+
+def test_cli_signature_gen_dry_run_with_valid_config(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Test that --dry-run works with valid config (no adapter installed)."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    # Create valid config
+    config_file = tmp_path / "valid.yaml"
+    config_file.write_text(
+        """
+messages:
+  - role: system
+    content: "{instruction}"
+  - role: user
+    content: "{inputs(style='yaml')}"
+parse_mode: json
+""",
+        encoding="utf-8",
+    )
+
+    # Mock adapter as unavailable to test the fallback path
+    with dspx_cli._monkeypatch_adapter_available(False):
+        result = runner.invoke(
+            app,
+            [
+                "signature",
+                "gen",
+                "test prompt",
+                "--template-config",
+                str(config_file),
+                "--dry-run",
+            ],
+        )
+
+        # Should succeed even without adapter (shows summary only)
+        assert result.exit_code == 0
+        assert "validation passed" in result.stderr.lower()
+
+
+def _monkeypatch_adapter_available(available: bool):
+    """Context manager to mock adapter availability."""
+    import contextlib
+
+    @contextlib.contextmanager
+    def ctx():
+        original = dspx_cli._TEMPLATE_ADAPTER_AVAILABLE
+        dspx_cli._TEMPLATE_ADAPTER_AVAILABLE = available
+        try:
+            yield
+        finally:
+            dspx_cli._TEMPLATE_ADAPTER_AVAILABLE = original
+
+    return ctx()
+
+
+# Make the helper available
+dspx_cli._monkeypatch_adapter_available = _monkeypatch_adapter_available

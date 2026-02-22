@@ -90,7 +90,10 @@ These tasks don't require upstream fixes and unblock implementation once upstrea
    - `dspx/schema_validation.py` — validation with line-number error messages
    - Tests in `tests/test_schema_validation.py` (14 tests)
 
-6. **`--dry-run` flag** — Add to `dspx signature gen --template-config ... --dry-run` to preview rendered messages without LM call
+6. ~~**`--dry-run` flag** — Add to `dspx signature gen --template-config ... --dry-run` to preview rendered messages without LM call~~ ✅ DONE (`a7c3f21`)
+   - Added `--dry-run` flag to `signature gen` command
+   - Validates config, shows rendered messages (if adapter available) or summary
+   - Tests in `tests/test_cli_dspx.py` (3 tests)
 
 ### Acceptance Criteria for Implementation
 

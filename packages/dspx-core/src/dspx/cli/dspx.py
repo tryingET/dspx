@@ -100,6 +100,136 @@ def _ensure_env(provider: Optional[str], *, tracing: bool = True) -> None:
         enable_mlflow_from_env()
 
 
+def _preview_template_messages(
+    prompt: str,
+    template_config: Path,
+    provider: Optional[str],
+) -> None:
+    """Preview rendered template messages without calling LM.
+
+    Validates the template config and renders messages with sample inputs
+    to show what would be sent to the LM.
+
+    Args:
+        prompt: The task prompt for signature generation
+        template_config: Path to YAML template config file
+        provider: Optional provider name for capability-aware preview
+    """
+    import json
+
+    from dspx.schema_validation import (
+        validate_template_adapter_config,
+        SchemaValidationError,
+    )
+
+    # Validate the config against schema
+    try:
+        config = validate_template_adapter_config(template_config)
+        typer.echo(f"✓ Config validation passed: {template_config}", err=True)
+    except SchemaValidationError as e:
+        typer.echo("✗ Config validation failed:", err=True)
+        typer.echo(str(e), err=True)
+        raise typer.Exit(code=2)
+
+    # Get provider capabilities if available
+    caps_dict = None
+    if provider:
+        _ensure_env(provider, tracing=False)
+        from dspx.provider_registry import capabilities as _caps
+
+        caps = _caps(provider)
+        caps_dict = {
+            "json_mode": getattr(caps, "json_mode", False),
+            "structured_output_format": getattr(
+                caps, "structured_output_format", "none"
+            ),
+            "provider_type": provider.split("-")[0] if "-" in provider else provider,
+        }
+
+    # Try to render with dspy-template-adapter if available
+    if _check_template_adapter_available():
+        try:
+            from dspy_template_adapter import TemplateAdapter  # type: ignore[import-untyped]
+
+            # Build a mock signature for preview
+            import dspy
+
+            class PreviewSignature(dspy.Signature):
+                """Generate a DSPy signature from task description."""
+
+                task: str = dspy.InputField()
+                spec_json: str = dspy.OutputField()
+
+            # Prepare messages
+            messages = config.get("messages", [])
+            adapter_messages = []
+            for msg in messages:
+                adapter_messages.append(
+                    {
+                        "role": msg.get("role"),
+                        "content": msg.get("content", ""),
+                    }
+                )
+
+            # Resolve parse_mode
+            parse_mode = config.get("parse_mode", "auto")
+            if parse_mode == "auto":
+                if caps_dict and caps_dict.get("json_mode"):
+                    parse_mode = "json"
+                elif caps_dict and caps_dict.get("provider_type") == "claude":
+                    parse_mode = "xml"
+                else:
+                    parse_mode = "json"
+
+            # Create adapter and preview
+            adapter = TemplateAdapter(messages=adapter_messages, parse_mode=parse_mode)
+
+            # Preview with sample inputs
+            sample_inputs = {"task": prompt}
+
+            typer.echo("\n--- Rendered Messages Preview ---", err=True)
+            rendered = adapter.format(PreviewSignature, [], **sample_inputs)
+            for i, msg in enumerate(rendered):
+                typer.echo(
+                    f"\n[Message {i + 1}] role={msg.get('role', 'unknown')}", err=True
+                )
+                typer.echo("-" * 40, err=True)
+                content = msg.get("content", "")
+                # Truncate long content for display
+                if len(content) > 500:
+                    content = content[:500] + "\n... (truncated)"
+                typer.echo(content, err=True)
+
+            typer.echo("\n--- Adapter Configuration ---", err=True)
+            typer.echo(f"parse_mode: {parse_mode}", err=True)
+            typer.echo(f"provider: {provider or 'default'}", err=True)
+            if caps_dict:
+                typer.echo(f"capabilities: {json.dumps(caps_dict)}", err=True)
+
+            typer.echo("\n✓ Dry-run complete. No LM call was made.", err=True)
+
+        except Exception as e:
+            typer.echo(f"Error rendering template: {e}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        # Adapter not available - show config summary only
+        typer.echo("\n--- Template Config Summary ---", err=True)
+        typer.echo(f"parse_mode: {config.get('parse_mode', 'auto')}", err=True)
+        typer.echo(f"messages: {len(config.get('messages', []))} message(s)", err=True)
+        for i, msg in enumerate(config.get("messages", [])):
+            typer.echo(f"  [{i + 1}] role={msg.get('role')}", err=True)
+            content = msg.get("content", "")
+            if content and len(content) > 60:
+                content = content[:60] + "..."
+            typer.echo(f"      content: {content}", err=True)
+
+        typer.echo(
+            "\n⚠ dspy-template-adapter not installed. Cannot render full preview.",
+            err=True,
+        )
+        typer.echo("  Install with: pip install dspx-core[templates]", err=True)
+
+
 @providers_app.command("list")
 def providers_list(
     json_out: bool = typer.Option(False, "--json", help="Output JSON list"),
@@ -524,8 +654,13 @@ def signature_gen(
         "--template-config",
         help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview rendered template messages without calling LM (requires --template-config)",
+    ),
 ) -> None:
-    # Fast-fail if template-config requested but file doesn't exist or adapter not installed
+    # Fast-fail if template-config requested but file doesn't exist
     if template_config is not None:
         if not template_config.exists():
             typer.echo(
@@ -533,6 +668,23 @@ def signature_gen(
                 err=True,
             )
             raise typer.Exit(code=2)
+
+    # dry-run requires template-config
+    if dry_run and template_config is None:
+        typer.echo(
+            "Error: --dry-run requires --template-config",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    # Handle dry-run: preview rendered messages without calling LM
+    # For dry-run, we validate the config first, then try to render if adapter available
+    if dry_run and template_config is not None:
+        _preview_template_messages(prompt, template_config, provider)
+        return
+
+    # For non-dry-run with template-config, require the adapter
+    if template_config is not None:
         _require_template_adapter("template-config")
 
     _ensure_env(provider)

@@ -68,7 +68,7 @@ Working tree state: clean (commits ready for push).
 ## Latest validation snapshot
 
 Executed on current working tree:
-- `uv run -m pytest -q tests` ✅ passing (`232 passed, 4 skipped`)
+- `uv run -m pytest -q tests` ✅ passing (`249 passed, 4 skipped`)
   - prior hotspot resolved: `tests/test_run_receipts.py::test_run_explain_remote_lookup_flag_graceful` now completes (~3s), no hang
 - `pre-commit run --all-files` ✅ passing
 - `just verify-full` ✅ passing
@@ -80,7 +80,7 @@ Executed on current working tree:
 - Remote MLflow lookup is intentionally bounded/heuristic; not a full remote artifact-verification pipeline.
 - Replay strictness policy (`warn` vs stricter enforcement modes) still needs explicit governance closure.
 - Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
-- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side work: capabilities infrastructure DONE (`11dd6ee`), CLI fast-fail DONE (`a191016`), implementation review DONE (`ac571b5`), TemplateAdapterConfig DTO DONE (`220e0ae` with 21 tests), YAML schema validation DONE (`f4e1408` with 14 tests). Remaining: `--dry-run` flag. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
+- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side work: capabilities infrastructure DONE (`11dd6ee`), CLI fast-fail DONE (`a191016`), implementation review DONE (`ac571b5`), TemplateAdapterConfig DTO DONE (`220e0ae` with 21 tests), YAML schema validation DONE (`f4e1408` with 14 tests), **--dry-run flag DONE** (`a7c3f21` with 3 tests). **All DSPx-side prerequisites complete.** Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
 
 ## Canonical docs
 
