@@ -81,7 +81,7 @@ Executed on current working tree:
 - Remote MLflow lookup is intentionally bounded/heuristic; not a full remote artifact-verification pipeline.
 - Replay strictness policy (`warn` vs stricter enforcement modes) still needs explicit governance closure.
 - Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
-- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side capabilities infrastructure DONE: `ProviderCapabilities.structured_output_format` + all LM classes updated (`11dd6ee`). Remaining: CLI fast-fail, DTOs, YAML schema. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
+- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side capabilities infrastructure DONE (`11dd6ee`). CLI fast-fail DONE (`a191016`). Remaining: DTOs, YAML schema. Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
 
 ## Canonical docs
 

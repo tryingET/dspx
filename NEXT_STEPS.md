@@ -43,11 +43,7 @@ These tasks don't require upstream fixes and unblock implementation once upstrea
    - `DSpyStubLM.capabilities` — structured_output_format="none"
    - `MultiProviderLM.capabilities` — uses `all()` for json_mode, most restrictive format
 
-3. **CLI fast-fail for missing dep** — When `--template-config` passed, check adapter availability at entrypoint:
-   ```python
-   if template_config and not _adapter_available():
-       sys.exit("dspy-template-adapter not installed. Run: pip install dspx-core[templates]")
-   ```
+3. ~~**CLI fast-fail for missing dep** — When `--template-config` passed, check adapter availability at entrypoint~~ ✅ DONE (`a191016`)
 
 4. **TemplateAdapterConfig DTO** — Add to `dspx/dtos.py`:
    - `TemplateMessage`
@@ -69,7 +65,7 @@ Proceed with `DSPxTemplateAdapter` implementation when:
 - [ ] Upstream #6 (partial demos) fixed OR we filter demos in wrapper
 - [x] DSPx-side ProviderCapabilities contract merged
 - [x] All providers expose `.capabilities` property
-- [ ] CLI fast-fail implemented
+- [x] CLI fast-fail implemented
 - [ ] TemplateAdapterConfig DTO added
 
 ### Critique Reference (preserved)
