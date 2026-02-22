@@ -21,6 +21,47 @@ from dspx.services.mermaid_workflow_service import generate_programs
 from dspx.adapters import datasets as _datasets
 
 
+# Template adapter availability check
+_TEMPLATE_ADAPTER_AVAILABLE: bool | None = None
+
+
+def _check_template_adapter_available() -> bool:
+    """Check if dspy-template-adapter is installed.
+
+    Cached after first check to avoid repeated import attempts.
+    """
+    global _TEMPLATE_ADAPTER_AVAILABLE
+    if _TEMPLATE_ADAPTER_AVAILABLE is None:
+        try:
+            import dspy_template_adapter  # type: ignore[import-untyped]  # noqa: F401
+
+            _TEMPLATE_ADAPTER_AVAILABLE = True
+        except ImportError:
+            _TEMPLATE_ADAPTER_AVAILABLE = False
+    return _TEMPLATE_ADAPTER_AVAILABLE
+
+
+def _require_template_adapter(context: str = "template-config") -> None:
+    """Fast-fail if template adapter is not installed.
+
+    Args:
+        context: Description of what requires the adapter (for error message)
+
+    Raises:
+        typer.Exit: With code 2 and helpful install instructions
+    """
+    if not _check_template_adapter_available():
+        typer.echo(
+            f"Error: --{context} requires dspy-template-adapter but it is not installed.\n"
+            "\n"
+            "Install with one of:\n"
+            "  pip install dspx-core[templates]\n"
+            "  pip install dspy-template-adapter\n",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 sig_app = typer.Typer(no_args_is_help=True)
 mermaid_app = typer.Typer(no_args_is_help=True)
@@ -478,7 +519,16 @@ def signature_gen(
     summary_json_out: Optional[Path] = typer.Option(
         None, help="Write machine-readable run summary JSON"
     ),
+    template_config: Optional[Path] = typer.Option(
+        None,
+        "--template-config",
+        help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
+    ),
 ) -> None:
+    # Fast-fail if template-config requested but adapter not installed
+    if template_config is not None:
+        _require_template_adapter("template-config")
+
     _ensure_env(provider)
     if no_cache:
         os.environ["DSPX_CACHE_ENABLE"] = "0"
@@ -652,8 +702,17 @@ def signature_refine(
     summary_json_out: Optional[Path] = typer.Option(
         None, help="Write machine-readable run summary JSON"
     ),
+    template_config: Optional[Path] = typer.Option(
+        None,
+        "--template-config",
+        help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
+    ),
 ) -> None:
     from dspx.services.refine_service import run_refine as _run_refine
+
+    # Fast-fail if template-config requested but adapter not installed
+    if template_config is not None:
+        _require_template_adapter("template-config")
 
     _ensure_env(provider)
     if budget_ms is not None:
@@ -790,7 +849,16 @@ def module_gen(
     budget_ms: Optional[int] = typer.Option(
         None, help="Time budget in ms (logs to MLflow)"
     ),
+    template_config: Optional[Path] = typer.Option(
+        None,
+        "--template-config",
+        help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
+    ),
 ) -> None:
+    # Fast-fail if template-config requested but adapter not installed
+    if template_config is not None:
+        _require_template_adapter("template-config")
+
     _ensure_env(provider)
     if no_cache:
         os.environ["DSPX_CACHE_ENABLE"] = "0"
@@ -953,7 +1021,16 @@ def codegen(
     budget_ms: Optional[int] = typer.Option(
         None, help="Time budget in ms (logs to MLflow; may clamp provider timeout)"
     ),
+    template_config: Optional[Path] = typer.Option(
+        None,
+        "--template-config",
+        help="YAML config file for TemplateAdapter (requires dspy-template-adapter)",
+    ),
 ) -> None:
+    # Fast-fail if template-config requested but adapter not installed
+    if template_config is not None:
+        _require_template_adapter("template-config")
+
     _ensure_env(provider)
     if no_cache:
         os.environ["DSPX_CACHE_ENABLE"] = "0"

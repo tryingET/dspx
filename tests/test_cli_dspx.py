@@ -247,3 +247,106 @@ def test_cli_signature_run_summary_outputs(tmp_path: Path, monkeypatch) -> None:
     refine_payload = json.loads(refine_summary.read_text(encoding="utf-8"))
     assert refine_payload["run_kind"] == "signature-refine"
     assert "attempts_requested" in refine_payload
+
+
+def test_cli_signature_gen_template_config_fast_fails_without_adapter(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Test that --template-config fails fast when adapter not installed."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+
+    # Force adapter to be unavailable
+    monkeypatch.setattr(dspx_cli, "_TEMPLATE_ADAPTER_AVAILABLE", False)
+
+    config_file = tmp_path / "template.yaml"
+    config_file.write_text(
+        "messages:\n  - role: user\n    content: test\n", encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names",
+            "--template-config",
+            str(config_file),
+        ],
+    )
+
+    # Should exit with code 2
+    assert result.exit_code == 2
+    # Should have helpful error message
+    assert (
+        "dspy-template-adapter" in result.stderr
+        or "dspy-template-adapter" in result.stdout
+    )
+    assert "pip install" in result.stderr or "pip install" in result.stdout
+
+
+def test_cli_module_gen_template_config_fast_fails_without_adapter(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Test that --template-config fails fast for module-gen when adapter not installed."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    # Force adapter to be unavailable
+    monkeypatch.setattr(dspx_cli, "_TEMPLATE_ADAPTER_AVAILABLE", False)
+
+    config_file = tmp_path / "template.yaml"
+    config_file.write_text(
+        "messages:\n  - role: user\n    content: test\n", encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "-n",
+            "TestModule",
+            "-i",
+            "input",
+            "-o",
+            "output",
+            "--template-config",
+            str(config_file),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "dspy-template-adapter" in result.stderr
+        or "dspy-template-adapter" in result.stdout
+    )
+
+
+def test_cli_codegen_template_config_fast_fails_without_adapter(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Test that --template-config fails fast for codegen when adapter not installed."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    # Force adapter to be unavailable
+    monkeypatch.setattr(dspx_cli, "_TEMPLATE_ADAPTER_AVAILABLE", False)
+
+    config_file = tmp_path / "template.yaml"
+    config_file.write_text(
+        "messages:\n  - role: user\n    content: test\n", encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "codegen",
+            "Generate a test function",
+            "--template-config",
+            str(config_file),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "dspy-template-adapter" in result.stderr
+        or "dspy-template-adapter" in result.stdout
+    )
