@@ -141,6 +141,20 @@ For each expert, produce:
 
 **After review:** Fix all bugs, document design decisions, add missing tests before proceeding to DTOs.
 
+### Review Status
+
+✅ **COMPLETE** — Review conducted and bugs fixed (`docs/TEMPLATE_ADAPTER_IMPLEMENTATION_REVIEW.md`)
+
+**Bugs fixed:**
+1. ProviderCapabilities now frozen (immutable) — `5419957`
+2. Empty provider list returns safe defaults (not json_mode=True) — `5419957`
+3. Added supports_vision/supports_audio aggregation — `5419957`
+4. --template-config validates file exists before adapter check — `5824660`
+
+**Tests added:**
+- `tests/test_multi_provider_caps.py` — 9 tests for `_combine_caps()` edge cases
+- `tests/test_cli_dspx.py` — 3 tests for missing file scenario
+
 ### Critique Reference (preserved)
 
 <details>
