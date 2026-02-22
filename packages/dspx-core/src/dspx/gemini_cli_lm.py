@@ -100,8 +100,9 @@ class GeminiCLILM(DSPyBaseLM):
                 caps = ProviderCapabilities(
                     supports_tools=True,
                     code_exec=False,
-                    json_mode=False,
+                    json_mode=False,  # Gemini CLI doesn't guarantee JSON
                     multi_turn=True,
+                    structured_output_format="none",  # Free-form output
                 )
             else:
                 caps = None

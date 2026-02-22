@@ -96,6 +96,7 @@ class PiRPCLM(DSPyBaseLM):
                     code_exec=False,
                     json_mode=False,
                     multi_turn=True,
+                    structured_output_format="none",
                 )
             else:
                 caps = None

@@ -132,8 +132,9 @@ class OpenRouterLM(DSPyBaseLM):
                 caps = ProviderCapabilities(
                     supports_tools=False,
                     code_exec=False,
-                    json_mode=True,
+                    json_mode=False,  # OpenRouter proxies to various models; can't guarantee JSON
                     multi_turn=True,
+                    structured_output_format="none",  # Depends on underlying model
                 )
             else:
                 caps = None

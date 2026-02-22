@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple
 
 # Internal DTO/provider base (optional)
 try:
@@ -95,9 +95,22 @@ def _extract_text_from_response(resp: Any) -> str:
 
 
 def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
+    """Combine capabilities from multiple providers.
+
+    Aggregation rules:
+    - supports_tools: any() — if any provider has tools, the aggregate can use them
+    - code_exec: any() — if any provider can execute code, the aggregate can
+    - json_mode: all() — ALL providers must support JSON for safe json_mode use
+    - multi_turn: any() — if any provider supports history, aggregate can use it
+    - structured_output_format: use most restrictive (prefer 'none' over 'json'/'xml')
+
+    This ensures template adapter parse_mode auto-selection is safe when using
+    MultiProviderLM with heterogeneous providers.
+    """
     try:
         if ProviderCapabilities is None:
             return None
+
         supports_tools = any(
             getattr(getattr(p, "capabilities", None), "supports_tools", False)
             for p in providers
@@ -106,7 +119,9 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
             getattr(getattr(p, "capabilities", None), "code_exec", False)
             for p in providers
         )
-        json_mode = any(
+        # CRITICAL: Use all() for json_mode to avoid parse failures
+        # when one provider doesn't support JSON output
+        json_mode = all(
             getattr(getattr(p, "capabilities", None), "json_mode", False)
             for p in providers
         )
@@ -114,11 +129,28 @@ def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
             getattr(getattr(p, "capabilities", None), "multi_turn", False)
             for p in providers
         )
+
+        # Use most restrictive structured_output_format
+        # Priority: none > xml > json (most restrictive first)
+        formats = [
+            getattr(
+                getattr(p, "capabilities", None), "structured_output_format", "none"
+            )
+            for p in providers
+        ]
+        if "none" in formats:
+            structured_format: Literal["json", "xml", "none"] = "none"
+        elif "xml" in formats:
+            structured_format = "xml"
+        else:
+            structured_format = "json"
+
         return ProviderCapabilities(
             supports_tools=supports_tools,
             code_exec=code_exec,
             json_mode=json_mode,
             multi_turn=multi_turn,
+            structured_output_format=structured_format,
         )
     except Exception:
         return None

@@ -150,7 +150,12 @@ class CodexExecLM(DSPyBaseLM):
         # Initialize internal LMBase (capabilities) if available
         try:
             caps = (
-                ProviderCapabilities(code_exec=True, supports_tools=False)
+                ProviderCapabilities(
+                    code_exec=True,
+                    supports_tools=False,
+                    json_mode=True,  # OpenAI-based, supports JSON output
+                    structured_output_format="json",
+                )
                 if ProviderCapabilities is not None
                 else None
             )

@@ -41,7 +41,12 @@ class DSpyStubLM(DSPyBaseLM, LMBase):
         DSPyBaseLM.__init__(self, model=label, model_type="text")
         LMBase.__init__(
             self,
-            capabilities=ProviderCapabilities(code_exec=False, supports_tools=False),
+            capabilities=ProviderCapabilities(
+                code_exec=False,
+                supports_tools=False,
+                json_mode=False,
+                structured_output_format="none",
+            ),
         )
 
     # DSPy entrypoint
