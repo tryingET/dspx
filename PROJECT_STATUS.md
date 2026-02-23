@@ -68,7 +68,7 @@ Working tree state: clean (commits ready for push).
 ## Latest validation snapshot
 
 Executed on current working tree:
-- `uv run -m pytest -q tests` ✅ passing (`249 passed, 4 skipped`)
+- `uv run -m pytest -q tests` ✅ passing (`345 passed, 7 skipped`)
   - prior hotspot resolved: `tests/test_run_receipts.py::test_run_explain_remote_lookup_flag_graceful` now completes (~3s), no hang
 - `pre-commit run --all-files` ✅ passing
 - `just verify-full` ✅ passing
@@ -84,7 +84,10 @@ Executed on current working tree:
 
 ## Strategic next direction
 
-- **Behavioral Oracle:** Major new capability planned (see `NEXT_STEPS.md` section 8). Transforms passive execution traces into active behavioral assurance through semantic coordinate systems, territory mapping, and predictive drift detection. Builds entirely on existing receipts/cache/MLflow infrastructure—no external dependencies on upstream fixes.
+- **Behavioral Oracle Phase B COMPLETE:** Territory mapping, contracts, frontiers, and attractors now implemented (see `NEXT_STEPS.md` section 8). 47 Phase B tests + integration tests.
+- **Tech debt addressed:** Long CLI command functions refactored into focused action handlers (~60% reduction in individual function size for contract/frontiers/attractors commands).
+- **Oracle Phase C (Time Travel):** Next milestone—behavioral git for branching, diffing, and bisecting across behavioral history.
+- Builds entirely on existing receipts/cache/MLflow infrastructure—no external dependencies on upstream fixes.
 
 ## Canonical docs
 

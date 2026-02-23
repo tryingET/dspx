@@ -84,7 +84,7 @@ Upstream issues filed (see `docs/upstream-issues/dspy-template-adapter/`):
 
 ### 8) The Oracle: Behavioral Intelligence
 
-**Status:** 🟢 Phase A COMPLETE → Phase B NEXT
+**Status:** 🟢 Phase A COMPLETE → Phase B COMPLETE
 
 #### Phase A: Behavioral Calculus ✅
 
@@ -97,27 +97,37 @@ dspx oracle drift run-a run-b        # Measure change
 dspx oracle cluster -k 5             # Discover groups
 ```
 
-#### Phase B: Behavioral Topology (CURRENT)
+#### Phase B: Behavioral Topology ✅
 
 **Map the territory.** Not just points—regions, boundaries, attractors.
 
 ```bash
 dspx oracle territory --output territory.json
-dspx oracle contract add --name "no-pii" --invariant "..."
-dspx oracle frontiers --suggest-exploration
-dspx oracle attractors --min-stability 0.95
+dspx oracle contract list
+dspx oracle contract verify --limit 100
+dspx oracle frontiers --suggest
+dspx oracle attractors --health
 ```
 
 **Acceptance criteria:**
-- [ ] Territory map shows stable/unstable/unknown regions
-- [ ] Behavioral contracts define and verify invariants
-- [ ] Frontier detection identifies unexplored inputs
-- [ ] Attractor analysis finds naturally stable behaviors
-- [ ] Danger zone detection warns of risky regions
+- [x] Territory map shows stable/unstable/unknown regions
+- [x] Behavioral contracts define and verify invariants
+- [x] Frontier detection identifies unexplored inputs
+- [x] Attractor analysis finds naturally stable behaviors
+- [x] Danger zone detection warns of risky regions
 
-#### Phase C-E: Future
+#### Phase C: Time Travel (NEXT)
 
-- **C: Time Travel** — Behavioral git (branch, diff, bisect)
+**Behavioral git.** Branch, diff, bisect across behavioral history.
+
+```bash
+dspx oracle branch feature-x         # Create behavioral branch
+dspx oracle diff main feature-x      # Compare behaviors
+dspx oracle bisect --find regression # Find when behavior changed
+```
+
+#### Phase D-E: Future
+
 - **D: Dreaming** — Simulate futures, synthesize tests
 - **E: Consciousness** — Self-aware behavioral health
 
@@ -236,6 +246,9 @@ For each wave, review from:
 1. Run `dspx oracle index --from-receipts` to populate
 2. Run `dspx oracle search <query>` to find similar executions
 3. Run `dspx oracle stats` to see coverage
+4. Run `dspx oracle territory` to map behavioral regions
+5. Run `dspx oracle contract verify` to check invariants
+6. Run `dspx oracle attractors --health` for health report
 
 ### For Upstream Work
 
@@ -249,7 +262,7 @@ For each wave, review from:
 
 ### Next 6 Months
 
-- Oracle Phase B (Topology) → reveals system's behavioral shape
+- Oracle Phase C (Time Travel) → behavioral git for change tracking
 - Template adapter integration (when upstream fixes land)
 - MLflow/DSPy upstream PRs merged
 
@@ -304,3 +317,8 @@ Each Oracle phase makes the next easier:
 | `dspx oracle index` | Populate Oracle |
 | `dspx oracle search` | Find similar executions |
 | `dspx oracle drift` | Measure behavioral change |
+| `dspx oracle territory` | Map behavioral regions |
+| `dspx oracle contract` | Verify behavioral invariants |
+| `dspx oracle frontiers` | Detect unexplored inputs |
+| `dspx oracle attractors` | Find stable behaviors |
+| `dspx oracle predict` | Predict behavioral convergence |
