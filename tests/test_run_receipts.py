@@ -5,7 +5,7 @@ import json
 
 from typer.testing import CliRunner
 
-import dspx.cli.dspx as dspx_cli
+import dspx.cli.utils as dspx_utils
 from dspx.cli.dspx import app
 from dspx.run_receipts import build_run_receipt, load_run_receipt, write_run_receipt
 
@@ -177,7 +177,7 @@ def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) 
     def _boom() -> bool:
         raise AssertionError("run replay must not bootstrap MLflow")
 
-    monkeypatch.setattr(dspx_cli, "enable_mlflow_from_env", _boom)
+    monkeypatch.setattr(dspx_utils, "enable_mlflow_from_env", _boom)
     r_replay = runner.invoke(
         app,
         [
@@ -498,7 +498,7 @@ def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> 
     def _boom() -> bool:
         raise AssertionError("run explain must not bootstrap MLflow by default")
 
-    monkeypatch.setattr(dspx_cli, "enable_mlflow_from_env", _boom)
+    monkeypatch.setattr(dspx_utils, "enable_mlflow_from_env", _boom)
     r_explain = runner.invoke(
         app,
         [
