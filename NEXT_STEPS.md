@@ -464,416 +464,513 @@ Acceptance:
 
 ---
 
-## 8) Behavioral Oracle: Semantic Regression & Topological Assurance
+## 8) The Oracle: A Behavioral Intelligence System
 
-**Status:** 🟢 Phase A COMPLETE — Ready for Phase B (Behavioral Topology).
+**Status:** 🟢 Phase A COMPLETE — Foundation laid. Ready for transcendental evolution.
 
-**Vision:** Transform passive execution traces into active behavioral assurance. Don't just run programs—navigate a space where all possible behaviors can be mapped, predicted, and guaranteed.
+---
 
-### The Paradigm Shift
+### The Vision: Beyond Testing, Beyond Monitoring
 
-| Current World | Oracle World |
-|---------------|--------------|
-| Run program → Get output | Query behavioral space → See all reachable outputs |
-| Detect bugs after change | Prove correctness before change |
-| Compare providers empirically | See provider fingerprints in semantic space |
-| Test sampled inputs | Map entire behavioral territory |
-| Time passes linearly | Traverse behavioral history at will |
+What if your system could **reason about its own behavior**?
 
-### Layered Architecture
+Not just record what happened, but understand *why*, predict *what could happen*, and guide you toward *what should happen*.
+
+The Oracle is not a testing tool. It is not a monitoring system. It is a **behavioral intelligence**—a second brain that understands your DSPy programs better than you do.
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                                                                            │
+│     ╔═══════════════════════════════════════════════════════════════╗     │
+│     ║                     T H E   O R A C L E                        ║     │
+│     ║                                                                 ║     │
+│     ║   "I have watched 10,000 executions. I know what works.        ║     │
+│     ║    I know what fails. I know what you haven't tried yet.       ║     │
+│     ║    Ask me anything."                                           ║     │
+│     ╚═══════════════════════════════════════════════════════════════╝     │
+│                                                                            │
+│   ┌─────────────────────────────────────────────────────────────────────┐ │
+│   │ LAYER 6: CONSCIOUSNESS                                              │ │
+│   │ The Oracle becomes self-aware of system behavior patterns           │ │
+│   │ • Self-diagnosis: "I notice my classification accuracy degrading"  │ │
+│   │ • Self-healing: Automatically adjusting to maintain invariants     │ │
+│   │ • Self-evolution: Proposing better behaviors                       │ │
+│   └─────────────────────────────────────────────────────────────────────┘ │
+│   ┌─────────────────────────────────────────────────────────────────────┐ │
+│   │ LAYER 5: DREAMING                                                    │ │
+│   │ Simulate futures that haven't happened yet                          │ │
+│   │ • Counterfactual worlds: "What if I used GPT-5?"                   │ │
+│   │ • Behavioral synthesis: Generate behaviors you haven't tried       │ │
+│   │ • Optimization prophecy: See convergence before it happens         │ │
+│   └─────────────────────────────────────────────────────────────────────┘ │
+│   ┌─────────────────────────────────────────────────────────────────────┐ │
+│   │ LAYER 4: TIME TRAVEL                                                  │ │
+│   │ Navigate behavioral history like a git repository                   │ │
+│   │ • Behavioral git: Branch, merge, diff behaviors                    │ │
+│   │ • Time queries: "Show me how I classified tickets in January"      │ │
+│   │ • Causal tracing: Find when behavior changed and why               │ │
+│   └─────────────────────────────────────────────────────────────────────┘ │
+│   ┌─────────────────────────────────────────────────────────────────────┐ │
+│   │ LAYER 3: TOPOLOGY                                                     │ │
+│   │ Map the territory of all possible behaviors                         │ │
+│   │ • Behavioral manifold: The complete shape of your system           │ │
+│   │ • Stable attractors: Where behaviors naturally settle              │ │
+│   │ • Forbidden zones: Regions that mean something is wrong            │ │
+│   │ • Unexplored territory: Behaviors you've never tried               │ │
+│   └─────────────────────────────────────────────────────────────────────┘ │
+│   ┌─────────────────────────────────────────────────────────────────────┐ │
+│   │ LAYER 2: CALCULUS (✅ Phase A Complete)                              │ │
+│   │ Mathematical operations on behaviors                                 │ │
+│   │ • Behavioral vectors: Embed any execution in semantic space        │ │
+│   │ • Drift measure: Quantify behavioral change precisely              │ │
+│   │ • Behavioral algebra: Add, subtract, compose behaviors             │ │
+│   │ • Distance metrics: "How different is this from that?"             │ │
+│   └─────────────────────────────────────────────────────────────────────┘ │
+│   ┌─────────────────────────────────────────────────────────────────────┐ │
+│   │ LAYER 1: PERCEPTION (✅ Already Exists)                             │ │
+│   │ Capture every execution with perfect fidelity                       │ │
+│   │ • Receipts: Complete structured records                            │ │
+│   │ • MLflow integration: Correlation and provenance                   │ │
+│   │ • Replay: Exact reproduction of any past execution                │ │
+│   └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### The Oracle Query Language (OQL)
+
+Talk to your system in natural language:
+
+```bash
+# Ask questions
+dspx oracle ask "Why did my ticket classifier start missing urgent bugs?"
+
+# Get predictions
+dspx oracle ask "What will happen if I switch from Claude to GPT-4?"
+
+# Find patterns
+dspx oracle ask "What input patterns cause the most hallucinations?"
+
+# Explore possibilities
+dspx oracle ask "What behaviors have I never tried for sentiment analysis?"
+
+# Get advice
+dspx oracle ask "How can I make my entity extraction more robust?"
+```
+
+The Oracle responds with evidence:
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ ORACLE RESPONSE                                                            ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║                                                                           ║
+║ Q: "Why did my ticket classifier start missing urgent bugs?"             ║
+║                                                                           ║
+║ I found the cause. On 2024-02-15 at 14:23, your prompt changed:          ║
+║                                                                           ║
+║   - Removed: "Prioritize tickets mentioning production or critical"      ║
+║   + Added: "Focus on customer satisfaction keywords"                     ║
+║                                                                           ║
+║ Behavioral Impact:                                                        ║
+║   • 23 executions drifted into unstable region                           ║
+║   • "urgent" + "bug" classification dropped from 94% → 67%              ║
+║   • Semantic distance from stable attractor: 0.47 (HIGH)                 ║
+║                                                                           ║
+║ Evidence:                                                                 ║
+║   → Run diff: dspx oracle diff --before abc123 --after def456            ║
+║   → Timeline: dspx oracle timeline --signature classify-ticket           ║
+║   → Revert:  dspx oracle revert --to abc123                              ║
+║                                                                           ║
+║ Recommendation: Restore the production/critical prioritization clause    ║
+║ or add explicit "urgency detection" to your classification schema.       ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+### Phase A: Behavioral Calculus (COMPLETE ✅)
+
+**The mathematical foundation for reasoning about behavior.**
+
+Every execution becomes a point in a high-dimensional behavioral space. We can measure distances, find clusters, detect drift, and reason about behavioral similarity.
+
+```bash
+# What we can do now:
+dspx oracle index --from-receipts        # Ingest all executions
+dspx oracle search "classify tickets"    # Find similar behaviors
+dspx oracle drift run-a run-b            # Measure behavioral change
+dspx oracle cluster -k 5                 # Discover behavioral groups
+```
+
+**Acceptance Criteria:**
+- [x] Every execution embeddable as a behavioral vector
+- [x] Semantic distance measurable between any two executions
+- [x] Behavioral clustering reveals natural groupings
+- [x] Drift detection with quantified thresholds
+- [x] Thread-safe, validated, production-ready
+
+---
+
+### Phase B: Behavioral Topology (NEXT)
+
+**Map the territory. Not just points—regions, boundaries, attractors.**
+
+Your system has a "shape" in behavioral space. Some regions are stable (behaviors that always work). Some are unstable (behaviors that fail randomly). Some are unexplored (behaviors you've never tried).
+
+```bash
+# Map your behavioral territory
+dspx oracle territory --output territory.json
+
+# Define what "good behavior" means
+dspx oracle contract add --name "no-pii-leakage" \
+    --invariant "output contains no regex(\\b\\d{3}-\\d{2}-\\d{4}\\b)"
+
+# Find the edges of what you've tested
+dspx oracle frontiers --suggest-exploration
+
+# Identify behavioral attractors (stable patterns)
+dspx oracle attractors --min-stability 0.95
+```
+
+**Territory Visualization:**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  LAYER 5: ORACLE INTERFACE (dspx oracle ...)                            │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Commands: navigate, prove, synthesize, travel, fingerprint      │  │
-│  │ "dspx oracle prove --invariant 'no-pii-in-output'"              │  │
-│  │ "dspx oracle travel --to 2024-01-15 --against current-code"     │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
+│                    YOUR BEHAVIORAL TERRITORY                            │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  LAYER 4: BEHAVIORAL DYNAMICS (dspx/dynamics/)                         │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ • Simulator: Predict outcomes without running                    │  │
-│  │ • Predictor: Forecast drift trajectory                           │  │
-│  │ • Counterfactual: "What if I had used Claude instead?"          │  │
-│  │ • Synthesizer: Generate test cases at territory boundaries      │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  LAYER 3: BEHAVIORAL TOPOLOGY (dspx/topology/)                         │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ • Territory Map: All observed behaviors in semantic space       │  │
-│  │ • Invariants: Regions that must never be violated               │  │
-│  │ • Attractors: Where outputs tend to cluster                     │  │
-│  │ • Forbidden Zones: Semantic regions that indicate failure       │  │
-│  │ • Boundaries: Edges of tested behavior                          │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  LAYER 2: SEMANTIC COORDINATES (dspx/coordinates/)                     │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ • Embedding Engine: Map (input, output, config) → vector        │  │
-│  │ • Distance Metrics: Semantic similarity, behavioral drift       │  │
-│  │ • Coordinate System: Latent space for all DSPx executions       │  │
-│  │ • Clustering: Group similar behaviors automatically             │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  LAYER 1: EXECUTION CAPTURE (✅ ALREADY EXISTS)                        │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ • Receipts: Every run produces structured record                │  │
-│  │ • MLflow: Correlation tags, hints, artifacts                    │  │
-│  │ • Cache: Deterministic replay capability                        │  │
-│  │ • Replay/Explain: Full provenance chain                         │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+│    "The Map is Not the Territory, But This Map IS Your Territory"      │
+│                                                                         │
+│         ╭──────────────────────────────────────────────╮               │
+│         │                                              │               │
+│         │    ╔═══════════════╗                        │               │
+│         │    ║   STABLE      ║    ○──○                │               │
+│         │    ║   CLASSIFY    ║   /    \               │               │
+│         │    ║   ZONE        ║──○  ?   ○───╮          │               │
+│         │    ╚═══════════════╝   \    /    │          │               │
+│         │         │  │            ○──○     │          │               │
+│         │         │  │                     │          │               │
+│         │    ╔════╧══╧════╗          ╭─────╯          │               │
+│         │    ║   STABLE    ║          │                │               │
+│         │    ║   EXTRACT   ║      ╭───╯                │               │
+│         │    ╚═════════════╝      │                    │               │
+│         │         │          ┌───┴───┐                │               │
+│         │         │          │ DANGER│                │               │
+│         │    ╔════╧══════╗   │ ZONE  │                │               │
+│         │    ║ UNSTABLE  ║   │ 🔴    │                │               │
+│         │    ║ SUMMARIZE ║───┴───────┴──○             │               │
+│         │    ╚══════════╝       ↑                     │               │
+│         │                       │                     │               │
+│         │              "Drift detected here"          │               │
+│         │                                              │               │
+│         │                       ✦ ← Unexplored         │               │
+│         │                                              │               │
+│         ╰──────────────────────────────────────────────╯               │
+│                                                                         │
+│   Legend:  ╔═╗ Stable    ○ Unstable    ? Unknown    ✦ Unexplored       │
+│            ║═║ Attractor  🔴 Danger     ── Path                        │
+│                                                                         │
+│   Contracts:                                                            │
+│     ✓ no-pii-leakage:    1,247 runs verified, 0 violations             │
+│     ✓ json-valid:        1,247 runs verified, 0 violations             │
+│     ⚠ no-hallucination:  1,247 runs, 23 in danger zone                 │
+│                                                                         │
+│   Frontiers to explore:                                                 │
+│     1. Long context inputs (>10k tokens) - never tested                │
+│     2. Multi-language inputs - only 3% coverage                        │
+│     3. Ambiguous entity references - approach with caution             │
+│                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Phase A: Semantic Coordinates & Capture (Foundation)
+**Acceptance Criteria:**
+- [ ] Territory map shows stable/unstable/unknown regions
+- [ ] Behavioral contracts define and verify invariants
+- [ ] Frontier detection identifies unexplored inputs
+- [ ] Attractor analysis finds naturally stable behaviors
+- [ ] Danger zone detection warns of risky behavioral regions
 
-**Status:** ✅ COMPLETE — All 26+ bugs fixed. Review in `docs/ORACLE_PHASE_A_REVIEW.md`.
+---
 
-**Goal:** Every execution receipt becomes a point in navigable semantic space.
+### Phase C: Behavioral Time Travel
 
-**Implementation:**
+**Navigate behavioral history like a git repository.**
 
 ```bash
-# packages/dspx-core/src/dspx/coordinates/
-├── __init__.py
-├── embeddings.py      # Embed (input, output, config) → vector
-├── metrics.py         # Semantic distance, drift scoring
-├── clustering.py      # Group similar executions
-└── storage.py         # Persist coordinate index
+# See behavioral history
+dspx oracle log --signature classify-ticket --graph
+
+# Compare behaviors across time
+dspx oracle diff --at 2024-01-15 --against 2024-02-15
+
+# Find when behavior changed
+dspx oracle bisect --bad "hallucination detected" --good 2024-01-01
+
+# Create a behavioral branch
+dspx oracle branch --from main --name experiment-claude-3.5
+
+# Merge behavioral learnings
+dspx oracle merge --branch experiment-claude-3.5 --into main
 ```
 
-**CLI Commands:**
+**Behavioral Git Log:**
 
-```bash
-# Index existing runs into semantic space
-dspx oracle index --from-receipts --since 30d
-
-# Find similar past executions
-dspx oracle search "classify this ticket" --top 5
-
-# Show semantic neighbors of a run
-dspx oracle neighbors <run-id>
-
-# Show index statistics
-dspx oracle stats
-
-# Cluster executions into behavioral groups
-dspx oracle cluster -k 5
-
-# Compute drift between two executions
-dspx oracle drift <run-a> <run-b>
+```
+╭─────────────────────────────────────────────────────────────────────────╮
+│ BEHAVIORAL LOG: classify-ticket                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│ * abc1234 (HEAD -> main) Stable at 94.2% accuracy                      │
+│ |                                                                       │
+│ * def5678 Drift detected: urgency classification -12%                  │
+│ |   Warning: Approaching danger zone                                    │
+│ |                                                                       │
+│ * ghi9012 Provider switch: codex → claude-3.5-sonnet                   │
+│ |   Impact: +3.1% accuracy, -23ms latency                               │
+│ |                                                                       │
+│ * jkl3456 Prompt refactor: added few-shot examples                     │
+│ |   Impact: +8.7% accuracy, new stable attractor formed                │
+│ |                                                                       │
+│ * mno7890 Initial implementation                                        │
+│                                                                         │
+│ Tags:                                                                   │
+│   v1.0-stable   → jkl3456 (last known stable)                          │
+│   v0.9-drift    → def5678 (needs attention)                            │
+│                                                                         │
+╰─────────────────────────────────────────────────────────────────────────╯
 ```
 
 **Acceptance Criteria:**
-- [x] Every receipt can be embedded into semantic coordinates
-- [x] Similar executions cluster together (visualizable)
-- [x] Search by semantic similarity returns relevant results
-- [x] Coordinate index persists and updates incrementally
-- [x] All 26+ review bugs fixed (see `docs/ORACLE_PHASE_A_REVIEW.md`)
+- [ ] Behavioral history is navigable like git
+- [ ] Diff shows semantic changes, not just code changes
+- [ ] Bisect finds root cause of behavioral regressions
+- [ ] Branching enables safe behavioral experiments
 
-**Key Improvements Made:**
-- Thread-safe singleton with parameter-aware caching
-- Embedding versioning for schema compatibility
-- Dimension validation in all vectors
-- Transactional batch upsert
-- Result types for detailed error info
-- Schema versioning and migration
-- Proper hash expansion in mock embedder
+---
 
-**Implementation Notes:**
-- Mock embedder provides deterministic vectors for testing without ML dependencies
-- Optional `sentence-transformers` backend for production use
-- SQLite-backed index with brute-force similarity search (sufficient for thousands of runs)
-- Tests in `tests/test_coordinates.py` (34 tests)
+### Phase D: Behavioral Dreaming
 
-### Phase B: Behavioral Topology (Territory Mapping)
-
-**Goal:** Build a map of your system's behavioral territory—not just points, but regions and boundaries.
-
-**Implementation:**
+**Simulate futures that haven't happened.**
 
 ```bash
-# packages/dspx-core/src/dspx/topology/
-├── __init__.py
-├── territory.py       # Map of observed behaviors
-├── invariants.py      # Define and check constraints
-├── boundaries.py      # Find edges of tested space
-├── attractors.py      # Identify stable regions
-└── visualization.py   # ASCII/JSON territory maps
+# Dream about a change before making it
+dspx oracle dream --change "switch to claude-3-opus" --explore 1000
+
+# Synthesize novel test cases
+dspx oracle dream --synthesize --for "entity extraction" --novelty 0.8
+
+# Explore counterfactuals
+dspx oracle dream --counterfactual "what if I had used GPT-4?"
+
+# Predict optimization convergence
+dspx oracle dream --optimize --forecast-convergence
 ```
 
-**CLI Commands:**
-
-```bash
-# Visualize behavioral territory
-dspx oracle territory --output territory.json
-
-# Define an invariant (semantic constraint)
-dspx oracle invariant add --name "no-pii" \
-    --description "Outputs must not contain PII patterns"
-
-# Check if recent runs violate invariants
-dspx oracle check --against invariants.yaml
-
-# Find boundary cases (edge of tested territory)
-dspx oracle boundaries --suggest-tests
-```
-
-**Territory Visualization (ASCII):**
+**Dream Visualization:**
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │     BEHAVIORAL TERRITORY MAP            │
-                    │                                         │
-         Unstable   │    ○──○──○                    ○──○      │
-         Region     │   /      \\                  /    \     │
-                    │  ○   🔴   ○   ←── drift     ○  ✓  ○     │
-                    │   \      /     detected      \    /     │
-                    │    ○──○──○                    ○──○      │
-                    │           │                             │
-                    │           ▼                             │
-                    │    ═══════════════                       │
-                    │    STABLE PLATEAU      ○ ←─ unexplored  │
-                    │    ═══════════════     /                │
-                    │                       ○                 │
-                    └─────────────────────────────────────────┘
-
-Invariant Status:
-  ✓ no-pii:        847 runs verified, 0 violations
-  ✓ json-valid:    847 runs verified, 0 violations
-  ⚠ no-hallucination: 847 runs, 3 boundary approaches detected
-
-Suggested Boundary Tests:
-  1. Input with ambiguous pronoun references
-  2. Very long context (>8000 tokens)
-  3. Non-English input with English instructions
+╭─────────────────────────────────────────────────────────────────────────╮
+│ DREAM: "switch to claude-3-opus"                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│ Simulating 1,000 executions across behavioral space...                  │
+│                                                                         │
+│ Predicted Outcomes:                                                     │
+│   ┌─────────────────────────────────────────────────────────────┐      │
+│   │                                                              │      │
+│   │   847 executions (85%) → STABLE                             │      │
+│   │     - Semantically equivalent to current                    │      │
+│   │     - Minor stylistic differences                           │      │
+│   │                                                              │      │
+│   │   127 executions (13%) → IMPROVED                           │      │
+│   │     - Better handling of ambiguous inputs                   │      │
+│   │     - +4.2% accuracy on edge cases                          │      │
+│   │                                                              │      │
+│   │    26 executions ( 2%) → DEGRADED                           │      │
+│   │     ⚠ Fails on technical jargon                            │      │
+│   │     - New hallucinations detected                           │      │
+│   │                                                              │      │
+│   └─────────────────────────────────────────────────────────────┘      │
+│                                                                         │
+│ Risk Assessment: MEDIUM                                                 │
+│   • 2% of executions enter danger zone                                 │
+│   • New failure mode: technical jargon confusion                       │
+│   • Mitigation: Add technical term examples to prompt                  │
+│                                                                         │
+│ Recommendation:                                                         │
+│   Proceed with caution. Add technical jargon examples first.           │
+│                                                                         │
+│ Try it: dspx oracle dream --change "..." --with-mitigation             │
+│                                                                         │
+╰─────────────────────────────────────────────────────────────────────────╯
 ```
 
 **Acceptance Criteria:**
-- [ ] Territory map shows stable vs unstable regions
-- [ ] Invariants can be defined and checked against runs
-- [ ] Boundary detection identifies untested input space
-- [ ] Drift from stable region is quantified (not just "changed")
+- [ ] Behavioral simulation predicts outcomes without execution
+- [ ] Test case synthesis explores novel behavioral territory
+- [ ] Counterfactual analysis shows alternative histories
+- [ ] Optimization convergence is predictable
 
-### Phase C: Regression Engine (Automated Assurance)
+---
 
-**Goal:** Every execution becomes an automatic regression test. Changes are validated against behavioral history.
+### Phase E: Behavioral Consciousness
 
-**Implementation:**
-
-```bash
-# packages/dspx-core/src/dspx/regression/
-├── __init__.py
-├── capture.py         # Harvest test cases from runs
-├── runner.py          # Replay against new config
-├── drift.py           # Semantic drift detection
-├── report.py          # Diff and explanation generation
-└── ci.py              # CI integration helpers
-```
-
-**CLI Commands:**
+**The Oracle becomes aware of your system's behavioral health.**
 
 ```bash
-# Capture high-quality runs as test cases
-dspx regression capture --from-mlflow --min-quality 0.8 --since 7d
+# Ask the Oracle to monitor itself
+dspx oracle watch --alert-on drift --threshold 0.15
 
-# Run regression suite
-dspx regression run --against claude-3.5-sonnet --fail-threshold 0.15
+# Let the Oracle suggest improvements
+dspx oracle reflect --on classify-ticket --suggest-improvements
 
-# Compare behavioral diff between branches
-dspx regression diff --baseline main --compare feature-branch
+# Enable self-healing
+dspx oracle heal --enable --dry-run-first
 
-# Generate CI configuration
-dspx regression ci --output .github/workflows/behavioral-regression.yml
+# Weekly behavioral health report
+dspx oracle report --weekly --email team@example.com
 ```
 
-**Regression Report:**
+**Self-Awareness Report:**
 
 ```
-╔═══════════════════════════════════════════════════════════════════════════╗
-║                     BEHAVIORAL REGRESSION REPORT                          ║
-╠═══════════════════════════════════════════════════════════════════════════╣
-║ Baseline: main @ a1b2c3d   Compare: feature-prompt-tweak @ x9y8z7w       ║
-║ Test Cases: 127                                                            ║
-╠═══════════════════════════════════════════════════════════════════════════╣
-║                                                                           ║
-║  ✓ Passed:     119 (93.7%)                                                ║
-║  ⚠ Drifted:      5 ( 3.9%)  — semantic change, within tolerance          ║
-║  ✗ Regressed:    3 ( 2.4%)  — exceeded drift threshold                   ║
-║                                                                           ║
-╠═══════════════════════════════════════════════════════════════════════════╣
-║ REGRESSED CASES:                                                          ║
-║                                                                           ║
-║ 1. signature/classify-ticket (drift: 0.42)                               ║
-║    Input: "The login page is broken, urgent!"                            ║
-║    Baseline output: {category: bug, priority: high, ...}                 ║
-║    New output:      {category: incident, priority: critical, ...}        ║
-║    Semantic diff: category shifted from bug→incident                     ║
-║                                                                           ║
-║ 2. signature/extract-entities (drift: 0.38)                              ║
-║    Input: "Contact John at john@example.com for details"                 ║
-║    Baseline: entities=[name: John, email: john@example.com]              ║
-║    New:      entities=[name: John]  ← EMAIL DROPPED                      ║
-║    ⚠ Potential invariant violation: no-pii (PII not detected)            ║
-║                                                                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-
-Recommendation: DO NOT MERGE
-  - 3 behavioral regressions detected
-  - 1 potential invariant violation
-  - Review changed prompts in signatures/classify.py
+╭─────────────────────────────────────────────────────────────────────────╮
+│ WEEKLY BEHAVIORAL HEALTH REPORT                                         │
+│ Generated by: The Oracle                                                │
+│ Period: 2024-02-12 to 2024-02-19                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│ SYSTEM HEALTH: ████████░░ 82% (Good)                                   │
+│                                                                         │
+│ Signatures Monitored: 12                                                │
+│ Total Executions: 4,892                                                 │
+│ Behavioral Drift Events: 3                                              │
+│ Contract Violations: 0                                                  │
+│                                                                         │
+│ ┌─────────────────────────────────────────────────────────────────────┐ │
+│ │ ATTENTION REQUIRED                                                   │ │
+│ ├─────────────────────────────────────────────────────────────────────┤ │
+│ │                                                                      │ │
+│ │ 1. [MEDIUM] classify-ticket showing drift                           │ │
+│ │    - Drift score: 0.18 (threshold: 0.15)                            │ │
+│ │    - Pattern: Urgent tickets misclassified as normal                │ │
+│ │    - Suggested action: Add few-shot examples for urgency            │ │
+│ │    - Try: dspx oracle fix --signature classify-ticket               │ │
+│ │                                                                      │ │
+│ │ 2. [LOW] New behavioral cluster forming                             │ │
+│ │    - 47 executions clustering near danger zone                      │ │
+│ │    - Pattern: Very long inputs (>5k tokens)                         │ │
+│ │    - Suggested action: Add input length validation                  │ │
+│ │                                                                      │ │
+│ └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+│ ┌─────────────────────────────────────────────────────────────────────┐ │
+│ │ POSITIVE TRENDS                                                      │ │
+│ ├─────────────────────────────────────────────────────────────────────┤ │
+│ │                                                                      │ │
+│ │ • extract-entities reached new stable attractor (+3.2% accuracy)    │ │
+│ │ • No contract violations this week (4 weeks running)                │ │
+│ │ • Behavioral territory expanded by 12% (new test coverage)          │ │
+│ │                                                                      │ │
+│ └─────────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+│ PREDICTIONS FOR NEXT WEEK:                                              │
+│   • classify-ticket drift likely to continue if not addressed          │
+│   • 94% chance extract-entities remains stable                         │
+│   • New frontier: Multi-turn conversations (unexplored)                │
+│                                                                         │
+│ "I'm watching 12 signatures. 11 are healthy. 1 needs your help."      │
+│                                                         — The Oracle    │
+│                                                                         │
+╰─────────────────────────────────────────────────────────────────────────╯
 ```
 
 **Acceptance Criteria:**
-- [ ] Runs automatically harvested as regression tests
-- [ ] Semantic drift quantified with threshold-based failure
-- [ ] Before/after diffs show *why* change occurred
-- [ ] CI integration fails builds on unacceptable drift
+- [ ] Oracle monitors behavioral health continuously
+- [ ] Alerts trigger on drift, contract violations, danger zones
+- [ ] Improvement suggestions are actionable and specific
+- [ ] Self-healing can automatically maintain invariants
 
-### Phase D: Predictive Dynamics (The Oracle Awakens)
+---
 
-**Goal:** Don't just detect drift—predict it. Simulate behavioral changes before committing code.
+### The Ultimate Vision
 
-**Implementation:**
-
-```bash
-# packages/dspx-core/src/dspx/dynamics/
-├── __init__.py
-├── simulator.py       # Predict outcomes without running
-├── predictor.py       # Forecast drift trajectory
-├── counterfactual.py  # "What if" analysis
-└── synthesizer.py     # Generate boundary test cases
-```
-
-**CLI Commands:**
-
-```bash
-# Simulate change before committing
-dspx oracle simulate --change prompt.yaml --against baseline
-
-# Predict drift trajectory
-dspx oracle forecast --horizon 30d --confidence 0.95
-
-# Counterfactual: what if I had used different provider?
-dspx oracle counterfactual --run-id abc123 --provider claude
-
-# Synthesize edge case tests
-dspx oracle synthesize --boundary-coverage 0.95
-```
-
-**Simulation Output:**
+When the Oracle is complete, development looks like this:
 
 ```
-╔═══════════════════════════════════════════════════════════════════════════╗
-║                     BEHAVIORAL SIMULATION RESULT                          ║
-╠═══════════════════════════════════════════════════════════════════════════╣
-║                                                                           ║
-║  Change: prompt.yaml (instruction template modified)                      ║
-║  Simulated against: 127 historical test cases                             ║
-║                                                                           ║
-║  ┌─────────────────────────────────────────────────────────────────────┐ ║
-║  │  Predicted Behavioral Impact:                                        │ ║
-║  │                                                                      │ ║
-║  │    112 cases (88%) → No significant change                          │ ║
-║  │     11 cases ( 9%) → Minor drift (semantic_distance < 0.1)          │ ║
-║  │      4 cases ( 3%) → Moderate drift (semantic_distance 0.1-0.3)     │ ║
-║  │      0 cases ( 0%) → Severe drift (semantic_distance > 0.3)         │ ║
-║  │                                                                      │ ║
-║  │  Invariant Projections:                                              │ ║
-║  │    ✓ no-pii:         100% compliant (predicted)                     │ ║
-║  │    ✓ json-valid:     100% compliant (predicted)                     │ ║
-║  │    ⚠ no-hallucination: 2 cases approaching boundary                 │ ║
-║  └─────────────────────────────────────────────────────────────────────┘ ║
-║                                                                           ║
-║  RECOMMENDATION: SAFE TO COMMIT                                          ║
-║    All invariants preserved, drift within acceptable bounds.             ║
-║                                                                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+Developer: "I want to improve my ticket classifier."
+
+Oracle: "I've analyzed 10,000 past executions. Here's what I know:
+
+        • Your current accuracy is 89.3%
+        • You have a stable attractor for normal tickets
+        • Urgent tickets are your weakness (67% accuracy)
+        • Provider Claude-3.5-Sonnet works best for your use case
+        • You've never tried multi-label classification
+
+        I suggest three paths:
+
+        1. QUICK WIN: Add urgency examples (predicted +8% accuracy)
+        2. MODERATE:   Switch to structured output (predicted +12% accuracy)
+        3. AMBITIOUS:  Multi-label classification (predicted +18% accuracy)
+
+        Which path interests you? I can simulate any of them before you commit."
+
+Developer: "Let's try option 2."
+
+Oracle: "Simulating structured output approach...
+
+        Predicted results across 1,000 test cases:
+        • 89% → Semantically equivalent
+        • 8%  → Improved (better edge case handling)
+        • 3%  → Degraded (some JSON parsing failures)
+
+        Risk: LOW. The JSON parsing issues are fixable.
+
+        I've prepared a prompt change for you to review.
+        Apply it with: dspx oracle apply --suggestion structured-output-1
+
+        Want me to also prepare rollback instructions?"
+
+Developer: "Yes, and commit when ready."
+
+Oracle: "Done. New behavioral baseline established.
+
+        I'll watch for drift and alert you if accuracy drops.
+
+        Current health: 92% (up from 89%)
+
+        Is there anything else you'd like to explore?"
 ```
 
-**Acceptance Criteria:**
-- [ ] Changes can be simulated before execution
-- [ ] Drift trajectory predictable from historical patterns
-- [ ] Counterfactual analysis shows provider alternatives
-- [ ] Edge case synthesis improves boundary coverage
+This is not science fiction. This is what we're building.
 
-### Phase E: Oracle Interface (Full Vision)
+---
 
-**Goal:** The complete interface for behavioral navigation.
+### Implementation Roadmap
 
-**CLI Commands (Full Set):**
+| Phase | Focus | Duration | Outcome |
+|-------|-------|----------|---------|
+| A ✅ | Behavioral Calculus | 2 weeks | Mathematical foundation |
+| B | Behavioral Topology | 3 weeks | Territory mapping |
+| C | Time Travel | 2 weeks | Behavioral git |
+| D | Dreaming | 3 weeks | Simulation engine |
+| E | Consciousness | 4 weeks | Self-aware system |
 
-```bash
-# === NAVIGATION ===
-dspx oracle navigate --to "stable classification region"
-dspx oracle path --from current --to optimal --show-steps
+**Total: ~14 weeks to complete behavioral intelligence**
 
-# === PROOF ===
-dspx oracle prove --invariant no-pii --exhaustive
-dspx oracle prove --equivalence sig-a sig-b --threshold 0.95
-
-# === SYNTHESIS ===
-dspx oracle synthesize --find-failure-modes
-dspx oracle synthesize --cover-boundary 0.99
-
-# === TIME TRAVEL ===
-dspx oracle travel --to 2024-01-15 --query "classify this"
-dspx oracle history --run-id abc123 --show-evolution
-
-# === FINGERPRINTING ===
-dspx oracle fingerprint --provider claude-3.5-sonnet
-dspx oracle compare-providers --for "sentiment analysis"
-
-# === CONVERGENCE ===
-dspx oracle convergence --optimizer-iterations 50 --toward ground-truth
-dspx oracle divergence --detect --threshold 0.1
-```
-
-### Multi-Perspective Review
-
-| Perspective | Files to Review | Key Questions |
-|-------------|-----------------|---------------|
-| **ML Systems Engineer** | `coordinates/`, `topology/` | Embedding model choice? Latency of coordinate computation? |
-| **Data Engineer** | `coordinates/storage.py` | Index scaling? Incremental updates? Query patterns? |
-| **QA Engineer** | `regression/` | Test case selection bias? False positive/negative rates? |
-| **Security Reviewer** | All modules | Embedding model data handling? PII in coordinates? |
-| **DX Specialist** | CLI commands | Are commands intuitive? Error messages actionable? |
+---
 
 ### Dependencies
 
-- **Required:** `sentence-transformers` or similar embedding library
-- **Optional:** `umap-learn` for territory visualization, `scikit-learn` for clustering
-- **Infrastructure:** Vector index (SQLite with sqlite-vss, or external like Chroma/Qdrant)
-
-### Implementation Order
-
-```
-Week 1-2: Phase A (Semantic Coordinates)
-  └── Foundation layer, enables everything else
-
-Week 3-4: Phase B (Behavioral Topology)
-  └── Territory mapping, invariant definition
-
-Week 5-6: Phase C (Regression Engine)
-  └── Immediate practical value, CI integration
-
-Week 7-8: Phase D (Predictive Dynamics)
-  └── Advanced simulation, forecasting
-
-Week 9+: Phase E (Oracle Interface)
-  └── Full vision, advanced commands
-```
-
-### Success Metrics
-
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Drift detection accuracy | >95% | Manual validation of flagged regressions |
-| False positive rate | <5% | Regressions that weren't actually regressions |
-| Test case synthesis quality | >80% useful | Human evaluation of suggested edge cases |
-| Simulation accuracy | >90% | Simulated predictions match actual runs |
-| CI integration adoption | All PRs | Behavioral regression runs on every PR |
+- **Core:** `sentence-transformers` (embeddings), `numpy` (vectors)
+- **Topology:** `scikit-learn` (clustering), `umap-learn` (visualization)
+- **Dreaming:** `torch` (simulation), potentially fine-tuned models
+- **Infrastructure:** Vector DB (SQLite-vss, Chroma, or Qdrant for scale)
 
 ---
 
