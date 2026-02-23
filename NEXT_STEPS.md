@@ -466,7 +466,7 @@ Acceptance:
 
 ## 8) Behavioral Oracle: Semantic Regression & Topological Assurance
 
-**Status:** 🔵 READY TO START — Builds on existing receipts/cache/MLflow infrastructure.
+**Status:** 🟡 IN PROGRESS — Phase A (Semantic Coordinates) complete. Phase B (Behavioral Topology) next.
 
 **Vision:** Transform passive execution traces into active behavioral assurance. Don't just run programs—navigate a space where all possible behaviors can be mapped, predicted, and guaranteed.
 
@@ -528,6 +528,8 @@ Acceptance:
 
 ### Phase A: Semantic Coordinates & Capture (Foundation)
 
+**Status:** ✅ COMPLETE — `packages/dspx-core/src/dspx/coordinates/` implemented.
+
 **Goal:** Every execution receipt becomes a point in navigable semantic space.
 
 **Implementation:**
@@ -545,20 +547,35 @@ Acceptance:
 
 ```bash
 # Index existing runs into semantic space
-dspx oracle index --from-mlflow --since 30d
+dspx oracle index --from-receipts --since 30d
 
 # Find similar past executions
-dspx oracle search --input "classify this ticket" --top 5
+dspx oracle search "classify this ticket" --top 5
 
 # Show semantic neighbors of a run
-dspx oracle neighbors --run-id abc123
+dspx oracle neighbors <run-id>
+
+# Show index statistics
+dspx oracle stats
+
+# Cluster executions into behavioral groups
+dspx oracle cluster -k 5
+
+# Compute drift between two executions
+dspx oracle drift <run-a> <run-b>
 ```
 
 **Acceptance Criteria:**
-- [ ] Every receipt can be embedded into semantic coordinates
-- [ ] Similar executions cluster together (visualizable)
-- [ ] Search by semantic similarity returns relevant results
-- [ ] Coordinate index persists and updates incrementally
+- [x] Every receipt can be embedded into semantic coordinates
+- [x] Similar executions cluster together (visualizable)
+- [x] Search by semantic similarity returns relevant results
+- [x] Coordinate index persists and updates incrementally
+
+**Implementation Notes:**
+- Mock embedder provides deterministic vectors for testing without ML dependencies
+- Optional `sentence-transformers` backend for production use
+- SQLite-backed index with brute-force similarity search (sufficient for thousands of runs)
+- Tests in `tests/test_coordinates.py` (34 tests)
 
 ### Phase B: Behavioral Topology (Territory Mapping)
 
