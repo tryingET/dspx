@@ -25,3 +25,4 @@ mlruns/
 *.log
 .env
 *.tmp
+*.backup
