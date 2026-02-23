@@ -9,6 +9,12 @@ Key components:
 - metrics: Semantic distance, drift scoring
 - clustering: Group similar executions
 - storage: Persist and query coordinate index
+
+Phase B additions:
+- territory: Map behavioral space into regions (stable/unstable/unknown)
+- contracts: Define and verify behavioral invariants
+- frontiers: Detect unexplored input space
+- attractors: Find naturally stable behaviors
 """
 
 from __future__ import annotations
@@ -51,6 +57,65 @@ from .clustering import (
     find_cluster_for_embedding,
 )
 
+# Phase B: Behavioral Topology
+from .territory import (
+    RegionType,
+    Region,
+    TerritoryMap,
+    DangerZone,
+    build_territory_map,
+    find_region_for_embedding,
+    detect_danger_zones,
+    compute_internal_variance,
+    classify_region,
+    STABILITY_THRESHOLD_LOW,
+    STABILITY_THRESHOLD_HIGH,
+    MIN_SAMPLES_FOR_CONFIDENCE,
+    NEIGHBOR_DISTANCE_THRESHOLD,
+    BASE_CONFIDENCE,
+    VARIANCE_MIDPOINT,
+    DANGER_ZONE_BASE_CONFIDENCE,
+)
+from .contracts import (
+    ContractSeverity,
+    ContractStatus,
+    ContractViolation,
+    ContractResult,
+    Contract,
+    ContractRegistry,
+    evaluate_contract,
+    validate_no_pii,
+    validate_output_format,
+    validate_response_quality,
+    create_default_contracts,
+    save_contracts,
+    load_contracts,
+    VALIDATORS,
+)
+from .frontiers import (
+    Frontier,
+    FrontierReport,
+    find_frontiers,
+    find_sparse_regions,
+    suggest_exploration,
+)
+from .attractors import (
+    Attractor,
+    AttractorReport,
+    find_attractors,
+    find_nearest_attractor,
+    is_in_attractor_basin,
+    compute_attractor_health,
+    predict_convergence,
+    compute_stability_score,
+    compute_convergence_rate,
+    MIN_SAMPLES_FOR_ATTRACTOR,
+    STABILITY_THRESHOLD_STRONG,
+    STABILITY_THRESHOLD_MODERATE,
+    VARIANCE_PENALTY_WEIGHT,
+    STABILITY_DISTANCE_MULTIPLIER,
+)
+
 __all__ = [
     # Embeddings
     "EmbeddingEngine",
@@ -85,4 +150,57 @@ __all__ = [
     "simple_kmeans",
     "cluster_from_index",
     "find_cluster_for_embedding",
+    # Phase B: Territory
+    "RegionType",
+    "Region",
+    "TerritoryMap",
+    "DangerZone",
+    "build_territory_map",
+    "find_region_for_embedding",
+    "detect_danger_zones",
+    "compute_internal_variance",
+    "classify_region",
+    "STABILITY_THRESHOLD_LOW",
+    "STABILITY_THRESHOLD_HIGH",
+    "MIN_SAMPLES_FOR_CONFIDENCE",
+    "NEIGHBOR_DISTANCE_THRESHOLD",
+    "BASE_CONFIDENCE",
+    "VARIANCE_MIDPOINT",
+    "DANGER_ZONE_BASE_CONFIDENCE",
+    # Phase B: Contracts
+    "ContractSeverity",
+    "ContractStatus",
+    "ContractViolation",
+    "ContractResult",
+    "Contract",
+    "ContractRegistry",
+    "evaluate_contract",
+    "validate_no_pii",
+    "validate_output_format",
+    "validate_response_quality",
+    "create_default_contracts",
+    "save_contracts",
+    "load_contracts",
+    "VALIDATORS",
+    # Phase B: Frontiers
+    "Frontier",
+    "FrontierReport",
+    "find_frontiers",
+    "find_sparse_regions",
+    "suggest_exploration",
+    # Phase B: Attractors
+    "Attractor",
+    "AttractorReport",
+    "find_attractors",
+    "find_nearest_attractor",
+    "is_in_attractor_basin",
+    "compute_attractor_health",
+    "predict_convergence",
+    "compute_stability_score",
+    "compute_convergence_rate",
+    "MIN_SAMPLES_FOR_ATTRACTOR",
+    "STABILITY_THRESHOLD_STRONG",
+    "STABILITY_THRESHOLD_MODERATE",
+    "VARIANCE_PENALTY_WEIGHT",
+    "STABILITY_DISTANCE_MULTIPLIER",
 ]

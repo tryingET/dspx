@@ -9,9 +9,17 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import typer
+
+if TYPE_CHECKING:
+    from dspx.coordinates import (
+        AttractorReport,
+        ContractRegistry,
+        CoordinateIndex,
+        FrontierReport,
+    )
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -107,7 +115,8 @@ def oracle_index(
                         ):
                             skipped += 1
                             continue
-                    except Exception:
+                    except (ValueError, TypeError):
+                        # Malformed or missing timestamp - proceed anyway
                         pass
 
                 # Embed the receipt
@@ -186,7 +195,8 @@ def oracle_index(
                                             indexed += 1
                                         else:
                                             errors += 1
-                                except Exception:
+                                except (json.JSONDecodeError, OSError, KeyError):
+                                    # Malformed JSON, file read error, or missing fields
                                     errors += 1
 
                     except Exception as e:
@@ -496,3 +506,587 @@ def oracle_drift(
         typer.echo(f"  Output:     {drift['output_drift']:.3f}")
         typer.echo(f"  Config:     {drift['config_drift']:.3f}")
         typer.echo(f"  Vector:     {drift['vector_distance']:.3f}")
+
+
+# =============================================================================
+# Phase B Commands: Behavioral Topology
+# =============================================================================
+
+
+@app.command("territory")
+def oracle_territory(
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="Output file for territory map (JSON)"
+    ),
+    k: int = typer.Option(10, "-k", help="Number of regions to create"),
+    min_region_size: int = typer.Option(
+        3, "--min-size", help="Minimum embeddings per region"
+    ),
+    index_path: Optional[Path] = typer.Option(
+        None, "--index-path", help="Path to coordinate index database"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show details"),
+) -> None:
+    """Map behavioral space into regions (stable/unstable/unknown).
+
+    Territory analysis reveals where the system is reliable vs. where
+    it needs more testing or investigation.
+    """
+    from dspx.coordinates import CoordinateIndex, build_territory_map
+
+    index = CoordinateIndex(db_path=index_path)
+    territory = build_territory_map(index, k=k, min_region_size=min_region_size)
+
+    if json_out or output:
+        data = territory.to_dict()
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+            typer.echo(f"Territory map saved to {output}")
+        else:
+            typer.echo(json.dumps(data, ensure_ascii=False, indent=2))
+        return
+
+    # Human-readable output
+    typer.echo("=== Behavioral Territory Map ===\n")
+    typer.echo(f"Total embeddings: {territory.total_embeddings}")
+    typer.echo(f"Total regions: {len(territory.regions)}")
+    typer.echo(f"Coverage estimate: {territory.coverage:.1%}")
+    typer.echo(f"Dimension: {territory.dimension}")
+    typer.echo()
+
+    # Summary by type
+    stable = territory.get_stable_regions()
+    unstable = territory.get_unstable_regions()
+    unknown = territory.get_unknown_regions()
+    danger = territory.get_danger_regions()
+
+    typer.echo("Region Distribution:")
+    typer.echo(f"  Stable:   {len(stable)} ({territory.stable_ratio:.1%})")
+    typer.echo(f"  Unstable: {len(unstable)} ({territory.unstable_ratio:.1%})")
+    typer.echo(f"  Unknown:  {len(unknown)} ({territory.unknown_ratio:.1%})")
+    if danger:
+        typer.echo(f"  Danger:   {len(danger)}")
+    typer.echo()
+
+    if verbose:
+        # Show top regions by type
+        if stable:
+            typer.echo("Top Stable Regions:")
+            for r in sorted(stable, key=lambda x: x.member_count, reverse=True)[:5]:
+                typer.echo(
+                    f"  {r.region_id}: {r.member_count} members, variance={r.internal_variance:.3f}"
+                )
+                if r.dominant_run_kind:
+                    typer.echo(
+                        f"    Kind: {r.dominant_run_kind}, Provider: {r.dominant_provider}"
+                    )
+            typer.echo()
+
+        if unstable:
+            typer.echo("Unstable Regions (need attention):")
+            for r in sorted(unstable, key=lambda x: x.internal_variance, reverse=True)[
+                :5
+            ]:
+                typer.echo(
+                    f"  {r.region_id}: variance={r.internal_variance:.3f}, {r.member_count} members"
+                )
+            typer.echo()
+
+
+# =============================================================================
+# Contract Action Handlers (extracted for maintainability)
+# =============================================================================
+
+
+def _load_contract_registry(
+    config_path: Optional[Path],
+) -> tuple["ContractRegistry", Path]:
+    """Load or create contract registry from config file.
+
+    Returns tuple of (registry, config_file_path).
+    """
+    from dspx.coordinates import (
+        ContractRegistry,
+        load_contracts,
+        create_default_contracts,
+    )
+
+    registry = ContractRegistry()
+    config_file = config_path or (
+        Path.cwd() / "generated" / "oracle" / "contracts.json"
+    )
+
+    if config_file.exists():
+        contracts = load_contracts(config_file)
+        for c in contracts:
+            registry.add(c)
+    else:
+        for c in create_default_contracts():
+            registry.add(c)
+
+    return registry, config_file
+
+
+def _contract_list(registry: "ContractRegistry", json_out: bool) -> None:
+    """List all contracts in the registry."""
+    contracts = registry.list_all()
+    if json_out:
+        typer.echo(
+            json.dumps([c.to_dict() for c in contracts], ensure_ascii=False, indent=2)
+        )
+    else:
+        typer.echo("=== Behavioral Contracts ===\n")
+        for c in contracts:
+            status = "✓" if c.enabled else "✗"
+            typer.echo(f"  [{status}] {c.name}")
+            typer.echo(f"      {c.description}")
+            typer.echo(f"      Severity: {c.severity.value}")
+            if c.tags:
+                typer.echo(f"      Tags: {', '.join(c.tags)}")
+            typer.echo()
+
+
+def _contract_add(
+    registry: "ContractRegistry",
+    config_file: Path,
+    name: str,
+    description: Optional[str],
+    invariant: Optional[str],
+    severity: str,
+    tags: Optional[str],
+) -> None:
+    """Add a new contract to the registry."""
+    from dspx.coordinates import Contract, ContractSeverity, save_contracts
+
+    contract = Contract(
+        name=name,
+        description=description or f"Contract: {name}",
+        invariant=invariant or "Custom invariant",
+        severity=ContractSeverity(severity),
+        tags=tags.split(",") if tags else [],
+    )
+    registry.add(contract)
+    save_contracts(registry.list_all(), config_file)
+    typer.echo(f"Contract '{name}' added and saved to {config_file}")
+
+
+def _contract_verify(
+    registry: "ContractRegistry",
+    index_path: Optional[Path],
+    limit: int,
+    tags: Optional[str],
+    json_out: bool,
+) -> None:
+    """Verify contracts against embeddings in the index."""
+    from dspx.coordinates import CoordinateIndex
+
+    index = CoordinateIndex(db_path=index_path)
+    tags_list = tags.split(",") if tags else None
+    result = registry.verify_index(index, limit=limit, tags=tags_list)
+
+    if json_out:
+        typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        typer.echo("=== Contract Verification ===\n")
+        typer.echo(f"Total checks: {result['total_checks']}")
+        typer.echo(f"  Pass:  {result['pass']}")
+        typer.echo(f"  Fail:  {result['fail']}")
+        typer.echo(f"  Skip:  {result['skip']}")
+        typer.echo(f"  Error: {result['error']}")
+        typer.echo()
+
+        if result["violations"]:
+            typer.echo("Violations by severity:")
+            for sev, count in result["violations_by_severity"].items():
+                typer.echo(f"  {sev}: {count}")
+
+            if result["violations"][:5]:
+                typer.echo("\nSample violations:")
+                for v in result["violations"][:5]:
+                    typer.echo(f"  - {v['contract_name']}: {v['message']}")
+
+
+def _contract_set_enabled(
+    registry: "ContractRegistry",
+    config_file: Path,
+    name: str,
+    enabled: bool,
+) -> None:
+    """Enable or disable a contract by name."""
+    from dspx.coordinates import save_contracts
+
+    contract = registry.get(name)
+    if contract:
+        contract.enabled = enabled
+        contract.updated_at = datetime.now(timezone.utc).isoformat()
+        save_contracts(registry.list_all(), config_file)
+        state = "enabled" if enabled else "disabled"
+        typer.echo(f"Contract '{name}' {state}")
+    else:
+        typer.echo(f"Error: Contract '{name}' not found", err=True)
+        raise typer.Exit(code=2)
+
+
+@app.command("contract")
+def oracle_contract(
+    action: str = typer.Argument(
+        "list", help="Action: list, add, verify, enable, disable"
+    ),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="Contract name"),
+    description: Optional[str] = typer.Option(
+        None, "--description", "-d", help="Contract description"
+    ),
+    invariant: Optional[str] = typer.Option(
+        None, "--invariant", help="Invariant expression"
+    ),
+    severity: str = typer.Option(
+        "error", "--severity", help="Severity: info, warning, error, critical"
+    ),
+    tags: Optional[str] = typer.Option(None, "--tags", help="Comma-separated tags"),
+    config_path: Optional[Path] = typer.Option(
+        None, "--config", help="Path to contracts config file"
+    ),
+    index_path: Optional[Path] = typer.Option(
+        None, "--index-path", help="Path to coordinate index database"
+    ),
+    limit: int = typer.Option(100, "--limit", help="Max embeddings to verify"),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Manage and verify behavioral contracts.
+
+    Contracts define invariants that should hold true across executions.
+    """
+    registry, config_file = _load_contract_registry(config_path)
+
+    if action == "list":
+        _contract_list(registry, json_out)
+
+    elif action == "add":
+        if not name:
+            typer.echo("Error: --name is required for add", err=True)
+            raise typer.Exit(code=2)
+        _contract_add(
+            registry, config_file, name, description, invariant, severity, tags
+        )
+
+    elif action == "verify":
+        _contract_verify(registry, index_path, limit, tags, json_out)
+
+    elif action == "enable":
+        if not name:
+            typer.echo("Error: --name is required", err=True)
+            raise typer.Exit(code=2)
+        _contract_set_enabled(registry, config_file, name, enabled=True)
+
+    elif action == "disable":
+        if not name:
+            typer.echo("Error: --name is required", err=True)
+            raise typer.Exit(code=2)
+        _contract_set_enabled(registry, config_file, name, enabled=False)
+
+    else:
+        typer.echo(f"Error: Unknown action '{action}'", err=True)
+        typer.echo("Valid actions: list, add, verify, enable, disable")
+        raise typer.Exit(code=2)
+
+
+# =============================================================================
+# Frontier Action Handlers (extracted for maintainability)
+# =============================================================================
+
+
+def _frontiers_load_and_update(
+    load: Path,
+    mark_explored: Optional[str],
+    explored_by: Optional[str],
+    json_out: bool,
+) -> None:
+    """Load existing frontier report and optionally mark frontier as explored."""
+    from dspx.coordinates import FrontierReport
+
+    if not load.exists():
+        typer.echo(f"Error: Report file not found: {load}", err=True)
+        raise typer.Exit(code=2)
+
+    data = json.loads(load.read_text(encoding="utf-8"))
+    report = FrontierReport.from_dict(data)
+    typer.echo(f"Loaded report with {len(report.frontiers)} frontiers from {load}")
+
+    if mark_explored:
+        if report.mark_explored(mark_explored, by=explored_by):
+            typer.echo(f"Marked frontier {mark_explored} as explored")
+            load.parent.mkdir(parents=True, exist_ok=True)
+            load.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+            typer.echo(f"Updated report saved to {load}")
+        else:
+            typer.echo(f"Error: Frontier {mark_explored} not found in report", err=True)
+            raise typer.Exit(code=2)
+
+    progress = report.get_exploration_progress()
+    if not json_out:
+        typer.echo(f"\nExploration Progress: {progress['progress_pct']:.1f}%")
+        typer.echo(f"  Explored: {progress['explored']}/{progress['total_frontiers']}")
+        typer.echo(f"  Remaining high-priority: {progress['remaining_high_priority']}")
+    else:
+        typer.echo(json.dumps(progress, ensure_ascii=False, indent=2))
+
+
+def _frontiers_show_suggestions(
+    index: "CoordinateIndex",
+    max_frontiers: int,
+    json_out: bool,
+) -> None:
+    """Display exploration suggestions."""
+    from dspx.coordinates import suggest_exploration
+
+    suggestions = suggest_exploration(index, top_k=max_frontiers)
+    if json_out:
+        typer.echo(json.dumps(suggestions, ensure_ascii=False, indent=2))
+    else:
+        typer.echo("=== Exploration Suggestions ===\n")
+        for i, s in enumerate(suggestions, 1):
+            typer.echo(f"[{i}] Priority: {s['priority']:.2f}")
+            typer.echo(f"    Target: {s['target']}")
+            typer.echo(f"    Reference: {s['reference_run']}")
+            typer.echo(f"    Reason: {s['reason']}")
+            typer.echo()
+
+
+def _frontiers_show_report(
+    report: "FrontierReport",
+    save: Optional[Path],
+    json_out: bool,
+) -> None:
+    """Display or save frontier report."""
+    if save:
+        save.parent.mkdir(parents=True, exist_ok=True)
+        save.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+        typer.echo(f"Frontier report saved to {save}")
+
+    if json_out:
+        typer.echo(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+    else:
+        typer.echo("=== Behavioral Frontiers ===\n")
+        typer.echo(f"Total embeddings: {report.total_embeddings}")
+        typer.echo(f"Frontiers found: {len(report.frontiers)}")
+        typer.echo(f"Coverage estimate: {report.coverage_estimate:.1%}")
+        typer.echo(f"High-priority frontiers: {report.high_priority_count}")
+        typer.echo()
+
+        if report.frontiers:
+            typer.echo("Top frontiers:")
+            for f in report.frontiers[:10]:
+                status = "✓" if f.explored else "○"
+                typer.echo(
+                    f"  [{status}] {f.frontier_id}: distance={f.distance_to_known:.3f}"
+                )
+                typer.echo(f"        Near: {f.nearest_run_id}")
+                typer.echo(f"        Priority: {f.exploration_priority:.2f}")
+                if f.suggested_input:
+                    typer.echo(f"        Suggestion: {f.suggested_input}")
+                typer.echo()
+
+
+@app.command("frontiers")
+def oracle_frontiers(
+    max_frontiers: int = typer.Option(
+        20, "--max", "-n", help="Maximum frontiers to return"
+    ),
+    min_distance: float = typer.Option(
+        0.3, "--min-distance", help="Minimum distance to consider a frontier"
+    ),
+    suggest: bool = typer.Option(
+        False, "--suggest", help="Show exploration suggestions"
+    ),
+    save: Optional[Path] = typer.Option(
+        None, "--save", help="Save frontier report to JSON file"
+    ),
+    load: Optional[Path] = typer.Option(
+        None, "--load", help="Load existing frontier report to check progress"
+    ),
+    mark_explored: Optional[str] = typer.Option(
+        None, "--mark-explored", help="Mark a frontier as explored by ID"
+    ),
+    explored_by: Optional[str] = typer.Option(
+        None, "--by", help="Who/what explored the frontier"
+    ),
+    index_path: Optional[Path] = typer.Option(
+        None, "--index-path", help="Path to coordinate index database"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Detect frontiers (unexplored input space).
+
+    Frontiers represent the edges of explored behavioral space.
+    Identifying them helps discover gaps in test coverage.
+
+    Use --save to persist exploration state and --load to resume tracking.
+    """
+    from dspx.coordinates import CoordinateIndex, find_frontiers
+
+    if load:
+        _frontiers_load_and_update(load, mark_explored, explored_by, json_out)
+        return
+
+    index = CoordinateIndex(db_path=index_path)
+
+    if suggest:
+        _frontiers_show_suggestions(index, max_frontiers, json_out)
+        return
+
+    report = find_frontiers(
+        index, max_frontiers=max_frontiers, min_distance=min_distance
+    )
+    _frontiers_show_report(report, save, json_out)
+
+
+# =============================================================================
+# Attractor Action Handlers (extracted for maintainability)
+# =============================================================================
+
+
+def _attractors_show_health(report: "AttractorReport", json_out: bool) -> None:
+    """Display attractor health report."""
+    from dspx.coordinates import compute_attractor_health
+
+    health_report = compute_attractor_health(report)
+    if json_out:
+        typer.echo(json.dumps(health_report, ensure_ascii=False, indent=2))
+    else:
+        typer.echo("=== Attractor Health Report ===\n")
+        typer.echo(f"Status: {health_report['status'].upper()}")
+        typer.echo(f"Message: {health_report['message']}")
+        typer.echo()
+        if health_report.get("recommendations"):
+            typer.echo("Recommendations:")
+            for r in health_report["recommendations"]:
+                typer.echo(f"  - {r}")
+
+
+def _attractors_show_report(report: "AttractorReport", json_out: bool) -> None:
+    """Display attractor report."""
+    if json_out:
+        typer.echo(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+    else:
+        typer.echo("=== Behavioral Attractors ===\n")
+        typer.echo(f"Total embeddings: {report.total_embeddings}")
+        typer.echo(f"Attractors found: {len(report.attractors)}")
+        typer.echo(
+            f"Strong attractors (stability > 0.9): {report.strong_attractor_count}"
+        )
+        typer.echo(f"Average stability: {report.avg_stability:.2f}")
+        typer.echo(f"Coverage: {report.coverage:.1%}")
+        typer.echo()
+
+        if report.attractors:
+            typer.echo("Top attractors:")
+            for a in report.attractors[:10]:
+                typer.echo(f"  {a.attractor_id}: stability={a.stability_score:.2f}")
+                typer.echo(
+                    f"    Members: {a.member_count}, Basin radius: {a.basin_radius:.3f}"
+                )
+                typer.echo(f"    Convergence: {a.convergence_rate:.3f}")
+                if a.dominant_run_kind:
+                    typer.echo(
+                        f"    Kind: {a.dominant_run_kind}, Provider: {a.dominant_provider}"
+                    )
+                typer.echo()
+
+
+@app.command("attractors")
+def oracle_attractors(
+    min_stability: float = typer.Option(
+        0.5, "--min-stability", help="Minimum stability threshold"
+    ),
+    k: int = typer.Option(10, "-k", help="Number of clusters to analyze"),
+    health: bool = typer.Option(False, "--health", help="Show attractor health report"),
+    index_path: Optional[Path] = typer.Option(
+        None, "--index-path", help="Path to coordinate index database"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Find naturally stable behavioral attractors.
+
+    Attractors are regions where executions naturally converge,
+    indicating reliable, repeatable behaviors.
+    """
+    from dspx.coordinates import CoordinateIndex, find_attractors
+
+    index = CoordinateIndex(db_path=index_path)
+    report = find_attractors(index, k=k, min_stability=min_stability)
+
+    if health:
+        _attractors_show_health(report, json_out)
+    else:
+        _attractors_show_report(report, json_out)
+
+
+@app.command("predict")
+def oracle_predict(
+    run_id: str = typer.Argument(..., help="Run ID to predict convergence for"),
+    k: int = typer.Option(10, "-k", help="Number of clusters for attractor analysis"),
+    min_stability: float = typer.Option(
+        0.5, "--min-stability", help="Minimum stability threshold for attractors"
+    ),
+    index_path: Optional[Path] = typer.Option(
+        None, "--index-path", help="Path to coordinate index database"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Predict which attractor a run will converge to.
+
+    Uses the attractor landscape to predict behavioral outcomes
+    before execution completes. Useful for anticipating behavior
+    and identifying potential issues early.
+    """
+    from dspx.coordinates import (
+        CoordinateIndex,
+        find_attractors,
+        predict_convergence,
+    )
+
+    index = CoordinateIndex(db_path=index_path)
+
+    # Get the embedding for the target run
+    embedding = index.get(run_id)
+    if embedding is None:
+        typer.echo(f"Error: Run '{run_id}' not found in index", err=True)
+        raise typer.Exit(code=2)
+
+    # Build attractor landscape
+    report = find_attractors(index, k=k, min_stability=min_stability)
+
+    if not report.attractors:
+        typer.echo("No attractors found - need more execution data", err=True)
+        raise typer.Exit(code=1)
+
+    # Make prediction
+    prediction = predict_convergence(embedding, report.attractors)
+
+    if json_out:
+        typer.echo(json.dumps(prediction, ensure_ascii=False, indent=2))
+    else:
+        typer.echo("=== Convergence Prediction ===\n")
+        typer.echo(f"Run: {run_id}")
+        typer.echo(
+            f"Predicted attractor: {prediction['predicted_attractor'] or 'None'}"
+        )
+        typer.echo(
+            f"Confidence: {prediction['confidence']:.1%} ({prediction['confidence_level']})"
+        )
+        typer.echo(f"In basin: {'Yes' if prediction['in_basin'] else 'No'}")
+        typer.echo(f"Distance: {prediction['distance']:.4f}")
+        typer.echo()
+
+        if prediction.get("expected_behavior"):
+            typer.echo("Expected behavior:")
+            eb = prediction["expected_behavior"]
+            if eb.get("run_kind"):
+                typer.echo(f"  Run kind: {eb['run_kind']}")
+            if eb.get("provider"):
+                typer.echo(f"  Provider: {eb['provider']}")
+
+        if prediction["uncertainty"] > 0.5:
+            typer.echo("\n⚠ High uncertainty - prediction may be unreliable")

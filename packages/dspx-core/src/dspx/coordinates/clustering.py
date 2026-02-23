@@ -81,9 +81,10 @@ def average_internal_distance(embeddings: list["ExecutionEmbedding"]) -> float:
     """Compute average pairwise distance within a cluster.
 
     Returns normalized distance in range [0, 1].
+    Returns -1.0 for single embedding (distance undefined but distinguishable from 0.0).
     """
     if len(embeddings) < 2:
-        return 0.0
+        return -1.0 if len(embeddings) == 1 else 0.0
 
     total_dist = 0.0
     count = 0
