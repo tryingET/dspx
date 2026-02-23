@@ -6,15 +6,23 @@ and behavioral regions in semantic space.
 
 from __future__ import annotations
 
+import logging
 import math
+import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from .metrics import semantic_distance
+from .metrics import (
+    semantic_distance,
+    DimensionMismatchError,
+    SEMANTIC_DISTANCE_NORMALIZER,
+)
 
 if TYPE_CHECKING:
-    from dspx.coordinates.embeddings import ExecutionEmbedding
-    from dspx.coordinates.storage import CoordinateIndex
+    from .embeddings import ExecutionEmbedding
+    from .storage import CoordinateIndex
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,6 +37,7 @@ class Cluster:
     dominant_run_kind: str | None
     dominant_provider: str | None
     sample_inputs: list[str]
+    dimension: int  # NEW: Track dimension
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -38,11 +47,15 @@ class Cluster:
             "dominant_run_kind": self.dominant_run_kind,
             "dominant_provider": self.dominant_provider,
             "sample_inputs": self.sample_inputs[:5],  # Limit samples
+            "dimension": self.dimension,
         }
 
 
 def compute_centroid(embeddings: list["ExecutionEmbedding"]) -> list[float]:
-    """Compute centroid of a set of embeddings."""
+    """Compute centroid of a set of embeddings.
+
+    BUG 22 FIX: Normalize centroid after computing mean.
+    """
     if not embeddings:
         return []
 
@@ -54,11 +67,21 @@ def compute_centroid(embeddings: list["ExecutionEmbedding"]) -> list[float]:
             centroid[i] += v
 
     n = len(embeddings)
-    return [v / n for v in centroid]
+    centroid = [v / n for v in centroid]
+
+    # Normalize to unit length (same as input vectors)
+    norm = sum(v * v for v in centroid) ** 0.5
+    if norm > 0:
+        centroid = [v / norm for v in centroid]
+
+    return centroid
 
 
 def average_internal_distance(embeddings: list["ExecutionEmbedding"]) -> float:
-    """Compute average pairwise distance within a cluster."""
+    """Compute average pairwise distance within a cluster.
+
+    Returns normalized distance in range [0, 1].
+    """
     if len(embeddings) < 2:
         return 0.0
 
@@ -71,7 +94,8 @@ def average_internal_distance(embeddings: list["ExecutionEmbedding"]) -> float:
             total_dist += dist
             count += 1
 
-    return total_dist / count if count > 0 else 0.0
+    # Normalize to [0, 1] range
+    return (total_dist / count) / SEMANTIC_DISTANCE_NORMALIZER if count > 0 else 0.0
 
 
 def simple_kmeans(
@@ -80,6 +104,7 @@ def simple_kmeans(
     k: int = 5,
     max_iterations: int = 50,
     convergence_threshold: float = 0.001,
+    seed: int | None = 42,  # BUG 20 FIX: Deterministic seeding
 ) -> list[Cluster]:
     """Simple k-means clustering implementation.
 
@@ -91,6 +116,7 @@ def simple_kmeans(
         k: Number of clusters
         max_iterations: Maximum iterations
         convergence_threshold: Stop when centroid movement below this
+        seed: Random seed for reproducibility (default: 42)
 
     Returns:
         List of Cluster objects
@@ -100,14 +126,26 @@ def simple_kmeans(
 
     n = len(embeddings)
     k = min(k, n)  # Can't have more clusters than items
+    dim = embeddings[0].dimension
+
+    # Validate all embeddings have same dimension
+    for i, emb in enumerate(embeddings):
+        if emb.dimension != dim:
+            raise DimensionMismatchError(
+                f"Embedding at index {i} has dimension {emb.dimension}, expected {dim}"
+            )
+
+    # BUG 20 FIX: Use proper random sampling with seed
+    rng = random.Random(seed)
 
     # Initialize centroids using k-means++ style selection
     centroids: list[list[float]] = []
 
-    # First centroid: random (we'll use first embedding)
-    centroids.append(embeddings[0].vector.copy())
+    # First centroid: random (but seeded)
+    first_idx = rng.randint(0, n - 1)
+    centroids.append(embeddings[first_idx].vector.copy())
 
-    # Subsequent centroids: pick proportional to distance from existing
+    # Subsequent centroids: weighted random by distance from existing
     for _ in range(1, k):
         distances = []
         for emb in embeddings:
@@ -121,20 +159,26 @@ def simple_kmeans(
         # Normalize to probabilities
         total = sum(distances)
         if total == 0:
-            # All embeddings identical, use next in sequence
-            idx = len(centroids)
-            if idx < n:
+            # All embeddings identical to existing centroids
+            # Pick a random remaining one
+            remaining = [i for i in range(n) if embeddings[i].vector not in centroids]
+            if remaining:
+                idx = rng.choice(remaining)
                 centroids.append(embeddings[idx].vector.copy())
             else:
                 break
         else:
+            # BUG 20 FIX: Use weighted random instead of always picking max
             probs = [d / total for d in distances]
-            # Select based on probability (simplified: take max)
-            idx = probs.index(max(probs))
+            idx = rng.choices(range(n), weights=probs, k=1)[0]
             centroids.append(embeddings[idx].vector.copy())
+
+    if not centroids:
+        return []
 
     # Iterative assignment and update
     assignments: list[int] = [0] * n
+    k = len(centroids)  # May be less than requested
 
     for iteration in range(max_iterations):
         # Assignment step
@@ -152,7 +196,7 @@ def simple_kmeans(
         new_centroids = []
         converged = True
 
-        for j in range(len(centroids)):
+        for j in range(k):
             cluster_embeddings = [
                 embeddings[i] for i in range(n) if assignments[i] == j
             ]
@@ -160,7 +204,20 @@ def simple_kmeans(
             if cluster_embeddings:
                 new_centroid = compute_centroid(cluster_embeddings)
             else:
-                new_centroid = centroids[j]
+                # BUG 21 FIX: Reinitialize empty cluster centroid
+                # Pick the point furthest from all existing centroids
+                logger.debug(f"Cluster {j} became empty, reinitializing")
+                max_min_dist = -1
+                new_centroid = centroids[j]  # Default to keeping old
+                for emb in embeddings:
+                    min_dist = min(
+                        semantic_distance(emb.vector, centroids[c])
+                        for c in range(k)
+                        if c != j
+                    )
+                    if min_dist > max_min_dist:
+                        max_min_dist = min_dist
+                        new_centroid = emb.vector.copy()
 
             # Check convergence
             if converged:
@@ -180,7 +237,7 @@ def simple_kmeans(
     # Build final clusters
     clusters: list[Cluster] = []
 
-    for j in range(len(centroids)):
+    for j in range(k):
         cluster_embeddings = [embeddings[i] for i in range(n) if assignments[i] == j]
 
         if not cluster_embeddings:
@@ -220,6 +277,7 @@ def simple_kmeans(
                 dominant_run_kind=dominant_kind,
                 dominant_provider=dominant_provider,
                 sample_inputs=sample_inputs,
+                dimension=dim,
             )
         )
 
@@ -239,7 +297,9 @@ def cluster_from_index(
     k: int = 5,
     run_kind: str | None = None,
     provider: str | None = None,
+    embedding_version: int | None = None,
     limit: int = 1000,
+    seed: int | None = 42,
 ) -> list[Cluster]:
     """Cluster all embeddings from an index.
 
@@ -248,7 +308,9 @@ def cluster_from_index(
         k: Number of clusters
         run_kind: Filter by run kind
         provider: Filter by provider
+        embedding_version: Filter by embedding version
         limit: Maximum embeddings to cluster
+        seed: Random seed for reproducibility
 
     Returns:
         List of Cluster objects
@@ -256,10 +318,11 @@ def cluster_from_index(
     embeddings = index.list_all(
         run_kind=run_kind,
         provider=provider,
+        embedding_version=embedding_version,
         limit=limit,
     )
 
-    return simple_kmeans(embeddings, k=k)
+    return simple_kmeans(embeddings, k=k, seed=seed)
 
 
 def find_cluster_for_embedding(
@@ -268,21 +331,45 @@ def find_cluster_for_embedding(
 ) -> tuple[int, float]:
     """Find which cluster an embedding belongs to.
 
+    BUG 23 FIX: Validate dimension before computing.
+
     Args:
         embedding: Embedding to classify
         clusters: List of clusters
 
     Returns:
-        Tuple of (cluster_id, distance_to_centroid)
+        Tuple of (cluster_id, distance_to_centroid) or (-1, inf) if no valid cluster
+
+    Raises:
+        DimensionMismatchError: If embedding dimension doesn't match cluster dimensions
     """
     if not clusters:
         return (-1, float("inf"))
+
+    # Validate dimensions match
+    cluster_dim = clusters[0].dimension
+    if embedding.dimension != cluster_dim:
+        raise DimensionMismatchError(
+            f"Embedding dimension {embedding.dimension} doesn't match "
+            f"cluster dimension {cluster_dim}"
+        )
 
     best_cluster = -1
     best_distance = float("inf")
 
     for cluster in clusters:
-        dist = semantic_distance(embedding.vector, cluster.centroid)
+        # Additional safety check
+        if cluster.dimension != embedding.dimension:
+            logger.warning(
+                f"Cluster {cluster.cluster_id} has dimension {cluster.dimension}, "
+                f"expected {embedding.dimension}. Skipping."
+            )
+            continue
+
+        dist = (
+            semantic_distance(embedding.vector, cluster.centroid)
+            / SEMANTIC_DISTANCE_NORMALIZER
+        )
         if dist < best_distance:
             best_distance = dist
             best_cluster = cluster.cluster_id

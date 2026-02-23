@@ -8,14 +8,22 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
+logger = logging.getLogger(__name__)
+
+# Embedding schema version - bump when changing embedding behavior
+EMBEDDING_VERSION = 1
+
 # Optional embedding backends
 _EMBEDDING_BACKEND: Literal["none", "mock", "sentence-transformers"] | None = None
+_ENGINE_LOCK = threading.Lock()
 
 
 def _detect_embedding_backend() -> Literal["none", "mock", "sentence-transformers"]:
@@ -61,6 +69,68 @@ class EmbedderProtocol(Protocol):
         ...
 
 
+class EmbeddingValidationError(ValueError):
+    """Raised when embedding validation fails."""
+
+    pass
+
+
+class EmbeddingResult:
+    """Result type for embedding operations that may fail.
+
+    Provides more information than None on failure.
+    """
+
+    def __init__(
+        self,
+        embedding: "ExecutionEmbedding | None" = None,
+        error: str | None = None,
+        skipped: bool = False,
+        skip_reason: str | None = None,
+    ):
+        self._embedding = embedding
+        self._error = error
+        self._skipped = skipped
+        self._skip_reason = skip_reason
+
+    @property
+    def ok(self) -> bool:
+        """True if embedding was created successfully."""
+        return self._embedding is not None
+
+    @property
+    def embedding(self) -> "ExecutionEmbedding | None":
+        """The embedding, or None if failed/skipped."""
+        return self._embedding
+
+    @property
+    def error(self) -> str | None:
+        """Error message if failed."""
+        return self._error
+
+    @property
+    def skipped(self) -> bool:
+        """True if item was skipped (not an error)."""
+        return self._skipped
+
+    @property
+    def skip_reason(self) -> str | None:
+        """Reason for skipping."""
+        return self._skip_reason
+
+    @classmethod
+    def success(cls, embedding: "ExecutionEmbedding") -> "EmbeddingResult":
+        return cls(embedding=embedding)
+
+    @classmethod
+    def failure(cls, error: str) -> "EmbeddingResult":
+        return cls(error=error)
+
+    @classmethod
+    def skip(cls, reason: str) -> "EmbeddingResult":
+        return cls(skipped=True, skip_reason=reason)
+
+
 @dataclass(frozen=True)
 class ExecutionEmbedding:
     """Embedded representation of a DSPx execution.
@@ -81,6 +151,24 @@ class ExecutionEmbedding:
     dimension: int
     source_path: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    embedding_version: int = EMBEDDING_VERSION
+
+    def __post_init__(self) -> None:
+        """Validate invariants after initialization."""
+        # BUG 5 FIX: Validate dimension matches vector length
+        if len(self.vector) != self.dimension:
+            raise EmbeddingValidationError(
+                f"Dimension mismatch: vector has {len(self.vector)} elements "
+                f"but dimension field is {self.dimension}"
+            )
+
+        # Validate vector is not empty
+        if not self.vector:
+            raise EmbeddingValidationError("Vector cannot be empty")
+
+        # Validate run_id is not empty
+        if not self.run_id:
+            raise EmbeddingValidationError("run_id cannot be empty")
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage."""
@@ -97,6 +185,7 @@ class ExecutionEmbedding:
             "dimension": self.dimension,
             "source_path": self.source_path,
             "metadata": self.metadata,
+            "embedding_version": self.embedding_version,
         }
 
     @classmethod
@@ -115,7 +204,23 @@ class ExecutionEmbedding:
             dimension=data["dimension"],
             source_path=data.get("source_path"),
             metadata=data.get("metadata", {}),
+            embedding_version=data.get("embedding_version", 1),
         )
+
+
+def _expand_hash_seed(seed: bytes, length: int) -> list[int]:
+    """Expand a 32-byte hash seed into arbitrary length using SHAKE-like expansion.
+
+    BUG 1 FIX: Use proper hash expansion instead of byte recycling.
+    """
+    result = []
+    counter = 0
+    while len(result) < length:
+        # Hash the seed with counter to generate more bytes
+        h = hashlib.sha256(seed + counter.to_bytes(4, "big"))
+        result.extend(h.digest())
+        counter += 1
+    return result[:length]
 
 
 class MockEmbedder:
@@ -129,27 +234,31 @@ class MockEmbedder:
         self._dimension = dimension
 
     def encode(self, texts: list[str]) -> list[list[float]]:
-        """Encode texts using deterministic hash-based vectors."""
+        """Encode texts using deterministic hash-based vectors.
+
+        BUG 1 FIX: Use proper hash expansion for consistent magnitude distribution.
+        """
         vectors = []
         for text in texts:
             # Create deterministic vector from hash
-            h = hashlib.sha256(text.encode("utf-8")).digest()
-            # Expand to dimension using repeated hash
-            seed = h
+            seed = hashlib.sha256(text.encode("utf-8")).digest()
+            # Expand seed to full dimension using proper expansion
+            expanded = _expand_hash_seed(seed, self._dimension)
+
+            # Convert bytes to floats in [-1, 1] range uniformly
             vector = []
-            for i in range(self._dimension):
-                byte_idx = i % 32
-                val = float(seed[byte_idx]) / 255.0
-                # Add variation based on position
-                val = val * 2.0 - 1.0  # Range [-1, 1]
-                if i >= 32:
-                    # Mix in position-dependent variation
-                    val = val * (1.0 + 0.1 * (i / self._dimension))
+            for byte_val in expanded:
+                val = (byte_val / 255.0) * 2.0 - 1.0  # Map [0,255] to [-1,1]
                 vector.append(val)
+
             # Normalize to unit length
             norm = sum(v * v for v in vector) ** 0.5
             if norm > 0:
                 vector = [v / norm for v in vector]
+            else:
+                # Edge case: all zeros (shouldn't happen with proper hash)
+                vector = [1.0 / (self._dimension**0.5)] * self._dimension
+
             vectors.append(vector)
         return vectors
 
@@ -163,6 +272,7 @@ class SentenceTransformerEmbedder:
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
 
+        self._model_name = model_name
         self._model = SentenceTransformer(model_name)
         self._dimension = self._model.get_sentence_embedding_dimension()
 
@@ -192,12 +302,24 @@ class EmbeddingEngine:
             backend = _detect_embedding_backend()
 
         self._backend_name = backend
+        self._model_name = model_name
+        self._mock_dimension = mock_dimension
 
-        if backend == "sentence-transformers":
-            self._embedder: EmbedderProtocol = SentenceTransformerEmbedder(model_name)
+        # BUG 3 FIX: Handle "none" explicitly
+        if backend == "none":
+            # Treat "none" as mock for now, but log it
+            logger.info(
+                "Using 'none' backend - falling back to mock embedder. "
+                "Set DSPX_ORACLE_EMBEDDING_BACKEND=mock explicitly if intended."
+            )
+            self._embedder: EmbedderProtocol = MockEmbedder(dimension=mock_dimension)
+        elif backend == "sentence-transformers":
+            self._embedder = SentenceTransformerEmbedder(model_name)
         elif backend == "mock":
             self._embedder = MockEmbedder(dimension=mock_dimension)
         else:
+            # Unknown backend, use mock
+            logger.warning(f"Unknown backend '{backend}', falling back to mock")
             self._embedder = MockEmbedder(dimension=mock_dimension)
 
         self._dimension = self._embedder.get_dimension()
@@ -211,6 +333,11 @@ class EmbeddingEngine:
     def dimension(self) -> int:
         """Return embedding dimension."""
         return self._dimension
+
+    @property
+    def model_name(self) -> str:
+        """Return the model name (for sentence-transformers)."""
+        return self._model_name
 
     def embed_text(self, text: str) -> list[float]:
         """Embed a single text string."""
@@ -258,6 +385,7 @@ class EmbeddingEngine:
             dimension=self._dimension,
             source_path=source_path,
             metadata=metadata or {},
+            embedding_version=EMBEDDING_VERSION,
         )
 
     def embed_receipt(
@@ -271,10 +399,30 @@ class EmbeddingEngine:
 
         Returns:
             ExecutionEmbedding or None if receipt lacks required fields
+
+        Note:
+            For more detailed error information, use embed_receipt_result().
+        """
+        result = self.embed_receipt_result(receipt, output_content)
+        return result.embedding
+
+    def embed_receipt_result(
+        self, receipt: dict[str, Any], output_content: str | None = None
+    ) -> EmbeddingResult:
+        """Embed from a run receipt dictionary with detailed result.
+
+        BUG 6 FIX: Return result type with error/skip information.
+
+        Args:
+            receipt: Run receipt dict from .meta.json file
+            output_content: Optional output file content
+
+        Returns:
+            EmbeddingResult with success/failure/skip information
         """
         run_id = receipt.get("hash") or receipt.get("cache_key")
         if not run_id:
-            return None
+            return EmbeddingResult.skip("Receipt has no 'hash' or 'cache_key' field")
 
         # Extract replay inputs
         replay_inputs = receipt.get("replay_inputs", {})
@@ -297,20 +445,26 @@ class EmbeddingEngine:
 
         source_path = receipt.get("output_path")
 
-        return self.embed_execution(
-            run_id=run_id,
-            input_text=input_text,
-            output_text=output_text,
-            config_text=config_text,
-            run_kind=receipt.get("run_kind", "unknown"),
-            provider=receipt.get("provider", "unknown"),
-            template_version=receipt.get("template_version"),
-            source_path=source_path,
-            metadata={
-                "cache_key": receipt.get("cache_key"),
-                "cache_enabled": receipt.get("cache_enabled"),
-            },
-        )
+        try:
+            embedding = self.embed_execution(
+                run_id=run_id,
+                input_text=input_text,
+                output_text=output_text,
+                config_text=config_text,
+                run_kind=receipt.get("run_kind", "unknown"),
+                provider=receipt.get("provider", "unknown"),
+                template_version=receipt.get("template_version"),
+                source_path=source_path,
+                metadata={
+                    "cache_key": receipt.get("cache_key"),
+                    "cache_enabled": receipt.get("cache_enabled"),
+                },
+            )
+            return EmbeddingResult.success(embedding)
+        except EmbeddingValidationError as e:
+            return EmbeddingResult.failure(f"Validation error: {e}")
+        except Exception as e:
+            return EmbeddingResult.failure(f"Unexpected error: {e}")
 
     def _extract_input_text(self, replay_inputs: dict[str, Any]) -> str:
         """Extract meaningful input text from replay inputs."""
@@ -333,7 +487,10 @@ class EmbeddingEngine:
         return "\n".join(parts) if parts else json.dumps(replay_inputs, sort_keys=True)
 
     def _read_output_from_receipt(self, receipt: dict[str, Any]) -> str | None:
-        """Try to read output content from receipt path."""
+        """Try to read output content from receipt path.
+
+        BUG 7 FIX: Log exceptions for debugging.
+        """
         output_path = receipt.get("output_path")
         if not output_path:
             return None
@@ -344,31 +501,75 @@ class EmbeddingEngine:
                 # Limit read size
                 content = path.read_text(encoding="utf-8", errors="replace")
                 return content[:10000]  # Truncate for embedding
-        except Exception:
-            pass
+        except PermissionError as e:
+            logger.debug(f"Permission denied reading {output_path}: {e}")
+        except OSError as e:
+            logger.debug(f"OS error reading {output_path}: {e}")
+        except Exception as e:
+            logger.debug(f"Unexpected error reading {output_path}: {e}")
         return None
 
 
-# Global engine instance
+# Global engine instance and its configuration
 _ENGINE: EmbeddingEngine | None = None
+_ENGINE_CONFIG: tuple[str, str, int] | None = (
+    None  # (backend, model_name, mock_dimension)
+)
 
 
 def get_embedding_engine(
     backend: Literal["auto", "none", "mock", "sentence-transformers"] = "auto",
     model_name: str = "all-MiniLM-L6-v2",
+    mock_dimension: int = 384,
     force_new: bool = False,
 ) -> EmbeddingEngine:
     """Get or create the global embedding engine.
 
+    BUG 2 FIX: Respect parameter changes.
+    BUG 4 FIX: Thread-safe singleton.
+
     Args:
         backend: Embedding backend to use
         model_name: Model name for sentence-transformers
+        mock_dimension: Dimension for mock embedder
         force_new: Force creation of new engine (ignore cached)
 
     Returns:
         EmbeddingEngine instance
     """
-    global _ENGINE
-    if _ENGINE is None or force_new:
-        _ENGINE = EmbeddingEngine(backend=backend, model_name=model_name)
-    return _ENGINE
+    global _ENGINE, _ENGINE_CONFIG
+
+    with _ENGINE_LOCK:
+        # Resolve auto backend
+        resolved_backend = backend
+        if backend == "auto":
+            resolved_backend = _detect_embedding_backend()
+
+        # Check if we need to create a new engine
+        config = (resolved_backend, model_name, mock_dimension)
+        needs_new = (
+            force_new
+            or _ENGINE is None
+            or _ENGINE_CONFIG != config
+            or _ENGINE.backend != resolved_backend
+        )
+
+        if needs_new:
+            _ENGINE = EmbeddingEngine(
+                backend=backend,
+                model_name=model_name,
+                mock_dimension=mock_dimension,
+            )
+            _ENGINE_CONFIG = config
+
+        # Type assertion: _ENGINE is guaranteed to be non-None here
+        assert _ENGINE is not None
+        return _ENGINE
+
+
+def reset_embedding_engine() -> None:
+    """Reset the global embedding engine (mainly for testing)."""
+    global _ENGINE, _ENGINE_CONFIG
+    with _ENGINE_LOCK:
+        _ENGINE = None
+        _ENGINE_CONFIG = None

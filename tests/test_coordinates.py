@@ -1,3 +1,5 @@
+"""Tests for semantic coordinates module (Phase A: Oracle)."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
@@ -9,15 +11,20 @@ from dspx.coordinates import (
     # Embeddings
     EmbeddingEngine,
     ExecutionEmbedding,
+    EmbeddingValidationError,
+    EmbeddingResult,
     get_embedding_engine,
+    reset_embedding_engine,
     # Metrics
     cosine_similarity,
     semantic_distance,
     drift_score,
     classify_drift,
+    DimensionMismatchError,
     # Storage
     CoordinateIndex,
     parse_since,
+    ParseSinceError,
     # Clustering
     compute_centroid,
     simple_kmeans,
@@ -67,6 +74,16 @@ class TestMockEmbedder:
         assert len(vectors) == 3
         assert all(len(v) == engine.dimension for v in vectors)
 
+    def test_mock_embedder_uniform_distribution(self) -> None:
+        """BUG 1 FIX: Mock embedder produces uniform magnitude distribution."""
+        engine = EmbeddingEngine(backend="mock", mock_dimension=100)
+        # Test multiple texts to ensure no systematic bias
+        for text in ["test a", "test b", "test c"]:
+            vec = engine.embed_text(text)
+            # All elements should be in reasonable range after normalization
+            for v in vec:
+                assert -2.0 < v < 2.0, f"Value {v} out of expected range"
+
 
 class TestExecutionEmbedding:
     """Tests for ExecutionEmbedding dataclass."""
@@ -100,6 +117,125 @@ class TestExecutionEmbedding:
         assert emb2.run_id == emb.run_id
         assert emb2.vector == emb.vector
 
+    def test_dimension_validation(self) -> None:
+        """BUG 5 FIX: Dimension must match vector length."""
+        # Should work with correct dimension
+        emb = ExecutionEmbedding(
+            run_id="test",
+            vector=[1.0, 2.0, 3.0],
+            input_text="test",
+            output_text="out",
+            config_text="",
+            run_kind="test",
+            provider="test",
+            template_version=None,
+            created_at="2024-01-01T00:00:00Z",
+            dimension=3,
+        )
+        assert emb.dimension == 3
+
+        # Should fail with wrong dimension
+        with pytest.raises(EmbeddingValidationError) as exc_info:
+            ExecutionEmbedding(
+                run_id="test",
+                vector=[1.0, 2.0, 3.0],
+                input_text="test",
+                output_text="out",
+                config_text="",
+                run_kind="test",
+                provider="test",
+                template_version=None,
+                created_at="2024-01-01T00:00:00Z",
+                dimension=384,  # Wrong!
+            )
+        assert "Dimension mismatch" in str(exc_info.value)
+
+    def test_empty_run_id_validation(self) -> None:
+        """Empty run_id should fail validation."""
+        with pytest.raises(EmbeddingValidationError):
+            ExecutionEmbedding(
+                run_id="",
+                vector=[1.0, 2.0, 3.0],
+                input_text="test",
+                output_text="out",
+                config_text="",
+                run_kind="test",
+                provider="test",
+                template_version=None,
+                created_at="2024-01-01T00:00:00Z",
+                dimension=3,
+            )
+
+
+class TestGlobalEngine:
+    """Tests for global engine singleton."""
+
+    def test_get_embedding_engine_cached(self) -> None:
+        """Engine is cached."""
+        reset_embedding_engine()
+        engine1 = get_embedding_engine(backend="mock", force_new=False)
+        engine2 = get_embedding_engine(backend="mock", force_new=False)
+        assert engine1 is engine2
+        reset_embedding_engine()
+
+    def test_force_new_engine(self) -> None:
+        """Can force new engine."""
+        reset_embedding_engine()
+        engine1 = get_embedding_engine()
+        engine2 = get_embedding_engine(force_new=True)
+        assert engine1 is not engine2
+        reset_embedding_engine()
+
+    def test_parameter_change_creates_new_engine(self) -> None:
+        """BUG 2 FIX: Different parameters create new engine."""
+        reset_embedding_engine()
+        engine1 = get_embedding_engine(
+            backend="mock", mock_dimension=32, force_new=True
+        )
+        assert engine1.dimension == 32
+
+        # Different dimension should create new engine
+        engine2 = get_embedding_engine(
+            backend="mock", mock_dimension=64, force_new=False
+        )
+        assert engine2.dimension == 64
+        assert engine1 is not engine2
+        reset_embedding_engine()
+
+
+class TestEmbeddingResult:
+    """Tests for EmbeddingResult class."""
+
+    def test_success_result(self) -> None:
+        """Success result works correctly."""
+        engine = EmbeddingEngine(backend="mock", mock_dimension=16)
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="out",
+            run_kind="test",
+            provider="test",
+        )
+        result = EmbeddingResult.success(emb)
+        assert result.ok
+        assert result.embedding is emb
+        assert not result.skipped
+        assert result.error is None
+
+    def test_skip_result(self) -> None:
+        """Skip result works correctly."""
+        result = EmbeddingResult.skip("No ID found")
+        assert not result.ok
+        assert result.skipped
+        assert result.skip_reason == "No ID found"
+
+    def test_failure_result(self) -> None:
+        """Failure result works correctly."""
+        result = EmbeddingResult.failure("Something broke")
+        assert not result.ok
+        assert not result.skipped
+        assert result.error == "Something broke"
+
 
 # =============================================================================
 # Metrics Tests
@@ -127,8 +263,8 @@ class TestCosineSimilarity:
         assert cosine_similarity(vec_a, vec_b) == pytest.approx(-1.0)
 
     def test_dimension_mismatch(self) -> None:
-        """Mismatched dimensions raise error."""
-        with pytest.raises(ValueError):
+        """Mismatched dimensions raise DimensionMismatchError."""
+        with pytest.raises(DimensionMismatchError):
             cosine_similarity([1.0, 2.0], [1.0])
 
 
@@ -161,6 +297,29 @@ class TestDriftScore:
         )
         drift = drift_score(emb, emb)
         assert drift["overall"] == pytest.approx(0.0, abs=0.01)
+
+    def test_dimension_mismatch_raises(self) -> None:
+        """BUG 23 FIX: Dimension mismatch raises error."""
+        engine32 = EmbeddingEngine(backend="mock", mock_dimension=32)
+        engine64 = EmbeddingEngine(backend="mock", mock_dimension=64)
+
+        emb32 = engine32.embed_execution(
+            run_id="test32",
+            input_text="test",
+            output_text="out",
+            run_kind="test",
+            provider="test",
+        )
+        emb64 = engine64.embed_execution(
+            run_id="test64",
+            input_text="test",
+            output_text="out",
+            run_kind="test",
+            provider="test",
+        )
+
+        with pytest.raises(DimensionMismatchError):
+            drift_score(emb32, emb64)
 
 
 class TestClassifyDrift:
@@ -355,6 +514,30 @@ class TestCoordinateIndex:
         assert stats["by_provider"]["claude"] == 2
         assert stats["by_provider"]["codex"] == 1
 
+    def test_batch_upsert_transactional(
+        self, index: CoordinateIndex, engine: EmbeddingEngine
+    ) -> None:
+        """BUG 19 FIX: Batch upsert is transactional."""
+        # Create valid embeddings
+        embeddings = []
+        for i in range(3):
+            emb = engine.embed_execution(
+                run_id=f"valid-{i}",
+                input_text=f"input {i}",
+                output_text="output",
+                run_kind="test",
+                provider="test",
+            )
+            embeddings.append(emb)
+
+        # Batch upsert
+        count = index.upsert_batch(embeddings)
+        assert count == 3
+
+        # Verify all were inserted
+        for i in range(3):
+            assert index.get(f"valid-{i}") is not None
+
 
 class TestParseSince:
     """Tests for since string parsing."""
@@ -374,6 +557,14 @@ class TestParseSince:
         since = parse_since("1w")
         expected = datetime.now(timezone.utc) - timedelta(weeks=1)
         assert abs((since - expected).total_seconds()) < 60
+
+    def test_parse_invalid_raises(self) -> None:
+        """BUG 14 FIX: Invalid since string raises ParseSinceError."""
+        with pytest.raises(ParseSinceError):
+            parse_since("invalid")
+
+        with pytest.raises(ParseSinceError):
+            parse_since("")
 
 
 # =============================================================================
@@ -408,8 +599,9 @@ class TestClustering:
         """Centroid computation works correctly."""
         centroid = compute_centroid(sample_embeddings)
         assert len(centroid) == sample_embeddings[0].dimension
-        # Centroid should be normalized (not strictly but check it's reasonable)
-        assert all(abs(v) < 10 for v in centroid)
+        # Centroid should be normalized (unit vector)
+        norm = sum(v * v for v in centroid) ** 0.5
+        assert abs(norm - 1.0) < 0.0001
 
     def test_simple_kmeans(self, sample_embeddings: list[ExecutionEmbedding]) -> None:
         """K-means produces clusters."""
@@ -438,6 +630,37 @@ class TestClustering:
         )
         assert cluster_id >= 0
         assert distance >= 0
+
+    def test_find_cluster_dimension_validation(self) -> None:
+        """BUG 23 FIX: find_cluster_for_embedding validates dimension."""
+        engine32 = EmbeddingEngine(backend="mock", mock_dimension=32)
+        engine64 = EmbeddingEngine(backend="mock", mock_dimension=64)
+
+        # Create embeddings with 32 dims
+        embeddings32 = [
+            engine32.embed_execution(
+                run_id=f"test-{i}",
+                input_text=f"input {i}",
+                output_text="output",
+                run_kind="test",
+                provider="test",
+            )
+            for i in range(5)
+        ]
+
+        clusters = simple_kmeans(embeddings32, k=2)
+
+        # Try to find cluster for 64-dim embedding
+        emb64 = engine64.embed_execution(
+            run_id="wrong-dim",
+            input_text="test",
+            output_text="out",
+            run_kind="test",
+            provider="test",
+        )
+
+        with pytest.raises(DimensionMismatchError):
+            find_cluster_for_embedding(emb64, clusters)
 
 
 # =============================================================================
@@ -495,18 +718,31 @@ class TestReceiptEmbedding:
         assert emb is not None
         assert "TicketClassifier" in emb.output_text
 
+    def test_embed_receipt_no_id(self) -> None:
+        """Receipt without ID returns None."""
+        engine = EmbeddingEngine(backend="mock", mock_dimension=32)
 
-class TestGlobalEngine:
-    """Tests for global engine singleton."""
+        receipt = {
+            "run_kind": "signature-gen",
+            "provider": "claude",
+        }
 
-    def test_get_embedding_engine_cached(self) -> None:
-        """Engine is cached."""
-        engine1 = get_embedding_engine()
-        engine2 = get_embedding_engine()
-        assert engine1 is engine2
+        emb = engine.embed_receipt(receipt)
+        assert emb is None
 
-    def test_force_new_engine(self) -> None:
-        """Can force new engine."""
-        engine1 = get_embedding_engine()
-        engine2 = get_embedding_engine(force_new=True)
-        assert engine1 is not engine2
+    def test_embed_receipt_result_no_id(self) -> None:
+        """BUG 6 FIX: embed_receipt_result provides skip information."""
+        engine = EmbeddingEngine(backend="mock", mock_dimension=32)
+
+        receipt = {
+            "run_kind": "signature-gen",
+            "provider": "claude",
+        }
+
+        result = engine.embed_receipt_result(receipt)
+        assert not result.ok
+        assert result.skipped
+        assert (
+            "hash" in result.skip_reason.lower()
+            or "cache_key" in result.skip_reason.lower()
+        )

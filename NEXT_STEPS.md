@@ -466,7 +466,7 @@ Acceptance:
 
 ## 8) Behavioral Oracle: Semantic Regression & Topological Assurance
 
-**Status:** 🟡 IN PROGRESS — Phase A (Semantic Coordinates) complete. Phase B (Behavioral Topology) next.
+**Status:** 🟢 Phase A COMPLETE — Ready for Phase B (Behavioral Topology).
 
 **Vision:** Transform passive execution traces into active behavioral assurance. Don't just run programs—navigate a space where all possible behaviors can be mapped, predicted, and guaranteed.
 
@@ -528,7 +528,7 @@ Acceptance:
 
 ### Phase A: Semantic Coordinates & Capture (Foundation)
 
-**Status:** ✅ COMPLETE — `packages/dspx-core/src/dspx/coordinates/` implemented.
+**Status:** ✅ COMPLETE — All 26+ bugs fixed. Review in `docs/ORACLE_PHASE_A_REVIEW.md`.
 
 **Goal:** Every execution receipt becomes a point in navigable semantic space.
 
@@ -570,6 +570,16 @@ dspx oracle drift <run-a> <run-b>
 - [x] Similar executions cluster together (visualizable)
 - [x] Search by semantic similarity returns relevant results
 - [x] Coordinate index persists and updates incrementally
+- [x] All 26+ review bugs fixed (see `docs/ORACLE_PHASE_A_REVIEW.md`)
+
+**Key Improvements Made:**
+- Thread-safe singleton with parameter-aware caching
+- Embedding versioning for schema compatibility
+- Dimension validation in all vectors
+- Transactional batch upsert
+- Result types for detailed error info
+- Schema versioning and migration
+- Proper hash expansion in mock embedder
 
 **Implementation Notes:**
 - Mock embedder provides deterministic vectors for testing without ML dependencies

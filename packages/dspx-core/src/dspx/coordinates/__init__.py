@@ -16,7 +16,11 @@ from __future__ import annotations
 from .embeddings import (
     EmbeddingEngine,
     ExecutionEmbedding,
+    EmbeddingValidationError,
+    EmbeddingResult,
     get_embedding_engine,
+    reset_embedding_engine,
+    EMBEDDING_VERSION,
 )
 from .metrics import (
     cosine_similarity,
@@ -25,13 +29,19 @@ from .metrics import (
     drift_score,
     classify_drift,
     find_outliers,
+    DimensionMismatchError,
+    DRIFT_THRESHOLDS,
+    SEMANTIC_DISTANCE_NORMALIZER,
 )
 from .storage import (
     CoordinateIndex,
     CoordinateRecord,
     SearchResult,
+    SchemaVersionError,
+    ParseSinceError,
     get_default_index_path,
     parse_since,
+    SCHEMA_VERSION,
 )
 from .clustering import (
     Cluster,
@@ -45,7 +55,11 @@ __all__ = [
     # Embeddings
     "EmbeddingEngine",
     "ExecutionEmbedding",
+    "EmbeddingValidationError",
+    "EmbeddingResult",
     "get_embedding_engine",
+    "reset_embedding_engine",
+    "EMBEDDING_VERSION",
     # Metrics
     "cosine_similarity",
     "euclidean_distance",
@@ -53,12 +67,18 @@ __all__ = [
     "drift_score",
     "classify_drift",
     "find_outliers",
+    "DimensionMismatchError",
+    "DRIFT_THRESHOLDS",
+    "SEMANTIC_DISTANCE_NORMALIZER",
     # Storage
     "CoordinateIndex",
     "CoordinateRecord",
     "SearchResult",
+    "SchemaVersionError",
+    "ParseSinceError",
     "get_default_index_path",
     "parse_since",
+    "SCHEMA_VERSION",
     # Clustering
     "Cluster",
     "compute_centroid",

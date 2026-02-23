@@ -3250,19 +3250,27 @@ def oracle_index(
     Scans MLflow runs or receipt files and creates embeddings for each execution.
     """
     import json as _json
+    from datetime import datetime, timezone
     from pathlib import Path as _Path
 
     from dspx.coordinates import (
         CoordinateIndex,
         get_embedding_engine,
         parse_since,
+        ParseSinceError,
     )
+
+    # BUG 25 FIX: Catch parse_since errors
+    try:
+        since_dt = parse_since(since)
+    except ParseSinceError as e:
+        typer.echo(f"Error: Invalid --since value: {e}", err=True)
+        raise typer.Exit(code=2)
 
     # Initialize index
     index = CoordinateIndex(db_path=index_path)
     engine = get_embedding_engine()
 
-    since_dt = parse_since(since)
     indexed = 0
     errors = 0
     skipped = 0
@@ -3289,8 +3297,6 @@ def oracle_index(
                 created_at = receipt_data.get("created_at", "")
                 if created_at:
                     try:
-                        from datetime import datetime
-
                         created_dt = datetime.fromisoformat(
                             created_at.replace("Z", "+00:00")
                         )
@@ -3320,6 +3326,16 @@ def oracle_index(
                     typer.echo(f"Error processing {receipt_file}: {e}", err=True)
 
     if from_mlflow:
+        # BUG 24 FIX: Import yaml once at the beginning
+        try:
+            import yaml
+        except ImportError:
+            typer.echo(
+                "Error: --from-mlflow requires PyYAML. Install with: pip install pyyaml",
+                err=True,
+            )
+            raise typer.Exit(code=2)
+
         # Scan MLflow tracking directory
         mlflow_path = path or _Path.cwd() / "mlruns"
         if verbose:
@@ -3339,16 +3355,12 @@ def oracle_index(
 
                     try:
                         # Parse MLflow run metadata
-                        import yaml
-
                         with open(meta_file) as f:
                             meta = yaml.safe_load(f)
 
                         # Check date
                         start_time = meta.get("start_time")
                         if start_time:
-                            from datetime import datetime, timezone
-
                             start_dt = datetime.fromtimestamp(
                                 start_time / 1000, tz=timezone.utc
                             )
@@ -3421,13 +3433,17 @@ def oracle_search(
     """Search for similar past executions by input text."""
     import json as _json
 
-    from dspx.coordinates import CoordinateIndex, parse_since
+    from dspx.coordinates import CoordinateIndex, parse_since, ParseSinceError
 
     index = CoordinateIndex(db_path=index_path)
 
     since_dt = None
     if since:
-        since_dt = parse_since(since)
+        try:
+            since_dt = parse_since(since)
+        except ParseSinceError as e:
+            typer.echo(f"Error: Invalid --since value: {e}", err=True)
+            raise typer.Exit(code=2)
 
     results = index.search_by_text(
         input_text,
@@ -3548,16 +3564,23 @@ def oracle_stats(
     engine = get_embedding_engine()
 
     stats = index.stats()
-    stats["backend"] = engine.backend
-    stats["dimension"] = engine.dimension
+    # BUG 26 FIX: Use index dimensions, not current engine dimension
+    stats["engine_backend"] = engine.backend
+    stats["engine_dimension"] = engine.dimension
 
     if json_out:
         typer.echo(_json.dumps(stats, ensure_ascii=False, indent=2))
     else:
         typer.echo("=== Oracle Coordinate Index ===\n")
         typer.echo(f"Total runs: {stats['total']}")
-        typer.echo(f"Backend: {stats['backend']}")
-        typer.echo(f"Dimension: {stats['dimension']}")
+        typer.echo(f"Engine backend: {stats['engine_backend']}")
+        typer.echo(f"Engine dimension: {stats['engine_dimension']}")
+        if stats.get("dimensions"):
+            typer.echo(f"Index dimensions: {', '.join(map(str, stats['dimensions']))}")
+        typer.echo(f"Schema version: {stats.get('schema_version', 'unknown')}")
+        typer.echo(
+            f"Embedding version: {stats.get('current_embedding_version', 'unknown')}"
+        )
 
         if stats.get("by_run_kind"):
             typer.echo("\nBy run kind:")

@@ -7,6 +7,7 @@ efficient similarity search using vector operations.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -15,8 +16,13 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Iterator
 
-from .embeddings import ExecutionEmbedding
+from .embeddings import ExecutionEmbedding, EMBEDDING_VERSION
 from .metrics import cosine_similarity, semantic_distance
+
+logger = logging.getLogger(__name__)
+
+# Schema version - bump when changing DB schema
+SCHEMA_VERSION = 2  # Bumped for embedding_version column
 
 
 def get_default_index_path() -> Path:
@@ -62,6 +68,7 @@ class CoordinateRecord:
     source_path: str | None
     metadata_json: str
     indexed_at: str
+    embedding_version: int
 
     @classmethod
     def from_embedding(
@@ -81,6 +88,7 @@ class CoordinateRecord:
             source_path=emb.source_path,
             metadata_json=json.dumps(emb.metadata),
             indexed_at=indexed_at or datetime.now(timezone.utc).isoformat(),
+            embedding_version=emb.embedding_version,
         )
 
     def to_embedding(self) -> ExecutionEmbedding:
@@ -97,7 +105,27 @@ class CoordinateRecord:
             dimension=self.dimension,
             source_path=self.source_path,
             metadata=json.loads(self.metadata_json) if self.metadata_json else {},
+            embedding_version=self.embedding_version,
         )
+
+
+class SchemaVersionError(Exception):
+    """Raised when database schema version is incompatible."""
+
+    def __init__(self, stored_version: int, expected_version: int):
+        self.stored_version = stored_version
+        self.expected_version = expected_version
+        super().__init__(
+            f"Database schema version {stored_version} is incompatible with "
+            f"expected version {expected_version}. "
+            f"Rebuild the index with 'dspx oracle index --force-rebuild' or use a new database."
+        )
+
+
+class ParseSinceError(ValueError):
+    """Raised when a since string cannot be parsed."""
+
+    pass
 
 
 class CoordinateIndex:
@@ -108,17 +136,18 @@ class CoordinateIndex:
     - Similarity search using brute-force vector comparison
     - Filtering by run_kind, provider, date range
     - Incremental updates
+    - Schema versioning and migration
 
     For larger scale, consider replacing with sqlite-vss or a dedicated
     vector database (Chroma, Qdrant, etc.).
     """
 
-    SCHEMA_VERSION = 1
-
-    def __init__(self, db_path: Path | str | None = None):
+    def __init__(self, db_path: Path | str | None = None, *, auto_migrate: bool = True):
         self.db_path = Path(db_path) if db_path else get_default_index_path()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
+        # BUG 18 FIX: Check schema version
+        self._check_schema_version(auto_migrate=auto_migrate)
 
     def _init_db(self) -> None:
         """Initialize database schema."""
@@ -138,7 +167,8 @@ class CoordinateIndex:
                     dimension INTEGER NOT NULL,
                     source_path TEXT,
                     metadata_json TEXT,
-                    indexed_at TEXT NOT NULL
+                    indexed_at TEXT NOT NULL,
+                    embedding_version INTEGER NOT NULL DEFAULT 1
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_coordinates_run_kind
@@ -149,6 +179,8 @@ class CoordinateIndex:
                     ON coordinates(created_at);
                 CREATE INDEX IF NOT EXISTS idx_coordinates_indexed_at
                     ON coordinates(indexed_at);
+                CREATE INDEX IF NOT EXISTS idx_coordinates_embedding_version
+                    ON coordinates(embedding_version);
 
                 CREATE TABLE IF NOT EXISTS index_meta (
                     key TEXT PRIMARY KEY,
@@ -156,11 +188,61 @@ class CoordinateIndex:
                 );
                 """
             )
-            # Set schema version
+            # Set schema version (idempotent)
             conn.execute(
                 "INSERT OR REPLACE INTO index_meta (key, value) VALUES (?, ?)",
-                ("schema_version", str(self.SCHEMA_VERSION)),
+                ("schema_version", str(SCHEMA_VERSION)),
             )
+
+    def _check_schema_version(self, *, auto_migrate: bool) -> None:
+        """Check and optionally migrate schema version.
+
+        BUG 18 FIX: Validate schema version on init.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT value FROM index_meta WHERE key = 'schema_version'"
+            ).fetchone()
+            if row is None:
+                # New database, set version
+                conn.execute(
+                    "INSERT OR REPLACE INTO index_meta (key, value) VALUES (?, ?)",
+                    ("schema_version", str(SCHEMA_VERSION)),
+                )
+                return
+
+            stored_version = int(row["value"])
+            if stored_version < SCHEMA_VERSION:
+                if auto_migrate:
+                    self._migrate_schema(stored_version, SCHEMA_VERSION)
+                else:
+                    raise SchemaVersionError(stored_version, SCHEMA_VERSION)
+            elif stored_version > SCHEMA_VERSION:
+                # Future version - can't read
+                raise SchemaVersionError(stored_version, SCHEMA_VERSION)
+
+    def _migrate_schema(self, from_version: int, to_version: int) -> None:
+        """Migrate database schema between versions."""
+        logger.info(f"Migrating index schema from v{from_version} to v{to_version}")
+
+        with self._conn() as conn:
+            # Migration 1->2: Add embedding_version column
+            if from_version < 2:
+                try:
+                    conn.execute(
+                        "ALTER TABLE coordinates ADD COLUMN embedding_version INTEGER NOT NULL DEFAULT 1"
+                    )
+                except sqlite3.OperationalError:
+                    # Column already exists
+                    pass
+
+            # Update schema version
+            conn.execute(
+                "INSERT OR REPLACE INTO index_meta (key, value) VALUES (?, ?)",
+                ("schema_version", str(to_version)),
+            )
+
+        logger.info(f"Schema migration complete: v{from_version} -> v{to_version}")
 
     @contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
@@ -170,6 +252,19 @@ class CoordinateIndex:
         try:
             yield conn
             conn.commit()
+        finally:
+            conn.close()
+
+    @contextmanager
+    def _read_conn(self) -> Iterator[sqlite3.Connection]:
+        """Get read-only connection (no commit on exit).
+
+        BUG 15 FIX: Separate read connection that doesn't commit.
+        """
+        conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
         finally:
             conn.close()
 
@@ -187,8 +282,8 @@ class CoordinateIndex:
                     INSERT OR REPLACE INTO coordinates (
                         run_id, vector_json, input_text, output_text, config_text,
                         run_kind, provider, template_version, created_at, dimension,
-                        source_path, metadata_json, indexed_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        source_path, metadata_json, indexed_at, embedding_version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         record.run_id,
@@ -204,32 +299,44 @@ class CoordinateIndex:
                         record.source_path,
                         record.metadata_json,
                         record.indexed_at,
+                        record.embedding_version,
                     ),
                 )
             return True
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to upsert embedding {record.run_id}: {e}")
             return False
 
     def upsert_batch(self, embeddings: list[ExecutionEmbedding]) -> int:
-        """Insert or update multiple embeddings.
+        """Insert or update multiple embeddings transactionally.
+
+        BUG 19 FIX: Proper transaction handling - all-or-nothing.
 
         Returns:
-            Number of successfully indexed embeddings
+            Number of successfully indexed embeddings (all or none)
         """
-        success = 0
+        if not embeddings:
+            return 0
+
         now = datetime.now(timezone.utc).isoformat()
+        records = [
+            CoordinateRecord.from_embedding(emb, indexed_at=now) for emb in embeddings
+        ]
+
         try:
             with self._conn() as conn:
-                for emb in embeddings:
-                    record = CoordinateRecord.from_embedding(emb, indexed_at=now)
-                    try:
+                # Start explicit transaction
+                conn.execute("BEGIN IMMEDIATE")
+
+                try:
+                    for record in records:
                         conn.execute(
                             """
                             INSERT OR REPLACE INTO coordinates (
                                 run_id, vector_json, input_text, output_text, config_text,
                                 run_kind, provider, template_version, created_at, dimension,
-                                source_path, metadata_json, indexed_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                source_path, metadata_json, indexed_at, embedding_version
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
                             (
                                 record.run_id,
@@ -245,23 +352,31 @@ class CoordinateIndex:
                                 record.source_path,
                                 record.metadata_json,
                                 record.indexed_at,
+                                record.embedding_version,
                             ),
                         )
-                        success += 1
-                    except Exception:
-                        pass
-        except Exception:
-            pass
-        return success
+                    # Transaction commits on successful context exit
+                    return len(records)
+                except Exception as e:
+                    conn.execute("ROLLBACK")
+                    logger.error(f"Batch upsert failed, rolled back: {e}")
+                    return 0
+        except Exception as e:
+            logger.error(f"Failed to start batch transaction: {e}")
+            return 0
 
     def get(self, run_id: str) -> ExecutionEmbedding | None:
         """Get embedding by run_id."""
-        with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM coordinates WHERE run_id = ?", (run_id,)
-            ).fetchone()
-            if row:
-                return self._row_to_embedding(row)
+        try:
+            with self._read_conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM coordinates WHERE run_id = ?", (run_id,)
+                ).fetchone()
+                if row:
+                    return self._row_to_embedding(row)
+        except sqlite3.OperationalError:
+            # Database doesn't exist yet
+            pass
         return None
 
     def delete(self, run_id: str) -> bool:
@@ -280,8 +395,11 @@ class CoordinateIndex:
         since: datetime | None = None,
         until: datetime | None = None,
         min_similarity: float = -1.0,
+        embedding_version: int | None = EMBEDDING_VERSION,
     ) -> list[SearchResult]:
         """Search for similar embeddings.
+
+        BUG 13 FIX: Log dimension mismatch instead of silent skip.
 
         Args:
             query_vector: Query embedding vector
@@ -291,11 +409,13 @@ class CoordinateIndex:
             since: Filter by creation date (after)
             until: Filter by creation date (before)
             min_similarity: Minimum similarity threshold
+            embedding_version: Filter by embedding version (default: current)
 
         Returns:
             List of SearchResult sorted by similarity (descending)
         """
         results = []
+        dimension_mismatch_count = 0
 
         # Build query with filters
         sql = "SELECT * FROM coordinates WHERE 1=1"
@@ -313,28 +433,50 @@ class CoordinateIndex:
         if until:
             sql += " AND created_at <= ?"
             params.append(until.isoformat())
+        if embedding_version is not None:
+            sql += " AND embedding_version = ?"
+            params.append(embedding_version)
 
-        with self._conn() as conn:
-            rows = conn.execute(sql, params).fetchall()
+        try:
+            with self._read_conn() as conn:
+                rows = conn.execute(sql, params).fetchall()
 
-            for row in rows:
-                emb = self._row_to_embedding(row)
-                if emb.dimension != len(query_vector):
-                    continue
+                for row in rows:
+                    try:
+                        emb = self._row_to_embedding(row)
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.warning(
+                            f"Failed to parse embedding {row['run_id']}: {e}"
+                        )
+                        continue
 
-                similarity = cosine_similarity(query_vector, emb.vector)
-                if similarity < min_similarity:
-                    continue
+                    if emb.dimension != len(query_vector):
+                        dimension_mismatch_count += 1
+                        continue
 
-                distance = semantic_distance(query_vector, emb.vector)
-                results.append(
-                    SearchResult(
-                        run_id=emb.run_id,
-                        similarity=similarity,
-                        distance=distance,
-                        embedding=emb,
+                    similarity = cosine_similarity(query_vector, emb.vector)
+                    if similarity < min_similarity:
+                        continue
+
+                    distance = semantic_distance(query_vector, emb.vector)
+                    results.append(
+                        SearchResult(
+                            run_id=emb.run_id,
+                            similarity=similarity,
+                            distance=distance,
+                            embedding=emb,
+                        )
                     )
-                )
+        except sqlite3.OperationalError:
+            # Database doesn't exist yet
+            pass
+
+        # BUG 13 FIX: Warn about dimension mismatches
+        if dimension_mismatch_count > 0:
+            logger.warning(
+                f"Skipped {dimension_mismatch_count} embeddings due to dimension mismatch "
+                f"(query: {len(query_vector)}d, stored embeddings may have different dimension)"
+            )
 
         # Sort by similarity descending
         results.sort(key=lambda r: r.similarity, reverse=True)
@@ -365,7 +507,7 @@ class CoordinateIndex:
         Returns:
             List of SearchResult sorted by similarity (descending)
         """
-        from dspx.coordinates.embeddings import get_embedding_engine
+        from .embeddings import get_embedding_engine
 
         engine = get_embedding_engine()
         query_vector = engine.embed_text(query_text)
@@ -423,6 +565,7 @@ class CoordinateIndex:
         provider: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        embedding_version: int | None = None,
         limit: int = 1000,
         offset: int = 0,
     ) -> list[ExecutionEmbedding]:
@@ -442,13 +585,28 @@ class CoordinateIndex:
         if until:
             sql += " AND created_at <= ?"
             params.append(until.isoformat())
+        if embedding_version is not None:
+            sql += " AND embedding_version = ?"
+            params.append(embedding_version)
 
         sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
-        with self._conn() as conn:
-            rows = conn.execute(sql, params).fetchall()
-            return [self._row_to_embedding(row) for row in rows]
+        embeddings = []
+        try:
+            with self._read_conn() as conn:
+                rows = conn.execute(sql, params).fetchall()
+                for row in rows:
+                    try:
+                        embeddings.append(self._row_to_embedding(row))
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.warning(
+                            f"Failed to parse embedding {row['run_id']}: {e}"
+                        )
+        except sqlite3.OperationalError:
+            pass
+
+        return embeddings
 
     def count(
         self,
@@ -457,6 +615,7 @@ class CoordinateIndex:
         provider: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
+        embedding_version: int | None = None,
     ) -> int:
         """Count embeddings matching filters."""
         sql = "SELECT COUNT(*) FROM coordinates WHERE 1=1"
@@ -474,39 +633,69 @@ class CoordinateIndex:
         if until:
             sql += " AND created_at <= ?"
             params.append(until.isoformat())
+        if embedding_version is not None:
+            sql += " AND embedding_version = ?"
+            params.append(embedding_version)
 
-        with self._conn() as conn:
-            return conn.execute(sql, params).fetchone()[0]
+        try:
+            with self._read_conn() as conn:
+                return conn.execute(sql, params).fetchone()[0]
+        except sqlite3.OperationalError:
+            return 0
 
     def stats(self) -> dict[str, Any]:
         """Get index statistics."""
-        with self._conn() as conn:
-            total = conn.execute("SELECT COUNT(*) FROM coordinates").fetchone()[0]
+        try:
+            with self._read_conn() as conn:
+                total = conn.execute("SELECT COUNT(*) FROM coordinates").fetchone()[0]
 
-            # Get run_kind distribution
-            kind_rows = conn.execute(
-                "SELECT run_kind, COUNT(*) as cnt FROM coordinates GROUP BY run_kind"
-            ).fetchall()
-            by_kind = {row["run_kind"]: row["cnt"] for row in kind_rows}
+                # Get run_kind distribution
+                kind_rows = conn.execute(
+                    "SELECT run_kind, COUNT(*) as cnt FROM coordinates GROUP BY run_kind"
+                ).fetchall()
+                by_kind = {row["run_kind"]: row["cnt"] for row in kind_rows}
 
-            # Get provider distribution
-            provider_rows = conn.execute(
-                "SELECT provider, COUNT(*) as cnt FROM coordinates GROUP BY provider"
-            ).fetchall()
-            by_provider = {row["provider"]: row["cnt"] for row in provider_rows}
+                # Get provider distribution
+                provider_rows = conn.execute(
+                    "SELECT provider, COUNT(*) as cnt FROM coordinates GROUP BY provider"
+                ).fetchall()
+                by_provider = {row["provider"]: row["cnt"] for row in provider_rows}
 
-            # Get dimension info
-            dim_row = conn.execute(
-                "SELECT MIN(dimension), MAX(dimension) FROM coordinates"
-            ).fetchone()
+                # Get embedding version distribution
+                version_rows = conn.execute(
+                    "SELECT embedding_version, COUNT(*) as cnt FROM coordinates GROUP BY embedding_version"
+                ).fetchall()
+                by_version = {
+                    row["embedding_version"]: row["cnt"] for row in version_rows
+                }
 
+                # Get dimension info
+                dim_row = conn.execute(
+                    "SELECT MIN(dimension), MAX(dimension), GROUP_CONCAT(DISTINCT dimension) FROM coordinates"
+                ).fetchone()
+
+                return {
+                    "total": total,
+                    "by_run_kind": by_kind,
+                    "by_provider": by_provider,
+                    "by_embedding_version": by_version,
+                    "dimensions": dim_row[2].split(",") if dim_row[2] else [],
+                    "dimension_range": [dim_row[0], dim_row[1]]
+                    if dim_row[0] is not None
+                    else [],
+                    "schema_version": SCHEMA_VERSION,
+                    "current_embedding_version": EMBEDDING_VERSION,
+                }
+        except sqlite3.OperationalError:
             return {
-                "total": total,
-                "by_run_kind": by_kind,
-                "by_provider": by_provider,
-                "dimension_range": (
-                    [dim_row[0], dim_row[1]] if dim_row[0] is not None else None
-                ),
+                "total": 0,
+                "by_run_kind": {},
+                "by_provider": {},
+                "by_embedding_version": {},
+                "dimensions": [],
+                "dimension_range": [],
+                "schema_version": SCHEMA_VERSION,
+                "current_embedding_version": EMBEDDING_VERSION,
             }
 
     def vacuum(self) -> None:
@@ -515,10 +704,26 @@ class CoordinateIndex:
             conn.execute("VACUUM")
 
     def _row_to_embedding(self, row: sqlite3.Row) -> ExecutionEmbedding:
-        """Convert database row to ExecutionEmbedding."""
+        """Convert database row to ExecutionEmbedding.
+
+        BUG 17 FIX: Handle JSON parse errors with context.
+        """
+        run_id = row["run_id"]
+
+        try:
+            vector = json.loads(row["vector_json"])
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid vector JSON for run {run_id}: {e}")
+
+        try:
+            metadata = json.loads(row["metadata_json"]) if row["metadata_json"] else {}
+        except json.JSONDecodeError as e:
+            logger.warning(f"Invalid metadata JSON for run {run_id}, using empty: {e}")
+            metadata = {}
+
         return ExecutionEmbedding(
-            run_id=row["run_id"],
-            vector=json.loads(row["vector_json"]),
+            run_id=run_id,
+            vector=vector,
             input_text=row["input_text"] or "",
             output_text=row["output_text"] or "",
             config_text=row["config_text"] or "",
@@ -528,33 +733,59 @@ class CoordinateIndex:
             created_at=row["created_at"] or "",
             dimension=row["dimension"],
             source_path=row["source_path"],
-            metadata=json.loads(row["metadata_json"]) if row["metadata_json"] else {},
+            metadata=metadata,
+            embedding_version=row["embedding_version"]
+            if "embedding_version" in row.keys()
+            else 1,
         )
 
 
 def parse_since(since_str: str) -> datetime:
     """Parse a 'since' string like '30d', '7d', '1h' into a datetime.
 
+    BUG 14 FIX: Raise ParseSinceError with helpful message on invalid input.
+
     Args:
-        since_str: Duration string (e.g., '30d', '7d', '24h', '1w')
+        since_str: Duration string (e.g., '30d', '7d', '24h', '1w', '30m')
+                  or ISO 8601 date string
 
     Returns:
         Datetime that many units ago from now
+
+    Raises:
+        ParseSinceError: If the string cannot be parsed
     """
     since_str = since_str.strip().lower()
 
-    if since_str.endswith("d"):
-        days = int(since_str[:-1])
-        return datetime.now(timezone.utc) - timedelta(days=days)
-    elif since_str.endswith("h"):
-        hours = int(since_str[:-1])
-        return datetime.now(timezone.utc) - timedelta(hours=hours)
-    elif since_str.endswith("w"):
-        weeks = int(since_str[:-1])
-        return datetime.now(timezone.utc) - timedelta(weeks=weeks)
-    elif since_str.endswith("m"):
-        minutes = int(since_str[:-1])
-        return datetime.now(timezone.utc) - timedelta(minutes=minutes)
-    else:
-        # Try parsing as ISO date
-        return datetime.fromisoformat(since_str)
+    if not since_str:
+        raise ParseSinceError("Empty since string")
+
+    try:
+        if since_str.endswith("d"):
+            days = int(since_str[:-1])
+            return datetime.now(timezone.utc) - timedelta(days=days)
+        elif since_str.endswith("h"):
+            hours = int(since_str[:-1])
+            return datetime.now(timezone.utc) - timedelta(hours=hours)
+        elif since_str.endswith("w"):
+            weeks = int(since_str[:-1])
+            return datetime.now(timezone.utc) - timedelta(weeks=weeks)
+        elif since_str.endswith("m"):
+            minutes = int(since_str[:-1])
+            return datetime.now(timezone.utc) - timedelta(minutes=minutes)
+        else:
+            # Try parsing as ISO date
+            try:
+                dt = datetime.fromisoformat(since_str)
+                # Ensure timezone-aware
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+            except ValueError:
+                raise ParseSinceError(
+                    f"Invalid since string '{since_str}'. "
+                    f"Expected format: NNd, NNh, NNw, NNm (e.g., '30d', '24h') "
+                    f"or ISO 8601 date (e.g., '2024-01-15', '2024-01-15T10:00:00Z')"
+                )
+    except (ValueError, TypeError) as e:
+        raise ParseSinceError(f"Invalid since string '{since_str}': {e}")
