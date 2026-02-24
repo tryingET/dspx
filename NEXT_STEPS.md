@@ -27,7 +27,7 @@ This document guides evolution of the DSPx system—its codebase, its upstream d
 
 **Quality gates:**
 - ✅ `just fmt lint typecheck test` all pass
-- ✅ 296 tests passing
+- ✅ 354 tests passing
 - ✅ Documentation updated
 
 **Files:**
@@ -115,6 +115,13 @@ dspx oracle attractors --health
 - [x] Frontier detection identifies unexplored inputs
 - [x] Attractor analysis finds naturally stable behaviors
 - [x] Danger zone detection warns of risky regions
+- [x] Security hardened: AST-based expression evaluation (no eval())
+- [x] Correctness: single embeddings return "insufficient data" not "stable"
+- [x] PII patterns refined: UUID not flagged, API keys require prefix
+
+**Known limitations:**
+- Coverage estimates are heuristics (documented in output)
+- Requires embedding backend for full functionality
 
 #### Phase C: Time Travel (NEXT)
 
@@ -210,7 +217,7 @@ For each wave, review from:
 1. **Monorepo boundary** — Core never imports apps
 2. **Receipt determinism** — Same input → same receipt hash
 3. **Replay fidelity** — Receipt enables exact reproduction
-4. **Test green** — All 296+ tests pass
+4. **Test green** — All 354+ tests pass
 
 ### What's Merely Assumed (Prisoners)
 
@@ -228,7 +235,7 @@ For each wave, review from:
 ## Residual Limitations
 
 1. **Template adapter upstream** — Blocked on fixes we don't control
-2. **Oracle Phase B** — Requires more execution data for territory mapping
+2. **Oracle Phase B** — Requires embedding backend for full functionality; coverage estimates are heuristic
 3. **Upstream PRs** — Timeline depends on external maintainers
 
 ---
@@ -282,6 +289,28 @@ Each Oracle phase makes the next easier:
 ---
 
 ## Knowledge Crystallized
+
+### From Phase B Deep Review (Security & Correctness)
+
+**Security patterns:**
+- Never use `eval()` for user expressions — AST-based validation required
+- Block dunder attribute access (`__class__`, `__bases__`) in expression evaluators
+- Whitelist allowed AST node types, reject everything else
+
+**Correctness patterns:**
+- Single data points are "insufficient data" (-1.0), not "stable" (1.0)
+- Heuristic metrics should be explicitly documented as such
+- Serialization truncation must be tracked (don't silently lose data)
+
+**PII detection heuristics:**
+- UUID is NOT PII — it's an anonymized identifier
+- API key patterns need prefix matching to avoid false positives
+- International phone formats have high false positive rates (use WARNING, not ERROR)
+
+**Anti-patterns:**
+- Returning "stable" for single embeddings (false confidence)
+- Flagging UUID as PII (noise drowns out real issues)
+- Undocumented heuristic metrics (users trust them too much)
 
 ### From CLI Refactoring
 
