@@ -73,11 +73,18 @@ class Region:
 
 @dataclass
 class TerritoryMap:
-    """Complete map of behavioral territory."""
+    """Complete map of behavioral territory.
+
+    Note: The 'coverage' field is a heuristic estimate based on cluster distribution
+    and embedding density. It is NOT a mathematically rigorous coverage measure.
+    In high-dimensional spaces, true coverage estimation requires more sophisticated
+    techniques (e.g., hyperloglog-style cardinality estimation or density-based methods).
+    Treat 'coverage' as a relative indicator for comparing states, not an absolute measure.
+    """
 
     regions: list[Region]
     total_embeddings: int
-    coverage: float  # Fraction of space mapped
+    coverage: float  # Heuristic estimate of fraction of space mapped (see note above)
     dimension: int
     stable_ratio: float  # Fraction of regions that are stable
     unstable_ratio: float
@@ -88,6 +95,7 @@ class TerritoryMap:
             "total_regions": len(self.regions),
             "total_embeddings": self.total_embeddings,
             "coverage": round(self.coverage, 4),
+            "coverage_note": "heuristic estimate based on cluster distribution",
             "dimension": self.dimension,
             "stable_ratio": round(self.stable_ratio, 4),
             "unstable_ratio": round(self.unstable_ratio, 4),

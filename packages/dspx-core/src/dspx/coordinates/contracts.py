@@ -10,6 +10,7 @@ They enable verification of behavioral properties like:
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import re
@@ -149,33 +150,52 @@ class Contract:
 def validate_no_pii(embedding: "ExecutionEmbedding") -> ContractResult:
     """Check for potential PII in output.
 
-    Detects common patterns like emails, phone numbers, SSNs, API keys.
+    Detects common patterns like emails, phone numbers, SSNs, credit cards.
+    Note: UUIDs are NOT flagged as PII (they are anonymized identifiers).
+    API keys are flagged as WARNING (not ERROR) due to high false positive rate.
     """
     import time
 
     start = time.perf_counter()
 
+    # Patterns with severity levels
+    # NOTE: UUID is intentionally NOT included - it's an anonymized identifier, not PII
     patterns = {
-        "email": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
-        "phone_us": r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",
-        "phone_intl": r"\b\+?\d{1,4}[\s.-]?\d{1,14}\b",  # International format
-        "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
-        "credit_card": r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b",
-        "api_key": r"\b[A-Za-z0-9]{32,}\b",  # Common API key patterns
-        "uuid": r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b",
+        # High-confidence PII patterns (ERROR severity)
+        "email": (
+            r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
+            ContractSeverity.ERROR,
+        ),
+        "phone_us": (r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b", ContractSeverity.ERROR),
+        "phone_intl": (
+            r"\b\+?\d{1,4}[\s.-]?\d{1,14}\b",  # International format
+            ContractSeverity.WARNING,  # Higher false positive rate
+        ),
+        "ssn": (r"\b\d{3}-\d{2}-\d{4}\b", ContractSeverity.ERROR),
+        "credit_card": (
+            r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b",
+            ContractSeverity.ERROR,
+        ),
+        # Lower-confidence patterns (WARNING severity - may be false positives)
+        # API keys often match hash digests, base64 content, etc.
+        # Only flag keys with known prefixes (sk-, api-, token-, secret-)
+        "potential_api_key": (
+            r"\b(?:sk-[a-zA-Z0-9_-]*|api-[a-zA-Z0-9_-]*|key-[a-zA-Z0-9_-]*|token-[a-zA-Z0-9_-]*|secret-[a-zA-Z0-9_-]{8,})\b",
+            ContractSeverity.WARNING,
+        ),
     }
 
     violations = []
     output_text = embedding.output_text or ""
 
-    for pattern_name, pattern in patterns.items():
+    for pattern_name, (pattern, severity) in patterns.items():
         matches = re.findall(pattern, output_text)
         if matches:
             violations.append(
                 ContractViolation(
                     contract_name="no-pii",
                     run_id=embedding.run_id,
-                    severity=ContractSeverity.ERROR,
+                    severity=severity,
                     message=f"Potential PII detected: {pattern_name}",
                     details={
                         "pattern_type": pattern_name,
@@ -188,11 +208,18 @@ def validate_no_pii(embedding: "ExecutionEmbedding") -> ContractResult:
     elapsed = (time.perf_counter() - start) * 1000
 
     if violations:
+        # Only FAIL if there are ERROR-level violations
+        has_error = any(v.severity == ContractSeverity.ERROR for v in violations)
+        status = ContractStatus.FAIL if has_error else ContractStatus.PASS
+        message = f"Found {len(violations)} potential PII patterns"
+        if not has_error:
+            message += " (all low-confidence matches)"
+
         return ContractResult(
             contract_name="no-pii",
             run_id=embedding.run_id,
-            status=ContractStatus.FAIL,
-            message=f"Found {len(violations)} PII violations",
+            status=status,
+            message=message,
             violations=violations,
             evaluation_time_ms=elapsed,
         )
@@ -683,31 +710,64 @@ class ContractRegistry:
 def _evaluate_python_expr_contract(
     contract: Contract, embedding: "ExecutionEmbedding"
 ) -> ContractResult:
-    """Evaluate a Python expression contract.
+    """Evaluate a Python expression contract safely.
 
     The expression can reference: embedding, input_text, output_text.
     Should return True/False or raise an exception.
+
+    Uses AST-based evaluation to prevent code injection attacks.
+    Only simple expressions (comparisons, arithmetic, attribute access, calls)
+    are allowed - no imports, function definitions, or arbitrary code execution.
     """
+    import ast
     import time
 
     start = time.perf_counter()
 
     expr = contract.validator_config.get("expression", "True")
 
+    # Define safe namespace with only data access (no functions that could be abused)
+    safe_namespace = {
+        "embedding": embedding,
+        "input_text": embedding.input_text,
+        "output_text": embedding.output_text,
+        "run_id": embedding.run_id,
+        "provider": embedding.provider,
+        "run_kind": embedding.run_kind,
+        "len": len,
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
+        "list": list,
+        "dict": dict,
+        "set": set,
+        "tuple": tuple,
+        # Safe operators
+        "min": min,
+        "max": max,
+        "abs": abs,
+        "sum": sum,
+        "any": any,
+        "all": all,
+        "sorted": sorted,
+        "reversed": reversed,
+        "enumerate": enumerate,
+        "zip": zip,
+        "range": range,
+    }
+
     try:
-        # Safe-ish evaluation with limited namespace
-        result = eval(
-            expr,
-            {"__builtins__": {}},
-            {
-                "embedding": embedding,
-                "input_text": embedding.input_text,
-                "output_text": embedding.output_text,
-                "run_id": embedding.run_id,
-                "provider": embedding.provider,
-                "run_kind": embedding.run_kind,
-            },
-        )
+        # Parse expression to AST first
+        tree = ast.parse(expr, mode="eval")
+
+        # Validate that only safe nodes are present
+        _validate_safe_ast(tree)
+
+        # Compile and evaluate with restricted globals
+        code = compile(tree, "<contract>", "eval")
+        result = eval(code, {"__builtins__": {}}, safe_namespace)
+
         elapsed = (time.perf_counter() - start) * 1000
 
         if result:
@@ -726,6 +786,25 @@ def _evaluate_python_expr_contract(
                 message="Expression evaluated to False",
                 evaluation_time_ms=elapsed,
             )
+    except SyntaxError as e:
+        elapsed = (time.perf_counter() - start) * 1000
+        return ContractResult(
+            contract_name=contract.name,
+            run_id=embedding.run_id,
+            status=ContractStatus.ERROR,
+            message=f"Expression syntax error: {e}",
+            evaluation_time_ms=elapsed,
+        )
+    except ValueError as e:
+        # Raised by _validate_safe_ast for unsafe expressions
+        elapsed = (time.perf_counter() - start) * 1000
+        return ContractResult(
+            contract_name=contract.name,
+            run_id=embedding.run_id,
+            status=ContractStatus.ERROR,
+            message=f"Unsafe expression: {e}",
+            evaluation_time_ms=elapsed,
+        )
     except Exception as e:
         elapsed = (time.perf_counter() - start) * 1000
         return ContractResult(
@@ -735,6 +814,115 @@ def _evaluate_python_expr_contract(
             message=f"Expression evaluation error: {e}",
             evaluation_time_ms=elapsed,
         )
+
+
+# Allowed AST node types for safe expression evaluation
+# Note: ast.Num, ast.Str, ast.Bytes, ast.NameConstant, ast.Ellipsis were
+# deprecated in Python 3.8+ and replaced by ast.Constant. Removed for Python 3.13+.
+# ast.Index was deprecated in Python 3.9 and removed - subscripts use the value directly.
+_SAFE_AST_NODES = frozenset(
+    [
+        # Literals and expressions
+        ast.Expression,
+        ast.Constant,
+        # Names and attributes
+        ast.Name,
+        ast.Attribute,
+        ast.Load,  # Context for reading variables
+        ast.Store,  # Context for storing (in comprehensions)
+        ast.Subscript,
+        ast.Slice,
+        # Containers
+        ast.List,
+        ast.Tuple,
+        ast.Set,
+        ast.Dict,
+        # Operators (comparisons, arithmetic, boolean)
+        ast.UnaryOp,
+        ast.UAdd,
+        ast.USub,
+        ast.Not,
+        ast.Invert,
+        ast.BinOp,
+        ast.Add,
+        ast.Sub,
+        ast.Mult,
+        ast.Div,
+        ast.FloorDiv,
+        ast.Mod,
+        ast.Pow,
+        ast.LShift,
+        ast.RShift,
+        ast.BitOr,
+        ast.BitXor,
+        ast.BitAnd,
+        ast.MatMult,
+        ast.BoolOp,
+        ast.And,
+        ast.Or,
+        ast.Compare,
+        ast.Eq,
+        ast.NotEq,
+        ast.Lt,
+        ast.LtE,
+        ast.Gt,
+        ast.GtE,
+        ast.Is,
+        ast.IsNot,
+        ast.In,
+        ast.NotIn,
+        # If expression
+        ast.IfExp,
+        # Function calls (to allowed functions in namespace)
+        ast.Call,
+        ast.keyword,
+        # Comprehensions (limited)
+        ast.GeneratorExp,
+        ast.ListComp,
+        ast.SetComp,
+        ast.DictComp,
+        ast.comprehension,
+    ]
+)
+
+
+def _validate_safe_ast(tree: ast.AST) -> None:
+    """Validate that AST contains only safe node types.
+
+    Raises ValueError if unsafe nodes (imports, function defs, etc.) are found.
+    Also blocks access to dunder attributes (__class__, __bases__, etc.) for security.
+    """
+    for node in ast.walk(tree):
+        if type(node) not in _SAFE_AST_NODES:
+            # Provide helpful error message about what's not allowed
+            node_name = type(node).__name__
+            unsafe_patterns = {
+                "Import": "import statements",
+                "ImportFrom": "from...import statements",
+                "FunctionDef": "function definitions",
+                "AsyncFunctionDef": "async function definitions",
+                "ClassDef": "class definitions",
+                "Lambda": "lambda expressions",
+                "Yield": "yield expressions",
+                "YieldFrom": "yield from expressions",
+                "Await": "await expressions",
+                "Global": "global statements",
+                "Nonlocal": "nonlocal statements",
+                "Exec": "exec statements",
+                "Delete": "del statements",
+                "Assign": "assignment statements",
+                "AugAssign": "augmented assignment (+=, etc.)",
+                "AnnAssign": "annotated assignment",
+            }
+            reason = unsafe_patterns.get(node_name, f"{node_name} nodes")
+            raise ValueError(f"Expression contains forbidden {reason}")
+
+        # Block dunder attribute access for security (e.g., __class__, __bases__)
+        if isinstance(node, ast.Attribute):
+            if node.attr.startswith("__") and node.attr.endswith("__"):
+                raise ValueError(
+                    f"Access to dunder attributes ({node.attr}) is not allowed"
+                )
 
 
 def _count_by_severity(violations: list[ContractViolation]) -> dict[str, int]:

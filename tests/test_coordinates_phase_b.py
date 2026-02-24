@@ -26,6 +26,7 @@ from dspx.coordinates import (
     validate_output_format,
     validate_response_quality,
     create_default_contracts,
+    evaluate_contract,
     # Frontiers
     Frontier,
     FrontierReport,
@@ -320,6 +321,43 @@ class TestContracts:
         result = validate_no_pii(emb)
         assert result.status == ContractStatus.FAIL
 
+    def test_validate_no_pii_api_key_with_prefix(self, engine: EmbeddingEngine) -> None:
+        """API keys with common prefixes should be flagged as WARNING."""
+        emb = engine.embed_execution(
+            run_id="with-api-key",
+            input_text="get config",
+            output_text="Your key is sk-proj-abc123def456ghi789jkl",
+            run_kind="test",
+            provider="test",
+        )
+
+        result = validate_no_pii(emb)
+        # API keys are WARNING, not ERROR, so status is PASS (only ERROR causes FAIL)
+        assert result.status == ContractStatus.PASS
+        # But violations should still be recorded
+        assert len(result.violations) > 0
+        assert result.violations[0].severity == ContractSeverity.WARNING
+
+    def test_validate_no_pii_no_false_positive_hashes(
+        self, engine: EmbeddingEngine
+    ) -> None:
+        """Hash-like strings without prefixes should NOT be flagged.
+
+        Previously, any 32+ char alphanumeric string was flagged as API key,
+        causing false positives for base64 content, hash digests, etc.
+        """
+        emb = engine.embed_execution(
+            run_id="with-hash",
+            input_text="get hash",
+            output_text="SHA256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            run_kind="test",
+            provider="test",
+        )
+
+        result = validate_no_pii(emb)
+        # Should pass - hash without prefix is not suspicious
+        assert result.status == ContractStatus.PASS
+
     def test_validate_output_format_json_valid(self, engine: EmbeddingEngine) -> None:
         """JSON format validation passes for valid JSON."""
         emb = engine.embed_execution(
@@ -456,6 +494,194 @@ class TestContractRegistryIntegration:
         # Check that we get results
         statuses = [r.status for r in results]
         assert ContractStatus.PASS in statuses or ContractStatus.SKIP in statuses
+
+
+class TestSafeExpressionEvaluation:
+    """Tests for safe Python expression contract evaluation.
+
+    These tests verify that the AST-based expression evaluator:
+    1. Evaluates safe expressions correctly
+    2. Rejects unsafe expressions (imports, function definitions, etc.)
+    3. Does not allow arbitrary code execution
+    """
+
+    @pytest.fixture
+    def engine(self) -> EmbeddingEngine:
+        return EmbeddingEngine(backend="mock", mock_dimension=32)
+
+    def test_safe_expression_equality(self, engine: EmbeddingEngine) -> None:
+        """Safe equality comparison should work."""
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="hello world",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-eq",
+            description="Test equality",
+            invariant="output_text == 'hello world'",
+            validator_type="python_expr",
+            validator_config={"expression": "output_text == 'hello world'"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.PASS
+
+    def test_safe_expression_length_check(self, engine: EmbeddingEngine) -> None:
+        """Safe length check should work."""
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="hello",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-len",
+            description="Test length",
+            invariant="len(output_text) > 0",
+            validator_type="python_expr",
+            validator_config={"expression": "len(output_text) > 0"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.PASS
+
+    def test_safe_expression_contains(self, engine: EmbeddingEngine) -> None:
+        """Safe string containment should work."""
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="hello world",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-contains",
+            description="Test contains",
+            invariant="'hello' in output_text",
+            validator_type="python_expr",
+            validator_config={"expression": "'hello' in output_text"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.PASS
+
+    def test_unsafe_expression_import(self, engine: EmbeddingEngine) -> None:
+        """Import statements should be rejected.
+
+        Note: __import__ is not in the safe namespace, so calling it
+        results in a NameError, which is correctly reported as an evaluation error.
+        The expression is safely rejected either way.
+        """
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="test",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-import",
+            description="Test import rejection",
+            invariant="Should fail",
+            validator_type="python_expr",
+            validator_config={"expression": "__import__('os').system('echo pwned')"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.ERROR
+        # Rejected either because __import__ is not defined or due to AST validation
+        assert "error" in result.message.lower()
+
+    def test_unsafe_expression_function_def(self, engine: EmbeddingEngine) -> None:
+        """Function definitions should be rejected."""
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="test",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-func",
+            description="Test function def rejection",
+            invariant="Should fail",
+            validator_type="python_expr",
+            validator_config={"expression": "lambda: 1"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.ERROR
+        assert (
+            "unsafe" in result.message.lower() or "forbidden" in result.message.lower()
+        )
+
+    def test_unsafe_expression_dunder_bypass(self, engine: EmbeddingEngine) -> None:
+        """Dunder-based code execution should be rejected.
+
+        This tests the classic Python sandbox escape via __class__.__bases__.
+        """
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="test",
+            run_kind="test",
+            provider="test",
+        )
+
+        # This is a common sandbox escape pattern
+        contract = Contract(
+            name="test-dunder",
+            description="Test dunder bypass rejection",
+            invariant="Should fail",
+            validator_type="python_expr",
+            validator_config={
+                "expression": "().__class__.__bases__[0].__subclasses__()"
+            },
+        )
+
+        # Should either reject (ERROR) or if allowed, not crash
+        result = evaluate_contract(contract, emb)
+        # The key is it shouldn't crash - it either rejects or handles safely
+        assert result.status in (ContractStatus.ERROR, ContractStatus.FAIL)
+
+    def test_unsafe_expression_assignment(self, engine: EmbeddingEngine) -> None:
+        """Assignment statements should be rejected.
+
+        Note: In Python, 'x = 1' is a statement, not an expression, so
+        ast.parse() in 'eval' mode will raise a SyntaxError. This is correct
+        behavior - assignments are rejected regardless of how they're caught.
+        """
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="test",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-assign",
+            description="Test assignment rejection",
+            invariant="Should fail",
+            validator_type="python_expr",
+            validator_config={"expression": "x = 1"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        # Assignment is a statement, not expression - SyntaxError is appropriate
+        assert result.status == ContractStatus.ERROR
+        assert (
+            "syntax" in result.message.lower() or "forbidden" in result.message.lower()
+        )
 
 
 # =============================================================================
@@ -693,10 +919,14 @@ class TestBugFixesPhaseB:
         return EmbeddingEngine(backend="mock", mock_dimension=32)
 
     # Bug #3, #4: stability score for single embedding and negative prevention
-    def test_stability_score_single_embedding_is_maximal(
+    def test_stability_score_single_embedding_is_insufficient_data(
         self, engine: EmbeddingEngine
     ) -> None:
-        """Single embedding should return 1.0 stability (trivially stable)."""
+        """Single embedding should return -1.0 (insufficient data for stability).
+
+        A single point cannot be "stable" - it's unknown whether the region
+        is stable or not. Using -1.0 distinguishes from actual low stability (0.0).
+        """
         emb = engine.embed_execution(
             run_id="single",
             input_text="test",
@@ -705,7 +935,7 @@ class TestBugFixesPhaseB:
             provider="test",
         )
         stability = compute_stability_score([emb])
-        assert stability == 1.0
+        assert stability == -1.0  # Insufficient data sentinel
 
     def test_stability_score_never_negative(self, engine: EmbeddingEngine) -> None:
         """Stability should never go negative even with high variance."""
@@ -815,7 +1045,12 @@ class TestBugFixesPhaseB:
 
     # Bug #23: PII detection patterns
     def test_pii_detects_international_phone(self, engine: EmbeddingEngine) -> None:
-        """PII detection should catch international phone formats."""
+        """PII detection should catch international phone formats.
+
+        Note: International phone patterns have higher false positive rates,
+        so they are flagged as WARNING (not ERROR). This means the contract
+        PASSes but violations are still recorded for review.
+        """
         emb = engine.embed_execution(
             run_id="intl-phone",
             input_text="get contact",
@@ -825,10 +1060,20 @@ class TestBugFixesPhaseB:
         )
 
         result = validate_no_pii(emb)
-        assert result.status == ContractStatus.FAIL
+        # International phone is WARNING severity, so status is PASS
+        # (only ERROR-level violations cause FAIL)
+        assert result.status == ContractStatus.PASS
+        # But violations should still be recorded
+        assert len(result.violations) > 0
+        assert result.violations[0].severity == ContractSeverity.WARNING
 
-    def test_pii_detects_uuid(self, engine: EmbeddingEngine) -> None:
-        """PII detection should catch UUIDs (often API keys)."""
+    def test_pii_does_not_flag_uuid(self, engine: EmbeddingEngine) -> None:
+        """PII detection should NOT flag UUIDs - they are anonymized identifiers.
+
+        UUIDs are intentionally designed to be non-identifying and are commonly
+        used in ML systems as run IDs, trace IDs, etc. Flagging them creates
+        noise and false positives.
+        """
         emb = engine.embed_execution(
             run_id="uuid-test",
             input_text="get id",
@@ -838,7 +1083,7 @@ class TestBugFixesPhaseB:
         )
 
         result = validate_no_pii(emb)
-        assert result.status == ContractStatus.FAIL
+        assert result.status == ContractStatus.PASS
 
     # Bug #26, #33, #34: serialization includes centroids/points
     def test_danger_zone_serialization_includes_centroid(

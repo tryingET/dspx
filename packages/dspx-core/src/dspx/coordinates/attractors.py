@@ -64,13 +64,18 @@ class Attractor:
 
 @dataclass
 class AttractorReport:
-    """Report of detected attractors."""
+    """Report of detected attractors.
+
+    Note: The 'coverage' field is an estimate of what fraction of embeddings
+    fall within attractor basins. Since basins may overlap, this may slightly
+    overestimate actual unique coverage. Treat as a relative indicator.
+    """
 
     attractors: list[Attractor]
     total_embeddings: int
     avg_stability: float
     strong_attractor_count: int  # Stability > 0.9
-    coverage: float  # Fraction of embeddings in attractor basins
+    coverage: float  # Estimated fraction of embeddings in attractor basins
     dimension: int
 
     def to_dict(self) -> dict[str, Any]:
@@ -80,6 +85,7 @@ class AttractorReport:
             "avg_stability": round(self.avg_stability, 4),
             "strong_attractor_count": self.strong_attractor_count,
             "coverage": round(self.coverage, 4),
+            "coverage_note": "estimate (basins may overlap)",
             "dimension": self.dimension,
             "attractors": [a.to_dict() for a in self.attractors],
         }
@@ -114,10 +120,13 @@ def compute_stability_score(
 
     Returns:
         Stability score in [0, 1], higher = more stable.
-        Returns 1.0 for single embedding (trivially stable by definition).
+        Returns -1.0 for single embedding (insufficient data for stability assessment).
+        Returns 0.0 for empty embedding list.
     """
     if len(embeddings) < 2:
-        return 1.0 if len(embeddings) == 1 else 0.0
+        # Single embedding cannot be "stable" - it's unknown/insufficient data
+        # Use -1.0 to distinguish from actual low stability
+        return -1.0 if len(embeddings) == 1 else 0.0
 
     # Compute internal variance
     centroid = compute_centroid(embeddings)
@@ -270,8 +279,9 @@ def find_attractors(
         stability = compute_stability_score(cluster_embeddings)
         convergence = compute_convergence_rate(cluster_embeddings)
 
-        # Skip low-stability clusters
-        if stability < min_stability:
+        # Skip insufficient data (stability < 0) or low-stability clusters
+        # Note: stability == -1.0 means insufficient data for assessment
+        if stability < 0 or stability < min_stability:
             continue
 
         # Compute basin radius (max distance from centroid)

@@ -95,23 +95,36 @@ class Frontier:
 
 @dataclass
 class FrontierReport:
-    """Report of all detected frontiers."""
+    """Report of all detected frontiers.
+
+    Note: The 'coverage_estimate' field is a heuristic based on average distance
+    between embeddings. In high-dimensional spaces, this is NOT a reliable measure
+    of actual coverage. Treat as a relative indicator for comparing states.
+    """
 
     frontiers: list[Frontier]
     total_embeddings: int
-    coverage_estimate: float  # 0-1, how much space is covered
+    coverage_estimate: float  # Heuristic estimate (0-1), see note above
     avg_distance_to_frontier: float
     high_priority_count: int
+    _original_frontier_count: int = 0  # Track original count for serialization fidelity
 
     def to_dict(self) -> dict[str, Any]:
+        # Serialize top 50 frontiers (increased from 20 for better fidelity)
+        # but always include original count for reconstruction awareness
+        max_serialize = 50
+        serialized_frontiers = self.frontiers[:max_serialize]
+        truncated = len(self.frontiers) > max_serialize
+
         return {
-            "total_frontiers": len(self.frontiers),
+            "total_frontiers": len(self.frontiers),  # Actual count
             "total_embeddings": self.total_embeddings,
             "coverage_estimate": round(self.coverage_estimate, 4),
             "avg_distance_to_frontier": round(self.avg_distance_to_frontier, 4),
             "high_priority_count": self.high_priority_count,
             "unexplored_count": len(self.get_unexplored()),
-            "frontiers": [f.to_dict() for f in self.frontiers[:20]],  # Top 20
+            "truncated": truncated,
+            "frontiers": [f.to_dict() for f in serialized_frontiers],
         }
 
     def get_unexplored(self) -> list[Frontier]:
@@ -155,16 +168,27 @@ class FrontierReport:
     def from_dict(cls, data: dict[str, Any]) -> "FrontierReport":
         """Reconstruct a FrontierReport from its dictionary representation.
 
-        Note: Only frontiers included in the serialized form (top 20) are restored.
-        Statistics are recalculated from the restored frontiers.
+        Note: If the original report was truncated, only the serialized frontiers
+        are restored. Check the 'truncated' field in the source data to detect this.
+        Statistics are preserved from the original serialization.
         """
         frontiers = [Frontier.from_dict(f) for f in data.get("frontiers", [])]
+
+        # Warn if data was truncated during serialization
+        original_count = data.get("total_frontiers", len(frontiers))
+        if data.get("truncated", False) or original_count > len(frontiers):
+            logger.warning(
+                f"FrontierReport.from_dict: Restoring {len(frontiers)} of "
+                f"{original_count} original frontiers. Statistics may be approximate."
+            )
+
         return cls(
             frontiers=frontiers,
             total_embeddings=data.get("total_embeddings", 0),
             coverage_estimate=data.get("coverage_estimate", 0.0),
             avg_distance_to_frontier=data.get("avg_distance_to_frontier", 0.0),
             high_priority_count=data.get("high_priority_count", 0),
+            _original_frontier_count=original_count,
         )
 
 
