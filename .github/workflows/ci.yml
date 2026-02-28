@@ -1,283 +1,97 @@
-name: CI
+name: ci
 
 on:
-  push:
-    branches: [ main, master ]
   pull_request:
-    branches: [ main, master ]
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "Lane to run"
+        required: true
+        type: choice
+        default: full
+        options:
+          - full
+          - deep
+
+permissions:
+  contents: read
 
 jobs:
-  workspace-smoke:
+  smoke:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.13'
+          node-version-file: .nvmrc
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Install just
-        run: sudo apt-get update && sudo apt-get install -y just
-
-      - name: Clean-clone smoke (workspace packaging)
-        run: just clean-clone-smoke
-
-  repo-hygiene:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Sync dependencies
-        run: uv sync
-
-      - name: Pre-commit (local hooks)
-        run: uvx pre-commit run --all-files --show-diff-on-failure
-
-      - name: Format check (ruff)
-        run: uvx ruff format --check packages/dspx-core/src apps/forge/src docs
-
-  core:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Install just
-        run: sudo apt-get update && sudo apt-get install -y just
-
-      - name: Sync dependencies
-        run: uv sync
-
-      - name: Boundary guardrail
-        run: just monorepo-check
-
-      - name: Lint core (ruff)
-        run: just lint-core
-
-      - name: Typecheck core (ty)
-        run: just typecheck-core
-
-      - name: Test core slice (pytest)
-        run: just test-core
-
-      - name: Load provider-corpus gate thresholds
+      - name: Ensure ripgrep is available
         run: |
-          uv run -q python - <<'PY' >> "$GITHUB_ENV"
-          from dspx.services.signature_quality_corpus import PROVIDER_CORPUS_GATE
-
-          print(f"DSPX_SIGNATURE_GATE_MAX_FALLBACK_RATE={PROVIDER_CORPUS_GATE.max_fallback_rate}")
-          print(f"DSPX_SIGNATURE_GATE_MAX_ATTEMPTS_P95={PROVIDER_CORPUS_GATE.max_attempts_p95}")
-          print(
-              f"DSPX_SIGNATURE_GATE_MIN_VALIDATION_PASS_RATE={PROVIDER_CORPUS_GATE.min_validation_pass_rate}"
-          )
-          print(f"DSPX_SIGNATURE_GATE_MIN_SMOKE_PASS_RATE={PROVIDER_CORPUS_GATE.min_smoke_pass_rate}")
-          PY
-
-      - name: Build provider-corpus signature quality log
-        run: |
-          set -euo pipefail
-          uv run -q python scripts/build_signature_provider_quality_log.py \
-            --cases tests/golden/signature_provider_cases.json \
-            --out generated/ci/signature_provider_quality.jsonl
-
-      - name: Signature quality gate report
-        id: signature_quality_gate
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          uv run --package dspx-core -q python -m dspx.cli.dspx signature quality-summary \
-            --log-path generated/ci/signature_provider_quality.jsonl \
-            --run-kind signature-gen \
-            --json \
-            --fail-on-gate \
-            --max-fallback-rate "${DSPX_SIGNATURE_GATE_MAX_FALLBACK_RATE}" \
-            --max-attempts-p95 "${DSPX_SIGNATURE_GATE_MAX_ATTEMPTS_P95}" \
-            --min-validation-pass-rate "${DSPX_SIGNATURE_GATE_MIN_VALIDATION_PASS_RATE}" \
-            --min-smoke-pass-rate "${DSPX_SIGNATURE_GATE_MIN_SMOKE_PASS_RATE}" \
-            > generated/ci/signature_quality_summary.json
-
-      - name: Upload signature quality artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: signature-quality-summary
-          path: |
-            generated/ci/signature_provider_quality.jsonl
-            generated/ci/signature_quality_summary.json
-          if-no-files-found: warn
-
-      - name: Signature quality summary (PR-facing)
-        if: always()
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          step_summary = os.getenv("GITHUB_STEP_SUMMARY")
-          if not step_summary:
-              raise SystemExit(0)
-
-          summary_path = Path("generated/ci/signature_quality_summary.json")
-          lines = ["### Signature quality gates (provider corpus)", ""]
-
-          if not summary_path.exists():
-              lines.append("- summary unavailable (no JSON emitted)")
-          else:
-              payload = {}
-              try:
-                  payload = json.loads(summary_path.read_text(encoding="utf-8"))
-              except Exception as exc:
-                  lines.append(f"- summary parse failed: `{exc}`")
-
-              summary = payload.get("summary") if isinstance(payload, dict) else {}
-              gates = payload.get("gates") if isinstance(payload, dict) else {}
-              summary = summary if isinstance(summary, dict) else {}
-              gates = gates if isinstance(gates, dict) else {}
-
-              providers = summary.get("providers")
-              if not isinstance(providers, list):
-                  providers = []
-
-              lines.extend(
-                  [
-                      f"- overall: **{'PASS' if gates.get('overall_pass') else 'FAIL'}**",
-                      f"- runs_total: `{int(summary.get('runs_total', 0))}`",
-                      f"- providers: `{', '.join(providers) if providers else '-'}`",
-                      "- artifact: `signature-quality-summary`",
-                      "",
-                      "| gate | value | threshold | status |",
-                      "| --- | ---: | ---: | :---: |",
-                  ]
-              )
-
-              checks = gates.get("checks")
-              if not isinstance(checks, dict):
-                  checks = {}
-
-              for key in (
-                  "fallback_rate",
-                  "attempts_p95",
-                  "validation_pass_rate",
-                  "smoke_pass_rate",
-              ):
-                  row = checks.get(key)
-                  if not isinstance(row, dict):
-                      continue
-                  value = float(row.get("value", 0.0))
-                  if "max" in row:
-                      threshold = f"≤ {float(row.get('max', 0.0)):.4f}"
-                  else:
-                      threshold = f"≥ {float(row.get('min', 0.0)):.4f}"
-                  status = "✅" if bool(row.get("pass")) else "❌"
-                  lines.append(f"| `{key}` | `{value:.4f}` | `{threshold}` | {status} |")
-
-              by_provider = summary.get("by_provider")
-              if isinstance(by_provider, dict) and by_provider:
-                  lines.extend(
-                      [
-                          "",
-                          "| provider | fallback_rate | attempts_p95 | validation_pass_rate | smoke_pass_rate |",
-                          "| --- | ---: | ---: | ---: | ---: |",
-                      ]
-                  )
-                  for provider in sorted(by_provider):
-                      row = by_provider[provider]
-                      if not isinstance(row, dict):
-                          continue
-                      lines.append(
-                          "| `{provider}` | `{fallback:.4f}` | `{attempts:.2f}` | `{validation:.4f}` | `{smoke:.4f}` |".format(
-                              provider=provider,
-                              fallback=float(row.get("fallback_rate", 0.0)),
-                              attempts=float(row.get("attempts_p95", 0.0)),
-                              validation=float(row.get("validation_pass_rate", 0.0)),
-                              smoke=float(row.get("smoke_pass_rate", 0.0)),
-                          )
-                      )
-
-          with Path(step_summary).open("a", encoding="utf-8") as handle:
-              handle.write("\n".join(lines) + "\n")
-          PY
-
-      - name: Enforce signature quality gate result
-        if: always()
-        run: |
-          if [ "${{ steps.signature_quality_gate.outcome }}" = "failure" ]; then
-            echo "signature quality gate failed"
-            exit 1
+          if ! command -v rg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ripgrep
           fi
 
-  forge:
+      - name: Run smoke lane
+        run: bash ./scripts/ci/smoke.sh
+
+  full:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.lane == 'full') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.13'
+          node-version-file: .nvmrc
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+      - name: Ensure ripgrep is available
+        run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ripgrep
+          fi
 
-      - name: Install just
-        run: sudo apt-get update && sudo apt-get install -y just
+      - name: Setup uv (if vendored ROCS CLI exists)
+        if: ${{ hashFiles('tools/rocs-cli/pyproject.toml') != '' }}
+        uses: astral-sh/setup-uv@v5
 
-      - name: Sync dependencies
-        run: uv sync
+      - name: Run full lane
+        run: bash ./scripts/ci/full.sh
 
-      - name: Lint forge (ruff)
-        run: just lint-forge
-
-      - name: Typecheck forge (ty)
-        run: just typecheck-forge
-
-      - name: Test forge slice (pytest)
-        run: just test-forge
-
-  forge-core-compat:
+  deep:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.lane == 'deep') }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        core-track: [latest, min]
-
     steps:
-      - name: Checkout (full history for tags)
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
+          node-version-file: .nvmrc
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+      - name: Ensure ripgrep is available
+        run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ripgrep
+          fi
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+      - name: Setup uv (if vendored ROCS CLI exists)
+        if: ${{ hashFiles('tools/rocs-cli/pyproject.toml') != '' }}
+        uses: astral-sh/setup-uv@v5
 
-      - name: Forge/core wheel compat (${{ matrix.core-track }})
-        run: bash scripts/forge_core_compat_smoke.sh ${{ matrix.core-track }}
+      - name: Run deep lane
+        run: bash ./scripts/ci/full.sh --deep

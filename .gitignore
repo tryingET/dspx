@@ -26,3 +26,9 @@ mlruns/
 .env
 *.tmp
 *.backup
+
+# FCOS/ROCS generated artifacts (from ai-society template)
+ontology/dist/
+tools/rocs-cli/build/
+tools/rocs-cli/dist/
+tools/rocs-cli/src/*.egg-info/

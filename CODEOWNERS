@@ -1,0 +1,19 @@
+# Core + org context snapshots
+docs/_core/** @lightningralf
+docs/org_context/** @lightningralf
+
+# Owned repo delivery + governance
+docs/owned/** @lightningralf
+docs/system4d/** @lightningralf
+docs/decisions/** @lightningralf
+docs/dev/** @lightningralf
+policy/** @lightningralf
+
+# Code
+scripts/** @lightningralf
+src/** @lightningralf
+tests/** @lightningralf
+
+# FCOS/ROCS baseline
+ontology/** @lightningralf
+tools/** @lightningralf
