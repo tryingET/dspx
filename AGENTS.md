@@ -1,66 +1,78 @@
-# AGENTS.md (repo-local guidance)
+# AGENTS.md — dspx
 
-Scope: this file is repo-local truth for coding agents in `dspx`.
+## Intent
+Provide behavioral intelligence for DSPy programs through Oracle analysis and receipt-based replay.
 
-## TL;DR
-- stack: Python 3.13 + `uv` + `just`
-- quality gates: `ruff` + `ty` + `pytest`
-- default posture: offline/deterministic tests, policy-safe network behavior
-- keep docs in sync with behavior
+## Guardrails
+- No secrets in git.
+- Never push to `main`; MRs only.
+- Keep `docs/_core/**` as immutable reference.
+- Run `./scripts/install-hooks.sh` after cloning.
 
-## Read-first map (pick by task)
-- product/roadmap: `docs/VISION.md`, `PROJECT_STATUS.md`, `NEXT_STEPS.md`
-- architecture seams: `docs/ARCHITECTURE.md`
-- forge work (`just forge ...` / `dspx-forge ...`): `docs/FORGE.md`
-- OpenAPI tools: `docs/OPENAPI_TOOLING.md`
-- server/auth/rate-limit/metrics: `docs/SERVER.md`
-- tracing/MLflow behavior: `docs/MLFLOW_OBSERVABILITY_PLAN.md`
-- tooling defaults: `docs/tech-stack.local.md`
-- user-facing CLI/docs examples: `README.md`
+## Read Order
+1. `docs/system4d/compass.md` — Direction
+2. `docs/ARCHITECTURE.md` — System design
+3. `docs/VISION.md` — Product vision
+4. `docs/learnings/` — Crystallized patterns
+5. `NEXT_STEPS.md` — Active work + roadmap
 
-## Repo shape
-- core CLI entrypoints: `packages/dspx-core/src/dspx/cli/`
-- forge CLI entrypoints: `apps/forge/src/dspx_forge/`
-- core service layer: `packages/dspx-core/src/dspx/services/`
-- forge pipeline: `apps/forge/src/dspx_forge/`
-- core providers: `packages/dspx-core/src/dspx/*_lm.py`, `packages/dspx-core/src/dspx/providers*`
-- core tools/openapi: `packages/dspx-core/src/dspx/tools/`
-- core server: `packages/dspx-core/src/dspx/server/`
-- core contracts: `packages/dspx-core/src/dspx/dtos.py`
-- core policy/redaction: `packages/dspx-core/src/dspx/policy.py`, `packages/dspx-core/src/dspx/redaction.py`
+## Stack
+- Python 3.13 + uv + just
+- Quality gates: ruff + ty + pytest
+- 358+ tests must pass
 
-## Standard commands
-- install: `just install`
-- format: `just fmt`
-- lint: `just lint`
-- typecheck: `just typecheck`
-- test: `just test`
-- run core CLI from source: `just dspx ...`
-- run forge CLI from source: `just forge ...`
+## Commands
+```bash
+just install          # Setup
+just fmt lint typecheck test  # Quality gates
+just dspx ...         # Run CLI
+just forge ...        # Run Forge pipeline
+```
 
-## Context/retrieval discipline
-- prefer CLI indexing/search before broad file reads
-- cm quick help (reduced): `cm stats .` → `cm map . --level 2 --format ai` → `cm query <symbol> --format ai` → `cm inspect <file> --format ai` → `cm callers|callees <symbol> --format ai` / `cm trace <from> <to> --format ai`
-- cm full help when needed: `cm -h`; command help: `cm <command> -h`
-- qmd help: `qmd -h` (same as `qmd --help`; no `qmd help` command)
-- knowledge/docs search first: `qmd search|vsearch|query <query>`, then `qmd get <path|#docid>`
-- pull minimal top-k snippets; read full files only when needed for exact edits
+## Shared Tooling (ai-society)
+```bash
+# Docs discovery
+node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --task "<task>" --top 8
 
-## Delivery checklist (default)
-1) implement a scoped change with meaningful impact
-2) add/adjust tests near changed behavior
-3) run: `just fmt && just lint && just typecheck && just test`
-4) update docs when behavior/flags/contracts changed
+# Tech stack
+uv tool run --from ~/ai-society/core/tech-stack-core tech-stack-core show py
 
-## Safety + policy constraints
-- never leak secrets/tokens in code, logs, fixtures, docs
-- respect policy gates for providers/tools/network mutation
-- prefer dry-run first for mutating tool flows
-- keep Forge issue updates bounded to managed blocks; preserve human edits
+# Cognitive triggers
+~/steve/prompts/triggers/nexus.md
+~/steve/prompts/triggers/inversion.md
+~/steve/prompts/triggers/audit.md
+```
 
-## Docs sync rules
-When behavior changes, update at least:
-- `README.md` (user-facing command/flag changes)
-- `PROJECT_STATUS.md` (current state/progress)
-- `NEXT_STEPS.md` (remaining work)
-- domain doc (`docs/FORGE.md`, `docs/OPENAPI_TOOLING.md`, `docs/SERVER.md`, etc.)
+## Oracle Quick Reference
+```bash
+dspx oracle index --from-receipts     # Populate
+dspx oracle search "<query>"          # Find similar
+dspx oracle territory                 # Map regions
+dspx oracle contract verify           # Check invariants
+dspx oracle attractors --health       # Health report
+```
+
+## Cognitive Tools (apply proactively)
+
+| Trigger | When to Use |
+|---------|-------------|
+| `nexus` | Finding highest-leverage intervention |
+| `inversion` | Before solving any problem (shadow analysis) |
+| `audit` | Code quality (bugs/debt/smells/gaps) |
+| `blast-radius` | Before making changes |
+| `escape-hatch` | Before implementing risky changes |
+
+Invoke: "Read `~/steve/prompts/triggers/nexus.md`, apply to [context]"
+
+## KES Integration
+
+DSPx bridges two crystallization systems:
+
+| Oracle (Behavioral) | KES (Process) |
+|---------------------|---------------|
+| Runs → embeddings → topology | Sessions → patterns → TIPs |
+| Attractors ≈ Patterns | Drift ≈ Anti-patterns |
+| Causal chains ≈ Propagation | |
+
+- **Diary**: `~/ai-society/AGENTS.md` (workspace-level)
+- **Learnings**: `docs/learnings/` (this repo)
