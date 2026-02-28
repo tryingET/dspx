@@ -46,12 +46,15 @@ def test_run_receipt_roundtrip(tmp_path: Path) -> None:
     loaded = load_run_receipt(meta_path)
 
     assert loaded is not None
-    assert loaded["receipt_version"] == "v1"
+    assert loaded["receipt_version"] == "v2"  # Bumped for Phase C+ fields
     assert loaded["run_kind"] == "unit-test"
     assert loaded["hash"] == "abc123"
     assert loaded["cache_key"] == "k1"
     assert loaded["label"] == "demo"
     assert loaded["replay_inputs"]["x"] == 1
+    # Phase C+: execution_context is captured by default
+    assert "execution_context" in loaded
+    assert "python_version" in loaded["execution_context"]
 
 
 def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
@@ -73,12 +76,14 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     )
     assert r_sig.exit_code == 0
     sig_meta = json.loads((tmp_path / "sig.py.meta.json").read_text(encoding="utf-8"))
-    assert sig_meta["receipt_version"] == "v1"
+    assert sig_meta["receipt_version"] == "v2"  # Bumped for Phase C+ fields
     assert sig_meta["run_kind"] == "signature-gen"
     assert sig_meta["output_path"] == str(sig_out)
     assert isinstance(sig_meta.get("replay_inputs"), dict)
     assert isinstance(sig_meta.get("mlflow_hints"), dict)
     assert sig_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "signature-gen"
+    # Phase C+: execution context captured by default
+    assert "execution_context" in sig_meta
 
     mod_out = tmp_path / "mod.py"
     r_mod = runner.invoke(
@@ -101,7 +106,7 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     )
     assert r_mod.exit_code == 0
     mod_meta = json.loads((tmp_path / "mod.py.meta.json").read_text(encoding="utf-8"))
-    assert mod_meta["receipt_version"] == "v1"
+    assert mod_meta["receipt_version"] == "v2"
     assert mod_meta["run_kind"] == "module-gen"
     assert isinstance(mod_meta.get("mlflow_hints"), dict)
     assert mod_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "module-gen"
@@ -122,7 +127,7 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     )
     assert r_gen.exit_code == 0
     gen_meta = json.loads((tmp_path / "gen.py.meta.json").read_text(encoding="utf-8"))
-    assert gen_meta["receipt_version"] == "v1"
+    assert gen_meta["receipt_version"] == "v2"
     assert gen_meta["run_kind"] == "codegen"
     assert isinstance(gen_meta.get("mlflow_hints"), dict)
     assert gen_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "codegen"
@@ -144,7 +149,7 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     refine_meta = json.loads(
         (tmp_path / "refined.py.meta.json").read_text(encoding="utf-8")
     )
-    assert refine_meta["receipt_version"] == "v1"
+    assert refine_meta["receipt_version"] == "v2"
     assert refine_meta["run_kind"] == "signature-refine"
     assert isinstance(refine_meta.get("mlflow_hints"), dict)
     assert (
@@ -809,3 +814,141 @@ def test_run_explain_invalid_receipt_exit_code(tmp_path: Path) -> None:
         d.get("code") == "receipt_missing_required_field"
         for d in payload["replay_error_details"]
     )
+
+
+# =============================================================================
+# Phase C+ Tests (Time Travel / Dreaming / Consciousness)
+# =============================================================================
+
+
+def test_run_receipt_phase_c_causal_chain(tmp_path: Path) -> None:
+    """Test causal chain for Time Travel behavioral lineage."""
+    from dspx.run_receipts import build_causal_chain, extend_causal_chain
+
+    out = tmp_path / "artifact.py"
+    out.write_text("print('ok')\n", encoding="utf-8")
+
+    # Build receipt with causal chain
+    receipt = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        causal_chain=["sig-run-001", "refine-run-002"],
+        parent_run_id="sig-run-001",
+        branch="feature-x",
+    )
+
+    assert receipt["causal_chain"] == ["sig-run-001", "refine-run-002"]
+    assert receipt["parent_run_id"] == "sig-run-001"
+    assert receipt["branch"] == "feature-x"
+
+    # Test helper functions
+    chain = build_causal_chain("a", "b", "a", "c")  # dedup
+    assert chain == ["a", "b", "c"]
+
+    extended = extend_causal_chain(["x", "y"], "z")
+    assert extended == ["x", "y", "z"]
+
+    # Test max depth
+    long_chain = extend_causal_chain(list("abcdefghijklmnopqrstuvwxyz"), "new", max_depth=10)
+    assert len(long_chain) == 10
+    assert long_chain[-1] == "new"
+
+
+def test_run_receipt_phase_c_dreaming_fields(tmp_path: Path) -> None:
+    """Test outcome/latency/tokens fields for Dreaming simulation."""
+    out = tmp_path / "artifact.py"
+    out.write_text("print('ok')\n", encoding="utf-8")
+
+    receipt = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        outcome="success",
+        latency_ms=1234.5,
+        tokens_used=1500,
+        tokens_prompt=1000,
+        tokens_completion=500,
+    )
+
+    assert receipt["outcome"] == "success"
+    assert receipt["latency_ms"] == 1234.5
+    assert receipt["tokens_used"] == 1500
+    assert receipt["tokens_prompt"] == 1000
+    assert receipt["tokens_completion"] == 500
+
+
+def test_run_receipt_phase_c_execution_context(tmp_path: Path) -> None:
+    """Test execution context capture for Consciousness."""
+    out = tmp_path / "artifact.py"
+    out.write_text("print('ok')\n", encoding="utf-8")
+
+    # With context capture (default)
+    receipt = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        capture_context=True,
+    )
+
+    assert "execution_context" in receipt
+    ctx = receipt["execution_context"]
+    assert "python_version" in ctx
+    assert "platform" in ctx
+    # git_commit may or may not be present depending on environment
+
+    # Without context capture
+    receipt_no_ctx = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        capture_context=False,
+    )
+
+    assert "execution_context" not in receipt_no_ctx
+
+
+def test_run_receipt_phase_c_defaults_omit_empty_fields(tmp_path: Path) -> None:
+    """Test that default/empty Phase C+ fields are omitted from receipt."""
+    out = tmp_path / "artifact.py"
+    out.write_text("print('ok')\n", encoding="utf-8")
+
+    receipt = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        # All Phase C+ fields left as defaults
+    )
+
+    # These should NOT be in the receipt when using defaults
+    assert "causal_chain" not in receipt
+    assert "parent_run_id" not in receipt
+    assert "branch" not in receipt
+    assert "outcome" not in receipt  # "unknown" is default, omitted
+    assert "latency_ms" not in receipt
+    assert "tokens_used" not in receipt
+    assert "tokens_prompt" not in receipt
+    assert "tokens_completion" not in receipt
+
+    # But execution_context IS captured by default
+    assert "execution_context" in receipt

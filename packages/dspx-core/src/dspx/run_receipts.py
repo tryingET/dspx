@@ -1,12 +1,74 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping
 
-RUN_RECEIPT_VERSION = "v1"
+RUN_RECEIPT_VERSION = "v2"
+
+# Outcome types for Oracle Dreaming/Consciousness
+OutcomeType = Literal["success", "failure", "partial", "cached", "unknown"]
+
+
+# Cached execution context (computed once per process)
+_CACHED_EXECUTION_CONTEXT: dict[str, Any] | None = None
+
+
+def _get_execution_context() -> dict[str, Any]:
+    """Capture system state for behavioral analysis.
+
+    Cached per-process to avoid repeated git calls.
+    Used by Oracle Phase E (Consciousness) for environment correlation.
+    """
+    global _CACHED_EXECUTION_CONTEXT
+    if _CACHED_EXECUTION_CONTEXT is not None:
+        return _CACHED_EXECUTION_CONTEXT
+
+    ctx: dict[str, Any] = {
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "platform": sys.platform,
+    }
+
+    # Git context (best effort)
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            ctx["git_commit"] = result.stdout.strip()[:12]
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
+
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--stat", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            ctx["git_dirty"] = True
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
+
+    # Environment hash (for detecting env changes without leaking values)
+    env_keys = sorted(
+        k for k in os.environ if k.startswith(("DSPX_", "DSPY_", "MLFLOW_"))
+    )
+    if env_keys:
+        env_hash = hashlib.sha256(":".join(env_keys).encode()).hexdigest()[:16]
+        ctx["env_hash"] = env_hash
+
+    _CACHED_EXECUTION_CONTEXT = ctx
+    return ctx
 
 
 def receipt_path_for_output(output_path: Path) -> Path:
@@ -106,13 +168,50 @@ def build_run_receipt(
     replay_inputs: Mapping[str, Any] | None = None,
     run_summary: Mapping[str, Any] | None = None,
     extra: Mapping[str, Any] | None = None,
+    # === Phase C+ (Time Travel / Dreaming / Consciousness) ===
+    causal_chain: list[str] | None = None,
+    parent_run_id: str | None = None,
+    branch: str | None = None,
+    outcome: OutcomeType = "unknown",
+    latency_ms: float | None = None,
+    tokens_used: int | None = None,
+    tokens_prompt: int | None = None,
+    tokens_completion: int | None = None,
+    capture_context: bool = True,
 ) -> dict[str, Any]:
     """Build a versioned run receipt for replay/explain.
 
     Backwards-compat fields (`hash`, `cache_key`, `cache_file`, `cache_enabled`)
     stay top-level so existing tooling keeps working.
-    """
 
+    Phase C+ fields (optional, for Oracle behavioral analysis):
+
+        causal_chain: List of run_ids that led to this execution.
+            Enables Time Travel (bisect, branch diff).
+            Example: ["abc123", "def456"] means this run was triggered
+            after those runs completed.
+
+        parent_run_id: Immediate parent run that triggered this one.
+            Single-hop causal relationship for simpler queries.
+
+        branch: Named behavioral branch (like git branches).
+            Groups related runs for Time Travel operations.
+            Default: "main" if not specified.
+
+        outcome: Execution result for Dreaming/Consciousness.
+            One of: success, failure, partial, cached, unknown.
+            Used to learn which inputs produce good outputs.
+
+        latency_ms: Execution duration in milliseconds.
+            Used for behavioral simulation and cost modeling.
+
+        tokens_used: Total tokens consumed (if available).
+        tokens_prompt: Tokens in prompt (if available).
+        tokens_completion: Tokens in completion (if available).
+
+        capture_context: If True, capture git commit, Python version, env hash.
+            Used by Consciousness for environment correlation.
+    """
     receipt: dict[str, Any] = {
         "receipt_version": RUN_RECEIPT_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -127,6 +226,30 @@ def build_run_receipt(
         "replay_inputs": _json_safe(dict(replay_inputs or {})),
         "run_summary": _json_safe(dict(run_summary or {})),
     }
+
+    # Phase C+ fields (only add if non-default)
+    if causal_chain:
+        receipt["causal_chain"] = list(causal_chain)
+    if parent_run_id:
+        receipt["parent_run_id"] = str(parent_run_id)
+    if branch:
+        receipt["branch"] = str(branch)
+    if outcome != "unknown":
+        receipt["outcome"] = outcome
+    if latency_ms is not None:
+        receipt["latency_ms"] = float(latency_ms)
+    if tokens_used is not None:
+        receipt["tokens_used"] = int(tokens_used)
+    if tokens_prompt is not None:
+        receipt["tokens_prompt"] = int(tokens_prompt)
+    if tokens_completion is not None:
+        receipt["tokens_completion"] = int(tokens_completion)
+
+    # Execution context (for Consciousness phase)
+    if capture_context:
+        receipt["execution_context"] = _get_execution_context()
+
+    # Extra fields (don't overwrite core fields)
     for k, v in (extra or {}).items():
         if k in receipt:
             continue
@@ -155,3 +278,120 @@ def load_run_receipt(meta_path: Path) -> dict[str, Any] | None:
     except Exception:
         return None
     return loaded if isinstance(loaded, dict) else None
+
+
+# =============================================================================
+# Oracle Phase C+ Helpers (Time Travel / Dreaming / Consciousness)
+# =============================================================================
+
+
+def build_causal_chain(
+    *parent_run_ids: str,
+    include_context: bool = False,
+) -> list[str]:
+    """Build a causal chain from parent run IDs.
+
+    Validates run IDs and deduplicates. Used by Time Travel to track
+    behavioral lineage.
+
+    Args:
+        parent_run_ids: One or more parent run IDs to include
+        include_context: If True, include execution context in chain
+
+    Returns:
+        List of validated, deduplicated run IDs
+    """
+    seen = set()
+    chain = []
+    for run_id in parent_run_ids:
+        if not run_id:
+            continue
+        # Validate: non-empty string, reasonable length
+        run_id = str(run_id).strip()
+        if not run_id or len(run_id) > 128:
+            continue
+        if run_id not in seen:
+            seen.add(run_id)
+            chain.append(run_id)
+    return chain
+
+
+def extend_causal_chain(
+    existing_chain: list[str] | None,
+    new_run_id: str,
+    max_depth: int = 50,
+) -> list[str]:
+    """Extend a causal chain with a new run ID.
+
+    Maintains bounded depth to prevent unbounded growth.
+    Used when chaining executions (e.g., signature-gen → module-gen).
+
+    Args:
+        existing_chain: Previous causal chain (may be None)
+        new_run_id: Run ID to append
+        max_depth: Maximum chain length (default 50)
+
+    Returns:
+        New causal chain with new_run_id appended
+    """
+    chain = list(existing_chain or [])
+    if new_run_id and new_run_id not in chain:
+        chain.append(new_run_id)
+    # Trim from front if exceeds max depth
+    if len(chain) > max_depth:
+        chain = chain[-max_depth:]
+    return chain
+
+
+def get_branch_name(
+    explicit_branch: str | None = None,
+    git_branch_fallback: bool = True,
+    default: str = "main",
+) -> str:
+    """Determine behavioral branch name.
+
+    Precedence:
+    1. Explicit branch name if provided
+    2. Current git branch (if git_branch_fallback=True)
+    3. Default branch name
+
+    Args:
+        explicit_branch: Explicitly specified branch name
+        git_branch_fallback: If True, fall back to git branch
+        default: Default branch name if no other source
+
+    Returns:
+        Branch name for behavioral grouping
+    """
+    if explicit_branch:
+        return str(explicit_branch).strip() or default
+
+    if git_branch_fallback:
+        try:
+            result = subprocess.run(
+                ["git", "branch", "--show-current"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if result.returncode == 0:
+                branch = result.stdout.strip()
+                if branch:
+                    return branch
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+
+    return default
+
+
+def compute_latency_ms(start_time: datetime) -> float:
+    """Compute latency in milliseconds from start time to now.
+
+    Args:
+        start_time: When execution started (UTC)
+
+    Returns:
+        Latency in milliseconds
+    """
+    delta = datetime.now(timezone.utc) - start_time
+    return delta.total_seconds() * 1000

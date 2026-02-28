@@ -84,7 +84,7 @@ Upstream issues filed (see `docs/upstream-issues/dspy-template-adapter/`):
 
 ### 8) The Oracle: Behavioral Intelligence
 
-**Status:** 🟢 Phase A COMPLETE → Phase B COMPLETE
+**Status:** 🟢 Phase A COMPLETE → Phase B COMPLETE → Receipt v2 ready for Phase C
 
 #### Phase A: Behavioral Calculus ✅
 
@@ -132,6 +132,15 @@ dspx oracle branch feature-x         # Create behavioral branch
 dspx oracle diff main feature-x      # Compare behaviors
 dspx oracle bisect --find regression # Find when behavior changed
 ```
+
+**Receipt v2 enhancements (ready):**
+- `causal_chain`: List of parent run_ids for behavioral lineage
+- `parent_run_id`: Immediate parent for single-hop queries
+- `branch`: Named branch for grouping (defaults to git branch)
+- `outcome`: success/failure/partial/cached/unknown for Dreaming
+- `latency_ms`: Execution duration for simulation
+- `tokens_*`: Token counts for cost modeling
+- `execution_context`: git commit, python version, env hash
 
 #### Phase D-E: Future
 
@@ -290,49 +299,37 @@ Each Oracle phase makes the next easier:
 
 ## Knowledge Crystallized
 
-### From Phase B Deep Review (Security & Correctness)
+> **Crystallized learnings now live in `docs/learnings/`.**
+> This section provides index; detailed entries are dated files.
+
+### Index of Learnings
+
+| Date | Topic | Key Insight |
+|------|-------|-------------|
+| 2026-02-28 | [Receipt v2 Phase C+](docs/learnings/2026-02-28-receipt-v2-phase-c.md) | Causal chains, outcome signals, execution context |
+| 2026-02-15 | [Oracle Phase B Security](docs/learnings/2026-02-15-oracle-phase-b-security.md) | AST-based eval, single-point stability, PII heuristics |
+| 2026-01-15 | [CLI Refactoring](docs/learnings/2026-01-15-cli-refactoring.md) | 3,712 → 15 modules, 91% reduction |
+
+### Quick Patterns (Reference)
+
+**Receipt v2 patterns:**
+- Omit empty fields, capture context by default, bound chains at 50
 
 **Security patterns:**
-- Never use `eval()` for user expressions — AST-based validation required
-- Block dunder attribute access (`__class__`, `__bases__`) in expression evaluators
-- Whitelist allowed AST node types, reject everything else
+- Never `eval()`, block dunders, whitelist AST nodes
 
 **Correctness patterns:**
-- Single data points are "insufficient data" (-1.0), not "stable" (1.0)
-- Heuristic metrics should be explicitly documented as such
-- Serialization truncation must be tracked (don't silently lose data)
+- Single points = "insufficient data", not "stable"
 
-**PII detection heuristics:**
-- UUID is NOT PII — it's an anonymized identifier
-- API key patterns need prefix matching to avoid false positives
-- International phone formats have high false positive rates (use WARNING, not ERROR)
+### KES Integration
 
-**Anti-patterns:**
-- Returning "stable" for single embeddings (false confidence)
-- Flagging UUID as PII (noise drowns out real issues)
-- Undocumented heuristic metrics (users trust them too much)
+DSPx participates in ai-society's Knowledge Evolution System:
+- **Diary**: `~/ai-society/AGENTS.md` (workspace-level)
+- **Learnings**: `docs/learnings/` (this repo)
+- **Cognitive tools**: `~/steve/prompts/triggers/`
 
-### From CLI Refactoring
-
-**Patterns:**
-- Each command group → own module (50-630 lines)
-- Shared utilities → `utils.py` with decorators
-- Typer apps compose via `add_typer()`
-
-**Anti-patterns:**
-- Single file > 3000 lines
-- Mixing policy callback with commands
-- Inline implementations in orchestrator
-
-**Heuristics:**
-- If a file feels hard to navigate, split it
-- If a pattern repeats 3x, extract to utility
-- Test file structure mirrors source structure
-
-**Added to:**
-- `docs/CLI_REFACTORING.md` — Extraction patterns
-- `dspx/cli/utils.py` — Shared decorators
-- `tests/test_cli_dspx.py` — Patch guidance
+Oracle crystallizes **behavioral** knowledge (runs → embeddings → topology).
+KES crystallizes **process** knowledge (sessions → patterns → TIPs).
 
 ---
 
@@ -351,3 +348,15 @@ Each Oracle phase makes the next easier:
 | `dspx oracle frontiers` | Detect unexplored inputs |
 | `dspx oracle attractors` | Find stable behaviors |
 | `dspx oracle predict` | Predict behavioral convergence |
+
+**Receipt v2 fields (Phase C+):**
+
+| Field | Purpose | Phase |
+|-------|---------|-------|
+| `causal_chain` | Behavioral lineage | C (Time Travel) |
+| `parent_run_id` | Single-hop parent | C (Time Travel) |
+| `branch` | Behavioral grouping | C (Time Travel) |
+| `outcome` | Success/failure signal | D (Dreaming) |
+| `latency_ms` | Execution duration | D (Dreaming) |
+| `tokens_*` | Token counts | D (Dreaming) |
+| `execution_context` | System state snapshot | E (Consciousness) |
