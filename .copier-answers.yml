@@ -1,4 +1,4 @@
-_src_path: ../softwareco-templates/copier/tpl-project-repo/
+_src_path: ../../softwareco-templates/copier/tpl-project-repo
 company_name: Software Company
 company_ontology_ref: <gitlab:org/ontology@v0.1.0>
 company_slug: softwareco
