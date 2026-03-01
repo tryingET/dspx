@@ -1,0 +1,32 @@
+{
+  "layers": [
+    {
+      "cache_repo_root": "/home/tryinget/ai-society/softwareco/ontology",
+      "kind": "ref",
+      "name": "company",
+      "origin": "<gitlab:ai-society/softwareco/ontology@main>",
+      "source": "workspace",
+      "src_root": "/home/tryinget/ai-society/softwareco/ontology/ontology/src"
+    },
+    {
+      "cache_repo_root": "/home/tryinget/ai-society/core/ontology-kernel",
+      "kind": "ref",
+      "name": "core",
+      "origin": "<gitlab:ai-society/core/ontology-kernel@main>",
+      "source": "workspace",
+      "src_root": "/home/tryinget/ai-society/core/ontology-kernel/ontology/src"
+    },
+    {
+      "cache_repo_root": null,
+      "kind": "path",
+      "name": "repo",
+      "origin": "ontology/src",
+      "source": "path",
+      "src_root": "/home/tryinget/ai-society/softwareco/owned/dspx/ontology/src"
+    }
+  ],
+  "profile": "repo-dev",
+  "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
+  "schema_version": 1,
+  "version": "0.1.4"
+}

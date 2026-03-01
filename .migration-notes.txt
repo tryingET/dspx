@@ -1,0 +1,49 @@
+# Migration Notes — dspx
+
+- Timestamp: 2026-03-01 19:42:19 +0100
+- Source: /home/tryinget/migration-from-wsl/home/lightningralf/ai-society/softwareco/owned/dspx
+- Destination: /home/tryinget/ai-society/softwareco/owned/dspx
+- Stage: /home/tryinget/ai-society/softwareco/owned/.migrate-stage-dspx (swapped into destination)
+- Backup: /home/tryinget/ai-society/bak/20260301-194218-dspx-migration/destination-pre-migration
+
+## Preservation checks
+- Source HEAD: `9014b93`
+- Destination HEAD: `9014b93`
+- README preserved: yes (`diff -q` clean)
+- AGENTS preserved: yes (`diff -q` clean)
+
+## Template/control-plane overlay
+Overlaid from baseline destination template into stage (non-destructive):
+- `governance/work-items.cue`
+- `governance/work-items.json`
+- `scripts/ci/smoke.sh`
+- `scripts/ci/full.sh`
+- `scripts/rocs.sh`
+- `next_session_prompt.md`
+- `.copier-answers.yml`
+
+## GitLab surface removal
+Removed from stage before swap:
+- `.gitlab/`
+- `.gitlab-ci.yml`
+- `gitlab/`
+
+Verified absent in destination after swap.
+
+## Copier chain validation
+From destination `.copier-answers.yml`:
+- `_src_path: /home/tryinget/ai-society/softwareco/copier/tpl-project-repo`
+- `location: owned`
+
+## Ontology ref normalization
+If present, updated `ontology/manifest.yaml` refs from legacy `org/*` to company-root:
+- `<gitlab:ai-society/core/ontology-kernel@main>`
+- `<gitlab:ai-society/softwareco/ontology@main>`
+
+## Validation
+Stage:
+- `bash ./scripts/ci/smoke.sh` -> pass
+- `ROCS_BIN=/home/tryinget/ai-society/core/rocs-cli/.venv/bin/rocs ROCS_WORKSPACE_ROOT=/home/tryinget ROCS_WORKSPACE_REF_MODE=loose bash ./scripts/ci/full.sh` -> pass
+
+Final destination:
+- `bash ./scripts/ci/smoke.sh` -> pass

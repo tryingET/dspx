@@ -1,0 +1,74 @@
+{
+  "concept_ids": [
+    "co.software.Incident",
+    "co.software.SLO",
+    "co.software.Service",
+    "core.Actor",
+    "core.Agent",
+    "core.Assumption",
+    "core.AuditEvent",
+    "core.Capability",
+    "core.Consent",
+    "core.ConsentTier",
+    "core.Constraint",
+    "core.DataClass.Internal",
+    "core.DataClass.Public",
+    "core.DataClass.Restricted",
+    "core.DataClass.SecretData",
+    "core.DataClassification",
+    "core.Debt",
+    "core.DecisionRecord",
+    "core.Exception",
+    "core.IntegrationEdge",
+    "core.Invariant",
+    "core.Milestone",
+    "core.Objection",
+    "core.Pipeline",
+    "core.Policy",
+    "core.Program",
+    "core.Proposal",
+    "core.Release",
+    "core.Repo",
+    "core.Risk",
+    "core.Role",
+    "core.Secret",
+    "core.Service",
+    "core.WorkItem"
+  ],
+  "counts": {
+    "concepts": 34,
+    "relations": 12
+  },
+  "layers": [
+    {
+      "name": "core",
+      "origin": "<gitlab:ai-society/core/ontology-kernel@main>"
+    },
+    {
+      "name": "company",
+      "origin": "<gitlab:ai-society/softwareco/ontology@main>"
+    },
+    {
+      "name": "repo",
+      "origin": "ontology/src"
+    }
+  ],
+  "profile": "repo-dev",
+  "relation_ids": [
+    "core.rel.conflicts_with",
+    "core.rel.constrains",
+    "core.rel.depends_on",
+    "core.rel.depends_on_plan",
+    "core.rel.instance_of",
+    "core.rel.is_a",
+    "core.rel.part_of",
+    "core.rel.precedes",
+    "core.rel.produces",
+    "core.rel.similar_to",
+    "core.rel.triggers",
+    "core.rel.uses"
+  ],
+  "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
+  "schema_version": 1,
+  "version": "0.1.4"
+}
