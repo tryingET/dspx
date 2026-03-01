@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "updated_at": "",
+  "owner": "dspx",
+  "naming_contract": {
+    "system_name": "DSPX",
+    "issue_prefix": "DSPX-",
+    "tool_namespace": "dspx"
+  },
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Initial Setup",
+      "issues": []
+    }
+  ],
+  "program_dod": [
+    "All tests pass",
+    "Documentation updated",
+    "Code reviewed"
+  ]
+}
