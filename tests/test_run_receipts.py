@@ -854,7 +854,9 @@ def test_run_receipt_phase_c_causal_chain(tmp_path: Path) -> None:
     assert extended == ["x", "y", "z"]
 
     # Test max depth
-    long_chain = extend_causal_chain(list("abcdefghijklmnopqrstuvwxyz"), "new", max_depth=10)
+    long_chain = extend_causal_chain(
+        list("abcdefghijklmnopqrstuvwxyz"), "new", max_depth=10
+    )
     assert len(long_chain) == 10
     assert long_chain[-1] == "new"
 

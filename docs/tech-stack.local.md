@@ -15,10 +15,14 @@ Canonical lane docs live in `tech-stack-core` (do not vendor/copy here):
 
 Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
-- Typechecking uses `ty` (not mypy): `uvx ty check src`
+- Typechecking uses `ty` (not mypy): `uvx ty check packages/dspx-core/src apps/forge/src`
+- Canonical local workflow contract: `docs/project/developer_workflow.md`
 - Commands are standardized in `Justfile` (`just test`, `just fmt`, `just lint`, `just typecheck`).
+- Optional py-lane companions when the repo actually benefits:
+  - `pytest-bdd` for executable Gherkin/BDD scenarios
+  - `Jinja2` for reusable text/config/html templates
 - Validation tiers:
   - install hooks once: `just hooks-install`
   - pre-commit hook = fast staged checks (ruff/whitespace)
-  - pre-push hook = full gate (`just monorepo-check && just typecheck && just test`)
+  - pre-push hook = `just verify-full`
   - explicit batch gate: `just verify-full`

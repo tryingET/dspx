@@ -38,6 +38,61 @@
           ],
           "completed_at": "2026-03-21",
           "note": "This session established the missing project source-of-truth baseline so future work can be selected from a shaped backlog."
+        },
+        {
+          "id": "DSPX-M1-02",
+          "title": "Enforce the developer workflow contract across docs, hooks, and smoke validation",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Create one canonical workflow doc and point repo workflow surfaces at it",
+              "done": true
+            },
+            {
+              "text": "Add machine-checked workflow contract validation and wire it into smoke/full gates",
+              "done": true
+            },
+            {
+              "text": "Restore local hygiene primitives (.gitignore, pre-commit config, working hook installer)",
+              "done": true
+            }
+          ],
+          "dod": "Workflow docs, hook installation, smoke/full validation, and local hygiene are aligned and verified by executable checks.",
+          "labels": [
+            "docs",
+            "governance",
+            "workflow",
+            "validation"
+          ],
+          "completed_at": "2026-03-21",
+          "note": "Implements the NEXUS intervention from the adversarial review: one machine-checked developer workflow contract with real hooks and smoke enforcement."
+        },
+        {
+          "id": "DSPX-M1-03",
+          "title": "Restore a green repo-wide typecheck baseline for `just verify-full`",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Triage existing `uvx ty check packages/dspx-core/src apps/forge/src` failures surfaced by `just verify-full`",
+              "done": false
+            },
+            {
+              "text": "Fix or explicitly defer the invalid-argument/return typing issues in untouched core and forge files",
+              "done": false
+            },
+            {
+              "text": "Re-run `just verify-full` to restore a fully green validation path",
+              "done": false
+            }
+          ],
+          "dod": "`just verify-full` passes end-to-end without relying on local exemptions or scope-specific skips.",
+          "labels": [
+            "quality",
+            "typecheck",
+            "workflow"
+          ],
+          "assignee": "@next-operator",
+          "note": "The workflow-contract slice completed, but full verification is currently blocked by pre-existing ty errors in untouched files."
         }
       ]
     },

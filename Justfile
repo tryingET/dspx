@@ -13,7 +13,16 @@ install:
 
 # Install git hooks (fast pre-commit + full pre-push validation)
 hooks-install:
-  pre-commit install --hook-type pre-commit --hook-type pre-push
+  uvx pre-commit install --hook-type pre-commit --hook-type pre-push
+
+# Validate the repo's documented workflow contract
+workflow-contract-check:
+  python3 scripts/check_workflow_contracts.py
+
+# Validate project planning artifacts
+# NOTE: work-items stay planning-only, but the schema must remain valid.
+governance-check:
+  cue vet governance/work-items.json governance/work-items.cue
 
 # Install workspace packages in editable mode to expose console scripts (dev workflow)
 dev-install:
@@ -73,7 +82,9 @@ test:
 
 # Full validation gate (run once per commit batch / before push)
 verify-full:
-  pre-commit run --all-files
+  just workflow-contract-check
+  just governance-check
+  uvx pre-commit run --all-files
   just monorepo-check
   just typecheck
   just test

@@ -21,15 +21,15 @@ Do not ask for permission to start.
 ## SOURCE-OF-TRUTH MAP
 - Repo operating contract: `AGENTS.md`
 - Mission and goals: `docs/project/`
-- Active/deferred work contract: `governance/work-items.json`
+- Planned active/deferred work map: `governance/work-items.json`
 - Prior decisions: `docs/decisions/`
 - Crystallized learnings: `docs/learnings/`
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Establish a usable source-of-truth baseline so the next session can start directly on a shaped Oracle Phase C slice.
-- Constraints (hard limits): Keep the slice docs/governance-only; do not fold in unrelated local changes already present in the worktree.
-- Assumptions (max 3): Roadmap docs are still authoritative; receipt v2 groundwork means Phase C is the highest-leverage next implementation area; smoke validation is sufficient for this non-code slice.
+- Objective (one sentence): Convert the repo's workflow guidance into a real, machine-checked contract so setup, hooks, and validation stop drifting.
+- Constraints (hard limits): Keep the slice focused on workflow/governance/tooling surfaces and do not mix in unrelated product behavior changes.
+- Assumptions (max 3): Existing roadmap priorities remain valid; fixing the developer workflow contract unblocks future Phase C work; smoke/full validation should be updated to reflect the real repo contract.
 - Blockers (none or list): none
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -41,7 +41,7 @@ Do not ask for permission to start.
 6. Most recent `diary/YYYY-MM-DD--type-scope-summary.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
-1. Pick one highest-leverage actionable slice from `governance/work-items.json`.
+1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it.
 2. Implement end-to-end on a branch.
 3. Validate:
    - `./scripts/ci/smoke.sh`
@@ -49,12 +49,12 @@ Do not ask for permission to start.
 4. Update source-of-truth artifacts before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `DSPX-M1-01` — refresh mission, tactical goals, backlog, and session handoff.
-- Outcome: Repo source-of-truth docs now reflect the Oracle-first roadmap, and the next session can start on a queued Phase C issue instead of rebuilding context.
-- Files changed: `docs/project/mission.md`, `docs/project/tactical_goals.md`, `governance/work-items.json`, `diary/2026-03-21--chore-governance-baseline-refresh.md`, `next_session_prompt.md`.
-- Validation commands + results: `cue vet governance/work-items.json governance/work-items.cue` ✅; `./scripts/ci/smoke.sh` ✅.
-- Deferred tasks updated in `governance/work-items.json`: queued `DSPX-M2-01`, `DSPX-M2-02`, `DSPX-M3-01`; triage `DSPX-M4-01`.
-- Next-session starting point: Start `DSPX-M2-01` by defining the minimal receipt-backed CLI contract for `dspx oracle branch|diff|bisect`, then implement the first end-to-end vertical slice.
+- Slice executed: `DSPX-M1-02` — enforce the developer workflow contract across docs, hooks, and smoke validation.
+- Outcome: The repo now has a canonical workflow contract, a working hook-install path, a root `.gitignore`, a real pre-commit config, and machine-checked workflow/governance validation wired into normal gates.
+- Files changed: `docs/project/developer_workflow.md`, `.gitignore`, `.pre-commit-config.yaml`, `scripts/check_workflow_contracts.py`, `tests/test_workflow_contracts.py`, `scripts/ci/smoke.sh`, `Justfile`, `AGENTS.md`, `CONTRIBUTING.md`, `README.md`, `docs/tech-stack.local.md`, `governance/README.md`, `governance/work-items.json`, `diary/2026-03-21--fix-workflow-contract-enforcement.md`, `next_session_prompt.md`.
+- Validation commands + results: `python3 scripts/check_workflow_contracts.py` ✅; `cue vet governance/work-items.json governance/work-items.cue` ✅; `./scripts/ci/smoke.sh` ✅; `uv run -m pytest -q tests/test_workflow_contracts.py` ✅; `just verify-full` ⚠️ blocked by pre-existing `uvx ty check packages/dspx-core/src apps/forge/src` failures in untouched files.
+- Deferred tasks updated in `governance/work-items.json`: queued `DSPX-M1-03`, `DSPX-M2-01`, `DSPX-M2-02`, `DSPX-M3-01`; triage `DSPX-M4-01`.
+- Next-session starting point: Triage `DSPX-M1-03` to restore a green repo-wide typecheck baseline, then resume `DSPX-M2-01` for the first Oracle Phase C CLI slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

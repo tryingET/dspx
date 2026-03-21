@@ -318,6 +318,9 @@ Hook setup (once per clone):
 just hooks-install
 ```
 
+Canonical workflow contract:
+- `docs/project/developer_workflow.md`
+
 Validation tiers:
 
 ```bash
@@ -326,9 +329,9 @@ Validation tiers:
 # - whitespace check
 
 # pre-push hook (full gate):
-# - just monorepo-check
-# - just typecheck
-# - just test
+# - just verify-full
+#   - workflow contract + governance validation
+#   - monorepo/typecheck/test
 ```
 
 Batch-commit flow (run once before push):

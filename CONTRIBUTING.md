@@ -4,6 +4,7 @@ Contributing
 Thanks for your interest in contributing! A few quick guidelines:
 
 - Use Python 3.13 and uv for dependency management.
+- Canonical local workflow: `docs/project/developer_workflow.md`.
 - Run quality checks locally: `just fmt`, `just lint`, `just typecheck`, `just test`.
 - Keep changes focused and minimal; include docs updates when behavior changes.
 - For larger proposals, open an issue first to discuss design and scope.
@@ -14,16 +15,19 @@ Development Setup
 
   git submodule update --init --recursive
 
-- Sync deps and install in editable mode:
+- Install workspace dependencies:
 
-  uv sync
-  uv pip install -e .
+  just install
 
-- Enable pre-commit hooks (no pip needed):
+- Optionally install editable packages for console-script development:
 
-  uvx pre-commit install
-  # run on all files once
-  uvx pre-commit run --all-files
+  just dev-install
+
+- Enable hooks:
+
+  just hooks-install
+  # run the full validation gate once
+  just verify-full
 
 Pull Requests
 -------------

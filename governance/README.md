@@ -5,6 +5,7 @@ This file tracks project-specific work (features, bugs, improvements).
 ## Purpose
 
 **This is a PLANNING ARTIFACT, not an execution queue.**
+Use it to choose the next slice; do not treat it as a scheduler or live execution state.
 
 | Aspect | Status |
 |--------|--------|

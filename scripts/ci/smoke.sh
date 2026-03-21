@@ -13,6 +13,8 @@ need_cmd() {
 need_cmd git
 need_cmd grep
 need_cmd sed
+need_cmd cue
+need_cmd python3
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die_env "not a git repo"
 cd "$repo_root"
@@ -48,5 +50,8 @@ if [ -f "./docs/dev/now.md" ]; then
   [ -f "./AGENTS.md" ] || die "docs/dev/now.md exists but AGENTS.md is missing"
   grep -q "docs/dev/now.md" "./AGENTS.md" || die "docs/dev/now.md exists but is not referenced from AGENTS.md"
 fi
+
+cue vet governance/work-items.json governance/work-items.cue
+python3 scripts/check_workflow_contracts.py
 
 say "ok: ci smoke"

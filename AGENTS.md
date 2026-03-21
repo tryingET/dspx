@@ -7,7 +7,8 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 - No secrets in git.
 - Never push to `main`; MRs only.
 - Keep `docs/_core/**` as immutable reference.
-- Run `./scripts/install-hooks.sh` after cloning.
+- Canonical local workflow: `docs/project/developer_workflow.md`.
+- Run `just hooks-install` after cloning.
 
 ## Read Order
 1. `docs/system4d/compass.md` — Direction
@@ -24,6 +25,8 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 ## Commands
 ```bash
 just install          # Setup
+just hooks-install    # Install pre-commit + pre-push hooks
+just verify-full      # Workflow + governance + repo validation
 just fmt lint typecheck test  # Quality gates
 just dspx ...         # Run CLI
 just forge ...        # Run Forge pipeline
