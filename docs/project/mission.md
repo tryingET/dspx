@@ -6,5 +6,4 @@ read_when:
 
 # Mission
 
-TBD.
-
+Deliver a local-first DSPy toolkit that makes signature/module generation, optimization, replay, and Oracle-based behavioral intelligence reliable, observable, and reproducible across providers.

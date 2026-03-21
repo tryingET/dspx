@@ -1,13 +1,155 @@
 {
   "schema_version": 1,
-  "updated_at": "",
+  "updated_at": "2026-03-21",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
     {
       "id": "M1",
-      "title": "Initial Setup",
-      "issues": []
+      "title": "Source-of-truth alignment",
+      "issues": [
+        {
+          "id": "DSPX-M1-01",
+          "title": "Refresh mission, tactical goals, backlog, and session handoff",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Set a durable mission statement aligned with Oracle + replay/reproducibility",
+              "done": true
+            },
+            {
+              "text": "Replace placeholder tactical goals with current delivery targets",
+              "done": true
+            },
+            {
+              "text": "Shape the repo backlog into milestones/issues instead of leaving an empty planning artifact",
+              "done": true
+            },
+            {
+              "text": "Capture the session in diary/ and leave a short next-session handoff",
+              "done": true
+            }
+          ],
+          "dod": "Mission, tactical goals, work-items, diary, and next-session handoff all reflect the current Oracle-first roadmap.",
+          "labels": [
+            "docs",
+            "governance",
+            "planning"
+          ],
+          "completed_at": "2026-03-21",
+          "note": "This session established the missing project source-of-truth baseline so future work can be selected from a shaped backlog."
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "title": "Oracle Phase C — Time Travel",
+      "issues": [
+        {
+          "id": "DSPX-M2-01",
+          "title": "Add a first user-facing CLI slice for behavioral branch/diff/bisect workflows",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Define minimal CLI UX and output contracts for `dspx oracle branch`, `diff`, and `bisect`",
+              "done": false
+            },
+            {
+              "text": "Implement receipt-backed query primitives using receipt v2 lineage/branch fields",
+              "done": false
+            },
+            {
+              "text": "Add focused tests and docs for the first Time Travel workflow",
+              "done": false
+            }
+          ],
+          "dod": "A documented and tested Oracle Phase C CLI path ships against local receipt data without regressing existing Oracle commands.",
+          "labels": [
+            "oracle",
+            "phase-c",
+            "cli"
+          ],
+          "assignee": "@next-operator",
+          "note": "Highest-leverage next slice because receipt v2 metadata is already present and the user-visible Time Travel layer is the remaining gap."
+        },
+        {
+          "id": "DSPX-M2-02",
+          "title": "Harden lineage and branch invariants in receipt/replay tests",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Add fixtures for multi-parent causal chains and branch fallback behavior",
+              "done": false
+            },
+            {
+              "text": "Assert replay/explain output remains stable when lineage metadata is absent or partial",
+              "done": false
+            }
+          ],
+          "dod": "Receipt and replay tests pin the behavioral-lineage edge cases needed by Phase C.",
+          "labels": [
+            "oracle",
+            "phase-c",
+            "tests"
+          ],
+          "assignee": "@next-operator"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "title": "Replay and quality hardening",
+      "issues": [
+        {
+          "id": "DSPX-M3-01",
+          "title": "Tighten CI coverage for cache provenance and replay strictness",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Review current replay/check-only coverage gaps in CI artifacts",
+              "done": false
+            },
+            {
+              "text": "Add one strict provenance-focused gate or summary that fails clearly on drift",
+              "done": false
+            }
+          ],
+          "dod": "CI surfaces replay provenance drift clearly and protects receipt-first reproducibility.",
+          "labels": [
+            "replay",
+            "ci",
+            "quality"
+          ],
+          "assignee": "@next-operator"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "title": "Upstream unblock tracks",
+      "issues": [
+        {
+          "id": "DSPX-M4-01",
+          "title": "Reassess the dspy-template-adapter unblock path",
+          "state": "triage",
+          "tasks": [
+            {
+              "text": "Review upstream issue status for parser and partial-demo fixes",
+              "done": false
+            },
+            {
+              "text": "Decide whether to keep waiting or vendor a patched integration path",
+              "done": false
+            }
+          ],
+          "dod": "DSPx has an explicit decision on whether template-adapter integration remains blocked upstream or moves to a local patched path.",
+          "labels": [
+            "upstream",
+            "integration"
+          ],
+          "assignee": "@next-operator"
+        }
+      ]
     }
   ]
 }
