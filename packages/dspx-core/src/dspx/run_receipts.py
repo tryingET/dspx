@@ -8,6 +8,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, Mapping
+from uuid import uuid4
 
 from dspx.redaction import redact_url
 
@@ -17,26 +18,11 @@ RUN_RECEIPT_VERSION = "v2"
 OutcomeType = Literal["success", "failure", "partial", "cached", "unknown"]
 
 
-# Cached execution context (computed once per process)
-_CACHED_EXECUTION_CONTEXT: dict[str, Any] | None = None
+# Cached execution context (static portion computed once per process)
+_CACHED_STATIC_EXECUTION_CONTEXT: dict[str, Any] | None = None
 
 
-def _get_execution_context() -> dict[str, Any]:
-    """Capture system state for behavioral analysis.
-
-    Cached per-process to avoid repeated git calls.
-    Used by Oracle Phase E (Consciousness) for environment correlation.
-    """
-    global _CACHED_EXECUTION_CONTEXT
-    if _CACHED_EXECUTION_CONTEXT is not None:
-        return _CACHED_EXECUTION_CONTEXT
-
-    ctx: dict[str, Any] = {
-        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-        "platform": sys.platform,
-    }
-
-    # Git context (best effort)
+def _capture_git_commit() -> str | None:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -44,11 +30,14 @@ def _get_execution_context() -> dict[str, Any]:
             text=True,
             timeout=2,
         )
-        if result.returncode == 0:
-            ctx["git_commit"] = result.stdout.strip()[:12]
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+        return None
+    if result.returncode == 0:
+        return result.stdout.strip()[:12] or None
+    return None
 
+
+def _capture_git_dirty() -> bool:
     try:
         result = subprocess.run(
             ["git", "diff", "--stat", "HEAD"],
@@ -56,20 +45,51 @@ def _get_execution_context() -> dict[str, Any]:
             text=True,
             timeout=2,
         )
-        if result.returncode == 0 and result.stdout.strip():
-            ctx["git_dirty"] = True
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+        return False
+    return bool(result.returncode == 0 and result.stdout.strip())
 
-    # Environment hash (for detecting env changes without leaking values)
-    env_keys = sorted(
+
+def _environment_context_hash() -> str | None:
+    entries = []
+    for key in sorted(
         k for k in os.environ if k.startswith(("DSPX_", "DSPY_", "MLFLOW_"))
-    )
-    if env_keys:
-        env_hash = hashlib.sha256(":".join(env_keys).encode()).hexdigest()[:16]
-        ctx["env_hash"] = env_hash
+    ):
+        entries.append(f"{key}={os.environ.get(key, '')}")
+    if not entries:
+        return None
+    return hashlib.sha256("\0".join(entries).encode("utf-8")).hexdigest()[:16]
 
-    _CACHED_EXECUTION_CONTEXT = ctx
+
+def _get_static_execution_context() -> dict[str, Any]:
+    global _CACHED_STATIC_EXECUTION_CONTEXT
+    if _CACHED_STATIC_EXECUTION_CONTEXT is not None:
+        return dict(_CACHED_STATIC_EXECUTION_CONTEXT)
+
+    ctx: dict[str, Any] = {
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "platform": sys.platform,
+    }
+    git_commit = _capture_git_commit()
+    if git_commit:
+        ctx["git_commit"] = git_commit
+
+    _CACHED_STATIC_EXECUTION_CONTEXT = dict(ctx)
+    return dict(ctx)
+
+
+def _get_execution_context() -> dict[str, Any]:
+    """Capture system state for behavioral analysis.
+
+    Static fields are cached per-process; dynamic drift-sensitive fields are
+    recomputed for each receipt.
+    """
+    ctx = _get_static_execution_context()
+    if _capture_git_dirty():
+        ctx["git_dirty"] = True
+    env_hash = _environment_context_hash()
+    if env_hash:
+        ctx["env_hash"] = env_hash
     return ctx
 
 
@@ -112,6 +132,48 @@ def _bool_env(name: str) -> bool | None:
     if raw is None:
         return None
     return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _parse_env_causal_chain(raw: str | None) -> list[str] | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        parsed = None
+    if isinstance(parsed, list):
+        return build_causal_chain(*(str(item) for item in parsed)) or None
+    return build_causal_chain(*(part.strip() for part in text.split(","))) or None
+
+
+def current_receipt_lineage(
+    *,
+    branch: str | None = None,
+    parent_run_id: str | None = None,
+    causal_chain: list[str] | None = None,
+) -> dict[str, Any]:
+    resolved_parent = (
+        str(parent_run_id or os.getenv("DSPX_PARENT_RUN_ID") or "").strip() or None
+    )
+    resolved_chain = (
+        build_causal_chain(*causal_chain)
+        if causal_chain
+        else _parse_env_causal_chain(os.getenv("DSPX_CAUSAL_CHAIN"))
+    )
+    if resolved_chain is None and resolved_parent:
+        resolved_chain = build_causal_chain(resolved_parent)
+    resolved_branch = get_branch_name(
+        explicit_branch=(
+            branch or os.getenv("DSPX_RECEIPT_BRANCH") or os.getenv("DSPX_BRANCH")
+        )
+    )
+    payload: dict[str, Any] = {"branch": resolved_branch}
+    if resolved_parent:
+        payload["parent_run_id"] = resolved_parent
+    if resolved_chain:
+        payload["causal_chain"] = resolved_chain
+    return payload
 
 
 def _current_provider_details() -> dict[str, Any]:
@@ -258,6 +320,7 @@ def build_run_receipt(
     replay_inputs: Mapping[str, Any] | None = None,
     run_summary: Mapping[str, Any] | None = None,
     extra: Mapping[str, Any] | None = None,
+    execution_id: str | None = None,
     # === Phase C+ (Time Travel / Dreaming / Consciousness) ===
     causal_chain: list[str] | None = None,
     parent_run_id: str | None = None,
@@ -305,6 +368,7 @@ def build_run_receipt(
     provider_name = os.getenv("DSPX_PROVIDER") or "pi-rpc"
     receipt: dict[str, Any] = {
         "receipt_version": RUN_RECEIPT_VERSION,
+        "execution_id": str(execution_id or uuid4().hex),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "run_kind": str(run_kind),
         "provider": provider_name,
