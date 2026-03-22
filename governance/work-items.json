@@ -215,21 +215,46 @@
         {
           "id": "DSPX-M4-02",
           "title": "Live-verify the provider runtime v4 mixed-provider profile",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Run `dspx providers health --probe` against the configured `vllm-local` and `dspy-lm-auth` providers",
-              "done": false
+              "done": true
             },
             {
               "text": "Run `dspx providers benchmark` for the mixed-provider profile and capture the known-good/known-bad model notes in repo docs",
-              "done": false
+              "done": true
             }
           ],
           "dod": "The mixed-provider profile is verified against a live local/auth-backed environment and its real limitations are documented for the next operator.",
           "labels": [
             "provider",
             "runtime",
+            "validation"
+          ],
+          "assignee": "@next-operator",
+          "completed_at": "2026-03-22",
+          "note": "Live-validated the mixed-provider runtime v4 profile with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`: `vllm-local` (`Qwen/Qwen3.5-27B`) and `dspy-lm-auth` (`codex/gpt-5.4`) both passed `providers health --probe`, the mixed benchmark completed with 100% success for both providers, and the known-bad `codex/gpt-5.4-nano` route was reproduced and documented as a ChatGPT/Codex-account limitation."
+        },
+        {
+          "id": "DSPX-M4-03",
+          "title": "Run one live end-to-end optimize smoke on the mixed-provider defaults",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Execute a small `dspx optimize gepa` smoke using `vllm-local` as the student provider and `dspy-lm-auth` as the reflection provider",
+              "done": false
+            },
+            {
+              "text": "Document any provider-specific runtime caveats that only appear in the end-to-end optimize path",
+              "done": false
+            }
+          ],
+          "dod": "DSPx proves the mixed-provider runtime through one live end-to-end optimize slice, or documents the precise blocker if the workflow cannot complete.",
+          "labels": [
+            "provider",
+            "runtime",
+            "optimize",
             "validation"
           ],
           "assignee": "@next-operator"

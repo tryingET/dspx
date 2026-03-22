@@ -27,10 +27,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Execute `DSPX-M4-02` by live-validating the mixed-provider runtime v4 profile (`vllm-local` student + `dspy-lm-auth` reflection).
-- Constraints (hard limits): Keep the repo green under `just verify-full`; do not leak credentials in docs/receipts; keep scope on live runtime verification rather than broad new provider work.
-- Assumptions (max 3): `DSPX-M4-01` is complete and the local unblock decision is now accepted; provider runtime v4 docs/config are the current source of truth; a local vLLM endpoint and auth-backed Codex route are available to probe when the next operator is ready.
-- Blockers (none or list): Requires access to the real local/auth-backed provider endpoints for live probes.
+- Objective (one sentence): Execute `DSPX-M4-03` by running one live end-to-end `dspx optimize gepa` smoke on the mixed-provider runtime defaults (`vllm-local` student + `dspy-lm-auth` reflection).
+- Constraints (hard limits): Keep the repo green under `just verify-full`; do not leak credentials in docs/receipts; keep scope on one end-to-end optimize proof rather than broad new provider expansion.
+- Assumptions (max 3): `DSPX-M4-02` is complete and the mixed-provider health/benchmark path is already live-verified; provider runtime v4 docs/config remain the current source of truth; a local vLLM endpoint and auth-backed Codex route are still available when the next operator starts.
+- Blockers (none or list): Requires access to the real local/auth-backed provider endpoints and enough quota/runtime headroom for one live optimize smoke.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -49,12 +49,12 @@ Do not ask for permission to start.
 4. Update source-of-truth artifacts before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `DSPX-M4-01` — reassess the dspy-template-adapter unblock path.
-- Outcome: Adopted DSPx-local provider runtime v4 as the unblock path instead of waiting on or vendoring `dspy-template-adapter` immediately; shipped explicit `vllm-local`, `openai-compatible`, and `dspy-lm-auth` providers, provider resolve/health/benchmark commands, optimize provider defaults, and receipt-safe provider metadata, while keeping exact-fidelity template-adapter work optional/upstream-blocked.
-- Files changed: `packages/dspx-core/src/dspx/{provider_runtime.py,openai_compatible_lm.py,dspy_lm_auth_lm.py,providers_register_openai_compatible.py,providers_register_dspy_lm_auth.py,provider_registry.py,config_loader.py,run_receipts.py,services/optimize_service.py}`, `packages/dspx-core/src/dspx/cli/commands/{providers.py,optimize.py}`, `packages/dspx-core/pyproject.toml`, `tests/{test_provider_v4.py,test_config_loader.py}`, `config.provider-runtime-v4.example.toml`, `docs/project/provider-runtime-v4.md`, `README.md`, `docs/adr/{20260322-provider-runtime-v4.md,README.md}`, `NEXT_STEPS.md`, `docs/{system4d/container.md,system4d/fog.md,org_context/org-summary.md,owned/purpose.md}`, `governance/work-items.json`, `diary/2026-03-22--provider-runtime-v4-decision.md`, `next_session_prompt.md`, `uv.lock`, and removal of `docs/dev/status.md`.
-- Validation commands + results: `uv run -m pytest -q tests/test_provider_v4.py tests/test_config_loader.py` ✅; `uv run -m pytest -q tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `./scripts/ci/full.sh` ✅; `just verify-full` ✅.
-- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M4-01`; queued `DSPX-M4-02` for live mixed-provider verification.
-- Next-session starting point: Use `config.provider-runtime-v4.example.toml`, then run `dspx providers health --probe` and `dspx providers benchmark` against the real `vllm-local` + `dspy-lm-auth` environment to complete `DSPX-M4-02`.
+- Slice executed: `DSPX-M4-02` — live-verify the provider runtime v4 mixed-provider profile.
+- Outcome: Live-validated the mixed-provider runtime with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`; `vllm-local` (`Qwen/Qwen3.5-27B`) and `dspy-lm-auth` (`codex/gpt-5.4`) both passed `providers health --probe`, the mixed benchmark succeeded for both providers, and the known-bad `codex/gpt-5.4-nano` failure was reproduced and documented as a ChatGPT/Codex-account limitation.
+- Files changed: `docs/project/provider-runtime-v4.md`, `README.md`, `NEXT_STEPS.md`, `governance/work-items.json`, `diary/2026-03-22--mixed-provider-runtime-live-verification.md`, and `next_session_prompt.md`.
+- Validation commands + results: `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers resolve --provider vllm-local --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers resolve --provider dspy-lm-auth --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers health --provider vllm-local --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers health --provider dspy-lm-auth --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers benchmark --provider vllm-local --provider dspy-lm-auth --repeats 3 --warmup 1 --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml DSPX_LM_AUTH_MODEL=codex/gpt-5.4-nano just dspx providers health --provider dspy-lm-auth --probe --json` ❌ expected compatibility failure; `./scripts/ci/smoke.sh` ✅; `./scripts/ci/full.sh` ✅; `just verify-full` ✅.
+- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M4-02`; queued `DSPX-M4-03` for one live end-to-end optimize smoke.
+- Next-session starting point: Keep using `config.provider-runtime-v4.example.toml`, then run one small `dspx optimize gepa` smoke with `vllm-local` student + `dspy-lm-auth` reflection defaults to complete `DSPX-M4-03`.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
