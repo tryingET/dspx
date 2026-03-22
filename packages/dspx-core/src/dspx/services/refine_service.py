@@ -207,6 +207,7 @@ def run_refine(
             from dspx.run_receipts import (
                 build_mlflow_hints,
                 build_run_receipt,
+                current_receipt_lineage,
                 write_run_receipt,
             )
 
@@ -260,6 +261,7 @@ def run_refine(
                         cache_key=cache_key,
                     ),
                 },
+                **current_receipt_lineage(),
             )
             write_run_receipt(out_path, meta)
         except Exception:

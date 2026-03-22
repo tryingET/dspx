@@ -195,6 +195,7 @@ def write_receipt_for_output(
     from dspx.run_receipts import (
         build_mlflow_hints,
         build_run_receipt,
+        current_receipt_lineage,
         write_run_receipt,
     )
 
@@ -227,6 +228,7 @@ def write_receipt_for_output(
                 cache_key=cache_key,
             ),
         },
+        **current_receipt_lineage(),
     )
     write_run_receipt(outfile, meta)
 

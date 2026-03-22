@@ -77,6 +77,7 @@ def run(
             from dspx.run_receipts import (
                 build_mlflow_hints,
                 build_run_receipt,
+                current_receipt_lineage,
                 write_run_receipt,
             )
 
@@ -117,6 +118,7 @@ def run(
                         cache_key=cache_key,
                     ),
                 },
+                **current_receipt_lineage(),
             )
             write_run_receipt(Path(path), meta)
         except Exception:
