@@ -54,20 +54,25 @@ def _factory_vllm_local() -> OpenAICompatibleLM:
     return OpenAICompatibleLM(**kwargs)
 
 
+def _registered_capabilities(prefix: str) -> ProviderCapabilities:
+    json_mode = _truthy(f"{prefix}_JSON_MODE", False)
+    return ProviderCapabilities(
+        supports_tools=False,
+        code_exec=False,
+        json_mode=json_mode,
+        multi_turn=True,
+        structured_output_format="json" if json_mode else "none",
+    )
+
+
 def register() -> None:
-    compat_caps = ProviderCapabilities(
-        supports_tools=False,
-        code_exec=False,
-        json_mode=False,
-        multi_turn=True,
-        structured_output_format="none",
+    register_provider(
+        "openai-compatible",
+        _factory_openai_compatible,
+        _registered_capabilities("DSPX_OPENAI_COMPAT"),
     )
-    vllm_caps = ProviderCapabilities(
-        supports_tools=False,
-        code_exec=False,
-        json_mode=False,
-        multi_turn=True,
-        structured_output_format="none",
+    register_provider(
+        "vllm-local",
+        _factory_vllm_local,
+        _registered_capabilities("DSPX_VLLM"),
     )
-    register_provider("openai-compatible", _factory_openai_compatible, compat_caps)
-    register_provider("vllm-local", _factory_vllm_local, vllm_caps)

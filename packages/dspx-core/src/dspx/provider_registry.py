@@ -89,15 +89,14 @@ def ensure_default_providers() -> None:
             _reg_pi()
         except Exception:
             pass
-    if "openai-compatible" not in _REGISTRY or "vllm-local" not in _REGISTRY:
-        try:
-            from .providers_register_openai_compatible import (
-                register as _reg_openai_compatible,
-            )
+    try:
+        from .providers_register_openai_compatible import (
+            register as _reg_openai_compatible,
+        )
 
-            _reg_openai_compatible()
-        except Exception:
-            pass
+        _reg_openai_compatible()
+    except Exception:
+        pass
     if "dspy-lm-auth" not in _REGISTRY:
         try:
             from .providers_register_dspy_lm_auth import register as _reg_dspy_lm_auth

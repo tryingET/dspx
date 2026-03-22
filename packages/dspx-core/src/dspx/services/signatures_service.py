@@ -665,7 +665,9 @@ def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
 
     provider_name = _os.getenv("DSPX_PROVIDER", "pi-rpc")
     try:
-        caps = provider_capabilities(provider_name)
+        caps = getattr(active_lm, "capabilities", None) or provider_capabilities(
+            provider_name
+        )
         json_mode = bool(getattr(caps, "json_mode", False))
     except Exception:
         json_mode = False
@@ -795,7 +797,9 @@ def run_generate_dto(
 
     provider_name = _os.getenv("DSPX_PROVIDER", "pi-rpc")
     try:
-        caps = provider_capabilities(provider_name)
+        caps = getattr(active_lm, "capabilities", None) or provider_capabilities(
+            provider_name
+        )
         json_mode = bool(getattr(caps, "json_mode", False))
     except Exception:
         json_mode = False

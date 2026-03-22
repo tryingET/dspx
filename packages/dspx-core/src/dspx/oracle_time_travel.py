@@ -85,13 +85,17 @@ def _parse_created_at(raw: Any) -> datetime | None:
 
 
 def _receipt_run_id(receipt: dict[str, Any], meta_path: Path) -> str:
-    for key in ("hash", "cache_key"):
+    for key in ("execution_id", "run_id"):
         value = receipt.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
     output_path = receipt.get("output_path")
     if isinstance(output_path, str) and output_path.strip():
         return output_path.strip()
+    for key in ("cache_key", "hash"):
+        value = receipt.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
     return str(meta_path)
 
 
