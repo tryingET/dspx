@@ -27,9 +27,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Harden the Oracle Phase C lineage invariants now that the first receipt-backed Time Travel CLI slice is shipped.
-- Constraints (hard limits): Keep follow-up work centered on receipt/replay lineage edge cases; preserve the green `just verify-full` baseline and the new `oracle branch|diff|bisect` contract.
-- Assumptions (max 3): The Phase C CLI JSON contract is stable enough to build on; receipt v2 lineage metadata will continue to be partially populated in real runs; `DSPX-M2-02` is the highest-leverage next product task.
+- Objective (one sentence): Tighten CI coverage around cache provenance and replay strictness now that the Phase C lineage invariants are pinned.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; do not weaken receipt-first replay checks; avoid expanding scope into upstream/template-adapter work.
+- Assumptions (max 3): The current replay JSON contract is stable; existing Oracle Phase C tests are sufficient coverage for lineage edge cases; `DSPX-M3-01` is now the highest-leverage next product task.
 - Blockers (none or list): none
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -49,12 +49,12 @@ Do not ask for permission to start.
 4. Update source-of-truth artifacts before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `DSPX-M2-01` — add a first user-facing Oracle Phase C CLI slice for behavioral branch/diff/bisect workflows.
-- Outcome: The repo now ships receipt-backed `dspx oracle branch`, `diff`, and `bisect` commands, plus focused tests/docs, and `just verify-full` is green again.
-- Files changed: `packages/dspx-core/src/dspx/cli/commands/oracle.py`, `packages/dspx-core/src/dspx/oracle_time_travel.py`, `tests/test_oracle_time_travel_cli.py`, `docs/ORACLE_TIME_TRAVEL.md`, `governance/work-items.json`, `diary/2026-03-22--oracle-phase-c-cli-slice.md`, `next_session_prompt.md`.
-- Validation commands + results: `uv run -m pytest -q tests/test_oracle_time_travel_cli.py` ✅; `uvx ty check packages/dspx-core/src/dspx/oracle_time_travel.py packages/dspx-core/src/dspx/cli/commands/oracle.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅.
-- Deferred tasks updated in `governance/work-items.json`: queued `DSPX-M2-02`, `DSPX-M3-01`; triage `DSPX-M4-01`.
-- Next-session starting point: Start `DSPX-M2-02` by adding multi-parent lineage fixtures plus replay/explain fallback assertions so the new Phase C CLI contract is protected by stronger receipt invariants.
+- Slice executed: `DSPX-M2-02` — harden lineage and branch invariants in receipt/replay tests.
+- Outcome: Oracle Phase C now has regression coverage for multi-parent lineage overlap, default-branch fallback, branch-timeline bisect fallback, and replay/explain stability when lineage metadata is absent or partial.
+- Files changed: `tests/test_oracle_time_travel_cli.py`, `tests/test_run_receipts.py`, `governance/work-items.json`, `diary/2026-03-22--oracle-phase-c-lineage-hardening.md`, `next_session_prompt.md`.
+- Validation commands + results: `uv run -m pytest -q tests/test_oracle_time_travel_cli.py tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅.
+- Deferred tasks updated in `governance/work-items.json`: queued `DSPX-M3-01`; triage `DSPX-M4-01`.
+- Next-session starting point: Start `DSPX-M3-01` by reviewing replay/check-only CI coverage gaps and adding one strict provenance-focused signal that fails clearly on drift.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

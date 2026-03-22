@@ -26,6 +26,31 @@ def _end_active_mlflow_runs() -> None:
         pass
 
 
+def _generate_signature_receipt(
+    tmp_path: Path, monkeypatch, *, output_name: str
+) -> Path:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / output_name
+    result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+    return tmp_path / f"{output_name}.meta.json"
+
+
 def test_run_receipt_roundtrip(tmp_path: Path) -> None:
     out = tmp_path / "artifact.py"
     out.write_text("print('ok')\n", encoding="utf-8")
@@ -200,6 +225,40 @@ def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) 
     assert payload["checks"]["output_hash_match"] is True
     assert payload["checks"]["cache_key_recomputes"] is True
     assert payload["error_codes"] == []
+
+
+def test_run_replay_check_only_is_stable_without_lineage_metadata(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="sig-lineage-none.py",
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+
+    assert "branch" not in receipt
+    assert "parent_run_id" not in receipt
+    assert "causal_chain" not in receipt
+
+    r_replay = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--check-only",
+            "--json",
+        ],
+    )
+
+    assert r_replay.exit_code == 0, r_replay.stdout
+    payload = json.loads(r_replay.stdout)
+    assert payload["status"] == "ok"
+    assert payload["checks"]["output_hash_match"] is True
+    assert payload["error_codes"] == []
+    assert all("lineage" not in str(w) for w in payload["warnings"])
 
 
 def test_run_replay_fails_on_output_hash_drift(tmp_path: Path, monkeypatch) -> None:
@@ -527,6 +586,45 @@ def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> 
     assert payload["mlflow_context"]["lookup_mode"] == "disabled"
     assert payload["mlflow_context"]["reason_code_version"] == "v1"
     assert payload["mlflow_context"]["degrade_reason_codes"] == []
+
+
+def test_run_explain_is_stable_with_partial_lineage_metadata(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="sig-lineage-partial.py",
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    receipt["branch"] = "feature-partial"
+    receipt["parent_run_id"] = "missing-parent"
+    receipt["causal_chain"] = ["missing-parent", "merge-base-001", "missing-parent"]
+    meta_path.write_text(
+        json.dumps(receipt, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(meta_path),
+            "--json",
+        ],
+    )
+
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    assert payload["status"] == "ok"
+    assert payload["replay_status"] == "ok"
+    assert payload["replay_error_codes"] == []
+    assert payload["local_facts"]["run_kind"] == "signature-gen"
+    assert payload["local_facts"]["output_path"].endswith("sig-lineage-partial.py")
+    assert payload["local_facts"]["failed_replay_checks"] == []
+    assert "branch" not in payload["local_facts"]
+    assert all("lineage" not in str(w) for w in payload["warnings"])
 
 
 def test_run_explain_degraded_status_on_drift(tmp_path: Path, monkeypatch) -> None:

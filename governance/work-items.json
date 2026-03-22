@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-21",
+  "updated_at": "2026-03-22",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -132,15 +132,15 @@
         {
           "id": "DSPX-M2-02",
           "title": "Harden lineage and branch invariants in receipt/replay tests",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Add fixtures for multi-parent causal chains and branch fallback behavior",
-              "done": false
+              "done": true
             },
             {
               "text": "Assert replay/explain output remains stable when lineage metadata is absent or partial",
-              "done": false
+              "done": true
             }
           ],
           "dod": "Receipt and replay tests pin the behavioral-lineage edge cases needed by Phase C.",
@@ -149,7 +149,9 @@
             "phase-c",
             "tests"
           ],
-          "assignee": "@next-operator"
+          "assignee": "@next-operator",
+          "completed_at": "2026-03-22",
+          "note": "Expanded the Oracle Phase C fixtures to cover multi-parent lineage, default-branch fallback, branch-timeline bisect fallback, and replay/explain stability when lineage metadata is absent or partial."
         }
       ]
     },
