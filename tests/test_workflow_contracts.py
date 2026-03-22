@@ -83,11 +83,6 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "Use it to choose the next slice; do not treat it as a scheduler or live execution state.\n"
         "Refresh with ak work-items export and verify with ak work-items check.\n",
     )
-    _write(
-        tmp_path,
-        "NEXT_STEPS.md",
-        "Current active strategic goal: `SG1`\nCurrent active tactical goal: `TG2`\ndocs/project/operational_goals.md\n",
-    )
 
     issues = MODULE.collect_issues(tmp_path)
     assert issues == []

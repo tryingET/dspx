@@ -428,7 +428,7 @@ just verify-full
 - architecture: `docs/ARCHITECTURE.md`
 - native signatures: `docs/SIGNATURE_NATIVE_PIPELINE.md`
 - status: `PROJECT_STATUS.md`
-- roadmap: `NEXT_STEPS.md`
+- direction stack: `docs/project/vision.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`
 - monorepo boundaries: `docs/MONOREPO_TRANSITION.md`
 - GEPA quick path: `docs/GEPA_FROM_MODULE_GEN.md`
 - observability/MLflow: `docs/MLFLOW_OBSERVABILITY_PLAN.md`

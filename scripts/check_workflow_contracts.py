@@ -108,14 +108,6 @@ def collect_issues(root: Path) -> list[Issue]:
             ],
             "forbidden": ["Active/deferred work contract"],
         },
-        "NEXT_STEPS.md": {
-            "required": [
-                "Current active strategic goal:",
-                "Current active tactical goal:",
-                "docs/project/operational_goals.md",
-            ],
-            "forbidden": [],
-        },
         "Justfile": {
             "required": [
                 "hooks-install:",

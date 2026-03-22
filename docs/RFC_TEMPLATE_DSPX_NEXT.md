@@ -144,5 +144,5 @@ Add focused tests:
 
 - [ ] implementation PRs scoped
 - [ ] tests added/updated
-- [ ] docs synced (`README`, `PROJECT_STATUS`, `NEXT_STEPS`, domain docs)
+- [ ] docs synced (`README`, `PROJECT_STATUS`, `docs/project/*`, domain docs)
 - [ ] rollout owner assigned

@@ -193,5 +193,5 @@ None. The `# type: ignore[import-untyped]` on the dspy_template_adapter import i
 
 1. Fix all P0 bugs (4 items above)
 2. Add missing tests (3 test gaps)
-3. Update NEXT_STEPS.md to mark review complete
+3. Update the canonical project direction docs under `docs/project/` if this review changes the active wave
 4. Proceed to TemplateAdapterConfig DTO

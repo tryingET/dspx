@@ -123,6 +123,19 @@
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0252",
+          "title": "Direction hygiene: delete NEXT_STEPS.md and converge remaining references on canonical project docs",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Direction hygiene: delete NEXT_STEPS.md and converge remaining references on canonical project docs (task #252)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-22"
         }
       ]
     }

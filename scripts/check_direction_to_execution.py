@@ -85,8 +85,6 @@ def collect_issues(root: Path) -> list[Issue]:
     strategic = _read(root, "docs/project/strategic_goals.md")
     tactical = _read(root, "docs/project/tactical_goals.md")
     operational = _read(root, "docs/project/operational_goals.md")
-    roadmap = _read(root, "NEXT_STEPS.md")
-
     strategic_active = _extract_marker(
         strategic, "Active strategic goal:", "docs/project/strategic_goals.md", issues
     )
@@ -102,13 +100,6 @@ def collect_issues(root: Path) -> list[Issue]:
         "docs/project/operational_goals.md",
         issues,
     )
-    roadmap_strategic = _extract_marker(
-        roadmap, "Current active strategic goal:", "NEXT_STEPS.md", issues
-    )
-    roadmap_tactical = _extract_marker(
-        roadmap, "Current active tactical goal:", "NEXT_STEPS.md", issues
-    )
-
     if (
         strategic_active
         and tactical_strategic
@@ -127,21 +118,6 @@ def collect_issues(root: Path) -> list[Issue]:
                 f"active tactical goal mismatch with tactical_goals.md ({operational_active} != {tactical_active})",
             )
         )
-    if strategic_active and roadmap_strategic and strategic_active != roadmap_strategic:
-        issues.append(
-            Issue(
-                Path("NEXT_STEPS.md"),
-                f"active strategic goal mismatch with strategic_goals.md ({roadmap_strategic} != {strategic_active})",
-            )
-        )
-    if tactical_active and roadmap_tactical and tactical_active != roadmap_tactical:
-        issues.append(
-            Issue(
-                Path("NEXT_STEPS.md"),
-                f"active tactical goal mismatch with tactical_goals.md ({roadmap_tactical} != {tactical_active})",
-            )
-        )
-
     required_read_order = [
         "docs/project/vision.md",
         "docs/project/strategic_goals.md",

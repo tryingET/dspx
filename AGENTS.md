@@ -19,7 +19,6 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 6. `docs/project/tactical_goals.md` — Current tactical frontier
 7. `docs/project/operational_goals.md` — Active operating slices / AK mapping
 8. `docs/learnings/` — Crystallized patterns
-9. `NEXT_STEPS.md` — Active work + roadmap compatibility surface
 
 ## Stack
 - Python 3.13 + uv + just

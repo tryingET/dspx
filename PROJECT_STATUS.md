@@ -84,7 +84,7 @@ Executed on current working tree:
 
 ## Strategic next direction
 
-- **Behavioral Oracle Phase B COMPLETE:** Territory mapping, contracts, frontiers, and attractors now implemented (see `NEXT_STEPS.md` section 8). 47 Phase B tests + integration tests.
+- **Behavioral Oracle Phase B COMPLETE:** Territory mapping, contracts, frontiers, and attractors now implemented. 47 Phase B tests + integration tests.
 - **Tech debt addressed:** Long CLI command functions refactored into focused action handlers (~60% reduction in individual function size for contract/frontiers/attractors commands).
 - **Oracle Phase C (Time Travel):** Next milestone—behavioral git for branching, diffing, and bisecting across behavioral history.
 - Builds entirely on existing receipts/cache/MLflow infrastructure—no external dependencies on upstream fixes.
@@ -97,7 +97,10 @@ Executed on current working tree:
 - `docs/RUN_REPLAY_EXPLAIN.md`
 - `docs/SUBAGENT_WORKFLOW.md`
 - `PROJECT_STATUS.md`
-- `NEXT_STEPS.md`
+- `docs/project/vision.md`
+- `docs/project/strategic_goals.md`
+- `docs/project/tactical_goals.md`
+- `docs/project/operational_goals.md`
 
 ## Recommended posture
 

@@ -73,4 +73,4 @@ uv sync
 ## Notes
 
 - Keep local editable overrides out of committed lock/pinning decisions unless explicitly planned.
-- If a temporary upstream git pin is needed for unblock, track it in `NEXT_STEPS.md` and remove after release.
+- If a temporary upstream git pin is needed for unblock, track it in the active project direction stack (`docs/project/tactical_goals.md` if it changes the wave, `docs/project/operational_goals.md` if it is an active slice detail) and remove after release.
