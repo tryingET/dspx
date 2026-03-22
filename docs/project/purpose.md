@@ -6,5 +6,4 @@ read_when:
 
 # Purpose
 
-TBD.
-
+Make local DSPy development safer, more reproducible, and more inspectable by turning signature/module generation, optimization, replay, and behavioral analysis into an engineering discipline rather than a prompt-only craft.

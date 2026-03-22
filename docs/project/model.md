@@ -8,7 +8,7 @@ read_when:
 
 This project captures:
 - Purpose / mission / vision
-- Strategic + tactical goals
+- Strategic + tactical + operational goals
 - Constraints + resources
 - System4D (Container/Compass/Engine/Fog)
-
+- Dated ADR references for durable architecture decisions

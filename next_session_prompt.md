@@ -15,46 +15,51 @@ Do not ask for permission to start.
 - Keep this file short and current.
 - Keep only the active handoff window (not a history log).
 - Move finished session narrative to `diary/`.
-- Crystallize durable patterns in `docs/learnings/` and decisions in `docs/decisions/`.
-- Track deferred work in `governance/work-items.json` (not in ad-hoc TODO notes).
+- Crystallize durable patterns in `docs/learnings/` and decisions in `docs/adr/` or `docs/decisions/`.
+- Keep live execution truth in Agent Kernel; do not treat checked-in backlog mirrors as the live source of truth.
 
 ## SOURCE-OF-TRUTH MAP
 - Repo operating contract: `AGENTS.md`
-- Mission and goals: `docs/project/`
-- Planned active/deferred work map: `governance/work-items.json`
-- Prior decisions: `docs/decisions/`
-- Crystallized learnings: `docs/learnings/`
+- Mission and long-horizon direction: `docs/project/mission.md`, `docs/project/vision.md`
+- Strategic/tactical direction: `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`
+- Active operating slices: `docs/project/operational_goals.md`
+- Durable architecture decisions: `docs/adr/`
+- Live execution truth: `ak task ... --repo /home/tryinget/ai-society/softwareco/owned/dspx`
+- Planned active/deferred work map: `governance/work-items.json` (legacy checked-in projection/mirror; do not treat as live execution truth)
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Restock `governance/work-items.json` with the next highest-leverage post-M4 roadmap slice now that the current M1-M4 backlog is complete.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; do not reopen completed provider-runtime work unless new evidence requires it; keep the handoff/backlog authoritative and concise.
-- Assumptions (max 3): `DSPX-M4-03` is complete and documented; `docs/project/provider-runtime-v4.md` reflects the current verified mixed-provider behavior; the repo is already validated after the latest optimize/default-resolution fix.
+- Objective (one sentence): Claim `AK-249` and start the V9-compatible synthesis core contracts for module generation.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the current `module-gen` CLI surface while introducing the synthesis runtime seam; do not jump ahead to V8/V9 behavior before the V7 contracts exist.
+- Assumptions (max 3): The V7/V8/V9 architecture reference is now captured in `docs/adr/20260322-synthesis-architecture-v7-v9.md`; `AK-249`/`AK-250`/`AK-251` are the authoritative active operating wave; deferred V4 follow-ons remain intentionally out of the ready queue for now.
 - Blockers (none or list): None.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
-2. `README.md`
-3. `governance/work-items.json`
-4. `docs/project/mission.md`
-5. `docs/project/tactical_goals.md`
-6. `diary/2026-03-22--mixed-provider-optimize-smoke.md`
+2. `docs/project/vision.md`
+3. `docs/project/strategic_goals.md`
+4. `docs/project/tactical_goals.md`
+5. `docs/project/operational_goals.md`
+6. `docs/adr/20260322-synthesis-architecture-v7-v9.md`
+7. `diary/2026-03-22--direction-to-execution-v7-v9.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
-1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it.
-2. Implement end-to-end on a branch.
-3. Validate:
+1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
+2. Confirm the ready queue with `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
+3. Claim the current active task before editing code.
+4. Implement one operating slice end-to-end.
+5. Validate:
    - `./scripts/ci/smoke.sh`
-   - `./scripts/ci/full.sh` (when CI/policy/ontology/contracts changed)
-4. Update source-of-truth artifacts before commit.
+   - `just verify-full`
+6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `DSPX-M4-03` — run one live end-to-end optimize smoke on the mixed-provider defaults.
-- Outcome: Re-confirmed provider health for `vllm-local` and `dspy-lm-auth`, ran a live `module-gen` -> `optimize gepa` smoke with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`, fixed a CLI ordering bug so `[optimize]` defaults load before provider resolution, and verified the final manifest captured `student=vllm-local` plus `reflection=dspy-lm-auth`.
-- Files changed: `packages/dspx-core/src/dspx/cli/commands/optimize.py`, `tests/test_provider_v4.py`, `docs/project/provider-runtime-v4.md`, `README.md`, `NEXT_STEPS.md`, `governance/work-items.json`, `diary/2026-03-22--mixed-provider-optimize-smoke.md`, and `next_session_prompt.md`.
-- Validation commands + results: `DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 just dspx providers health --provider vllm-local --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 just dspx providers health --provider dspy-lm-auth --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen ... && DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx optimize gepa --program "$TD/student.py" --train examples/gepa_modulegen_train.csv --out "$TD/optimized" --metric contains --max-metric-calls 2 --nrows 3` ✅; `uv run -q pytest tests/test_provider_v4.py -q` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅.
-- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M4-03`; the repo now needs a fresh planned slice rather than another carry-over task.
-- Next-session starting point: choose and shape the next roadmap slice in `governance/work-items.json`, then execute it end-to-end from a clean handoff.
+- Slice executed: Direction-to-execution reset for the post-M4 wave.
+- Outcome: Replaced placeholder project-direction docs with a V9-compatible/V7-first plan, salvaged `docs/VISION.md` into a compatibility entry point, recorded a dated ADR for the V7/V8/V9 architecture vocabulary, created `docs/project/operational_goals.md`, created authoritative AK tasks `AK-249`/`AK-250`/`AK-251`, and deferred non-active ready tasks so `AK-249` is the truthful next slice.
+- Files changed: `docs/project/vision.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `docs/project/purpose.md`, `docs/project/model.md`, `docs/VISION.md`, `docs/adr/20260322-synthesis-architecture-v7-v9.md`, `docs/adr/README.md`, `diary/2026-03-22--direction-to-execution-v7-v9.md`, and `next_session_prompt.md`.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅; `node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict` ❌ expected repo-wide pre-existing metadata debt outside this slice (including many historical docs/diary files); `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅.
+- Source-of-truth updates: active strategic goal is now `SG1`; active tactical goal is `TG2`; active operating slices are `AK-249`/`AK-250`/`AK-251`; `AK-224` and `AK-235` are manually deferred because they are not part of the current active wave.
+- Next-session starting point: claim `AK-249` and implement the synthesis contracts/package skeleton described in `docs/project/operational_goals.md`.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
