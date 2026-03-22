@@ -8,7 +8,7 @@ import subprocess
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 
 @dataclass
@@ -273,8 +273,11 @@ class PiRpcClient:
                 msgs = agent_end.get("messages")
                 if isinstance(msgs, list):
                     for m in reversed(msgs):
-                        if isinstance(m, dict) and m.get("role") == "assistant":
-                            txt = self._extract_text_from_message(m)
+                        if not isinstance(m, dict):
+                            continue
+                        msg = cast(dict[str, Any], m)
+                        if msg.get("role") == "assistant":
+                            txt = self._extract_text_from_message(msg)
                             if txt:
                                 return PiPromptResult(text=txt, raw_agent_end=agent_end)
 

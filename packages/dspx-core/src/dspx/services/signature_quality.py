@@ -277,13 +277,11 @@ def format_quality_summary(
 
     dist = summary.get("attempts_used_distribution")
     if isinstance(dist, dict) and dist:
-        dist_text = ", ".join(
-            f"{k}:{int(v)}"
-            for k, v in sorted(
-                dist.items(),
-                key=lambda kv: int(kv[0]),
-            )
+        normalized_dist = sorted(
+            ((str(k), _to_int(v)) for k, v in dist.items()),
+            key=lambda kv: int(kv[0]),
         )
+        dist_text = ", ".join(f"{k}:{v}" for k, v in normalized_dist)
     else:
         dist_text = "-"
 

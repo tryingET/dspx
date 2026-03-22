@@ -12,9 +12,9 @@ def _factory() -> GeminiCLILM:
     cwd = os.getenv("GEMINI_CWD") or None
     timeout = int(os.getenv("GEMINI_TIMEOUT", "0") or 0) or None
     extra = os.getenv("GEMINI_EXTRA_FLAGS") or ""
-    extra_flags = [s for s in extra.split() if s]
+    extra_flags: list[str] = [str(s) for s in extra.split() if s]
     # Allow model selection via env GEMINI_MODEL; we simply pass env through
-    env = {}
+    env: dict[str, str] = {}
     if os.getenv("GEMINI_MODEL"):
         env["GEMINI_MODEL"] = os.getenv("GEMINI_MODEL", "")
     return GeminiCLILM(

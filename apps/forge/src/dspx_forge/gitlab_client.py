@@ -84,7 +84,7 @@ def load_gitlab_config_from_env() -> GitLabConfig:
     if host and host not in allowed_hosts:
         raise RuntimeError(f"GitLab host '{host}' not in DSPX_GITLAB_ALLOWED_HOSTS")
 
-    default_labels = [
+    default_labels: list[str] = [
         s.strip()
         for s in (os.getenv("DSPX_GITLAB_DEFAULT_LABELS") or "").split(",")
         if s.strip()

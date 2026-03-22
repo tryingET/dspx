@@ -65,7 +65,7 @@ class _RefinementMemory:
 
     def build_prompt(self) -> str:
         task = (self.base_prompt or "").strip()
-        parts = [task]
+        parts: list[str] = [task]
         if self.constraints:
             parts.append(
                 "Constraints:\n"

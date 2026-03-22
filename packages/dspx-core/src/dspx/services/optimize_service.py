@@ -102,7 +102,9 @@ def _infer_io_from_student(student: object) -> Tuple[List[str], List[str]]:
         raise RuntimeError(
             "Student module must expose .predict.signature.input_fields/output_fields"
         )
-    return list(input_fields.keys()), list(output_fields.keys())
+    input_keys = [str(key) for key in input_fields.keys()]
+    output_keys = [str(key) for key in output_fields.keys()]
+    return input_keys, output_keys
 
 
 def _load_records(path: Path, *, nrows: Optional[int] = None) -> List[Dict[str, Any]]:

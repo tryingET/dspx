@@ -70,19 +70,19 @@
         {
           "id": "DSPX-M1-03",
           "title": "Restore a green repo-wide typecheck baseline for `just verify-full`",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Triage existing `uvx ty check packages/dspx-core/src apps/forge/src` failures surfaced by `just verify-full`",
-              "done": false
+              "done": true
             },
             {
               "text": "Fix or explicitly defer the invalid-argument/return typing issues in untouched core and forge files",
-              "done": false
+              "done": true
             },
             {
               "text": "Re-run `just verify-full` to restore a fully green validation path",
-              "done": false
+              "done": true
             }
           ],
           "dod": "`just verify-full` passes end-to-end without relying on local exemptions or scope-specific skips.",
@@ -92,7 +92,8 @@
             "workflow"
           ],
           "assignee": "@next-operator",
-          "note": "The workflow-contract slice completed, but full verification is currently blocked by pre-existing ty errors in untouched files."
+          "completed_at": "2026-03-21",
+          "note": "Resolved the repo-wide ty diagnostics in forge/core helpers so the full workflow contract now validates end-to-end."
         }
       ]
     },

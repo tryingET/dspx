@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import dspx.services.signatures_service as signatures_service
 from dspx.services.signature_quality import SignatureQualityGate
@@ -29,7 +29,7 @@ def load_provider_corpus_cases(path: Path) -> list[dict[str, Any]]:
             raise ValueError(
                 f"provider corpus entry at index {idx} must be an object: {path}"
             )
-        out.append(row)
+        out.append(cast(dict[str, Any], row))
 
     if not out:
         raise ValueError(f"provider corpus is empty: {path}")
