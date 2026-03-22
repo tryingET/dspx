@@ -8,6 +8,8 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "error: not a git repo" >&2; exit 1; }
 cd "$repo_root"
 
+uv run -q python scripts/check_replay_provenance.py
+
 if [ -x "./scripts/rocs.sh" ] && [ -f "./ontology/manifest.yaml" ]; then
   workspace_root="${ROCS_WORKSPACE_ROOT:-$HOME}"
   workspace_ref_mode="${ROCS_WORKSPACE_REF_MODE:-loose}"

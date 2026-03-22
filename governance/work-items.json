@@ -162,15 +162,15 @@
         {
           "id": "DSPX-M3-01",
           "title": "Tighten CI coverage for cache provenance and replay strictness",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Review current replay/check-only coverage gaps in CI artifacts",
-              "done": false
+              "done": true
             },
             {
               "text": "Add one strict provenance-focused gate or summary that fails clearly on drift",
-              "done": false
+              "done": true
             }
           ],
           "dod": "CI surfaces replay provenance drift clearly and protects receipt-first reproducibility.",
@@ -179,7 +179,9 @@
             "ci",
             "quality"
           ],
-          "assignee": "@next-operator"
+          "assignee": "@next-operator",
+          "completed_at": "2026-03-22",
+          "note": "Added a deterministic replay provenance check that generates a stub-backed receipt, proves replay passes when clean, then mutates cache payload code and requires a clear `cache_code_hash_mismatch` failure in CI/full validation."
         }
       ]
     },

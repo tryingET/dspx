@@ -40,10 +40,15 @@ Validation contract:
   - protects `docs/_core/**`
   - verifies workflow contract integrity
   - validates `governance/work-items.json` against `governance/work-items.cue`
+- `./scripts/ci/full.sh`
+  - runs `./scripts/ci/smoke.sh`
+  - runs the deterministic replay provenance check (`uv run -q python scripts/check_replay_provenance.py`)
+  - runs repo ontology validation when ROCS metadata is present
 - `just verify-full`
   - re-checks workflow contracts
   - runs `uvx pre-commit run --all-files`
   - runs governance validation
+  - runs the deterministic replay provenance check
   - runs monorepo/typecheck/test gates
 
 ## Governance + session planning

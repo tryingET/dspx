@@ -27,9 +27,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Tighten CI coverage around cache provenance and replay strictness now that the Phase C lineage invariants are pinned.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; do not weaken receipt-first replay checks; avoid expanding scope into upstream/template-adapter work.
-- Assumptions (max 3): The current replay JSON contract is stable; existing Oracle Phase C tests are sufficient coverage for lineage edge cases; `DSPX-M3-01` is now the highest-leverage next product task.
+- Objective (one sentence): Triage `DSPX-M4-01` and decide whether DSPx should keep waiting on upstream template-adapter fixes or move to a local patched path.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; do not regress the new replay provenance gate; keep scope focused on the unblock decision rather than broad upstream implementation.
+- Assumptions (max 3): Replay/cache provenance hardening is now covered by CI; the template-adapter upstream issue set remains the canonical blocker map; `DSPX-M4-01` is now the highest-leverage remaining backlog slice.
 - Blockers (none or list): none
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -49,12 +49,12 @@ Do not ask for permission to start.
 4. Update source-of-truth artifacts before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `DSPX-M2-02` — harden lineage and branch invariants in receipt/replay tests.
-- Outcome: Oracle Phase C now has regression coverage for multi-parent lineage overlap, default-branch fallback, branch-timeline bisect fallback, and replay/explain stability when lineage metadata is absent or partial.
-- Files changed: `tests/test_oracle_time_travel_cli.py`, `tests/test_run_receipts.py`, `governance/work-items.json`, `diary/2026-03-22--oracle-phase-c-lineage-hardening.md`, `next_session_prompt.md`.
-- Validation commands + results: `uv run -m pytest -q tests/test_oracle_time_travel_cli.py tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅.
-- Deferred tasks updated in `governance/work-items.json`: queued `DSPX-M3-01`; triage `DSPX-M4-01`.
-- Next-session starting point: Start `DSPX-M3-01` by reviewing replay/check-only CI coverage gaps and adding one strict provenance-focused signal that fails clearly on drift.
+- Slice executed: `DSPX-M3-01` — tighten CI coverage for cache provenance and replay strictness.
+- Outcome: CI/full validation now executes a deterministic replay provenance guard that proves clean replay passes, then injects cache drift and requires a clear `cache_code_hash_mismatch` failure.
+- Files changed: `scripts/check_replay_provenance.py`, `scripts/ci/full.sh`, `Justfile`, `docs/project/developer_workflow.md`, `docs/RUN_REPLAY_EXPLAIN.md`, `governance/work-items.json`, `diary/2026-03-22--replay-provenance-ci-hardening.md`, `next_session_prompt.md`.
+- Validation commands + results: `uv run -m pytest -q tests/test_run_receipts.py tests/test_workflow_contracts.py` ✅; `./scripts/ci/smoke.sh` ✅; `./scripts/ci/full.sh` ✅; `just verify-full` ✅.
+- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M3-01`; left `DSPX-M4-01` in triage.
+- Next-session starting point: Review the upstream template-adapter issue set, then decide whether `DSPX-M4-01` should keep waiting on upstream or move to a local patched integration path.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

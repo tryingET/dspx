@@ -80,11 +80,16 @@ test:
     echo "no local tests"; \
   fi
 
+# Deterministic replay provenance guard (receipt-first CI signal)
+replay-provenance-check:
+  uv run -q python scripts/check_replay_provenance.py
+
 # Full validation gate (run once per commit batch / before push)
 verify-full:
   just workflow-contract-check
   just governance-check
   uvx pre-commit run --all-files
+  just replay-provenance-check
   just monorepo-check
   just typecheck
   just test

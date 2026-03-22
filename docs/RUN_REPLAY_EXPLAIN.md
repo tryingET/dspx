@@ -106,6 +106,13 @@ Exit codes:
 - `1`: parsed receipt but drift detected
 - `2`: invalid receipt/arguments
 
+CI guard (current deterministic path):
+- `uv run -q python scripts/check_replay_provenance.py`
+- generates a stub-backed receipt in a temp dir,
+- verifies `dspx run replay --check-only --json` passes in the clean case,
+- mutates the cache payload deliberately,
+- requires replay to fail clearly with `cache_code_hash_mismatch`.
+
 ## Explain command (implemented MVP)
 
 `dspx run explain --from <receipt>` now provides local-first explanation:
