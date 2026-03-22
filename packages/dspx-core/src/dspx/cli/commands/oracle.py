@@ -24,6 +24,128 @@ if TYPE_CHECKING:
 app = typer.Typer(no_args_is_help=True)
 
 
+@app.command("branch")
+def oracle_branch(
+    branch: Optional[str] = typer.Argument(
+        None,
+        help="Behavioral branch to inspect; omit to list known branches",
+    ),
+    path: Optional[Path] = typer.Option(
+        None,
+        "--path",
+        help="Path to receipt file or directory (default: generated/)",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    """List behavioral branches or inspect one branch timeline."""
+    from dspx.oracle_time_travel import (
+        branch_report,
+        format_branch_report,
+        format_branch_summaries,
+        load_receipt_records,
+        summarize_branches,
+    )
+
+    records = load_receipt_records(path)
+    if not records:
+        typer.echo("Error: no receipt files found", err=True)
+        raise typer.Exit(code=2)
+
+    if branch is None:
+        summaries = summarize_branches(records)
+        payload = {"branches": [summary.to_dict() for summary in summaries]}
+        if json_out:
+            typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            typer.echo(format_branch_summaries(summaries))
+        return
+
+    try:
+        payload = branch_report(records, branch)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=2)
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(format_branch_report(payload))
+
+
+@app.command("diff")
+def oracle_diff(
+    left_branch: str = typer.Argument(..., help="Left branch name"),
+    right_branch: str = typer.Argument(..., help="Right branch name"),
+    path: Optional[Path] = typer.Option(
+        None,
+        "--path",
+        help="Path to receipt file or directory (default: generated/)",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    """Compare two behavioral branches using receipt lineage metadata."""
+    from dspx.oracle_time_travel import (
+        diff_branches,
+        format_diff_report,
+        load_receipt_records,
+    )
+
+    records = load_receipt_records(path)
+    if not records:
+        typer.echo("Error: no receipt files found", err=True)
+        raise typer.Exit(code=2)
+
+    try:
+        payload = diff_branches(records, left_branch, right_branch)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=2)
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(format_diff_report(payload))
+
+
+@app.command("bisect")
+def oracle_bisect(
+    branch: str = typer.Argument(..., help="Behavioral branch to bisect"),
+    path: Optional[Path] = typer.Option(
+        None,
+        "--path",
+        help="Path to receipt file or directory (default: generated/)",
+    ),
+    bad_outcome: list[str] = typer.Option(
+        ["failure", "partial"],
+        "--bad-outcome",
+        help="Outcome values treated as the bad side of the boundary",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    """Find the first bad behavioral boundary inside a branch."""
+    from dspx.oracle_time_travel import (
+        bisect_branch,
+        format_bisect_report,
+        load_receipt_records,
+    )
+
+    records = load_receipt_records(path)
+    if not records:
+        typer.echo("Error: no receipt files found", err=True)
+        raise typer.Exit(code=2)
+
+    try:
+        payload = bisect_branch(records, branch, bad_outcomes=bad_outcome)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=2)
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(format_bisect_report(payload))
+
+
 @app.command("index")
 def oracle_index(
     from_mlflow: bool = typer.Option(

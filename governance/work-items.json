@@ -104,19 +104,19 @@
         {
           "id": "DSPX-M2-01",
           "title": "Add a first user-facing CLI slice for behavioral branch/diff/bisect workflows",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Define minimal CLI UX and output contracts for `dspx oracle branch`, `diff`, and `bisect`",
-              "done": false
+              "done": true
             },
             {
               "text": "Implement receipt-backed query primitives using receipt v2 lineage/branch fields",
-              "done": false
+              "done": true
             },
             {
               "text": "Add focused tests and docs for the first Time Travel workflow",
-              "done": false
+              "done": true
             }
           ],
           "dod": "A documented and tested Oracle Phase C CLI path ships against local receipt data without regressing existing Oracle commands.",
@@ -126,7 +126,8 @@
             "cli"
           ],
           "assignee": "@next-operator",
-          "note": "Highest-leverage next slice because receipt v2 metadata is already present and the user-visible Time Travel layer is the remaining gap."
+          "completed_at": "2026-03-22",
+          "note": "Shipped the first receipt-backed Time Travel CLI contract with `oracle branch`, `diff`, and `bisect`, plus focused tests/docs and a restored green `just verify-full` baseline."
         },
         {
           "id": "DSPX-M2-02",
