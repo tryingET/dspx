@@ -22,7 +22,7 @@ def _truthy(name: str, default: bool) -> bool:
     raw = os.getenv(name)
     if raw is None:
         return default
-    return raw not in {"", "0", "false", "False", "no", "No"}
+    return str(raw).strip().lower() not in {"", "0", "false", "no"}
 
 
 def _common_kwargs(prefix: str, *, provider_label: str) -> _OpenAICompatibleKwargs:
@@ -65,14 +65,22 @@ def _registered_capabilities(prefix: str) -> ProviderCapabilities:
     )
 
 
-def register() -> None:
+def register_openai_compatible() -> None:
     register_provider(
         "openai-compatible",
         _factory_openai_compatible,
         _registered_capabilities("DSPX_OPENAI_COMPAT"),
     )
+
+
+def register_vllm_local() -> None:
     register_provider(
         "vllm-local",
         _factory_vllm_local,
         _registered_capabilities("DSPX_VLLM"),
     )
+
+
+def register() -> None:
+    register_openai_compatible()
+    register_vllm_local()

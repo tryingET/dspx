@@ -10,7 +10,10 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.dspy_lm_auth_lm import DspyLMAuthLM
+import dspx.provider_registry as provider_registry
+from dspx.capabilities import ProviderCapabilities
 from dspx.provider_registry import available, ensure_default_providers
+from dspx.providers_register_openai_compatible import _truthy
 from dspx.run_receipts import build_run_receipt
 from dspx.services.optimize_service import run_gepa_optimize
 
@@ -191,6 +194,50 @@ def test_cli_provider_capabilities_match_runtime_json_mode(monkeypatch) -> None:
         == resolved_payload["capabilities"]["structured_output_format"]
         == "json"
     )
+
+
+def test_truthy_strips_whitespace_and_falsey_variants(monkeypatch) -> None:
+    for raw in ("0 ", " false", "false ", " no ", ""):
+        monkeypatch.setenv("DSPX_BOOL_TEST", raw)
+        assert _truthy("DSPX_BOOL_TEST", True) is False
+
+    monkeypatch.setenv("DSPX_BOOL_TEST", " 1 ")
+    assert _truthy("DSPX_BOOL_TEST", False) is True
+
+
+def test_ensure_default_providers_preserves_custom_openai_compatible(
+    monkeypatch,
+) -> None:
+    saved_registry = dict(provider_registry._REGISTRY)
+    try:
+        provider_registry._REGISTRY.clear()
+        custom_caps = ProviderCapabilities(
+            supports_tools=True,
+            code_exec=True,
+            json_mode=True,
+            multi_turn=False,
+            structured_output_format="json",
+        )
+        provider_registry.register_provider(
+            "openai-compatible",
+            lambda: "custom-openai-compatible",
+            custom_caps,
+        )
+
+        monkeypatch.setenv("DSPX_VLLM_JSON_MODE", "1")
+        ensure_default_providers()
+
+        reg = available()
+        assert reg["openai-compatible"].factory() == "custom-openai-compatible"
+        assert (
+            reg["openai-compatible"].capabilities.model_dump()
+            == custom_caps.model_dump()
+        )
+        assert "vllm-local" in reg
+        assert reg["vllm-local"].capabilities.json_mode is True
+    finally:
+        provider_registry._REGISTRY.clear()
+        provider_registry._REGISTRY.update(saved_registry)
 
 
 def test_run_receipt_includes_redacted_provider_details(

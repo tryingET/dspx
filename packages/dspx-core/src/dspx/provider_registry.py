@@ -37,6 +37,13 @@ def available() -> Dict[str, ProviderFactory]:
     return dict(_REGISTRY)
 
 
+def _factory_owned_by_module(name: str, module_name: str) -> bool:
+    factory = _REGISTRY.get(name)
+    if factory is None:
+        return False
+    return getattr(factory.factory, "__module__", "") == module_name
+
+
 def ensure_default_providers() -> None:
     """Ensure built-in providers are registered (idempotent)."""
     if "codex-exec" not in _REGISTRY:
@@ -91,10 +98,18 @@ def ensure_default_providers() -> None:
             pass
     try:
         from .providers_register_openai_compatible import (
-            register as _reg_openai_compatible,
+            register_openai_compatible as _reg_openai_compatible,
+            register_vllm_local as _reg_vllm_local,
         )
 
-        _reg_openai_compatible()
+        if "openai-compatible" not in _REGISTRY or _factory_owned_by_module(
+            "openai-compatible", "dspx.providers_register_openai_compatible"
+        ):
+            _reg_openai_compatible()
+        if "vllm-local" not in _REGISTRY or _factory_owned_by_module(
+            "vllm-local", "dspx.providers_register_openai_compatible"
+        ):
+            _reg_vllm_local()
     except Exception:
         pass
     if "dspy-lm-auth" not in _REGISTRY:
