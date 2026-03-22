@@ -228,6 +228,107 @@ def test_oracle_diff_does_not_collapse_distinct_runs_with_same_output_hash(
     assert payload["right_only_run_ids"] == ["exec-b"]
 
 
+def test_oracle_diff_prefers_legacy_cache_key_over_shared_output_path(
+    tmp_path: Path,
+) -> None:
+    shared_output_path = "/repo/generated/same.py"
+    for output_name, branch, cache_key, created_at in (
+        ("feature-left.py", "feature-left", "cache-left", "2026-03-21T10:00:00+00:00"),
+        (
+            "feature-right.py",
+            "feature-right",
+            "cache-right",
+            "2026-03-21T10:05:00+00:00",
+        ),
+    ):
+        output_path = tmp_path / output_name
+        output_path.write_text("print('same')\n", encoding="utf-8")
+        receipt = build_run_receipt(
+            run_kind="module-gen",
+            output_path=output_path,
+            output_hash="same-output-hash",
+            template_version="simple-v1",
+            cache_key=cache_key,
+            cache_file=None,
+            cache_enabled=False,
+            branch=branch,
+            outcome="success",
+            capture_context=False,
+        )
+        receipt.pop("execution_id", None)
+        receipt["output_path"] = shared_output_path
+        receipt["created_at"] = created_at
+        write_run_receipt(output_path, receipt)
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "diff",
+            "feature-left",
+            "feature-right",
+            "--path",
+            str(tmp_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["shared_lineage_ids"] == []
+    assert payload["left_only_run_ids"] == ["cache-left"]
+    assert payload["right_only_run_ids"] == ["cache-right"]
+
+
+def test_oracle_bisect_uses_parent_run_id_when_causal_chain_is_partial(
+    tmp_path: Path,
+) -> None:
+    _write_receipt(
+        tmp_path,
+        output_name="root.py",
+        run_id="root-001",
+        created_at="2026-03-21T10:00:00+00:00",
+        run_kind="signature-gen",
+        outcome="success",
+        branch="feature-parent",
+    )
+    _write_receipt(
+        tmp_path,
+        output_name="parent.py",
+        run_id="parent-001",
+        created_at="2026-03-21T10:05:00+00:00",
+        run_kind="module-gen",
+        outcome="success",
+        branch="feature-parent",
+        parent_run_id="root-001",
+        causal_chain=["root-001"],
+    )
+    _write_receipt(
+        tmp_path,
+        output_name="bad.py",
+        run_id="bad-001",
+        created_at="2026-03-21T10:10:00+00:00",
+        run_kind="module-gen",
+        outcome="failure",
+        branch="feature-parent",
+        parent_run_id="parent-001",
+        causal_chain=["root-001"],
+    )
+
+    result = runner.invoke(
+        app,
+        ["oracle", "bisect", "feature-parent", "--path", str(tmp_path), "--json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "boundary_found"
+    assert payload["method"] == "causal_chain"
+    assert payload["last_good_run"]["run_id"] == "parent-001"
+    assert payload["first_bad_run"]["run_id"] == "bad-001"
+    assert payload["candidate_window"] == ["parent-001", "bad-001"]
+
+
 def test_oracle_bisect_finds_first_bad_boundary(tmp_path: Path) -> None:
     _seed_time_travel_receipts(tmp_path)
 

@@ -7,7 +7,14 @@ from typer.testing import CliRunner
 
 import dspx.cli.utils as dspx_utils
 from dspx.cli.dspx import app
-from dspx.run_receipts import build_run_receipt, load_run_receipt, write_run_receipt
+from dspx.run_receipts import (
+    build_run_receipt,
+    current_receipt_lineage,
+    load_run_receipt,
+    normalize_receipt_provenance,
+    resolve_receipt_run_id,
+    write_run_receipt,
+)
 
 
 runner = CliRunner()
@@ -1058,6 +1065,49 @@ def test_run_receipt_execution_context_hash_tracks_env_value_changes(
         receipt_a["execution_context"]["env_hash"]
         != receipt_b["execution_context"]["env_hash"]
     )
+
+
+def test_normalize_receipt_provenance_prefers_canonical_identity_fields() -> None:
+    receipt = {
+        "execution_id": "exec-123",
+        "run_id": "mlflow-456",
+        "cache_key": "cache-789",
+        "hash": "hash-abc",
+        "output_path": "/tmp/out.py",
+        "branch": "feature-a",
+        "parent_run_id": "parent-1",
+        "causal_chain": ["root-1", "parent-1", "root-1"],
+    }
+
+    provenance = normalize_receipt_provenance(receipt)
+
+    assert provenance["run_id"] == "exec-123"
+    assert provenance["branch"] == "feature-a"
+    assert provenance["parent_run_id"] == "parent-1"
+    assert provenance["causal_chain"] == ["root-1", "parent-1"]
+    assert provenance["lineage_ids"] == ["root-1", "parent-1"]
+
+
+def test_resolve_receipt_run_id_prefers_legacy_ids_before_output_path() -> None:
+    receipt = {
+        "output_path": "/repo/generated/same.py",
+        "cache_key": "cache-left",
+        "hash": "hash-left",
+    }
+
+    assert resolve_receipt_run_id(receipt) == "cache-left"
+
+
+def test_current_receipt_lineage_appends_parent_to_causal_chain(monkeypatch) -> None:
+    monkeypatch.setenv("DSPX_CAUSAL_CHAIN", '["root-1"]')
+
+    lineage = current_receipt_lineage(parent_run_id="parent-1", branch="feature-a")
+
+    assert lineage == {
+        "branch": "feature-a",
+        "parent_run_id": "parent-1",
+        "causal_chain": ["root-1", "parent-1"],
+    }
 
 
 def test_cli_generated_receipt_includes_execution_id_and_branch(

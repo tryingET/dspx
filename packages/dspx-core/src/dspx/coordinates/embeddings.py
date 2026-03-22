@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
+from dspx.run_receipts import resolve_receipt_run_id
+
 logger = logging.getLogger(__name__)
 
 # Embedding schema version - bump when changing embedding behavior
@@ -420,9 +422,11 @@ class EmbeddingEngine:
         Returns:
             EmbeddingResult with success/failure/skip information
         """
-        run_id = receipt.get("hash") or receipt.get("cache_key")
+        run_id = resolve_receipt_run_id(receipt)
         if not run_id:
-            return EmbeddingResult.skip("Receipt has no 'hash' or 'cache_key' field")
+            return EmbeddingResult.skip(
+                "Receipt has no canonical run identifier (execution_id, run_id, cache_key, hash, or output_path)"
+            )
 
         # Extract replay inputs
         replay_inputs = receipt.get("replay_inputs", {})

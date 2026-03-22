@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable
 
-from dspx.run_receipts import load_run_receipt
+from dspx.run_receipts import load_run_receipt, normalize_receipt_provenance
 
 
 @dataclass(frozen=True)
@@ -84,56 +84,17 @@ def _parse_created_at(raw: Any) -> datetime | None:
     return parsed
 
 
-def _receipt_run_id(receipt: dict[str, Any], meta_path: Path) -> str:
-    for key in ("execution_id", "run_id"):
-        value = receipt.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    output_path = receipt.get("output_path")
-    if isinstance(output_path, str) and output_path.strip():
-        return output_path.strip()
-    for key in ("cache_key", "hash"):
-        value = receipt.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return str(meta_path)
-
-
-def _normalize_lineage_ids(value: Any) -> tuple[str, ...]:
-    if not isinstance(value, list):
-        return ()
-    seen: set[str] = set()
-    normalized: list[str] = []
-    for item in value:
-        if not isinstance(item, str):
-            continue
-        run_id = item.strip()
-        if not run_id or run_id in seen:
-            continue
-        seen.add(run_id)
-        normalized.append(run_id)
-    return tuple(normalized)
-
-
 def _load_record(meta_path: Path) -> ReceiptRecord | None:
     receipt = load_run_receipt(meta_path)
     if not isinstance(receipt, dict):
         return None
 
+    provenance = normalize_receipt_provenance(receipt, meta_path=meta_path)
+
     created_at_raw = receipt.get("created_at")
     created_at = created_at_raw.strip() if isinstance(created_at_raw, str) else None
-    parent_run_id_raw = receipt.get("parent_run_id")
-    parent_run_id = (
-        parent_run_id_raw.strip()
-        if isinstance(parent_run_id_raw, str) and parent_run_id_raw.strip()
-        else None
-    )
     output_path = receipt.get("output_path")
     output_text = output_path.strip() if isinstance(output_path, str) else ""
-    branch = receipt.get("branch")
-    branch_name = (
-        branch.strip() if isinstance(branch, str) and branch.strip() else "main"
-    )
     run_kind = receipt.get("run_kind")
     run_kind_text = (
         run_kind.strip()
@@ -151,18 +112,26 @@ def _load_record(meta_path: Path) -> ReceiptRecord | None:
         outcome.strip() if isinstance(outcome, str) and outcome.strip() else "unknown"
     )
 
+    run_id = provenance["run_id"]
+    if not isinstance(run_id, str) or not run_id.strip():
+        return None
+
     return ReceiptRecord(
-        run_id=_receipt_run_id(receipt, meta_path),
+        run_id=run_id,
         receipt_path=meta_path,
         output_path=output_text,
         created_at=created_at,
         created_dt=_parse_created_at(created_at),
-        branch=branch_name,
+        branch=str(provenance["branch"]),
         run_kind=run_kind_text,
         provider=provider_text,
         outcome=outcome_text,
-        parent_run_id=parent_run_id,
-        causal_chain=_normalize_lineage_ids(receipt.get("causal_chain")),
+        parent_run_id=(
+            str(provenance["parent_run_id"])
+            if provenance["parent_run_id"] is not None
+            else None
+        ),
+        causal_chain=tuple(str(item) for item in provenance["causal_chain"]),
     )
 
 
@@ -326,11 +295,11 @@ def bisect_branch(
     record_by_run_id = {record.run_id: record for record in records}
     lineage_records = [
         record_by_run_id[run_id]
-        for run_id in first_bad.causal_chain
+        for run_id in first_bad.lineage_ids
         if run_id in record_by_run_id
     ]
     missing_lineage_ids = [
-        run_id for run_id in first_bad.causal_chain if run_id not in record_by_run_id
+        run_id for run_id in first_bad.lineage_ids if run_id not in record_by_run_id
     ]
 
     last_good = next(

@@ -161,8 +161,8 @@ def current_receipt_lineage(
         if causal_chain
         else _parse_env_causal_chain(os.getenv("DSPX_CAUSAL_CHAIN"))
     )
-    if resolved_chain is None and resolved_parent:
-        resolved_chain = build_causal_chain(resolved_parent)
+    if resolved_parent:
+        resolved_chain = build_causal_chain(*(resolved_chain or []), resolved_parent)
     resolved_branch = get_branch_name(
         explicit_branch=(
             branch or os.getenv("DSPX_RECEIPT_BRANCH") or os.getenv("DSPX_BRANCH")
@@ -174,6 +174,60 @@ def current_receipt_lineage(
     if resolved_chain:
         payload["causal_chain"] = resolved_chain
     return payload
+
+
+def _normalized_optional_str(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _normalized_lineage_ids(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    return tuple(build_causal_chain(*(str(item) for item in value)))
+
+
+def resolve_receipt_run_id(
+    receipt: Mapping[str, Any],
+    *,
+    meta_path: Path | None = None,
+) -> str | None:
+    """Resolve the canonical run identity for a receipt.
+
+    Precedence is version-aware and favors explicit execution identity first,
+    then legacy behavioral identifiers, and only then path-based fallbacks.
+    """
+    for key in ("execution_id", "run_id", "cache_key", "hash", "output_path"):
+        value = _normalized_optional_str(receipt.get(key))
+        if value:
+            return value
+    if meta_path is not None:
+        return str(meta_path)
+    return None
+
+
+def normalize_receipt_provenance(
+    receipt: Mapping[str, Any],
+    *,
+    meta_path: Path | None = None,
+    default_branch: str = "main",
+) -> dict[str, Any]:
+    """Normalize receipt identity and lineage across schema versions."""
+    parent_run_id = _normalized_optional_str(receipt.get("parent_run_id"))
+    causal_chain = list(_normalized_lineage_ids(receipt.get("causal_chain")))
+    lineage_ids = list(
+        build_causal_chain(*causal_chain, *([parent_run_id] if parent_run_id else []))
+    )
+    branch = _normalized_optional_str(receipt.get("branch")) or default_branch
+    return {
+        "run_id": resolve_receipt_run_id(receipt, meta_path=meta_path),
+        "branch": branch,
+        "parent_run_id": parent_run_id,
+        "causal_chain": causal_chain,
+        "lineage_ids": lineage_ids,
+    }
 
 
 def _current_provider_details() -> dict[str, Any]:

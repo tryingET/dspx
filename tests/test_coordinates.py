@@ -692,7 +692,7 @@ class TestReceiptEmbedding:
         emb = engine.embed_receipt(receipt, output_content='{"category": "bug"}')
 
         assert emb is not None
-        assert emb.run_id == "abc123"
+        assert emb.run_id == "key-abc123"
         assert emb.run_kind == "signature-gen"
         assert "classify this ticket" in emb.input_text
         assert '{"category": "bug"}' in emb.output_text
@@ -742,7 +742,23 @@ class TestReceiptEmbedding:
         result = engine.embed_receipt_result(receipt)
         assert not result.ok
         assert result.skipped
-        assert (
-            "hash" in result.skip_reason.lower()
-            or "cache_key" in result.skip_reason.lower()
-        )
+        assert "canonical run identifier" in result.skip_reason.lower()
+        assert "execution_id" in result.skip_reason.lower()
+
+    def test_embed_receipt_prefers_execution_id(self) -> None:
+        """Execution identity should follow canonical receipt precedence."""
+        engine = EmbeddingEngine(backend="mock", mock_dimension=32)
+
+        receipt = {
+            "execution_id": "exec-123",
+            "hash": "hash-legacy",
+            "cache_key": "cache-legacy",
+            "run_kind": "signature-gen",
+            "provider": "claude",
+            "replay_inputs": {"prompt": "create classifier"},
+        }
+
+        emb = engine.embed_receipt(receipt, output_content='{"category": "bug"}')
+
+        assert emb is not None
+        assert emb.run_id == "exec-123"
