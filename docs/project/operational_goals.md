@@ -29,4 +29,5 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 - This file is the operating-plan layer for the current tactical goal; it should stay focused on `TG2` only.
 - `AK-224` and `AK-235` were manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
+- After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Promote `TG3` only after `AK-249` through `AK-251` are materially complete.

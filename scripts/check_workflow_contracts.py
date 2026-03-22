@@ -69,6 +69,10 @@ def collect_issues(root: Path) -> list[Issue]:
             "required": [
                 "docs/project/developer_workflow.md",
                 "just hooks-install",
+                "docs/project/vision.md",
+                "docs/project/strategic_goals.md",
+                "docs/project/tactical_goals.md",
+                "docs/project/operational_goals.md",
             ],
             "forbidden": ["./scripts/install-hooks.sh"],
         },
@@ -104,11 +108,20 @@ def collect_issues(root: Path) -> list[Issue]:
             ],
             "forbidden": ["Active/deferred work contract"],
         },
+        "NEXT_STEPS.md": {
+            "required": [
+                "Current active strategic goal:",
+                "Current active tactical goal:",
+                "docs/project/operational_goals.md",
+            ],
+            "forbidden": [],
+        },
         "Justfile": {
             "required": [
                 "hooks-install:",
                 "uvx pre-commit install --hook-type pre-commit --hook-type pre-push",
                 "workflow-contract-check:",
+                "direction-contract-check:",
                 "governance-check:",
                 "uvx pre-commit run --all-files",
                 "cue vet governance/work-items.json governance/work-items.cue",
@@ -119,14 +132,18 @@ def collect_issues(root: Path) -> list[Issue]:
             "required": [
                 "need_cmd cue",
                 "need_cmd python3",
+                "need_cmd ak",
                 "cue vet governance/work-items.json governance/work-items.cue",
                 "python3 scripts/check_workflow_contracts.py",
+                "python3 scripts/check_direction_to_execution.py",
             ],
             "forbidden": [],
         },
         "governance/README.md": {
             "required": [
                 "Use it to choose the next slice; do not treat it as a scheduler or live execution state.",
+                "ak work-items export",
+                "ak work-items check",
             ],
             "forbidden": [],
         },

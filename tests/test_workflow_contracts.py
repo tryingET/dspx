@@ -33,7 +33,8 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "AGENTS.md",
-        "See docs/project/developer_workflow.md and run just hooks-install.\n",
+        "See docs/project/developer_workflow.md and run just hooks-install.\n"
+        "Canonical reads: docs/project/vision.md docs/project/strategic_goals.md docs/project/tactical_goals.md docs/project/operational_goals.md\n",
     )
     _write(
         tmp_path,
@@ -63,6 +64,8 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  uvx pre-commit install --hook-type pre-commit --hook-type pre-push\n"
         "workflow-contract-check:\n"
         "  python3 scripts/check_workflow_contracts.py\n"
+        "direction-contract-check:\n"
+        "  python3 scripts/check_direction_to_execution.py\n"
         "governance-check:\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n"
         "verify-full:\n"
@@ -72,12 +75,18 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "scripts/ci/smoke.sh",
-        "need_cmd cue\nneed_cmd python3\ncue vet governance/work-items.json governance/work-items.cue\npython3 scripts/check_workflow_contracts.py\n",
+        "need_cmd cue\nneed_cmd python3\nneed_cmd ak\ncue vet governance/work-items.json governance/work-items.cue\npython3 scripts/check_workflow_contracts.py\npython3 scripts/check_direction_to_execution.py\n",
     )
     _write(
         tmp_path,
         "governance/README.md",
-        "Use it to choose the next slice; do not treat it as a scheduler or live execution state.\n",
+        "Use it to choose the next slice; do not treat it as a scheduler or live execution state.\n"
+        "Refresh with ak work-items export and verify with ak work-items check.\n",
+    )
+    _write(
+        tmp_path,
+        "NEXT_STEPS.md",
+        "Current active strategic goal: `SG1`\nCurrent active tactical goal: `TG2`\ndocs/project/operational_goals.md\n",
     )
 
     issues = MODULE.collect_issues(tmp_path)

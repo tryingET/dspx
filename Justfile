@@ -19,6 +19,10 @@ hooks-install:
 workflow-contract-check:
   python3 scripts/check_workflow_contracts.py
 
+# Validate direction-to-execution coherence across docs, AK, and projections
+direction-contract-check:
+  python3 scripts/check_direction_to_execution.py
+
 # Validate project planning artifacts
 # NOTE: work-items stay planning-only, but the schema must remain valid.
 governance-check:
@@ -87,6 +91,7 @@ replay-provenance-check:
 # Full validation gate (run once per commit batch / before push)
 verify-full:
   just workflow-contract-check
+  just direction-contract-check
   just governance-check
   uvx pre-commit run --all-files
   just replay-provenance-check

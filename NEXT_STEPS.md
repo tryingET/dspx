@@ -12,6 +12,26 @@ This document guides evolution of the DSPx system—its codebase, its upstream d
 
 ---
 
+## Current Execution Frontier
+
+Current active strategic goal: `SG1`
+Current active tactical goal: `TG2`
+Current active operating wave: `AK-249` -> `AK-250` -> `AK-251`
+
+Canonical execution stack:
+- vision: `docs/project/vision.md`
+- strategy: `docs/project/strategic_goals.md`
+- tactics: `docs/project/tactical_goals.md`
+- operations: `docs/project/operational_goals.md`
+- live execution truth: `ak task ... --repo /home/tryinget/ai-society/softwareco/owned/dspx`
+- checked-in projection/mirror: `governance/work-items.json`
+
+Highest-leverage active wave:
+- establish the V9-compatible synthesis core and ship V7 module synthesis through the existing `module-gen` surface
+- keep provider-runtime V4 as completed enabling context, not the current primary roadmap driver
+
+---
+
 ## What Was Accomplished
 
 ### CLI Refactoring — COMPLETE ✅
@@ -61,7 +81,25 @@ The Oracle is not a feature. It's a paradigm shift—from reactive debugging to 
 
 ## Active Work
 
-### 0) Provider Runtime V4 / Template-Adapter Unblock Decision
+### 0) Synthesis Runtime V7 on a V9-Compatible Core
+
+**Status:** 🟢 direction reset complete; docs + AK now point at the synthesis-runtime MVP wave
+
+**Strategic / tactical mapping:**
+- strategic goal: `SG1`
+- tactical goal: `TG2`
+- operating wave: `AK-249` -> `AK-250` -> `AK-251`
+
+**Execution contract:**
+- `AK-249` establishes the first synthesis contracts (`SynthesisRequest`, IR, candidate/evaluation/policy/promotion records)
+- `AK-250` adds runtime/workspace/promotion boundaries
+- `AK-251` routes `module-gen` through the runtime MVP path while preserving current CLI UX
+
+**Why this wave now:**
+- provider runtime V4, replay provenance checks, and Oracle foundations are already strong enough to support the next architecture layer
+- `module-gen` remains template-first, so the highest-leverage intervention is to introduce the synthesis runtime seam that V7 can ship on and V8/V9 can later build upon
+
+### 1) Provider Runtime V4 / Template-Adapter Unblock Decision
 
 **Status:** 🟢 local patched path accepted; mixed-provider profile live-verified end-to-end; exact-fidelity adapter remains optional/upstream-blocked
 
@@ -91,8 +129,8 @@ Upstream adapter blockers still tracked in `docs/upstream-issues/dspy-template-a
 - ✅ CLI regression fixed: `optimize gepa` now loads `DSPX_CONFIG` before resolving `[optimize]` provider defaults
 - ⚠️ end-to-end caveats on the verified local setup: the hello-style smoke should use `contains` rather than `exact`, the tiny proof reuses train-as-val when `--val` is omitted, and the current `Qwen/Qwen3.5-27B` student took ~61s wall-clock for a 3-row / 2-metric-call run
 
-**Next execution step:**
-- Restock `governance/work-items.json` with the next roadmap slice; the current M1-M4 backlog is now complete.
+**Follow-on from this completed wave:**
+- Provider-runtime V4 now serves as enabling context for the active synthesis-runtime wave documented above; do not treat this section as the primary execution frontier.
 
 ---
 

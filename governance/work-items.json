@@ -6,260 +6,123 @@
   "milestones": [
     {
       "id": "M1",
-      "title": "Source-of-truth alignment",
+      "title": "DB Task Projection",
       "issues": [
         {
-          "id": "DSPX-M1-01",
-          "title": "Refresh mission, tactical goals, backlog, and session handoff",
-          "state": "done",
+          "id": "AK-TASK-0224",
+          "title": "V4: author artifact-replay-evaluation binding note",
+          "state": "queued",
           "tasks": [
             {
-              "text": "Set a durable mission statement aligned with Oracle + replay/reproducibility",
-              "done": true
-            },
-            {
-              "text": "Replace placeholder tactical goals with current delivery targets",
-              "done": true
-            },
-            {
-              "text": "Shape the repo backlog into milestones/issues instead of leaving an empty planning artifact",
-              "done": true
-            },
-            {
-              "text": "Capture the session in diary/ and leave a short next-session handoff",
-              "done": true
+              "text": "V4: author artifact-replay-evaluation binding note (task #224)",
+              "done": false
             }
           ],
-          "dod": "Mission, tactical goals, work-items, diary, and next-session handoff all reflect the current Oracle-first roadmap.",
+          "dod": "Task reaches done in society.db with evidence recorded.",
           "labels": [
-            "docs",
-            "governance",
-            "planning"
+            "deferred"
           ],
-          "completed_at": "2026-03-21",
-          "note": "This session established the missing project source-of-truth baseline so future work can be selected from a shaped backlog."
+          "note": "Deferred:\n- reason: Deferred while the repo's active tactical goal shifts to the V9-compatible module synthesis runtime MVP; revisit when the evidence/predictive layer is promoted.\n- kind: manual"
         },
         {
-          "id": "DSPX-M1-02",
-          "title": "Enforce the developer workflow contract across docs, hooks, and smoke validation",
-          "state": "done",
+          "id": "AK-TASK-0235",
+          "title": "V4: add opt-in live provider acceptance tests for vllm-local, codex/gpt-5.4, and expected-fail codex/gpt-5.4-nano",
+          "state": "queued",
           "tasks": [
             {
-              "text": "Create one canonical workflow doc and point repo workflow surfaces at it",
-              "done": true
-            },
-            {
-              "text": "Add machine-checked workflow contract validation and wire it into smoke/full gates",
-              "done": true
-            },
-            {
-              "text": "Restore local hygiene primitives (.gitignore, pre-commit config, working hook installer)",
-              "done": true
+              "text": "V4: add opt-in live provider acceptance tests for vllm-local, codex/gpt-5.4, and expected-fail codex/gpt-5.4-nano (task #235)",
+              "done": false
             }
           ],
-          "dod": "Workflow docs, hook installation, smoke/full validation, and local hygiene are aligned and verified by executable checks.",
+          "dod": "Task reaches done in society.db with evidence recorded.",
           "labels": [
-            "docs",
-            "governance",
-            "workflow",
-            "validation"
+            "deferred"
           ],
-          "completed_at": "2026-03-21",
-          "note": "Implements the NEXUS intervention from the adversarial review: one machine-checked developer workflow contract with real hooks and smoke enforcement."
+          "note": "Deferred:\n- reason: Deferred while the repo's active tactical goal shifts from provider-runtime follow-ons to the V9-compatible module synthesis runtime MVP; revisit after the synthesis runtime operating wave.\n- kind: manual"
         },
         {
-          "id": "DSPX-M1-03",
-          "title": "Restore a green repo-wide typecheck baseline for `just verify-full`",
-          "state": "done",
+          "id": "AK-TASK-0236",
+          "title": "V4: add no-thinking / clean-output control for the vllm-local student path",
+          "state": "queued",
           "tasks": [
             {
-              "text": "Triage existing `uvx ty check packages/dspx-core/src apps/forge/src` failures surfaced by `just verify-full`",
-              "done": true
-            },
-            {
-              "text": "Fix or explicitly defer the invalid-argument/return typing issues in untouched core and forge files",
-              "done": true
-            },
-            {
-              "text": "Re-run `just verify-full` to restore a fully green validation path",
-              "done": true
+              "text": "V4: add no-thinking / clean-output control for the vllm-local student path (task #236)",
+              "done": false
             }
           ],
-          "dod": "`just verify-full` passes end-to-end without relying on local exemptions or scope-specific skips.",
-          "labels": [
-            "quality",
-            "typecheck",
-            "workflow"
-          ],
-          "assignee": "@next-operator",
-          "completed_at": "2026-03-21",
-          "note": "Resolved the repo-wide ty diagnostics in forge/core helpers so the full workflow contract now validates end-to-end."
-        }
-      ]
-    },
-    {
-      "id": "M2",
-      "title": "Oracle Phase C — Time Travel",
-      "issues": [
-        {
-          "id": "DSPX-M2-01",
-          "title": "Add a first user-facing CLI slice for behavioral branch/diff/bisect workflows",
-          "state": "done",
-          "tasks": [
-            {
-              "text": "Define minimal CLI UX and output contracts for `dspx oracle branch`, `diff`, and `bisect`",
-              "done": true
-            },
-            {
-              "text": "Implement receipt-backed query primitives using receipt v2 lineage/branch fields",
-              "done": true
-            },
-            {
-              "text": "Add focused tests and docs for the first Time Travel workflow",
-              "done": true
-            }
-          ],
-          "dod": "A documented and tested Oracle Phase C CLI path ships against local receipt data without regressing existing Oracle commands.",
-          "labels": [
-            "oracle",
-            "phase-c",
-            "cli"
-          ],
-          "assignee": "@next-operator",
-          "completed_at": "2026-03-22",
-          "note": "Shipped the first receipt-backed Time Travel CLI contract with `oracle branch`, `diff`, and `bisect`, plus focused tests/docs and a restored green `just verify-full` baseline."
+          "dod": "Task reaches done in society.db with evidence recorded."
         },
         {
-          "id": "DSPX-M2-02",
-          "title": "Harden lineage and branch invariants in receipt/replay tests",
-          "state": "done",
+          "id": "AK-TASK-0237",
+          "title": "V4: add `dspx providers doctor` to chain resolve + health + benchmark for the blessed runtime pair",
+          "state": "queued",
           "tasks": [
             {
-              "text": "Add fixtures for multi-parent causal chains and branch fallback behavior",
-              "done": true
-            },
-            {
-              "text": "Assert replay/explain output remains stable when lineage metadata is absent or partial",
-              "done": true
+              "text": "V4: add `dspx providers doctor` to chain resolve + health + benchmark for the blessed runtime pair (task #237)",
+              "done": false
             }
           ],
-          "dod": "Receipt and replay tests pin the behavioral-lineage edge cases needed by Phase C.",
-          "labels": [
-            "oracle",
-            "phase-c",
-            "tests"
-          ],
-          "assignee": "@next-operator",
-          "completed_at": "2026-03-22",
-          "note": "Expanded the Oracle Phase C fixtures to cover multi-parent lineage, default-branch fallback, branch-timeline bisect fallback, and replay/explain stability when lineage metadata is absent or partial."
-        }
-      ]
-    },
-    {
-      "id": "M3",
-      "title": "Replay and quality hardening",
-      "issues": [
-        {
-          "id": "DSPX-M3-01",
-          "title": "Tighten CI coverage for cache provenance and replay strictness",
-          "state": "done",
-          "tasks": [
-            {
-              "text": "Review current replay/check-only coverage gaps in CI artifacts",
-              "done": true
-            },
-            {
-              "text": "Add one strict provenance-focused gate or summary that fails clearly on drift",
-              "done": true
-            }
-          ],
-          "dod": "CI surfaces replay provenance drift clearly and protects receipt-first reproducibility.",
-          "labels": [
-            "replay",
-            "ci",
-            "quality"
-          ],
-          "assignee": "@next-operator",
-          "completed_at": "2026-03-22",
-          "note": "Added a deterministic replay provenance check that generates a stub-backed receipt, proves replay passes when clean, then mutates cache payload code and requires a clear `cache_code_hash_mismatch` failure in CI/full validation."
-        }
-      ]
-    },
-    {
-      "id": "M4",
-      "title": "Upstream unblock tracks",
-      "issues": [
-        {
-          "id": "DSPX-M4-01",
-          "title": "Reassess the dspy-template-adapter unblock path",
-          "state": "done",
-          "tasks": [
-            {
-              "text": "Review upstream issue status for parser and partial-demo fixes",
-              "done": true
-            },
-            {
-              "text": "Decide whether to keep waiting or vendor a patched integration path",
-              "done": true
-            }
-          ],
-          "dod": "DSPx has an explicit decision on whether template-adapter integration remains blocked upstream or moves to a local patched path.",
-          "labels": [
-            "upstream",
-            "integration"
-          ],
-          "assignee": "@next-operator",
-          "completed_at": "2026-03-22",
-          "note": "Reviewed the local blocker map for dspy-template-adapter and chose a DSPx-local patched path instead of waiting on or vendoring the adapter immediately: mixed-provider runtime v4 now exposes explicit `vllm-local`, `openai-compatible`, and `dspy-lm-auth` providers, provider health/benchmark tooling, optimize defaults, and receipt-safe runtime metadata while exact-fidelity template-adapter work stays optional/upstream-blocked."
+          "dod": "Task reaches done in society.db with evidence recorded."
         },
         {
-          "id": "DSPX-M4-02",
-          "title": "Live-verify the provider runtime v4 mixed-provider profile",
-          "state": "done",
+          "id": "AK-TASK-0238",
+          "title": "Oracle Phase C: define minimal CLI UX contract for branch / diff / bisect",
+          "state": "queued",
           "tasks": [
             {
-              "text": "Run `dspx providers health --probe` against the configured `vllm-local` and `dspy-lm-auth` providers",
-              "done": true
-            },
-            {
-              "text": "Run `dspx providers benchmark` for the mixed-provider profile and capture the known-good/known-bad model notes in repo docs",
-              "done": true
+              "text": "Oracle Phase C: define minimal CLI UX contract for branch / diff / bisect (task #238)",
+              "done": false
             }
           ],
-          "dod": "The mixed-provider profile is verified against a live local/auth-backed environment and its real limitations are documented for the next operator.",
-          "labels": [
-            "provider",
-            "runtime",
-            "validation"
-          ],
-          "assignee": "@next-operator",
-          "completed_at": "2026-03-22",
-          "note": "Live-validated the mixed-provider runtime v4 profile with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`: `vllm-local` (`Qwen/Qwen3.5-27B`) and `dspy-lm-auth` (`codex/gpt-5.4`) both passed `providers health --probe`, the mixed benchmark completed with 100% success for both providers, and the known-bad `codex/gpt-5.4-nano` route was reproduced and documented as a ChatGPT/Codex-account limitation."
+          "dod": "Task reaches done in society.db with evidence recorded."
         },
         {
-          "id": "DSPX-M4-03",
-          "title": "Run one live end-to-end optimize smoke on the mixed-provider defaults",
-          "state": "done",
+          "id": "AK-TASK-0239",
+          "title": "Validation: decide docs strict ratchet/remediation strategy for repo-wide metadata debt",
+          "state": "queued",
           "tasks": [
             {
-              "text": "Execute a small `dspx optimize gepa` smoke using `vllm-local` as the student provider and `dspy-lm-auth` as the reflection provider",
-              "done": true
-            },
-            {
-              "text": "Document any provider-specific runtime caveats that only appear in the end-to-end optimize path",
-              "done": true
+              "text": "Validation: decide docs strict ratchet/remediation strategy for repo-wide metadata debt (task #239)",
+              "done": false
             }
           ],
-          "dod": "DSPx proves the mixed-provider runtime through one live end-to-end optimize slice, or documents the precise blocker if the workflow cannot complete.",
-          "labels": [
-            "provider",
-            "runtime",
-            "optimize",
-            "validation"
+          "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0249",
+          "title": "Synthesis core: add V9-compatible request/IR/candidate/evaluation/policy/promotion contracts for module generation",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis core: add V9-compatible request/IR/candidate/evaluation/policy/promotion contracts for module generation (task #249)",
+              "done": false
+            }
           ],
-          "assignee": "@next-operator",
-          "completed_at": "2026-03-22",
-          "note": "Ran a live `module-gen` -> `optimize gepa` smoke with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`, verified the manifest captured `vllm-local` as the student provider and `dspy-lm-auth` as the reflection provider, documented the end-to-end caveats (use `contains` for the hello-style smoke, expect the train-as-val warning when `--val` is omitted, and budget ~61s wall-clock on the current local Qwen runtime), and fixed a CLI ordering bug so `[optimize]` defaults from config load before provider resolution."
+          "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0250",
+          "title": "Module synthesis runtime: add strategy metadata, candidate workspace, and promotion shell",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Module synthesis runtime: add strategy metadata, candidate workspace, and promotion shell (task #250)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0251",
+          "title": "Module-gen: route through the synthesis runtime single-candidate path with static/smoke validation and receipts",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Module-gen: route through the synthesis runtime single-candidate path with static/smoke validation and receipts (task #251)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

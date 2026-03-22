@@ -7,6 +7,10 @@ This file tracks project-specific work (features, bugs, improvements).
 **This is a PLANNING ARTIFACT, not an execution queue.**
 Use it to choose the next slice; do not treat it as a scheduler or live execution state.
 
+When Agent Kernel is authoritative for this repo, keep this file as a checked-in projection/mirror:
+- refresh it with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json`
+- verify it with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`
+
 | Aspect | Status |
 |--------|--------|
 | Structure | ✓ Complete |

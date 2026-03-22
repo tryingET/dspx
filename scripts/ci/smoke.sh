@@ -15,6 +15,7 @@ need_cmd grep
 need_cmd sed
 need_cmd cue
 need_cmd python3
+need_cmd ak
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die_env "not a git repo"
 cd "$repo_root"
@@ -53,5 +54,6 @@ fi
 
 cue vet governance/work-items.json governance/work-items.cue
 python3 scripts/check_workflow_contracts.py
+python3 scripts/check_direction_to_execution.py
 
 say "ok: ci smoke"
