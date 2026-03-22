@@ -159,10 +159,14 @@ just dspx optimize gepa \
   --program examples/gepa_demo_program.py \
   --train examples/gepa_demo_train.csv \
   --out generated/gepa_demo_optimized \
-  --student-provider pi-rpc \
+  --student-provider vllm-local \
+  --reflection-provider dspy-lm-auth \
   --metric exact \
   --max-metric-calls 2
 ```
+
+For the currently verified mixed-provider setup, see:
+- `docs/project/provider-runtime-v4.md`
 
 Fast smoke from generated module:
 
@@ -179,7 +183,7 @@ More:
 
 Replay/source of truth:
 - local generated artifacts (`generated/...`)
-- sidecar run receipts (`*.meta.json`, schema `receipt_version: v1`)
+- sidecar run receipts (`*.meta.json`, schema `receipt_version: v2`)
 - on-disk cache (`generated/cache/...`)
 
 Inspect cache:
@@ -252,23 +256,66 @@ MLflow behavior and constraints:
 
 ---
 
+## Oracle Time Travel (Phase C slice)
+
+Receipt v2 metadata now supports a first local CLI slice for behavioral history:
+
+```bash
+# List known behavioral branches from local receipts
+just dspx oracle branch --path generated --json
+
+# Inspect one branch timeline
+just dspx oracle branch feature-x --path generated --json
+
+# Compare two branches via shared lineage IDs and branch-local runs
+just dspx oracle diff feature-x feature-y --path generated --json
+
+# Find the first bad outcome boundary inside a branch
+just dspx oracle bisect feature-x --path generated --json
+```
+
+The Phase C slice is receipt-backed only: it reads local `*.meta.json` files,
+uses `branch`, `parent_run_id`, and `causal_chain` when present, and falls back
+cleanly when lineage is partial.
+
+---
+
 ## Providers
 
 Default posture:
 - default provider fallback: `pi-rpc`
 - offline testing provider: `stub`
-
-Smoke providers:
-
-```bash
-just dspx providers smoke --json
-```
+- local student provider: `vllm-local`
+- auth-backed reflection provider: `dspy-lm-auth`
 
 List providers:
 
 ```bash
 just dspx providers list
 ```
+
+Resolve provider configuration:
+
+```bash
+just dspx providers resolve --provider vllm-local --json
+```
+
+Health-check providers:
+
+```bash
+just dspx providers health --provider vllm-local --probe --json
+just dspx providers health --provider dspy-lm-auth --probe --json
+```
+
+Benchmark providers:
+
+```bash
+just dspx providers benchmark --provider vllm-local --provider dspy-lm-auth --json
+```
+
+Known compatibility note:
+- `codex/gpt-5.4` is currently verified through `dspy-lm-auth`
+- `codex/gpt-5.4-nano` is currently rejected on the active ChatGPT/Codex account route
 
 ---
 

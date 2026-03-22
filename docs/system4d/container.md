@@ -61,4 +61,4 @@ DSPx
 | ai-society | Upstream | KES, cognitive tools, docs discovery |
 | DSPy | Upstream | PRs for callback improvements |
 | MLflow | Upstream | PRs for tracking improvements |
-| template-adapter | Upstream | Blocked on issues |
+| template-adapter | Upstream | Exact-fidelity path still blocked; local provider-runtime workaround adopted |

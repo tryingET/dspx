@@ -1,6 +1,6 @@
 """Provider utilities commands.
 
-Commands for listing, inspecting, and testing providers.
+Commands for listing, inspecting, testing, and benchmarking providers.
 """
 
 from __future__ import annotations
@@ -8,11 +8,12 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional
 
 import typer
 
-from dspx.cli.utils import ensure_env
+from dspx.cli.utils import ensure_env, output_json, write_summary_json
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -54,13 +55,72 @@ def providers_capabilities(
         "code_exec": bool(getattr(caps, "code_exec", False)),
         "json_mode": bool(getattr(caps, "json_mode", False)),
         "multi_turn": bool(getattr(caps, "multi_turn", False)),
+        "structured_output_format": str(
+            getattr(caps, "structured_output_format", "none")
+        ),
+        "supports_vision": bool(getattr(caps, "supports_vision", False)),
+        "supports_audio": bool(getattr(caps, "supports_audio", False)),
     }
 
+    output_json(payload, json_out)
+
+
+@app.command("resolve")
+def providers_resolve(
+    provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Resolve a provider into its runtime metadata."""
+    from dspx.provider_runtime import describe_provider
+
+    ensure_env(provider, tracing=False)
+    name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
+    payload = describe_provider(name)
+    output_json(payload, json_out)
+
+
+@app.command("health")
+def providers_health(
+    provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
+    probe: bool = typer.Option(
+        False, "--probe", help="Send a lightweight request after config checks"
+    ),
+    prompt: str = typer.Option(
+        "Reply with the single word: hello",
+        help="Probe prompt when --probe is enabled",
+    ),
+    max_tokens: Optional[int] = typer.Option(
+        16, help="Max tokens for probe requests (best effort)"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Validate provider configuration and optionally probe the runtime."""
+    from dspx.provider_runtime import check_provider_health
+
+    ensure_env(provider, tracing=False)
+    name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
+    payload = check_provider_health(
+        name,
+        probe=probe,
+        prompt=prompt,
+        max_tokens=max_tokens,
+    )
     if json_out:
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
-        for k, v in payload.items():
-            typer.echo(f"{k}: {v}")
+        typer.echo(f"provider: {payload.get('provider')}")
+        typer.echo(f"ok: {payload.get('ok')}")
+        if payload.get("model") is not None:
+            typer.echo(f"model: {payload.get('model')}")
+        if payload.get("error"):
+            typer.echo(f"error: {payload.get('error')}")
+        if payload.get("probe"):
+            probe_payload = payload.get("probe") or {}
+            typer.echo(f"probe.ok: {probe_payload.get('ok')}")
+            if probe_payload.get("text"):
+                typer.echo(str(probe_payload.get("text")))
+    if not payload.get("ok", False):
+        raise typer.Exit(code=2)
 
 
 @app.command("smoke")
@@ -92,6 +152,9 @@ def providers_smoke(
             "GEMINI_TIMEOUT",
             "OPENROUTER_TIMEOUT",
             "DSPX_PI_TIMEOUT",
+            "DSPX_LM_AUTH_TIMEOUT",
+            "DSPX_OPENAI_COMPAT_TIMEOUT",
+            "DSPX_VLLM_TIMEOUT",
         ):
             os.environ[env_k] = secs
 
@@ -169,3 +232,53 @@ def providers_smoke(
         else:
             typer.echo(f"error provider={name}: {err}", err=True)
             raise typer.Exit(code=2)
+
+
+@app.command("benchmark")
+def providers_benchmark(
+    provider: List[str] = typer.Option(
+        [],
+        "--provider",
+        help="Provider to benchmark (repeatable). Defaults to current DSPX_PROVIDER.",
+    ),
+    prompt: str = typer.Option(
+        "Reply with the single word: hello",
+        help="Prompt used for benchmarking calls",
+    ),
+    repeats: int = typer.Option(3, help="Number of measured calls per provider"),
+    warmup: int = typer.Option(0, help="Warmup calls per provider before timing"),
+    max_tokens: Optional[int] = typer.Option(
+        16, help="Max tokens per benchmark call (best effort)"
+    ),
+    summary_json_out: Optional[Path] = typer.Option(
+        None, help="Optional path to write benchmark summary JSON"
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON"),
+) -> None:
+    """Benchmark one or more providers with repeated smoke requests."""
+    from dspx.provider_runtime import benchmark_providers
+
+    ensure_env(None, tracing=False)
+    providers = provider or [os.getenv("DSPX_PROVIDER") or "pi-rpc"]
+    payload = benchmark_providers(
+        providers,
+        prompt=prompt,
+        repeats=max(0, int(repeats)),
+        warmup=max(0, int(warmup)),
+        max_tokens=max_tokens,
+    )
+    write_summary_json(summary_json_out, payload)
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        typer.echo(f"providers: {', '.join(payload['providers'])}")
+        typer.echo(f"ranking: {', '.join(payload['ranking'])}")
+        for row in payload["results"]:
+            typer.echo(
+                " - {provider}: success_rate={success_rate:.2f} median_ms={median} model={model}".format(
+                    provider=row.get("provider"),
+                    success_rate=float(row.get("success_rate") or 0.0),
+                    median=row.get("duration_median_ms"),
+                    model=row.get("model"),
+                )
+            )

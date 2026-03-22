@@ -5,6 +5,7 @@ Commands for running DSPy optimizers like GEPA.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -13,6 +14,20 @@ import typer
 from dspx.cli.utils import ensure_env
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _resolve_optimize_providers(
+    student_provider: Optional[str], reflection_provider: Optional[str]
+) -> tuple[Optional[str], Optional[str]]:
+    student = (
+        student_provider
+        or os.getenv("DSPX_OPTIMIZE_STUDENT_PROVIDER")
+        or os.getenv("DSPX_PROVIDER")
+    )
+    reflection = (
+        reflection_provider or os.getenv("DSPX_OPTIMIZE_REFLECTION_PROVIDER") or student
+    )
+    return student, reflection
 
 
 @app.command("gepa")
@@ -99,6 +114,9 @@ def optimize_gepa(
     """
     from dspx.services.optimize_service import run_gepa_optimize
 
+    student_provider, reflection_provider = _resolve_optimize_providers(
+        student_provider, reflection_provider
+    )
     ensure_env(student_provider)
 
     budget_set = sum(

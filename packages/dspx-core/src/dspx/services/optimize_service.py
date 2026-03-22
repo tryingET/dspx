@@ -299,6 +299,7 @@ def run_gepa_optimize(
 
     import dspy
     from dspx.provider_registry import create, create_from_env, ensure_default_providers
+    from dspx.provider_runtime import provider_metadata_from_instance
 
     ensure_default_providers()
 
@@ -446,14 +447,12 @@ def run_gepa_optimize(
             "seed": seed,
         },
         "providers": {
-            "student": {
-                "name": student_provider_name,
-                "model": getattr(student_lm, "model", None),
-            },
-            "reflection": {
-                "name": reflection_provider_name,
-                "model": getattr(reflection_lm, "model", None),
-            },
+            "student": provider_metadata_from_instance(
+                str(student_provider_name), student_lm
+            ),
+            "reflection": provider_metadata_from_instance(
+                str(reflection_provider_name), reflection_lm
+            ),
         },
     }
     (out_dir / "manifest.json").write_text(

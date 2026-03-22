@@ -31,4 +31,4 @@ Index
 | ADR | Title | Status | Notes |
 | --- | --- | --- | --- |
 | [20260206-pi-rpc-provider.md](20260206-pi-rpc-provider.md) | Pi provider runtime uses persistent RPC process | Accepted | Provider-first integration; avoids shelling out one-shot per LM call. |
-| TBD | Placeholder for next durable architecture decision | Proposed | Add when next cross-cutting decision is made. |
+| [20260322-provider-runtime-v4.md](20260322-provider-runtime-v4.md) | Provider runtime v4 is the local mixed-provider unblock path | Accepted | Keeps template-adapter optional while shipping explicit `vllm-local` + `dspy-lm-auth` provider workflows. |

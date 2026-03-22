@@ -192,21 +192,45 @@
         {
           "id": "DSPX-M4-01",
           "title": "Reassess the dspy-template-adapter unblock path",
-          "state": "triage",
+          "state": "done",
           "tasks": [
             {
               "text": "Review upstream issue status for parser and partial-demo fixes",
-              "done": false
+              "done": true
             },
             {
               "text": "Decide whether to keep waiting or vendor a patched integration path",
-              "done": false
+              "done": true
             }
           ],
           "dod": "DSPx has an explicit decision on whether template-adapter integration remains blocked upstream or moves to a local patched path.",
           "labels": [
             "upstream",
             "integration"
+          ],
+          "assignee": "@next-operator",
+          "completed_at": "2026-03-22",
+          "note": "Reviewed the local blocker map for dspy-template-adapter and chose a DSPx-local patched path instead of waiting on or vendoring the adapter immediately: mixed-provider runtime v4 now exposes explicit `vllm-local`, `openai-compatible`, and `dspy-lm-auth` providers, provider health/benchmark tooling, optimize defaults, and receipt-safe runtime metadata while exact-fidelity template-adapter work stays optional/upstream-blocked."
+        },
+        {
+          "id": "DSPX-M4-02",
+          "title": "Live-verify the provider runtime v4 mixed-provider profile",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Run `dspx providers health --probe` against the configured `vllm-local` and `dspy-lm-auth` providers",
+              "done": false
+            },
+            {
+              "text": "Run `dspx providers benchmark` for the mixed-provider profile and capture the known-good/known-bad model notes in repo docs",
+              "done": false
+            }
+          ],
+          "dod": "The mixed-provider profile is verified against a live local/auth-backed environment and its real limitations are documented for the next operator.",
+          "labels": [
+            "provider",
+            "runtime",
+            "validation"
           ],
           "assignee": "@next-operator"
         }

@@ -61,24 +61,29 @@ The Oracle is not a feature. It's a paradigm shift—from reactive debugging to 
 
 ## Active Work
 
-### 0) dspy-template-adapter Integration
+### 0) Provider Runtime V4 / Template-Adapter Unblock Decision
 
-**Status:** 🟡 BLOCKED on upstream
+**Status:** 🟢 local patched path accepted; exact-fidelity adapter remains optional/upstream-blocked
 
-Upstream issues filed (see `docs/upstream-issues/dspy-template-adapter/`):
+Upstream adapter blockers still tracked in `docs/upstream-issues/dspy-template-adapter/`:
 1. XML parser fails on nested tags (#1)
 2. JSON parser doesn't handle markdown (#2)
-3. Partial demos break BootstrapFewShot (#6)
+3. Partial demos break BootstrapFewShot / GEPA (#6)
 
-**DSPx-side COMPLETE:**
-- ✅ ProviderCapabilities contract
-- ✅ All providers expose `.capabilities`
-- ✅ CLI fast-fail for missing adapter
-- ✅ TemplateAdapterConfig DTO
-- ✅ YAML config schema validation
-- ✅ `--dry-run` flag for preview
+**Decision:**
+- Do **not** vendor `dspy-template-adapter` in the critical path yet.
+- Use DSPx-local provider runtime v4 as the supported unblock path for mixed-provider workflows.
+- Keep exact-fidelity template-adapter integration optional until the upstream parser/demo blockers materially change.
 
-**Unblock condition:** Upstream fixes #1, #2, #6 OR we vendor patched version.
+**Shipped in the local path:**
+- ✅ explicit `vllm-local`, `openai-compatible`, and `dspy-lm-auth` providers
+- ✅ provider resolve / health / benchmark CLI commands
+- ✅ config-driven student/reflection provider defaults for GEPA
+- ✅ receipt-safe provider metadata for replay/explain and optimize manifests
+- ✅ mixed-provider runtime reference: `docs/project/provider-runtime-v4.md`
+
+**Next validation step:**
+- Live-verify the mixed-provider profile (`DSPX-M4-02`) against a real local vLLM endpoint and the current auth-backed Codex route.
 
 ---
 

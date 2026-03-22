@@ -32,7 +32,7 @@ read_when:
 
 | Debt | Interest | Payoff Plan |
 |------|----------|-------------|
-| Template adapter upstream issues | Blocks full adapter integration | Monitor upstream, vendor if needed |
+| Template adapter upstream issues | Exact-fidelity adapter remains deferred | Monitor upstream while using provider-runtime v4 for the supported local path |
 | Oracle coverage heuristics are approximate | May mislead users | Document as heuristic, improve with data |
 | Knowledge Crystallized embedded in NEXT_STEPS.md | Mixed concerns | Migrated to docs/learnings/ |
 
@@ -47,3 +47,4 @@ read_when:
 - Upstream PR timelines (DSPy, MLflow, template-adapter)
 - Phase D/E architecture
 - Production deployment model
+

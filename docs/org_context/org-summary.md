@@ -21,7 +21,7 @@ DSPx is an **owned repo** within `ai-society/softwareco/owned/`.
 |------------|--------------|--------|
 | DSPy | Upstream | PRs prepared, not merged |
 | MLflow | Upstream | Optional, callback improvements planned |
-| dspy-template-adapter | Upstream | Blocked on issues #1, #2, #6 |
+| dspy-template-adapter | Upstream | Exact-fidelity path still blocked on issues #1, #2, #6; local provider-runtime v4 adopted instead |
 
 ## Downstream Consumers
 

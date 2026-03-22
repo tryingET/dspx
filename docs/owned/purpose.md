@@ -24,7 +24,7 @@ DSPx is a behavioral intelligence layer for DSPy programs:
 ## Out of Scope
 
 - Direct DSPy core modifications (upstream PRs instead)
-- Template adapter fixes (blocked on upstream)
+- Template-adapter upstream fixes themselves (DSPx uses a local provider-runtime workaround instead)
 - MLflow core changes (upstream PRs instead)
 
 ## Delivery Baseline

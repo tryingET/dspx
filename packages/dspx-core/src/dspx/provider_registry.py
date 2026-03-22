@@ -89,6 +89,22 @@ def ensure_default_providers() -> None:
             _reg_pi()
         except Exception:
             pass
+    if "openai-compatible" not in _REGISTRY or "vllm-local" not in _REGISTRY:
+        try:
+            from .providers_register_openai_compatible import (
+                register as _reg_openai_compatible,
+            )
+
+            _reg_openai_compatible()
+        except Exception:
+            pass
+    if "dspy-lm-auth" not in _REGISTRY:
+        try:
+            from .providers_register_dspy_lm_auth import register as _reg_dspy_lm_auth
+
+            _reg_dspy_lm_auth()
+        except Exception:
+            pass
 
 
 def create_from_env(env_var: str = "DSPX_PROVIDER", default: str = "pi-rpc") -> object:

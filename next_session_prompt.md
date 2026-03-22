@@ -27,10 +27,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Triage `DSPX-M4-01` and decide whether DSPx should keep waiting on upstream template-adapter fixes or move to a local patched path.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; do not regress the new replay provenance gate; keep scope focused on the unblock decision rather than broad upstream implementation.
-- Assumptions (max 3): Replay/cache provenance hardening is now covered by CI; the template-adapter upstream issue set remains the canonical blocker map; `DSPX-M4-01` is now the highest-leverage remaining backlog slice.
-- Blockers (none or list): none
+- Objective (one sentence): Execute `DSPX-M4-02` by live-validating the mixed-provider runtime v4 profile (`vllm-local` student + `dspy-lm-auth` reflection).
+- Constraints (hard limits): Keep the repo green under `just verify-full`; do not leak credentials in docs/receipts; keep scope on live runtime verification rather than broad new provider work.
+- Assumptions (max 3): `DSPX-M4-01` is complete and the local unblock decision is now accepted; provider runtime v4 docs/config are the current source of truth; a local vLLM endpoint and auth-backed Codex route are available to probe when the next operator is ready.
+- Blockers (none or list): Requires access to the real local/auth-backed provider endpoints for live probes.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -49,12 +49,12 @@ Do not ask for permission to start.
 4. Update source-of-truth artifacts before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `DSPX-M3-01` — tighten CI coverage for cache provenance and replay strictness.
-- Outcome: CI/full validation now executes a deterministic replay provenance guard that proves clean replay passes, then injects cache drift and requires a clear `cache_code_hash_mismatch` failure.
-- Files changed: `scripts/check_replay_provenance.py`, `scripts/ci/full.sh`, `Justfile`, `docs/project/developer_workflow.md`, `docs/RUN_REPLAY_EXPLAIN.md`, `governance/work-items.json`, `diary/2026-03-22--replay-provenance-ci-hardening.md`, `next_session_prompt.md`.
-- Validation commands + results: `uv run -m pytest -q tests/test_run_receipts.py tests/test_workflow_contracts.py` ✅; `./scripts/ci/smoke.sh` ✅; `./scripts/ci/full.sh` ✅; `just verify-full` ✅.
-- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M3-01`; left `DSPX-M4-01` in triage.
-- Next-session starting point: Review the upstream template-adapter issue set, then decide whether `DSPX-M4-01` should keep waiting on upstream or move to a local patched integration path.
+- Slice executed: `DSPX-M4-01` — reassess the dspy-template-adapter unblock path.
+- Outcome: Adopted DSPx-local provider runtime v4 as the unblock path instead of waiting on or vendoring `dspy-template-adapter` immediately; shipped explicit `vllm-local`, `openai-compatible`, and `dspy-lm-auth` providers, provider resolve/health/benchmark commands, optimize provider defaults, and receipt-safe provider metadata, while keeping exact-fidelity template-adapter work optional/upstream-blocked.
+- Files changed: `packages/dspx-core/src/dspx/{provider_runtime.py,openai_compatible_lm.py,dspy_lm_auth_lm.py,providers_register_openai_compatible.py,providers_register_dspy_lm_auth.py,provider_registry.py,config_loader.py,run_receipts.py,services/optimize_service.py}`, `packages/dspx-core/src/dspx/cli/commands/{providers.py,optimize.py}`, `packages/dspx-core/pyproject.toml`, `tests/{test_provider_v4.py,test_config_loader.py}`, `config.provider-runtime-v4.example.toml`, `docs/project/provider-runtime-v4.md`, `README.md`, `docs/adr/{20260322-provider-runtime-v4.md,README.md}`, `NEXT_STEPS.md`, `docs/{system4d/container.md,system4d/fog.md,org_context/org-summary.md,owned/purpose.md}`, `governance/work-items.json`, `diary/2026-03-22--provider-runtime-v4-decision.md`, `next_session_prompt.md`, `uv.lock`, and removal of `docs/dev/status.md`.
+- Validation commands + results: `uv run -m pytest -q tests/test_provider_v4.py tests/test_config_loader.py` ✅; `uv run -m pytest -q tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `./scripts/ci/full.sh` ✅; `just verify-full` ✅.
+- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M4-01`; queued `DSPX-M4-02` for live mixed-provider verification.
+- Next-session starting point: Use `config.provider-runtime-v4.example.toml`, then run `dspx providers health --probe` and `dspx providers benchmark` against the real `vllm-local` + `dspy-lm-auth` environment to complete `DSPX-M4-02`.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

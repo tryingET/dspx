@@ -1,0 +1,21 @@
+# Example DSPx mixed-provider runtime profile (v4)
+# Verified locally on 2026-03-22.
+
+[lm_auth]
+model = "codex/gpt-5.4"
+auth_provider = "codex"
+auth_storage = "~/.pi/agent/auth.json"
+timeout_s = 60
+
+[vllm]
+api_base = "http://127.0.0.1:1234/v1"
+model = "Qwen/Qwen3.5-27B"
+timeout_s = 120
+json_mode = false
+
+[optimize]
+student_provider = "vllm-local"
+reflection_provider = "dspy-lm-auth"
+
+[provider]
+name = "vllm-local"

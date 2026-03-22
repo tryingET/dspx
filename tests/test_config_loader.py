@@ -92,3 +92,74 @@ def test_load_config_env_sets_pi_env(monkeypatch, tmp_path: Path) -> None:
     assert os.environ["DSPX_PI_NO_TOOLS"] == "1"
     assert os.environ["DSPX_PI_NO_SESSION"] == "1"
     assert os.environ["DSPX_PI_DISABLE_RESOURCES"] == "0"
+
+
+def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) -> None:
+    for k in [
+        "DSPX_PROVIDER",
+        "DSPX_LM_AUTH_MODEL",
+        "DSPX_LM_AUTH_PROVIDER",
+        "DSPX_LM_AUTH_STORAGE",
+        "DSPX_LM_AUTH_TIMEOUT",
+        "DSPX_VLLM_API_BASE",
+        "DSPX_VLLM_MODEL",
+        "DSPX_VLLM_TIMEOUT",
+        "DSPX_VLLM_JSON_MODE",
+    ]:
+        monkeypatch.delenv(k, raising=False)
+
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [lm_auth]
+        model = "codex/gpt-5.4-mini"
+        auth_provider = "codex"
+        auth_storage = "~/.pi/agent/auth.json"
+        timeout_s = 75
+
+        [vllm]
+        api_base = "http://127.0.0.1:8000/v1"
+        model = "local-student"
+        timeout_s = 33
+        json_mode = true
+
+        [provider]
+        name = "vllm-local"
+        """,
+        encoding="utf-8",
+    )
+
+    load_config_env(str(cfg))
+    assert os.environ["DSPX_PROVIDER"] == "vllm-local"
+    assert os.environ["DSPX_LM_AUTH_MODEL"] == "codex/gpt-5.4-mini"
+    assert os.environ["DSPX_LM_AUTH_PROVIDER"] == "codex"
+    assert os.environ["DSPX_LM_AUTH_STORAGE"] == "~/.pi/agent/auth.json"
+    assert os.environ["DSPX_LM_AUTH_TIMEOUT"] == "75"
+    assert os.environ["DSPX_VLLM_API_BASE"] == "http://127.0.0.1:8000/v1"
+    assert os.environ["DSPX_VLLM_MODEL"] == "local-student"
+    assert os.environ["DSPX_VLLM_TIMEOUT"] == "33"
+    assert os.environ["DSPX_VLLM_JSON_MODE"] == "1"
+
+
+def test_load_config_env_sets_optimize_provider_defaults(
+    monkeypatch, tmp_path: Path
+) -> None:
+    for k in [
+        "DSPX_OPTIMIZE_STUDENT_PROVIDER",
+        "DSPX_OPTIMIZE_REFLECTION_PROVIDER",
+    ]:
+        monkeypatch.delenv(k, raising=False)
+
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [optimize]
+        student_provider = "vllm-local"
+        reflection_provider = "dspy-lm-auth"
+        """,
+        encoding="utf-8",
+    )
+
+    load_config_env(str(cfg))
+    assert os.environ["DSPX_OPTIMIZE_STUDENT_PROVIDER"] == "vllm-local"
+    assert os.environ["DSPX_OPTIMIZE_REFLECTION_PROVIDER"] == "dspy-lm-auth"

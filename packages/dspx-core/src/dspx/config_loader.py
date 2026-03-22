@@ -75,12 +75,19 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     if cfg_path and cfg_path.exists():
         data = _load_toml(cfg_path)
 
-    # Sections: [mlflow], [codex], [openrouter], [pi], [provider]
+    # Sections: [mlflow], [codex], [openrouter], [pi], [provider], [lm_auth],
+    # [openai_compatible], [vllm], [optimize]
     mlflow = data.get("mlflow", {}) if isinstance(data, dict) else {}
     codex = data.get("codex", {}) if isinstance(data, dict) else {}
     openrouter = data.get("openrouter", {}) if isinstance(data, dict) else {}
     pi = data.get("pi", {}) if isinstance(data, dict) else {}
     provider = data.get("provider", {}) if isinstance(data, dict) else {}
+    lm_auth = data.get("lm_auth", {}) if isinstance(data, dict) else {}
+    openai_compatible = (
+        data.get("openai_compatible", {}) if isinstance(data, dict) else {}
+    )
+    vllm = data.get("vllm", {}) if isinstance(data, dict) else {}
+    optimize = data.get("optimize", {}) if isinstance(data, dict) else {}
 
     # MLflow envs
     _set_if_missing("MLFLOW_ENABLE", _coerce_bool(mlflow.get("enable", True)))
@@ -121,6 +128,54 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
         _set_if_missing(
             "DSPX_PI_DISABLE_RESOURCES", _coerce_bool(pi.get("disable_resources"))
         )
+
+    # dspy-lm-auth envs
+    _set_if_missing("DSPX_LM_AUTH_MODEL", lm_auth.get("model"))
+    _set_if_missing("DSPX_LM_AUTH_PROVIDER", lm_auth.get("auth_provider"))
+    _set_if_missing("DSPX_LM_AUTH_STORAGE", lm_auth.get("auth_storage"))
+    _set_if_missing(
+        "DSPX_LM_AUTH_TIMEOUT",
+        str(lm_auth.get("timeout_s")) if lm_auth.get("timeout_s") is not None else None,
+    )
+    if "strict" in lm_auth:
+        _set_if_missing("DSPX_LM_AUTH_STRICT", _coerce_bool(lm_auth.get("strict")))
+    if "temperature" in lm_auth:
+        _set_if_missing("DSPX_LM_AUTH_TEMPERATURE", str(lm_auth.get("temperature")))
+    if "max_tokens" in lm_auth:
+        _set_if_missing("DSPX_LM_AUTH_MAX_TOKENS", str(lm_auth.get("max_tokens")))
+
+    # Generic OpenAI-compatible envs (useful for local vLLM)
+    _set_if_missing("DSPX_OPENAI_COMPAT_API_BASE", openai_compatible.get("api_base"))
+    _set_if_missing("DSPX_OPENAI_COMPAT_MODEL", openai_compatible.get("model"))
+    _set_if_missing("DSPX_OPENAI_COMPAT_API_KEY", openai_compatible.get("api_key"))
+    _set_if_missing(
+        "DSPX_OPENAI_COMPAT_TIMEOUT",
+        str(openai_compatible.get("timeout_s"))
+        if openai_compatible.get("timeout_s") is not None
+        else None,
+    )
+    if "json_mode" in openai_compatible:
+        _set_if_missing(
+            "DSPX_OPENAI_COMPAT_JSON_MODE",
+            _coerce_bool(openai_compatible.get("json_mode")),
+        )
+
+    # Local vLLM convenience envs
+    _set_if_missing("DSPX_VLLM_API_BASE", vllm.get("api_base"))
+    _set_if_missing("DSPX_VLLM_MODEL", vllm.get("model"))
+    _set_if_missing("DSPX_VLLM_API_KEY", vllm.get("api_key"))
+    _set_if_missing(
+        "DSPX_VLLM_TIMEOUT",
+        str(vllm.get("timeout_s")) if vllm.get("timeout_s") is not None else None,
+    )
+    if "json_mode" in vllm:
+        _set_if_missing("DSPX_VLLM_JSON_MODE", _coerce_bool(vllm.get("json_mode")))
+
+    # Optimization provider defaults
+    _set_if_missing("DSPX_OPTIMIZE_STUDENT_PROVIDER", optimize.get("student_provider"))
+    _set_if_missing(
+        "DSPX_OPTIMIZE_REFLECTION_PROVIDER", optimize.get("reflection_provider")
+    )
 
     # Provider selection env
     _set_if_missing("DSPX_PROVIDER", provider.get("name"))
