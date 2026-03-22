@@ -63,7 +63,7 @@ The Oracle is not a feature. It's a paradigm shift—from reactive debugging to 
 
 ### 0) Provider Runtime V4 / Template-Adapter Unblock Decision
 
-**Status:** 🟢 local patched path accepted; mixed-provider profile live-verified; exact-fidelity adapter remains optional/upstream-blocked
+**Status:** 🟢 local patched path accepted; mixed-provider profile live-verified end-to-end; exact-fidelity adapter remains optional/upstream-blocked
 
 Upstream adapter blockers still tracked in `docs/upstream-issues/dspy-template-adapter/`:
 1. XML parser fails on nested tags (#1)
@@ -82,14 +82,17 @@ Upstream adapter blockers still tracked in `docs/upstream-issues/dspy-template-a
 - ✅ receipt-safe provider metadata for replay/explain and optimize manifests
 - ✅ mixed-provider runtime reference: `docs/project/provider-runtime-v4.md`
 
-**Live validation complete (`DSPX-M4-02`):**
+**Live validation complete (`DSPX-M4-02` + `DSPX-M4-03`):**
 - ✅ `vllm-local` probe passed against `http://127.0.0.1:1234/v1` with `Qwen/Qwen3.5-27B`
 - ✅ `dspy-lm-auth` probe passed against `codex/gpt-5.4`
 - ✅ mixed-provider benchmark completed successfully for both providers
 - ✅ known-bad route confirmed: `codex/gpt-5.4-nano` is rejected on the active ChatGPT/Codex account route
+- ✅ one live `module-gen` → `optimize gepa` smoke completed with config-driven defaults and wrote a manifest showing `student=vllm-local` + `reflection=dspy-lm-auth`
+- ✅ CLI regression fixed: `optimize gepa` now loads `DSPX_CONFIG` before resolving `[optimize]` provider defaults
+- ⚠️ end-to-end caveats on the verified local setup: the hello-style smoke should use `contains` rather than `exact`, the tiny proof reuses train-as-val when `--val` is omitted, and the current `Qwen/Qwen3.5-27B` student took ~61s wall-clock for a 3-row / 2-metric-call run
 
 **Next execution step:**
-- Run one live GEPA/optimize smoke with the mixed-provider defaults (`DSPX-M4-03`) so provider health + benchmark validation is followed by an end-to-end workflow proof.
+- Restock `governance/work-items.json` with the next roadmap slice; the current M1-M4 backlog is now complete.
 
 ---
 

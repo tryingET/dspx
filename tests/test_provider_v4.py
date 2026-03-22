@@ -240,6 +240,64 @@ def test_cli_optimize_gepa_uses_configured_provider_defaults(
     assert captured["reflection_provider"] == "dspy-lm-auth"
 
 
+def test_cli_optimize_gepa_loads_config_before_resolving_provider_defaults(
+    monkeypatch, tmp_path: Path
+) -> None:
+    import dspx.services.optimize_service as optimize_service
+
+    program = tmp_path / "prog.py"
+    program.write_text("def build_student():\n    return object()\n", encoding="utf-8")
+    train = tmp_path / "train.csv"
+    train.write_text("question,answer\nq,a\n", encoding="utf-8")
+    out = tmp_path / "out"
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [provider]
+        name = "vllm-local"
+
+        [optimize]
+        student_provider = "vllm-local"
+        reflection_provider = "dspy-lm-auth"
+        """,
+        encoding="utf-8",
+    )
+
+    captured: dict[str, object] = {}
+
+    def _fake_run_gepa_optimize(**kwargs):
+        captured.update(kwargs)
+        out.mkdir(parents=True, exist_ok=True)
+        return SimpleNamespace(out_dir=out)
+
+    monkeypatch.setattr(optimize_service, "run_gepa_optimize", _fake_run_gepa_optimize)
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_CONFIG", str(cfg))
+    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
+    monkeypatch.delenv("DSPX_OPTIMIZE_STUDENT_PROVIDER", raising=False)
+    monkeypatch.delenv("DSPX_OPTIMIZE_REFLECTION_PROVIDER", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "gepa",
+            "--program",
+            str(program),
+            "--train",
+            str(train),
+            "--out",
+            str(out),
+            "--max-metric-calls",
+            "1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["student_provider"] == "vllm-local"
+    assert captured["reflection_provider"] == "dspy-lm-auth"
+
+
 def test_optimize_manifest_includes_provider_runtime_metadata(
     tmp_path: Path, monkeypatch
 ) -> None:

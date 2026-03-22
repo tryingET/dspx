@@ -88,6 +88,43 @@ Observed results:
 
 Benchmark ranking for this local setup: `dspy-lm-auth`, then `vllm-local`.
 
+### End-to-end optimize smoke (`DSPX-M4-03`)
+
+Command path used for the live smoke:
+
+```bash
+TD="$(mktemp -d)"
+DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen \
+  --name Student \
+  --description "Answer a short question with a short answer" \
+  --input question \
+  --output answer \
+  --template-version simple-v1 \
+  --outfile "$TD/student.py"
+
+DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx optimize gepa \
+  --program "$TD/student.py" \
+  --train examples/gepa_modulegen_train.csv \
+  --out "$TD/optimized" \
+  --metric contains \
+  --max-metric-calls 2 \
+  --nrows 3
+```
+
+Observed results:
+
+- ✅ optimize completed and wrote `manifest.json`
+- ✅ manifest recorded the intended mixed-provider runtime: `student=vllm-local`, `reflection=dspy-lm-auth`
+- ⏱️ wall-clock runtime for the 3-row / 2-metric-call smoke was ~61 seconds on the verified local setup
+- ⚠️ the local `Qwen/Qwen3.5-27B` student still sometimes wrapped `hello` in extra text, so `contains` was the stable smoke metric while `exact` would have been brittle for this proof
+- ⚠️ no valset was provided, so DSPy reused the trainset as valset and emitted the expected overfitting warning; acceptable for this tiny smoke, but not for real optimization runs
+
+Implementation caveat found during the smoke:
+
+- The first live run exposed a CLI ordering bug: `optimize gepa` resolved provider defaults before loading `DSPX_CONFIG`, so `[optimize]` defaults were ignored and the reflection provider fell back to the student provider.
+- Fixed in `packages/dspx-core/src/dspx/cli/commands/optimize.py` and pinned with a CLI regression test in `tests/test_provider_v4.py`.
+- Result: the mixed-provider smoke can now rely on `[optimize]` defaults from `config.provider-runtime-v4.example.toml` without passing explicit provider flags.
+
 ### Known-good / known-bad model notes
 
 - ✅ known-good: `codex/gpt-5.4` via `dspy-lm-auth`

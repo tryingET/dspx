@@ -165,7 +165,28 @@ just dspx optimize gepa \
   --max-metric-calls 2
 ```
 
-For the currently verified mixed-provider setup, see:
+Use config-driven mixed-provider defaults (`[optimize]`) without passing provider flags:
+
+```bash
+TD="$(mktemp -d)"
+DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen \
+  --name Student \
+  --description "Answer a short question with a short answer" \
+  --input question \
+  --output answer \
+  --template-version simple-v1 \
+  --outfile "$TD/student.py"
+
+DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 just dspx optimize gepa \
+  --program "$TD/student.py" \
+  --train examples/gepa_modulegen_train.csv \
+  --out "$TD/optimized" \
+  --metric contains \
+  --max-metric-calls 2 \
+  --nrows 3
+```
+
+For the currently verified mixed-provider setup, caveats, and end-to-end smoke notes, see:
 - `docs/project/provider-runtime-v4.md`
 
 Fast smoke from generated module:

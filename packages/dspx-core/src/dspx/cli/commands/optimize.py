@@ -114,10 +114,10 @@ def optimize_gepa(
     """
     from dspx.services.optimize_service import run_gepa_optimize
 
+    ensure_env(student_provider)
     student_provider, reflection_provider = _resolve_optimize_providers(
         student_provider, reflection_provider
     )
-    ensure_env(student_provider)
 
     budget_set = sum(
         1 for x in (auto, max_metric_calls, max_full_evals) if x is not None

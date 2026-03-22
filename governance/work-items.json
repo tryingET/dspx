@@ -239,15 +239,15 @@
         {
           "id": "DSPX-M4-03",
           "title": "Run one live end-to-end optimize smoke on the mixed-provider defaults",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Execute a small `dspx optimize gepa` smoke using `vllm-local` as the student provider and `dspy-lm-auth` as the reflection provider",
-              "done": false
+              "done": true
             },
             {
               "text": "Document any provider-specific runtime caveats that only appear in the end-to-end optimize path",
-              "done": false
+              "done": true
             }
           ],
           "dod": "DSPx proves the mixed-provider runtime through one live end-to-end optimize slice, or documents the precise blocker if the workflow cannot complete.",
@@ -257,7 +257,9 @@
             "optimize",
             "validation"
           ],
-          "assignee": "@next-operator"
+          "assignee": "@next-operator",
+          "completed_at": "2026-03-22",
+          "note": "Ran a live `module-gen` -> `optimize gepa` smoke with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`, verified the manifest captured `vllm-local` as the student provider and `dspy-lm-auth` as the reflection provider, documented the end-to-end caveats (use `contains` for the hello-style smoke, expect the train-as-val warning when `--val` is omitted, and budget ~61s wall-clock on the current local Qwen runtime), and fixed a CLI ordering bug so `[optimize]` defaults from config load before provider resolution."
         }
       ]
     }

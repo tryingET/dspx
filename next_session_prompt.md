@@ -27,10 +27,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Execute `DSPX-M4-03` by running one live end-to-end `dspx optimize gepa` smoke on the mixed-provider runtime defaults (`vllm-local` student + `dspy-lm-auth` reflection).
-- Constraints (hard limits): Keep the repo green under `just verify-full`; do not leak credentials in docs/receipts; keep scope on one end-to-end optimize proof rather than broad new provider expansion.
-- Assumptions (max 3): `DSPX-M4-02` is complete and the mixed-provider health/benchmark path is already live-verified; provider runtime v4 docs/config remain the current source of truth; a local vLLM endpoint and auth-backed Codex route are still available when the next operator starts.
-- Blockers (none or list): Requires access to the real local/auth-backed provider endpoints and enough quota/runtime headroom for one live optimize smoke.
+- Objective (one sentence): Restock `governance/work-items.json` with the next highest-leverage post-M4 roadmap slice now that the current M1-M4 backlog is complete.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; do not reopen completed provider-runtime work unless new evidence requires it; keep the handoff/backlog authoritative and concise.
+- Assumptions (max 3): `DSPX-M4-03` is complete and documented; `docs/project/provider-runtime-v4.md` reflects the current verified mixed-provider behavior; the repo is already validated after the latest optimize/default-resolution fix.
+- Blockers (none or list): None.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -38,7 +38,7 @@ Do not ask for permission to start.
 3. `governance/work-items.json`
 4. `docs/project/mission.md`
 5. `docs/project/tactical_goals.md`
-6. Most recent `diary/YYYY-MM-DD--type-scope-summary.md`
+6. `diary/2026-03-22--mixed-provider-optimize-smoke.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it.
@@ -49,12 +49,12 @@ Do not ask for permission to start.
 4. Update source-of-truth artifacts before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `DSPX-M4-02` — live-verify the provider runtime v4 mixed-provider profile.
-- Outcome: Live-validated the mixed-provider runtime with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`; `vllm-local` (`Qwen/Qwen3.5-27B`) and `dspy-lm-auth` (`codex/gpt-5.4`) both passed `providers health --probe`, the mixed benchmark succeeded for both providers, and the known-bad `codex/gpt-5.4-nano` failure was reproduced and documented as a ChatGPT/Codex-account limitation.
-- Files changed: `docs/project/provider-runtime-v4.md`, `README.md`, `NEXT_STEPS.md`, `governance/work-items.json`, `diary/2026-03-22--mixed-provider-runtime-live-verification.md`, and `next_session_prompt.md`.
-- Validation commands + results: `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers resolve --provider vllm-local --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers resolve --provider dspy-lm-auth --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers health --provider vllm-local --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers health --provider dspy-lm-auth --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml just dspx providers benchmark --provider vllm-local --provider dspy-lm-auth --repeats 3 --warmup 1 --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml DSPX_LM_AUTH_MODEL=codex/gpt-5.4-nano just dspx providers health --provider dspy-lm-auth --probe --json` ❌ expected compatibility failure; `./scripts/ci/smoke.sh` ✅; `./scripts/ci/full.sh` ✅; `just verify-full` ✅.
-- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M4-02`; queued `DSPX-M4-03` for one live end-to-end optimize smoke.
-- Next-session starting point: Keep using `config.provider-runtime-v4.example.toml`, then run one small `dspx optimize gepa` smoke with `vllm-local` student + `dspy-lm-auth` reflection defaults to complete `DSPX-M4-03`.
+- Slice executed: `DSPX-M4-03` — run one live end-to-end optimize smoke on the mixed-provider defaults.
+- Outcome: Re-confirmed provider health for `vllm-local` and `dspy-lm-auth`, ran a live `module-gen` -> `optimize gepa` smoke with `DSPX_CONFIG=config.provider-runtime-v4.example.toml`, fixed a CLI ordering bug so `[optimize]` defaults load before provider resolution, and verified the final manifest captured `student=vllm-local` plus `reflection=dspy-lm-auth`.
+- Files changed: `packages/dspx-core/src/dspx/cli/commands/optimize.py`, `tests/test_provider_v4.py`, `docs/project/provider-runtime-v4.md`, `README.md`, `NEXT_STEPS.md`, `governance/work-items.json`, `diary/2026-03-22--mixed-provider-optimize-smoke.md`, and `next_session_prompt.md`.
+- Validation commands + results: `DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 just dspx providers health --provider vllm-local --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 just dspx providers health --provider dspy-lm-auth --probe --json` ✅; `DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen ... && DSPX_CONFIG=config.provider-runtime-v4.example.toml MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx optimize gepa --program "$TD/student.py" --train examples/gepa_modulegen_train.csv --out "$TD/optimized" --metric contains --max-metric-calls 2 --nrows 3` ✅; `uv run -q pytest tests/test_provider_v4.py -q` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅.
+- Deferred tasks updated in `governance/work-items.json`: completed `DSPX-M4-03`; the repo now needs a fresh planned slice rather than another carry-over task.
+- Next-session starting point: choose and shape the next roadmap slice in `governance/work-items.json`, then execute it end-to-end from a clean handoff.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
