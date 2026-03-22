@@ -136,6 +136,60 @@ def test_generate_native_payload_marks_fallback_used(monkeypatch) -> None:
     assert payload["smoke_pass_rate"] == 1.0
 
 
+def test_run_generate_dto_prefers_active_lm_capabilities_for_json_mode(
+    monkeypatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeLM:
+        capabilities = SimpleNamespace(json_mode=True)
+
+    def _fake_generate_native_payload(**kwargs):
+        captured.update(kwargs)
+        return {
+            "code": render_simple_signature("SigNames", "Extract names"),
+            "signature_name": "SigNames",
+            "task_description": "Extract names",
+            "backend": "native",
+            "strategy": "spec-first",
+            "candidate_source": "spec",
+            "candidate_score": 1.0,
+            "candidate_valid": True,
+            "candidate_errors": [],
+            "attempts_used": 1,
+            "max_attempts": 1,
+            "attempts_exhausted": True,
+            "fallback_used": False,
+            "validation_pass_count": 1,
+            "validation_total": 1,
+            "validation_pass_rate": 1.0,
+            "smoke_pass_count": 1,
+            "smoke_total": 1,
+            "smoke_pass_rate": 1.0,
+            "json_mode": kwargs["json_mode"],
+        }
+
+    monkeypatch.setattr(
+        sigsvc, "_generate_native_payload", _fake_generate_native_payload
+    )
+    monkeypatch.setattr(sigsvc, "load_config_env", lambda *args, **kwargs: {})
+    monkeypatch.setattr(sigsvc, "enable_mlflow_from_env", lambda *args, **kwargs: None)
+    monkeypatch.setattr(sigsvc, "ensure_default_providers", lambda: None)
+    monkeypatch.setattr(sigsvc.dspy, "configure", lambda **kwargs: None)
+    monkeypatch.setenv("DSPX_PROVIDER", "vllm-local")
+    monkeypatch.setenv("DSPX_VLLM_JSON_MODE", "0")
+
+    req = sigsvc.SignatureGenRequest(
+        prompt="Extract names",
+        template_version="v1",
+        options={"class_name": "SigNames"},
+    )
+    res = sigsvc.run_generate_dto(req, lm=_FakeLM())
+
+    assert captured["json_mode"] is True
+    assert res.metadata["json_mode"] is True
+
+
 def test_validate_and_score_signature_code() -> None:
     good = render_simple_signature("SigGood", "good")
     bad = "import dspy\n\nclass Bad(dspy.Signature):\n    x ="

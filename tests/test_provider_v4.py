@@ -167,6 +167,32 @@ def test_cli_providers_resolve_and_benchmark(monkeypatch, tmp_path: Path) -> Non
     assert summary.exists()
 
 
+def test_cli_provider_capabilities_match_runtime_json_mode(monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "vllm-local")
+    monkeypatch.setenv("DSPX_VLLM_JSON_MODE", "1")
+
+    caps_result = runner.invoke(
+        app, ["providers", "capabilities", "--provider", "vllm-local", "--json"]
+    )
+    assert caps_result.exit_code == 0
+    caps_payload = json.loads(caps_result.stdout)
+
+    resolved_result = runner.invoke(
+        app, ["providers", "resolve", "--provider", "vllm-local", "--json"]
+    )
+    assert resolved_result.exit_code == 0
+    resolved_payload = json.loads(resolved_result.stdout)
+
+    assert caps_payload["json_mode"] is True
+    assert caps_payload["json_mode"] == resolved_payload["capabilities"]["json_mode"]
+    assert (
+        caps_payload["structured_output_format"]
+        == resolved_payload["capabilities"]["structured_output_format"]
+        == "json"
+    )
+
+
 def test_run_receipt_includes_redacted_provider_details(
     monkeypatch, tmp_path: Path
 ) -> None:

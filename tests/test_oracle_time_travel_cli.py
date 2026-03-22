@@ -34,6 +34,7 @@ def _write_receipt(
         cache_key=None,
         cache_file=None,
         cache_enabled=False,
+        execution_id=run_id,
         branch=branch,
         parent_run_id=parent_run_id,
         causal_chain=causal_chain,
@@ -188,6 +189,43 @@ def test_oracle_diff_compares_branch_lineage(tmp_path: Path) -> None:
     assert payload["shared_lineage_ids"] == ["feature-a-001", "root-001"]
     assert payload["left_only_run_ids"] == ["feature-a-001", "feature-a-002"]
     assert payload["right_only_run_ids"] == ["feature-b-001", "feature-b-002"]
+
+
+def test_oracle_diff_does_not_collapse_distinct_runs_with_same_output_hash(
+    tmp_path: Path,
+) -> None:
+    for branch, output_name, execution_id, created_at in (
+        ("feature-a", "a.py", "exec-a", "2026-03-21T10:00:00+00:00"),
+        ("feature-b", "b.py", "exec-b", "2026-03-21T10:05:00+00:00"),
+    ):
+        output_path = tmp_path / output_name
+        output_path.write_text("print('same')\n", encoding="utf-8")
+        receipt = build_run_receipt(
+            run_kind="module-gen",
+            output_path=output_path,
+            output_hash="same-output-hash",
+            template_version="simple-v1",
+            cache_key=None,
+            cache_file=None,
+            cache_enabled=False,
+            execution_id=execution_id,
+            branch=branch,
+            outcome="success",
+            capture_context=False,
+        )
+        receipt["created_at"] = created_at
+        write_run_receipt(output_path, receipt)
+
+    result = runner.invoke(
+        app,
+        ["oracle", "diff", "feature-a", "feature-b", "--path", str(tmp_path), "--json"],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["shared_lineage_ids"] == []
+    assert payload["left_only_run_ids"] == ["exec-a"]
+    assert payload["right_only_run_ids"] == ["exec-b"]
 
 
 def test_oracle_bisect_finds_first_bad_boundary(tmp_path: Path) -> None:

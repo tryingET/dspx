@@ -227,7 +227,7 @@ def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) 
     assert payload["error_codes"] == []
 
 
-def test_run_replay_check_only_is_stable_without_lineage_metadata(
+def test_run_replay_check_only_is_stable_without_parent_lineage_metadata(
     tmp_path: Path, monkeypatch
 ) -> None:
     meta_path = _generate_signature_receipt(
@@ -237,7 +237,7 @@ def test_run_replay_check_only_is_stable_without_lineage_metadata(
     )
     receipt = json.loads(meta_path.read_text(encoding="utf-8"))
 
-    assert "branch" not in receipt
+    assert isinstance(receipt.get("branch"), str)
     assert "parent_run_id" not in receipt
     assert "causal_chain" not in receipt
 
@@ -1022,6 +1022,70 @@ def test_run_receipt_phase_c_execution_context(tmp_path: Path) -> None:
     )
 
     assert "execution_context" not in receipt_no_ctx
+
+
+def test_run_receipt_execution_context_hash_tracks_env_value_changes(
+    tmp_path: Path, monkeypatch
+) -> None:
+    out = tmp_path / "artifact.py"
+    out.write_text("print('ok')\n", encoding="utf-8")
+
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    receipt_a = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        capture_context=True,
+    )
+
+    monkeypatch.setenv("DSPX_PROVIDER", "pi-rpc")
+    receipt_b = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        capture_context=True,
+    )
+
+    assert (
+        receipt_a["execution_context"]["env_hash"]
+        != receipt_b["execution_context"]["env_hash"]
+    )
+
+
+def test_cli_generated_receipt_includes_execution_id_and_branch(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_RECEIPT_BRANCH", "feature-receipt")
+
+    out = tmp_path / "sig.py"
+    result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0
+
+    receipt = json.loads((tmp_path / "sig.py.meta.json").read_text(encoding="utf-8"))
+    assert receipt["branch"] == "feature-receipt"
+    assert isinstance(receipt.get("execution_id"), str)
+    assert receipt["execution_id"]
 
 
 def test_run_receipt_phase_c_defaults_omit_empty_fields(tmp_path: Path) -> None:
