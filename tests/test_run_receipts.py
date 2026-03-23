@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import subprocess
 
 from typer.testing import CliRunner
 
 import dspx.cli.utils as dspx_utils
 from dspx.cli.dspx import app
 from dspx.run_receipts import (
+    _capture_git_dirty,
     build_run_receipt,
     current_receipt_lineage,
     load_run_receipt,
@@ -29,8 +31,12 @@ def _end_active_mlflow_runs() -> None:
         return
 
     try:
-        while mlflow.active_run() is not None:  # type: ignore[attr-defined]
-            mlflow.end_run()  # type: ignore[attr-defined]
+        active_run = getattr(mlflow, "active_run", None)
+        end_run = getattr(mlflow, "end_run", None)
+        if not callable(active_run) or not callable(end_run):
+            return
+        while active_run() is not None:
+            end_run()
     except Exception:
         pass
 
@@ -58,6 +64,39 @@ def _generate_signature_receipt(
     )
     assert result.exit_code == 0
     return tmp_path / f"{output_name}.meta.json"
+
+
+def test_capture_git_dirty_includes_untracked_files(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "pi@example.com"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Pi"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    (repo / "tracked.txt").write_text("ok\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    (repo / "untracked.txt").write_text("drift\n", encoding="utf-8")
+
+    monkeypatch.chdir(repo)
+
+    assert _capture_git_dirty() is True
 
 
 def test_run_receipt_roundtrip(tmp_path: Path) -> None:

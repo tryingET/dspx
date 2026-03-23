@@ -199,7 +199,7 @@ def _capture_git_commit() -> str | None:
 def _capture_git_dirty() -> bool:
     try:
         result = subprocess.run(
-            ["git", "diff", "--stat", "HEAD"],
+            ["git", "status", "--porcelain", "--untracked-files=normal"],
             capture_output=True,
             text=True,
             timeout=2,
