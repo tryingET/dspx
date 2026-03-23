@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import ipaddress
 import json
+
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 from dspx.server.app import create_app
+from dspx.server.security import Rate, RateLimitConfig, RateLimitMiddleware
 
 
 @pytest.fixture(autouse=True)
@@ -25,6 +30,40 @@ def clear_env(monkeypatch: pytest.MonkeyPatch):
 
 def _client() -> TestClient:
     return TestClient(create_app())
+
+
+def _identity_request(client_host: str, xff: str | None = None) -> Request:
+    headers: list[tuple[bytes, bytes]] = []
+    if xff is not None:
+        headers.append((b"x-forwarded-for", xff.encode("utf-8")))
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/signature",
+        "raw_path": b"/signature",
+        "query_string": b"",
+        "headers": headers,
+        "client": (client_host, 50000),
+        "server": ("testserver", 80),
+    }
+    return Request(scope)
+
+
+def _ip_identity_middleware(*trusted: str) -> RateLimitMiddleware:
+    return RateLimitMiddleware(
+        FastAPI(),
+        config=RateLimitConfig(
+            enabled=True,
+            default=[Rate(1, 1.0)],
+            per_path={},
+            identity="ip",
+            trusted_proxies=[ipaddress.ip_network(v, strict=False) for v in trusted],
+            global_default=[],
+            global_per_path={},
+        ),
+    )
 
 
 def test_rate_limit_by_token(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -52,22 +91,24 @@ def test_rate_limit_by_ip(monkeypatch: pytest.MonkeyPatch) -> None:
     assert r3.json().get("error") == "rate_limited"
 
 
-def test_trusted_proxies_identity_by_xff(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Trust local test client (127.0.0.1) and use XFF to distinguish clients
-    monkeypatch.setenv("DSPX_RATE_LIMIT_ENABLED", "1")
-    monkeypatch.setenv("DSPX_RATE_LIMIT_DEFAULT", "1/sec")
-    monkeypatch.setenv("DSPX_RATE_LIMIT_IDENTITY", "ip")
-    monkeypatch.setenv("DSPX_TRUSTED_PROXIES", "127.0.0.0/8")
-    c = _client()
-    h1 = {"x-forwarded-for": "1.2.3.4, 127.0.0.1"}
-    h2 = {"x-forwarded-for": "5.6.7.8, 127.0.0.1"}
-    # Both should pass if XFF is used (distinct identities)
-    r1 = c.post("/signature", json={"prompt": "p"}, headers=h1)
-    r2 = c.post("/signature", json={"prompt": "p"}, headers=h2)
-    assert r1.status_code == 200 and r2.status_code == 200
-    # A second hit from the first identity should be limited under 1/sec
-    r3 = c.post("/signature", json={"prompt": "p"}, headers=h1)
-    assert r3.status_code == 429
+def test_trusted_proxy_uses_xff_for_identity() -> None:
+    middleware = _ip_identity_middleware("127.0.0.0/8")
+    request = _identity_request("127.0.0.1", "1.2.3.4, 127.0.0.1")
+
+    ident, ident_kind = middleware._identity(request)
+
+    assert ident == "ip:1.2.3.4"
+    assert ident_kind == "ip"
+
+
+def test_untrusted_proxy_ignores_xff_for_identity() -> None:
+    middleware = _ip_identity_middleware("127.0.0.0/8")
+    request = _identity_request("198.51.100.10", "1.2.3.4, 127.0.0.1")
+
+    ident, ident_kind = middleware._identity(request)
+
+    assert ident == "ip:198.51.100.10"
+    assert ident_kind == "ip"
 
 
 def test_rate_limit_per_path_override(monkeypatch: pytest.MonkeyPatch) -> None:

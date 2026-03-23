@@ -241,6 +241,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._global: Dict[str, List[_TokenBucket]] = {}
         self._log = logging.getLogger("dspx.server")
 
+    def _client_host(self, request: Request) -> str:
+        client = request.client
+        return str(client.host) if client else "unknown"
+
+    def _is_trusted_proxy(self, host: str) -> bool:
+        try:
+            addr = ipaddress.ip_address(host)
+        except ValueError:
+            return False
+        return any(addr in net for net in self.config.trusted_proxies)
+
     def _identity(self, request: Request) -> Tuple[str, str]:
         # Prefer token identity when configured and header present
         if self.config.identity == "token":
@@ -248,24 +259,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if auth and auth.startswith("Bearer "):
                 return ("tok:" + auth.split(" ", 1)[1], "token")
         # Fallback to IP
-        # Compute client IP considering trusted proxies
-        client = request.client
+        # Only trust X-Forwarded-For when the immediate peer is a trusted proxy.
+        host = self._client_host(request)
         xff = request.headers.get("x-forwarded-for")
-        if xff and self.config.trusted_proxies:
+        if xff and self.config.trusted_proxies and self._is_trusted_proxy(host):
             chain = [ip.strip() for ip in xff.split(",") if ip.strip()]
             if chain:
-                # Choose first IP in chain that is not trusted; else first in chain
+                # Choose first IP in chain that is not trusted; else first in chain.
                 for ip in chain:
                     try:
                         addr = ipaddress.ip_address(ip)
-                        if not any(addr in net for net in self.config.trusted_proxies):
-                            return ("ip:" + ip, "ip")
-                    except Exception:
+                    except ValueError:
                         continue
+                    if not any(addr in net for net in self.config.trusted_proxies):
+                        return ("ip:" + ip, "ip")
                 return ("ip:" + chain[0], "ip")
-        client = request.client
-        host = client.host if client else "unknown"
-        return ("ip:" + str(host), "ip")
+        return ("ip:" + host, "ip")
 
     def _rules_for(self, method: str, path: str) -> Tuple[List[Rate], List[Rate]]:
         rules: List[Rate] = []
@@ -289,8 +298,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return rules, grules
 
     async def dispatch(self, request: Request, call_next):
-        if not self.config.enabled:
-            return await call_next(request)
+        stats.requests_total += 1
         start = time.monotonic()
         ident, ident_kind = self._identity(request)
         method = request.method.upper()
@@ -298,59 +306,69 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         rules, grules = self._rules_for(method, path)
         # Prepare log context
         ctx = {"method": method, "path": path, "ident_kind": ident_kind}
-        # Global rules first
-        if grules:
-            key_g = (
-                f"{method} {path}"
-                if f"{method} {path}" in self.config.global_per_path
-                or path in self.config.global_per_path
-                else "GLOBAL"
-            )
-            gb = self._global.get(key_g)
-            if gb is None:
-                gb = [_TokenBucket(r.capacity, r.period_seconds) for r in grules]
-                self._global[key_g] = gb
-            now = time.monotonic()
-            if any(not b.allow(now) for b in gb):
-                self._log.info(
-                    "rate_limit", extra={"event": "ratelimit", **ctx, "scope": "global"}
+        if self.config.enabled:
+            # Global rules first
+            if grules:
+                key_g = (
+                    f"{method} {path}"
+                    if f"{method} {path}" in self.config.global_per_path
+                    or path in self.config.global_per_path
+                    else "GLOBAL"
                 )
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "error": "rate_limited",
-                        "detail": "limit exceeded",
-                        "status": 429,
-                    },
+                gb = self._global.get(key_g)
+                if gb is None:
+                    gb = [_TokenBucket(r.capacity, r.period_seconds) for r in grules]
+                    self._global[key_g] = gb
+                now = time.monotonic()
+                if any(not b.allow(now) for b in gb):
+                    stats.status_429 += 1
+                    self._log.info(
+                        "rate_limit",
+                        extra={"event": "ratelimit", **ctx, "scope": "global"},
+                    )
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "error": "rate_limited",
+                            "detail": "limit exceeded",
+                            "status": 429,
+                        },
+                    )
+            if rules:
+                key = (
+                    f"{method} {path}"
+                    if f"{method} {path}" in self.config.per_path
+                    or path in self.config.per_path
+                    else "GLOBAL"
                 )
-        if rules:
-            key = (
-                f"{method} {path}"
-                if f"{method} {path}" in self.config.per_path
-                or path in self.config.per_path
-                else "GLOBAL"
-            )
-            buckmap = self._buckets.setdefault(ident, {})
-            buckets = buckmap.get(key)
-            if buckets is None:
-                buckets = [_TokenBucket(r.capacity, r.period_seconds) for r in rules]
-                buckmap[key] = buckets
-            now = time.monotonic()
-            if any(not b.allow(now) for b in buckets):
-                self._log.info(
-                    "rate_limit",
-                    extra={"event": "ratelimit", **ctx, "scope": "identity"},
-                )
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "error": "rate_limited",
-                        "detail": "limit exceeded",
-                        "status": 429,
-                    },
-                )
+                buckmap = self._buckets.setdefault(ident, {})
+                buckets = buckmap.get(key)
+                if buckets is None:
+                    buckets = [
+                        _TokenBucket(r.capacity, r.period_seconds) for r in rules
+                    ]
+                    buckmap[key] = buckets
+                now = time.monotonic()
+                if any(not b.allow(now) for b in buckets):
+                    stats.status_429 += 1
+                    self._log.info(
+                        "rate_limit",
+                        extra={"event": "ratelimit", **ctx, "scope": "identity"},
+                    )
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "error": "rate_limited",
+                            "detail": "limit exceeded",
+                            "status": 429,
+                        },
+                    )
         # Proceed
         resp = await call_next(request)
+        if resp.status_code == 401:
+            stats.status_401 += 1
+        elif resp.status_code == 429:
+            stats.status_429 += 1
         # Structured access log (redact auth header)
         took = time.monotonic() - start
         self._log.info(
@@ -370,6 +388,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 class _Stats:
     def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
         self.requests_total = 0
         self.status_401 = 0
         self.status_429 = 0

@@ -60,16 +60,16 @@ class MermaidResponse(BaseModel):
 
 
 def create_app() -> FastAPI:
+    _stats.reset()
     app = FastAPI(title="DSPx Server", version="0.1.0")
     guard = AuthGuard.from_env()
-    # Rate limiting
+    # Install middleware unconditionally so request/response metrics stay truthful
+    # even when rate limiting itself is disabled.
     rl_cfg = RateLimitConfig.from_env()
-    if rl_cfg.enabled:
-        app.add_middleware(cast(Any, RateLimitMiddleware), config=rl_cfg)
+    app.add_middleware(cast(Any, RateLimitMiddleware), config=rl_cfg)
 
     @app.exception_handler(UnauthorizedError)
     async def _unauth_handler(request: Request, exc: UnauthorizedError):
-        _stats.status_401 += 1
         return JSONResponse(
             status_code=401,
             content={
@@ -83,7 +83,6 @@ def create_app() -> FastAPI:
     def post_signature(
         req: SignatureRequest, authorization: Optional[str] = Header(default=None)
     ):
-        _stats.requests_total += 1
         guard.check(authorization)
         os.environ.setdefault("MLFLOW_ENABLE", "0")
         options = {"class_name": req.class_name} if req.class_name else {}
@@ -97,7 +96,6 @@ def create_app() -> FastAPI:
     def post_module(
         req: ModuleRequest, authorization: Optional[str] = Header(default=None)
     ):
-        _stats.requests_total += 1
         guard.check(authorization)
         os.environ.setdefault("MLFLOW_ENABLE", "0")
         spec = ModuleSpec(
@@ -116,7 +114,6 @@ def create_app() -> FastAPI:
         authorization: Optional[str] = Header(default=None),
         x_dspx_confirm: Optional[str] = Header(default=None),
     ):
-        _stats.requests_total += 1
         guard.check(authorization)
         os.environ.setdefault("MLFLOW_ENABLE", "0")
         # Optional server-side confirmation gate for mutating operations
