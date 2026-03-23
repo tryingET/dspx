@@ -47,6 +47,37 @@ def _host_allowed(url: str, allowed_hosts: Optional[Mapping[str, bool]]) -> bool
     return bool(allowed_hosts.get(host, False))
 
 
+def _coerce_numeric_param(value: Any, *, integer: bool, label: str) -> float | int:
+    try:
+        return int(str(value)) if integer else float(str(value))
+    except Exception:
+        expected = "integer" if integer else "number"
+        raise ValueError(f"{label}: expected {expected}")
+
+
+def _validate_numeric_bounds(
+    value: float | int, schema: Mapping[str, Any], *, label: str
+) -> None:
+    if "minimum" in schema and value < float(schema["minimum"]):
+        raise ValueError(f"{label}: below minimum")
+    if "maximum" in schema and value > float(schema["maximum"]):
+        raise ValueError(f"{label}: above maximum")
+    minimum = schema.get("minimum")
+    if (
+        minimum is not None
+        and schema.get("exclusiveMinimum")
+        and value <= float(minimum)
+    ):
+        raise ValueError(f"{label}: <= exclusiveMinimum")
+    maximum = schema.get("maximum")
+    if (
+        maximum is not None
+        and schema.get("exclusiveMaximum")
+        and value >= float(maximum)
+    ):
+        raise ValueError(f"{label}: >= exclusiveMaximum")
+
+
 def call_operation(
     request: OpenAPICallRequest,
     *,
@@ -107,45 +138,20 @@ def call_operation(
                         raise ValueError(
                             f"Invalid value for query param {p.get('name')}: must be one of {enum}"
                         )
+                numeric_value: float | int | None = None
+                param_kind = f"{where} param"
                 if t == "integer":
-                    try:
-                        iv = int(str(val))
-                    except Exception:
-                        raise ValueError(
-                            f"Invalid type for query param {p.get('name')}: expected integer"
-                        )
-                    # path-specific integer bounds
-                    if where == "path":
-                        try:
-                            if "minimum" in schema and iv < int(schema["minimum"]):
-                                raise ValueError(
-                                    f"Invalid value for param {p.get('name')}: below minimum"
-                                )
-                            if "maximum" in schema and iv > int(schema["maximum"]):
-                                raise ValueError(
-                                    f"Invalid value for param {p.get('name')}: above maximum"
-                                )
-                            if schema.get("exclusiveMinimum") and iv <= int(
-                                schema.get("minimum", iv)
-                            ):
-                                raise ValueError(
-                                    f"Invalid value for param {p.get('name')}: <= exclusiveMinimum"
-                                )
-                            if schema.get("exclusiveMaximum") and iv >= int(
-                                schema.get("maximum", iv)
-                            ):
-                                raise ValueError(
-                                    f"Invalid value for param {p.get('name')}: >= exclusiveMaximum"
-                                )
-                        except Exception:
-                            pass
+                    numeric_value = _coerce_numeric_param(
+                        val,
+                        integer=True,
+                        label=f"Invalid type for {param_kind} {p.get('name')}",
+                    )
                 elif t == "number":
-                    try:
-                        float(str(val))
-                    except Exception:
-                        raise ValueError(
-                            f"Invalid type for query param {p.get('name')}: expected number"
-                        )
+                    numeric_value = _coerce_numeric_param(
+                        val,
+                        integer=False,
+                        label=f"Invalid type for {param_kind} {p.get('name')}",
+                    )
                 elif t == "boolean":
                     sval = str(val).lower()
                     if sval not in {"true", "false", "1", "0", "yes", "no"}:
@@ -203,31 +209,12 @@ def call_operation(
                                     f"Invalid item value in array param {p.get('name')}: must be one of {items_enum}"
                                 )
                 # Numeric min/max for integer/number
-                if t in {"integer", "number"}:
-                    try:
-                        v = float(str(val))
-                        if "minimum" in schema and v < float(schema["minimum"]):
-                            raise ValueError(
-                                f"Invalid value for param {p.get('name')}: below minimum"
-                            )
-                        if "maximum" in schema and v > float(schema["maximum"]):
-                            raise ValueError(
-                                f"Invalid value for param {p.get('name')}: above maximum"
-                            )
-                        if schema.get("exclusiveMinimum") and v <= float(
-                            schema.get("minimum", v)
-                        ):
-                            raise ValueError(
-                                f"Invalid value for param {p.get('name')}: <= exclusiveMinimum"
-                            )
-                        if schema.get("exclusiveMaximum") and v >= float(
-                            schema.get("maximum", v)
-                        ):
-                            raise ValueError(
-                                f"Invalid value for param {p.get('name')}: >= exclusiveMaximum"
-                            )
-                    except Exception:
-                        pass
+                if numeric_value is not None:
+                    _validate_numeric_bounds(
+                        numeric_value,
+                        schema,
+                        label=f"Invalid value for {param_kind} {p.get('name')}",
+                    )
     except ValueError:
         # Surface validation errors
         raise
@@ -283,35 +270,27 @@ def call_operation(
             t = schema.get("type")
             val = params.get(name)
             if t == "integer":
-                try:
-                    iv = int(str(val))
-                except Exception:
-                    raise ValueError(
-                        f"Invalid type for path param {name}: expected integer"
-                    )
-                if "minimum" in schema and iv < int(schema["minimum"]):
-                    raise ValueError(
-                        f"Invalid value for path param {name}: below minimum"
-                    )
-                if "maximum" in schema and iv > int(schema["maximum"]):
-                    raise ValueError(
-                        f"Invalid value for path param {name}: above maximum"
-                    )
+                iv = _coerce_numeric_param(
+                    val,
+                    integer=True,
+                    label=f"Invalid type for path param {name}",
+                )
+                _validate_numeric_bounds(
+                    iv,
+                    schema,
+                    label=f"Invalid value for path param {name}",
+                )
             elif t == "number":
-                try:
-                    fv = float(str(val))
-                except Exception:
-                    raise ValueError(
-                        f"Invalid type for path param {name}: expected number"
-                    )
-                if "minimum" in schema and fv < float(schema["minimum"]):
-                    raise ValueError(
-                        f"Invalid value for path param {name}: below minimum"
-                    )
-                if "maximum" in schema and fv > float(schema["maximum"]):
-                    raise ValueError(
-                        f"Invalid value for path param {name}: above maximum"
-                    )
+                fv = _coerce_numeric_param(
+                    val,
+                    integer=False,
+                    label=f"Invalid type for path param {name}",
+                )
+                _validate_numeric_bounds(
+                    fv,
+                    schema,
+                    label=f"Invalid value for path param {name}",
+                )
     except ValueError:
         raise
     except Exception:
