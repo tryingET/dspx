@@ -51,6 +51,14 @@ class ProviderResult:
     error: Optional[Exception] = None
 
 
+@dataclass(frozen=True)
+class ProviderCwdState:
+    has_workspace: bool = False
+    workspace: Optional[str] = None
+    has_cwd: bool = False
+    cwd: Optional[str] = None
+
+
 def _extract_text_from_response(resp: Any) -> str:
     """Best-effort extraction from a DSPy BaseLM-like response object."""
     if resp is None:
@@ -383,7 +391,7 @@ class MultiProviderLM(DSPyBaseLM):
         supports_async = []
 
         # Prepare per-provider working dirs if isolated
-        prev_cwds: List[Optional[str]] = [None] * len(self.providers)
+        prev_cwds: List[ProviderCwdState] = [ProviderCwdState()] * len(self.providers)
         prepared_cwds: List[Optional[str]] = [None] * len(self.providers)
         cleanup_info: Optional[Dict[str, Any]] = None
         if self.parallel_isolated and self.base_cwd:
@@ -413,11 +421,16 @@ class MultiProviderLM(DSPyBaseLM):
         # If none support async, fall back to thread race with no termination
         if not any(supports_async):
             done_event = threading.Event()
+            first_finished_lock = threading.Lock()
+            first_finished: List[ProviderResult] = []
             results: List[Optional[ProviderResult]] = [None] * len(self.providers)
 
             def worker(i: int, prov: Any):
                 res = self._run_one(i, prov, prompt=prompt, messages=messages)
                 results[i] = res
+                with first_finished_lock:
+                    if not first_finished:
+                        first_finished.append(res)
                 done_event.set()
 
             threads: List[threading.Thread] = []
@@ -427,13 +440,11 @@ class MultiProviderLM(DSPyBaseLM):
                 th.start()
             # Optional validation path: collect first finished and validate; can't abort others
             done_event.wait()
-            for i in range(len(results)):
-                ri = results[i]
-                if ri is not None:
-                    # restore cwds
-                    for j, pr in enumerate(self.providers):
-                        self._restore_cwd(pr, prev_cwds[j])
-                    return [ri]
+            if first_finished:
+                # restore cwds
+                for j, pr in enumerate(self.providers):
+                    self._restore_cwd(pr, prev_cwds[j])
+                return [first_finished[0]]
             for th in threads:
                 try:
                     th.join(timeout=0.1)
@@ -447,6 +458,7 @@ class MultiProviderLM(DSPyBaseLM):
 
         # Async polling loop with validation and cancellation
         finished: List[Optional[ProviderResult]] = [None] * len(self.providers)
+        completion_order: List[ProviderResult] = []
         remaining = set(
             i for i in range(len(self.providers)) if async_runs[i] is not None
         )
@@ -502,8 +514,11 @@ class MultiProviderLM(DSPyBaseLM):
                         remaining.remove(i)
                         made_progress = True
 
-                        # Validation and early abort
                         fi = finished[i]
+                        if fi is not None:
+                            completion_order.append(fi)
+
+                        # Validation and early abort
                         if (
                             self.validator is not None
                             and fi is not None
@@ -548,7 +563,7 @@ class MultiProviderLM(DSPyBaseLM):
                 self._cleanup_isolated(cleanup_info)
 
         # No validated winner; use reducer if provided, else first finished
-        candidates: List[ProviderResult] = [r for r in finished if r is not None]
+        candidates = completion_order
         if not candidates:
             return []
         if self.reducer is not None:
@@ -613,36 +628,39 @@ class MultiProviderLM(DSPyBaseLM):
             except Exception:
                 continue
 
-    def _apply_cwd(self, provider: Any, cwd: Optional[str]) -> Optional[str]:
+    def _apply_cwd(self, provider: Any, cwd: Optional[str]) -> ProviderCwdState:
+        state = ProviderCwdState(
+            has_workspace=hasattr(provider, "workspace"),
+            workspace=getattr(provider, "workspace", None)
+            if hasattr(provider, "workspace")
+            else None,
+            has_cwd=hasattr(provider, "cwd"),
+            cwd=getattr(provider, "cwd", None) if hasattr(provider, "cwd") else None,
+        )
         if cwd is None:
-            return None
+            return state
         # Save and override provider-specific cwd/workspace knobs
-        prev = None
-        if hasattr(provider, "workspace"):
-            prev = getattr(provider, "workspace", None)
+        if state.has_workspace:
             try:
                 setattr(provider, "workspace", cwd)
             except Exception:
                 pass
-        if hasattr(provider, "cwd"):
-            prev = getattr(provider, "cwd", None)
+        if state.has_cwd:
             try:
                 setattr(provider, "cwd", cwd)
             except Exception:
                 pass
-        return prev
+        return state
 
-    def _restore_cwd(self, provider: Any, prev: Optional[str]) -> None:
-        if prev is None:
-            return
+    def _restore_cwd(self, provider: Any, prev: ProviderCwdState) -> None:
         try:
-            if hasattr(provider, "workspace"):
-                setattr(provider, "workspace", prev)
+            if prev.has_workspace:
+                setattr(provider, "workspace", prev.workspace)
         except Exception:
             pass
         try:
-            if hasattr(provider, "cwd"):
-                setattr(provider, "cwd", prev)
+            if prev.has_cwd:
+                setattr(provider, "cwd", prev.cwd)
         except Exception:
             pass
 
