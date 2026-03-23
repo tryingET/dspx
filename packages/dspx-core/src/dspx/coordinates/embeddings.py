@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
-from dspx.run_receipts import resolve_receipt_run_id
+from dspx.run_receipts import resolve_run_identity
 
 logger = logging.getLogger(__name__)
 
@@ -391,7 +391,11 @@ class EmbeddingEngine:
         )
 
     def embed_receipt(
-        self, receipt: dict[str, Any], output_content: str | None = None
+        self,
+        receipt: dict[str, Any],
+        output_content: str | None = None,
+        *,
+        receipt_path: Path | None = None,
     ) -> ExecutionEmbedding | None:
         """Embed from a run receipt dictionary.
 
@@ -405,11 +409,19 @@ class EmbeddingEngine:
         Note:
             For more detailed error information, use embed_receipt_result().
         """
-        result = self.embed_receipt_result(receipt, output_content)
+        result = self.embed_receipt_result(
+            receipt,
+            output_content,
+            receipt_path=receipt_path,
+        )
         return result.embedding
 
     def embed_receipt_result(
-        self, receipt: dict[str, Any], output_content: str | None = None
+        self,
+        receipt: dict[str, Any],
+        output_content: str | None = None,
+        *,
+        receipt_path: Path | None = None,
     ) -> EmbeddingResult:
         """Embed from a run receipt dictionary with detailed result.
 
@@ -422,10 +434,11 @@ class EmbeddingEngine:
         Returns:
             EmbeddingResult with success/failure/skip information
         """
-        run_id = resolve_receipt_run_id(receipt)
+        identity = resolve_run_identity(receipt, meta_path=receipt_path)
+        run_id = identity.storage_id
         if not run_id:
             return EmbeddingResult.skip(
-                "Receipt has no canonical run identifier (execution_id, run_id, cache_key, hash, or output_path)"
+                "Receipt has no storage identifier (execution_id, run_id, cache_key, hash, output_path, or receipt path)"
             )
 
         # Extract replay inputs
@@ -462,6 +475,7 @@ class EmbeddingEngine:
                 metadata={
                     "cache_key": receipt.get("cache_key"),
                     "cache_enabled": receipt.get("cache_enabled"),
+                    "receipt_identity": identity.to_dict(),
                 },
             )
             return EmbeddingResult.success(embedding)

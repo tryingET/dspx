@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable
 
-from dspx.run_receipts import load_run_receipt, normalize_receipt_provenance
+from dspx.run_receipts import load_run_receipt, resolve_receipt_provenance
 
 
 @dataclass(frozen=True)
@@ -89,7 +89,7 @@ def _load_record(meta_path: Path) -> ReceiptRecord | None:
     if not isinstance(receipt, dict):
         return None
 
-    provenance = normalize_receipt_provenance(receipt, meta_path=meta_path)
+    provenance = resolve_receipt_provenance(receipt, meta_path=meta_path)
 
     created_at_raw = receipt.get("created_at")
     created_at = created_at_raw.strip() if isinstance(created_at_raw, str) else None
@@ -112,7 +112,7 @@ def _load_record(meta_path: Path) -> ReceiptRecord | None:
         outcome.strip() if isinstance(outcome, str) and outcome.strip() else "unknown"
     )
 
-    run_id = provenance["run_id"]
+    run_id = provenance.run_id
     if not isinstance(run_id, str) or not run_id.strip():
         return None
 
@@ -122,16 +122,12 @@ def _load_record(meta_path: Path) -> ReceiptRecord | None:
         output_path=output_text,
         created_at=created_at,
         created_dt=_parse_created_at(created_at),
-        branch=str(provenance["branch"]),
+        branch=provenance.branch,
         run_kind=run_kind_text,
         provider=provider_text,
         outcome=outcome_text,
-        parent_run_id=(
-            str(provenance["parent_run_id"])
-            if provenance["parent_run_id"] is not None
-            else None
-        ),
-        causal_chain=tuple(str(item) for item in provenance["causal_chain"]),
+        parent_run_id=provenance.parent_run_id,
+        causal_chain=provenance.causal_chain,
     )
 
 

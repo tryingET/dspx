@@ -228,6 +228,57 @@ def test_oracle_diff_does_not_collapse_distinct_runs_with_same_output_hash(
     assert payload["right_only_run_ids"] == ["exec-b"]
 
 
+def test_oracle_diff_ignores_non_string_lineage_entries(tmp_path: Path) -> None:
+    left_output = tmp_path / "left.py"
+    left_output.write_text("print('ok')\n", encoding="utf-8")
+    left_receipt = build_run_receipt(
+        run_kind="module-gen",
+        output_path=left_output,
+        output_hash="left-001",
+        template_version="simple-v1",
+        cache_key=None,
+        cache_file=None,
+        cache_enabled=False,
+        execution_id="left-001",
+        branch="feature-left",
+        outcome="success",
+        capture_context=False,
+    )
+    left_receipt["created_at"] = "2026-03-21T10:00:00+00:00"
+    left_receipt["causal_chain"] = ["root-001", None, 123, "root-001"]
+    write_run_receipt(left_output, left_receipt)
+
+    _write_receipt(
+        tmp_path,
+        output_name="right.py",
+        run_id="right-001",
+        created_at="2026-03-21T10:05:00+00:00",
+        run_kind="module-gen",
+        outcome="success",
+        branch="feature-right",
+        causal_chain=["root-001"],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "diff",
+            "feature-left",
+            "feature-right",
+            "--path",
+            str(tmp_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["shared_lineage_ids"] == ["root-001"]
+    assert "123" not in payload["shared_lineage_ids"]
+    assert "None" not in payload["shared_lineage_ids"]
+
+
 def test_oracle_diff_prefers_legacy_cache_key_over_shared_output_path(
     tmp_path: Path,
 ) -> None:

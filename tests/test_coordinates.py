@@ -742,11 +742,11 @@ class TestReceiptEmbedding:
         result = engine.embed_receipt_result(receipt)
         assert not result.ok
         assert result.skipped
-        assert "canonical run identifier" in result.skip_reason.lower()
+        assert "storage identifier" in result.skip_reason.lower()
         assert "execution_id" in result.skip_reason.lower()
 
     def test_embed_receipt_prefers_execution_id(self) -> None:
-        """Execution identity should follow canonical receipt precedence."""
+        """Embedding storage identity should prefer explicit execution IDs."""
         engine = EmbeddingEngine(backend="mock", mock_dimension=32)
 
         receipt = {
@@ -762,3 +762,26 @@ class TestReceiptEmbedding:
 
         assert emb is not None
         assert emb.run_id == "exec-123"
+        assert emb.metadata["receipt_identity"]["canonical_id"] == "exec-123"
+        assert emb.metadata["receipt_identity"]["behavioral_id"] == "cache-legacy"
+
+    def test_embed_receipt_uses_receipt_path_as_last_resort_identity(
+        self, tmp_path: Path
+    ) -> None:
+        engine = EmbeddingEngine(backend="mock", mock_dimension=32)
+        receipt_path = tmp_path / "orphan.meta.json"
+        receipt = {
+            "run_kind": "signature-gen",
+            "provider": "claude",
+            "replay_inputs": {"prompt": "create classifier"},
+        }
+
+        emb = engine.embed_receipt(
+            receipt,
+            output_content='{"category": "bug"}',
+            receipt_path=receipt_path,
+        )
+
+        assert emb is not None
+        assert emb.run_id == str(receipt_path)
+        assert emb.metadata["receipt_identity"]["storage_source"] == "meta_path"

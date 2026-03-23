@@ -242,7 +242,10 @@ def oracle_index(
                         pass
 
                 # Embed the receipt
-                embedding = engine.embed_receipt(receipt_data)
+                embedding = engine.embed_receipt(
+                    receipt_data,
+                    receipt_path=receipt_file,
+                )
                 if embedding:
                     if index.upsert(embedding):
                         indexed += 1
@@ -311,7 +314,10 @@ def oracle_index(
                                     receipt_data = json.loads(
                                         artifact.read_text(encoding="utf-8")
                                     )
-                                    embedding = engine.embed_receipt(receipt_data)
+                                    embedding = engine.embed_receipt(
+                                        receipt_data,
+                                        receipt_path=artifact,
+                                    )
                                     if embedding:
                                         if index.upsert(embedding):
                                             indexed += 1

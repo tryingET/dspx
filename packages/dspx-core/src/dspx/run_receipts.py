@@ -5,14 +5,16 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Iterable, Literal, Mapping
 from uuid import uuid4
 
 from dspx.redaction import redact_url
 
 RUN_RECEIPT_VERSION = "v2"
+RUN_IDENTITY_VERSION = "v1"
 
 # Outcome types for Oracle Dreaming/Consciousness
 OutcomeType = Literal["success", "failure", "partial", "cached", "unknown"]
@@ -20,6 +22,163 @@ OutcomeType = Literal["success", "failure", "partial", "cached", "unknown"]
 
 # Cached execution context (static portion computed once per process)
 _CACHED_STATIC_EXECUTION_CONTEXT: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class RunIdentity:
+    """Explicit contract for receipt identity across schema versions."""
+
+    execution_id: str | None = None
+    legacy_run_id: str | None = None
+    cache_key: str | None = None
+    output_hash: str | None = None
+    output_path: str | None = None
+    meta_path: str | None = None
+    warnings: tuple[str, ...] = ()
+    version: str = RUN_IDENTITY_VERSION
+
+    @staticmethod
+    def _pick(*candidates: tuple[str | None, str]) -> tuple[str | None, str | None]:
+        for value, source in candidates:
+            if value:
+                return value, source
+        return None, None
+
+    @property
+    def canonical_id(self) -> str | None:
+        value, _ = self._pick(
+            (self.execution_id, "execution_id"),
+            (self.legacy_run_id, "run_id"),
+            (self.cache_key, "cache_key"),
+            (self.output_hash, "hash"),
+            (self.output_path, "output_path"),
+            (self.meta_path, "meta_path"),
+        )
+        return value
+
+    @property
+    def canonical_source(self) -> str | None:
+        _, source = self._pick(
+            (self.execution_id, "execution_id"),
+            (self.legacy_run_id, "run_id"),
+            (self.cache_key, "cache_key"),
+            (self.output_hash, "hash"),
+            (self.output_path, "output_path"),
+            (self.meta_path, "meta_path"),
+        )
+        return source
+
+    @property
+    def behavioral_id(self) -> str | None:
+        value, _ = self._pick(
+            (self.legacy_run_id, "run_id"),
+            (self.cache_key, "cache_key"),
+            (self.output_hash, "hash"),
+        )
+        return value
+
+    @property
+    def behavioral_source(self) -> str | None:
+        _, source = self._pick(
+            (self.legacy_run_id, "run_id"),
+            (self.cache_key, "cache_key"),
+            (self.output_hash, "hash"),
+        )
+        return source
+
+    @property
+    def storage_id(self) -> str | None:
+        value, _ = self._pick(
+            (self.execution_id, "execution_id"),
+            (self.legacy_run_id, "run_id"),
+            (self.cache_key, "cache_key"),
+            (self.output_hash, "hash"),
+            (self.output_path, "output_path"),
+            (self.meta_path, "meta_path"),
+        )
+        return value
+
+    @property
+    def storage_source(self) -> str | None:
+        _, source = self._pick(
+            (self.execution_id, "execution_id"),
+            (self.legacy_run_id, "run_id"),
+            (self.cache_key, "cache_key"),
+            (self.output_hash, "hash"),
+            (self.output_path, "output_path"),
+            (self.meta_path, "meta_path"),
+        )
+        return source
+
+    @property
+    def alias_ids(self) -> tuple[str, ...]:
+        seen: set[str] = set()
+        aliases: list[str] = []
+        for value in (
+            self.execution_id,
+            self.legacy_run_id,
+            self.cache_key,
+            self.output_hash,
+            self.output_path,
+            self.meta_path,
+        ):
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            aliases.append(value)
+        return tuple(aliases)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "execution_id": self.execution_id,
+            "legacy_run_id": self.legacy_run_id,
+            "cache_key": self.cache_key,
+            "output_hash": self.output_hash,
+            "output_path": self.output_path,
+            "meta_path": self.meta_path,
+            "canonical_id": self.canonical_id,
+            "canonical_source": self.canonical_source,
+            "behavioral_id": self.behavioral_id,
+            "behavioral_source": self.behavioral_source,
+            "storage_id": self.storage_id,
+            "storage_source": self.storage_source,
+            "alias_ids": list(self.alias_ids),
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass(frozen=True)
+class ReceiptProvenance:
+    """Normalized receipt provenance with typed identity and lineage."""
+
+    identity: RunIdentity
+    branch: str
+    parent_run_id: str | None = None
+    causal_chain: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
+
+    @property
+    def run_id(self) -> str | None:
+        return self.identity.canonical_id
+
+    @property
+    def lineage_ids(self) -> tuple[str, ...]:
+        ids = list(self.causal_chain)
+        if self.parent_run_id and self.parent_run_id not in ids:
+            ids.append(self.parent_run_id)
+        return tuple(ids)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "branch": self.branch,
+            "parent_run_id": self.parent_run_id,
+            "causal_chain": list(self.causal_chain),
+            "lineage_ids": list(self.lineage_ids),
+            "identity": self.identity.to_dict(),
+            "warnings": list(self.warnings),
+        }
 
 
 def _capture_git_commit() -> str | None:
@@ -134,6 +293,50 @@ def _bool_env(name: str) -> bool | None:
     return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _normalized_optional_str(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _normalize_run_id_list(
+    values: Iterable[Any], *, field_name: str
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    normalized: list[str] = []
+    warnings: list[str] = []
+    non_string_items = 0
+    blank_items = 0
+    overlength_items = 0
+
+    for item in values:
+        if not isinstance(item, str):
+            non_string_items += 1
+            continue
+        text = item.strip()
+        if not text:
+            blank_items += 1
+            continue
+        if len(text) > 128:
+            overlength_items += 1
+            continue
+        normalized.append(text)
+
+    deduped = tuple(build_causal_chain(*normalized))
+    duplicate_items = len(normalized) - len(deduped)
+
+    if non_string_items:
+        warnings.append(f"{field_name}:ignored_non_string_items={non_string_items}")
+    if blank_items:
+        warnings.append(f"{field_name}:ignored_blank_items={blank_items}")
+    if overlength_items:
+        warnings.append(f"{field_name}:ignored_overlength_items={overlength_items}")
+    if duplicate_items:
+        warnings.append(f"{field_name}:deduplicated_items={duplicate_items}")
+
+    return deduped, tuple(warnings)
+
+
 def _parse_env_causal_chain(raw: str | None) -> list[str] | None:
     text = str(raw or "").strip()
     if not text:
@@ -143,7 +346,8 @@ def _parse_env_causal_chain(raw: str | None) -> list[str] | None:
     except json.JSONDecodeError:
         parsed = None
     if isinstance(parsed, list):
-        return build_causal_chain(*(str(item) for item in parsed)) or None
+        values, _warnings = _normalize_run_id_list(parsed, field_name="causal_chain")
+        return list(values) or None
     return build_causal_chain(*(part.strip() for part in text.split(","))) or None
 
 
@@ -156,13 +360,17 @@ def current_receipt_lineage(
     resolved_parent = (
         str(parent_run_id or os.getenv("DSPX_PARENT_RUN_ID") or "").strip() or None
     )
-    resolved_chain = (
-        build_causal_chain(*causal_chain)
-        if causal_chain
-        else _parse_env_causal_chain(os.getenv("DSPX_CAUSAL_CHAIN"))
-    )
+    if causal_chain is not None:
+        resolved_chain, _warnings = _normalize_run_id_list(
+            causal_chain, field_name="causal_chain"
+        )
+        resolved_chain_list = list(resolved_chain)
+    else:
+        resolved_chain_list = (
+            _parse_env_causal_chain(os.getenv("DSPX_CAUSAL_CHAIN")) or []
+        )
     if resolved_parent:
-        resolved_chain = build_causal_chain(*(resolved_chain or []), resolved_parent)
+        resolved_chain_list = build_causal_chain(*resolved_chain_list, resolved_parent)
     resolved_branch = get_branch_name(
         explicit_branch=(
             branch or os.getenv("DSPX_RECEIPT_BRANCH") or os.getenv("DSPX_BRANCH")
@@ -171,22 +379,39 @@ def current_receipt_lineage(
     payload: dict[str, Any] = {"branch": resolved_branch}
     if resolved_parent:
         payload["parent_run_id"] = resolved_parent
-    if resolved_chain:
-        payload["causal_chain"] = resolved_chain
+    if resolved_chain_list:
+        payload["causal_chain"] = resolved_chain_list
     return payload
 
 
-def _normalized_optional_str(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    text = value.strip()
-    return text or None
-
-
-def _normalized_lineage_ids(value: Any) -> tuple[str, ...]:
-    if not isinstance(value, list):
-        return ()
-    return tuple(build_causal_chain(*(str(item) for item in value)))
+def resolve_run_identity(
+    receipt: Mapping[str, Any],
+    *,
+    meta_path: Path | None = None,
+) -> RunIdentity:
+    """Resolve explicit receipt identity facets across schema versions."""
+    identity = RunIdentity(
+        execution_id=_normalized_optional_str(receipt.get("execution_id")),
+        legacy_run_id=_normalized_optional_str(receipt.get("run_id")),
+        cache_key=_normalized_optional_str(receipt.get("cache_key")),
+        output_hash=_normalized_optional_str(receipt.get("hash")),
+        output_path=_normalized_optional_str(receipt.get("output_path")),
+        meta_path=str(meta_path) if meta_path is not None else None,
+    )
+    warnings = list(identity.warnings)
+    if identity.canonical_source in {"output_path", "meta_path"}:
+        warnings.append(f"identity:using_path_fallback={identity.canonical_source}")
+    if not identity.canonical_id:
+        warnings.append("identity:missing")
+    return RunIdentity(
+        execution_id=identity.execution_id,
+        legacy_run_id=identity.legacy_run_id,
+        cache_key=identity.cache_key,
+        output_hash=identity.output_hash,
+        output_path=identity.output_path,
+        meta_path=identity.meta_path,
+        warnings=tuple(warnings),
+    )
 
 
 def resolve_receipt_run_id(
@@ -194,18 +419,45 @@ def resolve_receipt_run_id(
     *,
     meta_path: Path | None = None,
 ) -> str | None:
-    """Resolve the canonical run identity for a receipt.
+    """Resolve the canonical run identity for a receipt."""
+    return resolve_run_identity(receipt, meta_path=meta_path).canonical_id
 
-    Precedence is version-aware and favors explicit execution identity first,
-    then legacy behavioral identifiers, and only then path-based fallbacks.
-    """
-    for key in ("execution_id", "run_id", "cache_key", "hash", "output_path"):
-        value = _normalized_optional_str(receipt.get(key))
-        if value:
-            return value
-    if meta_path is not None:
-        return str(meta_path)
-    return None
+
+def resolve_receipt_provenance(
+    receipt: Mapping[str, Any],
+    *,
+    meta_path: Path | None = None,
+    default_branch: str = "main",
+) -> ReceiptProvenance:
+    """Normalize receipt identity and lineage across schema versions."""
+    identity = resolve_run_identity(receipt, meta_path=meta_path)
+    warnings = list(identity.warnings)
+
+    raw_parent_run_id = receipt.get("parent_run_id")
+    parent_run_id = _normalized_optional_str(raw_parent_run_id)
+    if raw_parent_run_id is not None and parent_run_id is None:
+        warnings.append("parent_run_id:ignored_invalid_value")
+
+    raw_causal_chain = receipt.get("causal_chain")
+    if isinstance(raw_causal_chain, list):
+        causal_chain, chain_warnings = _normalize_run_id_list(
+            raw_causal_chain, field_name="causal_chain"
+        )
+        warnings.extend(chain_warnings)
+    elif raw_causal_chain is None:
+        causal_chain = ()
+    else:
+        causal_chain = ()
+        warnings.append("causal_chain:ignored_invalid_value")
+
+    branch = _normalized_optional_str(receipt.get("branch")) or default_branch
+    return ReceiptProvenance(
+        identity=identity,
+        branch=branch,
+        parent_run_id=parent_run_id,
+        causal_chain=causal_chain,
+        warnings=tuple(warnings),
+    )
 
 
 def normalize_receipt_provenance(
@@ -214,20 +466,12 @@ def normalize_receipt_provenance(
     meta_path: Path | None = None,
     default_branch: str = "main",
 ) -> dict[str, Any]:
-    """Normalize receipt identity and lineage across schema versions."""
-    parent_run_id = _normalized_optional_str(receipt.get("parent_run_id"))
-    causal_chain = list(_normalized_lineage_ids(receipt.get("causal_chain")))
-    lineage_ids = list(
-        build_causal_chain(*causal_chain, *([parent_run_id] if parent_run_id else []))
-    )
-    branch = _normalized_optional_str(receipt.get("branch")) or default_branch
-    return {
-        "run_id": resolve_receipt_run_id(receipt, meta_path=meta_path),
-        "branch": branch,
-        "parent_run_id": parent_run_id,
-        "causal_chain": causal_chain,
-        "lineage_ids": lineage_ids,
-    }
+    """Backward-compatible dict view of normalized receipt provenance."""
+    return resolve_receipt_provenance(
+        receipt,
+        meta_path=meta_path,
+        default_branch=default_branch,
+    ).to_dict()
 
 
 def _current_provider_details() -> dict[str, Any]:
