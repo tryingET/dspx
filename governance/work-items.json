@@ -104,14 +104,15 @@
         {
           "id": "AK-TASK-0250",
           "title": "Module synthesis runtime: add strategy metadata, candidate workspace, and promotion shell",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Module synthesis runtime: add strategy metadata, candidate workspace, and promotion shell (task #250)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-23"
         },
         {
           "id": "AK-TASK-0251",

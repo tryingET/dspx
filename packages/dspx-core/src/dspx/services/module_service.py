@@ -5,7 +5,7 @@ from typing import Any, Optional
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.services.signatures_service import run_generate_dto
-from dspx.synthesis import build_module_synthesis_bundle
+from dspx.synthesis import materialize_module_synthesis_bundle
 from dspx.templates.module_templates import render_module_skeleton
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
 from dspx.templates.signature_templates import render_simple_signature
@@ -44,7 +44,7 @@ def _build_metadata(
     if template_version is not None:
         metadata["template_version"] = template_version
     metadata["uses_signature"] = bool(use_signature)
-    metadata["synthesis"] = build_module_synthesis_bundle(
+    metadata["synthesis"] = materialize_module_synthesis_bundle(
         spec,
         code=code,
         use_signature=use_signature,

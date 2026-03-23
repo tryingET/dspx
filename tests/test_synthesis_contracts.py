@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
+import json
+
 from dspx.dtos import ModuleSpec
 from dspx.synthesis import (
     build_module_synthesis_bundle,
     build_module_synthesis_request,
+    materialize_module_synthesis_bundle,
     module_spec_to_ir,
+    promote_selected_module_candidate,
 )
 
 
@@ -67,6 +72,8 @@ def test_build_module_synthesis_bundle_exposes_candidate_evaluation_policy_and_p
     )
 
     assert bundle.request.request_id.startswith("sreq-")
+    assert bundle.strategy is not None
+    assert bundle.strategy.strategy_id == bundle.request.strategy_id
     assert len(bundle.candidates) == 1
     assert bundle.candidates[0].candidate_id.startswith("cand-")
     assert bundle.candidates[0].request_id == bundle.request.request_id
@@ -75,9 +82,78 @@ def test_build_module_synthesis_bundle_exposes_candidate_evaluation_policy_and_p
     assert bundle.selection_policy.mode == "single_best"
     assert bundle.promotion_decision.outcome == "withheld"
     assert bundle.promotion_decision.candidate_id == bundle.candidates[0].candidate_id
+    assert bundle.promotion_shell is None
 
     dumped = bundle.model_dump(mode="json")
     assert dumped["request"]["spec"]["name"] == "Classifier"
     assert (
         dumped["selection_policy"]["metadata"]["promote_without_evaluations"] is False
     )
+
+
+def test_materialize_module_synthesis_bundle_persists_strategy_and_workspace(
+    tmp_path: Path,
+) -> None:
+    spec = ModuleSpec(
+        name="Planner",
+        description="Plan the next action",
+        inputs=["goal"],
+        outputs=["plan"],
+        options={"template_version": "simple-v1"},
+    )
+
+    bundle = materialize_module_synthesis_bundle(
+        spec,
+        code="class Planner: ...\n",
+        use_signature=True,
+        workspace_root=tmp_path / "synthesis-root",
+    )
+
+    assert bundle.strategy is not None
+    assert bundle.strategy.metadata["workspace_mode"] == "scratch"
+    assert len(bundle.candidate_workspaces) == 1
+    workspace = bundle.candidate_workspaces[0]
+    assert Path(workspace.artifact_path).exists()
+    assert Path(workspace.manifest_path).exists()
+    manifest = json.loads(Path(workspace.manifest_path).read_text(encoding="utf-8"))
+    assert manifest["strategy"]["strategy_id"] == bundle.request.strategy_id
+    assert manifest["candidate"]["candidate_id"] == bundle.candidates[0].candidate_id
+    assert bundle.candidates[0].metadata["workspace_id"] == workspace.workspace_id
+    assert bundle.promotion_shell is not None
+    assert bundle.promotion_shell.target_path.endswith("Planner.py")
+    assert (
+        bundle.promotion_decision.metadata["promotion_shell_id"]
+        == bundle.promotion_shell.shell_id
+    )
+
+
+def test_promote_selected_module_candidate_copies_only_selected_output(
+    tmp_path: Path,
+) -> None:
+    spec = ModuleSpec(
+        name="Judge",
+        description="Judge candidate quality",
+        inputs=["text"],
+        outputs=["verdict"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = materialize_module_synthesis_bundle(
+        spec,
+        code="class Judge: ...\n",
+        workspace_root=tmp_path / "scratch",
+    )
+
+    promoted = promote_selected_module_candidate(
+        bundle,
+        target_path=tmp_path / "final" / "Judge.py",
+    )
+
+    out = tmp_path / "final" / "Judge.py"
+    assert out.exists()
+    assert out.read_text(encoding="utf-8") == "class Judge: ...\n"
+    assert promoted.candidates[0].status == "promoted"
+    assert promoted.candidate_workspaces[0].status == "promoted"
+    assert promoted.promotion_shell is not None
+    assert promoted.promotion_shell.status == "promoted"
+    assert promoted.promotion_decision.outcome == "promoted"
+    assert promoted.promotion_decision.metadata["promoted_path"] == str(out.resolve())
