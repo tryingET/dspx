@@ -7,12 +7,12 @@ read_when:
 
 # Tactical Goals
 
-Active strategic goal: `SG1` — deliver a V9-compatible synthesis core and ship V7 module synthesis through `module-gen`.
+Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG4`
+Active tactical goal: `TG5`
 Next tactical goal: `TBD`
 
-## Tactical goals for `SG1`
+## Recently completed tactical goals for `SG1`
 
 ### `TG1` — Freeze the synthesis target architecture in dated, referenceable docs
 - Status: complete
@@ -27,8 +27,14 @@ Next tactical goal: `TBD`
 - Definition of done: `module-gen` can generate multiple candidates, run the agreed evaluation stack, rank them through a named policy, and promote the winning artifact with receipts explaining the choice.
 
 ### `TG4` — Harden the module synthesis pipeline with quality gates and corpus coverage
-- Status: active
+- Status: complete
 - Definition of done: module synthesis has deterministic regression tests, validation/quality telemetry, and CI gates analogous to the native signature pipeline.
+
+## Tactical goals for `SG2`
+
+### `TG5` — Freeze the first evidence-substrate contract for ranked synthesis
+- Status: active
+- Definition of done: DSPx has a dated, referenceable contract for which receipts, replay outputs, and Oracle surfaces ranked synthesis will retrieve first, and the first AK-backed execution slice is aligned to that contract.
 
 ## Defer/until-later notes
 

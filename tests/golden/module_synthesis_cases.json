@@ -1,0 +1,83 @@
+[
+  {
+    "name": "summarizer_simple",
+    "spec": {
+      "name": "Summarizer",
+      "description": "Summarizes text",
+      "inputs": ["text"],
+      "outputs": ["summary"],
+      "options": {"template_version": "simple-v1"}
+    },
+    "use_signature": false,
+    "promote": false,
+    "must_contain": [
+      "class Summarizer(dspy.Module):",
+      "self.predict = dspy.Predict('text -> summary')",
+      "\"\"\"Construct the generated module for runtime selection.\"\"\""
+    ],
+    "expected_selected_variant": "explainable_helpers",
+    "expected_ranked_variants": [
+      "explainable_helpers",
+      "traceable",
+      "baseline"
+    ],
+    "expected_candidate_count": 3,
+    "expected_promotion_status": "ready",
+    "expected_promotion_outcome": "withheld",
+    "sha256": "b0de648cec5017c5131112608d246d6282d2bf00db309b711dd9611895feaec0"
+  },
+  {
+    "name": "intent_signature",
+    "spec": {
+      "name": "Intent",
+      "description": "Extracts intent from context",
+      "inputs": ["context"],
+      "outputs": ["output"],
+      "options": {"template_version": "simple-v1"}
+    },
+    "use_signature": true,
+    "promote": false,
+    "must_contain": [
+      "class Sig_Intent(dspy.Signature):",
+      "self.predict = dspy.Predict(Sig_Intent)",
+      "\"\"\"Construct the generated module for runtime selection.\"\"\""
+    ],
+    "expected_selected_variant": "explainable_helpers",
+    "expected_ranked_variants": [
+      "explainable_helpers",
+      "traceable",
+      "baseline"
+    ],
+    "expected_candidate_count": 3,
+    "expected_promotion_status": "ready",
+    "expected_promotion_outcome": "withheld",
+    "sha256": "a96e3d44e8d8d77e6d2ca54791f6fea92e2127feb1819fd99a4e73848879dcfa"
+  },
+  {
+    "name": "router_multi_io_promoted",
+    "spec": {
+      "name": "TicketRouter",
+      "description": "Routes incoming tickets",
+      "inputs": ["ticket", "context"],
+      "outputs": ["team", "priority"],
+      "options": {"template_version": "simple-v1"}
+    },
+    "use_signature": false,
+    "promote": true,
+    "must_contain": [
+      "class TicketRouter(dspy.Module):",
+      "self.predict = dspy.Predict('ticket, context -> team, priority')",
+      "\"\"\"Provide deterministic output weighting for evaluation.\"\"\""
+    ],
+    "expected_selected_variant": "explainable_helpers",
+    "expected_ranked_variants": [
+      "explainable_helpers",
+      "traceable",
+      "baseline"
+    ],
+    "expected_candidate_count": 3,
+    "expected_promotion_status": "promoted",
+    "expected_promotion_outcome": "promoted",
+    "sha256": "d151bdd1153be99275206152f2a92059f6721c1b1287b3097fb2ab1d04ed2103"
+  }
+]

@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-260` and harden the ranked module synthesis runtime with deterministic regression corpus coverage and CI enforcement.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the ranked runtime + explicit promotion shell behavior already shipped under `AK-256`; avoid introducing non-deterministic provider dependencies into the hardening slice.
-- Assumptions (max 3): `AK-256` landed true multi-candidate fan-out plus ranked selection receipts; `TG3` is materially complete and `TG4` is now the active tactical goal; the V7/V8/V9 architecture reference remains `docs/adr/20260322-synthesis-architecture-v7-v9.md`.
+- Objective (one sentence): Claim `AK-263` and define the first SG2 tactical slice plus the receipt/replay/Oracle retrieval contract ranked synthesis should consume first.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the ranked module-synthesis hardening shipped under `AK-260`; do not start predictive ranking implementation before the evidence contract is explicit.
+- Assumptions (max 3): `SG1` is materially complete after the module-synthesis hardening pass; `SG2` is now the active strategic goal; the V7/V8/V9 architecture reference remains `docs/adr/20260322-synthesis-architecture-v7-v9.md`.
 - Blockers (none or list): None.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260322-synthesis-architecture-v7-v9.md`
-7. `diary/2026-03-23--rank-module-synthesis-candidates.md`
+7. `diary/2026-03-23--module-synthesis-regression-corpus.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -55,12 +55,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-256` — module synthesis: add multi-candidate fan-out and ranked selection receipts on top of the runtime MVP.
-- Outcome: `module-gen` now fans out deterministic module variants through the synthesis runtime, ranks candidates under a named policy, returns/promotes the selected winner through the explicit shell, and writes ranked selection metadata into synthesis bundles plus run receipts.
-- Files changed: `packages/dspx-core/src/dspx/synthesis/contracts.py`, `packages/dspx-core/src/dspx/synthesis/runtime.py`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/cli/commands/module.py`, `tests/test_synthesis_contracts.py`, `tests/test_module_service.py`, `tests/test_run_receipts.py`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-23--rank-module-synthesis-candidates.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run pytest tests/test_synthesis_contracts.py tests/test_module_service.py tests/test_run_receipts.py -q` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 256 --check-type validation:verify-full --result pass --details '{"commands":["./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 256 --result '{"summary":"Completed ranked multi-candidate module synthesis runtime path with receipt-visible selection metadata.","next_task":260}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `docs/project/tactical_goals.md` now marks `TG3` complete and promotes `TG4` to active; `docs/project/operational_goals.md` now points at `AK-260` as the next slice and records `AK-256` as complete; the new diary captures the ranking/selection-receipt pattern.
-- Next-session starting point: claim `AK-260` and add deterministic regression corpus + CI enforcement for the ranked module synthesis runtime.
+- Slice executed: `AK-260` — module synthesis hardening: add deterministic regression corpus and CI coverage for the ranked runtime path.
+- Outcome: DSPx now has a deterministic ranked module-synthesis corpus, module-synthesis quality telemetry covering validation/smoke/selection-integrity/receipt-coverage, and an explicit `module-synthesis-quality-check` gate wired into `just verify-full`.
+- Files changed: `packages/dspx-core/src/dspx/services/module_synthesis_quality.py`, `packages/dspx-core/src/dspx/services/module_synthesis_corpus.py`, `scripts/build_module_synthesis_quality_log.py`, `tests/golden/module_synthesis_cases.json`, `tests/test_module_synthesis_golden_corpus.py`, `tests/test_module_synthesis_quality_summary.py`, `tests/test_module_synthesis_quality_corpus.py`, `Justfile`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-23--module-synthesis-regression-corpus.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_golden_corpus.py tests/test_module_synthesis_quality_summary.py tests/test_module_synthesis_quality_corpus.py tests/test_module_service.py tests/test_synthesis_contracts.py tests/test_run_receipts.py` ✅; `uv run -q python scripts/build_module_synthesis_quality_log.py` ✅; `just module-synthesis-quality-check` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 260 --check-type validation:verify-full --result pass --details '{"commands":["./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 260 --result '{"summary":"Hardened ranked module synthesis with deterministic corpus coverage, quality telemetry, and verify-full CI enforcement.","next_task":263}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `docs/project/strategic_goals.md` promotes `SG2` to active; `docs/project/tactical_goals.md` records `TG4` complete and introduces `TG5`; `docs/project/operational_goals.md` now points at `AK-263`; the new diary captures the regression-corpus + quality-gate pattern.
+- Next-session starting point: claim `AK-263`, freeze the SG2 evidence retrieval contract, and only then decompose the first V8-facing implementation slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

@@ -88,6 +88,10 @@ test:
 replay-provenance-check:
   uv run -q python scripts/check_replay_provenance.py
 
+# Deterministic ranked module-synthesis regression corpus + quality gate
+module-synthesis-quality-check:
+  uv run -q python scripts/build_module_synthesis_quality_log.py
+
 # Full validation gate (run once per commit batch / before push)
 verify-full:
   just workflow-contract-check
@@ -96,6 +100,7 @@ verify-full:
   uvx pre-commit run --all-files
   just replay-provenance-check
   just monorepo-check
+  just module-synthesis-quality-check
   just typecheck
   just test
 
