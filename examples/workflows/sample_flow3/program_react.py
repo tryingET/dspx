@@ -1,10 +1,14 @@
 from __future__ import annotations
+
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
+
 import dspy
+
 from dspx.config_loader import load_config_env
-from dspx.tracing import enable_mlflow_from_env
 from dspx.provider_registry import create_from_env, ensure_default_providers
+from dspx.tools.registry import ensure_default_tools, get_tool
+from dspx.tracing import enable_mlflow_from_env
 
 PROGRAM_NAME = "sample_flow3"
 
@@ -32,15 +36,12 @@ GRAPH = (
 )
 
 
-from dspx.tools.registry import ensure_default_tools, get_tool
-
-
 def _react(tools: List[str]):
     ensure_default_tools()
     fns = []
-    for t in tools:
+    for tool_name in tools:
         try:
-            fns.append(get_tool(t))
+            fns.append(get_tool(tool_name))
         except KeyError:
             continue
     return dspy.ReAct("question -> answer", tools=fns, max_iters=3)
@@ -103,17 +104,16 @@ def run_workflow(initial_input: str = "") -> Dict[str, str]:
             ):
                 pending.append(matched["dst"])
             continue
-        else:
-            out = step_process(node["label"], input_text)
-            ctx[nid] = out
-            for e in [x for x in edges if x["src"] == nid]:
-                seen[e["dst"]] += 1
-                if seen[e["dst"]] == len([x for x in edges if x["dst"] == e["dst"]]):
-                    pending.append(e["dst"])
+        out = step_process(node["label"], input_text)
+        ctx[nid] = out
+        for e in [x for x in edges if x["src"] == nid]:
+            seen[e["dst"]] += 1
+            if seen[e["dst"]] == len([x for x in edges if x["dst"] == e["dst"]]):
+                pending.append(e["dst"])
     return ctx
 
 
-def main():
+def main() -> None:
     _configure_lm()
     result = run_workflow(initial_input=os.getenv("WORKFLOW_INPUT", ""))
     for k, v in result.items():

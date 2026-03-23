@@ -1,5 +1,5 @@
 import dspy
-from typing import List, Optional
+from typing import Optional
 
 
 class ExtractPersonNames(dspy.Signature):

@@ -1,7 +1,7 @@
 # Auto-generated DSPy script (Codex Exec enabled)
 import os
 import dspy
-from typing import List, Optional
+from typing import Optional
 from dspx.codex_exec_lm import CodexExecLM
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env

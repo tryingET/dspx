@@ -1,6 +1,9 @@
 # Auto-generated DSPy script (Codex Exec enabled)
 import os
+from typing import Optional
+
 import dspy
+
 from dspx.codex_exec_lm import CodexExecLM
 
 # Configure Codex Exec as the LM
@@ -12,9 +15,6 @@ lm = CodexExecLM(
     reasoning_effort="minimal",
 )
 dspy.configure(lm=lm)
-
-import dspy
-from typing import Optional
 
 
 class PythonCodeQa(dspy.Signature):
