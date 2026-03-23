@@ -129,6 +129,7 @@ def test_materialize_module_synthesis_bundle_persists_strategy_and_workspace(
     assert manifest["candidate"]["candidate_id"] == bundle.candidates[0].candidate_id
     assert bundle.candidates[0].metadata["workspace_id"] == workspace.workspace_id
     assert bundle.promotion_shell is not None
+    assert bundle.promotion_shell.target_path is not None
     assert bundle.promotion_shell.target_path.endswith("Planner.py")
     assert bundle.promotion_shell.selected_candidate_id is None
     assert (
