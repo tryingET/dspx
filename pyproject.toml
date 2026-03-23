@@ -17,3 +17,9 @@ filterwarnings = [
   # Silence upstream MLflow/protobuf deprecation warning during tests
   "ignore:.*label\\(\\) is deprecated.*:DeprecationWarning:mlflow\\.store\\.tracking\\.rest_store",
 ]
+
+[tool.ruff]
+extend-exclude = ["examples/workflows/**"]
+
+[tool.ty.src]
+exclude = ["examples/workflows/**"]
