@@ -143,10 +143,23 @@
         {
           "id": "AK-TASK-0256",
           "title": "Module synthesis: add multi-candidate fan-out and ranked selection receipts on top of the runtime MVP",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Module synthesis: add multi-candidate fan-out and ranked selection receipts on top of the runtime MVP (task #256)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-23"
+        },
+        {
+          "id": "AK-TASK-0260",
+          "title": "Module synthesis hardening: add deterministic regression corpus and CI coverage for the ranked runtime path",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Module synthesis hardening: add deterministic regression corpus and CI coverage for the ranked runtime path (task #260)",
               "done": false
             }
           ],

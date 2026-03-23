@@ -13,6 +13,7 @@ from dspx.dtos import ModuleSpec
 from .contracts import (
     CandidateRecord,
     CandidateWorkspace,
+    EvaluationRecord,
     PromotionDecision,
     StrategyRecord,
     SynthesisBundle,
@@ -167,12 +168,61 @@ def _attach_workspace_metadata(
     )
 
 
+def _normalize_candidate_sources(
+    *,
+    code: Optional[str],
+    candidate_sources: Optional[list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    if candidate_sources:
+        normalized: list[dict[str, Any]] = []
+        for ordinal, source in enumerate(candidate_sources):
+            candidate_code = source.get("code") if isinstance(source, dict) else None
+            if not isinstance(candidate_code, str):
+                raise ValueError(
+                    f"candidate_sources[{ordinal}] is missing a string 'code' field"
+                )
+            normalized.append(
+                {
+                    "code": candidate_code,
+                    "artifact_metadata": (
+                        dict(source.get("artifact_metadata") or {})
+                        if isinstance(source, dict)
+                        else {}
+                    ),
+                    "candidate_metadata": (
+                        dict(source.get("candidate_metadata") or {})
+                        if isinstance(source, dict)
+                        else {}
+                    ),
+                    "lineage": (
+                        dict(source.get("lineage") or {})
+                        if isinstance(source, dict)
+                        else {}
+                    ),
+                }
+            )
+        return normalized
+
+    if code is None:
+        raise ValueError("Module synthesis bundle requires code or candidate_sources")
+
+    return [
+        {
+            "code": code,
+            "artifact_metadata": {},
+            "candidate_metadata": {},
+            "lineage": {},
+        }
+    ]
+
+
 def materialize_module_synthesis_bundle(
     spec: ModuleSpec,
     *,
-    code: str,
+    code: Optional[str] = None,
+    candidate_sources: Optional[list[dict[str, Any]]] = None,
     use_signature: bool = False,
-    strategy_id: str = "module.single_candidate.template",
+    strategy_id: Optional[str] = None,
     strategy_version: str = "v0",
     workspace_root: Optional[Path] = None,
     promotion_target: Optional[Path] = None,
@@ -180,29 +230,59 @@ def materialize_module_synthesis_bundle(
 ) -> SynthesisBundle:
     """Build a synthesis bundle and materialize its scratch workspace shell."""
 
+    sources = _normalize_candidate_sources(
+        code=code, candidate_sources=candidate_sources
+    )
     request = build_module_synthesis_request(
         spec,
         use_signature=use_signature,
         strategy_id=strategy_id,
         strategy_version=strategy_version,
+        candidate_budget=len(sources),
     )
-    strategy = build_module_strategy_record(request, metadata=strategy_metadata)
+    strategy = build_module_strategy_record(
+        request,
+        metadata={
+            "fan_out_count": len(sources),
+            **dict(strategy_metadata or {}),
+        },
+    )
     workspace_base = (
         workspace_root.expanduser().resolve()
         if workspace_root is not None
         else (synthesis_workspace_dir() / request.request_id).resolve()
     )
-    candidate = build_module_candidate_record(request, code=code)
-    workspace = materialize_module_candidate_workspace(
-        request,
-        candidate,
-        code=code,
-        strategy=strategy,
-        workspace_root=workspace_base,
-    )
-    candidate = _attach_workspace_metadata(candidate, workspace, strategy)
-    evaluation = build_module_evaluation_record(candidate, workspace=workspace)
-    policy = build_module_selection_policy()
+
+    candidates: list[CandidateRecord] = []
+    workspaces: list[CandidateWorkspace] = []
+    evaluations: list[EvaluationRecord] = []
+    for ordinal, source in enumerate(sources):
+        candidate = build_module_candidate_record(
+            request,
+            code=source["code"],
+            ordinal=ordinal,
+            artifact_metadata=source.get("artifact_metadata"),
+            candidate_metadata=source.get("candidate_metadata"),
+            lineage=source.get("lineage"),
+        )
+        workspace = materialize_module_candidate_workspace(
+            request,
+            candidate,
+            code=source["code"],
+            strategy=strategy,
+            workspace_root=workspace_base,
+        )
+        candidate = _attach_workspace_metadata(candidate, workspace, strategy)
+        evaluation = build_module_evaluation_record(
+            candidate,
+            phase="AK-256" if len(sources) > 1 else "AK-251",
+            workspace=workspace,
+        )
+        candidates.append(candidate)
+        workspaces.append(workspace)
+        evaluations.append(evaluation)
+
+    policy = build_module_selection_policy(candidate_limit=len(sources))
     shell_target = _promoted_target_path(
         request,
         workspace_base,
@@ -210,23 +290,20 @@ def materialize_module_synthesis_bundle(
     )
     promotion_shell = build_module_promotion_shell(
         request,
-        candidate,
-        workspace,
         target_path=str(shell_target),
     )
     promotion_decision = build_module_promotion_decision(
         request,
-        candidate,
-        evaluation,
         policy,
+        evaluations=evaluations,
         promotion_shell=promotion_shell,
     )
     return SynthesisBundle(
         request=request,
         strategy=strategy,
-        candidates=[candidate],
-        candidate_workspaces=[workspace],
-        evaluations=[evaluation],
+        candidates=candidates,
+        candidate_workspaces=workspaces,
+        evaluations=evaluations,
         selection_policy=policy,
         promotion_shell=promotion_shell,
         promotion_decision=promotion_decision,
@@ -248,6 +325,16 @@ def _candidate_by_id(bundle: SynthesisBundle, candidate_id: str) -> CandidateRec
         if candidate.candidate_id == candidate_id:
             return candidate
     raise ValueError(f"Unknown candidate_id: {candidate_id}")
+
+
+def _evaluation_for_candidate(
+    bundle: SynthesisBundle,
+    candidate_id: str,
+) -> EvaluationRecord:
+    for evaluation in bundle.evaluations:
+        if evaluation.candidate_id == candidate_id:
+            return evaluation
+    raise ValueError(f"No evaluation found for candidate {candidate_id}")
 
 
 def _is_named_base(node: ast.expr, expected: str) -> bool:
@@ -427,21 +514,61 @@ def _module_smoke_checks(
     return checks["module-smoke"], checks, errors
 
 
+def _selection_bonus(candidate: CandidateRecord) -> float:
+    raw = candidate.metadata.get("selection_bonus")
+    if isinstance(raw, bool):
+        return float(raw)
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    try:
+        return float(str(raw)) if raw is not None else 0.0
+    except Exception:
+        return 0.0
+
+
+def _ranking_entry(
+    *,
+    candidate: CandidateRecord,
+    evaluation: EvaluationRecord,
+    passed: bool,
+) -> dict[str, Any]:
+    return {
+        "candidate_id": candidate.candidate_id,
+        "ordinal": candidate.ordinal,
+        "status": evaluation.status,
+        "score": evaluation.score,
+        "evaluation_id": evaluation.evaluation_id,
+        "variant_id": candidate.metadata.get("variant_id"),
+        "variant_label": candidate.metadata.get("variant_label"),
+        "selection_basis": candidate.metadata.get("selection_basis"),
+        "passed": passed,
+    }
+
+
 def _evaluation_summary(
     *,
     passed: bool,
     errors: list[str],
     promoted: bool = False,
+    ranked: bool = False,
 ) -> str:
     if passed:
         if promoted:
-            return "Runtime static + smoke validation passed; selected candidate promoted through the explicit shell."
+            return (
+                "Runtime static + smoke validation passed; ranked selection chose this "
+                "candidate and promoted it through the explicit shell."
+            )
+        if ranked:
+            return (
+                "Runtime static + smoke validation passed; ranked selection kept this "
+                "candidate eligible for explicit promotion."
+            )
         return "Runtime static + smoke validation passed; selected candidate is ready for explicit promotion."
     return "Runtime static/smoke validation failed: " + "; ".join(errors[:5])
 
 
 def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle:
-    """Run the AK-251 static + smoke validation pass over a module bundle."""
+    """Run static/smoke validation and ranked selection over a module bundle."""
 
     if not bundle.candidates:
         raise ValueError("Module synthesis bundle is missing candidates")
@@ -450,101 +577,231 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
     if not bundle.evaluations:
         raise ValueError("Module synthesis bundle is missing evaluations")
 
-    candidate = bundle.candidates[0]
-    workspace = _workspace_for_candidate(bundle, candidate.candidate_id)
-    code = Path(workspace.artifact_path).read_text(encoding="utf-8")
+    updated_candidates: list[CandidateRecord] = []
+    updated_evaluations: list[EvaluationRecord] = []
+    ranking_inputs: list[dict[str, Any]] = []
 
-    static_ok, static_checks, static_errors = _module_static_checks(
-        bundle.request, code
+    multi_candidate = len(bundle.candidates) > 1
+    phase = "AK-256" if multi_candidate else "AK-251"
+
+    for candidate in bundle.candidates:
+        workspace = _workspace_for_candidate(bundle, candidate.candidate_id)
+        code = Path(workspace.artifact_path).read_text(encoding="utf-8")
+
+        static_ok, static_checks, static_errors = _module_static_checks(
+            bundle.request, code
+        )
+        smoke_ok, smoke_checks, smoke_errors = _module_smoke_checks(
+            bundle.request, code
+        )
+        passed = static_ok and smoke_ok
+        errors = [*static_errors, *smoke_errors]
+        bonus = _selection_bonus(candidate)
+        total_score = (100.0 if passed else 0.0) + bonus
+
+        evaluation = _evaluation_for_candidate(bundle, candidate.candidate_id)
+        evaluation_evidence = dict(evaluation.evidence)
+        evaluation_evidence.update(
+            {
+                "phase": phase,
+                "static": static_checks,
+                "smoke": smoke_checks,
+                "errors": errors,
+                "workspace_id": workspace.workspace_id,
+                "artifact_path": workspace.artifact_path,
+                "checked_candidate_id": candidate.candidate_id,
+                "selection_bonus": bonus,
+                "selection_basis": candidate.metadata.get("selection_basis"),
+                "variant_id": candidate.metadata.get("variant_id"),
+                "variant_label": candidate.metadata.get("variant_label"),
+                "ranking_components": {
+                    "runtime_validation_gate": 100.0 if passed else 0.0,
+                    "selection_bonus": bonus,
+                    "ordinal_tiebreaker": -float(candidate.ordinal),
+                },
+                "total_score": total_score,
+            }
+        )
+        updated_evaluation = evaluation.model_copy(
+            update={
+                "status": "passed" if passed else "failed",
+                "score": total_score,
+                "summary": _evaluation_summary(
+                    passed=passed,
+                    errors=errors,
+                    ranked=multi_candidate,
+                ),
+                "checks": [
+                    "python-parse",
+                    "module-shape",
+                    "signature-wiring",
+                    "module-smoke",
+                    "policy-score",
+                ],
+                "evidence": evaluation_evidence,
+            }
+        )
+
+        candidate_metadata = dict(candidate.metadata)
+        candidate_metadata.update(
+            {
+                "selection_ready": passed,
+                "evaluation_id": updated_evaluation.evaluation_id,
+                "validation_passed": static_ok,
+                "smoke_passed": smoke_ok,
+                "runtime_phase": phase,
+                "ranking_score": total_score,
+            }
+        )
+        updated_candidate = candidate.model_copy(
+            update={
+                "status": "rendered" if passed else "rejected",
+                "metadata": candidate_metadata,
+            }
+        )
+
+        updated_candidates.append(updated_candidate)
+        updated_evaluations.append(updated_evaluation)
+        ranking_inputs.append(
+            {
+                "candidate": updated_candidate,
+                "evaluation": updated_evaluation,
+                "passed": passed,
+                "score": total_score,
+            }
+        )
+
+    ranked_candidates = sorted(
+        ranking_inputs,
+        key=lambda item: (
+            1 if item["passed"] else 0,
+            float(item["score"]),
+            -int(item["candidate"].ordinal),
+        ),
+        reverse=True,
     )
-    smoke_ok, smoke_checks, smoke_errors = _module_smoke_checks(bundle.request, code)
-    passed = static_ok and smoke_ok
-    errors = [*static_errors, *smoke_errors]
-    check_results = {
-        "python-parse": bool(static_checks.get("python-parse")),
-        "module-shape": bool(static_checks.get("module-shape")),
-        "signature-wiring": bool(static_checks.get("signature-wiring")),
-        "module-smoke": bool(smoke_checks.get("module-smoke")),
+    selected_entry = next((item for item in ranked_candidates if item["passed"]), None)
+    selected_candidate_id = (
+        selected_entry["candidate"].candidate_id if selected_entry is not None else None
+    )
+    rank_map = {
+        item["candidate"].candidate_id: index
+        for index, item in enumerate(ranked_candidates, start=1)
     }
+    ranked_payload = []
+    for index, item in enumerate(ranked_candidates, start=1):
+        payload = _ranking_entry(
+            candidate=item["candidate"],
+            evaluation=item["evaluation"],
+            passed=bool(item["passed"]),
+        )
+        payload["rank"] = index
+        ranked_payload.append(payload)
 
-    evaluation = bundle.evaluations[0]
-    evaluation_evidence = dict(evaluation.evidence)
-    evaluation_evidence.update(
-        {
-            "phase": "AK-251",
-            "static": static_checks,
-            "smoke": smoke_checks,
-            "errors": errors,
-            "workspace_id": workspace.workspace_id,
-            "artifact_path": workspace.artifact_path,
-            "checked_candidate_id": candidate.candidate_id,
-        }
-    )
-    updated_evaluation = evaluation.model_copy(
-        update={
-            "status": "passed" if passed else "failed",
-            "score": 100.0 if passed else 0.0,
-            "summary": _evaluation_summary(passed=passed, errors=errors),
-            "checks": list(check_results.keys()),
-            "evidence": evaluation_evidence,
-        }
-    )
-
-    candidate_metadata = dict(candidate.metadata)
-    candidate_metadata.update(
-        {
-            "selection_ready": passed,
-            "evaluation_id": updated_evaluation.evaluation_id,
-            "validation_passed": static_ok,
-            "smoke_passed": smoke_ok,
-            "runtime_phase": "AK-251",
-        }
-    )
-    updated_candidate = candidate.model_copy(
-        update={
-            "status": "selected" if passed else "rejected",
-            "metadata": candidate_metadata,
-        }
-    )
+    final_candidates: list[CandidateRecord] = []
+    for candidate in updated_candidates:
+        metadata = dict(candidate.metadata)
+        metadata.update(
+            {
+                "rank": rank_map[candidate.candidate_id],
+                "winning_candidate_id": selected_candidate_id,
+            }
+        )
+        status = candidate.status
+        if candidate.candidate_id == selected_candidate_id:
+            status = "selected"
+        final_candidates.append(
+            candidate.model_copy(update={"status": status, "metadata": metadata})
+        )
 
     updated_shell = bundle.promotion_shell
     if updated_shell is not None:
         shell_metadata = dict(updated_shell.metadata)
         shell_metadata.update(
             {
-                "evaluation_id": updated_evaluation.evaluation_id,
-                "evaluation_status": updated_evaluation.status,
+                "ranked_candidates": ranked_payload,
+                "policy_id": bundle.selection_policy.policy_id,
+                "policy_version": bundle.selection_policy.policy_version,
+                "selection_pending": selected_candidate_id is None,
             }
         )
-        updated_shell = updated_shell.model_copy(
-            update={
-                "status": "ready" if passed else "withheld",
-                "metadata": shell_metadata,
-            }
-        )
+        if selected_candidate_id is not None:
+            selected_workspace = _workspace_for_candidate(bundle, selected_candidate_id)
+            selected_evaluation = next(
+                item["evaluation"]
+                for item in ranked_candidates
+                if item["candidate"].candidate_id == selected_candidate_id
+            )
+            shell_metadata.update(
+                {
+                    "evaluation_id": selected_evaluation.evaluation_id,
+                    "evaluation_status": selected_evaluation.status,
+                    "source_artifact_path": selected_workspace.artifact_path,
+                    "workspace_id": selected_workspace.workspace_id,
+                    "selected_rank": 1,
+                    "selection_score": selected_evaluation.score,
+                }
+            )
+            updated_shell = updated_shell.model_copy(
+                update={
+                    "selected_candidate_id": selected_candidate_id,
+                    "staging_path": selected_workspace.artifact_path,
+                    "status": "ready",
+                    "metadata": shell_metadata,
+                }
+            )
+        else:
+            shell_metadata["evaluation_status"] = "failed"
+            updated_shell = updated_shell.model_copy(
+                update={
+                    "selected_candidate_id": None,
+                    "status": "withheld",
+                    "metadata": shell_metadata,
+                }
+            )
 
+    pass_count = sum(1 for item in updated_evaluations if item.status == "passed")
+    selected_score = (
+        selected_entry["evaluation"].score if selected_entry is not None else None
+    )
     decision_metadata = dict(bundle.promotion_decision.metadata)
     decision_metadata.update(
         {
-            "evaluation_status": updated_evaluation.status,
-            "validation_passed": static_ok,
-            "smoke_passed": smoke_ok,
+            "evaluation_status": "passed"
+            if selected_candidate_id is not None
+            else "failed",
+            "validation_pass_count": pass_count,
+            "validation_total": len(updated_evaluations),
+            "selected_candidate_id": selected_candidate_id,
+            "selected_rank": 1 if selected_candidate_id is not None else None,
+            "selected_score": selected_score,
+            "ranked_candidates": ranked_payload,
+            "selection_phase": phase,
         }
     )
     updated_decision = bundle.promotion_decision.model_copy(
         update={
-            "candidate_id": updated_candidate.candidate_id,
-            "outcome": "withheld" if passed else "rejected",
-            "rationale": _evaluation_summary(passed=passed, errors=errors),
-            "evaluation_ids": [updated_evaluation.evaluation_id],
+            "candidate_id": selected_candidate_id,
+            "outcome": "withheld" if selected_candidate_id is not None else "rejected",
+            "rationale": (
+                f"Ranked {len(final_candidates)} candidates under "
+                f"{bundle.selection_policy.policy_id}; selected {selected_candidate_id} "
+                f"after {pass_count}/{len(updated_evaluations)} passed runtime validation."
+                if selected_candidate_id is not None
+                else (
+                    f"No candidate passed runtime validation under "
+                    f"{bundle.selection_policy.policy_id}; promotion remains rejected."
+                )
+            ),
+            "evaluation_ids": [item.evaluation_id for item in updated_evaluations],
             "metadata": decision_metadata,
         }
     )
 
     return bundle.model_copy(
         update={
-            "candidates": [updated_candidate],
-            "evaluations": [updated_evaluation],
+            "candidates": final_candidates,
+            "evaluations": updated_evaluations,
             "promotion_shell": updated_shell,
             "promotion_decision": updated_decision,
         }
@@ -554,19 +811,50 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
 def module_synthesis_run_summary(bundle: SynthesisBundle) -> dict[str, Any]:
     """Return receipt-friendly summary fields for the current module synthesis run."""
 
-    evaluation = bundle.evaluations[0] if bundle.evaluations else None
-    evaluation_evidence = dict(evaluation.evidence) if evaluation is not None else {}
-    smoke_checks = evaluation_evidence.get("smoke")
-    smoke_passed = (
-        bool(smoke_checks.get("module-smoke"))
-        if isinstance(smoke_checks, dict)
-        else bool(evaluation and evaluation.status == "passed")
-    )
     selected_candidate_id = (
         bundle.promotion_shell.selected_candidate_id
         if bundle.promotion_shell is not None
         else bundle.promotion_decision.candidate_id
     )
+    selected_evaluation = None
+    if selected_candidate_id is not None:
+        selected_evaluation = next(
+            (
+                item
+                for item in bundle.evaluations
+                if item.candidate_id == selected_candidate_id
+            ),
+            None,
+        )
+    validation_pass_count = sum(
+        1 for item in bundle.evaluations if item.status == "passed"
+    )
+    smoke_pass_count = sum(
+        1
+        for item in bundle.evaluations
+        if bool((item.evidence.get("smoke") or {}).get("module-smoke"))
+    )
+    ranked_candidates = bundle.promotion_decision.metadata.get("ranked_candidates")
+    ranked_candidate_ids = (
+        [
+            item.get("candidate_id")
+            for item in ranked_candidates
+            if isinstance(item, dict) and item.get("candidate_id")
+        ]
+        if isinstance(ranked_candidates, list)
+        else []
+    )
+    selected_rank = None
+    if isinstance(ranked_candidates, list):
+        for item in ranked_candidates:
+            if (
+                isinstance(item, dict)
+                and item.get("candidate_id") == selected_candidate_id
+                and isinstance(item.get("rank"), int)
+            ):
+                selected_rank = item["rank"]
+                break
+
     return {
         "run_kind": "module-gen",
         "backend": "synthesis_runtime",
@@ -574,17 +862,27 @@ def module_synthesis_run_summary(bundle: SynthesisBundle) -> dict[str, Any]:
         "strategy_version": bundle.request.strategy_version,
         "candidate_count": len(bundle.candidates),
         "selected_candidate_id": selected_candidate_id,
-        "validation_pass_count": 1
-        if evaluation and evaluation.status == "passed"
-        else 0,
-        "validation_total": 1,
-        "validation_pass_rate": 1.0
-        if evaluation and evaluation.status == "passed"
-        else 0.0,
-        "smoke_pass_count": 1 if smoke_passed else 0,
-        "smoke_total": 1,
-        "smoke_pass_rate": 1.0 if smoke_passed else 0.0,
-        "evaluation_status": evaluation.status if evaluation is not None else "missing",
+        "selected_candidate_rank": selected_rank,
+        "ranked_candidate_ids": ranked_candidate_ids,
+        "ranking_policy_id": bundle.selection_policy.policy_id,
+        "ranking_policy_version": bundle.selection_policy.policy_version,
+        "validation_pass_count": validation_pass_count,
+        "validation_total": len(bundle.evaluations),
+        "validation_pass_rate": (
+            validation_pass_count / len(bundle.evaluations)
+            if bundle.evaluations
+            else 0.0
+        ),
+        "smoke_pass_count": smoke_pass_count,
+        "smoke_total": len(bundle.evaluations),
+        "smoke_pass_rate": (
+            smoke_pass_count / len(bundle.evaluations) if bundle.evaluations else 0.0
+        ),
+        "evaluation_status": (
+            selected_evaluation.status
+            if selected_evaluation is not None
+            else ("failed" if bundle.evaluations else "missing")
+        ),
         "promotion_status": (
             bundle.promotion_shell.status
             if bundle.promotion_shell is not None
@@ -597,9 +895,10 @@ def module_synthesis_run_summary(bundle: SynthesisBundle) -> dict[str, Any]:
 def execute_module_synthesis_bundle(
     spec: ModuleSpec,
     *,
-    code: str,
+    code: Optional[str] = None,
+    candidate_sources: Optional[list[dict[str, Any]]] = None,
     use_signature: bool = False,
-    strategy_id: str = "module.single_candidate.template",
+    strategy_id: Optional[str] = None,
     strategy_version: str = "v0",
     workspace_root: Optional[Path] = None,
     promotion_target: Optional[Path] = None,
@@ -610,6 +909,7 @@ def execute_module_synthesis_bundle(
     bundle = materialize_module_synthesis_bundle(
         spec,
         code=code,
+        candidate_sources=candidate_sources,
         use_signature=use_signature,
         strategy_id=strategy_id,
         strategy_version=strategy_version,
@@ -620,22 +920,39 @@ def execute_module_synthesis_bundle(
     evaluated = evaluate_module_synthesis_bundle(bundle)
     if promotion_target is None:
         return evaluated
-    if not evaluated.evaluations or evaluated.evaluations[0].status != "passed":
+
+    selected_candidate_id = (
+        evaluated.promotion_shell.selected_candidate_id
+        if evaluated.promotion_shell is not None
+        else evaluated.promotion_decision.candidate_id
+    )
+    if selected_candidate_id is None:
         return evaluated
+
+    selected_evaluation = _evaluation_for_candidate(evaluated, selected_candidate_id)
+    if selected_evaluation.status != "passed":
+        return evaluated
+
     promoted = promote_selected_module_candidate(
         evaluated,
         target_path=promotion_target,
     )
-    updated_evaluation = promoted.evaluations[0].model_copy(
-        update={
-            "summary": _evaluation_summary(
-                passed=True,
-                errors=[],
-                promoted=True,
-            )
-        }
-    )
-    return promoted.model_copy(update={"evaluations": [updated_evaluation]})
+    updated_evaluations = [
+        evaluation.model_copy(
+            update={
+                "summary": _evaluation_summary(
+                    passed=True,
+                    errors=[],
+                    promoted=(evaluation.candidate_id == selected_candidate_id),
+                    ranked=len(promoted.candidates) > 1,
+                )
+            }
+        )
+        if evaluation.candidate_id == selected_candidate_id
+        else evaluation
+        for evaluation in promoted.evaluations
+    ]
+    return promoted.model_copy(update={"evaluations": updated_evaluations})
 
 
 def _updated_decision(
@@ -646,6 +963,7 @@ def _updated_decision(
 ) -> PromotionDecision:
     metadata = dict(decision.metadata)
     metadata["promoted_path"] = str(promoted_path)
+    metadata["selected_candidate_id"] = candidate_id
     return decision.model_copy(
         update={
             "candidate_id": candidate_id,
@@ -720,7 +1038,7 @@ def promote_selected_module_candidate(
         updated_shell = shell.model_copy(
             update={
                 "selected_candidate_id": chosen_candidate_id,
-                "staging_path": str(destination),
+                "staging_path": str(source_path),
                 "target_path": str(destination),
                 "status": "promoted",
                 "metadata": shell_metadata,

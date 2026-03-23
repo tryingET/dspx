@@ -145,12 +145,20 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert isinstance(mod_meta.get("mlflow_hints"), dict)
     assert mod_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "module-gen"
     assert mod_meta["run_summary"]["backend"] == "synthesis_runtime"
+    assert mod_meta["run_summary"]["candidate_count"] >= 2
+    assert mod_meta["run_summary"]["selected_candidate_rank"] == 1
     assert mod_meta["run_summary"]["validation_pass_rate"] == 1.0
     assert mod_meta["run_summary"]["smoke_pass_rate"] == 1.0
     assert isinstance(mod_meta.get("synthesis"), dict)
     assert mod_meta["synthesis_request_id"].startswith("sreq-")
-    assert mod_meta["synthesis_candidate_ids"]
+    assert len(mod_meta["synthesis_candidate_ids"]) >= 2
     assert mod_meta["synthesis_evaluation_ids"]
+    assert (
+        mod_meta["synthesis_selection_policy"]["policy_id"]
+        == "module.v7.multi-candidate-ranked"
+    )
+    assert isinstance(mod_meta.get("synthesis_ranked_candidates"), list)
+    assert mod_meta["synthesis_ranked_candidates"][0]["rank"] == 1
     assert mod_meta["synthesis_promotion_shell"]["status"] == "promoted"
     assert mod_meta["synthesis_promotion_decision"]["outcome"] == "promoted"
 

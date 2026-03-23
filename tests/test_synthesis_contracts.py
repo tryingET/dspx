@@ -45,6 +45,11 @@ def test_build_module_synthesis_request_is_stable_contract_shell() -> None:
     )
 
     request = build_module_synthesis_request(spec, use_signature=False)
+    ranked_request = build_module_synthesis_request(
+        spec,
+        use_signature=False,
+        candidate_budget=3,
+    )
 
     assert request.request_id.startswith("sreq-")
     assert request.artifact_kind == "module"
@@ -53,6 +58,9 @@ def test_build_module_synthesis_request_is_stable_contract_shell() -> None:
     assert request.constraints["preserve_cli_surface"] is True
     assert request.options["template_version"] == "simple-v1"
     assert request.spec.inputs[0].name == "text"
+
+    assert ranked_request.strategy_id == "module.multi_candidate.template"
+    assert ranked_request.constraints["candidate_budget"] == 3
 
 
 def test_build_module_synthesis_bundle_exposes_candidate_evaluation_policy_and_promotion() -> (
@@ -122,6 +130,7 @@ def test_materialize_module_synthesis_bundle_persists_strategy_and_workspace(
     assert bundle.candidates[0].metadata["workspace_id"] == workspace.workspace_id
     assert bundle.promotion_shell is not None
     assert bundle.promotion_shell.target_path.endswith("Planner.py")
+    assert bundle.promotion_shell.selected_candidate_id is None
     assert (
         bundle.promotion_decision.metadata["promotion_shell_id"]
         == bundle.promotion_shell.shell_id
@@ -141,38 +150,81 @@ def test_execute_module_synthesis_bundle_validates_and_promotes_runtime_path(
 
     bundle = execute_module_synthesis_bundle(
         spec,
-        code=(
-            "import dspy\n\n"
-            "class Judge(dspy.Module):\n"
-            "    def __init__(self, use_cot: bool = False) -> None:\n"
-            "        super().__init__()\n"
-            "        self.predict = dspy.Predict('text -> verdict')\n\n"
-            "    def forward(self, text: str) -> dspy.Prediction:\n"
-            "        pred = self.predict(text=text)\n"
-            "        return pred\n\n"
-            "def build_student(*, use_cot: bool = False) -> dspy.Module:\n"
-            "    return Judge(use_cot=use_cot)\n\n"
-            "def io_spec() -> dict[str, list[str]]:\n"
-            "    return {'inputs': ['text'], 'outputs': ['verdict']}\n\n"
-            "def output_weights() -> dict[str, float]:\n"
-            "    return {'verdict': 1.0}\n\n"
-            "def normalize_output(key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None) -> tuple[str, str]:\n"
-            "    return gold, pred\n"
-        ),
+        candidate_sources=[
+            {
+                "code": (
+                    "import dspy\n\n"
+                    "class Judge(dspy.Module):\n"
+                    "    def __init__(self, use_cot: bool = False) -> None:\n"
+                    "        super().__init__()\n"
+                    "        self.predict = dspy.Predict('text -> verdict')\n\n"
+                    "    def forward(self, text: str) -> dspy.Prediction:\n"
+                    "        pred = self.predict(text=text)\n"
+                    "        return pred\n\n"
+                    "def build_student(*, use_cot: bool = False) -> dspy.Module:\n"
+                    "    return Judge(use_cot=use_cot)\n\n"
+                    "def io_spec() -> dict[str, list[str]]:\n"
+                    "    return {'inputs': ['text'], 'outputs': ['verdict']}\n\n"
+                    "def output_weights() -> dict[str, float]:\n"
+                    "    return {'verdict': 1.0}\n\n"
+                    "def normalize_output(key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None) -> tuple[str, str]:\n"
+                    "    return gold, pred\n"
+                ),
+                "candidate_metadata": {
+                    "variant_id": "baseline",
+                    "variant_label": "Baseline",
+                    "selection_bonus": 1.0,
+                    "selection_basis": "Control candidate",
+                },
+            },
+            {
+                "code": (
+                    "import dspy\n\n"
+                    "# Ranked synthesis candidate\n"
+                    "class Judge(dspy.Module):\n"
+                    "    def __init__(self, use_cot: bool = False) -> None:\n"
+                    "        super().__init__()\n"
+                    "        self.predict = dspy.Predict('text -> verdict')\n\n"
+                    "    def forward(self, text: str) -> dspy.Prediction:\n"
+                    "        pred = self.predict(text=text)\n"
+                    "        return pred\n\n"
+                    "def build_student(*, use_cot: bool = False) -> dspy.Module:\n"
+                    '    """Construct the generated module for runtime selection."""\n'
+                    "    return Judge(use_cot=use_cot)\n\n"
+                    "def io_spec() -> dict[str, list[str]]:\n"
+                    '    """Return the declared module IO contract."""\n'
+                    "    return {'inputs': ['text'], 'outputs': ['verdict']}\n\n"
+                    "def output_weights() -> dict[str, float]:\n"
+                    '    """Provide deterministic output weighting for evaluation."""\n'
+                    "    return {'verdict': 1.0}\n\n"
+                    "def normalize_output(key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None) -> tuple[str, str]:\n"
+                    "    return gold, pred\n"
+                ),
+                "candidate_metadata": {
+                    "variant_id": "explainable",
+                    "variant_label": "Explainable",
+                    "selection_bonus": 3.0,
+                    "selection_basis": "Prefer explainable helper scaffolds.",
+                },
+            },
+        ],
         workspace_root=tmp_path / "scratch",
         promotion_target=tmp_path / "final" / "Judge.py",
     )
 
     out = tmp_path / "final" / "Judge.py"
     assert out.exists()
-    assert bundle.evaluations[0].status == "passed"
-    assert bundle.evaluations[0].evidence["static"]["python-parse"] is True
-    assert bundle.evaluations[0].evidence["smoke"]["module-smoke"] is True
-    assert bundle.candidates[0].status == "promoted"
-    assert bundle.candidate_workspaces[0].status == "promoted"
+    assert len(bundle.candidates) == 2
+    assert all(item.status in {"rendered", "promoted"} for item in bundle.candidates)
+    assert bundle.evaluations[0].evidence["phase"] == "AK-256"
+    assert sum(1 for item in bundle.evaluations if item.status == "passed") == 2
     assert bundle.promotion_shell is not None
     assert bundle.promotion_shell.status == "promoted"
     assert bundle.promotion_decision.outcome == "promoted"
+    ranked = bundle.promotion_decision.metadata["ranked_candidates"]
+    assert len(ranked) == 2
+    assert ranked[0]["rank"] == 1
+    assert ranked[0]["candidate_id"] == bundle.promotion_decision.candidate_id
     assert bundle.promotion_decision.metadata["promoted_path"] == str(out.resolve())
 
 
@@ -191,9 +243,24 @@ def test_promote_selected_module_candidate_copies_only_selected_output(
         code="class Judge: ...\n",
         workspace_root=tmp_path / "scratch",
     )
+    evaluated = bundle.model_copy(
+        update={
+            "candidates": [
+                bundle.candidates[0].model_copy(update={"status": "selected"})
+            ],
+            "promotion_shell": bundle.promotion_shell.model_copy(
+                update={"selected_candidate_id": bundle.candidates[0].candidate_id}
+            )
+            if bundle.promotion_shell is not None
+            else None,
+            "promotion_decision": bundle.promotion_decision.model_copy(
+                update={"candidate_id": bundle.candidates[0].candidate_id}
+            ),
+        }
+    )
 
     promoted = promote_selected_module_candidate(
-        bundle,
+        evaluated,
         target_path=tmp_path / "final" / "Judge.py",
     )
 

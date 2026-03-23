@@ -7,10 +7,7 @@ from dspx.cache import cache_enabled, make_key, read as cache_read, write as cac
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.services.signatures_service import run_generate_dto
-from dspx.synthesis import (
-    execute_module_synthesis_bundle,
-    module_synthesis_run_summary,
-)
+from dspx.synthesis import execute_module_synthesis_bundle, module_synthesis_run_summary
 from dspx.templates.module_templates import render_module_skeleton
 from dspx.templates.signature_templates import render_simple_signature
 import os as _os
@@ -36,6 +33,168 @@ def _template_version(spec: ModuleSpec) -> Optional[str]:
     return value if isinstance(value, str) else str(value)
 
 
+def _insert_after_first_blank_line(code: str, block: str) -> str:
+    lines = code.splitlines()
+    if not lines:
+        return block if block.endswith("\n") else block + "\n"
+    if len(lines) > 1 and lines[0].startswith("import ") and lines[1] == "":
+        new_lines = [lines[0], "", *block.splitlines(), *lines[2:]]
+    else:
+        new_lines = [*block.splitlines(), *lines]
+    rendered = "\n".join(new_lines)
+    return rendered if rendered.endswith("\n") else rendered + "\n"
+
+
+def _with_trace_comment(code: str) -> str:
+    return _insert_after_first_blank_line(
+        code,
+        "# Ranked synthesis candidate variant\nMODULE_VARIANT = 'traceable'",
+    )
+
+
+def _with_helper_docstrings(code: str) -> str:
+    replacements = {
+        "def build_student(*, use_cot: bool = False) -> dspy.Module:\n": (
+            "def build_student(*, use_cot: bool = False) -> dspy.Module:\n"
+            '    """Construct the generated module for runtime selection."""\n'
+        ),
+        "def io_spec() -> dict[str, list[str]]:\n": (
+            "def io_spec() -> dict[str, list[str]]:\n"
+            '    """Return the declared module IO contract."""\n'
+        ),
+        "def output_weights() -> dict[str, float]:\n": (
+            "def output_weights() -> dict[str, float]:\n"
+            '    """Provide deterministic output weighting for evaluation."""\n'
+        ),
+        "def normalize_output(\n": ("def normalize_output(\n"),
+    }
+    updated = code
+    for old, new in replacements.items():
+        if old in updated and new not in updated:
+            updated = updated.replace(old, new, 1)
+    needle = ") -> tuple[str, str]:\n"
+    doc = (
+        ") -> tuple[str, str]:\n"
+        '    """Normalize gold/pred pairs for deterministic checks."""\n'
+    )
+    if needle in updated and doc not in updated:
+        updated = updated.replace(needle, doc, 1)
+    return updated
+
+
+def _seed_code(
+    spec: ModuleSpec,
+    *,
+    base_code: str,
+    use_signature: bool,
+    template_version: Optional[str],
+) -> str:
+    simple = isinstance(template_version, str) and template_version.startswith("simple")
+    if not simple:
+        return base_code
+
+    desc = spec.description or ""
+    inputs = list(spec.inputs or [])
+    outputs = list(spec.outputs or [])
+    sig_code = None
+    sig_name = None
+    if use_signature:
+        sig_name = _sig_class_name(spec.name)
+        sig_code = render_simple_signature(
+            sig_name,
+            desc or f"Signature for {spec.name}",
+        )
+    return render_module_skeleton(
+        spec.name,
+        inputs,
+        outputs,
+        desc,
+        signature_code=sig_code,
+        signature_class_name=sig_name,
+    )
+
+
+def _candidate_sources(
+    spec: ModuleSpec,
+    *,
+    code: str,
+    use_signature: bool,
+    template_version: Optional[str],
+) -> list[dict[str, Any]]:
+    seed_code = _seed_code(
+        spec,
+        base_code=code,
+        use_signature=use_signature,
+        template_version=template_version,
+    )
+    raw_variants = [
+        (
+            "baseline",
+            "Baseline deterministic scaffold",
+            seed_code,
+            1.0,
+            "Preserve the compact baseline render as the control candidate.",
+        ),
+        (
+            "traceable",
+            "Traceable scaffold",
+            _with_trace_comment(seed_code),
+            2.0,
+            "Prefer candidates that expose an explicit trace marker for receipts and replay.",
+        ),
+        (
+            "explainable_helpers",
+            "Explainable helper scaffold",
+            _with_helper_docstrings(seed_code),
+            3.0,
+            "Prefer candidates that make helper intent explicit for replay and inspection.",
+        ),
+    ]
+
+    deduped: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for variant_id, label, variant_code, bonus, basis in raw_variants:
+        if variant_code in seen:
+            continue
+        seen.add(variant_code)
+        deduped.append(
+            {
+                "code": variant_code,
+                "artifact_metadata": {
+                    "variant_id": variant_id,
+                    "variant_label": label,
+                },
+                "candidate_metadata": {
+                    "variant_id": variant_id,
+                    "variant_label": label,
+                    "selection_bonus": bonus,
+                    "selection_basis": basis,
+                },
+                "lineage": {
+                    "variant_id": variant_id,
+                    "variant_origin": "deterministic_template_variant",
+                },
+            }
+        )
+    return deduped
+
+
+def _selected_candidate_code(bundle: Any, fallback: str) -> str:
+    selected_candidate_id = (
+        bundle.promotion_shell.selected_candidate_id
+        if bundle.promotion_shell is not None
+        else bundle.promotion_decision.candidate_id
+    )
+    if selected_candidate_id is None:
+        return fallback
+    for workspace in bundle.candidate_workspaces:
+        if workspace.candidate_id == selected_candidate_id:
+            path = Path(workspace.artifact_path)
+            if path.exists():
+                return path.read_text(encoding="utf-8")
+    return fallback
+
+
 def _build_metadata(
     spec: ModuleSpec,
     *,
@@ -44,18 +203,30 @@ def _build_metadata(
     template_version: Optional[str],
     promotion_target: Optional[Path] = None,
     base_metadata: Optional[dict[str, Any]] = None,
-) -> dict[str, Any]:
+) -> tuple[str, dict[str, Any]]:
     metadata: dict[str, Any] = dict(base_metadata or {})
     if template_version is not None:
         metadata["template_version"] = template_version
     metadata["uses_signature"] = bool(use_signature)
 
-    synthesis_bundle = execute_module_synthesis_bundle(
+    candidate_sources = _candidate_sources(
         spec,
         code=code,
         use_signature=use_signature,
-        promotion_target=promotion_target,
+        template_version=template_version,
     )
+    synthesis_bundle = execute_module_synthesis_bundle(
+        spec,
+        code=code,
+        candidate_sources=candidate_sources,
+        use_signature=use_signature,
+        promotion_target=promotion_target,
+        strategy_metadata={
+            "fan_out_kind": "deterministic_template_variants",
+            "seed_template_version": template_version,
+        },
+    )
+    selected_code = _selected_candidate_code(synthesis_bundle, code)
     run_summary = module_synthesis_run_summary(synthesis_bundle)
     evaluation_status = run_summary.get("evaluation_status")
     if evaluation_status != "passed":
@@ -66,8 +237,10 @@ def _build_metadata(
 
     metadata.update(run_summary)
     metadata["run_summary"] = run_summary
+    metadata["selected_candidate_id"] = run_summary.get("selected_candidate_id")
+    metadata["selected_candidate_rank"] = run_summary.get("selected_candidate_rank")
     metadata["synthesis"] = synthesis_bundle.model_dump(mode="json")
-    return metadata
+    return selected_code, metadata
 
 
 def run_generate(
@@ -86,7 +259,6 @@ def run_generate(
     import time as _time
 
     t0 = _time.time()
-    # Budget logging (module service is template-only by default)
     budget_ms_env = _os.getenv("DSPX_BUDGET_MODULE_MS")
     budget_ms = (
         int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
@@ -113,7 +285,7 @@ def run_generate(
         if cache_enabled():
             cached = cache_read("module", key)
             if cached and isinstance(cached.get("code"), str):
-                metadata = _build_metadata(
+                selected_code, metadata = _build_metadata(
                     spec,
                     code=cached["code"],
                     use_signature=use_signature,
@@ -127,16 +299,16 @@ def run_generate(
                 )
                 return ModuleArtifact(
                     name=spec.name,
-                    code=cached["code"],
+                    code=selected_code,
                     metadata=metadata,
                 )
         sig_code = None
         sig_name = None
         if use_signature:
             sig_name = _sig_class_name(spec.name)
-            # Use deterministic signature template
             sig_code = render_simple_signature(
-                sig_name, desc or f"Signature for {spec.name}"
+                sig_name,
+                desc or f"Signature for {spec.name}",
             )
         code = render_module_skeleton(
             spec.name,
@@ -146,7 +318,7 @@ def run_generate(
             signature_code=sig_code,
             signature_class_name=sig_name,
         )
-        meta = _build_metadata(
+        selected_code, meta = _build_metadata(
             spec,
             code=code,
             use_signature=use_signature,
@@ -157,16 +329,14 @@ def run_generate(
                 "uses_signature": bool(use_signature),
             },
         )
-        art = ModuleArtifact(name=spec.name, code=code, metadata=meta)
+        art = ModuleArtifact(name=spec.name, code=selected_code, metadata=meta)
         if cache_enabled():
             cache_write("module", key, {"code": art.code, "metadata": art.metadata})
         return art
 
-    # Future: LM-backed path. For now, fallback to deterministic skeleton.
     sig_code = None
     sig_name = None
     if use_signature:
-        # Try to generate via signature service (DTO) with a stable template fallback
         try:
             sig_name = _sig_class_name(spec.name)
             req = SignatureGenRequest(
@@ -190,7 +360,7 @@ def run_generate(
         signature_code=sig_code,
         signature_class_name=sig_name,
     )
-    metadata = _build_metadata(
+    selected_code, metadata = _build_metadata(
         spec,
         code=code,
         use_signature=use_signature,
@@ -198,7 +368,7 @@ def run_generate(
         promotion_target=promotion_target,
         base_metadata={"uses_signature": bool(use_signature)},
     )
-    art = ModuleArtifact(name=spec.name, code=code, metadata=metadata)
+    art = ModuleArtifact(name=spec.name, code=selected_code, metadata=metadata)
     if cache_enabled():
         key = make_key(
             {
@@ -212,7 +382,6 @@ def run_generate(
             }
         )
         cache_write("module", key, {"code": art.code, "metadata": art.metadata})
-    # Optional MLflow logging (guarded)
     try:
         from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
 
@@ -239,7 +408,6 @@ def run_generate(
                     mlflow.log_text(art.code, f"{spec.name}.py")
                 except Exception:
                     mlflow.log_dict({"code": art.code}, f"{spec.name}.json")
-                # Attach manifest for reproducibility
                 try:
                     man = {
                         "template_version": tv or "v1",

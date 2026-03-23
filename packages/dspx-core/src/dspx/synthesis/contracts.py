@@ -219,30 +219,38 @@ def build_module_synthesis_request(
     spec: ModuleSpec,
     *,
     use_signature: bool = False,
-    strategy_id: str = "module.single_candidate.template",
+    strategy_id: Optional[str] = None,
     strategy_version: str = "v0",
+    candidate_budget: int = 1,
 ) -> SynthesisRequest:
     """Build the V9-compatible request envelope for module synthesis."""
 
     ir = module_spec_to_ir(spec, use_signature=use_signature)
+    candidate_budget = max(1, int(candidate_budget))
+    resolved_strategy_id = strategy_id or (
+        "module.multi_candidate.template"
+        if candidate_budget > 1
+        else "module.single_candidate.template"
+    )
     request_payload = {
         "artifact_kind": "module",
         "source_command": "module-gen",
-        "strategy_id": strategy_id,
+        "strategy_id": resolved_strategy_id,
         "strategy_version": strategy_version,
+        "candidate_budget": candidate_budget,
         "spec": ir.model_dump(mode="json"),
     }
     goal = spec.description or f"Generate module scaffold for {spec.name}"
     return SynthesisRequest(
         request_id=_stable_id("sreq", request_payload),
         goal=goal,
-        strategy_id=strategy_id,
+        strategy_id=resolved_strategy_id,
         strategy_version=strategy_version,
         spec=ir,
         constraints={
             "preserve_cli_surface": True,
             "artifact_language": "python",
-            "candidate_budget": 1,
+            "candidate_budget": candidate_budget,
         },
         options={
             "use_signature": bool(use_signature),
@@ -266,6 +274,11 @@ def build_module_strategy_record(
         "use_signature": request.spec.use_signature,
         "render_backend": "template",
         "workspace_mode": "scratch",
+        "fan_out_mode": (
+            "ranked_candidates"
+            if int(request.constraints.get("candidate_budget") or 1) > 1
+            else "single_candidate"
+        ),
     }
     if metadata:
         merged_metadata.update(metadata)
@@ -283,23 +296,37 @@ def build_module_candidate_record(
     *,
     code: str,
     ordinal: int = 0,
+    artifact_metadata: Optional[Dict[str, Any]] = None,
+    candidate_metadata: Optional[Dict[str, Any]] = None,
+    lineage: Optional[Dict[str, Any]] = None,
 ) -> CandidateRecord:
-    """Build a rendered candidate record for the current one-candidate module path."""
+    """Build a rendered candidate record for the module synthesis path."""
+
+    merged_artifact_metadata: Dict[str, Any] = {
+        "line_count": len(code.splitlines()),
+        "render_backend": "template",
+        "template_version": request.spec.template_version,
+        "uses_signature": request.spec.use_signature,
+    }
+    if artifact_metadata:
+        merged_artifact_metadata.update(artifact_metadata)
 
     artifact = CandidateArtifact(
         content_hash=sha256_text(code),
-        metadata={
-            "line_count": len(code.splitlines()),
-            "render_backend": "template",
-            "template_version": request.spec.template_version,
-            "uses_signature": request.spec.use_signature,
-        },
+        metadata=merged_artifact_metadata,
     )
     candidate_payload = {
         "request_id": request.request_id,
         "ordinal": ordinal,
         "content_hash": artifact.content_hash,
     }
+    merged_lineage = {"request_id": request.request_id}
+    if lineage:
+        merged_lineage.update(lineage)
+    merged_candidate_metadata = {"selection_ready": False}
+    if candidate_metadata:
+        merged_candidate_metadata.update(candidate_metadata)
+
     return CandidateRecord(
         candidate_id=_stable_id("cand", candidate_payload),
         request_id=request.request_id,
@@ -308,8 +335,8 @@ def build_module_candidate_record(
         strategy_version=request.strategy_version,
         spec=request.spec,
         artifact=artifact,
-        lineage={"request_id": request.request_id},
-        metadata={"selection_ready": False},
+        lineage=merged_lineage,
+        metadata=merged_candidate_metadata,
     )
 
 
@@ -319,11 +346,11 @@ def build_module_evaluation_record(
     phase: str = "AK-251",
     workspace: Optional[CandidateWorkspace] = None,
 ) -> EvaluationRecord:
-    """Build the evaluation contract shell for the MVP candidate path."""
+    """Build the evaluation contract shell for a module candidate."""
 
     evaluation_payload = {
         "candidate_id": candidate.candidate_id,
-        "evaluator": "module.static.validation",
+        "evaluator": "module.runtime.validation",
     }
     evidence: Dict[str, Any] = {"phase": phase}
     if workspace is not None:
@@ -332,28 +359,36 @@ def build_module_evaluation_record(
     return EvaluationRecord(
         evaluation_id=_stable_id("eval", evaluation_payload),
         candidate_id=candidate.candidate_id,
-        evaluator="module.static.validation",
+        evaluator="module.runtime.validation",
         status="pending",
         summary=(
-            "Pending runtime static/smoke validation before the candidate can be "
-            "selected or promoted."
+            "Pending runtime static/smoke validation and ranked selection before "
+            "the candidate can be promoted."
         ),
         checks=[
             "python-parse",
             "module-shape",
             "signature-wiring",
+            "module-smoke",
+            "policy-score",
         ],
         evidence=evidence,
     )
 
 
-def build_module_selection_policy() -> SelectionPolicy:
-    """Build the named selection policy contract for the initial module path."""
+def build_module_selection_policy(*, candidate_limit: int = 1) -> SelectionPolicy:
+    """Build the named selection policy contract for the current module path."""
 
+    candidate_limit = max(1, int(candidate_limit))
+    multi_candidate = candidate_limit > 1
     return SelectionPolicy(
-        policy_id="module.v7.single-candidate-pass-through",
+        policy_id=(
+            "module.v7.multi-candidate-ranked"
+            if multi_candidate
+            else "module.v7.single-candidate-pass-through"
+        ),
         policy_version="v0",
-        mode="single_best",
+        mode="multi_candidate_ranked" if multi_candidate else "single_best",
         pass_requirements=[
             "render succeeds",
             "all required evaluations pass",
@@ -361,64 +396,76 @@ def build_module_selection_policy() -> SelectionPolicy:
         ],
         tie_breakers=[
             "highest score",
+            "preferred variant",
             "lowest ordinal",
         ],
         metadata={
-            "candidate_limit": 1,
+            "candidate_limit": candidate_limit,
             "promote_without_evaluations": False,
             "promotion_boundary": "explicit_shell",
+            "ranking_dimensions": [
+                "runtime_validation_gate",
+                "selection_bonus",
+                "ordinal",
+            ],
         },
     )
 
 
 def build_module_promotion_shell(
     request: SynthesisRequest,
-    candidate: CandidateRecord,
-    workspace: CandidateWorkspace,
     *,
     target_path: Optional[str] = None,
+    selected_candidate_id: Optional[str] = None,
+    source_artifact_path: Optional[str] = None,
+    workspace_id: Optional[str] = None,
 ) -> PromotionShell:
     """Build the explicit promotion shell for the selected module candidate."""
 
-    shell_target = target_path or str(workspace.artifact_path)
+    shell_target = target_path or f"{request.spec.name}.py"
     shell_payload = {
         "request_id": request.request_id,
-        "candidate_id": candidate.candidate_id,
         "target_path": shell_target,
+        "selected_candidate_id": selected_candidate_id,
     }
+    metadata: Dict[str, Any] = {
+        "requires_selected_candidate": True,
+        "selection_pending": selected_candidate_id is None,
+    }
+    if source_artifact_path is not None:
+        metadata["source_artifact_path"] = source_artifact_path
+    if workspace_id is not None:
+        metadata["workspace_id"] = workspace_id
     return PromotionShell(
         shell_id=_stable_id("shell", shell_payload),
         request_id=request.request_id,
-        selected_candidate_id=candidate.candidate_id,
-        staging_path=shell_target,
+        selected_candidate_id=selected_candidate_id,
+        staging_path=source_artifact_path or shell_target,
         target_path=shell_target,
         status="pending",
-        metadata={
-            "requires_selected_candidate": True,
-            "source_artifact_path": workspace.artifact_path,
-            "workspace_id": workspace.workspace_id,
-        },
+        metadata=metadata,
     )
 
 
 def build_module_promotion_decision(
     request: SynthesisRequest,
-    candidate: CandidateRecord,
-    evaluation: EvaluationRecord,
     policy: SelectionPolicy,
     *,
+    candidate_id: Optional[str] = None,
+    evaluations: Optional[List[EvaluationRecord]] = None,
     promotion_shell: Optional[PromotionShell] = None,
 ) -> PromotionDecision:
-    """Build the explicit promotion boundary decision for the current candidate."""
+    """Build the explicit promotion boundary decision for the current bundle."""
 
+    evaluation_ids = [item.evaluation_id for item in evaluations or []]
     decision_payload = {
         "request_id": request.request_id,
-        "candidate_id": candidate.candidate_id,
+        "candidate_id": candidate_id,
         "policy_id": policy.policy_id,
-        "evaluation_id": evaluation.evaluation_id,
+        "evaluation_ids": evaluation_ids,
     }
     metadata: Dict[str, Any] = {
-        "selected_candidate_id": candidate.candidate_id,
+        "selected_candidate_id": candidate_id,
         "target": "module artifact",
     }
     if promotion_shell is not None:
@@ -431,15 +478,15 @@ def build_module_promotion_decision(
     return PromotionDecision(
         decision_id=_stable_id("promote", decision_payload),
         request_id=request.request_id,
-        candidate_id=candidate.candidate_id,
+        candidate_id=candidate_id,
         policy_id=policy.policy_id,
         policy_version=policy.policy_version,
         outcome="withheld",
         rationale=(
-            "Promotion stays withheld until the runtime validates, selects, and "
+            "Promotion stays withheld until the runtime validates, ranks, and "
             "explicitly invokes the chosen candidate through the promotion shell."
         ),
-        evaluation_ids=[evaluation.evaluation_id],
+        evaluation_ids=evaluation_ids,
         metadata=metadata,
     )
 
@@ -449,7 +496,7 @@ def build_module_synthesis_bundle(
     *,
     code: str,
     use_signature: bool = False,
-    strategy_id: str = "module.single_candidate.template",
+    strategy_id: Optional[str] = None,
     strategy_version: str = "v0",
 ) -> SynthesisBundle:
     """Build the contract bundle for the current module synthesis attempt."""
@@ -459,12 +506,18 @@ def build_module_synthesis_bundle(
         use_signature=use_signature,
         strategy_id=strategy_id,
         strategy_version=strategy_version,
+        candidate_budget=1,
     )
     strategy = build_module_strategy_record(request)
     candidate = build_module_candidate_record(request, code=code)
     evaluation = build_module_evaluation_record(candidate)
-    policy = build_module_selection_policy()
-    decision = build_module_promotion_decision(request, candidate, evaluation, policy)
+    policy = build_module_selection_policy(candidate_limit=1)
+    decision = build_module_promotion_decision(
+        request,
+        policy,
+        candidate_id=candidate.candidate_id,
+        evaluations=[evaluation],
+    )
     return SynthesisBundle(
         request=request,
         strategy=strategy,

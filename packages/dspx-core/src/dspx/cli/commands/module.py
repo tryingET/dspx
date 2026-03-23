@@ -181,6 +181,21 @@ def _write_module_output(
                     synthesis_extra["synthesis_promotion_decision"] = synthesis[
                         "promotion_decision"
                     ]
+                    ranked = (
+                        synthesis["promotion_decision"].get("metadata", {})
+                        if isinstance(
+                            synthesis["promotion_decision"].get("metadata"), dict
+                        )
+                        else {}
+                    )
+                    if isinstance(ranked.get("ranked_candidates"), list):
+                        synthesis_extra["synthesis_ranked_candidates"] = ranked[
+                            "ranked_candidates"
+                        ]
+                if isinstance(synthesis.get("selection_policy"), dict):
+                    synthesis_extra["synthesis_selection_policy"] = synthesis[
+                        "selection_policy"
+                    ]
 
         meta = build_run_receipt(
             run_kind="module-gen",
