@@ -190,6 +190,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-23"
+        },
+        {
+          "id": "AK-TASK-0271",
+          "title": "Synthesis guardrails follow-up: bind runtime quality events to selected artifact hash",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Synthesis guardrails follow-up: bind runtime quality events to selected artifact hash (task #271)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-23"
         }
       ]
     }

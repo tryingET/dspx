@@ -85,5 +85,52 @@ def test_module_quality_event_detects_receipt_drift() -> None:
     assert (
         "promotion_shell selected_candidate_id drift" in event.receipt_invariants.issues
     )
+    assert "selected candidate content hash missing" in event.receipt_invariants.issues
     assert event.payload["receipt_coverage"] is False
     assert event.payload["selection_integrity"] is False
+
+
+def test_module_quality_event_detects_output_hash_drift() -> None:
+    metadata = {
+        "run_summary": {"backend": "synthesis_runtime"},
+        "selected_candidate_id": "cand-a",
+        "selected_candidate_rank": 1,
+        "ranking_policy_id": "module.v7.multi-candidate-ranked",
+        "ranked_candidate_ids": ["cand-a"],
+        "validation_pass_count": 1,
+        "validation_total": 1,
+        "smoke_pass_count": 1,
+        "smoke_total": 1,
+        "candidate_count": 1,
+        "synthesis": {
+            "request": {},
+            "strategy": {},
+            "selection_policy": {"policy_id": "module.v7.multi-candidate-ranked"},
+            "promotion_shell": {"selected_candidate_id": "cand-a", "status": "ready"},
+            "promotion_decision": {
+                "candidate_id": "cand-a",
+                "metadata": {
+                    "ranked_candidates": [{"candidate_id": "cand-a", "rank": 1}]
+                },
+            },
+            "candidates": [
+                {"candidate_id": "cand-a", "artifact": {"content_hash": "abc123"}}
+            ],
+            "candidate_workspaces": [{"candidate_id": "cand-a"}],
+            "evaluations": [{"candidate_id": "cand-a"}],
+        },
+    }
+
+    event = build_module_quality_event_from_metadata(
+        metadata,
+        use_signature=False,
+        promotion_requested=False,
+        output_hash="deadbeef",
+    )
+
+    assert event.receipt_invariants.ok is False
+    assert (
+        "output hash drift from selected candidate artifact"
+        in event.receipt_invariants.issues
+    )
+    assert event.payload["receipt_coverage"] is False

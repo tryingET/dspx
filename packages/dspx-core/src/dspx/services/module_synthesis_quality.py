@@ -131,6 +131,8 @@ def _ranked_candidates(synthesis: dict[str, Any]) -> list[dict[str, Any]]:
 def evaluate_module_receipt_invariants(
     metadata: dict[str, Any],
     synthesis: dict[str, Any],
+    *,
+    output_hash: str | None = None,
 ) -> ModuleReceiptInvariantResult:
     issues: list[str] = []
 
@@ -274,6 +276,23 @@ def evaluate_module_receipt_invariants(
     ):
         issues.append("ranking policy drift between metadata and synthesis bundle")
 
+    if output_hash:
+        selected_candidate_hash = next(
+            (
+                str(((item.get("artifact") or {}).get("content_hash") or ""))
+                for item in candidates or []
+                if isinstance(item, dict)
+                and item.get("candidate_id") == selected_candidate_id
+                and isinstance(item.get("artifact"), dict)
+                and ((item.get("artifact") or {}).get("content_hash"))
+            ),
+            "",
+        )
+        if not selected_candidate_hash:
+            issues.append("selected candidate content hash missing")
+        elif selected_candidate_hash != output_hash:
+            issues.append("output hash drift from selected candidate artifact")
+
     return ModuleReceiptInvariantResult(
         ok=not issues,
         issues=tuple(issues),
@@ -336,7 +355,11 @@ def build_module_quality_event_from_metadata(
             selected_candidate_rank=None,
         )
     else:
-        receipt_invariants = evaluate_module_receipt_invariants(metadata, synthesis)
+        receipt_invariants = evaluate_module_receipt_invariants(
+            metadata,
+            synthesis,
+            output_hash=output_hash,
+        )
 
     payload = {
         "run_kind": "module-gen",
