@@ -156,4 +156,4 @@ class TestCombineCaps:
         with pytest.raises(
             Exception
         ):  # Pydantic raises ValidationError on frozen model
-            result.json_mode = False  # type: ignore[misc]
+            result.json_mode = False

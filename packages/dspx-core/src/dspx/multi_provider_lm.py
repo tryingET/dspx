@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import queue
 import threading
 import time
 from dataclasses import dataclass
@@ -386,9 +387,15 @@ class MultiProviderLM(DSPyBaseLM):
     def _run_parallel_first(
         self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
     ) -> List[ProviderResult]:
-        # Prefer async-capable providers (our wrappers) to allow termination.
+        # Prefer async-capable providers (our wrappers) to allow termination,
+        # but still race sync-only providers in background threads so mixed stacks
+        # preserve true first-completion semantics.
         async_runs: List[Optional[Any]] = [None] * len(self.providers)
-        supports_async = []
+        finished: List[Optional[ProviderResult]] = [None] * len(self.providers)
+        completion_order: List[ProviderResult] = []
+        sync_results: queue.Queue[tuple[int, ProviderResult]] = queue.Queue()
+        sync_threads: List[threading.Thread] = []
+        pending_sync: set[int] = set()
 
         # Prepare per-provider working dirs if isolated
         prev_cwds: List[ProviderCwdState] = [ProviderCwdState()] * len(self.providers)
@@ -399,10 +406,55 @@ class MultiProviderLM(DSPyBaseLM):
                 len(self.providers)
             )
 
-        # Start all
-        for i, p in enumerate(self.providers):
-            prov = p
-            # Apply temporary cwd override when supported
+        def _terminate_pending_async(*, skip: Optional[int] = None) -> None:
+            for j, run in enumerate(async_runs):
+                if j == skip or run is None:
+                    continue
+                provj = self.providers[j]
+                try:
+                    if hasattr(provj, "terminate"):
+                        provj.terminate(run)
+                except Exception:
+                    pass
+
+        def _handle_finished(
+            i: int, result: ProviderResult
+        ) -> Optional[ProviderResult]:
+            finished[i] = result
+            completion_order.append(result)
+            if self.validator is not None and result.error is None:
+                try:
+                    ok = bool(
+                        self.validator(
+                            result.text,
+                            provider=self.names[i],
+                            prompt=prompt,
+                            messages=messages,
+                        )
+                    )
+                except Exception:
+                    ok = False
+                if ok and self.abort_others_on_validate:
+                    _terminate_pending_async(skip=i)
+                    return result
+            if self.validator is None and self.reducer is None:
+                _terminate_pending_async(skip=i)
+                return result
+            return None
+
+        def _start_sync_worker(i: int, prov: Any) -> None:
+            pending_sync.add(i)
+
+            def worker() -> None:
+                res = self._run_one(i, prov, prompt=prompt, messages=messages)
+                sync_results.put((i, res))
+
+            th = threading.Thread(target=worker, daemon=True)
+            sync_threads.append(th)
+            th.start()
+
+        # Start all providers under their temporary cwd/workspace settings.
+        for i, prov in enumerate(self.providers):
             cwd_override = (
                 prepared_cwds[i]
                 if (self.parallel_isolated and self.base_cwd)
@@ -412,157 +464,99 @@ class MultiProviderLM(DSPyBaseLM):
             if hasattr(prov, "start"):
                 try:
                     async_runs[i] = prov.start(prompt=prompt, messages=messages)
-                    supports_async.append(True)
                     continue
                 except Exception:
                     pass
-            supports_async.append(False)
+            _start_sync_worker(i, prov)
 
-        # If none support async, fall back to thread race with no termination
-        if not any(supports_async):
-            done_event = threading.Event()
-            first_finished_lock = threading.Lock()
-            first_finished: List[ProviderResult] = []
-            results: List[Optional[ProviderResult]] = [None] * len(self.providers)
+        remaining_async = set(i for i, run in enumerate(async_runs) if run is not None)
 
-            def worker(i: int, prov: Any):
-                res = self._run_one(i, prov, prompt=prompt, messages=messages)
-                results[i] = res
-                with first_finished_lock:
-                    if not first_finished:
-                        first_finished.append(res)
-                done_event.set()
-
-            threads: List[threading.Thread] = []
-            for i, prov in enumerate(self.providers):
-                th = threading.Thread(target=worker, args=(i, prov), daemon=True)
-                threads.append(th)
-                th.start()
-            # Optional validation path: collect first finished and validate; can't abort others
-            done_event.wait()
-            if first_finished:
-                # restore cwds
-                for j, pr in enumerate(self.providers):
-                    self._restore_cwd(pr, prev_cwds[j])
-                return [first_finished[0]]
-            for th in threads:
-                try:
-                    th.join(timeout=0.1)
-                except Exception:
-                    pass
-            for j, pr in enumerate(self.providers):
-                self._restore_cwd(pr, prev_cwds[j])
-            if cleanup_info and self.cleanup_isolated:
-                self._cleanup_isolated(cleanup_info)
-            return [r for r in results if r is not None]
-
-        # Async polling loop with validation and cancellation
-        finished: List[Optional[ProviderResult]] = [None] * len(self.providers)
-        completion_order: List[ProviderResult] = []
-        remaining = set(
-            i for i in range(len(self.providers)) if async_runs[i] is not None
-        )
         try:
-            while remaining:
-                # check processes
+            while remaining_async or pending_sync:
                 made_progress = False
-                for i in list(remaining):
+
+                while True:
+                    try:
+                        i, res = sync_results.get_nowait()
+                    except queue.Empty:
+                        break
+                    if i not in pending_sync:
+                        continue
+                    pending_sync.remove(i)
+                    made_progress = True
+                    selected = _handle_finished(i, res)
+                    if selected is not None:
+                        return [selected]
+
+                for i in list(remaining_async):
                     run = async_runs[i]
                     if run is None:
-                        remaining.remove(i)
+                        remaining_async.remove(i)
                         continue
-                    p = getattr(run, "popen", None)
-                    if p is None:
-                        remaining.remove(i)
+                    popen = getattr(run, "popen", None)
+                    if popen is None:
+                        remaining_async.remove(i)
                         continue
-                    if p.poll() is not None:  # finished
-                        prov = self.providers[i]
-                        try:
-                            if hasattr(prov, "collect"):
-                                cres = prov.collect(run)
-                                text = getattr(cres, "text", "")
-                                t1 = getattr(cres, "ended_at", time.time())
-                                t0 = getattr(cres, "started_at", t1)
-                                finished[i] = ProviderResult(
-                                    name=self.names[i],
-                                    model=getattr(prov, "model", None),
-                                    text=text,
-                                    raw=cres,
-                                    started_at=t0,
-                                    ended_at=t1,
-                                )
-                            else:
-                                # shouldn't happen; mark blank
-                                finished[i] = ProviderResult(
-                                    name=self.names[i],
-                                    model=getattr(prov, "model", None),
-                                    text="",
-                                    raw=None,
-                                    started_at=time.time(),
-                                    ended_at=time.time(),
-                                )
-                        except Exception as e:
-                            finished[i] = ProviderResult(
+                    if popen.poll() is None:
+                        continue
+
+                    prov = self.providers[i]
+                    try:
+                        if hasattr(prov, "collect"):
+                            cres = prov.collect(run)
+                            text = getattr(cres, "text", "")
+                            t1 = getattr(cres, "ended_at", time.time())
+                            t0 = getattr(cres, "started_at", t1)
+                            res = ProviderResult(
+                                name=self.names[i],
+                                model=getattr(prov, "model", None),
+                                text=text,
+                                raw=cres,
+                                started_at=t0,
+                                ended_at=t1,
+                            )
+                        else:
+                            res = ProviderResult(
                                 name=self.names[i],
                                 model=getattr(prov, "model", None),
                                 text="",
                                 raw=None,
                                 started_at=time.time(),
                                 ended_at=time.time(),
-                                error=e,
                             )
-                        remaining.remove(i)
-                        made_progress = True
-
-                        fi = finished[i]
-                        if fi is not None:
-                            completion_order.append(fi)
-
-                        # Validation and early abort
-                        if (
-                            self.validator is not None
-                            and fi is not None
-                            and fi.error is None
-                        ):
-                            try:
-                                ok = bool(
-                                    self.validator(
-                                        fi.text,
-                                        provider=self.names[i],
-                                        prompt=prompt,
-                                        messages=messages,
-                                    )
-                                )
-                            except Exception:
-                                ok = False
-                            if ok and self.abort_others_on_validate:
-                                # terminate all others still running
-                                for j in list(remaining):
-                                    rj = async_runs[j]
-                                    provj = self.providers[j]
-                                    try:
-                                        if (
-                                            hasattr(provj, "terminate")
-                                            and rj is not None
-                                        ):
-                                            provj.terminate(rj)
-                                    except Exception:
-                                        pass
-                                # restore cwds and return
-                                for j, pr in enumerate(self.providers):
-                                    self._restore_cwd(pr, prev_cwds[j])
-                                return [fi]
+                    except Exception as e:
+                        res = ProviderResult(
+                            name=self.names[i],
+                            model=getattr(prov, "model", None),
+                            text="",
+                            raw=None,
+                            started_at=time.time(),
+                            ended_at=time.time(),
+                            error=e,
+                        )
+                    remaining_async.remove(i)
+                    made_progress = True
+                    selected = _handle_finished(i, res)
+                    if selected is not None:
+                        return [selected]
 
                 if not made_progress:
                     time.sleep(0.05)
         finally:
-            # restore cwd settings
             for j, pr in enumerate(self.providers):
                 self._restore_cwd(pr, prev_cwds[j])
-            if cleanup_info and self.cleanup_isolated:
+            for th in sync_threads:
+                try:
+                    th.join(timeout=0.1)
+                except Exception:
+                    pass
+            if (
+                cleanup_info
+                and self.cleanup_isolated
+                and not any(th.is_alive() for th in sync_threads)
+            ):
                 self._cleanup_isolated(cleanup_info)
 
-        # No validated winner; use reducer if provided, else first finished
         candidates = completion_order
         if not candidates:
             return []
@@ -579,7 +573,6 @@ class MultiProviderLM(DSPyBaseLM):
                     return [candidates[idx]]
             except Exception:
                 pass
-        # fallback
         return [candidates[0]]
 
     def _apply_alignment_policies(self) -> None:

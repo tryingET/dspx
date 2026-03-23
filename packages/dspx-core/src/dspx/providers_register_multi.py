@@ -50,15 +50,18 @@ def _factory() -> MultiProviderLM:
     }
     worktree_commitish = os.getenv("DSPX_MULTI_WORKTREE_COMMITISH", "HEAD")
     provs = []
+    resolved_names: List[str] = []
     for n in names:
         try:
             provs.append(create(n))
+            resolved_names.append(n)
         except Exception:
             continue
     if not provs:
         # fallback to pi-rpc if nothing resolves
         provs = [create("pi-rpc")]
-        names = ["pi-rpc"]
+        resolved_names = ["pi-rpc"]
+    names = resolved_names
     return MultiProviderLM(
         providers=provs,
         names=names,

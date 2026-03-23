@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import json
+import queue
 from pathlib import Path
+from typing import Any, cast
 
 from dspx.dtos import LMRequest
+from dspx.pi_rpc_client import PiRpcClient
 from dspx.pi_rpc_lm import PiRPCLM
 from dspx.provider_registry import create_from_env, ensure_default_providers
+
+
+class _DummyProc:
+    def poll(self) -> int | None:
+        return None
 
 
 def _write_fake_pi_rpc_bin(path: Path) -> None:
@@ -96,6 +105,137 @@ for raw in sys.stdin:
     path.chmod(0o755)
 
 
+def test_pi_rpc_client_drains_stale_buffer_before_prompt() -> None:
+    client = PiRpcClient()
+    stdout_queue: queue.Queue[str | None] = queue.Queue()
+    client._proc = cast(Any, _DummyProc())
+    client._stdout_queue = stdout_queue
+    client._ensure_started = cast(Any, lambda: None)
+
+    stale = {
+        "type": "agent_end",
+        "messages": [
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "stale-old-output"}],
+            }
+        ],
+    }
+    stdout_queue.put(json.dumps(stale))
+
+    def _send(payload: dict[str, object]) -> None:
+        req_id = str(payload.get("id") or "")
+        text = f"fresh: {payload.get('message')}"
+        stdout_queue.put(
+            json.dumps(
+                {
+                    "type": "response",
+                    "id": req_id,
+                    "command": "prompt",
+                    "success": True,
+                }
+            )
+        )
+        stdout_queue.put(
+            json.dumps(
+                {
+                    "type": "message_update",
+                    "assistantMessageEvent": {"type": "text_delta", "delta": text},
+                }
+            )
+        )
+        stdout_queue.put(
+            json.dumps(
+                {
+                    "type": "agent_end",
+                    "messages": [
+                        {
+                            "role": "assistant",
+                            "content": [{"type": "text", "text": text}],
+                        }
+                    ],
+                }
+            )
+        )
+
+    client._send = _send  # type: ignore[method-assign]
+
+    result = client.prompt("new-request", timeout=1.0)
+
+    assert result.text == "fresh: new-request"
+
+
+def test_pi_rpc_client_timeout_restarts_before_next_prompt() -> None:
+    client = PiRpcClient()
+    stdout_queue: queue.Queue[str | None] = queue.Queue()
+    client._proc = cast(Any, _DummyProc())
+    client._stdout_queue = stdout_queue
+    client._ensure_started = cast(Any, lambda: None)
+
+    restarts: list[str] = []
+
+    def _restart() -> None:
+        nonlocal stdout_queue
+        restarts.append("restart")
+        stdout_queue = queue.Queue()
+        client._proc = cast(Any, _DummyProc())
+        client._stdout_queue = stdout_queue
+
+    def _send(payload: dict[str, object]) -> None:
+        if str(payload.get("type")) != "prompt":
+            return
+        if str(payload.get("message")) == "fresh-after-timeout":
+            req_id = str(payload.get("id") or "")
+            text = "echo: fresh-after-timeout"
+            stdout_queue.put(
+                json.dumps(
+                    {
+                        "type": "response",
+                        "id": req_id,
+                        "command": "prompt",
+                        "success": True,
+                    }
+                )
+            )
+            stdout_queue.put(
+                json.dumps(
+                    {
+                        "type": "message_update",
+                        "assistantMessageEvent": {"type": "text_delta", "delta": text},
+                    }
+                )
+            )
+            stdout_queue.put(
+                json.dumps(
+                    {
+                        "type": "agent_end",
+                        "messages": [
+                            {
+                                "role": "assistant",
+                                "content": [{"type": "text", "text": text}],
+                            }
+                        ],
+                    }
+                )
+            )
+
+    client.restart = _restart  # type: ignore[method-assign]
+    client._send = _send  # type: ignore[method-assign]
+
+    raised = False
+    try:
+        client.prompt("sleep-forever", timeout=0.01)
+    except TimeoutError:
+        raised = True
+
+    assert raised is True
+    assert restarts == ["restart"]
+    assert (
+        client.prompt("fresh-after-timeout", timeout=1.0).text
+        == "echo: fresh-after-timeout"
+    )
+
+
 def test_pi_rpc_lm_forward_fake_process_handles_noise(tmp_path: Path) -> None:
     fake = tmp_path / "fake-pi"
     _write_fake_pi_rpc_bin(fake)
@@ -124,7 +264,7 @@ def test_provider_registry_create_pi_rpc_from_env(tmp_path: Path, monkeypatch) -
     monkeypatch.setenv("DSPX_PI_STRICT", "1")
 
     ensure_default_providers()
-    lm = create_from_env()
+    lm = cast(Any, create_from_env())
     res = lm.generate(LMRequest(prompt="provider-check"))
     assert res.outputs[0] == "echo: provider-check"
 

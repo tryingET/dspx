@@ -197,6 +197,16 @@ class PiRpcClient:
             if isinstance(obj, dict):
                 return obj
 
+    def _drain_stdout_queue(self) -> None:
+        q = self._stdout_queue
+        if q is None:
+            return
+        while True:
+            try:
+                q.get_nowait()
+            except queue.Empty:
+                return
+
     @staticmethod
     def _extract_text_from_message(msg: dict[str, Any]) -> str:
         content = msg.get("content")
@@ -219,6 +229,7 @@ class PiRpcClient:
     ) -> PiPromptResult:
         with self._lock:
             self._ensure_started()
+            self._drain_stdout_queue()
             self._seq += 1
             req_id = f"prompt-{self._seq}"
             deadline = None if timeout is None else (time.time() + float(timeout))
@@ -254,9 +265,14 @@ class PiRpcClient:
                         agent_end = obj
                         break
             except TimeoutError:
-                # Try to abort current run so next call can proceed.
+                # Abort and restart so stale agent_end/message_update events from the
+                # timed-out run cannot contaminate the next prompt.
                 try:
                     self._send({"type": "abort"})
+                except Exception:
+                    pass
+                try:
+                    self.restart()
                 except Exception:
                     pass
                 raise
