@@ -240,6 +240,38 @@ def test_ensure_default_providers_preserves_custom_openai_compatible(
         provider_registry._REGISTRY.update(saved_registry)
 
 
+def test_ensure_default_providers_preserves_custom_vllm_local(
+    monkeypatch,
+) -> None:
+    saved_registry = dict(provider_registry._REGISTRY)
+    try:
+        provider_registry._REGISTRY.clear()
+        custom_caps = ProviderCapabilities(
+            supports_tools=False,
+            code_exec=False,
+            json_mode=False,
+            multi_turn=False,
+            structured_output_format="none",
+        )
+        provider_registry.register_provider(
+            "vllm-local",
+            lambda: "custom-vllm-local",
+            custom_caps,
+        )
+
+        monkeypatch.setenv("DSPX_OPENAI_COMPAT_JSON_MODE", "1")
+        ensure_default_providers()
+
+        reg = available()
+        assert reg["vllm-local"].factory() == "custom-vllm-local"
+        assert reg["vllm-local"].capabilities.model_dump() == custom_caps.model_dump()
+        assert "openai-compatible" in reg
+        assert reg["openai-compatible"].capabilities.json_mode is True
+    finally:
+        provider_registry._REGISTRY.clear()
+        provider_registry._REGISTRY.update(saved_registry)
+
+
 def test_run_receipt_includes_redacted_provider_details(
     monkeypatch, tmp_path: Path
 ) -> None:

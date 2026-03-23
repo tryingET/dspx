@@ -5,7 +5,7 @@ from typing import TypedDict
 
 from dspx.capabilities import ProviderCapabilities
 from dspx.openai_compatible_lm import OpenAICompatibleLM
-from dspx.provider_registry import register_provider
+from dspx.provider_registry import mark_default_provider_factory, register_provider
 
 
 class _OpenAICompatibleKwargs(TypedDict):
@@ -68,7 +68,10 @@ def _registered_capabilities(prefix: str) -> ProviderCapabilities:
 def register_openai_compatible() -> None:
     register_provider(
         "openai-compatible",
-        _factory_openai_compatible,
+        mark_default_provider_factory(
+            _factory_openai_compatible,
+            "dspx.default.openai-compatible",
+        ),
         _registered_capabilities("DSPX_OPENAI_COMPAT"),
     )
 
@@ -76,7 +79,10 @@ def register_openai_compatible() -> None:
 def register_vllm_local() -> None:
     register_provider(
         "vllm-local",
-        _factory_vllm_local,
+        mark_default_provider_factory(
+            _factory_vllm_local,
+            "dspx.default.vllm-local",
+        ),
         _registered_capabilities("DSPX_VLLM"),
     )
 

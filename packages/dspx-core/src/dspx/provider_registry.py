@@ -15,7 +15,15 @@ class ProviderFactory:
         self.capabilities = capabilities
 
 
+DEFAULT_PROVIDER_OWNER_ATTR = "_dspx_default_owner"
 _REGISTRY: Dict[str, ProviderFactory] = {}
+
+
+def mark_default_provider_factory(
+    factory: Callable[[], object], owner: str
+) -> Callable[[], object]:
+    setattr(factory, DEFAULT_PROVIDER_OWNER_ATTR, owner)
+    return factory
 
 
 def register_provider(
@@ -37,11 +45,11 @@ def available() -> Dict[str, ProviderFactory]:
     return dict(_REGISTRY)
 
 
-def _factory_owned_by_module(name: str, module_name: str) -> bool:
+def _factory_owned_by_default_owner(name: str, owner: str) -> bool:
     factory = _REGISTRY.get(name)
     if factory is None:
         return False
-    return getattr(factory.factory, "__module__", "") == module_name
+    return getattr(factory.factory, DEFAULT_PROVIDER_OWNER_ATTR, None) == owner
 
 
 def ensure_default_providers() -> None:
@@ -102,12 +110,12 @@ def ensure_default_providers() -> None:
             register_vllm_local as _reg_vllm_local,
         )
 
-        if "openai-compatible" not in _REGISTRY or _factory_owned_by_module(
-            "openai-compatible", "dspx.providers_register_openai_compatible"
+        if "openai-compatible" not in _REGISTRY or _factory_owned_by_default_owner(
+            "openai-compatible", "dspx.default.openai-compatible"
         ):
             _reg_openai_compatible()
-        if "vllm-local" not in _REGISTRY or _factory_owned_by_module(
-            "vllm-local", "dspx.providers_register_openai_compatible"
+        if "vllm-local" not in _REGISTRY or _factory_owned_by_default_owner(
+            "vllm-local", "dspx.default.vllm-local"
         ):
             _reg_vllm_local()
     except Exception:
