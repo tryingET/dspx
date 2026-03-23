@@ -12,7 +12,9 @@ from dspx.run_receipts import (
     current_receipt_lineage,
     load_run_receipt,
     normalize_receipt_provenance,
+    resolve_receipt_provenance,
     resolve_receipt_run_id,
+    resolve_run_identity,
     write_run_receipt,
 )
 
@@ -142,6 +144,15 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert mod_meta["run_kind"] == "module-gen"
     assert isinstance(mod_meta.get("mlflow_hints"), dict)
     assert mod_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"] == "module-gen"
+    assert mod_meta["run_summary"]["backend"] == "synthesis_runtime"
+    assert mod_meta["run_summary"]["validation_pass_rate"] == 1.0
+    assert mod_meta["run_summary"]["smoke_pass_rate"] == 1.0
+    assert isinstance(mod_meta.get("synthesis"), dict)
+    assert mod_meta["synthesis_request_id"].startswith("sreq-")
+    assert mod_meta["synthesis_candidate_ids"]
+    assert mod_meta["synthesis_evaluation_ids"]
+    assert mod_meta["synthesis_promotion_shell"]["status"] == "promoted"
+    assert mod_meta["synthesis_promotion_decision"]["outcome"] == "promoted"
 
     gen_out = tmp_path / "gen.py"
     r_gen = runner.invoke(
@@ -1067,6 +1078,32 @@ def test_run_receipt_execution_context_hash_tracks_env_value_changes(
     )
 
 
+def test_resolve_run_identity_exposes_contract_facets() -> None:
+    receipt = {
+        "execution_id": "exec-123",
+        "run_id": "mlflow-456",
+        "cache_key": "cache-789",
+        "hash": "hash-abc",
+        "output_path": "/tmp/out.py",
+    }
+
+    identity = resolve_run_identity(receipt)
+
+    assert identity.canonical_id == "exec-123"
+    assert identity.canonical_source == "execution_id"
+    assert identity.behavioral_id == "mlflow-456"
+    assert identity.behavioral_source == "run_id"
+    assert identity.storage_id == "exec-123"
+    assert identity.storage_source == "execution_id"
+    assert identity.alias_ids == (
+        "exec-123",
+        "mlflow-456",
+        "cache-789",
+        "hash-abc",
+        "/tmp/out.py",
+    )
+
+
 def test_normalize_receipt_provenance_prefers_canonical_identity_fields() -> None:
     receipt = {
         "execution_id": "exec-123",
@@ -1086,6 +1123,29 @@ def test_normalize_receipt_provenance_prefers_canonical_identity_fields() -> Non
     assert provenance["parent_run_id"] == "parent-1"
     assert provenance["causal_chain"] == ["root-1", "parent-1"]
     assert provenance["lineage_ids"] == ["root-1", "parent-1"]
+    assert provenance["identity"]["canonical_source"] == "execution_id"
+    assert provenance["warnings"] == ["causal_chain:deduplicated_items=1"]
+
+
+def test_resolve_receipt_provenance_ignores_non_string_lineage_items() -> None:
+    receipt = {
+        "execution_id": "exec-123",
+        "parent_run_id": 42,
+        "causal_chain": ["root-1", None, 123, "", "root-1"],
+    }
+
+    provenance = resolve_receipt_provenance(receipt)
+
+    assert provenance.run_id == "exec-123"
+    assert provenance.parent_run_id is None
+    assert provenance.causal_chain == ("root-1",)
+    assert provenance.lineage_ids == ("root-1",)
+    assert provenance.warnings == (
+        "parent_run_id:ignored_invalid_value",
+        "causal_chain:ignored_non_string_items=2",
+        "causal_chain:ignored_blank_items=1",
+        "causal_chain:deduplicated_items=1",
+    )
 
 
 def test_resolve_receipt_run_id_prefers_legacy_ids_before_output_path() -> None:
@@ -1108,6 +1168,16 @@ def test_current_receipt_lineage_appends_parent_to_causal_chain(monkeypatch) -> 
         "parent_run_id": "parent-1",
         "causal_chain": ["root-1", "parent-1"],
     }
+
+
+def test_current_receipt_lineage_allows_explicit_empty_chain_override(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("DSPX_CAUSAL_CHAIN", '["root-1"]')
+
+    lineage = current_receipt_lineage(causal_chain=[], branch="feature-a")
+
+    assert lineage == {"branch": "feature-a"}
 
 
 def test_cli_generated_receipt_includes_execution_id_and_branch(

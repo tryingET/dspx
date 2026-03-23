@@ -117,14 +117,15 @@
         {
           "id": "AK-TASK-0251",
           "title": "Module-gen: route through the synthesis runtime single-candidate path with static/smoke validation and receipts",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Module-gen: route through the synthesis runtime single-candidate path with static/smoke validation and receipts (task #251)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-23"
         },
         {
           "id": "AK-TASK-0252",
@@ -138,6 +139,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-22"
+        },
+        {
+          "id": "AK-TASK-0256",
+          "title": "Module synthesis: add multi-candidate fan-out and ranked selection receipts on top of the runtime MVP",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Module synthesis: add multi-candidate fan-out and ranked selection receipts on top of the runtime MVP (task #256)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

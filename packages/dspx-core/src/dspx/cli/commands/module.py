@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import typer
 
@@ -75,7 +75,11 @@ def module_gen(
         outputs=output,
         options={"template_version": template_version},
     )
-    art = module_run_generate(spec, use_signature=use_signature)
+    art = module_run_generate(
+        spec,
+        use_signature=use_signature,
+        promotion_target=outfile,
+    )
 
     if outfile:
         _write_module_output(
@@ -87,6 +91,7 @@ def module_gen(
             outputs=output,
             use_signature=use_signature,
             template_version=template_version,
+            artifact_metadata=art.metadata,
         )
         typer.echo(str(outfile))
     else:
@@ -106,6 +111,7 @@ def _write_module_output(
     outputs: List[str],
     use_signature: bool,
     template_version: str,
+    artifact_metadata: Optional[dict[str, Any]] = None,
 ) -> None:
     """Write module output with receipt and MLflow logging."""
     outfile.parent.mkdir(parents=True, exist_ok=True)
@@ -140,6 +146,42 @@ def _write_module_output(
             "",
         }
         output_hash = sha256_text(code)
+
+        synthesis_extra: dict[str, Any] = {}
+        run_summary = None
+        if isinstance(artifact_metadata, dict):
+            maybe_summary = artifact_metadata.get("run_summary")
+            if isinstance(maybe_summary, dict):
+                run_summary = maybe_summary
+            synthesis = artifact_metadata.get("synthesis")
+            if isinstance(synthesis, dict):
+                synthesis_extra["synthesis"] = synthesis
+                request = synthesis.get("request")
+                if isinstance(request, dict) and request.get("request_id"):
+                    synthesis_extra["synthesis_request_id"] = request["request_id"]
+                candidates = synthesis.get("candidates")
+                if isinstance(candidates, list):
+                    synthesis_extra["synthesis_candidate_ids"] = [
+                        item.get("candidate_id")
+                        for item in candidates
+                        if isinstance(item, dict) and item.get("candidate_id")
+                    ]
+                evaluations = synthesis.get("evaluations")
+                if isinstance(evaluations, list):
+                    synthesis_extra["synthesis_evaluation_ids"] = [
+                        item.get("evaluation_id")
+                        for item in evaluations
+                        if isinstance(item, dict) and item.get("evaluation_id")
+                    ]
+                if isinstance(synthesis.get("promotion_shell"), dict):
+                    synthesis_extra["synthesis_promotion_shell"] = synthesis[
+                        "promotion_shell"
+                    ]
+                if isinstance(synthesis.get("promotion_decision"), dict):
+                    synthesis_extra["synthesis_promotion_decision"] = synthesis[
+                        "promotion_decision"
+                    ]
+
         meta = build_run_receipt(
             run_kind="module-gen",
             output_path=outfile,
@@ -156,11 +198,13 @@ def _write_module_output(
                 "use_signature": bool(use_signature),
                 "template_version": template_version,
             },
+            run_summary=run_summary,
             extra={
                 "use_signature": bool(use_signature),
                 "name": name,
                 "inputs": list(inputs),
                 "outputs": list(outputs),
+                **synthesis_extra,
                 "mlflow_hints": build_mlflow_hints(
                     run_kind="module-gen",
                     template_version=template_version,
@@ -229,7 +273,7 @@ def _print_module_cache_info(
 ) -> None:
     """Print cache key and file info for module."""
     try:
-        from dspx.cache import make_key, cache_dir
+        from dspx.cache import cache_dir, make_key
 
         cache_key = make_key(
             {

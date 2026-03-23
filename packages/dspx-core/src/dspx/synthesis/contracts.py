@@ -316,10 +316,10 @@ def build_module_candidate_record(
 def build_module_evaluation_record(
     candidate: CandidateRecord,
     *,
-    phase: str = "AK-250",
+    phase: str = "AK-251",
     workspace: Optional[CandidateWorkspace] = None,
 ) -> EvaluationRecord:
-    """Build the placeholder evaluation contract for the MVP candidate path."""
+    """Build the evaluation contract shell for the MVP candidate path."""
 
     evaluation_payload = {
         "candidate_id": candidate.candidate_id,
@@ -335,8 +335,8 @@ def build_module_evaluation_record(
         evaluator="module.static.validation",
         status="pending",
         summary=(
-            "Runtime shell only: static/smoke execution lands in follow-on module "
-            "synthesis routing slices."
+            "Pending runtime static/smoke validation before the candidate can be "
+            "selected or promoted."
         ),
         checks=[
             "python-parse",
@@ -436,9 +436,8 @@ def build_module_promotion_decision(
         policy_version=policy.policy_version,
         outcome="withheld",
         rationale=(
-            "AK-250 establishes scratch workspaces and an explicit promotion shell, "
-            "but promotion stays withheld until the runtime selects and invokes the "
-            "chosen candidate."
+            "Promotion stays withheld until the runtime validates, selects, and "
+            "explicitly invokes the chosen candidate through the promotion shell."
         ),
         evaluation_ids=[evaluation.evaluation_id],
         metadata=metadata,

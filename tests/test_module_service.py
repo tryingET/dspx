@@ -25,11 +25,16 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
     assert synthesis["request"]["spec"]["name"] == "Summarizer"
     assert synthesis["strategy"]["strategy_id"] == "module.single_candidate.template"
     assert synthesis["candidates"][0]["artifact"]["content_hash"]
+    assert synthesis["candidates"][0]["status"] == "selected"
+    assert synthesis["evaluations"][0]["status"] == "passed"
     assert synthesis["promotion_decision"]["outcome"] == "withheld"
+    assert synthesis["promotion_shell"]["status"] == "ready"
     workspace = synthesis["candidate_workspaces"][0]
     assert Path(workspace["artifact_path"]).exists()
     assert Path(workspace["manifest_path"]).exists()
     assert synthesis["promotion_shell"]["target_path"].endswith("Summarizer.py")
+    assert art.metadata["run_summary"]["validation_pass_rate"] == 1.0
+    assert art.metadata["run_summary"]["smoke_pass_rate"] == 1.0
 
 
 def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> None:
@@ -49,10 +54,13 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
     synthesis = art.metadata["synthesis"]
     assert synthesis["request"]["spec"]["use_signature"] is True
     assert synthesis["request"]["spec"]["template_version"] == "simple-v1"
-    assert synthesis["evaluations"][0]["status"] == "pending"
+    assert synthesis["evaluations"][0]["status"] == "passed"
+    assert synthesis["evaluations"][0]["evidence"]["smoke"]["module-smoke"] is True
     assert (
         synthesis["selection_policy"]["policy_id"]
         == "module.v7.single-candidate-pass-through"
     )
     assert synthesis["strategy"]["metadata"]["use_signature"] is True
     assert synthesis["candidate_workspaces"][0]["metadata"]["strategy_version"] == "v0"
+    assert synthesis["promotion_shell"]["status"] == "ready"
+    assert art.metadata["backend"] == "synthesis_runtime"

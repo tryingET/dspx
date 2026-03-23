@@ -22,8 +22,11 @@ from .contracts import (
     module_spec_to_ir,
 )
 from .runtime import (
+    evaluate_module_synthesis_bundle,
+    execute_module_synthesis_bundle,
     materialize_module_candidate_workspace,
     materialize_module_synthesis_bundle,
+    module_synthesis_run_summary,
     promote_selected_module_candidate,
     synthesis_workspace_dir,
 )
@@ -49,9 +52,12 @@ __all__ = [
     "build_module_strategy_record",
     "build_module_synthesis_bundle",
     "build_module_synthesis_request",
+    "evaluate_module_synthesis_bundle",
+    "execute_module_synthesis_bundle",
     "materialize_module_candidate_workspace",
     "materialize_module_synthesis_bundle",
     "module_spec_to_ir",
+    "module_synthesis_run_summary",
     "promote_selected_module_candidate",
     "synthesis_workspace_dir",
 ]

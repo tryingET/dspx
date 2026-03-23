@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Optional
 
+from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.services.signatures_service import run_generate_dto
-from dspx.synthesis import materialize_module_synthesis_bundle
+from dspx.synthesis import (
+    execute_module_synthesis_bundle,
+    module_synthesis_run_summary,
+)
 from dspx.templates.module_templates import render_module_skeleton
-from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
 from dspx.templates.signature_templates import render_simple_signature
 import os as _os
 
@@ -38,17 +42,31 @@ def _build_metadata(
     code: str,
     use_signature: bool,
     template_version: Optional[str],
+    promotion_target: Optional[Path] = None,
     base_metadata: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     metadata: dict[str, Any] = dict(base_metadata or {})
     if template_version is not None:
         metadata["template_version"] = template_version
     metadata["uses_signature"] = bool(use_signature)
-    metadata["synthesis"] = materialize_module_synthesis_bundle(
+
+    synthesis_bundle = execute_module_synthesis_bundle(
         spec,
         code=code,
         use_signature=use_signature,
-    ).model_dump(mode="json")
+        promotion_target=promotion_target,
+    )
+    run_summary = module_synthesis_run_summary(synthesis_bundle)
+    evaluation_status = run_summary.get("evaluation_status")
+    if evaluation_status != "passed":
+        raise RuntimeError(
+            f"Module synthesis runtime validation failed for {spec.name}: "
+            f"status={evaluation_status}"
+        )
+
+    metadata.update(run_summary)
+    metadata["run_summary"] = run_summary
+    metadata["synthesis"] = synthesis_bundle.model_dump(mode="json")
     return metadata
 
 
@@ -57,6 +75,7 @@ def run_generate(
     *,
     lm: Optional[LMBase] = None,
     use_signature: bool = False,
+    promotion_target: Optional[Path] = None,
 ) -> ModuleArtifact:
     """Generate a reusable dspy.Module skeleton from ModuleSpec.
 
@@ -99,6 +118,7 @@ def run_generate(
                     code=cached["code"],
                     use_signature=use_signature,
                     template_version=tv,
+                    promotion_target=promotion_target,
                     base_metadata=(
                         cached.get("metadata")
                         if isinstance(cached.get("metadata"), dict)
@@ -131,6 +151,7 @@ def run_generate(
             code=code,
             use_signature=use_signature,
             template_version=tv,
+            promotion_target=promotion_target,
             base_metadata={
                 "template_version": tv,
                 "uses_signature": bool(use_signature),
@@ -174,6 +195,7 @@ def run_generate(
         code=code,
         use_signature=use_signature,
         template_version=tv,
+        promotion_target=promotion_target,
         base_metadata={"uses_signature": bool(use_signature)},
     )
     art = ModuleArtifact(name=spec.name, code=code, metadata=metadata)

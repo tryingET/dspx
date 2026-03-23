@@ -136,7 +136,11 @@ def module_gen(
         outputs=output,
         options={"template_version": template_version},
     )
-    art = module_run_generate(spec, use_signature=use_signature)
+    art = module_run_generate(
+        spec,
+        use_signature=use_signature,
+        promotion_target=outfile,
+    )
 
     if outfile:
         _write_module_output(
@@ -148,6 +152,7 @@ def module_gen(
             outputs=output,
             use_signature=use_signature,
             template_version=template_version,
+            artifact_metadata=art.metadata,
         )
         typer.echo(str(outfile))
     else:
