@@ -169,14 +169,15 @@
         {
           "id": "AK-TASK-0263",
           "title": "Synthesis evidence substrate: define the first SG2 tactical slice and receipt/Oracle retrieval contract",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: define the first SG2 tactical slice and receipt/Oracle retrieval contract (task #263)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-23"
         },
         {
           "id": "AK-TASK-0266",
@@ -203,6 +204,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-23"
+        },
+        {
+          "id": "AK-TASK-0274",
+          "title": "Synthesis evidence substrate: implement the v1 evidence retrieval bundle for ranked module synthesis",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: implement the v1 evidence retrieval bundle for ranked module synthesis (task #274)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

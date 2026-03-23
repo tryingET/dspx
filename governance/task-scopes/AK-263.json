@@ -1,0 +1,26 @@
+{
+  "task_id": 263,
+  "description": "Define the first SG2 tactical slice and freeze the v1 receipt/replay/Oracle retrieval contract for ranked module synthesis.",
+  "allowed_paths": [
+    "diary/2026-03-23--freeze-synthesis-evidence-retrieval-contract.md",
+    "docs/adr/20260323-synthesis-evidence-retrieval-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-263.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "docs/adr/20260323-synthesis-evidence-retrieval-v1.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-263.json"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

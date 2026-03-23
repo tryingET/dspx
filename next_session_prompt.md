@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-263` and define the first SG2 tactical slice plus the receipt/replay/Oracle retrieval contract ranked synthesis should consume first.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the ranked module-synthesis hardening shipped under `AK-260`; do not start predictive ranking implementation before the evidence contract is explicit.
-- Assumptions (max 3): `SG1` is materially complete after the module-synthesis hardening pass; `SG2` is now the active strategic goal; the V7/V8/V9 architecture reference remains `docs/adr/20260322-synthesis-architecture-v7-v9.md`.
+- Objective (one sentence): Claim `AK-274` and implement the read-only v1 evidence retrieval bundle for ranked module synthesis.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the ranked module-synthesis hardening shipped under `AK-260`/`AK-266`/`AK-271`; do not start predictive ranking or policy mutation before the retrieval bundle exists behind the frozen contract.
+- Assumptions (max 3): `AK-263` is complete; `docs/adr/20260323-synthesis-evidence-retrieval-v1.md` is the canonical SG2 retrieval contract; `TG6` is now the active tactical goal.
 - Blockers (none or list): None.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,8 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260322-synthesis-architecture-v7-v9.md`
-7. `diary/2026-03-23--module-synthesis-regression-corpus.md`
+7. `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
+8. `diary/2026-03-23--freeze-synthesis-evidence-retrieval-contract.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -55,12 +56,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-271` — synthesis guardrails follow-up: bind runtime quality events to the selected artifact hash.
-- Outcome: runtime module-quality events now fail closed if the user-visible artifact hash drifts from the selected candidate artifact hash, closing the last surfaced receipt-integrity gap from the adversarial review.
-- Files changed: `packages/dspx-core/src/dspx/services/module_synthesis_quality.py`, `tests/test_module_synthesis_quality_runtime.py`, `docs/project/operational_goals.md`, `diary/2026-03-23--runtime-quality-event-output-hash.md`, `governance/task-scopes/AK-271.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_quality_runtime.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 271 --check-type validation:verify-full --result pass --details '{"commands":["./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 271 --result '{"summary":"Bound runtime module-quality events to the selected candidate artifact hash and closed the remaining receipt-integrity gap.","next_task":263}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `docs/project/operational_goals.md` records `AK-271` as recently completed; the new diary captures the output-hash integrity rule.
-- Next-session starting point: claim `AK-263`, freeze the SG2 evidence retrieval contract, and only then decompose the first V8-facing implementation slice.
+- Slice executed: `AK-263` — synthesis evidence substrate: freeze the first SG2 receipt/replay/Oracle retrieval contract.
+- Outcome: DSPx now has a dated ADR for the first evidence bundle ranked synthesis should consume, replay health is explicit as a trust boundary, and `AK-274` is queued as the first contract-aligned implementation slice.
+- Files changed: `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`, `docs/adr/README.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-23--freeze-synthesis-evidence-retrieval-contract.md`, `governance/task-scopes/AK-263.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 263 --check-type validation:verify-full --result pass --details '{"commands":["./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 263 --result '{"summary":"Froze the SG2 evidence retrieval contract in a dated ADR and aligned the next implementation slice.","next_task":274}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: tactical/operational docs now point to `TG6`/`AK-274`; the new ADR and diary capture the evidence retrieval contract.
+- Next-session starting point: claim `AK-274`, implement the read-only evidence retrieval bundle, and keep predictive ranking out of scope.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
