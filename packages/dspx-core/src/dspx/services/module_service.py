@@ -3,9 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
+from dspx.cache import (
+    cache_enabled,
+    make_key,
+    read as cache_read,
+    sha256_text,
+    write as cache_write,
+)
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
+from dspx.services.module_synthesis_quality import (
+    append_module_quality_event,
+    build_module_quality_event_from_metadata,
+)
 from dspx.services.signatures_service import run_generate_dto
 from dspx.synthesis import execute_module_synthesis_bundle, module_synthesis_run_summary
 from dspx.templates.module_templates import render_module_skeleton
@@ -240,6 +250,18 @@ def _build_metadata(
     metadata["selected_candidate_id"] = run_summary.get("selected_candidate_id")
     metadata["selected_candidate_rank"] = run_summary.get("selected_candidate_rank")
     metadata["synthesis"] = synthesis_bundle.model_dump(mode="json")
+
+    try:
+        quality_event = build_module_quality_event_from_metadata(
+            metadata,
+            use_signature=use_signature,
+            promotion_requested=promotion_target is not None,
+            output_hash=sha256_text(selected_code),
+        )
+        append_module_quality_event(quality_event.payload)
+        metadata["quality_event"] = quality_event.payload
+    except Exception:
+        pass
     return selected_code, metadata
 
 

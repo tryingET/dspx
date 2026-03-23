@@ -177,6 +177,19 @@
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0266",
+          "title": "Workflow guardrails: add task-scope attestation and semantic synthesis receipt invariants",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: add task-scope attestation and semantic synthesis receipt invariants (task #266)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-23"
         }
       ]
     }

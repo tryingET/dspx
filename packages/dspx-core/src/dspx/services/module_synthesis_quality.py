@@ -13,6 +13,33 @@ from dspx.cache import cache_dir
 _FALSEY = {"", "0", "false", "False", "no", "No"}
 
 
+@dataclass(frozen=True)
+class ModuleReceiptInvariantResult:
+    ok: bool
+    issues: tuple[str, ...]
+    ranked_candidate_ids: tuple[str, ...]
+    selected_candidate_id: str | None
+    selected_candidate_rank: int | None
+
+
+@dataclass(frozen=True)
+class ModuleRuntimeQualityEvent:
+    payload: dict[str, Any]
+    receipt_invariants: ModuleReceiptInvariantResult
+
+
+@dataclass(frozen=True)
+class ModuleSynthesisQualityGate:
+    min_validation_pass_rate: float = 1.0
+    min_smoke_pass_rate: float = 1.0
+    min_selection_integrity_rate: float = 1.0
+    min_receipt_coverage_rate: float = 1.0
+    min_promotion_receipt_coverage_rate: float = 1.0
+
+
+MODULE_SYNTHESIS_CORPUS_GATE = ModuleSynthesisQualityGate()
+
+
 def _truthy(value: str | None, *, default: bool = True) -> bool:
     if value is None:
         return default
@@ -88,6 +115,262 @@ def _to_bool(value: Any, *, default: bool = False) -> bool:
     return bool(value)
 
 
+def _ranked_candidates(synthesis: dict[str, Any]) -> list[dict[str, Any]]:
+    decision = synthesis.get("promotion_decision")
+    if not isinstance(decision, dict):
+        return []
+    metadata = decision.get("metadata")
+    if not isinstance(metadata, dict):
+        return []
+    ranked = metadata.get("ranked_candidates")
+    if not isinstance(ranked, list):
+        return []
+    return [item for item in ranked if isinstance(item, dict)]
+
+
+def evaluate_module_receipt_invariants(
+    metadata: dict[str, Any],
+    synthesis: dict[str, Any],
+) -> ModuleReceiptInvariantResult:
+    issues: list[str] = []
+
+    run_summary = metadata.get("run_summary")
+    if not isinstance(run_summary, dict):
+        issues.append("missing run_summary")
+    elif run_summary.get("backend") != "synthesis_runtime":
+        issues.append("run_summary backend != synthesis_runtime")
+
+    request = synthesis.get("request")
+    strategy = synthesis.get("strategy")
+    selection_policy = synthesis.get("selection_policy")
+    promotion_shell = synthesis.get("promotion_shell")
+    promotion_decision = synthesis.get("promotion_decision")
+    candidates = synthesis.get("candidates")
+    workspaces = synthesis.get("candidate_workspaces")
+    evaluations = synthesis.get("evaluations")
+
+    if not isinstance(request, dict):
+        issues.append("missing request")
+    if not isinstance(strategy, dict):
+        issues.append("missing strategy")
+    if not isinstance(selection_policy, dict):
+        issues.append("missing selection_policy")
+    if not isinstance(promotion_shell, dict):
+        issues.append("missing promotion_shell")
+    if not isinstance(promotion_decision, dict):
+        issues.append("missing promotion_decision")
+    if not isinstance(candidates, list) or not candidates:
+        issues.append("missing candidates")
+    if not isinstance(workspaces, list) or not workspaces:
+        issues.append("missing candidate_workspaces")
+    if not isinstance(evaluations, list) or not evaluations:
+        issues.append("missing evaluations")
+
+    candidate_ids = [
+        str(item.get("candidate_id"))
+        for item in candidates or []
+        if isinstance(item, dict) and item.get("candidate_id")
+    ]
+    workspace_ids = [
+        str(item.get("candidate_id"))
+        for item in workspaces or []
+        if isinstance(item, dict) and item.get("candidate_id")
+    ]
+    evaluation_ids = [
+        str(item.get("candidate_id"))
+        for item in evaluations or []
+        if isinstance(item, dict) and item.get("candidate_id")
+    ]
+    ranked_candidates = _ranked_candidates(synthesis)
+    ranked_candidate_ids = tuple(
+        str(item.get("candidate_id"))
+        for item in ranked_candidates
+        if item.get("candidate_id")
+    )
+
+    if not candidate_ids:
+        issues.append("candidate ids missing")
+    elif len(set(candidate_ids)) != len(candidate_ids):
+        issues.append("candidate ids not unique")
+
+    if sorted(workspace_ids) != sorted(candidate_ids):
+        issues.append("workspace candidate ids do not match candidates")
+    if sorted(evaluation_ids) != sorted(candidate_ids):
+        issues.append("evaluation candidate ids do not match candidates")
+    if ranked_candidate_ids and sorted(ranked_candidate_ids) != sorted(candidate_ids):
+        issues.append("ranked candidate ids do not match candidates")
+
+    metadata_ranked_ids = metadata.get("ranked_candidate_ids")
+    if not isinstance(metadata_ranked_ids, list):
+        issues.append("metadata missing ranked_candidate_ids")
+    else:
+        normalized_metadata_ranked = [str(item) for item in metadata_ranked_ids]
+        if normalized_metadata_ranked != list(ranked_candidate_ids):
+            issues.append("metadata ranked_candidate_ids drift from synthesis ranking")
+
+    selected_candidate_id = metadata.get("selected_candidate_id")
+    if selected_candidate_id is not None:
+        selected_candidate_id = str(selected_candidate_id)
+    decision_candidate_id = (
+        str(promotion_decision.get("candidate_id"))
+        if isinstance(promotion_decision, dict)
+        and promotion_decision.get("candidate_id")
+        else None
+    )
+    shell_candidate_id = (
+        str(promotion_shell.get("selected_candidate_id"))
+        if isinstance(promotion_shell, dict)
+        and promotion_shell.get("selected_candidate_id")
+        else None
+    )
+
+    if not selected_candidate_id:
+        issues.append("metadata missing selected_candidate_id")
+    elif selected_candidate_id not in candidate_ids:
+        issues.append("selected_candidate_id not present in candidates")
+
+    if decision_candidate_id != selected_candidate_id:
+        issues.append("promotion_decision candidate_id drift")
+    if shell_candidate_id != selected_candidate_id:
+        issues.append("promotion_shell selected_candidate_id drift")
+
+    selected_candidate_rank = _to_int(
+        metadata.get("selected_candidate_rank"), default=0
+    )
+    if selected_candidate_rank <= 0:
+        issues.append("metadata missing selected_candidate_rank")
+        normalized_selected_rank: int | None = None
+    else:
+        normalized_selected_rank = selected_candidate_rank
+
+    if ranked_candidate_ids:
+        if (
+            not selected_candidate_id
+            or ranked_candidate_ids[0] != selected_candidate_id
+        ):
+            issues.append("selected candidate is not rank 1")
+        elif normalized_selected_rank != 1:
+            issues.append("selected_candidate_rank != 1")
+
+        rank_from_payload = next(
+            (
+                _to_int(item.get("rank"), default=0)
+                for item in ranked_candidates
+                if item.get("candidate_id") == selected_candidate_id
+            ),
+            0,
+        )
+        if (
+            normalized_selected_rank is not None
+            and rank_from_payload != normalized_selected_rank
+        ):
+            issues.append("selected_candidate_rank drift from ranked payload")
+
+    ranking_policy_id = metadata.get("ranking_policy_id")
+    if (
+        isinstance(selection_policy, dict)
+        and ranking_policy_id is not None
+        and str(selection_policy.get("policy_id") or "") != str(ranking_policy_id)
+    ):
+        issues.append("ranking policy drift between metadata and synthesis bundle")
+
+    return ModuleReceiptInvariantResult(
+        ok=not issues,
+        issues=tuple(issues),
+        ranked_candidate_ids=ranked_candidate_ids,
+        selected_candidate_id=selected_candidate_id,
+        selected_candidate_rank=normalized_selected_rank,
+    )
+
+
+def _runtime_selection_integrity(
+    metadata: dict[str, Any],
+    receipt_invariants: ModuleReceiptInvariantResult,
+) -> bool:
+    if not receipt_invariants.ok:
+        return False
+    if receipt_invariants.selected_candidate_rank != 1:
+        return False
+    return bool(receipt_invariants.selected_candidate_id)
+
+
+def _runtime_promotion_receipt_coverage(
+    metadata: dict[str, Any],
+    synthesis: dict[str, Any],
+    *,
+    promotion_requested: bool,
+) -> bool:
+    if not promotion_requested:
+        return True
+
+    promotion_shell = synthesis.get("promotion_shell")
+    promotion_decision = synthesis.get("promotion_decision")
+    if not isinstance(promotion_shell, dict) or not isinstance(
+        promotion_decision, dict
+    ):
+        return False
+
+    return (
+        metadata.get("promotion_status") == "promoted"
+        and metadata.get("promotion_outcome") == "promoted"
+        and promotion_shell.get("status") == "promoted"
+        and promotion_decision.get("outcome") == "promoted"
+    )
+
+
+def build_module_quality_event_from_metadata(
+    metadata: dict[str, Any],
+    *,
+    use_signature: bool,
+    promotion_requested: bool,
+    case_name: str | None = None,
+    output_hash: str | None = None,
+) -> ModuleRuntimeQualityEvent:
+    synthesis = metadata.get("synthesis")
+    if not isinstance(synthesis, dict):
+        receipt_invariants = ModuleReceiptInvariantResult(
+            ok=False,
+            issues=("missing synthesis metadata",),
+            ranked_candidate_ids=(),
+            selected_candidate_id=None,
+            selected_candidate_rank=None,
+        )
+    else:
+        receipt_invariants = evaluate_module_receipt_invariants(metadata, synthesis)
+
+    payload = {
+        "run_kind": "module-gen",
+        "case_name": case_name,
+        "use_signature": bool(use_signature),
+        "promotion_requested": bool(promotion_requested),
+        "candidate_count": _to_int(metadata.get("candidate_count"), default=0),
+        "selected_candidate_id": receipt_invariants.selected_candidate_id,
+        "selected_candidate_rank": receipt_invariants.selected_candidate_rank or 0,
+        "ranked_candidate_ids": list(receipt_invariants.ranked_candidate_ids),
+        "validation_pass_count": _to_int(
+            metadata.get("validation_pass_count"), default=0
+        ),
+        "validation_total": _to_int(metadata.get("validation_total"), default=0),
+        "smoke_pass_count": _to_int(metadata.get("smoke_pass_count"), default=0),
+        "smoke_total": _to_int(metadata.get("smoke_total"), default=0),
+        "selection_integrity": _runtime_selection_integrity(
+            metadata,
+            receipt_invariants,
+        ),
+        "receipt_coverage": receipt_invariants.ok,
+        "promotion_receipt_coverage": _runtime_promotion_receipt_coverage(
+            metadata,
+            synthesis if isinstance(synthesis, dict) else {},
+            promotion_requested=promotion_requested,
+        ),
+        "output_hash": output_hash,
+        "receipt_invariant_issues": list(receipt_invariants.issues),
+    }
+    return ModuleRuntimeQualityEvent(
+        payload=payload, receipt_invariants=receipt_invariants
+    )
+
+
 def _summarize_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
     runs_total = len(rows)
     candidate_counts: list[int] = []
@@ -117,23 +400,13 @@ def _summarize_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
         v_total = max(0, _to_int(row.get("validation_total"), default=0))
         v_pass = max(
-            0,
-            min(
-                _to_int(row.get("validation_pass_count"), default=0),
-                v_total,
-            ),
+            0, min(_to_int(row.get("validation_pass_count"), default=0), v_total)
         )
         validation_pass_count += v_pass
         validation_total += v_total
 
         s_total = max(0, _to_int(row.get("smoke_total"), default=0))
-        s_pass = max(
-            0,
-            min(
-                _to_int(row.get("smoke_pass_count"), default=0),
-                s_total,
-            ),
-        )
+        s_pass = max(0, min(_to_int(row.get("smoke_pass_count"), default=0), s_total))
         smoke_pass_count += s_pass
         smoke_total += s_total
 
@@ -205,15 +478,6 @@ def summarize_module_quality_events(
     summary = _summarize_rows(rows)
     summary["run_kind_filter"] = run_kind
     return summary
-
-
-@dataclass(frozen=True)
-class ModuleSynthesisQualityGate:
-    min_validation_pass_rate: float = 1.0
-    min_smoke_pass_rate: float = 1.0
-    min_selection_integrity_rate: float = 1.0
-    min_receipt_coverage_rate: float = 1.0
-    min_promotion_receipt_coverage_rate: float = 1.0
 
 
 def evaluate_module_quality_gates(

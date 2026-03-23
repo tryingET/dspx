@@ -46,8 +46,9 @@ Validation contract:
   - runs repo ontology validation when ROCS metadata is present
 - `just verify-full`
   - re-checks workflow contracts
-  - runs `uvx pre-commit run --all-files`
   - runs governance validation
+  - runs `just task-scope-check` for the latest claimed task when a task-scope manifest is present
+  - runs `uvx pre-commit run --all-files`
   - runs the deterministic replay provenance check
   - runs monorepo/typecheck/test gates
 

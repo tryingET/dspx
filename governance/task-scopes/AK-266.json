@@ -1,0 +1,39 @@
+{
+  "task_id": 266,
+  "description": "Add task-scope attestation to verify-full and harden module-synthesis receipt invariants/telemetry.",
+  "allowed_paths": [
+    "Justfile",
+    "CONTRIBUTING.md",
+    "README.md",
+    "docs/project/developer_workflow.md",
+    "docs/project/operational_goals.md",
+    "docs/tech-stack.local.md",
+    "governance/task-scopes/AK-266.json",
+    "governance/work-items.json",
+    "diary/2026-03-23--task-scope-attestation-and-receipt-invariants.md",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_corpus.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_quality.py",
+    "scripts/check_task_scope.py",
+    "scripts/check_workflow_contracts.py",
+    "tests/test_module_synthesis_quality_corpus.py",
+    "tests/test_module_synthesis_quality_runtime.py",
+    "tests/test_repo_hygiene.py",
+    "tests/test_task_scope.py",
+    "tests/test_workflow_contracts.py"
+  ],
+  "required_paths": [
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "scripts/check_task_scope.py",
+    "tests/test_task_scope.py",
+    "governance/task-scopes/AK-266.json"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

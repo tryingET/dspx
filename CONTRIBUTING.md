@@ -27,6 +27,7 @@ Development Setup
 
   just hooks-install
   # run the full validation gate once
+  # (includes task-scope attestation when the current task has a scope manifest)
   just verify-full
 
 Pull Requests

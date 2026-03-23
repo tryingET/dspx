@@ -25,4 +25,5 @@ Local notes for DSPx:
   - install hooks once: `just hooks-install`
   - pre-commit hook = fast staged checks (ruff/whitespace)
   - pre-push hook = `just verify-full`
+  - `just verify-full` also runs `just task-scope-check` for the latest claimed task when a scope manifest exists
   - explicit batch gate: `just verify-full`

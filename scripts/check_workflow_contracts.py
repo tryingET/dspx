@@ -115,6 +115,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 "workflow-contract-check:",
                 "direction-contract-check:",
                 "governance-check:",
+                "task-scope-check",
                 "uvx pre-commit run --all-files",
                 "cue vet governance/work-items.json governance/work-items.cue",
             ],

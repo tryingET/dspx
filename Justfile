@@ -92,11 +92,17 @@ replay-provenance-check:
 module-synthesis-quality-check:
   uv run -q python scripts/build_module_synthesis_quality_log.py
 
+# Check latest claimed task slice against an attested file-scope manifest
+# Defaults to the latest committed slice so local unrelated worktree noise does not pollute task attestation.
+task-scope-check mode="head" rev_range="HEAD^..HEAD":
+  uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}
+
 # Full validation gate (run once per commit batch / before push)
 verify-full:
   just workflow-contract-check
   just direction-contract-check
   just governance-check
+  just task-scope-check
   uvx pre-commit run --all-files
   just replay-provenance-check
   just monorepo-check

@@ -59,3 +59,4 @@ def test_module_synthesis_quality_log_roundtrip(tmp_path: Path) -> None:
         "intent_signature",
         "router_multi_io_promoted",
     }
+    assert all(row.get("receipt_invariant_issues") == [] for row in loaded)

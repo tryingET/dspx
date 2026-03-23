@@ -11,12 +11,15 @@ from typing import Any, Iterator, cast
 
 from dspx.cache import sha256_text
 from dspx.dtos import ModuleArtifact, ModuleSpec
-from dspx.services.module_synthesis_quality import ModuleSynthesisQualityGate
+from dspx.services.module_synthesis_quality import (
+    MODULE_SYNTHESIS_CORPUS_GATE as _MODULE_SYNTHESIS_CORPUS_GATE,
+    build_module_quality_event_from_metadata,
+)
 
 from .module_service import run_generate
 
 
-MODULE_SYNTHESIS_CORPUS_GATE = ModuleSynthesisQualityGate()
+MODULE_SYNTHESIS_CORPUS_GATE = _MODULE_SYNTHESIS_CORPUS_GATE
 
 
 @dataclass(frozen=True)
@@ -33,6 +36,7 @@ class ModuleSynthesisCorpusRun:
     receipt_coverage: bool
     promotion_receipt_coverage: bool
     promotion_target: Path | None = None
+    receipt_invariant_issues: tuple[str, ...] = ()
 
 
 @contextmanager
@@ -108,55 +112,6 @@ def _selected_candidate_workspace_code(
     return None
 
 
-def _receipt_coverage(metadata: dict[str, Any], synthesis: dict[str, Any]) -> bool:
-    run_summary = metadata.get("run_summary")
-    selection_policy = synthesis.get("selection_policy")
-    promotion_shell = synthesis.get("promotion_shell")
-
-    return (
-        isinstance(run_summary, dict)
-        and run_summary.get("backend") == "synthesis_runtime"
-        and isinstance(synthesis.get("request"), dict)
-        and isinstance(synthesis.get("strategy"), dict)
-        and isinstance(synthesis.get("candidates"), list)
-        and isinstance(synthesis.get("candidate_workspaces"), list)
-        and isinstance(synthesis.get("evaluations"), list)
-        and isinstance(selection_policy, dict)
-        and selection_policy.get("policy_id") == "module.v7.multi-candidate-ranked"
-        and isinstance(promotion_shell, dict)
-        and isinstance(synthesis.get("promotion_decision"), dict)
-        and isinstance(metadata.get("ranked_candidate_ids"), list)
-        and isinstance(metadata.get("selected_candidate_rank"), int)
-    )
-
-
-def _promotion_receipt_coverage(
-    *,
-    promote: bool,
-    metadata: dict[str, Any],
-    synthesis: dict[str, Any],
-    promotion_target: Path | None,
-) -> bool:
-    if not promote:
-        return True
-
-    promotion_shell = synthesis.get("promotion_shell")
-    promotion_decision = synthesis.get("promotion_decision")
-    if not isinstance(promotion_shell, dict) or not isinstance(
-        promotion_decision, dict
-    ):
-        return False
-
-    return (
-        promotion_target is not None
-        and promotion_target.exists()
-        and metadata.get("promotion_status") == "promoted"
-        and metadata.get("promotion_outcome") == "promoted"
-        and promotion_shell.get("status") == "promoted"
-        and promotion_decision.get("outcome") == "promoted"
-    )
-
-
 def run_module_synthesis_corpus_case(
     case: dict[str, Any],
     *,
@@ -218,10 +173,16 @@ def run_module_synthesis_corpus_case(
         selected_candidate_id,
     )
 
+    event = build_module_quality_event_from_metadata(
+        metadata,
+        use_signature=use_signature,
+        promotion_requested=promote,
+        case_name=case_name,
+        output_hash=sha256_text(artifact.code),
+    )
     selection_integrity = (
         bool(selected_candidate_id)
-        and bool(ranked_candidates)
-        and ranked_candidates[0].get("candidate_id") == selected_candidate_id
+        and event.payload["selection_integrity"] is True
         and selected_workspace_code == artifact.code
         and sha256_text(artifact.code) == sha256_text(selected_workspace_code or "")
     )
@@ -236,14 +197,10 @@ def run_module_synthesis_corpus_case(
         selected_candidate_id=selected_candidate_id,
         selected_variant_id=selected_variant_id,
         selection_integrity=selection_integrity,
-        receipt_coverage=_receipt_coverage(metadata, synthesis),
-        promotion_receipt_coverage=_promotion_receipt_coverage(
-            promote=promote,
-            metadata=metadata,
-            synthesis=synthesis,
-            promotion_target=promotion_target,
-        ),
+        receipt_coverage=bool(event.payload["receipt_coverage"]),
+        promotion_receipt_coverage=bool(event.payload["promotion_receipt_coverage"]),
         promotion_target=promotion_target,
+        receipt_invariant_issues=event.receipt_invariants.issues,
     )
 
 
@@ -256,31 +213,17 @@ def build_module_synthesis_quality_events(
     for case in cases:
         run = run_module_synthesis_corpus_case(case, workspace_root=workspace_root)
         metadata = dict(run.artifact.metadata)
-        events.append(
-            {
-                "run_kind": "module-gen",
-                "case_name": run.case_name,
-                "use_signature": run.use_signature,
-                "promotion_requested": run.promote,
-                "candidate_count": int(metadata.get("candidate_count") or 0),
-                "selected_candidate_id": run.selected_candidate_id,
-                "selected_candidate_rank": int(
-                    metadata.get("selected_candidate_rank") or 0
-                ),
-                "selected_variant_id": run.selected_variant_id,
-                "ranked_variant_ids": list(run.ranked_variant_ids),
-                "validation_pass_count": int(
-                    metadata.get("validation_pass_count") or 0
-                ),
-                "validation_total": int(metadata.get("validation_total") or 0),
-                "smoke_pass_count": int(metadata.get("smoke_pass_count") or 0),
-                "smoke_total": int(metadata.get("smoke_total") or 0),
-                "selection_integrity": run.selection_integrity,
-                "receipt_coverage": run.receipt_coverage,
-                "promotion_receipt_coverage": run.promotion_receipt_coverage,
-                "output_hash": sha256_text(run.artifact.code),
-            }
+        event = build_module_quality_event_from_metadata(
+            metadata,
+            use_signature=run.use_signature,
+            promotion_requested=run.promote,
+            case_name=run.case_name,
+            output_hash=sha256_text(run.artifact.code),
         )
+        payload = dict(event.payload)
+        payload["selection_integrity"] = run.selection_integrity
+        payload["receipt_invariant_issues"] = list(run.receipt_invariant_issues)
+        events.append(payload)
     return events
 
 
