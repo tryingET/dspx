@@ -13,17 +13,17 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-1. `AK-249` — **Synthesis core: add V9-compatible request/IR/candidate/evaluation/policy/promotion contracts for module generation**
+1. `AK-250` — **Module synthesis runtime: add strategy metadata, candidate workspace, and promotion shell**
    - Status: ready
-   - Deliverable: first synthesis package/contracts for `SynthesisRequest`, structured module spec IR, `CandidateRecord`, `EvaluationRecord`, `SelectionPolicy`, and `PromotionDecision`.
-
-2. `AK-250` — **Module synthesis runtime: add strategy metadata, candidate workspace, and promotion shell**
-   - Status: pending after `AK-249`
    - Deliverable: runtime/workspace boundary that materializes candidates in scratch space, preserves strategy/version metadata, and promotes only selected output.
 
-3. `AK-251` — **Module-gen: route through the synthesis runtime single-candidate path with static/smoke validation and receipts**
+2. `AK-251` — **Module-gen: route through the synthesis runtime single-candidate path with static/smoke validation and receipts**
    - Status: pending after `AK-250`
    - Deliverable: existing `module-gen` CLI/service enters the synthesis runtime, preserves current UX, and records candidate/evaluation/promotion evidence for the MVP path.
+
+## Recently completed in this wave
+
+- `AK-249` — landed `packages/dspx-core/src/dspx/synthesis/` with `SynthesisRequest`, structured module spec IR, `CandidateRecord`, `EvaluationRecord`, `SelectionPolicy`, and `PromotionDecision`, then wired `module_service` to emit the contract bundle without changing the current `module-gen` surface.
 
 ## Notes
 

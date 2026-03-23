@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-249` and start the V9-compatible synthesis core contracts for module generation.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the current `module-gen` CLI surface while introducing the synthesis runtime seam; keep docs/AK/projection coherence checks passing while the synthesis package skeleton lands.
-- Assumptions (max 3): The V7/V8/V9 architecture reference is already captured in `docs/adr/20260322-synthesis-architecture-v7-v9.md`; `AK-249`/`AK-250`/`AK-251` remain the authoritative active operating wave; `NEXT_STEPS.md` has been retired in favor of the canonical `docs/project/` direction stack.
+- Objective (one sentence): Claim `AK-250` and add the module synthesis runtime shell: strategy metadata persistence, candidate workspace boundaries, and an explicit promotion shell on top of the new synthesis contracts.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the current `module-gen` CLI surface while routing through the new synthesis seam incrementally; keep docs/AK/projection coherence checks passing as workspace/promotion boundaries land.
+- Assumptions (max 3): `AK-249` has already landed `packages/dspx-core/src/dspx/synthesis/` and module-service synthesis metadata; the V7/V8/V9 architecture reference remains `docs/adr/20260322-synthesis-architecture-v7-v9.md`; `AK-250`/`AK-251` remain the active operating wave after the contract landing.
 - Blockers (none or list): None.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260322-synthesis-architecture-v7-v9.md`
-7. `diary/2026-03-22--retire-next-steps-surface.md`
+7. `diary/2026-03-22--land-module-synthesis-contracts.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -55,12 +55,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: Direction hygiene — retire `NEXT_STEPS.md` and converge all live references on the canonical `docs/project/` stack.
-- Outcome: Salvaged the remaining roadmap truth into canonical project docs, removed `NEXT_STEPS.md`, updated startup/validation/reference surfaces so they no longer depend on it, and kept `next_session_prompt.md` plus `docs/project/operational_goals.md` focused on the active slice instead of duplicating roadmap content.
-- Files changed: `AGENTS.md`, `README.md`, `PROJECT_STATUS.md`, `docs/project/strategic_goals.md`, `docs/SIGNATURE_NATIVE_PIPELINE.md`, `docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md`, `docs/MONOREPO_TRANSITION.md`, `docs/RFC_TEMPLATE_DSPX_NEXT.md`, `docs/system4d/fog.md`, `scripts/check_direction_to_execution.py`, `scripts/check_workflow_contracts.py`, `tests/test_workflow_contracts.py`, `diary/2026-03-22--retire-next-steps-surface.md`, `next_session_prompt.md`, and removed `NEXT_STEPS.md`.
-- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅; `python3 scripts/check_workflow_contracts.py` ✅; `python3 scripts/check_direction_to_execution.py` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅.
-- Source-of-truth updates: canonical direction is now fully under `docs/project/`; `governance/work-items.json` remains an AK-backed checked-in projection; `next_session_prompt.md` and `docs/project/operational_goals.md` stay DRY by pointing only at the active wave.
-- Next-session starting point: claim `AK-249` and implement the synthesis contracts/package skeleton described in `docs/project/operational_goals.md`.
+- Slice executed: `AK-249` — land the V9-compatible synthesis contracts/package skeleton for module generation.
+- Outcome: Added `packages/dspx-core/src/dspx/synthesis/` with explicit request/IR/candidate/evaluation/policy/promotion contracts, then wired `module_service` to emit the synthesis bundle on cache hits and fresh renders without changing the current `module-gen` CLI surface.
+- Files changed: `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/synthesis/__init__.py`, `packages/dspx-core/src/dspx/synthesis/contracts.py`, `tests/test_module_service.py`, `tests/test_synthesis_contracts.py`, `docs/project/operational_goals.md`, `diary/2026-03-22--land-module-synthesis-contracts.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅; `uv run pytest tests/test_module_service.py tests/test_synthesis_contracts.py tests/test_service_caching.py tests/test_cli_dspx.py -q` ✅; `uv run ruff check packages/dspx-core/src/dspx/services/module_service.py packages/dspx-core/src/dspx/synthesis/__init__.py packages/dspx-core/src/dspx/synthesis/contracts.py tests/test_module_service.py tests/test_synthesis_contracts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `docs/project/operational_goals.md` now promotes `AK-250` to the active slice and records `AK-249` as recently complete; the session diary captures why the first synthesis seam is metadata-first; `next_session_prompt.md` now points directly at the `AK-250` runtime-shell slice.
+- Next-session starting point: claim `AK-250` and build the candidate workspace / strategy metadata / promotion shell on top of `dspx.synthesis`.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

@@ -17,6 +17,12 @@ def test_module_service_simple_no_signature() -> None:
     assert "self.predict = dspy.Predict('text -> summary')" in art.code
     assert "def forward(self, text: str)" in art.code
 
+    synthesis = art.metadata["synthesis"]
+    assert synthesis["request"]["artifact_kind"] == "module"
+    assert synthesis["request"]["spec"]["name"] == "Summarizer"
+    assert synthesis["candidates"][0]["artifact"]["content_hash"]
+    assert synthesis["promotion_decision"]["outcome"] == "withheld"
+
 
 def test_module_service_simple_with_signature() -> None:
     spec = ModuleSpec(
@@ -30,3 +36,12 @@ def test_module_service_simple_with_signature() -> None:
     assert "class Sig_Intent(dspy.Signature):" in art.code
     assert "self.predict = dspy.Predict(Sig_Intent)" in art.code
     assert "def forward(self, context: str)" in art.code
+
+    synthesis = art.metadata["synthesis"]
+    assert synthesis["request"]["spec"]["use_signature"] is True
+    assert synthesis["request"]["spec"]["template_version"] == "simple-v1"
+    assert synthesis["evaluations"][0]["status"] == "pending"
+    assert (
+        synthesis["selection_policy"]["policy_id"]
+        == "module.v7.single-candidate-pass-through"
+    )

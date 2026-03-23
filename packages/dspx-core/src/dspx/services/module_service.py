@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.services.signatures_service import run_generate_dto
+from dspx.synthesis import build_module_synthesis_bundle
 from dspx.templates.module_templates import render_module_skeleton
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
 from dspx.templates.signature_templates import render_simple_signature
@@ -18,6 +19,37 @@ def _sig_class_name(module_name: str) -> str:
     if s[0].isdigit():
         s = f"_{s}"
     return f"Sig_{s}"
+
+
+def _template_version(spec: ModuleSpec) -> Optional[str]:
+    value = (
+        (spec.options or {}).get("template_version")
+        if hasattr(spec, "options")
+        else None
+    )
+    if value is None:
+        return None
+    return value if isinstance(value, str) else str(value)
+
+
+def _build_metadata(
+    spec: ModuleSpec,
+    *,
+    code: str,
+    use_signature: bool,
+    template_version: Optional[str],
+    base_metadata: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = dict(base_metadata or {})
+    if template_version is not None:
+        metadata["template_version"] = template_version
+    metadata["uses_signature"] = bool(use_signature)
+    metadata["synthesis"] = build_module_synthesis_bundle(
+        spec,
+        code=code,
+        use_signature=use_signature,
+    ).model_dump(mode="json")
+    return metadata
 
 
 def run_generate(
@@ -40,11 +72,7 @@ def run_generate(
     budget_ms = (
         int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
     )
-    tv = (
-        (spec.options or {}).get("template_version")
-        if hasattr(spec, "options")
-        else None
-    )
+    tv = _template_version(spec)
     simple = isinstance(tv, str) and tv.startswith("simple")
 
     desc = spec.description or ""
@@ -66,10 +94,21 @@ def run_generate(
         if cache_enabled():
             cached = cache_read("module", key)
             if cached and isinstance(cached.get("code"), str):
+                metadata = _build_metadata(
+                    spec,
+                    code=cached["code"],
+                    use_signature=use_signature,
+                    template_version=tv,
+                    base_metadata=(
+                        cached.get("metadata")
+                        if isinstance(cached.get("metadata"), dict)
+                        else None
+                    ),
+                )
                 return ModuleArtifact(
                     name=spec.name,
                     code=cached["code"],
-                    metadata=cached.get("metadata") or {},
+                    metadata=metadata,
                 )
         sig_code = None
         sig_name = None
@@ -87,10 +126,16 @@ def run_generate(
             signature_code=sig_code,
             signature_class_name=sig_name,
         )
-        meta = {
-            "template_version": tv,
-            "uses_signature": bool(use_signature),
-        }
+        meta = _build_metadata(
+            spec,
+            code=code,
+            use_signature=use_signature,
+            template_version=tv,
+            base_metadata={
+                "template_version": tv,
+                "uses_signature": bool(use_signature),
+            },
+        )
         art = ModuleArtifact(name=spec.name, code=code, metadata=meta)
         if cache_enabled():
             cache_write("module", key, {"code": art.code, "metadata": art.metadata})
@@ -124,9 +169,14 @@ def run_generate(
         signature_code=sig_code,
         signature_class_name=sig_name,
     )
-    art = ModuleArtifact(
-        name=spec.name, code=code, metadata={"uses_signature": bool(use_signature)}
+    metadata = _build_metadata(
+        spec,
+        code=code,
+        use_signature=use_signature,
+        template_version=tv,
+        base_metadata={"uses_signature": bool(use_signature)},
     )
+    art = ModuleArtifact(name=spec.name, code=code, metadata=metadata)
     if cache_enabled():
         key = make_key(
             {

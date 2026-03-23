@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-22",
+  "updated_at": "2026-03-23",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -91,14 +91,15 @@
         {
           "id": "AK-TASK-0249",
           "title": "Synthesis core: add V9-compatible request/IR/candidate/evaluation/policy/promotion contracts for module generation",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis core: add V9-compatible request/IR/candidate/evaluation/policy/promotion contracts for module generation (task #249)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-23"
         },
         {
           "id": "AK-TASK-0250",
