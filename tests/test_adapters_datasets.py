@@ -1,3 +1,4 @@
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -22,17 +23,12 @@ def test_csv_dataset_loads_records(tmp_path: Path) -> None:
 def test_parquet_dataset_loads_records(tmp_path: Path) -> None:
     pd = pytest.importorskip("pandas")
     # Parquet engine is optional; skip if not present
-    try:
-        import pyarrow  # type: ignore  # noqa: F401
-
+    if importlib.util.find_spec("pyarrow") is not None:
         engine = "pyarrow"
-    except Exception:
-        try:
-            import fastparquet  # type: ignore  # noqa: F401
-
-            engine = "fastparquet"
-        except Exception:
-            pytest.skip("no parquet engine available")
+    elif importlib.util.find_spec("fastparquet") is not None:
+        engine = "fastparquet"
+    else:
+        pytest.skip("no parquet engine available")
     df = pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
     path = tmp_path / "data.parquet"
     df.to_parquet(path, engine=engine)

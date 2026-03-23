@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -1447,20 +1448,13 @@ class TestIntegrationRealEmbeddings:
 
         Returns None if no API key is configured (tests will be skipped).
         """
-        import os
+        import importlib.util
 
-        # Try OpenAI first
-        if os.environ.get("OPENAI_API_KEY"):
+        if importlib.util.find_spec("sentence_transformers") is not None:
             try:
-                return EmbeddingEngine(backend="openai")
+                return EmbeddingEngine(backend="sentence-transformers")
             except Exception:
                 pass
-
-        # Try local/sentence-transformers if available
-        try:
-            return EmbeddingEngine(backend="local")
-        except Exception:
-            pass
 
         return None
 
@@ -1469,13 +1463,8 @@ class TestIntegrationRealEmbeddings:
         return tmp_path / "test_integration.db"
 
     @pytest.mark.skipif(
-        not any(
-            [
-                __import__("os").environ.get("OPENAI_API_KEY"),
-                __import__("importlib").util.find_spec("sentence_transformers"),
-            ]
-        ),
-        reason="No embedding backend available (needs OPENAI_API_KEY or sentence-transformers)",
+        importlib.util.find_spec("sentence_transformers") is None,
+        reason="No embedding backend available (needs sentence-transformers)",
     )
     def test_territory_with_real_embeddings(
         self, real_engine: EmbeddingEngine | None, temp_db: Path
@@ -1534,12 +1523,7 @@ class TestIntegrationRealEmbeddings:
             assert territory.coverage > 0
 
     @pytest.mark.skipif(
-        not any(
-            [
-                __import__("os").environ.get("OPENAI_API_KEY"),
-                __import__("importlib").util.find_spec("sentence_transformers"),
-            ]
-        ),
+        importlib.util.find_spec("sentence_transformers") is None,
         reason="No embedding backend available",
     )
     def test_convergence_prediction_with_real_embeddings(
@@ -1589,12 +1573,7 @@ class TestIntegrationRealEmbeddings:
             assert prediction["uncertainty"] <= 1.0
 
     @pytest.mark.skipif(
-        not any(
-            [
-                __import__("os").environ.get("OPENAI_API_KEY"),
-                __import__("importlib").util.find_spec("sentence_transformers"),
-            ]
-        ),
+        importlib.util.find_spec("sentence_transformers") is None,
         reason="No embedding backend available",
     )
     def test_contract_verification_with_real_data(

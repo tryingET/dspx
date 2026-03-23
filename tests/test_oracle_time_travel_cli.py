@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Literal
 
 from typer.testing import CliRunner
 
@@ -19,7 +20,7 @@ def _write_receipt(
     run_id: str,
     created_at: str,
     run_kind: str,
-    outcome: str,
+    outcome: Literal["success", "failure", "partial", "cached", "unknown"],
     branch: str | None = None,
     parent_run_id: str | None = None,
     causal_chain: list[str] | None = None,

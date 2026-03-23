@@ -21,7 +21,7 @@ def _register_write_tool(name: str = "tw.write") -> str:
         return f"wrote:{p}"
 
     # Declare capability prior to registration so wrapper can enforce/inspect
-    setattr(_write_tool, "_dspx_capabilities", ["filesystem.write"])  # type: ignore[attr-defined]
+    setattr(_write_tool, "_dspx_capabilities", ["filesystem.write"])
     register_tool(name, _write_tool)
     return name
 

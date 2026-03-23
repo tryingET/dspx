@@ -37,9 +37,9 @@ def _filter_layers(layers, *, only: str | None, layer: str | None):
     if only:
         if only not in ("path", "ref"):
             raise SystemExit("--only must be path|ref")
-        out = [l for l in out if l.kind == only]
+        out = [layer_info for layer_info in out if layer_info.kind == only]
     if layer:
-        out = [l for l in out if l.name == layer]
+        out = [layer_info for layer_info in out if layer_info.name == layer]
     return out
 
 
@@ -68,17 +68,17 @@ def _write_resolve_artifact(repo: Path, *, layers, profile: str | None) -> Path:
     dist = dist_dir(repo)
     dist.mkdir(parents=True, exist_ok=True)
     entries = []
-    for l in layers:
+    for layer_info in layers:
         cache_repo_root = None
-        if l.kind == "ref":
+        if layer_info.kind == "ref":
             # <cache>/gitlab/<proj>/<ref>/ontology/src
-            cache_repo_root = str(l.src_root.parent.parent)
+            cache_repo_root = str(layer_info.src_root.parent.parent)
         entries.append(
             {
-                "name": l.name,
-                "kind": l.kind,
-                "origin": l.origin,
-                "src_root": str(l.src_root),
+                "name": layer_info.name,
+                "kind": layer_info.kind,
+                "origin": layer_info.origin,
+                "src_root": str(layer_info.src_root),
                 "cache_repo_root": cache_repo_root,
             }
         )
@@ -107,7 +107,15 @@ def cmd_resolve(args: argparse.Namespace) -> int:
     payload = {
         "repo": str(repo),
         "profile": meta.get("profile"),
-        "layers": [{"name": l.name, "origin": l.origin, "src_root": str(l.src_root), "kind": l.kind} for l in layers],
+        "layers": [
+            {
+                "name": layer_info.name,
+                "origin": layer_info.origin,
+                "src_root": str(layer_info.src_root),
+                "kind": layer_info.kind,
+            }
+            for layer_info in layers
+        ],
     }
     if args.write_dist:
         _write_resolve_artifact(repo, layers=layers, profile=payload["profile"])
@@ -116,8 +124,8 @@ def cmd_resolve(args: argparse.Namespace) -> int:
     else:
         console.print(f"repo: {payload['repo']}")
         console.print(f"profile: {payload['profile']}")
-        for l in payload["layers"]:
-            console.print(f"- layer {l['name']}: {l['origin']}")
+        for layer_info in payload["layers"]:
+            console.print(f"- layer {layer_info['name']}: {layer_info['origin']}")
     return 0
 
 
@@ -130,15 +138,23 @@ def cmd_summary(args: argparse.Namespace) -> int:
     payload = {
         "repo": str(repo),
         "profile": meta.get("profile"),
-        "layers": [{"name": l.name, "origin": l.origin, "src_root": str(l.src_root), "kind": l.kind} for l in layers],
+        "layers": [
+            {
+                "name": layer_info.name,
+                "origin": layer_info.origin,
+                "src_root": str(layer_info.src_root),
+                "kind": layer_info.kind,
+            }
+            for layer_info in layers
+        ],
         "counts": {"concepts": len(concepts), "relations": len(relations)},
     }
     if args.format == "text":
         console.print(f"repo: {payload['repo']}")
         console.print(f"profile: {payload['profile']}")
         console.print(f"counts: concepts={payload['counts']['concepts']} relations={payload['counts']['relations']}")
-        for l in payload["layers"]:
-            console.print(f"- layer {l['name']}: {l['origin']}")
+        for layer_info in payload["layers"]:
+            console.print(f"- layer {layer_info['name']}: {layer_info['origin']}")
     else:
         console.print_json(json.dumps(payload))
     return 0
@@ -161,15 +177,19 @@ def cmd_validate(args: argparse.Namespace) -> int:
     concepts, relations = collect_docs(layers)
     budget = None
     profile_def = meta.get("profile_def") or {}
-    if isinstance(profile_def, dict) and profile_def.get("budget") is not None:
+    if isinstance(profile_def, dict):
+        budget_value = profile_def.get("budget")
+    else:
+        budget_value = None
+    if budget_value is not None:
         try:
-            budget = int(profile_def.get("budget"))
+            budget = int(budget_value)
         except Exception:
             findings.append(
                 Finding(
                     rule_id="BUD001",
                     severity="error",
-                    message=f"invalid profile budget (expected int): {profile_def.get('budget')!r}",
+                    message=f"invalid profile budget (expected int): {budget_value!r}",
                 )
             )
     ok_budget, budget_payload = enforce_budget(concepts, relations, budget=budget)
@@ -211,7 +231,10 @@ def cmd_build(args: argparse.Namespace) -> int:
     payload = {
         "repo": str(repo),
         "profile": meta.get("profile"),
-        "layers": [{"name": l.name, "origin": l.origin} for l in layers],
+        "layers": [
+            {"name": layer_info.name, "origin": layer_info.origin}
+            for layer_info in layers
+        ],
         "counts": {"concepts": len(concepts), "relations": len(relations)},
         "concept_ids": sorted(concepts.keys()),
         "relation_ids": sorted(relations.keys()),
@@ -396,10 +419,10 @@ def cmd_normalize(args: argparse.Namespace) -> int:
     # normalize never touches ref layers
     layers = _filter_layers(layers, only="path", layer=args.layer)
     changed_paths: list[str] = []
-    for l in layers:
-        for c in normalize_tree(l.src_root, apply=args.apply):
-            if c.changed:
-                changed_paths.append(str(c.path))
+    for layer_info in layers:
+        for change in normalize_tree(layer_info.src_root, apply=args.apply):
+            if change.changed:
+                changed_paths.append(str(change.path))
 
     if changed_paths and not args.apply:
         console.print("[yellow]rocs normalize: changes needed (rerun with --apply)[/yellow]")

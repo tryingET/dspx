@@ -16,7 +16,7 @@ def test_wrapper_enforces_declared_capabilities(monkeypatch) -> None:
         return f"wrote:{path}"
 
     # Declare capability on the original function before registration
-    setattr(_write_tool, "_dspx_capabilities", ["filesystem.write"])  # type: ignore[attr-defined]
+    setattr(_write_tool, "_dspx_capabilities", ["filesystem.write"])
     register_tool("x.write", _write_tool)
     fn = get_tool("x.write")
 

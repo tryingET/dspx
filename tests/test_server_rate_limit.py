@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
-import json
+from typing import Any, cast
 
 import pytest
 from fastapi import FastAPI
@@ -30,6 +30,21 @@ def clear_env(monkeypatch: pytest.MonkeyPatch):
 
 def _client() -> TestClient:
     return TestClient(create_app())
+
+
+def _rate_limit_only_client(config: RateLimitConfig) -> TestClient:
+    app = FastAPI()
+    app.add_middleware(cast(Any, RateLimitMiddleware), config=config)
+
+    @app.post("/module")
+    def _module() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.post("/signature")
+    def _signature() -> dict[str, str]:
+        return {"status": "ok"}
+
+    return TestClient(app)
 
 
 def _identity_request(client_host: str, xff: str | None = None) -> Request:
@@ -111,30 +126,24 @@ def test_untrusted_proxy_ignores_xff_for_identity() -> None:
     assert ident_kind == "ip"
 
 
-def test_rate_limit_per_path_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DSPX_SERVER_TOKEN", "tok")
-    monkeypatch.setenv("DSPX_RATE_LIMIT_ENABLED", "1")
-    monkeypatch.setenv("DSPX_RATE_LIMIT_DEFAULT", "10/sec")
-    monkeypatch.setenv("DSPX_RATE_LIMIT_IDENTITY", "token")
-    monkeypatch.setenv(
-        "DSPX_RATE_LIMIT_PATHS",
-        json.dumps({"POST /module": "1/sec"}),
+def test_rate_limit_per_path_override() -> None:
+    c = _rate_limit_only_client(
+        RateLimitConfig(
+            enabled=True,
+            default=[Rate(10, 1.0)],
+            per_path={"POST /module": [Rate(1, 1.0)]},
+            identity="token",
+            trusted_proxies=[],
+            global_default=[],
+            global_per_path={},
+        )
     )
-    c = _client()
     h = {"Authorization": "Bearer tok"}
-    r1 = c.post(
-        "/module",
-        json={"name": "m", "description": "", "inputs": [], "outputs": []},
-        headers=h,
-    )
-    r2 = c.post(
-        "/module",
-        json={"name": "m", "description": "", "inputs": [], "outputs": []},
-        headers=h,
-    )
+    r1 = c.post("/module", headers=h)
+    r2 = c.post("/module", headers=h)
     assert r1.status_code == 200 and r2.status_code == 429
     # Signature should still be under default limit
-    ok = c.post("/signature", json={"prompt": "p"}, headers=h)
+    ok = c.post("/signature", headers=h)
     assert ok.status_code == 200
 
 

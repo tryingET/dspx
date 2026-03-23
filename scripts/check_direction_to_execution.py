@@ -6,6 +6,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 
 @dataclass(frozen=True)
@@ -163,8 +164,16 @@ def collect_issues(root: Path) -> list[Issue]:
         issues=issues,
     )
     if isinstance(ready_payload, list):
-        repo_ready = [item for item in ready_payload if item.get("repo") == str(root)]
-        ready_ids = {f"AK-{item['id']}" for item in repo_ready if "id" in item}
+        repo_ready: list[dict[str, Any]] = []
+        for raw_item in ready_payload:
+            if not isinstance(raw_item, dict):
+                continue
+            item = cast(dict[str, Any], raw_item)
+            if item.get("repo") == str(root):
+                repo_ready.append(item)
+        ready_ids = {
+            f"AK-{item['id']}" for item in repo_ready if isinstance(item.get("id"), int)
+        }
         if next_session_ak and next_session_ak not in ready_ids:
             issues.append(
                 Issue(

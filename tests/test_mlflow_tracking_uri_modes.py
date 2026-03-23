@@ -68,15 +68,15 @@ class _FakeMlflowBackend:
 
 def _install_fake_mlflow(monkeypatch: pytest.MonkeyPatch) -> _FakeMlflowBackend:
     backend = _FakeMlflowBackend()
-    mod = types.ModuleType("mlflow")
-    mod.set_tracking_uri = backend.set_tracking_uri  # type: ignore[attr-defined]
-    mod.set_experiment = backend.set_experiment  # type: ignore[attr-defined]
-    mod.active_run = backend.active_run  # type: ignore[attr-defined]
-    mod.start_run = backend.start_run  # type: ignore[attr-defined]
-    mod.end_run = backend.end_run  # type: ignore[attr-defined]
-    mod.set_tag = backend.set_tag  # type: ignore[attr-defined]
-    mod.autolog = backend.autolog  # type: ignore[attr-defined]
-    mod.dspy = types.SimpleNamespace(autolog=backend.dspy_autolog)
+    mod: Any = types.ModuleType("mlflow")
+    setattr(mod, "set_tracking_uri", backend.set_tracking_uri)
+    setattr(mod, "set_experiment", backend.set_experiment)
+    setattr(mod, "active_run", backend.active_run)
+    setattr(mod, "start_run", backend.start_run)
+    setattr(mod, "end_run", backend.end_run)
+    setattr(mod, "set_tag", backend.set_tag)
+    setattr(mod, "autolog", backend.autolog)
+    setattr(mod, "dspy", types.SimpleNamespace(autolog=backend.dspy_autolog))
     monkeypatch.setitem(sys.modules, "mlflow", mod)
     return backend
 

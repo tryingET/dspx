@@ -1,5 +1,7 @@
 """Tests for dspx.dtos DTOs."""
 
+from typing import Any, Literal, cast
+
 import pytest
 from pydantic import ValidationError
 
@@ -22,34 +24,41 @@ class TestTemplateMessage:
 
     def test_user_alias(self) -> None:
         """Test that 'user' alias works for user_template."""
-        msg = TemplateMessage(role="demos", user="Q: {question}")
+        msg = TemplateMessage.model_validate({"role": "demos", "user": "Q: {question}"})
         assert msg.user_template == "Q: {question}"
 
     def test_assistant_alias(self) -> None:
         """Test that 'assistant' alias works for assistant_template."""
-        msg = TemplateMessage(role="demos", assistant="A: {answer}")
+        msg = TemplateMessage.model_validate(
+            {"role": "demos", "assistant": "A: {answer}"}
+        )
         assert msg.assistant_template == "A: {answer}"
 
     def test_both_aliases(self) -> None:
         """Test both user and assistant templates."""
-        msg = TemplateMessage(
-            role="demos",
-            user="Q: {question}",
-            assistant="A: {answer}",
+        msg = TemplateMessage.model_validate(
+            {
+                "role": "demos",
+                "user": "Q: {question}",
+                "assistant": "A: {answer}",
+            }
         )
         assert msg.user_template == "Q: {question}"
         assert msg.assistant_template == "A: {answer}"
 
     def test_all_roles(self) -> None:
         """Test all valid roles."""
-        for role in ["system", "user", "assistant", "demos", "history"]:
+        valid_roles: tuple[
+            Literal["system", "user", "assistant", "demos", "history"], ...
+        ] = ("system", "user", "assistant", "demos", "history")
+        for role in valid_roles:
             msg = TemplateMessage(role=role)
             assert msg.role == role
 
     def test_invalid_role(self) -> None:
         """Test that invalid role raises ValidationError."""
         with pytest.raises(ValidationError):
-            TemplateMessage(role="invalid", content="test")
+            TemplateMessage(role=cast(Any, "invalid"), content="test")
 
 
 class TestTemplateAdapterConfig:

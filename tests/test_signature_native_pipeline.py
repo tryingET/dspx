@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
+from typing import Any, cast
 
 from dspx.templates import render_simple_signature
 import dspx.services.signatures_service as sigsvc
@@ -184,7 +185,7 @@ def test_run_generate_dto_prefers_active_lm_capabilities_for_json_mode(
         template_version="v1",
         options={"class_name": "SigNames"},
     )
-    res = sigsvc.run_generate_dto(req, lm=_FakeLM())
+    res = sigsvc.run_generate_dto(req, lm=cast(Any, _FakeLM()))
 
     assert captured["json_mode"] is True
     assert res.metadata["json_mode"] is True

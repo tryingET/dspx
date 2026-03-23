@@ -14,6 +14,7 @@ import dspx.provider_registry as provider_registry
 from dspx.capabilities import ProviderCapabilities
 from dspx.provider_registry import available, ensure_default_providers
 from dspx.providers_register_openai_compatible import _truthy
+from dspx.dtos import LMRequest
 from dspx.run_receipts import build_run_receipt
 from dspx.services.optimize_service import run_gepa_optimize
 
@@ -79,7 +80,7 @@ def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -
     assert health["ok"] is True
     assert health["metadata"]["auth_storage_exists"] is True
 
-    res = lm.generate(types.SimpleNamespace(prompt="hello", messages=None))
+    res = lm.generate(LMRequest(prompt="hello", messages=None))
     assert res.outputs == ["auth:hello"]
     assert res.usage == {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
 

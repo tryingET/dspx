@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from dspx.templates import render_simple_signature
 import dspx.services.refine_service as refine
 
@@ -30,7 +32,7 @@ def test_refine_non_interactive_passes_attempt_budget(monkeypatch) -> None:
         "Create a signature",
         attempts=4,
         non_interactive=True,
-        lm=object(),
+        lm=cast(Any, object()),
     )
 
     assert "class GeneratedSignature(dspy.Signature):" in code
@@ -64,7 +66,7 @@ def test_refine_interactive_uses_structured_feedback_memory(monkeypatch) -> None
         "Create a signature",
         attempts=2,
         non_interactive=False,
-        lm=object(),
+        lm=cast(Any, object()),
     )
 
     assert "class GeneratedSignature(dspy.Signature):" in code

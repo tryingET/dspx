@@ -21,25 +21,31 @@ def test_mlflow_enabled_without_tracking_uri_uses_local_store(
     mlflow = get_mlflow()
     assert mlflow is not None
     enable_mlflow_from_env()
+    active_run = getattr(mlflow, "active_run", None)
+    end_run = getattr(mlflow, "end_run", None)
+    get_tracking_uri = getattr(mlflow, "get_tracking_uri", None)
+    assert callable(active_run)
+    assert callable(end_run)
+    assert callable(get_tracking_uri)
 
     # Ensure a clean slate.
     try:
-        if mlflow.active_run() is not None:  # type: ignore[attr-defined]
-            mlflow.end_run()  # type: ignore[attr-defined]
+        if active_run() is not None:
+            end_run()
     except Exception:
         pass
 
     started = ensure_run_with_standard_tags("test", run_name="test-local-run")
     assert started is True
     try:
-        assert mlflow.active_run() is not None  # type: ignore[attr-defined]
+        assert active_run() is not None
     finally:
         try:
-            mlflow.end_run()  # type: ignore[attr-defined]
+            end_run()
         except Exception:
             pass
 
     # DSPx policy: local default backend is sqlite for deterministic behavior.
-    tracking_uri = str(mlflow.get_tracking_uri())  # type: ignore[attr-defined]
+    tracking_uri = str(get_tracking_uri())
     assert tracking_uri == "sqlite:///mlflow.db"
     assert (tmp_path / "mlflow.db").exists()

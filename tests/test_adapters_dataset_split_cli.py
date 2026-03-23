@@ -32,8 +32,8 @@ def test_dataset_split_test_size(tmp_path: Path) -> None:
     ).stdout
     data = json.loads(out)
     assert Path(data["train"]).exists() and Path(data["test"]).exists()
-    tr = pd.read_csv(data["train"])  # type: ignore[arg-type]
-    te = pd.read_csv(data["test"])  # type: ignore[arg-type]
+    tr = pd.read_csv(data["train"])
+    te = pd.read_csv(data["test"])
     assert len(tr) + len(te) == 10 and len(te) in (3, 4)
     assert set(tr["id"]).isdisjoint(set(te["id"]))
 
@@ -63,9 +63,9 @@ def test_dataset_split_ratios(tmp_path: Path) -> None:
         and Path(data["val"]).exists()
         and Path(data["test"]).exists()
     )
-    tr = pd.read_csv(data["train"])  # type: ignore[arg-type]
-    va = pd.read_csv(data["val"])  # type: ignore[arg-type]
-    te = pd.read_csv(data["test"])  # type: ignore[arg-type]
+    tr = pd.read_csv(data["train"])
+    va = pd.read_csv(data["val"])
+    te = pd.read_csv(data["test"])
     assert len(tr) + len(va) + len(te) == 10
     ids = set(tr["id"]).union(set(va["id"]))
     assert ids.isdisjoint(set(te["id"]))
@@ -136,7 +136,7 @@ def test_dataset_split_min_per_label_flag(tmp_path: Path) -> None:
         ],
     ).stdout
     data = json.loads(out)
-    tr = pd.read_csv(data["train"])  # type: ignore[arg-type]
-    te = pd.read_csv(data["test"])  # type: ignore[arg-type]
+    tr = pd.read_csv(data["train"])
+    te = pd.read_csv(data["test"])
     # Ensure at least one 'B' in both splits
     assert (tr["y"] == "B").sum() >= 1 and (te["y"] == "B").sum() >= 1

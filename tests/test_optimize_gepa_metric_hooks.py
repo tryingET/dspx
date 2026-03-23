@@ -23,7 +23,7 @@ def test_gepa_metric_normalize_hook_and_predictor_feedback() -> None:
     gold = SimpleNamespace(answer="HELLO")
     pred = SimpleNamespace(answer="hello")
 
-    def normalize_output(key, g, p, pred_name, pred_trace):  # type: ignore[no-untyped-def]
+    def normalize_output(key, g, p, pred_name, pred_trace):
         return g.strip().lower(), p.strip().lower()
 
     metric = _default_gepa_metric(

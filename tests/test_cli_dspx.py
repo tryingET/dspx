@@ -493,7 +493,7 @@ parse_mode: json
     )
 
     # Mock adapter as unavailable to test the fallback path
-    with dspx_cli._monkeypatch_adapter_available(False):
+    with _monkeypatch_adapter_available(False):
         result = runner.invoke(
             app,
             [
@@ -525,7 +525,3 @@ def _monkeypatch_adapter_available(available: bool):
             dspx_cli._TEMPLATE_ADAPTER_AVAILABLE = original
 
     return ctx()
-
-
-# Make the helper available
-dspx_cli._monkeypatch_adapter_available = _monkeypatch_adapter_available

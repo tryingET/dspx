@@ -15,19 +15,29 @@ def test_nested_run_does_not_end_parent(monkeypatch, tmp_path: Path) -> None:
     enable_mlflow_from_env()
     mlflow = get_mlflow()
     assert mlflow is not None
+    start_run = getattr(mlflow, "start_run", None)
+    active_run = getattr(mlflow, "active_run", None)
+    end_run = getattr(mlflow, "end_run", None)
+    assert callable(start_run)
+    assert callable(active_run)
+    assert callable(end_run)
 
     # Start parent explicitly.
-    mlflow.start_run(run_name="parent")  # type: ignore[attr-defined]
+    start_run(run_name="parent")
     try:
-        parent_id = mlflow.active_run().info.run_id  # type: ignore[attr-defined]
+        parent = active_run()
+        assert parent is not None
+        parent_id = parent.info.run_id
         with nested_run_with_tags(run_name="child", tags={"k": "v"}):
-            assert mlflow.active_run() is not None  # type: ignore[attr-defined]
-            child_id = mlflow.active_run().info.run_id  # type: ignore[attr-defined]
+            current = active_run()
+            assert current is not None
+            child_id = current.info.run_id
             assert child_id != parent_id
-        assert mlflow.active_run() is not None  # type: ignore[attr-defined]
-        assert mlflow.active_run().info.run_id == parent_id  # type: ignore[attr-defined]
+        current = active_run()
+        assert current is not None
+        assert current.info.run_id == parent_id
     finally:
         try:
-            mlflow.end_run()  # type: ignore[attr-defined]
+            end_run()
         except Exception:
             pass

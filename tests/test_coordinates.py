@@ -742,6 +742,7 @@ class TestReceiptEmbedding:
         result = engine.embed_receipt_result(receipt)
         assert not result.ok
         assert result.skipped
+        assert result.skip_reason is not None
         assert "storage identifier" in result.skip_reason.lower()
         assert "execution_id" in result.skip_reason.lower()
 
