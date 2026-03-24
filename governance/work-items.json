@@ -246,10 +246,23 @@
         {
           "id": "AK-TASK-0337",
           "title": "Synthesis evidence substrate: define the first post-diagnostics SG2 contract and next execution slice",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: define the first post-diagnostics SG2 contract and next execution slice (task #337)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-24"
+        },
+        {
+          "id": "AK-TASK-0341",
+          "title": "Synthesis evidence substrate: emit a read-only historical convergence advisory for module-gen selections",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit a read-only historical convergence advisory for module-gen selections (task #341)",
               "done": false
             }
           ],

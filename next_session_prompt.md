@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-337` and define the first post-diagnostics SG2 contract/next execution slice before starting more implementation.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; do not start predictive ranking or policy mutation without an explicit contract/AK slice; preserve the read-only evidence posture where the current diagnostics seam depends on it.
-- Assumptions (max 3): `AK-278` is complete; `TG7` is complete and `TG8` is now active; the next step is contract-setting/planning rather than more ad-hoc coding.
+- Objective (one sentence): Claim `AK-341` and emit the read-only historical convergence advisory defined in `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md` on live runtime metadata/receipts.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve V7 ranking/promotion behavior; do not turn advisory posture into predictive scoring, pruning, or policy mutation.
+- Assumptions (max 3): `AK-337` is complete; `TG8` is complete and `TG9` is now active; the advisory should reuse the existing evidence bundle instead of re-running independent evidence discovery by default.
 - Blockers (none or list): None.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -41,10 +41,10 @@ Do not ask for permission to start.
 3. `docs/project/strategic_goals.md`
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
-6. `docs/adr/20260322-synthesis-architecture-v7-v9.md`
-7. `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
-8. `diary/2026-03-24--implement-module-synthesis-evidence-bundle.md`
-9. `diary/2026-03-24--surface-synthesis-evidence-diagnostics.md`
+6. `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
+7. `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
+8. `diary/2026-03-24--surface-synthesis-evidence-diagnostics.md`
+9. `diary/2026-03-24--freeze-post-diagnostics-sg2-contract.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -57,12 +57,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-278` — synthesis evidence substrate: thread the v1 evidence bundle into `module-gen` diagnostics without changing ranking.
-- Outcome: `module-gen` now surfaces the v1 evidence bundle through bounded `synthesis_diagnostics` metadata and persisted receipts, so later SG2/V8 work can consume explicit evidence artifacts instead of rediscovering history ad hoc.
-- Files changed: `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/cli/commands/module.py`, `tests/test_module_service.py`, `tests/test_run_receipts.py`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-24--surface-synthesis-evidence-diagnostics.md`, `governance/task-scopes/AK-278.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run -m pytest -q tests/test_module_service.py tests/test_run_receipts.py -k 'module_service_simple or cli_meta_receipts_are_versioned'` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 278 --check-type validation:verify-full --result pass --details '{"commands":["uv run -m pytest -q tests/test_module_service.py tests/test_run_receipts.py -k \"module_service_simple or cli_meta_receipts_are_versioned\"","./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 278 --result '{"summary":"Surfaced the v1 module-synthesis evidence bundle in runtime diagnostics and module-gen receipts without changing ranking behavior.","next_task":337}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `TG7`/`AK-278` are marked complete; `TG8`/`AK-337` now point at the next contract-setting SG2 slice.
-- Next-session starting point: inspect the ready queue, claim `AK-337`, and keep predictive ranking/policy mutation out of scope until that contract-backed task is complete.
+- Slice executed: `AK-337` — froze the first post-diagnostics SG2 contract and aligned the next implementation slice.
+- Outcome: DSPx now has a dated contract for a read-only historical convergence advisory as the first evidence-consuming behavior after diagnostics, and `AK-341` is the next aligned execution slice.
+- Files changed: `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`, `docs/adr/README.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-24--freeze-post-diagnostics-sg2-contract.md`, `governance/task-scopes/AK-337.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 337 --check-type validation:verify-full --result pass --details '{"commands":["./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 337 --result '{"summary":"Froze the first post-diagnostics SG2 contract as a read-only historical convergence advisory and aligned the next implementation slice.","next_task":341}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `TG8` is marked complete; `TG9` is active; `AK-341` is the next SG2 implementation slice.
+- Next-session starting point: inspect the ready queue, claim `AK-341`, and emit the advisory on runtime metadata/receipts without changing ranking or promotion semantics.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

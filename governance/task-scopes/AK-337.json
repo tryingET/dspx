@@ -1,0 +1,27 @@
+{
+  "task_id": 337,
+  "description": "Freeze the first post-diagnostics SG2 evidence-consuming contract and align the next implementation slice without starting predictive ranking.",
+  "allowed_paths": [
+    "diary/2026-03-24--freeze-post-diagnostics-sg2-contract.md",
+    "docs/adr/20260324-synthesis-evidence-history-advisory-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-337.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "docs/adr/20260324-synthesis-evidence-history-advisory-v1.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-337.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

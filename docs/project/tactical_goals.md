@@ -9,7 +9,7 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG8`
+Active tactical goal: `TG9`
 Next tactical goal: `TBD`
 
 ## Recently completed tactical goals for `SG1`
@@ -48,8 +48,14 @@ Next tactical goal: `TBD`
 - Implementation reference: `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/cli/commands/module.py`
 
 ### `TG8` — Freeze the first post-diagnostics SG2 contract before predictive ranking begins
-- Status: active
+- Status: complete
 - Definition of done: DSPx has a dated, referenceable contract for the first evidence-consuming behavior after `TG7`, plus an AK-aligned next execution slice, while keeping predictive ranking and policy mutation out of implementation scope until that contract exists.
+- Reference: `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
+
+### `TG9` — Materialize a read-only historical convergence advisory from SG2 evidence
+- Status: active
+- Definition of done: `module-gen` emits a stable advisory that classifies the selected artifact against healthy exact-match history (`no_history`, `degraded_history_only`, `convergent_with_positive_history`, or `divergent_from_positive_history`) on both runtime metadata and persisted receipts, while leaving ranking/promotion behavior unchanged.
+- Contract reference: `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
 
 ## Defer/until-later notes
 
