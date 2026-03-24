@@ -7,18 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG6` — materialize the v1 evidence retrieval bundle for ranked synthesis.
+Active tactical goal: `TG7` — thread the v1 evidence bundle into module-synthesis diagnostics before ranking changes.
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-274` — **Synthesis evidence substrate: implement the v1 evidence retrieval bundle for ranked module synthesis**
+1. `AK-278` — **Synthesis evidence substrate: thread the v1 evidence bundle into module-gen diagnostics without changing ranking**
    - Status: ready
-   - Deliverable: a read-only retrieval path that returns contract-shaped evidence bundles from exact-match `module-gen` synthesis receipts, replay verification facts, and constrained Oracle neighbors under `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`.
+   - Deliverable: runtime-facing diagnostics/receipt plumbing that can surface the `module_synthesis_evidence` bundle for a `module-gen` request while leaving ranked selection behavior unchanged.
 
 ## Recently completed in this wave
 
+- `AK-274` — implemented `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, which retrieves exact-match `module-gen` synthesis receipts, replay-health facts, and constrained Oracle neighbors as the first SG2 evidence bundle.
 - `AK-263` — froze the first SG2 evidence contract in a dated ADR, aligned the next implementation slice to that contract, and moved the repo from SG2 planning into the first execution-ready evidence-bundle task.
 - `AK-271` — bound runtime module-quality events to the selected candidate artifact hash so receipt integrity now covers the user-visible artifact payload as well as ranking/promotion metadata.
 - `AK-266` — added task-scope attestation for claimed slices in `just verify-full`, hardened semantic receipt invariants for module-synthesis quality checks, and connected runtime `module-gen` runs to quality-event logging.
@@ -30,8 +31,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG5` is now complete via `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`; this file now tracks the first `TG6` implementation slice only.
+- `TG6` is now complete; this file tracks the first `TG7` runtime-consumption slice only.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.
-- Do not start predictive ranking or governed self-evolution implementation until the `AK-274` evidence-bundle slice lands on top of the frozen SG2 retrieval contract.
+- Do not start predictive ranking or governed self-evolution implementation until the evidence bundle is surfaced in bounded runtime diagnostics and remains read-only.

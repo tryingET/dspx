@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-23",
+  "updated_at": "2026-03-24",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -208,10 +208,23 @@
         {
           "id": "AK-TASK-0274",
           "title": "Synthesis evidence substrate: implement the v1 evidence retrieval bundle for ranked module synthesis",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: implement the v1 evidence retrieval bundle for ranked module synthesis (task #274)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-24"
+        },
+        {
+          "id": "AK-TASK-0278",
+          "title": "Synthesis evidence substrate: thread the v1 evidence bundle into module-gen diagnostics without changing ranking",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: thread the v1 evidence bundle into module-gen diagnostics without changing ranking (task #278)",
               "done": false
             }
           ],

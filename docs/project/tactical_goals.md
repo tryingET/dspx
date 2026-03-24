@@ -9,7 +9,7 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG6`
+Active tactical goal: `TG7`
 Next tactical goal: `TBD`
 
 ## Recently completed tactical goals for `SG1`
@@ -38,8 +38,13 @@ Next tactical goal: `TBD`
 - Reference: `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
 
 ### `TG6` — Materialize the v1 evidence retrieval bundle for ranked module synthesis
-- Status: active
+- Status: complete
 - Definition of done: DSPx can retrieve contract-shaped evidence bundles for `module-gen` requests by combining exact-match synthesis receipts, replay-health facts, and constrained Oracle neighbors without changing selection behavior yet.
+- Implementation reference: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`
+
+### `TG7` — Thread the v1 evidence bundle into module-synthesis diagnostics before ranking changes
+- Status: active
+- Definition of done: `module-gen` can surface the retrieved evidence bundle through bounded runtime diagnostics/receipts so later V8 work consumes explicit evidence artifacts instead of rediscovering history ad hoc.
 
 ## Defer/until-later notes
 
