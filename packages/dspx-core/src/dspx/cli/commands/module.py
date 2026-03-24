@@ -159,6 +159,9 @@ def _write_module_output(
                 request = synthesis.get("request")
                 if isinstance(request, dict) and request.get("request_id"):
                     synthesis_extra["synthesis_request_id"] = request["request_id"]
+                diagnostics = artifact_metadata.get("synthesis_diagnostics")
+                if isinstance(diagnostics, dict):
+                    synthesis_extra["synthesis_diagnostics"] = diagnostics
                 candidates = synthesis.get("candidates")
                 if isinstance(candidates, list):
                     synthesis_extra["synthesis_candidate_ids"] = [

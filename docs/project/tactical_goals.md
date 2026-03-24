@@ -9,7 +9,7 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG7`
+Active tactical goal: `TG8`
 Next tactical goal: `TBD`
 
 ## Recently completed tactical goals for `SG1`
@@ -43,8 +43,13 @@ Next tactical goal: `TBD`
 - Implementation reference: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`
 
 ### `TG7` — Thread the v1 evidence bundle into module-synthesis diagnostics before ranking changes
-- Status: active
+- Status: complete
 - Definition of done: `module-gen` can surface the retrieved evidence bundle through bounded runtime diagnostics/receipts so later V8 work consumes explicit evidence artifacts instead of rediscovering history ad hoc.
+- Implementation reference: `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/cli/commands/module.py`
+
+### `TG8` — Freeze the first post-diagnostics SG2 contract before predictive ranking begins
+- Status: active
+- Definition of done: DSPx has a dated, referenceable contract for the first evidence-consuming behavior after `TG7`, plus an AK-aligned next execution slice, while keeping predictive ranking and policy mutation out of implementation scope until that contract exists.
 
 ## Defer/until-later notes
 

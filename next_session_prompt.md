@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-278` and thread the v1 evidence bundle into `module-gen` diagnostics/receipts without changing ranking behavior.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve the read-only evidence contract from `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`; do not start predictive ranking or policy mutation in this slice.
-- Assumptions (max 3): `AK-274` is complete; `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py` is the canonical retrieval helper; `TG7` is now the active tactical goal.
+- Objective (one sentence): Claim `AK-337` and define the first post-diagnostics SG2 contract/next execution slice before starting more implementation.
+- Constraints (hard limits): Keep the repo green under `just verify-full`; do not start predictive ranking or policy mutation without an explicit contract/AK slice; preserve the read-only evidence posture where the current diagnostics seam depends on it.
+- Assumptions (max 3): `AK-278` is complete; `TG7` is complete and `TG8` is now active; the next step is contract-setting/planning rather than more ad-hoc coding.
 - Blockers (none or list): None.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -44,11 +44,12 @@ Do not ask for permission to start.
 6. `docs/adr/20260322-synthesis-architecture-v7-v9.md`
 7. `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
 8. `diary/2026-03-24--implement-module-synthesis-evidence-bundle.md`
+9. `diary/2026-03-24--surface-synthesis-evidence-diagnostics.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the ready queue with `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. Claim the current active task before editing code.
+3. Claim the current active task before editing docs or code.
 4. Implement one operating slice end-to-end.
 5. Validate:
    - `./scripts/ci/smoke.sh`
@@ -56,12 +57,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-274` — synthesis evidence substrate: implement the v1 evidence retrieval bundle for ranked module synthesis.
-- Outcome: DSPx now has a read-only retrieval helper that returns exact-match `module-gen` receipt evidence, replay-health facts, and constrained Oracle neighbors as one contract-shaped bundle, and `AK-278` is queued as the next runtime-facing consumption slice.
-- Files changed: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_synthesis_evidence.py`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-24--implement-module-synthesis-evidence-bundle.md`, `governance/task-scopes/AK-274.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 274 --check-type validation:verify-full --result pass --details '{"commands":["uv run -m pytest -q tests/test_module_synthesis_evidence.py","./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 274 --result '{"summary":"Implemented the v1 module-synthesis evidence retrieval bundle and aligned the next runtime-facing slice.","next_task":278}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: tactical/operational docs now point to `TG7`/`AK-278`; the new diary captures the retrieval-helper implementation pattern.
-- Next-session starting point: claim `AK-278`, surface the evidence bundle in runtime diagnostics, and keep ranking behavior unchanged.
+- Slice executed: `AK-278` — synthesis evidence substrate: thread the v1 evidence bundle into `module-gen` diagnostics without changing ranking.
+- Outcome: `module-gen` now surfaces the v1 evidence bundle through bounded `synthesis_diagnostics` metadata and persisted receipts, so later SG2/V8 work can consume explicit evidence artifacts instead of rediscovering history ad hoc.
+- Files changed: `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/cli/commands/module.py`, `tests/test_module_service.py`, `tests/test_run_receipts.py`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-24--surface-synthesis-evidence-diagnostics.md`, `governance/task-scopes/AK-278.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `uv run -m pytest -q tests/test_module_service.py tests/test_run_receipts.py -k 'module_service_simple or cli_meta_receipts_are_versioned'` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak evidence record --task 278 --check-type validation:verify-full --result pass --details '{"commands":["uv run -m pytest -q tests/test_module_service.py tests/test_run_receipts.py -k \"module_service_simple or cli_meta_receipts_are_versioned\"","./scripts/ci/smoke.sh","just verify-full"]}'` ✅; `ak task complete 278 --result '{"summary":"Surfaced the v1 module-synthesis evidence bundle in runtime diagnostics and module-gen receipts without changing ranking behavior.","next_task":337}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `TG7`/`AK-278` are marked complete; `TG8`/`AK-337` now point at the next contract-setting SG2 slice.
+- Next-session starting point: inspect the ready queue, claim `AK-337`, and keep predictive ranking/policy mutation out of scope until that contract-backed task is complete.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

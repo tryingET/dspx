@@ -133,6 +133,8 @@ def test_run_receipt_roundtrip(tmp_path: Path) -> None:
 def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
 
     sig_out = tmp_path / "sig.py"
     r_sig = runner.invoke(
@@ -200,6 +202,47 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert mod_meta["synthesis_ranked_candidates"][0]["rank"] == 1
     assert mod_meta["synthesis_promotion_shell"]["status"] == "promoted"
     assert mod_meta["synthesis_promotion_decision"]["outcome"] == "promoted"
+    diagnostics = mod_meta["synthesis_diagnostics"]
+    assert diagnostics["evidence_bundle_version"] == "v1"
+    assert diagnostics["retrieval_status"] == "ok"
+    assert diagnostics["evidence_summary"] == {
+        "exact_match_receipt_count": 0,
+        "positive_evidence_count": 0,
+        "oracle_neighbor_count": 0,
+        "oracle_index_available": False,
+    }
+    assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
+    assert diagnostics["evidence_bundle"]["request"]["use_signature"] is False
+
+    mod_again_out = tmp_path / "mod-again.py"
+    r_mod_again = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "--name",
+            "Summarizer",
+            "--description",
+            "Summarizes text",
+            "--input",
+            "text",
+            "--output",
+            "summary",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(mod_again_out),
+        ],
+    )
+    assert r_mod_again.exit_code == 0
+    mod_again_meta = json.loads(
+        (tmp_path / "mod-again.py.meta.json").read_text(encoding="utf-8")
+    )
+    followup_diagnostics = mod_again_meta["synthesis_diagnostics"]
+    assert followup_diagnostics["evidence_summary"]["exact_match_receipt_count"] == 1
+    assert followup_diagnostics["evidence_summary"]["positive_evidence_count"] == 1
+    prior_receipt = followup_diagnostics["evidence_bundle"]["exact_match_receipts"][0]
+    assert Path(prior_receipt["receipt"]["receipt_path"]).name == "mod.py.meta.json"
+    assert prior_receipt["positive_evidence"] is True
 
     gen_out = tmp_path / "gen.py"
     r_gen = runner.invoke(

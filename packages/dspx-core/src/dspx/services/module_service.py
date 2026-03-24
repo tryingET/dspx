@@ -12,6 +12,7 @@ from dspx.cache import (
 )
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
+from dspx.services.module_synthesis_evidence import retrieve_module_synthesis_evidence
 from dspx.services.module_synthesis_quality import (
     append_module_quality_event,
     build_module_quality_event_from_metadata,
@@ -41,6 +42,38 @@ def _template_version(spec: ModuleSpec) -> Optional[str]:
     if value is None:
         return None
     return value if isinstance(value, str) else str(value)
+
+
+def _module_synthesis_evidence_receipts_path(
+    promotion_target: Optional[Path],
+) -> Optional[Path]:
+    configured = _os.getenv("DSPX_MODULE_SYNTHESIS_EVIDENCE_RECEIPTS_PATH")
+    if configured:
+        return Path(configured)
+    if promotion_target is not None:
+        return promotion_target.parent
+    return None
+
+
+def _module_synthesis_evidence_oracle_index_path(
+    promotion_target: Optional[Path],
+) -> Optional[Path]:
+    configured = _os.getenv("DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH")
+    if configured:
+        return Path(configured)
+    if promotion_target is not None:
+        return promotion_target.parent / "oracle" / "coordinates.db"
+    return None
+
+
+def _module_synthesis_evidence_oracle_top_k() -> int:
+    raw = (_os.getenv("DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_TOP_K") or "").strip()
+    if not raw:
+        return 5
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 5
 
 
 def _insert_after_first_blank_line(code: str, block: str) -> str:
@@ -205,6 +238,46 @@ def _selected_candidate_code(bundle: Any, fallback: str) -> str:
     return fallback
 
 
+def _build_synthesis_diagnostics(
+    spec: ModuleSpec,
+    *,
+    use_signature: bool,
+    promotion_target: Optional[Path],
+) -> dict[str, Any]:
+    try:
+        evidence_bundle = retrieve_module_synthesis_evidence(
+            spec,
+            use_signature=use_signature,
+            receipts_path=_module_synthesis_evidence_receipts_path(promotion_target),
+            oracle_index_path=_module_synthesis_evidence_oracle_index_path(
+                promotion_target
+            ),
+            oracle_top_k=_module_synthesis_evidence_oracle_top_k(),
+        )
+    except Exception as exc:
+        return {
+            "evidence_bundle_version": "v1",
+            "retrieval_status": "unavailable",
+            "retrieval_error": {
+                "type": exc.__class__.__name__,
+                "message": str(exc),
+            },
+        }
+
+    payload = evidence_bundle.to_dict()
+    return {
+        "evidence_bundle_version": "v1",
+        "retrieval_status": "ok",
+        "evidence_summary": {
+            "exact_match_receipt_count": len(evidence_bundle.exact_match_receipts),
+            "positive_evidence_count": evidence_bundle.positive_evidence_count,
+            "oracle_neighbor_count": len(evidence_bundle.oracle_neighbors),
+            "oracle_index_available": evidence_bundle.oracle_index_available,
+        },
+        "evidence_bundle": payload,
+    }
+
+
 def _build_metadata(
     spec: ModuleSpec,
     *,
@@ -250,6 +323,11 @@ def _build_metadata(
     metadata["selected_candidate_id"] = run_summary.get("selected_candidate_id")
     metadata["selected_candidate_rank"] = run_summary.get("selected_candidate_rank")
     metadata["synthesis"] = synthesis_bundle.model_dump(mode="json")
+    metadata["synthesis_diagnostics"] = _build_synthesis_diagnostics(
+        spec,
+        use_signature=use_signature,
+        promotion_target=promotion_target,
+    )
 
     try:
         quality_event = build_module_quality_event_from_metadata(

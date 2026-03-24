@@ -8,6 +8,16 @@ from dspx.services.module_service import run_generate
 
 def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_RECEIPTS_PATH",
+        str(tmp_path / "receipts"),
+    )
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH",
+        str(tmp_path / "oracle" / "coordinates.db"),
+    )
     spec = ModuleSpec(
         name="Summarizer",
         description="Summarizes text",
@@ -42,9 +52,31 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
     assert art.metadata["run_summary"]["validation_pass_rate"] == 1.0
     assert art.metadata["run_summary"]["smoke_pass_rate"] == 1.0
 
+    diagnostics = art.metadata["synthesis_diagnostics"]
+    assert diagnostics["evidence_bundle_version"] == "v1"
+    assert diagnostics["retrieval_status"] == "ok"
+    assert diagnostics["evidence_summary"] == {
+        "exact_match_receipt_count": 0,
+        "positive_evidence_count": 0,
+        "oracle_neighbor_count": 0,
+        "oracle_index_available": False,
+    }
+    assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
+    assert diagnostics["evidence_bundle"]["request"]["use_signature"] is False
+
 
 def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_RECEIPTS_PATH",
+        str(tmp_path / "receipts"),
+    )
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH",
+        str(tmp_path / "oracle" / "coordinates.db"),
+    )
     spec = ModuleSpec(
         name="Intent",
         description="Extracts intent from context",
@@ -74,3 +106,9 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
     assert synthesis["candidate_workspaces"][0]["metadata"]["strategy_version"] == "v0"
     assert synthesis["promotion_shell"]["status"] == "ready"
     assert art.metadata["backend"] == "synthesis_runtime"
+    assert (
+        art.metadata["synthesis_diagnostics"]["evidence_bundle"]["request"][
+            "use_signature"
+        ]
+        is True
+    )
