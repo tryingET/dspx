@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-24",
+  "updated_at": "2026-03-25",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -267,6 +267,19 @@
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0346",
+          "title": "Workflow guardrails: fail closed task-scope verification across multi-commit slices",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: fail closed task-scope verification across multi-commit slices (task #346)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-25"
         }
       ]
     }

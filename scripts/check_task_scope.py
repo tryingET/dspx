@@ -23,8 +23,11 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--range",
-        default="HEAD^..HEAD",
-        help="Git rev range when --mode=head (default: HEAD^..HEAD)",
+        default="auto",
+        help=(
+            "Git rev range when --mode=head; use 'auto' to validate the full "
+            "task slice from the task-scope manifest introduction through HEAD"
+        ),
     )
     parser.add_argument("--json", action="store_true")
     return parser.parse_args()

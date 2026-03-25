@@ -101,6 +101,83 @@ def manifest_path_for_task(repo_root: Path, task_id: int) -> Path:
     return repo_root / "governance" / "task-scopes" / f"AK-{task_id}.json"
 
 
+def _manifest_relpath_for_task(task_id: int) -> str:
+    return f"governance/task-scopes/AK-{task_id}.json"
+
+
+def _task_id_from_manifest_path(path: str) -> int | None:
+    normalized = path.replace("\\", "/")
+    prefix = "governance/task-scopes/AK-"
+    suffix = ".json"
+    if not normalized.startswith(prefix) or not normalized.endswith(suffix):
+        return None
+    raw = normalized[len(prefix) : -len(suffix)]
+    if not raw.isdigit():
+        return None
+    return int(raw)
+
+
+def infer_task_id_from_changed_files(changed_files: list[str]) -> int | None:
+    task_ids = {
+        task_id
+        for path in changed_files
+        if (task_id := _task_id_from_manifest_path(path)) is not None
+    }
+    if not task_ids:
+        return None
+    if len(task_ids) > 1:
+        raise RuntimeError(
+            "multiple task scope manifests detected in changed files: "
+            + ", ".join(f"AK-{item}" for item in sorted(task_ids))
+        )
+    return next(iter(task_ids))
+
+
+def infer_task_id_from_head(
+    repo_root: Path, rev_range: str = "HEAD^..HEAD"
+) -> int | None:
+    return infer_task_id_from_changed_files(
+        changed_files_for_head(repo_root, rev_range=rev_range)
+    )
+
+
+def task_slice_commits(repo_root: Path, task_id: int) -> list[str]:
+    manifest_relpath = _manifest_relpath_for_task(task_id)
+    manifest_commits = _git_output(
+        ["rev-list", "--reverse", "HEAD", "--", manifest_relpath], cwd=repo_root
+    )
+    if not manifest_commits:
+        return []
+
+    first_commit = manifest_commits[0]
+    remainder = _git_output(
+        ["rev-list", "--reverse", "--ancestry-path", f"{first_commit}..HEAD"],
+        cwd=repo_root,
+    )
+    return [first_commit, *remainder]
+
+
+def changed_files_for_task_slice(repo_root: Path, task_id: int) -> list[str]:
+    commits = task_slice_commits(repo_root, task_id)
+    changed: set[str] = set()
+    for commit in commits:
+        changed.update(
+            _git_output(
+                [
+                    "diff-tree",
+                    "--root",
+                    "--no-commit-id",
+                    "--name-only",
+                    "--diff-filter=ACMRD",
+                    "-r",
+                    commit,
+                ],
+                cwd=repo_root,
+            )
+        )
+    return sorted(changed)
+
+
 def load_manifest(path: Path) -> TaskScopeManifest:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -199,19 +276,23 @@ def check_task_scope(
     task_id: int | None = None,
     manifest_path: Path | None = None,
     mode: str = "head",
-    rev_range: str = "HEAD^..HEAD",
+    rev_range: str = "auto",
 ) -> ScopeCheckResult:
     resolved_task_id = task_id
     if resolved_task_id is None and manifest_path is None:
         resolved_task_id = infer_claimed_task_id(repo_root)
         if resolved_task_id is None:
+            resolved_task_id = infer_task_id_from_head(repo_root)
+        if resolved_task_id is None:
             return ScopeCheckResult(
                 task_id=None,
                 mode=mode,
                 changed_files=(),
-                issues=(),
-                skipped=True,
-                skip_reason="no claimed task for repo",
+                issues=(
+                    ScopeIssue(
+                        "task scope check could not resolve a task id from AK claims or HEAD manifest changes"
+                    ),
+                ),
             )
 
     if manifest_path is not None:
@@ -246,7 +327,10 @@ def check_task_scope(
         )
 
     if mode == "head":
-        changed = changed_files_for_head(repo_root, rev_range=rev_range)
+        if rev_range == "auto":
+            changed = changed_files_for_task_slice(repo_root, manifest.task_id)
+        else:
+            changed = changed_files_for_head(repo_root, rev_range=rev_range)
     elif mode == "working-tree":
         changed = changed_files_for_working_tree(repo_root)
     else:

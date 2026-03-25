@@ -69,7 +69,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "governance-check:\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n"
         "task-scope-check:\n"
-        "  uv run -q python scripts/check_task_scope.py --mode head --range HEAD^..HEAD\n"
+        "  uv run -q python scripts/check_task_scope.py --mode head --range auto\n"
         "verify-full:\n"
         "  uvx pre-commit run --all-files\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n",

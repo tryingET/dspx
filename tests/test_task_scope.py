@@ -13,6 +13,22 @@ from dspx.task_scope import (
 )
 
 
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(args, cwd=repo, check=True, capture_output=True, text=True)
+
+
+def _init_repo(repo: Path) -> None:
+    repo.mkdir()
+    _git(repo, "git", "init")
+    _git(repo, "git", "config", "user.email", "pi@example.com")
+    _git(repo, "git", "config", "user.name", "Pi")
+
+
+def _commit_all(repo: Path, message: str) -> None:
+    _git(repo, "git", "add", ".")
+    _git(repo, "git", "commit", "-m", message)
+
+
 def test_collect_scope_issues_rejects_files_outside_manifest() -> None:
     manifest = TaskScopeManifest(
         task_id=266,
@@ -54,33 +70,14 @@ def test_load_manifest_roundtrip(tmp_path: Path) -> None:
 
 def test_check_task_scope_head_passes_for_attested_commit(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
-    repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "pi@example.com"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Pi"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
+    _init_repo(repo)
 
     (repo / "governance" / "task-scopes").mkdir(parents=True)
     (repo / "scripts").mkdir()
     (repo / "tests").mkdir()
 
     (repo / "scripts" / "allowed.py").write_text("print('ok')\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "init"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
+    _commit_all(repo, "init")
 
     (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
         json.dumps(
@@ -99,13 +96,7 @@ def test_check_task_scope_head_passes_for_attested_commit(tmp_path: Path) -> Non
         encoding="utf-8",
     )
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "task slice"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
+    _commit_all(repo, "task slice")
 
     changed = changed_files_for_head(repo)
     assert sorted(changed) == [
@@ -115,43 +106,126 @@ def test_check_task_scope_head_passes_for_attested_commit(tmp_path: Path) -> Non
 
     result = check_task_scope(repo, task_id=266, mode="head")
     assert result.ok is True
+    assert result.task_id == 266
     assert result.changed_files == tuple(changed)
 
 
 def test_check_task_scope_fails_without_manifest(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
-    repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "pi@example.com"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Pi"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
+    _init_repo(repo)
+
     (repo / "README.md").write_text("hello\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "init"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
+    _commit_all(repo, "init")
     (repo / "README.md").write_text("hello again\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "change"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
+    _commit_all(repo, "change")
 
     result = check_task_scope(repo, task_id=266, mode="head")
     assert result.ok is False
     assert result.issues
     assert "missing task scope manifest" in result.issues[0].message
+
+
+def test_check_task_scope_resolves_head_manifest_when_no_claim(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "task slice")
+
+    result = check_task_scope(repo, mode="head")
+    assert result.ok is True
+    assert result.skipped is False
+    assert result.task_id == 266
+    assert sorted(result.changed_files) == [
+        "governance/task-scopes/AK-266.json",
+        "scripts/allowed.py",
+    ]
+
+
+def test_check_task_scope_fails_closed_when_task_id_cannot_be_resolved(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+    (repo / "README.md").write_text("hello again\n", encoding="utf-8")
+    _commit_all(repo, "change")
+
+    result = check_task_scope(repo, mode="head")
+    assert result.ok is False
+    assert result.skipped is False
+    assert result.task_id is None
+    assert result.issues
+    assert "could not resolve a task id" in result.issues[0].message
+
+
+def test_check_task_scope_auto_range_covers_full_multi_commit_slice(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "docs").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('ok')\n", encoding="utf-8")
+    _commit_all(repo, "manifest and allowed file")
+
+    (repo / "docs" / "outside.md").write_text("oops\n", encoding="utf-8")
+    _commit_all(repo, "out of scope")
+
+    (repo / "scripts" / "allowed.py").write_text(
+        "print('still ok')\n", encoding="utf-8"
+    )
+    _commit_all(repo, "in scope follow-up")
+
+    result = check_task_scope(repo, task_id=266, mode="head")
+    assert result.ok is False
+    assert "docs/outside.md" in result.changed_files
+    assert any(issue.path == "docs/outside.md" for issue in result.issues)
+
+    latest_only = check_task_scope(
+        repo, task_id=266, mode="head", rev_range="HEAD^..HEAD"
+    )
+    assert latest_only.ok is False
+    assert latest_only.changed_files == ("scripts/allowed.py",)
+    assert all(issue.path != "docs/outside.md" for issue in latest_only.issues)
+    assert any(
+        "governance/task-scopes/*.json" in issue.message
+        for issue in latest_only.issues
+        if issue.path is None
+    )

@@ -92,9 +92,9 @@ replay-provenance-check:
 module-synthesis-quality-check:
   uv run -q python scripts/build_module_synthesis_quality_log.py
 
-# Check latest claimed task slice against an attested file-scope manifest
-# Defaults to the latest committed slice so local unrelated worktree noise does not pollute task attestation.
-task-scope-check mode="head" rev_range="HEAD^..HEAD":
+# Check the attested task slice against an explicit file-scope manifest.
+# Head mode validates the full task slice from manifest introduction through HEAD.
+task-scope-check mode="head" rev_range="auto":
   uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}
 
 # Full validation gate (run once per commit batch / before push)
