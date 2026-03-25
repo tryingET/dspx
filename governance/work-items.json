@@ -280,6 +280,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-25"
+        },
+        {
+          "id": "AK-TASK-0349",
+          "title": "Workflow guardrails: remove residual task-scope wording drift and CLI gaps",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: remove residual task-scope wording drift and CLI gaps (task #349)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-25"
         }
       ]
     }

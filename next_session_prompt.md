@@ -32,8 +32,8 @@ Do not ask for permission to start.
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
 - Objective (one sentence): Claim `AK-341` and emit the read-only historical convergence advisory defined in `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md` on live runtime metadata/receipts.
 - Constraints (hard limits): Keep the repo green under `just verify-full`; preserve V7 ranking/promotion behavior; do not turn advisory posture into predictive scoring, pruning, or policy mutation.
-- Assumptions (max 3): `AK-337` and `AK-346` are complete; `TG8` is complete and `TG9` is now active; the advisory should reuse the existing evidence bundle instead of re-running independent evidence discovery by default.
-- Blockers (none or list): None.
+- Assumptions (max 3): `AK-337`, `AK-346`, and `AK-349` are complete; `TG8` is complete and `TG9` is now active; the advisory should reuse the existing evidence bundle instead of re-running independent evidence discovery by default.
+- Blockers (none or list): `just verify-full` remains blocked by pre-existing repo-wide `just typecheck` failures outside the current SG2 slice.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -43,8 +43,8 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
 7. `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
-8. `diary/2026-03-24--freeze-post-diagnostics-sg2-contract.md`
-9. `diary/2026-03-24--fail-closed-task-scope-validation.md`
+8. `diary/2026-03-24--fail-closed-task-scope-validation.md`
+9. `diary/2026-03-25--polish-task-scope-cli-contract.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -57,11 +57,11 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-346` — fail closed task-scope verification across multi-commit slices.
-- Outcome: `just task-scope-check` now fails closed when it cannot resolve task binding, validates the full attested task slice from manifest introduction through `HEAD` in head mode, and the handoff doc no longer points at invalid `ak task ... --repo` syntax.
-- Files changed: `packages/dspx-core/src/dspx/task_scope.py`, `scripts/check_task_scope.py`, `Justfile`, `tests/test_task_scope.py`, `tests/test_workflow_contracts.py`, `docs/project/developer_workflow.md`, `docs/tech-stack.local.md`, `diary/2026-03-24--fail-closed-task-scope-validation.md`, `governance/task-scopes/AK-346.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run -m pytest -q tests/test_task_scope.py tests/test_workflow_contracts.py` ✅; `uvx ty check packages/dspx-core/src/dspx/task_scope.py scripts/check_task_scope.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ blocked by pre-existing repo-wide `just typecheck` failures outside the AK-346 slice; `ak evidence record --task 346 --check-type validation:targeted-slice --result pass --details '{"commands":["uv run -m pytest -q tests/test_task_scope.py tests/test_workflow_contracts.py","uvx ty check packages/dspx-core/src/dspx/task_scope.py scripts/check_task_scope.py","./scripts/ci/smoke.sh"],"blocked_commands":["just verify-full"]}'` ✅; `ak evidence record --task 346 --check-type validation:verify-full --result fail --details '{"command":"just verify-full","blocked_by":["packages/dspx-core/src/dspx/cli/commands/providers.py","packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py","packages/dspx-core/src/dspx/tools/registry.py"]}'` ✅; `ak task complete 346 --result '{"summary":"Made task-scope validation fail closed and validate full multi-commit task slices instead of skipping on missing task binding or checking only HEAD^..HEAD.","next_task":341}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: workflow docs now describe fail-closed/full-slice task-scope validation; `AK-341` remains the next SG2 implementation slice.
+- Slice executed: `AK-349` — remove residual task-scope wording drift and CLI gaps.
+- Outcome: `scripts/check_task_scope.py` now describes the current attested-task-slice contract, and the real script entrypoint works directly via `python scripts/check_task_scope.py --help` without import-path friction.
+- Files changed: `scripts/check_task_scope.py`, `tests/test_task_scope.py`, `diary/2026-03-25--polish-task-scope-cli-contract.md`, `governance/task-scopes/AK-349.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `uv run -m pytest -q tests/test_task_scope.py` ✅; `python scripts/check_task_scope.py --help` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ blocked by pre-existing repo-wide `just typecheck` failures outside the AK-349 slice; `ak evidence record --task 349 --check-type validation:targeted-slice --result pass --details '{"commands":["uv run -m pytest -q tests/test_task_scope.py","python scripts/check_task_scope.py --help","./scripts/ci/smoke.sh"],"blocked_commands":["just verify-full"]}'` ✅; `ak evidence record --task 349 --check-type validation:verify-full --result fail --details '{"command":"just verify-full","blocked_by":["packages/dspx-core/src/dspx/cli/commands/providers.py","packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py","packages/dspx-core/src/dspx/tools/registry.py"]}'` ✅; `ak task complete 349 --result '{"summary":"Removed residual task-scope CLI wording drift and made the real script entrypoint directly inspectable from the repo root.","next_task":341}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: the task-scope CLI surface now matches the fail-closed/full-slice runtime contract; `AK-341` remains the next SG2 implementation slice.
 - Next-session starting point: inspect the ready queue, claim `AK-341`, and emit the advisory on runtime metadata/receipts without changing ranking or promotion semantics.
 
 ## END-OF-SESSION

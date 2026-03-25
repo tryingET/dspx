@@ -1,0 +1,23 @@
+{
+  "task_id": 349,
+  "description": "Remove residual task-scope CLI wording/runtime drift and close focused regression gaps.",
+  "allowed_paths": [
+    "diary/2026-03-25--polish-task-scope-cli-contract.md",
+    "governance/task-scopes/AK-349.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "scripts/check_task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-349.json",
+    "scripts/check_task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

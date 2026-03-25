@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 from dspx.task_scope import (
@@ -229,3 +230,23 @@ def test_check_task_scope_auto_range_covers_full_multi_commit_slice(
         for issue in latest_only.issues
         if issue.path is None
     )
+
+
+def test_check_task_scope_cli_help_matches_current_contract() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "check_task_scope.py"
+    proc = subprocess.run(
+        [sys.executable, str(script_path), "--help"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0
+    assert "Check an attested task slice against a file-scope manifest" in proc.stdout
+    assert "Check the attested task slice reachable from HEAD or" in proc.stdout
+    assert "the current working tree" in proc.stdout
+    assert "latest committed slice" not in proc.stdout
+    assert "the full task slice from the task-scope manifest" in proc.stdout
+    assert "introduction through HEAD" in proc.stdout

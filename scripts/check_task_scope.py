@@ -3,14 +3,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from dspx.task_scope import check_task_scope, format_scope_result
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = REPO_ROOT / "packages" / "dspx-core" / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+from dspx.task_scope import check_task_scope, format_scope_result  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check the latest task slice against an attested file scope manifest"
+        description="Check an attested task slice against a file-scope manifest"
     )
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--task-id", type=int, default=None)
@@ -19,7 +25,7 @@ def _parse_args() -> argparse.Namespace:
         "--mode",
         choices=("head", "working-tree"),
         default="head",
-        help="Check the latest committed slice (head) or the current working tree",
+        help="Check the attested task slice reachable from HEAD or the current working tree",
     )
     parser.add_argument(
         "--range",
