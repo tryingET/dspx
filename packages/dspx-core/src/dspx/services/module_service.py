@@ -10,9 +10,13 @@ from dspx.cache import (
     sha256_text,
     write as cache_write,
 )
+from dspx.coordinates.storage import get_default_index_path
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
-from dspx.services.module_synthesis_evidence import retrieve_module_synthesis_evidence
+from dspx.services.module_synthesis_evidence import (
+    build_module_synthesis_history_advisory,
+    retrieve_module_synthesis_evidence,
+)
 from dspx.services.module_synthesis_quality import (
     append_module_quality_event,
     build_module_quality_event_from_metadata,
@@ -61,9 +65,7 @@ def _module_synthesis_evidence_oracle_index_path(
     configured = _os.getenv("DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH")
     if configured:
         return Path(configured)
-    if promotion_target is not None:
-        return promotion_target.parent / "oracle" / "coordinates.db"
-    return None
+    return get_default_index_path()
 
 
 def _module_synthesis_evidence_oracle_top_k() -> int:
@@ -74,6 +76,25 @@ def _module_synthesis_evidence_oracle_top_k() -> int:
         return max(1, int(raw))
     except ValueError:
         return 5
+
+
+def _module_cache_key(
+    spec: ModuleSpec,
+    *,
+    use_signature: bool,
+    template_version: Optional[str],
+) -> str:
+    return make_key(
+        {
+            "kind": "module",
+            "name": spec.name,
+            "description": spec.description or "",
+            "inputs": list(spec.inputs or []),
+            "outputs": list(spec.outputs or []),
+            "use_signature": bool(use_signature),
+            "template_version": template_version or "v1",
+        }
+    )
 
 
 def _insert_after_first_blank_line(code: str, block: str) -> str:
@@ -243,6 +264,9 @@ def _build_synthesis_diagnostics(
     *,
     use_signature: bool,
     promotion_target: Optional[Path],
+    selected_candidate_id: str | None,
+    output_hash: str | None,
+    cache_key: str | None,
 ) -> dict[str, Any]:
     try:
         evidence_bundle = retrieve_module_synthesis_evidence(
@@ -262,19 +286,50 @@ def _build_synthesis_diagnostics(
                 "type": exc.__class__.__name__,
                 "message": str(exc),
             },
+            "historical_convergence_advisory": {
+                "advisory_version": "v1",
+                "status": "unavailable",
+                "selected_artifact": {
+                    "selected_candidate_id": selected_candidate_id,
+                    "output_hash": output_hash,
+                    "cache_key": cache_key,
+                },
+                "history_summary": {
+                    "exact_match_receipt_count": 0,
+                    "positive_evidence_count": 0,
+                    "oracle_neighbor_count": 0,
+                },
+                "matching_positive_receipts": [],
+                "divergent_positive_receipts": [],
+                "notes": ["evidence retrieval unavailable"],
+            },
         }
 
     payload = evidence_bundle.to_dict()
+    retrieval_status = (
+        "degraded"
+        if evidence_bundle.receipt_scan_error_count > 0
+        or evidence_bundle.oracle_lookup_status == "unavailable"
+        else "ok"
+    )
     return {
         "evidence_bundle_version": "v1",
-        "retrieval_status": "ok",
+        "retrieval_status": retrieval_status,
         "evidence_summary": {
             "exact_match_receipt_count": len(evidence_bundle.exact_match_receipts),
             "positive_evidence_count": evidence_bundle.positive_evidence_count,
             "oracle_neighbor_count": len(evidence_bundle.oracle_neighbors),
             "oracle_index_available": evidence_bundle.oracle_index_available,
+            "oracle_lookup_status": evidence_bundle.oracle_lookup_status,
+            "receipt_scan_error_count": evidence_bundle.receipt_scan_error_count,
         },
         "evidence_bundle": payload,
+        "historical_convergence_advisory": build_module_synthesis_history_advisory(
+            evidence_bundle,
+            selected_candidate_id=selected_candidate_id,
+            output_hash=output_hash,
+            cache_key=cache_key,
+        ),
     }
 
 
@@ -323,10 +378,22 @@ def _build_metadata(
     metadata["selected_candidate_id"] = run_summary.get("selected_candidate_id")
     metadata["selected_candidate_rank"] = run_summary.get("selected_candidate_rank")
     metadata["synthesis"] = synthesis_bundle.model_dump(mode="json")
+    selected_output_hash = sha256_text(selected_code)
     metadata["synthesis_diagnostics"] = _build_synthesis_diagnostics(
         spec,
         use_signature=use_signature,
         promotion_target=promotion_target,
+        selected_candidate_id=(
+            str(run_summary.get("selected_candidate_id"))
+            if run_summary.get("selected_candidate_id") not in {None, ""}
+            else None
+        ),
+        output_hash=selected_output_hash,
+        cache_key=_module_cache_key(
+            spec,
+            use_signature=use_signature,
+            template_version=template_version,
+        ),
     )
 
     try:
@@ -334,7 +401,7 @@ def _build_metadata(
             metadata,
             use_signature=use_signature,
             promotion_requested=promotion_target is not None,
-            output_hash=sha256_text(selected_code),
+            output_hash=selected_output_hash,
         )
         append_module_quality_event(quality_event.payload)
         metadata["quality_event"] = quality_event.payload

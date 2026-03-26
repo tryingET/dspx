@@ -211,11 +211,21 @@ class ModuleSynthesisEvidenceBundle:
     oracle_index_path: str
     receipts_scanned: int
     oracle_query_text: str
-    oracle_index_available: bool
+    receipt_scan_errors: tuple[dict[str, Any], ...]
+    oracle_lookup_status: str
+    oracle_lookup_error: dict[str, str] | None
 
     @property
     def positive_evidence_count(self) -> int:
         return sum(1 for item in self.exact_match_receipts if item.positive_evidence)
+
+    @property
+    def oracle_index_available(self) -> bool:
+        return self.oracle_lookup_status == "available"
+
+    @property
+    def receipt_scan_error_count(self) -> int:
+        return len(self.receipt_scan_errors)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -229,6 +239,14 @@ class ModuleSynthesisEvidenceBundle:
             "oracle_index_path": self.oracle_index_path,
             "receipts_scanned": self.receipts_scanned,
             "oracle_query_text": self.oracle_query_text,
+            "receipt_scan_errors": [dict(item) for item in self.receipt_scan_errors],
+            "receipt_scan_error_count": self.receipt_scan_error_count,
+            "oracle_lookup_status": self.oracle_lookup_status,
+            "oracle_lookup_error": (
+                dict(self.oracle_lookup_error)
+                if isinstance(self.oracle_lookup_error, Mapping)
+                else self.oracle_lookup_error
+            ),
             "oracle_index_available": self.oracle_index_available,
             "positive_evidence_count": self.positive_evidence_count,
         }
@@ -264,6 +282,99 @@ def _as_ranked_candidates(value: Any) -> tuple[dict[str, Any], ...]:
         if isinstance(item, Mapping):
             out.append(dict(item))
     return tuple(out)
+
+
+def _as_int(value: Any, *, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return default
+        try:
+            return int(text)
+        except ValueError:
+            return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _exact_match_request(
+    receipt: Mapping[str, Any],
+    request: ModuleSynthesisEvidenceRequest,
+) -> bool:
+    if str(receipt.get("run_kind") or "") != "module-gen":
+        return False
+
+    replay_inputs = _as_dict(receipt.get("replay_inputs"))
+    return _request_tuple_from_replay_inputs(
+        replay_inputs
+    ) == _request_tuple_from_request(request)
+
+
+def _exact_match_receipt_issue(
+    meta_path: Path,
+    receipt: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    run_summary = _as_dict(receipt.get("run_summary"))
+    if str(run_summary.get("backend") or "") != "synthesis_runtime":
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_backend_not_synthesis_runtime",
+            "message": "exact-match receipt backend is not synthesis_runtime",
+            "stage": "eligibility",
+        }
+
+    selected_candidate_id = str(run_summary.get("selected_candidate_id") or "").strip()
+    if not selected_candidate_id:
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_missing_selected_candidate_id",
+            "message": "exact-match receipt missing selected_candidate_id",
+            "stage": "eligibility",
+        }
+
+    selected_candidate_rank = _as_int(
+        run_summary.get("selected_candidate_rank"), default=0
+    )
+    if selected_candidate_rank <= 0:
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_invalid_selected_candidate_rank",
+            "message": "exact-match receipt has invalid selected_candidate_rank",
+            "stage": "eligibility",
+        }
+
+    ranked_candidate_ids = _as_str_list(run_summary.get("ranked_candidate_ids"))
+    if not ranked_candidate_ids:
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_missing_ranked_candidate_ids",
+            "message": "exact-match receipt missing ranked_candidate_ids",
+            "stage": "eligibility",
+        }
+    if selected_candidate_id not in ranked_candidate_ids:
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_selected_candidate_not_ranked",
+            "message": "exact-match receipt selected_candidate_id is absent from ranked_candidate_ids",
+            "stage": "eligibility",
+        }
+
+    ranking_policy_id = str(run_summary.get("ranking_policy_id") or "").strip()
+    if not ranking_policy_id:
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_missing_ranking_policy_id",
+            "message": "exact-match receipt missing ranking_policy_id",
+            "stage": "eligibility",
+        }
+
+    return None
 
 
 def _request_tuple_from_replay_inputs(
@@ -312,44 +423,6 @@ def _receipt_paths(scan_path: Path) -> list[Path]:
     return sorted(scan_path.rglob("*.meta.json"))
 
 
-def _eligible_module_synthesis_receipt(
-    receipt: Mapping[str, Any],
-    request: ModuleSynthesisEvidenceRequest,
-) -> bool:
-    if str(receipt.get("run_kind") or "") != "module-gen":
-        return False
-
-    replay_inputs = _as_dict(receipt.get("replay_inputs"))
-    if _request_tuple_from_replay_inputs(replay_inputs) != _request_tuple_from_request(
-        request
-    ):
-        return False
-
-    run_summary = _as_dict(receipt.get("run_summary"))
-    if str(run_summary.get("backend") or "") != "synthesis_runtime":
-        return False
-
-    selected_candidate_id = str(run_summary.get("selected_candidate_id") or "").strip()
-    if not selected_candidate_id:
-        return False
-
-    selected_candidate_rank = int(run_summary.get("selected_candidate_rank") or 0)
-    if selected_candidate_rank <= 0:
-        return False
-
-    ranked_candidate_ids = _as_str_list(run_summary.get("ranked_candidate_ids"))
-    if not ranked_candidate_ids:
-        return False
-    if selected_candidate_id not in ranked_candidate_ids:
-        return False
-
-    ranking_policy_id = str(run_summary.get("ranking_policy_id") or "").strip()
-    if not ranking_policy_id:
-        return False
-
-    return True
-
-
 def _build_receipt_evidence(
     meta_path: Path,
     receipt: Mapping[str, Any],
@@ -386,7 +459,9 @@ def _build_receipt_evidence(
         output_hash=str(receipt.get("hash") or ""),
         cache_key=str(receipt.get("cache_key") or ""),
         selected_candidate_id=str(run_summary.get("selected_candidate_id") or ""),
-        selected_candidate_rank=int(run_summary.get("selected_candidate_rank") or 0),
+        selected_candidate_rank=_as_int(
+            run_summary.get("selected_candidate_rank"), default=0
+        ),
         ranked_candidate_ids=_as_str_list(run_summary.get("ranked_candidate_ids")),
         ranking_policy_id=str(run_summary.get("ranking_policy_id") or ""),
         ranking_policy_version=(
@@ -394,10 +469,10 @@ def _build_receipt_evidence(
             if run_summary.get("ranking_policy_version") not in {None, ""}
             else None
         ),
-        validation_pass_count=int(run_summary.get("validation_pass_count") or 0),
-        validation_total=int(run_summary.get("validation_total") or 0),
-        smoke_pass_count=int(run_summary.get("smoke_pass_count") or 0),
-        smoke_total=int(run_summary.get("smoke_total") or 0),
+        validation_pass_count=_as_int(run_summary.get("validation_pass_count")),
+        validation_total=_as_int(run_summary.get("validation_total")),
+        smoke_pass_count=_as_int(run_summary.get("smoke_pass_count")),
+        smoke_total=_as_int(run_summary.get("smoke_total")),
         evaluation_status=(
             str(run_summary.get("evaluation_status"))
             if run_summary.get("evaluation_status") not in {None, ""}
@@ -489,9 +564,9 @@ def _retrieve_oracle_neighbors(
     *,
     oracle_index_path: Path,
     oracle_top_k: int,
-) -> tuple[bool, tuple[ModuleSynthesisOracleNeighbor, ...]]:
+) -> tuple[str, tuple[ModuleSynthesisOracleNeighbor, ...], dict[str, str] | None]:
     if not oracle_index_path.exists():
-        return False, ()
+        return "missing", (), None
 
     try:
         index = CoordinateIndex(db_path=oracle_index_path)
@@ -500,8 +575,15 @@ def _retrieve_oracle_neighbors(
             top_k=oracle_top_k,
             run_kind="module-gen",
         )
-    except Exception:
-        return False, ()
+    except Exception as exc:
+        return (
+            "unavailable",
+            (),
+            {
+                "type": exc.__class__.__name__,
+                "message": str(exc),
+            },
+        )
 
     neighbors: list[ModuleSynthesisOracleNeighbor] = []
     for result in results:
@@ -540,7 +622,114 @@ def _retrieve_oracle_neighbors(
                 ),
             )
         )
-    return True, tuple(neighbors)
+    return "available", tuple(neighbors), None
+
+
+def _advisory_receipt_identity(
+    match: ModuleSynthesisEvidenceMatch,
+) -> dict[str, Any]:
+    return {
+        "receipt_path": match.receipt.receipt_path,
+        "created_at": match.receipt.created_at,
+        "output_hash": match.receipt.output_hash,
+        "cache_key": match.receipt.cache_key,
+        "selected_candidate_id": match.receipt.selected_candidate_id,
+        "positive_evidence": match.positive_evidence,
+    }
+
+
+def build_module_synthesis_history_advisory(
+    bundle: ModuleSynthesisEvidenceBundle,
+    *,
+    selected_candidate_id: str | None,
+    output_hash: str | None,
+    cache_key: str | None,
+) -> dict[str, Any]:
+    selected_artifact = {
+        "selected_candidate_id": (
+            str(selected_candidate_id)
+            if selected_candidate_id not in {None, ""}
+            else None
+        ),
+        "output_hash": str(output_hash) if output_hash not in {None, ""} else None,
+        "cache_key": str(cache_key) if cache_key not in {None, ""} else None,
+    }
+    history_summary = {
+        "exact_match_receipt_count": len(bundle.exact_match_receipts),
+        "positive_evidence_count": bundle.positive_evidence_count,
+        "oracle_neighbor_count": len(bundle.oracle_neighbors),
+    }
+    notes: list[str] = []
+
+    selected_output_hash = selected_artifact["output_hash"]
+    if selected_output_hash is None:
+        notes.append("selected artifact output_hash unavailable")
+        return {
+            "advisory_version": "v1",
+            "status": "unavailable",
+            "selected_artifact": selected_artifact,
+            "history_summary": history_summary,
+            "matching_positive_receipts": [],
+            "divergent_positive_receipts": [],
+            "notes": notes,
+        }
+
+    positive_matches = [
+        match for match in bundle.exact_match_receipts if match.positive_evidence
+    ]
+    matching_positive_receipts = [
+        _advisory_receipt_identity(match)
+        for match in positive_matches
+        if match.receipt.output_hash == selected_output_hash
+    ]
+    divergent_positive_receipts = [
+        _advisory_receipt_identity(match)
+        for match in positive_matches
+        if match.receipt.output_hash != selected_output_hash
+    ]
+
+    if not bundle.exact_match_receipts:
+        status = "no_history"
+        notes.append("no exact-match receipts retrieved")
+    elif not positive_matches:
+        status = "degraded_history_only"
+        notes.append(
+            "exact-match history exists but no replay-healthy receipts qualify as positive evidence"
+        )
+    elif matching_positive_receipts:
+        status = "convergent_with_positive_history"
+        notes.append(
+            "selected artifact matches replay-healthy exact-match history by output_hash"
+        )
+    else:
+        status = "divergent_from_positive_history"
+        notes.append(
+            "selected artifact differs from replay-healthy exact-match history by output_hash"
+        )
+
+    if bundle.oracle_lookup_status == "unavailable":
+        notes.append(
+            "oracle lookup unavailable; advisory anchored on exact-match history only"
+        )
+    elif bundle.oracle_lookup_status == "missing":
+        notes.append(
+            "oracle index missing; advisory anchored on exact-match history only"
+        )
+
+    if bundle.receipt_scan_errors:
+        notes.append(
+            f"ignored {bundle.receipt_scan_error_count} malformed exact-match receipt(s) during evidence retrieval"
+        )
+
+    return {
+        "advisory_version": "v1",
+        "status": status,
+        "selected_artifact": selected_artifact,
+        "history_summary": history_summary,
+        "matching_positive_receipts": matching_positive_receipts,
+        "divergent_positive_receipts": divergent_positive_receipts,
+        "notes": notes,
+    }
 
 
 def retrieve_module_synthesis_evidence(
@@ -562,29 +751,49 @@ def retrieve_module_synthesis_evidence(
     )
 
     matches: list[ModuleSynthesisEvidenceMatch] = []
+    receipt_scan_errors: list[dict[str, Any]] = []
     receipt_paths = _receipt_paths(resolved_receipts_path)
     for meta_path in receipt_paths:
         receipt = load_run_receipt(meta_path)
         if not isinstance(receipt, dict):
             continue
-        if not _eligible_module_synthesis_receipt(receipt, request):
+        if not _exact_match_request(receipt, request):
             continue
-        matches.append(
-            ModuleSynthesisEvidenceMatch(
-                receipt=_build_receipt_evidence(meta_path, receipt),
-                replay=_build_replay_evidence(meta_path),
+
+        receipt_issue = _exact_match_receipt_issue(meta_path, receipt)
+        if receipt_issue is not None:
+            receipt_scan_errors.append(receipt_issue)
+            continue
+
+        try:
+            matches.append(
+                ModuleSynthesisEvidenceMatch(
+                    receipt=_build_receipt_evidence(meta_path, receipt),
+                    replay=_build_replay_evidence(meta_path),
+                )
             )
-        )
+        except Exception as exc:
+            receipt_scan_errors.append(
+                {
+                    "receipt_path": str(meta_path),
+                    "code": "receipt_evidence_build_failed",
+                    "message": str(exc),
+                    "error_type": exc.__class__.__name__,
+                    "stage": "evidence_build",
+                }
+            )
 
     matches.sort(
         key=lambda item: _parse_created_at(item.receipt.created_at),
         reverse=True,
     )
 
-    oracle_index_available, oracle_neighbors = _retrieve_oracle_neighbors(
-        request,
-        oracle_index_path=resolved_oracle_index_path,
-        oracle_top_k=oracle_top_k,
+    oracle_lookup_status, oracle_neighbors, oracle_lookup_error = (
+        _retrieve_oracle_neighbors(
+            request,
+            oracle_index_path=resolved_oracle_index_path,
+            oracle_top_k=oracle_top_k,
+        )
     )
 
     return ModuleSynthesisEvidenceBundle(
@@ -600,5 +809,7 @@ def retrieve_module_synthesis_evidence(
         oracle_index_path=str(resolved_oracle_index_path),
         receipts_scanned=len(receipt_paths),
         oracle_query_text=request.oracle_query_text(),
-        oracle_index_available=oracle_index_available,
+        receipt_scan_errors=tuple(receipt_scan_errors),
+        oracle_lookup_status=oracle_lookup_status,
+        oracle_lookup_error=oracle_lookup_error,
     )

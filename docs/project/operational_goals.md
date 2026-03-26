@@ -7,18 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG9` — materialize a read-only historical convergence advisory from SG2 evidence.
+Active tactical goal: `TG10`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-341` — **Synthesis evidence substrate: emit a read-only historical convergence advisory for module-gen selections**
+1. `AK-356` — **Synthesis evidence substrate: define the first evidence-backed candidate-prior contract for module synthesis**
    - Status: ready
-   - Deliverable: implement the ADR-backed advisory payload on runtime metadata and persisted receipts so DSPx can classify the selected artifact against healthy exact-match history without changing V7 ranking or promotion behavior.
+   - Deliverable: freeze the first post-`TG9` contract that defines how SG2 evidence may inform future candidate priors or pruning without yet changing runtime ranking behavior, then align the next implementation slice.
 
 ## Recently completed in this wave
 
+- `AK-341` — emitted the ADR-backed historical convergence advisory on live module metadata and persisted receipts while keeping V7 ranking/promotion behavior unchanged.
 - `AK-337` — froze the first post-diagnostics SG2 contract in a dated ADR, defined the historical-convergence advisory as the first evidence consumer, and aligned the next implementation slice to `AK-341`.
 - `AK-278` — threaded the v1 module-synthesis evidence bundle into runtime diagnostics and `module-gen` receipts without changing ranked selection behavior.
 - `AK-274` — implemented `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, which retrieves exact-match `module-gen` synthesis receipts, replay-health facts, and constrained Oracle neighbors as the first SG2 evidence bundle.
@@ -33,7 +34,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG8` is complete; this file now tracks the first implementation slice for `TG9`.
+- `TG9` is complete; this file now tracks the first planning slice for the post-advisory SG2 contract boundary.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.

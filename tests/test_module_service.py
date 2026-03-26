@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from dspx.dtos import ModuleSpec
@@ -60,9 +61,18 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
         "positive_evidence_count": 0,
         "oracle_neighbor_count": 0,
         "oracle_index_available": False,
+        "oracle_lookup_status": "missing",
+        "receipt_scan_error_count": 0,
     }
     assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
     assert diagnostics["evidence_bundle"]["request"]["use_signature"] is False
+    assert diagnostics["historical_convergence_advisory"]["status"] == "no_history"
+    assert (
+        diagnostics["historical_convergence_advisory"]["selected_artifact"][
+            "selected_candidate_id"
+        ]
+        == art.metadata["selected_candidate_id"]
+    )
 
 
 def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> None:
@@ -111,4 +121,86 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
             "use_signature"
         ]
         is True
+    )
+    assert (
+        art.metadata["synthesis_diagnostics"]["historical_convergence_advisory"][
+            "status"
+        ]
+        == "no_history"
+    )
+
+
+def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_RECEIPTS_PATH",
+        str(tmp_path / "receipts"),
+    )
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH",
+        str(tmp_path / "oracle" / "coordinates.db"),
+    )
+
+    receipts_dir = tmp_path / "receipts"
+    receipts_dir.mkdir(parents=True, exist_ok=True)
+    malformed = receipts_dir / "bad.meta.json"
+    malformed.write_text(
+        json.dumps(
+            {
+                "receipt_version": "v2",
+                "created_at": "2026-03-24T00:00:00+00:00",
+                "run_kind": "module-gen",
+                "provider": "stub",
+                "output_path": str(tmp_path / "bad.py"),
+                "hash": "abc",
+                "template_version": "simple-v1",
+                "cache_key": "cache-key",
+                "cache_file": str(tmp_path / "cache" / "module" / "cache-key.json"),
+                "cache_enabled": True,
+                "replay_inputs": {
+                    "name": "Summarizer",
+                    "description": "Summarizes text",
+                    "inputs": ["text"],
+                    "outputs": ["summary"],
+                    "use_signature": False,
+                    "template_version": "simple-v1",
+                },
+                "run_summary": {
+                    "backend": "synthesis_runtime",
+                    "selected_candidate_id": "cand-a",
+                    "selected_candidate_rank": "not-an-int",
+                    "ranked_candidate_ids": ["cand-a"],
+                    "ranking_policy_id": "module.v7.multi-candidate-ranked",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    bad_db = tmp_path / "oracle" / "coordinates.db"
+    bad_db.parent.mkdir(parents=True, exist_ok=True)
+    bad_db.write_text("not sqlite", encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    art = run_generate(spec, use_signature=False)
+
+    diagnostics = art.metadata["synthesis_diagnostics"]
+    assert diagnostics["retrieval_status"] == "degraded"
+    assert diagnostics["evidence_summary"]["receipt_scan_error_count"] == 1
+    assert diagnostics["evidence_summary"]["oracle_lookup_status"] == "unavailable"
+    assert diagnostics["evidence_bundle"]["receipt_scan_errors"][0][
+        "receipt_path"
+    ] == str(malformed)
+    assert diagnostics["evidence_bundle"]["oracle_lookup_error"]["type"]
+    assert "ignored 1 malformed exact-match receipt(s)" in " ".join(
+        diagnostics["historical_convergence_advisory"]["notes"]
     )

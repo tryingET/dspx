@@ -210,9 +210,12 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         "positive_evidence_count": 0,
         "oracle_neighbor_count": 0,
         "oracle_index_available": False,
+        "oracle_lookup_status": "missing",
+        "receipt_scan_error_count": 0,
     }
     assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
     assert diagnostics["evidence_bundle"]["request"]["use_signature"] is False
+    assert diagnostics["historical_convergence_advisory"]["status"] == "no_history"
 
     mod_again_out = tmp_path / "mod-again.py"
     r_mod_again = runner.invoke(
@@ -240,9 +243,19 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     followup_diagnostics = mod_again_meta["synthesis_diagnostics"]
     assert followup_diagnostics["evidence_summary"]["exact_match_receipt_count"] == 1
     assert followup_diagnostics["evidence_summary"]["positive_evidence_count"] == 1
+    assert followup_diagnostics["evidence_summary"]["oracle_lookup_status"] == "missing"
+    assert followup_diagnostics["historical_convergence_advisory"]["status"] == (
+        "convergent_with_positive_history"
+    )
     prior_receipt = followup_diagnostics["evidence_bundle"]["exact_match_receipts"][0]
     assert Path(prior_receipt["receipt"]["receipt_path"]).name == "mod.py.meta.json"
     assert prior_receipt["positive_evidence"] is True
+    assert (
+        followup_diagnostics["historical_convergence_advisory"][
+            "matching_positive_receipts"
+        ][0]["receipt_path"]
+        == prior_receipt["receipt"]["receipt_path"]
+    )
 
     gen_out = tmp_path / "gen.py"
     r_gen = runner.invoke(
@@ -1326,3 +1339,77 @@ def test_run_receipt_phase_c_defaults_omit_empty_fields(tmp_path: Path) -> None:
 
     # But execution_context IS captured by default
     assert "execution_context" in receipt
+
+
+def test_module_receipts_use_canonical_default_oracle_index_with_outfile(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_MODULE_SYNTHESIS_QUALITY_ENABLE", "0")
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+
+    first_out = tmp_path / "first.py"
+    first = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "--name",
+            "Summarizer",
+            "--description",
+            "Summarizes text",
+            "--input",
+            "text",
+            "--output",
+            "summary",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(first_out),
+        ],
+    )
+    assert first.exit_code == 0
+
+    from dspx.coordinates import CoordinateIndex, get_embedding_engine
+
+    first_meta_path = tmp_path / "first.py.meta.json"
+    first_receipt = load_run_receipt(first_meta_path)
+    assert isinstance(first_receipt, dict)
+    embedding = get_embedding_engine().embed_receipt(
+        first_receipt,
+        receipt_path=first_meta_path,
+    )
+    assert embedding is not None
+    oracle_index = tmp_path / "generated" / "oracle" / "coordinates.db"
+    CoordinateIndex(db_path=oracle_index).upsert(embedding)
+
+    second_out = tmp_path / "second.py"
+    second = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "--name",
+            "Summarizer",
+            "--description",
+            "Summarizes text",
+            "--input",
+            "text",
+            "--output",
+            "summary",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(second_out),
+        ],
+    )
+    assert second.exit_code == 0
+
+    second_meta = json.loads((tmp_path / "second.py.meta.json").read_text())
+    diagnostics = second_meta["synthesis_diagnostics"]
+    assert diagnostics["evidence_summary"]["oracle_index_available"] is True
+    assert diagnostics["evidence_summary"]["oracle_lookup_status"] == "available"
+    assert diagnostics["evidence_summary"]["oracle_neighbor_count"] >= 1
+    assert diagnostics["evidence_bundle"]["oracle_index_path"] == str(oracle_index)

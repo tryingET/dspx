@@ -9,7 +9,10 @@ from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, get_embedding_engine
 from dspx.dtos import ModuleSpec
 from dspx.run_receipts import load_run_receipt
-from dspx.services.module_synthesis_evidence import retrieve_module_synthesis_evidence
+from dspx.services.module_synthesis_evidence import (
+    build_module_synthesis_history_advisory,
+    retrieve_module_synthesis_evidence,
+)
 
 
 runner = CliRunner()
@@ -282,3 +285,165 @@ def test_retrieve_module_synthesis_evidence_respects_use_signature_in_exact_matc
 
     signed_receipt = json.loads(signed.read_text(encoding="utf-8"))
     assert signed_receipt["replay_inputs"]["use_signature"] is True
+
+
+def test_retrieve_module_synthesis_evidence_skips_malformed_exact_match_receipt_and_records_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    malformed = tmp_path / "malformed.meta.json"
+    malformed.write_text(
+        json.dumps(
+            {
+                "receipt_version": "v2",
+                "created_at": "2026-03-24T00:00:00+00:00",
+                "run_kind": "module-gen",
+                "provider": "stub",
+                "output_path": str(tmp_path / "bad.py"),
+                "hash": "abc",
+                "template_version": "simple-v1",
+                "cache_key": "cache-key",
+                "cache_file": str(tmp_path / "cache" / "module" / "cache-key.json"),
+                "cache_enabled": True,
+                "replay_inputs": {
+                    "name": "Summarizer",
+                    "description": "Summarizes text",
+                    "inputs": ["text"],
+                    "outputs": ["summary"],
+                    "use_signature": False,
+                    "template_version": "simple-v1",
+                },
+                "run_summary": {
+                    "backend": "synthesis_runtime",
+                    "selected_candidate_id": "cand-a",
+                    "selected_candidate_rank": "not-an-int",
+                    "ranked_candidate_ids": ["cand-a"],
+                    "ranking_policy_id": "module.v7.multi-candidate-ranked",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+
+    assert bundle.exact_match_receipts == ()
+    assert bundle.receipt_scan_error_count == 1
+    assert bundle.receipt_scan_errors[0]["receipt_path"] == str(malformed)
+    assert (
+        bundle.receipt_scan_errors[0]["code"]
+        == "receipt_invalid_selected_candidate_rank"
+    )
+
+
+def test_retrieve_module_synthesis_evidence_reports_unavailable_oracle_lookup(
+    tmp_path: Path,
+) -> None:
+    bad_db = tmp_path / "oracle" / "coordinates.db"
+    bad_db.parent.mkdir(parents=True, exist_ok=True)
+    bad_db.write_text("not sqlite", encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+        oracle_index_path=bad_db,
+    )
+
+    assert bundle.oracle_lookup_status == "unavailable"
+    assert bundle.oracle_index_available is False
+    assert bundle.oracle_lookup_error is not None
+    assert bundle.oracle_lookup_error["type"]
+
+
+def test_build_module_synthesis_history_advisory_statuses(
+    tmp_path: Path, monkeypatch
+) -> None:
+    exact_ok = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="exact-ok.py",
+    )
+    exact_drift = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="exact-drift.py",
+    )
+    (tmp_path / "exact-drift.py").write_text(
+        "print('drifted output')\n", encoding="utf-8"
+    )
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+
+    no_history_bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path / "missing",
+    )
+    no_history = build_module_synthesis_history_advisory(
+        no_history_bundle,
+        selected_candidate_id="cand-now",
+        output_hash="hash-now",
+        cache_key="cache-now",
+    )
+    assert no_history["status"] == "no_history"
+
+    degraded_only_bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=exact_drift,
+    )
+    degraded_only = build_module_synthesis_history_advisory(
+        degraded_only_bundle,
+        selected_candidate_id="cand-now",
+        output_hash="hash-now",
+        cache_key="cache-now",
+    )
+    assert degraded_only["status"] == "degraded_history_only"
+
+    convergent_bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+    ok_receipt = json.loads(exact_ok.read_text(encoding="utf-8"))
+    convergent = build_module_synthesis_history_advisory(
+        convergent_bundle,
+        selected_candidate_id="cand-now",
+        output_hash=ok_receipt["hash"],
+        cache_key=ok_receipt["cache_key"],
+    )
+    assert convergent["status"] == "convergent_with_positive_history"
+    assert len(convergent["matching_positive_receipts"]) == 1
+
+    divergent = build_module_synthesis_history_advisory(
+        convergent_bundle,
+        selected_candidate_id="cand-now",
+        output_hash="different-hash",
+        cache_key="cache-now",
+    )
+    assert divergent["status"] == "divergent_from_positive_history"
+    assert len(divergent["divergent_positive_receipts"]) == 1

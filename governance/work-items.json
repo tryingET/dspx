@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-25",
+  "updated_at": "2026-03-26",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -259,14 +259,15 @@
         {
           "id": "AK-TASK-0341",
           "title": "Synthesis evidence substrate: emit a read-only historical convergence advisory for module-gen selections",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: emit a read-only historical convergence advisory for module-gen selections (task #341)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-26"
         },
         {
           "id": "AK-TASK-0346",
@@ -293,6 +294,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-25"
+        },
+        {
+          "id": "AK-TASK-0356",
+          "title": "Synthesis evidence substrate: define the first evidence-backed candidate-prior contract for module synthesis",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: define the first evidence-backed candidate-prior contract for module synthesis (task #356)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

@@ -30,10 +30,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-341` and emit the read-only historical convergence advisory defined in `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md` on live runtime metadata/receipts.
-- Constraints (hard limits): Keep the repo green under `just verify-full`; preserve V7 ranking/promotion behavior; do not turn advisory posture into predictive scoring, pruning, or policy mutation.
-- Assumptions (max 3): `AK-337`, `AK-346`, and `AK-349` are complete; `TG8` is complete and `TG9` is now active; the advisory should reuse the existing evidence bundle instead of re-running independent evidence discovery by default.
-- Blockers (none or list): `just verify-full` remains blocked by pre-existing repo-wide `just typecheck` failures outside the current SG2 slice.
+- Objective (one sentence): Claim `AK-356` and freeze the first evidence-backed candidate-prior contract for module synthesis before any predictive ranking implementation.
+- Constraints (hard limits): Keep the repo green under `./scripts/ci/smoke.sh`; preserve the new `TG9` advisory as advisory-only; do not change V7 ranking/promotion behavior while defining the next contract.
+- Assumptions (max 3): `AK-341` is done and committed; `TG9` is complete; the safest next move is a contract-definition slice before any evidence-backed ranking change.
+- Blockers (none or list): `just verify-full` remains blocked by pre-existing repo-wide `just typecheck` failures outside the completed SG2 slice.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -41,10 +41,8 @@ Do not ask for permission to start.
 3. `docs/project/strategic_goals.md`
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
-6. `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
-7. `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
-8. `diary/2026-03-24--fail-closed-task-scope-validation.md`
-9. `diary/2026-03-25--polish-task-scope-cli-contract.md`
+6. `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
+7. `diary/2026-03-26--emit-historical-convergence-advisory.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -57,12 +55,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-349` — remove residual task-scope wording drift and CLI gaps.
-- Outcome: `scripts/check_task_scope.py` now describes the current attested-task-slice contract, and the real script entrypoint works directly via `python scripts/check_task_scope.py --help` without import-path friction.
-- Files changed: `scripts/check_task_scope.py`, `tests/test_task_scope.py`, `diary/2026-03-25--polish-task-scope-cli-contract.md`, `governance/task-scopes/AK-349.json`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run -m pytest -q tests/test_task_scope.py` ✅; `python scripts/check_task_scope.py --help` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ blocked by pre-existing repo-wide `just typecheck` failures outside the AK-349 slice; `ak evidence record --task 349 --check-type validation:targeted-slice --result pass --details '{"commands":["uv run -m pytest -q tests/test_task_scope.py","python scripts/check_task_scope.py --help","./scripts/ci/smoke.sh"],"blocked_commands":["just verify-full"]}'` ✅; `ak evidence record --task 349 --check-type validation:verify-full --result fail --details '{"command":"just verify-full","blocked_by":["packages/dspx-core/src/dspx/cli/commands/providers.py","packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py","packages/dspx-core/src/dspx/tools/registry.py"]}'` ✅; `ak task complete 349 --result '{"summary":"Removed residual task-scope CLI wording drift and made the real script entrypoint directly inspectable from the repo root.","next_task":341}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: the task-scope CLI surface now matches the fail-closed/full-slice runtime contract; `AK-341` remains the next SG2 implementation slice.
-- Next-session starting point: inspect the ready queue, claim `AK-341`, and emit the advisory on runtime metadata/receipts without changing ranking or promotion semantics.
+- Slice executed: `AK-341` — emit a read-only historical convergence advisory for module-gen selections.
+- Outcome: `module-gen` now attaches the ADR-backed advisory on live metadata and persisted receipts, exact-match evidence retrieval records bounded degraded states explicitly, and V7 ranking/promotion behavior remains unchanged.
+- Files changed: `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, `tests/test_run_receipts.py`, `governance/task-scopes/AK-341.json`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-26--emit-historical-convergence-advisory.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export/create.
+- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ blocked by pre-existing repo-wide `just typecheck` failures outside the AK-341 slice; targeted AK evidence records ✅; `ak task complete 341 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `TG9` is complete, `AK-341` moved to done, and repo docs now point at `TG10` / `AK-356` as the next SG2 planning slice.
+- Next-session starting point: inspect the repo-scoped ready queue, claim `AK-356`, and freeze the post-`TG9` candidate-prior contract before any predictive-ranking implementation.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
