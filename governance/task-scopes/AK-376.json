@@ -1,6 +1,6 @@
 {
   "task_id": 376,
-  "description": "Close the residual boundary-hardening follow-up after nexus implementation by fixing cross-surface contract bugs, aligning Forge/runtime path semantics, hardening OpenAPI/server boundaries, and landing regression coverage.",
+  "description": "Close the residual boundary-hardening follow-up after nexus implementation by fixing cross-surface contract bugs, aligning Forge/runtime path semantics, hardening OpenAPI/server boundaries, landing regression coverage, and syncing the deterministic work-items projection at completion.",
   "allowed_paths": [
     "apps/forge/src/dspx_forge/issues.py",
     "apps/forge/src/dspx_forge/plan.py",
