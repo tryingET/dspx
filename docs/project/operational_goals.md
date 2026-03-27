@@ -7,18 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG10`
+Active tactical goal: `TG11`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-356` — **Synthesis evidence substrate: define the first evidence-backed candidate-prior contract for module synthesis**
+1. `AK-377` — **Synthesis evidence substrate: emit read-only candidate winner priors for module-gen variants**
    - Status: ready
-   - Deliverable: freeze the first post-`TG9` contract that defines how SG2 evidence may inform future candidate priors or pruning without yet changing runtime ranking behavior, then align the next implementation slice.
+   - Deliverable: materialize the ADR-backed winner-history candidate-prior payload on live metadata and persisted receipts for the current deterministic variants while keeping V7 ranking and promotion behavior unchanged.
 
 ## Recently completed in this wave
 
+- `AK-356` — froze the first evidence-backed candidate-prior contract in a dated ADR, limited positive authority to replay-healthy exact-match historical winners, and aligned the next implementation slice to `AK-377`.
 - `AK-366` — scoped advisory degradation to exact-match receipt failures so unrelated corrupt receipts no longer downgrade request-local history posture while retrieval diagnostics still surface broader scan damage.
 - `AK-357` — hardened advisory evidence resolution so malformed/unavailable history no longer silently collapses into `no_history`, kept diagnostics shape stable on retrieval failure, and aligned default Oracle provenance roots with receipt roots.
 - `AK-341` — emitted the ADR-backed historical convergence advisory on live module metadata and persisted receipts while keeping V7 ranking/promotion behavior unchanged.
@@ -36,8 +37,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG9` is complete; this file now tracks the first planning slice for the post-advisory SG2 contract boundary.
+- `TG10` is complete; this file now tracks the first implementation slice for the replay-healthy exact-match winner-history candidate-prior contract.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.
-- Do not start predictive ranking or governed self-evolution implementation until the `TG9` advisory slice proves the first read-only evidence consumer on live runtime metadata/receipts and a later contract explicitly widens evidence authority.
+- Do not start predictive ranking, candidate pruning, or governed self-evolution implementation until `TG11` proves the first read-only candidate-prior payload on live runtime metadata/receipts and a later contract explicitly widens evidence authority.

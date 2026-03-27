@@ -1,0 +1,27 @@
+{
+  "task_id": 356,
+  "description": "Freeze the first evidence-backed candidate-prior contract for module synthesis and align the next implementation slice without changing runtime ranking behavior.",
+  "allowed_paths": [
+    "diary/2026-03-27--freeze-evidence-backed-candidate-prior-contract.md",
+    "docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-356.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-356.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

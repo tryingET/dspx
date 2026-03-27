@@ -298,14 +298,15 @@
         {
           "id": "AK-TASK-0356",
           "title": "Synthesis evidence substrate: define the first evidence-backed candidate-prior contract for module synthesis",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: define the first evidence-backed candidate-prior contract for module synthesis (task #356)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-27"
         },
         {
           "id": "AK-TASK-0357",
@@ -384,6 +385,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-27"
+        },
+        {
+          "id": "AK-TASK-0377",
+          "title": "Synthesis evidence substrate: emit read-only candidate winner priors for module-gen variants",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit read-only candidate winner priors for module-gen variants (task #377)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

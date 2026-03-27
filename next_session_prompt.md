@@ -30,10 +30,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-356` and freeze the first evidence-backed candidate-prior contract for module synthesis before any predictive ranking implementation.
-- Constraints (hard limits): Keep the repo green under `./scripts/ci/smoke.sh`; preserve the new `TG9` advisory as advisory-only; do not change V7 ranking/promotion behavior while defining the next contract.
-- Assumptions (max 3): `AK-341` is done and committed; `TG9` is complete; the safest next move is a contract-definition slice before any evidence-backed ranking change.
-- Blockers (none or list): `just verify-full` remains blocked by pre-existing repo-wide `just typecheck` failures outside the completed SG2 slice.
+- Objective (one sentence): Claim `AK-377` and emit the read-only candidate winner-prior payload for `module-gen` variants without changing V7 ranking behavior.
+- Constraints (hard limits): Keep the repo green under `./scripts/ci/smoke.sh`; preserve the new candidate-prior surface as advisory-only; do not let historical losers, degraded receipts, or Oracle neighbors become pruning authority.
+- Assumptions (max 3): `AK-356` is done and committed; `docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md` is the active contract; current deterministic variants continue to expose stable `variant_id` and `variant_origin` metadata.
+- Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -41,13 +41,9 @@ Do not ask for permission to start.
 3. `docs/project/strategic_goals.md`
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
-6. `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
-7. `diary/2026-03-26--emit-historical-convergence-advisory.md`
-8. `diary/2026-03-26--harden-advisory-evidence-resolution.md`
-9. `diary/2026-03-27--fix-working-tree-task-scope-path-parsing.md`
-10. `diary/2026-03-27--switch-working-tree-task-scope-to-machine-readable-git.md`
-11. `diary/2026-03-27--scope-advisory-degradation-to-exact-match-failures.md`
-12. `diary/2026-03-27--eliminate-repo-wide-ty-diagnostics.md`
+6. `docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md`
+7. `diary/2026-03-27--freeze-evidence-backed-candidate-prior-contract.md`
+8. `docs/adr/20260324-synthesis-evidence-history-advisory-v1.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -60,12 +56,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-367` — eliminate the current repo-wide `ty` diagnostics.
-- Outcome: the repo-wide `ty` surface is now clean, optional-import/dynamic-call boundaries are typed explicitly, and `just verify-full` can reach green again instead of stopping at standing typecheck debt.
-- Files changed: `packages/dspx-core/src/dspx/cli/commands/optimize.py`, `packages/dspx-core/src/dspx/cli/commands/providers.py`, `packages/dspx-core/src/dspx/cli/commands/signature.py`, `packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py`, `packages/dspx-core/src/dspx/cli/utils.py`, `packages/dspx-core/src/dspx/coordinates/embeddings.py`, `packages/dspx-core/src/dspx/services/optimize_service.py`, `packages/dspx-core/src/dspx/tools/openapi/caller.py`, `packages/dspx-core/src/dspx/tools/registry.py`, `governance/task-scopes/AK-367.json`, `diary/2026-03-27--eliminate-repo-wide-ty-diagnostics.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uvx ty check packages/dspx-core/src apps/forge/src` ✅; `python scripts/check_task_scope.py --task-id 367 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; targeted AK evidence records ✅; `ak task complete 367 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-367` is complete as a repo-wide typecheck-debt cleanup slice, while `AK-356` remains the next ready SG2 planning slice.
-- Next-session starting point: inspect the repo-scoped ready queue; unless the operator redirects scope again, claim `AK-356` and freeze the post-`TG9` candidate-prior contract before any predictive-ranking implementation.
+- Slice executed: `AK-356` — freeze the first evidence-backed candidate-prior contract for module synthesis.
+- Outcome: DSPx now has a dated candidate-prior contract that limits positive authority to replay-healthy exact-match historical winners for the current deterministic variants, keeps candidate priors read-only, and aligns the next implementation slice to `AK-377`.
+- Files changed: `docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md`, `docs/adr/README.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-356.json`, `diary/2026-03-27--freeze-evidence-backed-candidate-prior-contract.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `python scripts/check_task_scope.py --task-id 356 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 356 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `TG10` / `AK-356` are complete; `TG11` is active; `AK-377` is the next ready SG2 implementation slice.
+- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-377` and materialize the read-only candidate winner-prior payload on runtime metadata/receipts without changing ranking or promotion behavior.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
