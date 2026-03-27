@@ -402,10 +402,23 @@
         {
           "id": "AK-TASK-0378",
           "title": "Synthesis evidence substrate: define the next SG2 contract for candidate-prior consumption after TG11",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: define the next SG2 contract for candidate-prior consumption after TG11 (task #378)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-27"
+        },
+        {
+          "id": "AK-TASK-0379",
+          "title": "Synthesis evidence substrate: emit a post-selection candidate-prior audit for module-gen outcomes",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit a post-selection candidate-prior audit for module-gen outcomes (task #379)",
               "done": false
             }
           ],

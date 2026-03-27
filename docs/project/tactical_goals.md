@@ -9,7 +9,7 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TBD`
+Active tactical goal: `TG13`
 Next tactical goal: `TBD`
 
 ## Recently completed tactical goals for `SG1`
@@ -70,6 +70,17 @@ Next tactical goal: `TBD`
 - Implementation reference: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `packages/dspx-core/src/dspx/services/module_service.py`
 - Execution reference: `AK-377`
 
+### `TG12` — Freeze the first post-selection candidate-prior audit contract before predictive ranking
+- Status: complete
+- Definition of done: DSPx has a dated, referenceable contract for the first bounded consumer of `candidate_winner_priors` after `TG11`, defining a post-selection audit of how the selected candidate relates to available positive prior support plus an AK-aligned next implementation slice, while keeping ranking and promotion behavior unchanged.
+- Reference: `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md`
+
+### `TG13` — Materialize a read-only post-selection candidate-prior audit
+- Status: active
+- Definition of done: `module-gen` emits a contract-shaped audit comparing the selected candidate against current positive prior coverage on live metadata and persisted receipts, while leaving V7 ranking and promotion behavior unchanged.
+- Contract reference: `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md`
+- Execution reference: `AK-379`
+
 ## Defer/until-later notes
 
 The following are intentionally not tactical goals for the current strategic wave:
@@ -78,4 +89,4 @@ The following are intentionally not tactical goals for the current strategic wav
 - further provider-runtime expansion beyond what the synthesis MVP needs,
 - exact-fidelity template-adapter work in the critical path.
 
-`TG11` closed the first read-only candidate-prior implementation wave. `AK-378` is the pinned planning slice for defining the next SG2 tactical goal and execution contract before DSPx evaluates or consumes that payload more aggressively.
+`TG11` closed the first read-only candidate-prior implementation wave. `TG12` then froze the first post-selection audit contract for consuming that payload without widening authority. `TG13` is now the active implementation wave, and `AK-379` is the pinned slice for materializing the read-only audit before any later predictive-ranking contract is considered.
