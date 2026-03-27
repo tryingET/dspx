@@ -472,8 +472,13 @@ def _build_metadata(
         )
         append_module_quality_event(quality_event.payload)
         metadata["quality_event"] = quality_event.payload
-    except Exception:
-        pass
+        metadata["quality_event_status"] = "ok"
+    except Exception as exc:
+        metadata["quality_event_status"] = "unavailable"
+        metadata["quality_event_error"] = {
+            "type": exc.__class__.__name__,
+            "message": str(exc),
+        }
     return selected_code, metadata
 
 

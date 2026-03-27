@@ -249,3 +249,34 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
         diagnostics["evidence_bundle"]["oracle_lookup_error"]["type"] == "RuntimeError"
     )
     assert diagnostics["historical_convergence_advisory"]["status"] == "unavailable"
+
+
+def test_module_service_surfaces_quality_event_failures_in_metadata(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_MODULE_SYNTHESIS_QUALITY_ENABLE", "1")
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("quality broken")
+
+    monkeypatch.setattr(
+        module_service, "build_module_quality_event_from_metadata", _boom
+    )
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    art = run_generate(spec, use_signature=False)
+
+    assert art.metadata["quality_event_status"] == "unavailable"
+    assert art.metadata["quality_event_error"]["type"] == "RuntimeError"
+    assert art.metadata["quality_event_error"]["message"] == "quality broken"
+    assert "quality_event" not in art.metadata
