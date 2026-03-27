@@ -9,7 +9,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional, cast
 
 import typer
 
@@ -159,7 +159,7 @@ def providers_smoke(
             os.environ[env_k] = secs
 
     name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
-    lm = create_from_env(default="pi-rpc")
+    lm = cast(Any, create_from_env(default="pi-rpc"))
 
     t0 = time.time()
     text = ""

@@ -1,0 +1,37 @@
+{
+  "task_id": 367,
+  "description": "Eliminate the current repo-wide ty typecheck diagnostics by tightening local typing at the affected call sites and optional-import boundaries.",
+  "allowed_paths": [
+    "diary/2026-03-27--eliminate-repo-wide-ty-diagnostics.md",
+    "governance/task-scopes/AK-367.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/cli/commands/optimize.py",
+    "packages/dspx-core/src/dspx/cli/commands/providers.py",
+    "packages/dspx-core/src/dspx/cli/commands/signature.py",
+    "packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py",
+    "packages/dspx-core/src/dspx/cli/utils.py",
+    "packages/dspx-core/src/dspx/coordinates/embeddings.py",
+    "packages/dspx-core/src/dspx/services/optimize_service.py",
+    "packages/dspx-core/src/dspx/tools/openapi/caller.py",
+    "packages/dspx-core/src/dspx/tools/registry.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-367.json",
+    "packages/dspx-core/src/dspx/cli/commands/optimize.py",
+    "packages/dspx-core/src/dspx/cli/commands/providers.py",
+    "packages/dspx-core/src/dspx/cli/commands/signature.py",
+    "packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py",
+    "packages/dspx-core/src/dspx/cli/utils.py",
+    "packages/dspx-core/src/dspx/coordinates/embeddings.py",
+    "packages/dspx-core/src/dspx/services/optimize_service.py",
+    "packages/dspx-core/src/dspx/tools/openapi/caller.py",
+    "packages/dspx-core/src/dspx/tools/registry.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

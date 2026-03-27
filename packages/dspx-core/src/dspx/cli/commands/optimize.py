@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional, cast
 
 import typer
 
@@ -159,7 +159,7 @@ def optimize_gepa(
         output_keys=output_keys or None,
         student_provider=student_provider,
         reflection_provider=reflection_provider,
-        auto=auto,
+        auto=cast(Optional[Literal["light", "medium", "heavy"]], auto),
         max_metric_calls=int(max_metric_calls)
         if max_metric_calls is not None
         else None,

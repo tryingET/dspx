@@ -47,6 +47,7 @@ Do not ask for permission to start.
 9. `diary/2026-03-27--fix-working-tree-task-scope-path-parsing.md`
 10. `diary/2026-03-27--switch-working-tree-task-scope-to-machine-readable-git.md`
 11. `diary/2026-03-27--scope-advisory-degradation-to-exact-match-failures.md`
+12. `diary/2026-03-27--eliminate-repo-wide-ty-diagnostics.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -59,11 +60,11 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-366` — scope advisory degradation to exact-match receipt failures.
-- Outcome: unrelated corrupt receipts no longer downgrade request-local advisory posture to `degraded_history_only`; only exact-match receipt failures now control advisory degradation, while broader scan damage remains visible in diagnostics.
-- Files changed: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `packages/dspx-core/src/dspx/services/module_service.py`, `tests/test_module_synthesis_evidence.py`, `tests/test_module_service.py`, `governance/task-scopes/AK-366.json`, `docs/project/operational_goals.md`, `diary/2026-03-27--scope-advisory-degradation-to-exact-match-failures.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ blocked by pre-existing repo-wide `just typecheck` failures outside the AK-366 slice after passing workflow/direction/task-scope/pre-commit/replay/monorepo/module-synthesis checks; targeted AK evidence records ✅; `ak task complete 366 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-366` is complete as SG2 evidence hardening work, while `AK-356` remains the next ready SG2 planning slice.
+- Slice executed: `AK-367` — eliminate the current repo-wide `ty` diagnostics.
+- Outcome: the repo-wide `ty` surface is now clean, optional-import/dynamic-call boundaries are typed explicitly, and `just verify-full` can reach green again instead of stopping at standing typecheck debt.
+- Files changed: `packages/dspx-core/src/dspx/cli/commands/optimize.py`, `packages/dspx-core/src/dspx/cli/commands/providers.py`, `packages/dspx-core/src/dspx/cli/commands/signature.py`, `packages/dspx-core/src/dspx/cli/dspx_mermaid2dspy.py`, `packages/dspx-core/src/dspx/cli/utils.py`, `packages/dspx-core/src/dspx/coordinates/embeddings.py`, `packages/dspx-core/src/dspx/services/optimize_service.py`, `packages/dspx-core/src/dspx/tools/openapi/caller.py`, `packages/dspx-core/src/dspx/tools/registry.py`, `governance/task-scopes/AK-367.json`, `diary/2026-03-27--eliminate-repo-wide-ty-diagnostics.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `uvx ty check packages/dspx-core/src apps/forge/src` ✅; `python scripts/check_task_scope.py --task-id 367 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; targeted AK evidence records ✅; `ak task complete 367 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-367` is complete as a repo-wide typecheck-debt cleanup slice, while `AK-356` remains the next ready SG2 planning slice.
 - Next-session starting point: inspect the repo-scoped ready queue; unless the operator redirects scope again, claim `AK-356` and freeze the post-`TG9` candidate-prior contract before any predictive-ranking implementation.
 
 ## END-OF-SESSION

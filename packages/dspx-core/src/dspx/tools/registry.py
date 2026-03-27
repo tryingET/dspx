@@ -262,20 +262,24 @@ def register_openapi_operations(
             # destructive-op confirmations). These attributes are propagated
             # through register_tool to the stored wrapper.
             try:
-                _tool._dspx_is_openapi_tool = True  # type: ignore[attr-defined]
-                _tool._dspx_openapi_operation_id = op_id  # type: ignore[attr-defined]
-                _tool._dspx_openapi_method = str(op_desc.method).upper()  # type: ignore[attr-defined]
-                _tool._dspx_openapi_path = str(op_desc.path)  # type: ignore[attr-defined]
-                _tool._dspx_openapi_server = str(op_desc.server or "")  # type: ignore[attr-defined]
+                method_upper = str(op_desc.method).upper()
+                setattr(_tool, "_dspx_is_openapi_tool", True)
+                setattr(_tool, "_dspx_openapi_operation_id", op_id)
+                setattr(_tool, "_dspx_openapi_method", method_upper)
+                setattr(_tool, "_dspx_openapi_path", str(op_desc.path))
+                setattr(_tool, "_dspx_openapi_server", str(op_desc.server or ""))
                 # Preserve a compact copy of operation info for describe
-                _tool._dspx_openapi_info = op_desc.model_dump()  # type: ignore[attr-defined]
+                setattr(_tool, "_dspx_openapi_info", op_desc.model_dump())
                 if op_desc.summary:
-                    _tool._dspx_description = str(op_desc.summary)  # type: ignore[attr-defined]
+                    setattr(_tool, "_dspx_description", str(op_desc.summary))
                 # Capability tags used by the wrapper for policy gating
-                if _tool._dspx_openapi_method in {"POST", "PUT", "PATCH", "DELETE"}:  # type: ignore[attr-defined]
-                    _tool._dspx_capabilities = ["network.mutate"]  # type: ignore[attr-defined]
-                else:
-                    _tool._dspx_capabilities = ["network.read"]  # type: ignore[attr-defined]
+                setattr(
+                    _tool,
+                    "_dspx_capabilities",
+                    ["network.mutate"]
+                    if method_upper in {"POST", "PUT", "PATCH", "DELETE"}
+                    else ["network.read"],
+                )
             except Exception:
                 pass
 

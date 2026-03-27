@@ -13,6 +13,8 @@ import os
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
@@ -48,11 +50,9 @@ def _detect_embedding_backend() -> Literal["none", "mock", "sentence-transformer
     elif env_backend == "sentence-transformers":
         _EMBEDDING_BACKEND = "sentence-transformers"
     else:
-        try:
-            import sentence_transformers  # type: ignore[import-untyped]  # noqa: F401
-
+        if find_spec("sentence_transformers") is not None:
             _EMBEDDING_BACKEND = "sentence-transformers"
-        except ImportError:
+        else:
             _EMBEDDING_BACKEND = "mock"
 
     return _EMBEDDING_BACKEND
@@ -272,10 +272,11 @@ class SentenceTransformerEmbedder:
     """Real embedder using sentence-transformers."""
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
+        sentence_transformers = import_module("sentence_transformers")
+        sentence_transformer_cls = getattr(sentence_transformers, "SentenceTransformer")
 
         self._model_name = model_name
-        self._model = SentenceTransformer(model_name)
+        self._model = sentence_transformer_cls(model_name)
         self._dimension = self._model.get_sentence_embedding_dimension()
 
     def encode(self, texts: list[str]) -> list[list[float]]:

@@ -670,11 +670,12 @@ def _resolve_schema(
         # Unresolvable: return as-is
         return schema
     # allOf merge (object schemas)
-    if isinstance(schema.get("allOf"), list):
+    all_of = schema.get("allOf")
+    if isinstance(all_of, list):
         merged: Dict[str, Any] = {}
         required: set[str] = set()
         props: Dict[str, Any] = {}
-        for part in schema.get("allOf"):  # type: ignore[assignment]
+        for part in all_of:
             part = _resolve_schema(part or {}, components, _seen)
             if not isinstance(part, Mapping):
                 continue

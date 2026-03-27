@@ -64,7 +64,10 @@ def _preview_template_messages(
     # Try to render with dspy-template-adapter if available
     if check_template_adapter_available():
         try:
-            from dspy_template_adapter import TemplateAdapter  # type: ignore[import-untyped]
+            from importlib import import_module
+
+            adapter_module = import_module("dspy_template_adapter")
+            TemplateAdapter = getattr(adapter_module, "TemplateAdapter")
 
             # Build a mock signature for preview
             import dspy

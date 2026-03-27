@@ -358,6 +358,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-27"
+        },
+        {
+          "id": "AK-TASK-0367",
+          "title": "Typecheck: eliminate current repo-wide ty diagnostics",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Typecheck: eliminate current repo-wide ty diagnostics (task #367)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-27"
         }
       ]
     }

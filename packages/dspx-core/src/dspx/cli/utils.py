@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from functools import wraps
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Callable, Optional, TypeVar, ParamSpec, cast
 
@@ -25,12 +26,7 @@ def check_template_adapter_available() -> bool:
     """
     global _TEMPLATE_ADAPTER_AVAILABLE
     if _TEMPLATE_ADAPTER_AVAILABLE is None:
-        try:
-            import dspy_template_adapter  # type: ignore[import-untyped]  # noqa: F401
-
-            _TEMPLATE_ADAPTER_AVAILABLE = True
-        except ImportError:
-            _TEMPLATE_ADAPTER_AVAILABLE = False
+        _TEMPLATE_ADAPTER_AVAILABLE = find_spec("dspy_template_adapter") is not None
     return _TEMPLATE_ADAPTER_AVAILABLE
 
 

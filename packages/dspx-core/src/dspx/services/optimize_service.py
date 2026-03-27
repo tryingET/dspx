@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, cast
 
 
 @dataclass
@@ -271,7 +271,7 @@ def run_gepa_optimize(
     val_path: Optional[Path] = None,
     student_provider: Optional[str] = None,
     reflection_provider: Optional[str] = None,
-    auto: Optional[str] = "light",
+    auto: Optional[Literal["light", "medium", "heavy"]] = "light",
     max_metric_calls: Optional[int] = None,
     max_full_evals: Optional[int] = None,
     metric: str = "exact",

@@ -3,8 +3,9 @@ from __future__ import annotations
 import argparse
 import os
 import re
+from contextlib import nullcontext
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import sys
 import subprocess
 
@@ -66,16 +67,17 @@ def _build_signatures(
     parts: List[str] = []
     mapping: Dict[str, str] = {}
     # Optional nested MLflow runs for per-node signature generation (workflow→node).
+    mlflow: Any | None = None
+    nested_run_with_tags_fn: Any | None = None
+    standard_tags_fn: Any | None = None
     try:
-        from contextlib import nullcontext
         from dspx.tracing import get_mlflow, nested_run_with_tags, standard_tags
 
         mlflow = get_mlflow()
+        nested_run_with_tags_fn = nested_run_with_tags
+        standard_tags_fn = standard_tags
     except Exception:
         mlflow = None
-        nested_run_with_tags = None  # type: ignore[assignment]
-        standard_tags = None  # type: ignore[assignment]
-        nullcontext = None  # type: ignore[assignment]
     for nid, n in nodes.items():
         if n.type == "decision":
             continue
@@ -84,12 +86,12 @@ def _build_signatures(
         # If a parent run is active and nested runs are enabled, create a child run per node.
         if (
             mlflow is not None
-            and nested_run_with_tags is not None
-            and standard_tags is not None
+            and nested_run_with_tags_fn is not None
+            and standard_tags_fn is not None
         ):
-            ctx = nested_run_with_tags(
+            ctx = nested_run_with_tags_fn(
                 run_name=f"signature-node-{nid}",
-                tags=standard_tags(
+                tags=standard_tags_fn(
                     "signature",
                     template_version="native-v1",
                     extra={
