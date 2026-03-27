@@ -19,6 +19,14 @@ def _read(root: Path, relpath: str) -> str:
     return (root / relpath).read_text(encoding="utf-8")
 
 
+def _require_text(root: Path, relpath: str, issues: list[Issue]) -> str | None:
+    path = root / relpath
+    if not path.exists():
+        issues.append(Issue(Path(relpath), "missing required file"))
+        return None
+    return path.read_text(encoding="utf-8")
+
+
 def _extract_marker(
     text: str, label: str, relpath: str, issues: list[Issue]
 ) -> str | None:
@@ -30,17 +38,20 @@ def _extract_marker(
     return None
 
 
-def _extract_ak_sequence(text: str, relpath: str, issues: list[Issue]) -> list[str]:
-    ids = re.findall(r"AK-(\d+)", text)
+def _extract_active_operational_task(
+    text: str, relpath: str, issues: list[Issue]
+) -> str | None:
+    section_match = re.search(
+        r"^## Active operating slices\s*$\n(?P<body>.*?)(?=^## |\Z)",
+        text,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    section_text = section_match.group("body") if section_match else text
+    ids = re.findall(r"AK-(\d+)", section_text)
     if not ids:
-        issues.append(Issue(Path(relpath), "missing AK task IDs"))
-        return []
-    seen: list[str] = []
-    for task_id in ids:
-        rendered = f"AK-{task_id}"
-        if rendered not in seen:
-            seen.append(rendered)
-    return seen
+        issues.append(Issue(Path(relpath), "missing active operating-slice AK task ID"))
+        return None
+    return f"AK-{ids[0]}"
 
 
 def _run_json(cmd: list[str], *, relpath: str, issues: list[Issue]) -> object | None:
@@ -81,11 +92,17 @@ def collect_issues(root: Path) -> list[Issue]:
     root = root.resolve()
     issues: list[Issue] = []
 
-    agents = _read(root, "AGENTS.md")
-    next_session = _read(root, "next_session_prompt.md")
-    strategic = _read(root, "docs/project/strategic_goals.md")
-    tactical = _read(root, "docs/project/tactical_goals.md")
-    operational = _read(root, "docs/project/operational_goals.md")
+    agents = _require_text(root, "AGENTS.md", issues)
+    next_session = _require_text(root, "next_session_prompt.md", issues)
+    strategic = _require_text(root, "docs/project/strategic_goals.md", issues)
+    tactical = _require_text(root, "docs/project/tactical_goals.md", issues)
+    operational = _require_text(root, "docs/project/operational_goals.md", issues)
+    if any(
+        item is None
+        for item in (agents, next_session, strategic, tactical, operational)
+    ):
+        return issues
+
     strategic_active = _extract_marker(
         strategic, "Active strategic goal:", "docs/project/strategic_goals.md", issues
     )
@@ -131,10 +148,9 @@ def collect_issues(root: Path) -> list[Issue]:
                 Issue(Path("AGENTS.md"), f"missing read-order reference: {needle}")
             )
 
-    operational_ids = _extract_ak_sequence(
+    first_operational = _extract_active_operational_task(
         operational, "docs/project/operational_goals.md", issues
     )
-    first_operational = operational_ids[0] if operational_ids else None
 
     objective_match = re.search(
         r"Objective \(one sentence\): Claim `(AK-\d+)`", next_session
@@ -185,7 +201,7 @@ def collect_issues(root: Path) -> list[Issue]:
             issues.append(
                 Issue(
                     Path("docs/project/operational_goals.md"),
-                    f"first operating slice {first_operational} is not currently ready in AK",
+                    f"active operating slice {first_operational} is not currently ready in AK",
                 )
             )
 
