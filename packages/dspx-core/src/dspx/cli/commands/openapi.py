@@ -7,13 +7,102 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Mapping, Optional
 
 import typer
 
 from dspx.cli.utils import ensure_env
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _coerce_cli_bool(value: Any) -> bool:
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"expected boolean, got {value!r}")
+
+
+def _coerce_cli_value(value: Any, schema: Mapping[str, Any] | None) -> Any:
+    if not isinstance(schema, Mapping):
+        return value
+    schema_type = schema.get("type")
+    if schema_type == "array":
+        items_schema = (
+            schema.get("items") if isinstance(schema.get("items"), Mapping) else None
+        )
+        if isinstance(value, list):
+            raw_items = value
+        else:
+            raw_items = [item.strip() for item in str(value).split(",") if item.strip()]
+        return [_coerce_cli_value(item, items_schema) for item in raw_items]
+    if schema_type == "integer":
+        return int(str(value).strip())
+    if schema_type == "number":
+        return float(str(value).strip())
+    if schema_type == "boolean":
+        return _coerce_cli_bool(value)
+    return value
+
+
+def _parse_cli_param_pairs(raw: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    current_key: str | None = None
+    for part in raw.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        if "=" in token:
+            key, value = token.split("=", 1)
+            current_key = key.strip()
+            if current_key:
+                parsed[current_key] = value.strip()
+            continue
+        if current_key is not None:
+            parsed[current_key] = f"{parsed[current_key]},{token}"
+    return parsed
+
+
+def _coerce_cli_params(
+    raw: Optional[str],
+    operation: Any,
+) -> dict[str, Any]:
+    if not raw:
+        return {}
+
+    text = raw.strip()
+    if not text:
+        return {}
+
+    if text.startswith("{"):
+        loaded = json.loads(text)
+        if not isinstance(loaded, dict):
+            raise typer.BadParameter("--params JSON must decode to an object")
+        base_params: dict[str, Any] = dict(loaded)
+    else:
+        base_params = _parse_cli_param_pairs(text)
+
+    schemas: dict[str, Mapping[str, Any]] = {}
+    parameters = getattr(operation, "parameters", None) or []
+    for param in parameters:
+        if not isinstance(param, dict):
+            continue
+        name = str(param.get("name") or "").strip()
+        schema = param.get("schema")
+        if name and isinstance(schema, Mapping):
+            schemas[name] = schema
+
+    coerced: dict[str, Any] = {}
+    for key, value in base_params.items():
+        try:
+            coerced[key] = _coerce_cli_value(value, schemas.get(key))
+        except (TypeError, ValueError) as exc:
+            raise typer.BadParameter(
+                f"invalid --params value for {key}: {exc}"
+            ) from exc
+    return coerced
 
 
 @app.command("ops")
@@ -118,15 +207,7 @@ def openapi_call(
     if op not in ops:
         raise typer.Exit(code=2)
 
-    pmap = {}
-    if params:
-        for part in params.split(","):
-            if not part.strip():
-                continue
-            if "=" not in part:
-                continue
-            k, v = part.split("=", 1)
-            pmap[k.strip()] = v.strip()
+    pmap = _coerce_cli_params(params, ops[op])
 
     body_data = None
     if body:

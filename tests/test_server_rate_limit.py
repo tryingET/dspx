@@ -94,6 +94,19 @@ def test_rate_limit_by_token(monkeypatch: pytest.MonkeyPatch) -> None:
     assert r3.json().get("error") == "rate_limited"
 
 
+def test_rate_limit_by_token_accepts_lowercase_bearer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_SERVER_TOKEN", "tok")
+    monkeypatch.setenv("DSPX_RATE_LIMIT_ENABLED", "1")
+    monkeypatch.setenv("DSPX_RATE_LIMIT_DEFAULT", "1/sec")
+    c = _client()
+    h = {"Authorization": "bearer tok"}
+    r1 = c.post("/signature", json={"prompt": "p"}, headers=h)
+    r2 = c.post("/signature", json={"prompt": "p"}, headers=h)
+    assert r1.status_code == 200 and r2.status_code == 429
+
+
 def test_rate_limit_by_ip(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_RATE_LIMIT_ENABLED", "1")
     monkeypatch.setenv("DSPX_RATE_LIMIT_DEFAULT", "2/sec")

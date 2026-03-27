@@ -47,6 +47,16 @@ def _load_tokens_from_file(path: str) -> Set[str]:
     return tokens
 
 
+def _extract_bearer_token(authorization_header: Optional[str]) -> Optional[str]:
+    if not authorization_header:
+        return None
+    parts = str(authorization_header).strip().split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+    token = parts[1].strip()
+    return token or None
+
+
 @dataclass(frozen=True)
 class AuthConfig:
     tokens: Set[str]
@@ -88,9 +98,7 @@ class AuthGuard:
         return hmac.compare_digest(a, b)
 
     def _extract_bearer(self, authorization_header: Optional[str]) -> Optional[str]:
-        if not authorization_header or not authorization_header.startswith("Bearer "):
-            return None
-        return authorization_header.split(" ", 1)[1]
+        return _extract_bearer_token(authorization_header)
 
     def check(self, authorization_header: Optional[str]) -> None:
         cfg = self.config
@@ -255,9 +263,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _identity(self, request: Request) -> Tuple[str, str]:
         # Prefer token identity when configured and header present
         if self.config.identity == "token":
-            auth = request.headers.get("authorization")
-            if auth and auth.startswith("Bearer "):
-                return ("tok:" + auth.split(" ", 1)[1], "token")
+            token = _extract_bearer_token(request.headers.get("authorization"))
+            if token:
+                return ("tok:" + token, "token")
         # Fallback to IP
         # Only trust X-Forwarded-For when the immediate peer is a trusted proxy.
         host = self._client_host(request)

@@ -371,6 +371,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-27"
+        },
+        {
+          "id": "AK-TASK-0376",
+          "title": "Workflow guardrails: close residual boundary-hardening follow-up after nexus implementation",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: close residual boundary-hardening follow-up after nexus implementation (task #376)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

@@ -59,3 +59,16 @@ def test_auth_required_correct_token(monkeypatch: pytest.MonkeyPatch) -> None:
         json={"name": "M", "description": "d", "inputs": [], "outputs": []},
     )
     assert r.status_code == 200
+
+
+def test_auth_accepts_case_insensitive_bearer_scheme(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_SERVER_TOKEN", "s3cr3t")
+    client = _client()
+    r = client.post(
+        "/signature",
+        headers={"Authorization": "bearer s3cr3t"},
+        json={"prompt": "p"},
+    )
+    assert r.status_code == 200

@@ -52,7 +52,7 @@ def build_issue_spec(
     pk = project_key or wo.routing.primary_project or "core"
     local_id = _issue_local_id(doc)
 
-    system_card = f"generated/forge/{wo.id}/system_definition_card.md"
+    system_card = (Path(wo.outputs.out_dir) / "system_definition_card.md").as_posix()
     managed = build_managed_block(
         workorder_id=wo.id,
         fingerprint=wo.fingerprint,

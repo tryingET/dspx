@@ -76,6 +76,36 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
     )
 
 
+def test_module_service_uses_sibling_oracle_dir_for_promoted_outputs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.delenv("DSPX_MODULE_SYNTHESIS_EVIDENCE_RECEIPTS_PATH", raising=False)
+    monkeypatch.delenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH", raising=False
+    )
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    promotion_target = tmp_path / "generated" / "Summarizer.py"
+    art = run_generate(spec, use_signature=False, promotion_target=promotion_target)
+
+    diagnostics = art.metadata["synthesis_diagnostics"]
+    assert diagnostics["evidence_bundle"]["receipts_path"] == str(
+        promotion_target.parent.resolve()
+    )
+    assert diagnostics["evidence_bundle"]["oracle_index_path"] == str(
+        (promotion_target.parent / "oracle" / "coordinates.db").resolve()
+    )
+
+
 def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")

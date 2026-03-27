@@ -90,6 +90,28 @@ def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
     assert res2.status_code == 200 and (res2.raw_text or "").strip() == "hello"
 
 
+def test_openapi_call_url_encodes_reserved_path_chars(tmp_path: Path) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, text="ok")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    res = call_operation(
+        OpenAPICallRequest(operation_id="echo", params={"msg": "a/b"}),
+        operation=ops["echo"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+
+    assert res.status_code == 200
+    assert seen == ["http://api.example.com/echo/a%2Fb"]
+
+
 def test_openapi_call_with_body_and_headers(tmp_path: Path) -> None:
     spec = {
         "openapi": "3.0.0",

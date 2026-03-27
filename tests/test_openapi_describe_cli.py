@@ -221,3 +221,65 @@ def test_openapi_ops_tags_filter_and_response_schema(tmp_path: Path) -> None:
     )
     j = __import__("json").loads(js)
     assert "responses" in j and "200" in j["responses"]
+
+
+def test_openapi_call_cli_coerces_array_query_params(
+    tmp_path: Path, monkeypatch
+) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/search": {
+                "get": {
+                    "operationId": "searchItems",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "ids",
+                            "required": True,
+                            "schema": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                            },
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "spec.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+
+    captured: dict[str, object] = {}
+
+    def _fake_call_operation(req, *, operation, allowed_hosts=None, client=None):
+        captured["params"] = dict(req.params)
+        from dspx.dtos import OpenAPICallResult
+
+        return OpenAPICallResult(status_code=200, raw_text="ok")
+
+    monkeypatch.setattr(
+        "dspx.tools.openapi.caller.call_operation", _fake_call_operation
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "tools",
+            "openapi",
+            "call",
+            "--spec",
+            str(p),
+            "--op",
+            "searchItems",
+            "--params",
+            "ids=1,2",
+            "--allow-host",
+            "api.example.com",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["params"] == {"ids": [1, 2]}

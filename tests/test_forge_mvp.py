@@ -6,7 +6,8 @@ import pytest
 
 from dspx_forge.issues import apply_issue_specs, build_issue_spec, default_paths
 from dspx_forge.issue_text import build_managed_block, upsert_managed_block
-from dspx_forge.workorder import build_workorder, write_workorder
+from dspx_forge.plan import build_plan
+from dspx_forge.workorder import build_workorder, load_workorder, write_workorder
 
 
 pytestmark = pytest.mark.forge
@@ -69,3 +70,29 @@ def test_forge_issues_apply_dry_run_writes_manifest(tmp_path: Path) -> None:
     p = default_paths(paths.workorder_yaml).manifest_json
     assert p.exists()
     assert manifest.workorder_id == wo.work_order.id
+
+
+def test_forge_custom_out_root_persists_into_workorder_and_issue_specs(
+    tmp_path: Path,
+) -> None:
+    wo = build_workorder("Build thing\nDo it safely")
+    paths = write_workorder(tmp_path / "alt-root", wo)
+
+    loaded = load_workorder(paths.workorder_yaml)
+    assert loaded.work_order.outputs.out_dir == str(paths.root)
+
+    spec = build_issue_spec(loaded)
+    assert str(paths.system_definition_card) in spec.issue_spec.description_md
+
+
+def test_forge_plan_marks_invalid_gitlab_map_as_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "https://gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+    monkeypatch.setenv("DSPX_GITLAB_PROJECT_MAP_JSON", "not-json")
+
+    plan = build_plan(build_workorder("Build thing\nDo it safely"))
+
+    assert plan.capabilities["status"]["forge.issues.read"]["configured"] is False
+    assert plan.capabilities["status"]["forge.issues.write"]["configured"] is False

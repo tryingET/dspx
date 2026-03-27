@@ -9,11 +9,13 @@ from dspx_forge.models import PlanDoc, WorkOrderDoc
 
 
 def _configured_gitlab() -> bool:
-    base = os.getenv("DSPX_GITLAB_BASE_URL")
-    token = os.getenv("DSPX_GITLAB_TOKEN")
-    mpj = os.getenv("DSPX_GITLAB_PROJECT_MAP_JSON")
-    mpf = os.getenv("DSPX_GITLAB_PROJECT_MAP_FILE")
-    return bool(base and token and (mpj or mpf))
+    try:
+        from dspx_forge.gitlab_client import load_gitlab_config_from_env
+
+        load_gitlab_config_from_env()
+        return True
+    except Exception:
+        return False
 
 
 def _permitted(cap: str) -> bool:

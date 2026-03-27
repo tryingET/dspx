@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 from typing import Any, Dict, Mapping, Optional
 import re as _re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 from dspx.dtos import OpenAPICallRequest, OpenAPICallResult
 from dspx.policy import (
@@ -27,12 +27,14 @@ def _build_url(server: str, path: str, params: Mapping[str, Any]) -> str:
     """Replace path params like {id} and join with server.
 
     Query params are not appended here; httpx handles them via params=.
+    Path parameters are URL-encoded so reserved characters stay inside the
+    parameter value instead of mutating route structure.
     """
     out_path = path
     for k, v in params.items():
         tok = "{" + str(k) + "}"
         if tok in out_path:
-            out_path = out_path.replace(tok, str(v))
+            out_path = out_path.replace(tok, quote(str(v), safe=""))
     if server:
         base = server if server.endswith("/") else (server + "/")
         joined = urljoin(base, out_path.lstrip("/"))

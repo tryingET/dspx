@@ -32,6 +32,14 @@ class WorkOrderPaths:
     system_definition_card: Path
 
 
+def _display_path(path: Path) -> str:
+    candidate = path.resolve()
+    try:
+        return candidate.relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return candidate.as_posix()
+
+
 def _now_run_id() -> str:
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     return f"run_{ts}_{secrets.token_hex(2)}"
@@ -117,11 +125,12 @@ def build_workorder(
 
 def write_workorder(out_root: Path, doc: WorkOrderDoc) -> WorkOrderPaths:
     wo = doc.work_order
-    root = out_root / wo.id
+    root = (out_root / wo.id).resolve()
     root.mkdir(parents=True, exist_ok=True)
     workorder_yaml = root / "workorder.yaml"
     system_definition_card = root / "system_definition_card.md"
 
+    wo.outputs.out_dir = _display_path(root)
     write_yaml(workorder_yaml, doc.model_dump())
     system_definition_card.write_text(
         render_system_definition_card(wo), encoding="utf-8"

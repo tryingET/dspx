@@ -67,7 +67,9 @@ def _module_synthesis_evidence_oracle_index_path(
     if configured:
         return Path(configured)
     if promotion_target is not None:
-        return promotion_target.parent / "generated" / "oracle" / "coordinates.db"
+        parent = promotion_target.parent
+        oracle_root = parent if parent.name == "generated" else (parent / "generated")
+        return oracle_root / "oracle" / "coordinates.db"
     return get_default_index_path()
 
 
