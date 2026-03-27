@@ -1,0 +1,30 @@
+{
+  "task_id": 357,
+  "description": "Harden advisory evidence resolution semantics so malformed or unavailable history is not misclassified as no_history, keep diagnostics shape stable on retrieval failure, and align default Oracle provenance roots with receipt roots.",
+  "allowed_paths": [
+    "diary/2026-03-26--harden-advisory-evidence-resolution.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-357.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-357.json",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

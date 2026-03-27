@@ -14,6 +14,7 @@ from dspx.coordinates.storage import get_default_index_path
 from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.services.module_synthesis_evidence import (
+    ModuleSynthesisEvidenceRequest,
     build_module_synthesis_history_advisory,
     retrieve_module_synthesis_evidence,
 )
@@ -65,6 +66,8 @@ def _module_synthesis_evidence_oracle_index_path(
     configured = _os.getenv("DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH")
     if configured:
         return Path(configured)
+    if promotion_target is not None:
+        return promotion_target.parent / "generated" / "oracle" / "coordinates.db"
     return get_default_index_path()
 
 
@@ -259,6 +262,81 @@ def _selected_candidate_code(bundle: Any, fallback: str) -> str:
     return fallback
 
 
+def _build_unavailable_synthesis_diagnostics(
+    spec: ModuleSpec,
+    *,
+    use_signature: bool,
+    promotion_target: Optional[Path],
+    selected_candidate_id: str | None,
+    output_hash: str | None,
+    cache_key: str | None,
+    retrieval_error: dict[str, Any],
+) -> dict[str, Any]:
+    request = ModuleSynthesisEvidenceRequest.from_spec(
+        spec,
+        use_signature=use_signature,
+    )
+    receipts_path = (
+        _module_synthesis_evidence_receipts_path(promotion_target)
+        or (Path.cwd() / "generated")
+    ).resolve()
+    oracle_index_path = (
+        _module_synthesis_evidence_oracle_index_path(promotion_target)
+        or get_default_index_path()
+    ).resolve()
+    evidence_bundle = {
+        "request": request.to_dict(),
+        "retrieval_order": [
+            "exact_match_receipts",
+            "replay_verification",
+            "oracle_neighbors",
+        ],
+        "exact_match_receipts": [],
+        "oracle_neighbors": [],
+        "receipts_path": str(receipts_path),
+        "oracle_index_path": str(oracle_index_path),
+        "receipts_scanned": 0,
+        "oracle_query_text": request.oracle_query_text(),
+        "receipt_scan_errors": [],
+        "receipt_scan_error_count": 0,
+        "oracle_lookup_status": "unavailable",
+        "oracle_lookup_error": dict(retrieval_error),
+        "oracle_index_available": False,
+        "positive_evidence_count": 0,
+    }
+    return {
+        "evidence_bundle_version": "v1",
+        "retrieval_status": "unavailable",
+        "retrieval_error": dict(retrieval_error),
+        "evidence_summary": {
+            "exact_match_receipt_count": 0,
+            "positive_evidence_count": 0,
+            "oracle_neighbor_count": 0,
+            "oracle_index_available": False,
+            "oracle_lookup_status": "unavailable",
+            "receipt_scan_error_count": 0,
+        },
+        "evidence_bundle": evidence_bundle,
+        "historical_convergence_advisory": {
+            "advisory_version": "v1",
+            "status": "unavailable",
+            "selected_artifact": {
+                "selected_candidate_id": selected_candidate_id,
+                "output_hash": output_hash,
+                "cache_key": cache_key,
+            },
+            "history_summary": {
+                "exact_match_receipt_count": 0,
+                "positive_evidence_count": 0,
+                "oracle_neighbor_count": 0,
+            },
+            "matching_positive_receipts": [],
+            "divergent_positive_receipts": [],
+            "notes": ["evidence retrieval unavailable"],
+        },
+    }
+
+
 def _build_synthesis_diagnostics(
     spec: ModuleSpec,
     *,
@@ -279,31 +357,18 @@ def _build_synthesis_diagnostics(
             oracle_top_k=_module_synthesis_evidence_oracle_top_k(),
         )
     except Exception as exc:
-        return {
-            "evidence_bundle_version": "v1",
-            "retrieval_status": "unavailable",
-            "retrieval_error": {
+        return _build_unavailable_synthesis_diagnostics(
+            spec,
+            use_signature=use_signature,
+            promotion_target=promotion_target,
+            selected_candidate_id=selected_candidate_id,
+            output_hash=output_hash,
+            cache_key=cache_key,
+            retrieval_error={
                 "type": exc.__class__.__name__,
                 "message": str(exc),
             },
-            "historical_convergence_advisory": {
-                "advisory_version": "v1",
-                "status": "unavailable",
-                "selected_artifact": {
-                    "selected_candidate_id": selected_candidate_id,
-                    "output_hash": output_hash,
-                    "cache_key": cache_key,
-                },
-                "history_summary": {
-                    "exact_match_receipt_count": 0,
-                    "positive_evidence_count": 0,
-                    "oracle_neighbor_count": 0,
-                },
-                "matching_positive_receipts": [],
-                "divergent_positive_receipts": [],
-                "notes": ["evidence retrieval unavailable"],
-            },
-        }
+        )
 
     payload = evidence_bundle.to_dict()
     retrieval_status = (

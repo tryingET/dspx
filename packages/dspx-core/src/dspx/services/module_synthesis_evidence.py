@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,7 +8,6 @@ from typing import Any, Mapping
 
 from dspx.coordinates.storage import CoordinateIndex, get_default_index_path
 from dspx.dtos import ModuleSpec
-from dspx.run_receipts import load_run_receipt
 from dspx.services.run_explain_service import explain_run_receipt
 
 
@@ -423,6 +423,42 @@ def _receipt_paths(scan_path: Path) -> list[Path]:
     return sorted(scan_path.rglob("*.meta.json"))
 
 
+def _load_receipt_for_evidence(
+    meta_path: Path,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    try:
+        raw = meta_path.read_text(encoding="utf-8")
+    except Exception as exc:
+        return None, {
+            "receipt_path": str(meta_path),
+            "code": "receipt_read_failed",
+            "message": str(exc),
+            "error_type": exc.__class__.__name__,
+            "stage": "read",
+        }
+
+    try:
+        loaded = json.loads(raw)
+    except Exception as exc:
+        return None, {
+            "receipt_path": str(meta_path),
+            "code": "receipt_invalid_json",
+            "message": str(exc),
+            "error_type": exc.__class__.__name__,
+            "stage": "parse",
+        }
+
+    if not isinstance(loaded, dict):
+        return None, {
+            "receipt_path": str(meta_path),
+            "code": "receipt_json_not_object",
+            "message": "receipt payload is not a JSON object",
+            "stage": "parse",
+        }
+
+    return loaded, None
+
+
 def _build_receipt_evidence(
     meta_path: Path,
     receipt: Mapping[str, Any],
@@ -689,8 +725,14 @@ def build_module_synthesis_history_advisory(
     ]
 
     if not bundle.exact_match_receipts:
-        status = "no_history"
-        notes.append("no exact-match receipts retrieved")
+        if bundle.receipt_scan_errors:
+            status = "degraded_history_only"
+            notes.append(
+                "receipt scan errors prevent confidently classifying exact-match history as no_history"
+            )
+        else:
+            status = "no_history"
+            notes.append("no exact-match receipts retrieved")
     elif not positive_matches:
         status = "degraded_history_only"
         notes.append(
@@ -754,8 +796,11 @@ def retrieve_module_synthesis_evidence(
     receipt_scan_errors: list[dict[str, Any]] = []
     receipt_paths = _receipt_paths(resolved_receipts_path)
     for meta_path in receipt_paths:
-        receipt = load_run_receipt(meta_path)
-        if not isinstance(receipt, dict):
+        receipt, receipt_load_error = _load_receipt_for_evidence(meta_path)
+        if receipt_load_error is not None:
+            receipt_scan_errors.append(receipt_load_error)
+            continue
+        if receipt is None:
             continue
         if not _exact_match_request(receipt, request):
             continue

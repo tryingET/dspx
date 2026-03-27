@@ -344,6 +344,45 @@ def test_retrieve_module_synthesis_evidence_skips_malformed_exact_match_receipt_
         bundle.receipt_scan_errors[0]["code"]
         == "receipt_invalid_selected_candidate_rank"
     )
+    advisory = build_module_synthesis_history_advisory(
+        bundle,
+        selected_candidate_id="cand-now",
+        output_hash="hash-now",
+        cache_key="cache-now",
+    )
+    assert advisory["status"] == "degraded_history_only"
+
+
+def test_retrieve_module_synthesis_evidence_records_invalid_json_receipts_as_scan_errors(
+    tmp_path: Path,
+) -> None:
+    malformed = tmp_path / "malformed.meta.json"
+    malformed.write_text("{not json", encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+
+    assert bundle.exact_match_receipts == ()
+    assert bundle.receipt_scan_error_count == 1
+    assert bundle.receipt_scan_errors[0]["receipt_path"] == str(malformed)
+    assert bundle.receipt_scan_errors[0]["code"] == "receipt_invalid_json"
+    advisory = build_module_synthesis_history_advisory(
+        bundle,
+        selected_candidate_id="cand-now",
+        output_hash="hash-now",
+        cache_key="cache-now",
+    )
+    assert advisory["status"] == "degraded_history_only"
 
 
 def test_retrieve_module_synthesis_evidence_reports_unavailable_oracle_lookup(

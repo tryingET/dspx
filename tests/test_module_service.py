@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from dspx.dtos import ModuleSpec
+import dspx.services.module_service as module_service
 from dspx.services.module_service import run_generate
 
 
@@ -204,3 +205,45 @@ def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
     assert "ignored 1 malformed exact-match receipt(s)" in " ".join(
         diagnostics["historical_convergence_advisory"]["notes"]
     )
+
+
+def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_unavailable(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_MODULE_SYNTHESIS_QUALITY_ENABLE", "0")
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(module_service, "retrieve_module_synthesis_evidence", _boom)
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    art = run_generate(spec, use_signature=False)
+
+    diagnostics = art.metadata["synthesis_diagnostics"]
+    assert diagnostics["retrieval_status"] == "unavailable"
+    assert diagnostics["retrieval_error"]["type"] == "RuntimeError"
+    assert diagnostics["evidence_summary"] == {
+        "exact_match_receipt_count": 0,
+        "positive_evidence_count": 0,
+        "oracle_neighbor_count": 0,
+        "oracle_index_available": False,
+        "oracle_lookup_status": "unavailable",
+        "receipt_scan_error_count": 0,
+    }
+    assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
+    assert diagnostics["evidence_bundle"]["oracle_lookup_status"] == "unavailable"
+    assert (
+        diagnostics["evidence_bundle"]["oracle_lookup_error"]["type"] == "RuntimeError"
+    )
+    assert diagnostics["historical_convergence_advisory"]["status"] == "unavailable"

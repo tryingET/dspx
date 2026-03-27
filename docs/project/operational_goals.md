@@ -19,6 +19,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Recently completed in this wave
 
+- `AK-357` — hardened advisory evidence resolution so malformed/unavailable history no longer silently collapses into `no_history`, kept diagnostics shape stable on retrieval failure, and aligned default Oracle provenance roots with receipt roots.
 - `AK-341` — emitted the ADR-backed historical convergence advisory on live module metadata and persisted receipts while keeping V7 ranking/promotion behavior unchanged.
 - `AK-337` — froze the first post-diagnostics SG2 contract in a dated ADR, defined the historical-convergence advisory as the first evidence consumer, and aligned the next implementation slice to `AK-341`.
 - `AK-278` — threaded the v1 module-synthesis evidence bundle into runtime diagnostics and `module-gen` receipts without changing ranked selection behavior.
