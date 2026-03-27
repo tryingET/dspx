@@ -8,7 +8,10 @@ from dspx.codex_exec_lm import CodexExecLM
 
 def main() -> int:
     # Initialize Codex Exec as the active LM for DSPy.
-    load_config_env()
+    try:
+        load_config_env()
+    except FileNotFoundError as exc:
+        raise SystemExit(f"Error: {exc}") from exc
     enable_mlflow_from_env()
 
     model = os.getenv("CODEX_MODEL", "gpt-5")

@@ -59,7 +59,11 @@ def ensure_env(provider: Optional[str], *, tracing: bool = True) -> None:
     """
     if provider:
         os.environ["DSPX_PROVIDER"] = provider
-    load_config_env()
+    try:
+        load_config_env()
+    except FileNotFoundError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     if tracing:
         enable_mlflow_from_env()
 

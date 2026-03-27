@@ -318,7 +318,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = ap.parse_args(argv)
 
-    load_config_env()
+    try:
+        load_config_env()
+    except FileNotFoundError as exc:
+        raise SystemExit(f"Error: {exc}") from exc
     enable_mlflow_from_env()
 
     if args.provider:

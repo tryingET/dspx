@@ -92,3 +92,24 @@ def test_forge_cli_apply_requires_gitlab_config(tmp_path: Path, monkeypatch) -> 
         assert "gitlab not configured" in msg
 
     _run_in_tmp(tmp_path, _run)
+
+
+def test_forge_cli_fails_closed_for_missing_dspx_config(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_CONFIG", str(tmp_path / "missing.toml"))
+
+    res = runner.invoke(
+        app,
+        [
+            "intake",
+            "Build thing\nDo it safely",
+            "--non-interactive",
+            "--out-root",
+            "generated/forge",
+        ],
+    )
+
+    assert res.exit_code == 2
+    assert "DSPX_CONFIG path not found" in res.output

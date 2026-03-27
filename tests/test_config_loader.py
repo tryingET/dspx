@@ -163,3 +163,45 @@ def test_load_config_env_sets_optimize_provider_defaults(
     load_config_env(str(cfg))
     assert os.environ["DSPX_OPTIMIZE_STUDENT_PROVIDER"] == "vllm-local"
     assert os.environ["DSPX_OPTIMIZE_REFLECTION_PROVIDER"] == "dspy-lm-auth"
+
+
+def test_load_config_env_fails_closed_for_missing_explicit_path(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
+    (tmp_path / "config.toml").write_text(
+        '[provider]\nname = "stub"\n', encoding="utf-8"
+    )
+
+    missing = tmp_path / "missing.toml"
+
+    try:
+        load_config_env(str(missing))
+    except FileNotFoundError as exc:
+        assert str(missing.resolve()) in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected FileNotFoundError for missing explicit path")
+
+    assert os.getenv("DSPX_PROVIDER") != "stub"
+
+
+def test_load_config_env_fails_closed_for_missing_dspx_config_env(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
+    (tmp_path / "config.toml").write_text(
+        '[provider]\nname = "stub"\n', encoding="utf-8"
+    )
+    missing = tmp_path / "missing.toml"
+    monkeypatch.setenv("DSPX_CONFIG", str(missing))
+
+    try:
+        load_config_env()
+    except FileNotFoundError as exc:
+        assert str(missing.resolve()) in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected FileNotFoundError for missing DSPX_CONFIG")
+
+    assert os.getenv("DSPX_PROVIDER") is None

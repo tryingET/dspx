@@ -450,3 +450,13 @@ def test_optimize_manifest_includes_provider_runtime_metadata(
     assert student["provider"] == "stub"
     assert student["capabilities"]["code_exec"] is False
     assert student["runtime"] == {}
+
+
+def test_cli_fails_closed_for_missing_dspx_config(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_CONFIG", str(tmp_path / "missing.toml"))
+
+    result = runner.invoke(app, ["providers", "list", "--json"])
+
+    assert result.exit_code == 2
+    assert "DSPX_CONFIG path not found" in result.output

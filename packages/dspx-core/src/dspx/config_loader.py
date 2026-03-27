@@ -40,8 +40,8 @@ def _find_config_path(explicit: Optional[str]) -> Optional[Path]:
     """Return the best config path to use, if any.
 
     Priority:
-    1) `explicit` argument if provided and exists
-    2) `DSPX_CONFIG` env var if set and exists
+    1) `explicit` argument if provided and exists; otherwise fail closed
+    2) `DSPX_CONFIG` env var if set and exists; otherwise fail closed
     3) Nearest `config.toml` by walking up from CWD
     4) Fallback: None
     """
@@ -50,12 +50,14 @@ def _find_config_path(explicit: Optional[str]) -> Optional[Path]:
         p = Path(explicit).expanduser().resolve()
         if p.exists():
             return p
+        raise FileNotFoundError(f"explicit DSPx config path not found: {p}")
     # 2) env var
     env_p = os.getenv("DSPX_CONFIG")
     if env_p:
         p = Path(env_p).expanduser().resolve()
         if p.exists():
             return p
+        raise FileNotFoundError(f"DSPX_CONFIG path not found: {p}")
     # 3) walk up from CWD
     cur = Path.cwd().resolve()
     for parent in [cur] + list(cur.parents):

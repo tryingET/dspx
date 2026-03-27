@@ -28,7 +28,11 @@ app.add_typer(issues_app, name="issues", help="GitLab issues (apply/close-duplic
 
 
 def _ensure_env(*, tracing: bool = False) -> None:
-    load_config_env()
+    try:
+        load_config_env()
+    except FileNotFoundError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     if tracing:
         enable_mlflow_from_env()
 
