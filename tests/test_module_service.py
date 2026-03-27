@@ -68,6 +68,16 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
     assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
     assert diagnostics["evidence_bundle"]["request"]["use_signature"] is False
     assert diagnostics["historical_convergence_advisory"]["status"] == "no_history"
+    assert diagnostics["candidate_winner_priors"]["candidate_prior_version"] == "v1"
+    assert diagnostics["candidate_winner_priors"]["mode"] == "winner_history_only"
+    assert (
+        diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
+        >= 2
+    )
+    assert {
+        item["status"]
+        for item in diagnostics["candidate_winner_priors"]["candidate_priors"]
+    } == {"no_positive_winner_history"}
     assert (
         diagnostics["historical_convergence_advisory"]["selected_artifact"][
             "selected_candidate_id"
@@ -159,6 +169,12 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
         ]
         == "no_history"
     )
+    assert (
+        art.metadata["synthesis_diagnostics"]["candidate_winner_priors"][
+            "history_summary"
+        ]["candidate_count"]
+        >= 2
+    )
 
 
 def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
@@ -235,6 +251,10 @@ def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
     assert "ignored 1 malformed exact-match receipt(s)" in " ".join(
         diagnostics["historical_convergence_advisory"]["notes"]
     )
+    assert {
+        item["status"]
+        for item in diagnostics["candidate_winner_priors"]["candidate_priors"]
+    } == {"degraded_history_only"}
 
 
 def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_unavailable(
@@ -279,6 +299,11 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
         diagnostics["evidence_bundle"]["oracle_lookup_error"]["type"] == "RuntimeError"
     )
     assert diagnostics["historical_convergence_advisory"]["status"] == "unavailable"
+    assert diagnostics["candidate_winner_priors"]["status"] == "unavailable"
+    assert (
+        diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
+        >= 2
+    )
 
 
 def test_module_service_surfaces_quality_event_failures_in_metadata(

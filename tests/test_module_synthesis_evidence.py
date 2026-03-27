@@ -10,7 +10,9 @@ from dspx.coordinates import CoordinateIndex, get_embedding_engine
 from dspx.dtos import ModuleSpec
 from dspx.run_receipts import load_run_receipt
 from dspx.services.module_synthesis_evidence import (
+    build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_history_advisory,
+    extract_module_synthesis_candidate_prior_inputs,
     retrieve_module_synthesis_evidence,
 )
 
@@ -492,3 +494,89 @@ def test_build_module_synthesis_history_advisory_statuses(
     )
     assert divergent["status"] == "divergent_from_positive_history"
     assert len(divergent["divergent_positive_receipts"]) == 1
+
+
+def test_build_module_synthesis_candidate_winner_priors_statuses(
+    tmp_path: Path, monkeypatch
+) -> None:
+    exact_ok = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="exact-ok.py",
+    )
+    exact_drift = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="exact-drift.py",
+    )
+    (tmp_path / "exact-drift.py").write_text(
+        "print('drifted output')\n", encoding="utf-8"
+    )
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    current_candidates = extract_module_synthesis_candidate_prior_inputs(
+        json.loads(exact_ok.read_text(encoding="utf-8"))["synthesis"]
+    )
+
+    no_history_bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path / "missing",
+    )
+    no_history = build_module_synthesis_candidate_winner_priors(
+        no_history_bundle,
+        current_candidates=current_candidates,
+    )
+    assert no_history["history_summary"]["candidate_count"] == len(current_candidates)
+    assert {item["status"] for item in no_history["candidate_priors"]} == {
+        "no_positive_winner_history"
+    }
+
+    degraded_only_bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=exact_drift,
+    )
+    degraded_only = build_module_synthesis_candidate_winner_priors(
+        degraded_only_bundle,
+        current_candidates=current_candidates,
+    )
+    assert {item["status"] for item in degraded_only["candidate_priors"]} == {
+        "degraded_history_only"
+    }
+
+    convergent_bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+    convergent = build_module_synthesis_candidate_winner_priors(
+        convergent_bundle,
+        current_candidates=current_candidates,
+    )
+    by_variant = {item["variant_id"]: item for item in convergent["candidate_priors"]}
+    assert (
+        by_variant["explainable_helpers"]["status"] == "matches_positive_winner_history"
+    )
+    assert by_variant["explainable_helpers"]["positive_winner_match_count"] == 1
+    assert by_variant["explainable_helpers"]["matching_positive_receipts"][0][
+        "receipt_path"
+    ] == str(exact_ok)
+    assert by_variant["baseline"]["status"] == "no_positive_winner_history"
+    assert by_variant["traceable"]["status"] == "no_positive_winner_history"
+
+    unsupported_candidates = [dict(item) for item in current_candidates]
+    unsupported_candidates[0]["variant_origin"] = None
+    unsupported = build_module_synthesis_candidate_winner_priors(
+        convergent_bundle,
+        current_candidates=tuple(unsupported_candidates),
+    )
+    assert (
+        unsupported["candidate_priors"][0]["status"] == "unsupported_candidate_identity"
+    )

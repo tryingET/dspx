@@ -9,7 +9,7 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG11`
+Active tactical goal: `TBD`
 Next tactical goal: `TBD`
 
 ## Recently completed tactical goals for `SG1`
@@ -64,10 +64,11 @@ Next tactical goal: `TBD`
 - Reference: `docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md`
 
 ### `TG11` — Materialize read-only candidate winner priors before predictive ranking
-- Status: active
+- Status: complete
 - Definition of done: `module-gen` surfaces a contract-shaped per-candidate prior payload from replay-healthy exact-match winner history for the current deterministic variants on both live metadata and persisted receipts, while leaving V7 ranking/promotion behavior unchanged.
 - Contract reference: `docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md`
-- Next slice reference: `AK-377`
+- Implementation reference: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `packages/dspx-core/src/dspx/services/module_service.py`
+- Execution reference: `AK-377`
 
 ## Defer/until-later notes
 
@@ -76,3 +77,5 @@ The following are intentionally not tactical goals for the current strategic wav
 - V9 governed strategy/policy evolution,
 - further provider-runtime expansion beyond what the synthesis MVP needs,
 - exact-fidelity template-adapter work in the critical path.
+
+`TG11` closed the first read-only candidate-prior implementation wave. `AK-378` is the pinned planning slice for defining the next SG2 tactical goal and execution contract before DSPx evaluates or consumes that payload more aggressively.

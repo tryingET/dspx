@@ -216,6 +216,15 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
     assert diagnostics["evidence_bundle"]["request"]["use_signature"] is False
     assert diagnostics["historical_convergence_advisory"]["status"] == "no_history"
+    assert diagnostics["candidate_winner_priors"]["candidate_prior_version"] == "v1"
+    assert (
+        diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
+        >= 2
+    )
+    assert {
+        item["status"]
+        for item in diagnostics["candidate_winner_priors"]["candidate_priors"]
+    } == {"no_positive_winner_history"}
 
     mod_again_out = tmp_path / "mod-again.py"
     r_mod_again = runner.invoke(
@@ -254,6 +263,22 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         followup_diagnostics["historical_convergence_advisory"][
             "matching_positive_receipts"
         ][0]["receipt_path"]
+        == prior_receipt["receipt"]["receipt_path"]
+    )
+    priors_by_variant = {
+        item["variant_id"]: item
+        for item in followup_diagnostics["candidate_winner_priors"]["candidate_priors"]
+    }
+    assert (
+        priors_by_variant["explainable_helpers"]["status"]
+        == "matches_positive_winner_history"
+    )
+    assert priors_by_variant["baseline"]["status"] == "no_positive_winner_history"
+    assert priors_by_variant["traceable"]["status"] == "no_positive_winner_history"
+    assert (
+        priors_by_variant["explainable_helpers"]["matching_positive_receipts"][0][
+            "receipt_path"
+        ]
         == prior_receipt["receipt"]["receipt_path"]
     )
 

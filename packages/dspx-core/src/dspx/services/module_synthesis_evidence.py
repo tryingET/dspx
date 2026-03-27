@@ -312,6 +312,13 @@ def _as_int(value: Any, *, default: int = 0) -> int:
         return default
 
 
+def _optional_str(value: Any) -> str | None:
+    if value in {None, ""}:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def _exact_match_request(
     receipt: Mapping[str, Any],
     request: ModuleSynthesisEvidenceRequest,
@@ -785,6 +792,246 @@ def build_module_synthesis_history_advisory(
         "history_summary": history_summary,
         "matching_positive_receipts": matching_positive_receipts,
         "divergent_positive_receipts": divergent_positive_receipts,
+        "notes": notes,
+    }
+
+
+def extract_module_synthesis_candidate_prior_inputs(
+    synthesis: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], ...]:
+    if not isinstance(synthesis, Mapping):
+        return ()
+    raw_candidates = synthesis.get("candidates")
+    if not isinstance(raw_candidates, list):
+        return ()
+
+    candidates: list[dict[str, Any]] = []
+    for raw_candidate in raw_candidates:
+        if not isinstance(raw_candidate, Mapping):
+            continue
+        candidate_id = _optional_str(raw_candidate.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        metadata = _as_dict(raw_candidate.get("metadata"))
+        lineage = _as_dict(raw_candidate.get("lineage"))
+        candidates.append(
+            {
+                "candidate_id": candidate_id,
+                "variant_id": _optional_str(metadata.get("variant_id")),
+                "variant_origin": _optional_str(lineage.get("variant_origin")),
+                "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
+            }
+        )
+    return tuple(candidates)
+
+
+def _candidate_prior_identity_supported(identity: Mapping[str, Any]) -> bool:
+    return bool(_optional_str(identity.get("variant_id"))) and bool(
+        _optional_str(identity.get("variant_origin"))
+    )
+
+
+def _selected_winner_candidate_identity(
+    receipt: ModuleSynthesisReceiptEvidence,
+) -> dict[str, Any] | None:
+    selected_candidate_id = _optional_str(receipt.selected_candidate_id)
+    if selected_candidate_id is None:
+        return None
+
+    synthesis = receipt.synthesis
+    if isinstance(synthesis, Mapping):
+        raw_candidates = synthesis.get("candidates")
+        if isinstance(raw_candidates, list):
+            for raw_candidate in raw_candidates:
+                if not isinstance(raw_candidate, Mapping):
+                    continue
+                if (
+                    _optional_str(raw_candidate.get("candidate_id"))
+                    != selected_candidate_id
+                ):
+                    continue
+                extracted = extract_module_synthesis_candidate_prior_inputs(
+                    {"candidates": [dict(raw_candidate)]}
+                )
+                if extracted:
+                    return extracted[0]
+                break
+
+    for raw_candidate in receipt.synthesis_ranked_candidates:
+        if _optional_str(raw_candidate.get("candidate_id")) != selected_candidate_id:
+            continue
+        return {
+            "candidate_id": selected_candidate_id,
+            "variant_id": _optional_str(raw_candidate.get("variant_id")),
+            "variant_origin": None,
+            "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
+        }
+
+    return {
+        "candidate_id": selected_candidate_id,
+        "variant_id": None,
+        "variant_origin": None,
+        "ordinal": None,
+    }
+
+
+def _candidate_prior_receipt_identity(
+    match: ModuleSynthesisEvidenceMatch,
+    *,
+    winner_identity: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "receipt_path": match.receipt.receipt_path,
+        "created_at": match.receipt.created_at,
+        "selected_candidate_id": match.receipt.selected_candidate_id,
+        "output_hash": match.receipt.output_hash,
+        "cache_key": match.receipt.cache_key,
+        "variant_id": _optional_str(winner_identity.get("variant_id")),
+        "variant_origin": _optional_str(winner_identity.get("variant_origin")),
+        "positive_evidence": True,
+    }
+
+
+def build_unavailable_module_synthesis_candidate_winner_priors(
+    *,
+    current_candidates: tuple[dict[str, Any], ...] = (),
+    notes: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "candidate_prior_version": "v1",
+        "mode": "winner_history_only",
+        "status": "unavailable",
+        "history_summary": {
+            "exact_match_receipt_count": 0,
+            "positive_evidence_count": 0,
+            "oracle_neighbor_count": 0,
+            "candidate_count": len(current_candidates),
+        },
+        "candidate_priors": [],
+        "notes": list(notes or ["candidate winner-prior payload unavailable"]),
+    }
+
+
+def build_module_synthesis_candidate_winner_priors(
+    bundle: ModuleSynthesisEvidenceBundle,
+    *,
+    current_candidates: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    history_summary = {
+        "exact_match_receipt_count": len(bundle.exact_match_receipts),
+        "positive_evidence_count": bundle.positive_evidence_count,
+        "oracle_neighbor_count": len(bundle.oracle_neighbors),
+        "candidate_count": len(current_candidates),
+    }
+
+    positive_winner_identities: list[
+        tuple[ModuleSynthesisEvidenceMatch, dict[str, Any]]
+    ] = []
+    unresolved_positive_winners = 0
+    for match in bundle.exact_match_receipts:
+        if not match.positive_evidence:
+            continue
+        winner_identity = _selected_winner_candidate_identity(match.receipt)
+        if winner_identity is None or not _candidate_prior_identity_supported(
+            winner_identity
+        ):
+            unresolved_positive_winners += 1
+            continue
+        positive_winner_identities.append((match, winner_identity))
+
+    has_exact_match_history = bool(bundle.exact_match_receipts) or bool(
+        bundle.exact_match_receipt_scan_errors
+    )
+    has_positive_winner_authority = bool(positive_winner_identities)
+    notes = [
+        "candidate winner priors are advisory only; V7 ranking and promotion remain unchanged"
+    ]
+    if not has_exact_match_history:
+        notes.append("no exact-match receipts retrieved")
+    elif not bundle.positive_evidence_count:
+        notes.append(
+            "exact-match history exists but no replay-healthy prior winners qualify as positive authority"
+        )
+    elif not has_positive_winner_authority:
+        notes.append(
+            "replay-healthy exact-match history exists, but selected winners could not be resolved to stable candidate identity"
+        )
+
+    if unresolved_positive_winners:
+        notes.append(
+            "ignored "
+            f"{unresolved_positive_winners} replay-healthy exact-match winner(s) without stable variant identity"
+        )
+    if bundle.oracle_lookup_status == "unavailable":
+        notes.append(
+            "oracle lookup unavailable; candidate priors anchored on exact-match winner history only"
+        )
+    elif bundle.oracle_lookup_status == "missing":
+        notes.append(
+            "oracle index missing; candidate priors anchored on exact-match winner history only"
+        )
+    if bundle.exact_match_receipt_scan_errors:
+        notes.append(
+            "ignored "
+            f"{bundle.exact_match_receipt_scan_error_count} malformed exact-match receipt(s) during evidence retrieval"
+        )
+    elif bundle.receipt_scan_errors:
+        notes.append(
+            "ignored malformed non-attributable receipt scan errors outside exact-match authority"
+        )
+
+    candidate_priors: list[dict[str, Any]] = []
+    for candidate in current_candidates:
+        candidate_id = _optional_str(candidate.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        variant_id = _optional_str(candidate.get("variant_id"))
+        variant_origin = _optional_str(candidate.get("variant_origin"))
+        matching_positive_receipts = [
+            _candidate_prior_receipt_identity(match, winner_identity=winner_identity)
+            for match, winner_identity in positive_winner_identities
+            if _optional_str(winner_identity.get("variant_id")) == variant_id
+            and _optional_str(winner_identity.get("variant_origin")) == variant_origin
+        ]
+        candidate_notes: list[str] = []
+        if not _candidate_prior_identity_supported(candidate):
+            status = "unsupported_candidate_identity"
+            candidate_notes.append(
+                "candidate lacks variant_id or variant_origin required by candidate-prior contract v1"
+            )
+        elif matching_positive_receipts:
+            status = "matches_positive_winner_history"
+            candidate_notes.append(
+                "candidate matches replay-healthy exact-match prior winner history by variant identity"
+            )
+        elif has_exact_match_history and not has_positive_winner_authority:
+            status = "degraded_history_only"
+            candidate_notes.append(
+                "exact-match history exists but no replay-healthy winner evidence qualifies as positive authority"
+            )
+        else:
+            status = "no_positive_winner_history"
+            candidate_notes.append(
+                "no replay-healthy exact-match prior winner matches this candidate identity"
+            )
+
+        candidate_priors.append(
+            {
+                "candidate_id": candidate_id,
+                "variant_id": variant_id,
+                "variant_origin": variant_origin,
+                "status": status,
+                "positive_winner_match_count": len(matching_positive_receipts),
+                "matching_positive_receipts": matching_positive_receipts,
+                "notes": candidate_notes,
+            }
+        )
+
+    return {
+        "candidate_prior_version": "v1",
+        "mode": "winner_history_only",
+        "history_summary": history_summary,
+        "candidate_priors": candidate_priors,
         "notes": notes,
     }
 

@@ -15,7 +15,10 @@ from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.services.module_synthesis_evidence import (
     ModuleSynthesisEvidenceRequest,
+    build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_history_advisory,
+    build_unavailable_module_synthesis_candidate_winner_priors,
+    extract_module_synthesis_candidate_prior_inputs,
     retrieve_module_synthesis_evidence,
 )
 from dspx.services.module_synthesis_quality import (
@@ -269,6 +272,7 @@ def _build_unavailable_synthesis_diagnostics(
     *,
     use_signature: bool,
     promotion_target: Optional[Path],
+    synthesis_payload: dict[str, Any] | None,
     selected_candidate_id: str | None,
     output_hash: str | None,
     cache_key: str | None,
@@ -308,6 +312,9 @@ def _build_unavailable_synthesis_diagnostics(
         "oracle_index_available": False,
         "positive_evidence_count": 0,
     }
+    current_candidates = extract_module_synthesis_candidate_prior_inputs(
+        synthesis_payload
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": "unavailable",
@@ -338,6 +345,12 @@ def _build_unavailable_synthesis_diagnostics(
             "divergent_positive_receipts": [],
             "notes": ["evidence retrieval unavailable"],
         },
+        "candidate_winner_priors": build_unavailable_module_synthesis_candidate_winner_priors(
+            current_candidates=current_candidates,
+            notes=[
+                "candidate winner-prior payload unavailable because evidence retrieval failed"
+            ],
+        ),
     }
 
 
@@ -346,6 +359,7 @@ def _build_synthesis_diagnostics(
     *,
     use_signature: bool,
     promotion_target: Optional[Path],
+    synthesis_payload: dict[str, Any] | None,
     selected_candidate_id: str | None,
     output_hash: str | None,
     cache_key: str | None,
@@ -365,6 +379,7 @@ def _build_synthesis_diagnostics(
             spec,
             use_signature=use_signature,
             promotion_target=promotion_target,
+            synthesis_payload=synthesis_payload,
             selected_candidate_id=selected_candidate_id,
             output_hash=output_hash,
             cache_key=cache_key,
@@ -375,6 +390,9 @@ def _build_synthesis_diagnostics(
         )
 
     payload = evidence_bundle.to_dict()
+    current_candidates = extract_module_synthesis_candidate_prior_inputs(
+        synthesis_payload
+    )
     retrieval_status = (
         "degraded"
         if evidence_bundle.receipt_scan_error_count > 0
@@ -398,6 +416,10 @@ def _build_synthesis_diagnostics(
             selected_candidate_id=selected_candidate_id,
             output_hash=output_hash,
             cache_key=cache_key,
+        ),
+        "candidate_winner_priors": build_module_synthesis_candidate_winner_priors(
+            evidence_bundle,
+            current_candidates=current_candidates,
         ),
     }
 
@@ -446,12 +468,14 @@ def _build_metadata(
     metadata["run_summary"] = run_summary
     metadata["selected_candidate_id"] = run_summary.get("selected_candidate_id")
     metadata["selected_candidate_rank"] = run_summary.get("selected_candidate_rank")
-    metadata["synthesis"] = synthesis_bundle.model_dump(mode="json")
+    synthesis_payload = synthesis_bundle.model_dump(mode="json")
+    metadata["synthesis"] = synthesis_payload
     selected_output_hash = sha256_text(selected_code)
     metadata["synthesis_diagnostics"] = _build_synthesis_diagnostics(
         spec,
         use_signature=use_signature,
         promotion_target=promotion_target,
+        synthesis_payload=synthesis_payload,
         selected_candidate_id=(
             str(run_summary.get("selected_candidate_id"))
             if run_summary.get("selected_candidate_id") not in {None, ""}

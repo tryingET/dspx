@@ -7,17 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG11`
+Active tactical goal: `TBD`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-377` — **Synthesis evidence substrate: emit read-only candidate winner priors for module-gen variants**
+1. `AK-378` — **Synthesis evidence substrate: define the next SG2 contract for candidate-prior consumption after TG11**
    - Status: ready
-   - Deliverable: materialize the ADR-backed winner-history candidate-prior payload on live metadata and persisted receipts for the current deterministic variants while keeping V7 ranking and promotion behavior unchanged.
+   - Deliverable: freeze the next dated SG2 contract / execution slice for how DSPx may inspect or consume the new read-only candidate-prior payload without silently widening authority.
 
 ## Recently completed in this wave
+
+- `AK-377` — materialized the ADR-backed read-only candidate winner-prior payload for the current deterministic `module-gen` variants on live metadata and persisted receipts while preserving V7 ranking/promotion behavior.
 
 - `AK-356` — froze the first evidence-backed candidate-prior contract in a dated ADR, limited positive authority to replay-healthy exact-match historical winners, and aligned the next implementation slice to `AK-377`.
 - `AK-366` — scoped advisory degradation to exact-match receipt failures so unrelated corrupt receipts no longer downgrade request-local history posture while retrieval diagnostics still surface broader scan damage.
@@ -37,8 +39,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG10` is complete; this file now tracks the first implementation slice for the replay-healthy exact-match winner-history candidate-prior contract.
+- `TG11` is complete; `AK-378` is now the pinned SG2 planning slice that should freeze the next contract/execution wave for candidate-prior consumption without silently widening authority.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.
-- Do not start predictive ranking, candidate pruning, or governed self-evolution implementation until `TG11` proves the first read-only candidate-prior payload on live runtime metadata/receipts and a later contract explicitly widens evidence authority.
+- Do not start predictive ranking, candidate pruning, or governed self-evolution implementation until a later contract explicitly widens evidence authority beyond the read-only candidate-prior payload now attached to runtime metadata and receipts.
