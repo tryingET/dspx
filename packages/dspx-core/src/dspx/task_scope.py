@@ -65,6 +65,24 @@ def _git_output(cmd: list[str], *, cwd: Path) -> list[str]:
     return [line.rstrip() for line in proc.stdout.splitlines() if line.strip()]
 
 
+def _git_output_nul(cmd: list[str], *, cwd: Path) -> list[str]:
+    proc = subprocess.run(
+        ["git", *cmd],
+        cwd=cwd,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode(errors="replace") if proc.stderr else ""
+        stdout = proc.stdout.decode(errors="replace") if proc.stdout else ""
+        raise RuntimeError((stderr or stdout or "git command failed").strip())
+    return [
+        item.decode(errors="replace")
+        for item in proc.stdout.split(b"\0")
+        if item.strip(b"\0")
+    ]
+
+
 def claimed_task_ids_for_repo(repo_root: Path) -> list[int]:
     proc = _run(["ak", "task", "list", "-s", "claimed", "-F", "json"], cwd=repo_root)
     if proc.returncode != 0:
@@ -226,16 +244,14 @@ def changed_files_for_head(
 
 
 def changed_files_for_working_tree(repo_root: Path) -> list[str]:
-    tracked = set(_git_output(["diff", "--name-only", "HEAD"], cwd=repo_root))
-    status_lines = _git_output(["status", "--short"], cwd=repo_root)
-    for line in status_lines:
-        if len(line) < 4:
-            continue
-        path = line[3:]
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
-        tracked.add(path)
-    return sorted(tracked)
+    tracked = set(_git_output_nul(["diff", "--name-only", "-z", "HEAD"], cwd=repo_root))
+    untracked = set(
+        _git_output_nul(
+            ["ls-files", "--others", "--exclude-standard", "-z"],
+            cwd=repo_root,
+        )
+    )
+    return sorted(tracked | untracked)
 
 
 def _matches_any(path: str, patterns: tuple[str, ...]) -> bool:

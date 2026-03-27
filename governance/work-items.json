@@ -332,6 +332,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-27"
+        },
+        {
+          "id": "AK-TASK-0362",
+          "title": "Workflow guardrails: switch working-tree task-scope parsing to machine-readable git porcelain",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: switch working-tree task-scope parsing to machine-readable git porcelain (task #362)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-27"
         }
       ]
     }

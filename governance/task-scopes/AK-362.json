@@ -1,0 +1,23 @@
+{
+  "task_id": 362,
+  "description": "Switch working-tree task-scope parsing to machine-readable git output so spaces, untracked nested files, and literal arrow text in filenames are handled correctly.",
+  "allowed_paths": [
+    "diary/2026-03-27--switch-working-tree-task-scope-to-machine-readable-git.md",
+    "governance/task-scopes/AK-362.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-362.json",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

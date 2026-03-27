@@ -233,7 +233,7 @@ def test_check_task_scope_auto_range_covers_full_multi_commit_slice(
     )
 
 
-def test_changed_files_for_working_tree_preserves_leading_status_columns(
+def test_changed_files_for_working_tree_reports_modified_tracked_file(
     tmp_path: Path,
 ) -> None:
     repo = tmp_path / "repo"
@@ -248,6 +248,59 @@ def test_changed_files_for_working_tree_preserves_leading_status_columns(
     changed = changed_files_for_working_tree(repo)
 
     assert changed == ["scripts/allowed.py"]
+
+
+def test_changed_files_for_working_tree_preserves_spaces_in_tracked_paths(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    tracked = repo / "scripts" / "my file.py"
+    tracked.write_text("print('ok')\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    tracked.write_text("print('changed')\n", encoding="utf-8")
+
+    changed = changed_files_for_working_tree(repo)
+
+    assert changed == ["scripts/my file.py"]
+
+
+def test_changed_files_for_working_tree_reports_untracked_nested_files(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "scripts").mkdir(parents=True)
+    nested = repo / "scripts" / "my file.py"
+    nested.write_text("print('new')\n", encoding="utf-8")
+
+    changed = changed_files_for_working_tree(repo)
+
+    assert changed == ["scripts/my file.py"]
+
+
+def test_changed_files_for_working_tree_does_not_misparse_arrow_in_filename(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    arrow_file = repo / "a -> b.py"
+    arrow_file.write_text("print('new')\n", encoding="utf-8")
+
+    changed = changed_files_for_working_tree(repo)
+
+    assert changed == ["a -> b.py"]
 
 
 def test_check_task_scope_cli_help_matches_current_contract() -> None:
