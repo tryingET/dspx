@@ -303,6 +303,55 @@ def test_changed_files_for_working_tree_does_not_misparse_arrow_in_filename(
     assert changed == ["a -> b.py"]
 
 
+def test_changed_files_for_head_handles_root_commit(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    changed = changed_files_for_head(repo)
+
+    assert changed == ["README.md"]
+
+
+def test_check_task_scope_working_tree_resolves_uncommitted_manifest_before_head(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+    (repo / "README.md").write_text("hello again\n", encoding="utf-8")
+    _commit_all(repo, "second")
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+
+    result = check_task_scope(repo, mode="working-tree")
+
+    assert result.ok is True
+    assert result.task_id == 266
+    assert sorted(result.changed_files) == [
+        "governance/task-scopes/AK-266.json",
+        "scripts/allowed.py",
+    ]
+
+
 def test_check_task_scope_cli_help_matches_current_contract() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     script_path = repo_root / "scripts" / "check_task_scope.py"

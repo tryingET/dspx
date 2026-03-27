@@ -159,6 +159,10 @@ def infer_task_id_from_head(
     )
 
 
+def infer_task_id_from_working_tree(repo_root: Path) -> int | None:
+    return infer_task_id_from_changed_files(changed_files_for_working_tree(repo_root))
+
+
 def task_slice_commits(repo_root: Path, task_id: int) -> list[str]:
     manifest_relpath = _manifest_relpath_for_task(task_id)
     manifest_commits = _git_output(
@@ -238,6 +242,21 @@ def load_manifest(path: Path) -> TaskScopeManifest:
 def changed_files_for_head(
     repo_root: Path, rev_range: str = "HEAD^..HEAD"
 ) -> list[str]:
+    if rev_range == "HEAD^..HEAD":
+        parent_check = _run(["git", "rev-parse", "--verify", "HEAD^"], cwd=repo_root)
+        if parent_check.returncode != 0:
+            return _git_output(
+                [
+                    "diff-tree",
+                    "--root",
+                    "--no-commit-id",
+                    "--name-only",
+                    "--diff-filter=ACMRD",
+                    "-r",
+                    "HEAD",
+                ],
+                cwd=repo_root,
+            )
     return _git_output(
         ["diff", "--name-only", "--diff-filter=ACMRD", rev_range], cwd=repo_root
     )
@@ -297,6 +316,8 @@ def check_task_scope(
     resolved_task_id = task_id
     if resolved_task_id is None and manifest_path is None:
         resolved_task_id = infer_claimed_task_id(repo_root)
+        if resolved_task_id is None and mode == "working-tree":
+            resolved_task_id = infer_task_id_from_working_tree(repo_root)
         if resolved_task_id is None:
             resolved_task_id = infer_task_id_from_head(repo_root)
         if resolved_task_id is None:
@@ -306,7 +327,7 @@ def check_task_scope(
                 changed_files=(),
                 issues=(
                     ScopeIssue(
-                        "task scope check could not resolve a task id from AK claims or HEAD manifest changes"
+                        "task scope check could not resolve a task id from AK claims, working-tree manifest changes, or HEAD manifest changes"
                     ),
                 ),
             )
