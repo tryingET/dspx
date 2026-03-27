@@ -46,6 +46,7 @@ Do not ask for permission to start.
 8. `diary/2026-03-26--harden-advisory-evidence-resolution.md`
 9. `diary/2026-03-27--fix-working-tree-task-scope-path-parsing.md`
 10. `diary/2026-03-27--switch-working-tree-task-scope-to-machine-readable-git.md`
+11. `diary/2026-03-27--scope-advisory-degradation-to-exact-match-failures.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -58,11 +59,11 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-362` — switch working-tree task-scope parsing to machine-readable git output.
-- Outcome: working-tree task-scope validation now uses NUL-delimited git output for tracked and untracked paths, so spaces, untracked nested files, and literal `->` text in filenames no longer corrupt scope checks.
-- Files changed: `packages/dspx-core/src/dspx/task_scope.py`, `tests/test_task_scope.py`, `governance/task-scopes/AK-362.json`, `diary/2026-03-27--switch-working-tree-task-scope-to-machine-readable-git.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
-- Validation commands + results: `uv run -m pytest -q tests/test_task_scope.py` ✅; `python scripts/check_task_scope.py --task-id 362 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ blocked by pre-existing repo-wide `just typecheck` failures outside the AK-362 slice after passing workflow/direction/task-scope/pre-commit/replay/monorepo/module-synthesis checks; targeted AK evidence records ✅; `ak task complete 362 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-362` is complete as a workflow-guardrail hardening follow-up, while `AK-356` remains the next ready SG2 planning slice.
+- Slice executed: `AK-366` — scope advisory degradation to exact-match receipt failures.
+- Outcome: unrelated corrupt receipts no longer downgrade request-local advisory posture to `degraded_history_only`; only exact-match receipt failures now control advisory degradation, while broader scan damage remains visible in diagnostics.
+- Files changed: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `packages/dspx-core/src/dspx/services/module_service.py`, `tests/test_module_synthesis_evidence.py`, `tests/test_module_service.py`, `governance/task-scopes/AK-366.json`, `docs/project/operational_goals.md`, `diary/2026-03-27--scope-advisory-degradation-to-exact-match-failures.md`, `next_session_prompt.md`, and `governance/work-items.json` after AK export.
+- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ blocked by pre-existing repo-wide `just typecheck` failures outside the AK-366 slice after passing workflow/direction/task-scope/pre-commit/replay/monorepo/module-synthesis checks; targeted AK evidence records ✅; `ak task complete 366 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-366` is complete as SG2 evidence hardening work, while `AK-356` remains the next ready SG2 planning slice.
 - Next-session starting point: inspect the repo-scoped ready queue; unless the operator redirects scope again, claim `AK-356` and freeze the post-`TG9` candidate-prior contract before any predictive-ranking implementation.
 
 ## END-OF-SESSION

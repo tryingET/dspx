@@ -299,6 +299,8 @@ def _build_unavailable_synthesis_diagnostics(
         "oracle_query_text": request.oracle_query_text(),
         "receipt_scan_errors": [],
         "receipt_scan_error_count": 0,
+        "exact_match_receipt_scan_errors": [],
+        "exact_match_receipt_scan_error_count": 0,
         "oracle_lookup_status": "unavailable",
         "oracle_lookup_error": dict(retrieval_error),
         "oracle_index_available": False,

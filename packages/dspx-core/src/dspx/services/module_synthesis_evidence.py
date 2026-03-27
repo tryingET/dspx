@@ -212,6 +212,7 @@ class ModuleSynthesisEvidenceBundle:
     receipts_scanned: int
     oracle_query_text: str
     receipt_scan_errors: tuple[dict[str, Any], ...]
+    exact_match_receipt_scan_errors: tuple[dict[str, Any], ...]
     oracle_lookup_status: str
     oracle_lookup_error: dict[str, str] | None
 
@@ -227,6 +228,10 @@ class ModuleSynthesisEvidenceBundle:
     def receipt_scan_error_count(self) -> int:
         return len(self.receipt_scan_errors)
 
+    @property
+    def exact_match_receipt_scan_error_count(self) -> int:
+        return len(self.exact_match_receipt_scan_errors)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "request": self.request.to_dict(),
@@ -241,6 +246,10 @@ class ModuleSynthesisEvidenceBundle:
             "oracle_query_text": self.oracle_query_text,
             "receipt_scan_errors": [dict(item) for item in self.receipt_scan_errors],
             "receipt_scan_error_count": self.receipt_scan_error_count,
+            "exact_match_receipt_scan_errors": [
+                dict(item) for item in self.exact_match_receipt_scan_errors
+            ],
+            "exact_match_receipt_scan_error_count": self.exact_match_receipt_scan_error_count,
             "oracle_lookup_status": self.oracle_lookup_status,
             "oracle_lookup_error": (
                 dict(self.oracle_lookup_error)
@@ -713,6 +722,7 @@ def build_module_synthesis_history_advisory(
     positive_matches = [
         match for match in bundle.exact_match_receipts if match.positive_evidence
     ]
+    exact_match_scan_errors = bundle.exact_match_receipt_scan_errors
     matching_positive_receipts = [
         _advisory_receipt_identity(match)
         for match in positive_matches
@@ -725,10 +735,10 @@ def build_module_synthesis_history_advisory(
     ]
 
     if not bundle.exact_match_receipts:
-        if bundle.receipt_scan_errors:
+        if exact_match_scan_errors:
             status = "degraded_history_only"
             notes.append(
-                "receipt scan errors prevent confidently classifying exact-match history as no_history"
+                "exact-match receipt scan errors prevent confidently classifying history as no_history"
             )
         else:
             status = "no_history"
@@ -758,9 +768,14 @@ def build_module_synthesis_history_advisory(
             "oracle index missing; advisory anchored on exact-match history only"
         )
 
-    if bundle.receipt_scan_errors:
+    if exact_match_scan_errors:
         notes.append(
-            f"ignored {bundle.receipt_scan_error_count} malformed exact-match receipt(s) during evidence retrieval"
+            "ignored "
+            f"{bundle.exact_match_receipt_scan_error_count} malformed exact-match receipt(s) during evidence retrieval"
+        )
+    elif bundle.receipt_scan_errors:
+        notes.append(
+            "ignored malformed non-attributable receipt scan errors outside exact-match authority"
         )
 
     return {
@@ -794,6 +809,7 @@ def retrieve_module_synthesis_evidence(
 
     matches: list[ModuleSynthesisEvidenceMatch] = []
     receipt_scan_errors: list[dict[str, Any]] = []
+    exact_match_receipt_scan_errors: list[dict[str, Any]] = []
     receipt_paths = _receipt_paths(resolved_receipts_path)
     for meta_path in receipt_paths:
         receipt, receipt_load_error = _load_receipt_for_evidence(meta_path)
@@ -808,6 +824,7 @@ def retrieve_module_synthesis_evidence(
         receipt_issue = _exact_match_receipt_issue(meta_path, receipt)
         if receipt_issue is not None:
             receipt_scan_errors.append(receipt_issue)
+            exact_match_receipt_scan_errors.append(receipt_issue)
             continue
 
         try:
@@ -818,15 +835,15 @@ def retrieve_module_synthesis_evidence(
                 )
             )
         except Exception as exc:
-            receipt_scan_errors.append(
-                {
-                    "receipt_path": str(meta_path),
-                    "code": "receipt_evidence_build_failed",
-                    "message": str(exc),
-                    "error_type": exc.__class__.__name__,
-                    "stage": "evidence_build",
-                }
-            )
+            error = {
+                "receipt_path": str(meta_path),
+                "code": "receipt_evidence_build_failed",
+                "message": str(exc),
+                "error_type": exc.__class__.__name__,
+                "stage": "evidence_build",
+            }
+            receipt_scan_errors.append(error)
+            exact_match_receipt_scan_errors.append(error)
 
     matches.sort(
         key=lambda item: _parse_created_at(item.receipt.created_at),
@@ -855,6 +872,7 @@ def retrieve_module_synthesis_evidence(
         receipts_scanned=len(receipt_paths),
         oracle_query_text=request.oracle_query_text(),
         receipt_scan_errors=tuple(receipt_scan_errors),
+        exact_match_receipt_scan_errors=tuple(exact_match_receipt_scan_errors),
         oracle_lookup_status=oracle_lookup_status,
         oracle_lookup_error=oracle_lookup_error,
     )

@@ -345,6 +345,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-27"
+        },
+        {
+          "id": "AK-TASK-0366",
+          "title": "Synthesis evidence substrate: scope advisory degradation to exact-match receipt failures",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: scope advisory degradation to exact-match receipt failures (task #366)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-27"
         }
       ]
     }

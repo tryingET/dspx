@@ -243,6 +243,8 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
     }
     assert diagnostics["evidence_bundle"]["request"]["name"] == "Summarizer"
     assert diagnostics["evidence_bundle"]["oracle_lookup_status"] == "unavailable"
+    assert diagnostics["evidence_bundle"]["exact_match_receipt_scan_errors"] == []
+    assert diagnostics["evidence_bundle"]["exact_match_receipt_scan_error_count"] == 0
     assert (
         diagnostics["evidence_bundle"]["oracle_lookup_error"]["type"] == "RuntimeError"
     )

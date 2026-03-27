@@ -339,6 +339,7 @@ def test_retrieve_module_synthesis_evidence_skips_malformed_exact_match_receipt_
 
     assert bundle.exact_match_receipts == ()
     assert bundle.receipt_scan_error_count == 1
+    assert bundle.exact_match_receipt_scan_error_count == 1
     assert bundle.receipt_scan_errors[0]["receipt_path"] == str(malformed)
     assert (
         bundle.receipt_scan_errors[0]["code"]
@@ -374,6 +375,7 @@ def test_retrieve_module_synthesis_evidence_records_invalid_json_receipts_as_sca
 
     assert bundle.exact_match_receipts == ()
     assert bundle.receipt_scan_error_count == 1
+    assert bundle.exact_match_receipt_scan_error_count == 0
     assert bundle.receipt_scan_errors[0]["receipt_path"] == str(malformed)
     assert bundle.receipt_scan_errors[0]["code"] == "receipt_invalid_json"
     advisory = build_module_synthesis_history_advisory(
@@ -382,7 +384,11 @@ def test_retrieve_module_synthesis_evidence_records_invalid_json_receipts_as_sca
         output_hash="hash-now",
         cache_key="cache-now",
     )
-    assert advisory["status"] == "degraded_history_only"
+    assert advisory["status"] == "no_history"
+    assert (
+        "ignored malformed non-attributable receipt scan errors outside exact-match authority"
+        in advisory["notes"]
+    )
 
 
 def test_retrieve_module_synthesis_evidence_reports_unavailable_oracle_lookup(

@@ -1,0 +1,27 @@
+{
+  "task_id": 366,
+  "description": "Scope advisory degradation to exact-match receipt failures so unrelated corrupt receipts do not downgrade request-local history status.",
+  "allowed_paths": [
+    "diary/2026-03-27--scope-advisory-degradation-to-exact-match-failures.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-366.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-366.json",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_synthesis_evidence.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}
