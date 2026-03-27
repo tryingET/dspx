@@ -1,0 +1,24 @@
+{
+  "task_id": 359,
+  "description": "Fix working-tree task-scope parsing so git status output preserves leading status columns and changed paths are reported accurately.",
+  "allowed_paths": [
+    "diary/2026-03-27--fix-working-tree-task-scope-path-parsing.md",
+    "governance/task-scopes/AK-359.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "scripts/check_task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-359.json",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

@@ -319,6 +319,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-27"
+        },
+        {
+          "id": "AK-TASK-0359",
+          "title": "Workflow guardrails: fix working-tree task-scope path parsing",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: fix working-tree task-scope path parsing (task #359)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-27"
         }
       ]
     }

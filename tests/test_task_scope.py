@@ -8,6 +8,7 @@ from pathlib import Path
 from dspx.task_scope import (
     TaskScopeManifest,
     changed_files_for_head,
+    changed_files_for_working_tree,
     check_task_scope,
     collect_scope_issues,
     load_manifest,
@@ -230,6 +231,23 @@ def test_check_task_scope_auto_range_covers_full_multi_commit_slice(
         for issue in latest_only.issues
         if issue.path is None
     )
+
+
+def test_changed_files_for_working_tree_preserves_leading_status_columns(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "scripts" / "allowed.py").write_text("print('ok')\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+
+    changed = changed_files_for_working_tree(repo)
+
+    assert changed == ["scripts/allowed.py"]
 
 
 def test_check_task_scope_cli_help_matches_current_contract() -> None:

@@ -62,7 +62,7 @@ def _git_output(cmd: list[str], *, cwd: Path) -> list[str]:
     proc = _run(["git", *cmd], cwd=cwd)
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout or "git command failed").strip())
-    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    return [line.rstrip() for line in proc.stdout.splitlines() if line.strip()]
 
 
 def claimed_task_ids_for_repo(repo_root: Path) -> list[int]:
