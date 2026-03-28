@@ -253,6 +253,20 @@ def _validate_signature_source(code: str) -> list[str]:
     return errors
 
 
+def _validate_function_defaults(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    defaults = [
+        *node.args.defaults,
+        *[item for item in node.args.kw_defaults if item is not None],
+    ]
+    if any(not _literalish(item) for item in defaults):
+        errors.append(f"{label}_defaults_not_literal:{node.name}")
+
+
 def _validate_module_class(node: ast.ClassDef, *, errors: list[str]) -> None:
     if node.decorator_list:
         errors.append(f"class_decorators_not_allowed:{node.name}")
@@ -272,6 +286,11 @@ def _validate_module_class(node: ast.ClassDef, *, errors: list[str]) -> None:
             continue
         if child.decorator_list:
             errors.append(f"method_decorators_not_allowed:{node.name}.{child.name}")
+        _validate_function_defaults(
+            child,
+            errors=errors,
+            label="method",
+        )
 
 
 def _validate_module_source(code: str) -> list[str]:
@@ -307,6 +326,12 @@ def _validate_module_source(code: str) -> list[str]:
             if getattr(node, "decorator_list", None):
                 errors.append(
                     f"top_level_decorators_not_allowed:{getattr(node, 'name', 'unknown')}"
+                )
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                _validate_function_defaults(
+                    node,
+                    errors=errors,
+                    label="top_level_function",
                 )
             continue
         errors.append(f"top_level_stmt_not_allowed:{node.__class__.__name__}")
@@ -484,20 +509,22 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
     if errors:
         return {"ok": False, "checks": checks, "errors": errors}
 
-    namespace: dict[str, Any] = {}
-    try:
-        exec(code, namespace, namespace)
-    except Exception as exc:
-        return {"ok": False, "checks": checks, "errors": [f"exec_error:{exc}"]}
-
     try:
         import dspy
     except Exception as exc:
         return {"ok": False, "checks": checks, "errors": [f"dspy_import_error:{exc}"]}
 
+    namespace: dict[str, Any] = {}
     originals = _install_runtime_guards()
     try:
+        try:
+            exec(code, namespace, namespace)
+        except Exception as exc:
+            return {"ok": False, "checks": checks, "errors": [f"exec_error:{exc}"]}
+
         expected_module = str(payload.get("expected_module") or "")
+        expected_inputs = [str(item) for item in (payload.get("inputs") or [])]
+        expected_outputs = [str(item) for item in (payload.get("outputs") or [])]
         if not expected_module:
             errors.append("expected_module_missing")
         else:
@@ -526,6 +553,7 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
                     except Exception:
                         errors.append("signature_not_dspy_signature")
 
+        student = None
         build_student = namespace.get("build_student")
         if not callable(build_student):
             errors.append("build_student_missing")
@@ -538,6 +566,44 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
                     errors.append("predict_missing")
             except Exception as exc:
                 errors.append(f"build_student_error:{exc}")
+                student = None
+
+        if student is not None:
+            predict = getattr(student, "predict", None)
+            if bool(payload.get("use_signature")):
+                signature = getattr(predict, "signature", None)
+                input_fields = getattr(signature, "input_fields", None)
+                output_fields = getattr(signature, "output_fields", None)
+                if (
+                    not isinstance(input_fields, dict)
+                    or list(input_fields.keys()) != expected_inputs
+                ):
+                    errors.append("signature_input_fields_mismatch")
+                if (
+                    not isinstance(output_fields, dict)
+                    or list(output_fields.keys()) != expected_outputs
+                ):
+                    errors.append("signature_output_fields_mismatch")
+
+            class _CapturePredict:
+                def __init__(self) -> None:
+                    self.calls: list[dict[str, Any]] = []
+
+                def __call__(self, **kwargs):
+                    self.calls.append(dict(kwargs))
+                    return dict(kwargs)
+
+            capture = _CapturePredict()
+            try:
+                student.predict = capture
+                sample_inputs = {name: f"sample_{name}" for name in expected_inputs}
+                student.forward(**sample_inputs)
+                if not capture.calls:
+                    errors.append("forward_did_not_call_predict")
+                elif capture.calls[-1] != sample_inputs:
+                    errors.append("forward_input_mapping_mismatch")
+            except Exception as exc:
+                errors.append(f"forward_error:{exc}")
 
         io_spec = namespace.get("io_spec")
         if not callable(io_spec):
@@ -545,8 +611,8 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         else:
             try:
                 if io_spec() != {
-                    "inputs": list(payload.get("inputs") or []),
-                    "outputs": list(payload.get("outputs") or []),
+                    "inputs": expected_inputs,
+                    "outputs": expected_outputs,
                 }:
                     errors.append("io_spec_mismatch")
             except Exception as exc:
@@ -559,7 +625,7 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
             try:
                 weights = output_weights()
                 if not isinstance(weights, dict) or set(weights.keys()) != set(
-                    payload.get("outputs") or []
+                    expected_outputs
                 ):
                     errors.append("output_weights_mismatch")
             except Exception as exc:
