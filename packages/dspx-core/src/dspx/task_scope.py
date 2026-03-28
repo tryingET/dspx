@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
@@ -157,6 +158,21 @@ def infer_task_id_from_head(
     return infer_task_id_from_changed_files(
         changed_files_for_head(repo_root, rev_range=rev_range)
     )
+
+
+def _extract_task_id_from_next_session_marker(text: str, *, label: str) -> int | None:
+    match = re.search(rf"^\s*-\s*{re.escape(label)}\s*`AK-(\d+)`", text, re.MULTILINE)
+    if match is None:
+        return None
+    return int(match.group(1))
+
+
+def infer_task_id_from_next_session_checkpoint(repo_root: Path) -> int | None:
+    path = repo_root / "next_session_prompt.md"
+    if not path.exists():
+        return None
+    text = path.read_text(encoding="utf-8")
+    return _extract_task_id_from_next_session_marker(text, label="Slice executed:")
 
 
 def infer_task_id_from_working_tree(repo_root: Path) -> int | None:
@@ -319,16 +335,21 @@ def check_task_scope(
         if resolved_task_id is None and mode == "working-tree":
             resolved_task_id = infer_task_id_from_working_tree(repo_root)
         if resolved_task_id is None:
-            resolved_task_id = infer_task_id_from_head(repo_root)
+            head_rev_range = "HEAD^..HEAD" if rev_range == "auto" else rev_range
+            resolved_task_id = infer_task_id_from_head(
+                repo_root, rev_range=head_rev_range
+            )
+        if resolved_task_id is None and mode == "head":
+            resolved_task_id = infer_task_id_from_next_session_checkpoint(repo_root)
         if resolved_task_id is None:
             return ScopeCheckResult(
                 task_id=None,
                 mode=mode,
                 changed_files=(),
-                issues=(),
-                skipped=True,
-                skip_reason=(
-                    "no task binding resolved from AK claims, working-tree manifest changes, or HEAD manifest changes"
+                issues=(
+                    ScopeIssue(
+                        "task scope check could not resolve a task id from explicit input, AK claims, working-tree manifest changes, HEAD manifest changes, or next_session_prompt checkpoint"
+                    ),
                 ),
             )
 
@@ -392,7 +413,12 @@ def format_scope_result(result: ScopeCheckResult) -> str:
             f"changed={changed}"
         )
 
-    lines = [f"task-scope-check failed for AK-{result.task_id} mode={result.mode}"]
+    header = (
+        f"task-scope-check failed for AK-{result.task_id} mode={result.mode}"
+        if result.task_id is not None
+        else f"task-scope-check failed mode={result.mode}"
+    )
+    lines = [header]
     for issue in result.issues:
         if issue.path:
             lines.append(f"- {issue.path}: {issue.message}")

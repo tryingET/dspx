@@ -94,8 +94,10 @@ module-synthesis-quality-check:
 
 # Check the attested task slice against an explicit file-scope manifest.
 # Head mode validates the full task slice from manifest introduction through HEAD.
-task-scope-check mode="head" rev_range="auto":
-  uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}
+# Without an explicit task_id, head mode falls back to deterministic repo-local binding
+# via the committed next_session_prompt checkpoint before failing closed.
+task-scope-check task_id="" mode="head" rev_range="auto":
+  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi
 
 # Full validation gate (run once per commit batch / before push)
 verify-full:

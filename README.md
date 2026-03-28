@@ -401,13 +401,14 @@ Validation tiers:
 # pre-push hook (full gate):
 # - just verify-full
 #   - workflow contract + governance validation
-#   - task-scope attestation when the current task binding can be resolved
+#   - task-scope attestation for the committed slice via explicit task_id, AK claim, changed manifest path, or next_session checkpoint
 #   - monorepo/typecheck/test
 ```
 
 Batch-commit flow (run once before push):
 
 ```bash
+just task-scope-check task_id=<AK-ID> mode=working-tree
 just verify-full
 ```
 

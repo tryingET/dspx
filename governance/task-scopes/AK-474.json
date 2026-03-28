@@ -1,0 +1,32 @@
+{
+  "task_id": 474,
+  "description": "Require deterministic task binding for verify-full task-scope checks by using explicit task ids or the committed session checkpoint, and fail closed when no binding can be resolved.",
+  "allowed_paths": [
+    "CONTRIBUTING.md",
+    "Justfile",
+    "README.md",
+    "diary/2026-03-28--require-deterministic-task-binding-for-verify-full.md",
+    "docs/project/developer_workflow.md",
+    "docs/project/operational_goals.md",
+    "docs/tech-stack.local.md",
+    "governance/task-scopes/AK-474.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "required_paths": [
+    "Justfile",
+    "docs/project/developer_workflow.md",
+    "governance/task-scopes/AK-474.json",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "tests/test_task_scope.py",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

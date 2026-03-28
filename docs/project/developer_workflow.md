@@ -32,7 +32,8 @@ Implementation detail: this uses `uvx pre-commit install` for both `pre-commit` 
 
 ```bash
 ./scripts/ci/smoke.sh
-just verify-full
+just task-scope-check task_id=<AK-ID> mode=working-tree   # before commit, for the current slice
+just verify-full                                          # after commit / before push
 ```
 
 Validation contract:
@@ -47,7 +48,7 @@ Validation contract:
 - `just verify-full`
   - re-checks workflow contracts
   - runs governance validation
-  - runs `just task-scope-check`, which validates the full attested task slice from task-scope-manifest introduction through `HEAD` when the current task binding can be resolved and otherwise skips cleanly
+  - runs `just task-scope-check`, which validates the full attested task slice from task-scope-manifest introduction through `HEAD` using an explicit `task_id`, an active AK claim, changed manifest paths, or the committed `next_session_prompt.md` checkpoint, and otherwise fails closed
   - runs `uvx pre-commit run --all-files`
   - runs the deterministic replay provenance check
   - runs monorepo/typecheck/test gates

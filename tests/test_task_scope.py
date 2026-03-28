@@ -11,6 +11,7 @@ from dspx.task_scope import (
     changed_files_for_working_tree,
     check_task_scope,
     collect_scope_issues,
+    infer_task_id_from_next_session_checkpoint,
     load_manifest,
 )
 
@@ -161,7 +162,7 @@ def test_check_task_scope_resolves_head_manifest_when_no_claim(tmp_path: Path) -
     ]
 
 
-def test_check_task_scope_skips_when_task_id_cannot_be_resolved(
+def test_check_task_scope_fails_closed_when_task_id_cannot_be_resolved(
     tmp_path: Path,
 ) -> None:
     repo = tmp_path / "repo"
@@ -174,11 +175,67 @@ def test_check_task_scope_skips_when_task_id_cannot_be_resolved(
 
     result = check_task_scope(repo, mode="head")
     assert result.ok is False
-    assert result.skipped is True
+    assert result.skipped is False
     assert result.task_id is None
-    assert not result.issues
-    assert result.skip_reason is not None
-    assert "no task binding resolved" in result.skip_reason
+    assert result.issues
+    assert "could not resolve a task id" in result.issues[0].message
+
+
+def test_infer_task_id_from_next_session_checkpoint(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / "next_session_prompt.md").write_text(
+        "## SESSION CHECKPOINT (UPDATE BEFORE /commit)\n"
+        "- Slice executed: `AK-266` — something\n",
+        encoding="utf-8",
+    )
+
+    assert infer_task_id_from_next_session_checkpoint(repo) == 266
+
+
+def test_check_task_scope_head_resolves_next_session_checkpoint_when_latest_commit_lacks_manifest(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                    "next_session_prompt.md",
+                ],
+                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "manifest and allowed file")
+
+    (repo / "next_session_prompt.md").write_text(
+        "## SESSION CHECKPOINT (UPDATE BEFORE /commit)\n"
+        "- Slice executed: `AK-266` — completed slice\n",
+        encoding="utf-8",
+    )
+    _commit_all(repo, "checkpoint only")
+
+    result = check_task_scope(repo, mode="head")
+    assert result.ok is True
+    assert result.task_id == 266
+    assert "governance/task-scopes/AK-266.json" in result.changed_files
+    assert "scripts/allowed.py" in result.changed_files
+    assert "next_session_prompt.md" in result.changed_files
 
 
 def test_check_task_scope_auto_range_covers_full_multi_commit_slice(

@@ -540,6 +540,19 @@
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0474",
+          "title": "Workflow guardrails: require deterministic task binding for verify-full task-scope checks",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: require deterministic task binding for verify-full task-scope checks (task #474)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
         }
       ]
     }

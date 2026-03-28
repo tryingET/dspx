@@ -26,8 +26,8 @@ Development Setup
 - Enable hooks:
 
   just hooks-install
-  # run the full validation gate once
-  # (includes task-scope attestation when the current task has a scope manifest)
+  # validate the current slice explicitly before commit, then run the full gate
+  just task-scope-check task_id=<AK-ID> mode=working-tree
   just verify-full
 
 Pull Requests
