@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 
-from dspx.tools.openapi import load_spec, extract_operations
+from dspx.tools.openapi import extract_operations, load_spec
 
 
 def test_load_spec_from_url_with_allowlist_and_cache(
@@ -57,3 +58,52 @@ def test_load_spec_url_rejects_unallowed_host(tmp_path: Path) -> None:
         assert False, "expected PermissionError"
     except PermissionError:
         pass
+
+
+def test_load_spec_url_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.example.com":
+            return httpx.Response(
+                302,
+                headers={"location": "http://evil.example/spec.json"},
+            )
+        if request.url.host == "evil.example":
+            return httpx.Response(200, text='{"openapi":"3.0.0","paths":{}}')
+        return httpx.Response(404)
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(handler),
+        follow_redirects=True,
+    )
+
+    with pytest.raises(PermissionError):
+        load_spec(
+            "http://api.example.com/spec.json",
+            allowed_hosts={"api.example.com": True},
+            client=client,
+        )
+
+
+def test_load_spec_keeps_last_good_cache_on_malformed_success(
+    tmp_path: Path, monkeypatch
+) -> None:
+    good_spec = '{"openapi":"3.0.0","paths":{"/ping":{"get":{"operationId":"ping","responses":{"200":{"description":"ok"}}}}}}'
+    calls = {"count": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return httpx.Response(200, text=good_spec)
+        return httpx.Response(200, text="not-json-not-yaml: [")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+
+    monkeypatch.setenv("DSPX_OPENAPI_CACHE", "1")
+    monkeypatch.setenv("DSPX_OPENAPI_CACHE_DIR", str(tmp_path / "cache"))
+
+    url = "http://api.example.com/spec.json"
+    first = load_spec(url, allowed_hosts={"api.example.com": True}, client=client)
+    assert "ping" in extract_operations(first)
+
+    second = load_spec(url, allowed_hosts={"api.example.com": True}, client=client)
+    assert "ping" in extract_operations(second)

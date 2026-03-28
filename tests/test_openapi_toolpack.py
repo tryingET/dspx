@@ -153,3 +153,36 @@ def test_openapi_call_with_body_and_headers(tmp_path: Path) -> None:
     assert (
         res.status_code == 200 and "H=ok" in raw and ('"k":1' in raw or '"k": 1' in raw)
     )
+
+
+def test_openapi_call_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.example.com":
+            return httpx.Response(
+                302,
+                headers={"location": "http://evil.example/leak"},
+            )
+        if request.url.host == "evil.example":
+            return httpx.Response(200, text="evil")
+        return httpx.Response(404, text="not found")
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(handler),
+        follow_redirects=True,
+    )
+
+    try:
+        call_operation(
+            OpenAPICallRequest(operation_id="ping"),
+            operation=ops["ping"],
+            allowed_hosts={"api.example.com": True},
+            client=client,
+        )
+    except PermissionError as exc:
+        assert "Redirect target host not allowed" in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected PermissionError for redirected OpenAPI call")

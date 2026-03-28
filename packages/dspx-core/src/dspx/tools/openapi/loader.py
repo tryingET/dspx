@@ -98,14 +98,22 @@ def load_spec(
         try:
             resp = client.get(path)
             resp.raise_for_status()
+            final_url = str(resp.url)
+            if not _host_allowed(final_url, allowed_hosts):
+                raise PermissionError(
+                    f"Redirect target host not allowed for spec URL: {final_url}"
+                )
             text = resp.text
+            parsed = _load_text(text, final_url)
             if _cache_enabled():
                 try:
                     with open(pth, "w", encoding="utf-8") as wf:
                         wf.write(text)
                 except Exception:
                     pass
-            return _load_text(text, path)
+            return parsed
+        except PermissionError:
+            raise
         except Exception:
             if _cache_enabled() and os.path.exists(pth):
                 try:

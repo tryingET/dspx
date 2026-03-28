@@ -336,6 +336,11 @@ def _web_fetch(
         close_client = True
     try:
         resp = client.get(url, headers=headers, timeout=timeout)
+        final_url = str(resp.url)
+        if not _host_allowed(final_url, allowed_hosts):
+            raise PermissionError(
+                f"Redirect target host not allowed for URL: {final_url}"
+            )
         text = resp.text
         max_len = 100_000
         if len(text) > max_len:

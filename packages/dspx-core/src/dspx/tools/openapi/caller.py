@@ -340,6 +340,11 @@ def call_operation(
             timeout=request.timeout,
         )
         t1 = _time.time()
+        final_url = str(resp.url)
+        if not _host_allowed(final_url, allowed_hosts):
+            raise PermissionError(
+                f"Redirect target host not allowed for URL: {final_url}"
+            )
         raw_text = resp.text
         content_type = resp.headers.get("content-type", "")
         parsed: Optional[Dict[str, Any]] = None
