@@ -592,6 +592,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-28"
+        },
+        {
+          "id": "AK-TASK-0482",
+          "title": "Workflow guardrails: refactor verify-full into staged gates with parallel heavy checks",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: refactor verify-full into staged gates with parallel heavy checks (task #482)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
         }
       ]
     }

@@ -20,9 +20,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: verify-full
-        name: just verify-full
-        entry: just verify-full
+      - id: verify-pre-push
+        name: just verify-pre-push
+        entry: just verify-pre-push
         language: system
         pass_filenames: false
         stages: [pre-push]

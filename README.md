@@ -398,17 +398,21 @@ Validation tiers:
 # - ruff format/check
 # - whitespace check
 
-# pre-push hook (full gate):
-# - just verify-full
+# pre-push hook (fast gate):
+# - just verify-pre-push
 #   - workflow contract + governance validation
 #   - task-scope attestation for the committed slice via explicit task_id, AK claim, changed manifest path, or next_session checkpoint
-#   - monorepo/typecheck/test
+#   - pre-commit all-files
+# explicit full gate:
+# - just verify-full
+#   - runs verify-fast first, then executes runtime/invariant and typecheck/test branches in parallel
 ```
 
 Batch-commit flow (run once before push):
 
 ```bash
 just task-scope-check task_id=<AK-ID> mode=working-tree
+just verify-pre-push
 just verify-full
 ```
 

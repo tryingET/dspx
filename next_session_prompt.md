@@ -55,11 +55,11 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-480` — let the committed session checkpoint disambiguate multi-manifest head slices.
-- Outcome: DSPx now lets `check_task_scope` fall through to the committed `next_session_prompt.md` checkpoint when head-mode manifest inference encounters multiple changed task manifests, so cleanup commits can still validate deterministically instead of crashing before the checkpoint fallback runs.
-- Files changed: `diary/2026-03-28--let-checkpoint-disambiguate-multi-manifest-head-slices.md`, `governance/task-scopes/AK-480.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/task_scope.py`, and `tests/test_task_scope.py`.
-- Validation commands + results: `python scripts/check_task_scope.py --task-id 480 --mode working-tree` ✅; `uv run -m pytest -q tests/test_task_scope.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 480 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-480` is complete; `TG19` remains active with `AK-473` as the next ready SG2 slice.
+- Slice executed: `AK-482` — refactor `verify-full` into staged gates with parallel heavy checks.
+- Outcome: DSPx now splits validation into `verify-fast`, `verify-runtime`, `verify-tests`, `verify-pre-push`, and `verify-full`; the pre-push hook runs the fast guardrail path, while the explicit full gate runs the runtime/invariant branch and the typecheck/test branch in parallel after the fast gate passes.
+- Files changed: `.pre-commit-config.yaml`, `CONTRIBUTING.md`, `Justfile`, `README.md`, `diary/2026-03-28--refactor-verify-full-into-staged-parallel-gates.md`, `docs/project/developer_workflow.md`, `docs/tech-stack.local.md`, `governance/task-scopes/AK-482.json`, `governance/work-items.json`, `next_session_prompt.md`, `scripts/check_workflow_contracts.py`, `scripts/ci/verify-full.sh`, and `tests/test_workflow_contracts.py`.
+- Validation commands + results: `python scripts/check_task_scope.py --task-id 482 --mode working-tree` ✅; `uv run -m pytest -q tests/test_workflow_contracts.py` ✅; `python3 scripts/check_workflow_contracts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 482 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-482` is complete; `TG19` remains active with `AK-473` as the next ready SG2 slice.
 - Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-473` and materialize the read-only candidate-prior counterfactual advisory on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
 
 ## END-OF-SESSION

@@ -25,6 +25,7 @@ Local notes for DSPx:
   - install hooks once: `just hooks-install`
   - current-slice validation before commit: `just task-scope-check task_id=<AK-ID> mode=working-tree`
   - pre-commit hook = fast staged checks (ruff/whitespace)
-  - pre-push hook = `just verify-full`
-  - `just verify-full` also runs `just task-scope-check`, which validates the full attested task slice in head mode using an explicit `task_id`, an active AK claim, changed manifest paths, or the committed `next_session_prompt.md` checkpoint, and otherwise fails closed
-  - explicit batch gate: `just verify-full`
+  - pre-push hook = `just verify-pre-push`
+  - `just verify-fast` runs workflow/governance/task-scope/pre-commit all-files checks and fails closed on unresolved task binding
+  - `just verify-full` runs `verify-fast` first, then executes the heavier runtime/invariant branch and the typecheck/test branch in parallel
+  - explicit batch gate before merge/release: `just verify-full`

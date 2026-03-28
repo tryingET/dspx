@@ -99,18 +99,32 @@ module-synthesis-quality-check:
 task-scope-check task_id="" mode="head" rev_range="auto":
   if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi
 
-# Full validation gate (run once per commit batch / before push)
-verify-full:
+# Fast deterministic validation gate (cheap enough for frequent local use)
+verify-fast:
   just workflow-contract-check
   just direction-contract-check
   just governance-check
   just task-scope-check
   uvx pre-commit run --all-files
+
+# Runtime/invariant checks that are heavier than the fast contract but cheaper than full tests
+verify-runtime:
   just replay-provenance-check
   just monorepo-check
   just module-synthesis-quality-check
+
+# Full static + test branch
+verify-tests:
   just typecheck
   just test
+
+# Hook-facing pre-push gate
+verify-pre-push:
+  just verify-fast
+
+# Full validation gate (run once before merge/release or when explicitly needed)
+verify-full:
+  bash scripts/ci/verify-full.sh
 
 # Run core-focused test slice (exclude forge-marked tests)
 test-core:

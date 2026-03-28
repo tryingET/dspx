@@ -61,8 +61,21 @@ def collect_issues(root: Path) -> list[Issue]:
             issues,
         )
 
-    _require_file(root, ".pre-commit-config.yaml", issues)
+    pre_commit = _require_file(root, ".pre-commit-config.yaml", issues)
+    if pre_commit is not None:
+        pre_commit_text = pre_commit.read_text(encoding="utf-8")
+        _check_required_substrings(
+            pre_commit_text,
+            ".pre-commit-config.yaml",
+            [
+                "id: verify-pre-push",
+                "entry: just verify-pre-push",
+                "stages: [pre-push]",
+            ],
+            issues,
+        )
     _require_file(root, "docs/project/developer_workflow.md", issues)
+    _require_file(root, "scripts/ci/verify-full.sh", issues)
 
     file_checks: dict[str, dict[str, list[str]]] = {
         "AGENTS.md": {
@@ -82,6 +95,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 "just install",
                 "just hooks-install",
                 "just task-scope-check task_id=<AK-ID> mode=working-tree",
+                "just verify-pre-push",
                 "just verify-full",
             ],
             "forbidden": ["uv pip install -e ."],
@@ -91,6 +105,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 "docs/project/developer_workflow.md",
                 "just hooks-install",
                 "just task-scope-check task_id=<AK-ID> mode=working-tree",
+                "just verify-pre-push",
                 "just verify-full",
             ],
             "forbidden": [],
@@ -100,9 +115,10 @@ def collect_issues(root: Path) -> list[Issue]:
                 "docs/project/developer_workflow.md",
                 "just hooks-install",
                 "just task-scope-check task_id=<AK-ID> mode=working-tree",
+                "just verify-pre-push",
                 "just verify-full",
-                "next_session_prompt.md",
-                "otherwise fails closed",
+                "fails closed",
+                "parallel",
             ],
             "forbidden": [],
         },
@@ -122,6 +138,11 @@ def collect_issues(root: Path) -> list[Issue]:
                 "governance-check:",
                 'task-scope-check task_id="" mode="head" rev_range="auto":',
                 "next_session_prompt checkpoint before failing closed",
+                "verify-fast:",
+                "verify-runtime:",
+                "verify-tests:",
+                "verify-pre-push:",
+                "bash scripts/ci/verify-full.sh",
                 "uvx pre-commit run --all-files",
                 "cue vet governance/work-items.json governance/work-items.cue",
             ],

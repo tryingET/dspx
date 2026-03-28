@@ -33,7 +33,8 @@ Implementation detail: this uses `uvx pre-commit install` for both `pre-commit` 
 ```bash
 ./scripts/ci/smoke.sh
 just task-scope-check task_id=<AK-ID> mode=working-tree   # before commit, for the current slice
-just verify-full                                          # after commit / before push
+just verify-pre-push                                      # matches the pre-push hook
+just verify-full                                          # explicit full gate before merge/release or when needed
 ```
 
 Validation contract:
@@ -45,13 +46,18 @@ Validation contract:
   - runs `./scripts/ci/smoke.sh`
   - runs the deterministic replay provenance check (`uv run -q python scripts/check_replay_provenance.py`)
   - runs repo ontology validation when ROCS metadata is present
-- `just verify-full`
+- `just verify-fast`
   - re-checks workflow contracts
   - runs governance validation
   - runs `just task-scope-check`, which validates the full attested task slice from task-scope-manifest introduction through `HEAD` using an explicit `task_id`, an active AK claim, changed manifest paths, or the committed `next_session_prompt.md` checkpoint, and otherwise fails closed
   - runs `uvx pre-commit run --all-files`
-  - runs the deterministic replay provenance check
-  - runs monorepo/typecheck/test gates
+- `just verify-pre-push`
+  - runs `just verify-fast`
+  - is the hook-facing pre-push gate
+- `just verify-full`
+  - runs `just verify-fast` first
+  - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel
+  - remains the explicit full confidence gate before merge/release or when the current slice needs the whole suite
 
 ## Governance + session planning
 

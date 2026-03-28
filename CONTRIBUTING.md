@@ -26,8 +26,10 @@ Development Setup
 - Enable hooks:
 
   just hooks-install
-  # validate the current slice explicitly before commit, then run the full gate
+  # validate the current slice explicitly before commit, then run the hook-facing fast gate
   just task-scope-check task_id=<AK-ID> mode=working-tree
+  just verify-pre-push
+  # run the full parallelized gate before merge/release or when the slice needs whole-repo confidence
   just verify-full
 
 Pull Requests

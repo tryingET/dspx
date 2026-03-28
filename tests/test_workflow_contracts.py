@@ -28,8 +28,18 @@ def _write(root: Path, relpath: str, content: str) -> None:
 
 def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(tmp_path, ".gitignore", "__pycache__/\n*.py[cod]\n")
-    _write(tmp_path, ".pre-commit-config.yaml", "repos: []\n")
+    _write(
+        tmp_path,
+        ".pre-commit-config.yaml",
+        "repos:\n"
+        "  - repo: local\n"
+        "    hooks:\n"
+        "      - id: verify-pre-push\n"
+        "        entry: just verify-pre-push\n"
+        "        stages: [pre-push]\n",
+    )
     _write(tmp_path, "docs/project/developer_workflow.md", "workflow\n")
+    _write(tmp_path, "scripts/ci/verify-full.sh", "#!/bin/sh\nexit 0\n")
     _write(
         tmp_path,
         "AGENTS.md",
@@ -39,17 +49,17 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "CONTRIBUTING.md",
-        "docs/project/developer_workflow.md\njust install\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-full\n",
+        "docs/project/developer_workflow.md\njust install\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\n",
     )
     _write(
         tmp_path,
         "README.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-full\n",
+        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\n",
     )
     _write(
         tmp_path,
         "docs/tech-stack.local.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-full\nnext_session_prompt.md\notherwise fails closed\n",
+        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\nfails closed\nparallel\n",
     )
     _write(
         tmp_path,
@@ -71,8 +81,16 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "# next_session_prompt checkpoint before failing closed\n"
         'task-scope-check task_id="" mode="head" rev_range="auto":\n'
         '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
-        "verify-full:\n"
+        "verify-fast:\n"
         "  uvx pre-commit run --all-files\n"
+        "verify-runtime:\n"
+        "  echo runtime\n"
+        "verify-tests:\n"
+        "  echo tests\n"
+        "verify-pre-push:\n"
+        "  just verify-fast\n"
+        "verify-full:\n"
+        "  bash scripts/ci/verify-full.sh\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n",
     )
     _write(
