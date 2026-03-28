@@ -161,7 +161,7 @@ def test_check_task_scope_resolves_head_manifest_when_no_claim(tmp_path: Path) -
     ]
 
 
-def test_check_task_scope_fails_closed_when_task_id_cannot_be_resolved(
+def test_check_task_scope_skips_when_task_id_cannot_be_resolved(
     tmp_path: Path,
 ) -> None:
     repo = tmp_path / "repo"
@@ -174,10 +174,11 @@ def test_check_task_scope_fails_closed_when_task_id_cannot_be_resolved(
 
     result = check_task_scope(repo, mode="head")
     assert result.ok is False
-    assert result.skipped is False
+    assert result.skipped is True
     assert result.task_id is None
-    assert result.issues
-    assert "could not resolve a task id" in result.issues[0].message
+    assert not result.issues
+    assert result.skip_reason is not None
+    assert "no task binding resolved" in result.skip_reason
 
 
 def test_check_task_scope_auto_range_covers_full_multi_commit_slice(

@@ -325,10 +325,10 @@ def check_task_scope(
                 task_id=None,
                 mode=mode,
                 changed_files=(),
-                issues=(
-                    ScopeIssue(
-                        "task scope check could not resolve a task id from AK claims, working-tree manifest changes, or HEAD manifest changes"
-                    ),
+                issues=(),
+                skipped=True,
+                skip_reason=(
+                    "no task binding resolved from AK claims, working-tree manifest changes, or HEAD manifest changes"
                 ),
             )
 

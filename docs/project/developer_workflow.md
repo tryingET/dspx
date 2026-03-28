@@ -47,7 +47,7 @@ Validation contract:
 - `just verify-full`
   - re-checks workflow contracts
   - runs governance validation
-  - runs `just task-scope-check`, which fails closed if it cannot resolve a task id and in head mode validates the full attested task slice from task-scope-manifest introduction through `HEAD`
+  - runs `just task-scope-check`, which validates the full attested task slice from task-scope-manifest introduction through `HEAD` when the current task binding can be resolved and otherwise skips cleanly
   - runs `uvx pre-commit run --all-files`
   - runs the deterministic replay provenance check
   - runs monorepo/typecheck/test gates

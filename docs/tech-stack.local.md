@@ -25,5 +25,5 @@ Local notes for DSPx:
   - install hooks once: `just hooks-install`
   - pre-commit hook = fast staged checks (ruff/whitespace)
   - pre-push hook = `just verify-full`
-  - `just verify-full` also runs `just task-scope-check`, which fails closed if task binding cannot be resolved and validates the full attested task slice in head mode
+  - `just verify-full` also runs `just task-scope-check`, which validates the full attested task slice in head mode when task binding can be resolved and otherwise skips cleanly
   - explicit batch gate: `just verify-full`

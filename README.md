@@ -401,7 +401,7 @@ Validation tiers:
 # pre-push hook (full gate):
 # - just verify-full
 #   - workflow contract + governance validation
-#   - task-scope attestation for the latest claimed task slice
+#   - task-scope attestation when the current task binding can be resolved
 #   - monorepo/typecheck/test
 ```
 
