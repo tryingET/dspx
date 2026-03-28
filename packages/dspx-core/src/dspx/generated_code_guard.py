@@ -161,24 +161,24 @@ def _call_name(node: ast.AST) -> str | None:
     return None
 
 
-def _import_module_name(node: ast.stmt) -> str | None:
+def _import_module_names(node: ast.stmt) -> tuple[str, ...]:
     if isinstance(node, ast.Import):
-        if not node.names:
-            return None
-        return str(node.names[0].name)
+        return tuple(str(alias.name) for alias in node.names if alias.name)
     if isinstance(node, ast.ImportFrom):
         if node.module is None:
-            return ""
-        return str(node.module)
-    return None
+            return ("",)
+        return (str(node.module),)
+    return ()
 
 
-def _import_allowed(node: ast.stmt) -> bool:
-    module = _import_module_name(node)
-    if module is None:
-        return False
-    root = module.split(".", 1)[0]
-    return root in _SAFE_IMPORT_MODULES
+def _disallowed_import_modules(node: ast.stmt) -> tuple[str, ...]:
+    modules = _import_module_names(node)
+    disallowed: list[str] = []
+    for module in modules:
+        root = module.split(".", 1)[0]
+        if root not in _SAFE_IMPORT_MODULES:
+            disallowed.append(module)
+    return tuple(disallowed)
 
 
 def _literalish(node: ast.AST | None) -> bool:
@@ -223,6 +223,11 @@ def _validate_signature_field(node: ast.stmt, *, errors: list[str]) -> None:
         errors.append("signature_field_kwargs_not_literal")
 
 
+def _validate_class_keywords(node: ast.ClassDef, *, errors: list[str]) -> None:
+    if node.keywords:
+        errors.append(f"class_keywords_not_allowed:{node.name}")
+
+
 def _validate_signature_source(code: str) -> list[str]:
     errors: list[str] = []
     try:
@@ -234,16 +239,15 @@ def _validate_signature_source(code: str) -> list[str]:
         if _expr_is_docstring(node):
             continue
         if isinstance(node, (ast.Import, ast.ImportFrom)):
-            if not _import_allowed(node):
-                errors.append(
-                    f"import_not_allowed:{_import_module_name(node) or 'unknown'}"
-                )
+            for module in _disallowed_import_modules(node):
+                errors.append(f"import_not_allowed:{module or 'unknown'}")
             continue
         if not isinstance(node, ast.ClassDef):
             errors.append(f"top_level_stmt_not_allowed:{node.__class__.__name__}")
             continue
         if node.decorator_list:
             errors.append("signature_decorators_not_allowed")
+        _validate_class_keywords(node, errors=errors)
         base_names = {_call_name(base) for base in node.bases}
         if not ({"Signature", "dspy.Signature"} & base_names):
             errors.append(f"signature_base_not_allowed:{node.name}")
@@ -270,6 +274,7 @@ def _validate_function_defaults(
 def _validate_module_class(node: ast.ClassDef, *, errors: list[str]) -> None:
     if node.decorator_list:
         errors.append(f"class_decorators_not_allowed:{node.name}")
+    _validate_class_keywords(node, errors=errors)
     base_names = {_call_name(base) for base in node.bases}
     if {"Signature", "dspy.Signature"} & base_names:
         for child in node.body:
@@ -304,10 +309,8 @@ def _validate_module_source(code: str) -> list[str]:
         if _expr_is_docstring(node):
             continue
         if isinstance(node, (ast.Import, ast.ImportFrom)):
-            if not _import_allowed(node):
-                errors.append(
-                    f"import_not_allowed:{_import_module_name(node) or 'unknown'}"
-                )
+            for module in _disallowed_import_modules(node):
+                errors.append(f"import_not_allowed:{module or 'unknown'}")
             continue
         if isinstance(node, ast.ClassDef):
             _validate_module_class(node, errors=errors)
@@ -466,10 +469,14 @@ def _run_signature_worker(code: str, payload: Mapping[str, Any]) -> dict[str, An
         return {"ok": False, "errors": errors}
 
     namespace: dict[str, Any] = {}
+    originals = _install_runtime_guards()
     try:
-        exec(code, namespace, namespace)
-    except Exception as exc:
-        return {"ok": False, "errors": [f"exec_error:{exc}"]}
+        try:
+            exec(code, namespace, namespace)
+        except Exception as exc:
+            return {"ok": False, "errors": [f"exec_error:{exc}"]}
+    finally:
+        _restore_runtime_guards(originals)
 
     expected = payload.get("expected_class_name")
     expected_name = str(expected) if expected not in {None, ""} else None

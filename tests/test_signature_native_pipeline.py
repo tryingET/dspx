@@ -226,3 +226,41 @@ class SigSafe(dspy.Signature):
     assert ok is False
     assert errors
     assert not (tmp_path / marker).exists()
+
+
+def test_signature_smoke_rejects_disallowed_multi_imports(tmp_path: Path) -> None:
+    code = """
+import dspy, os
+
+class SigSafe(dspy.Signature):
+    text: str = dspy.InputField(desc='input text')
+    output: str = dspy.OutputField(desc='output text')
+"""
+
+    ok, errors = sigsvc._smoke_signature_code(code, expected_class_name="SigSafe")
+
+    assert ok is False
+    assert any("import_not_allowed:os" in err for err in errors)
+
+
+def test_signature_smoke_rejects_class_keyword_side_effects(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    marker = tmp_path / "signature-class-keyword-marker.txt"
+    code = f"""
+import dspy
+
+class SigSafe(
+    dspy.Signature,
+    metaclass=(open({marker.as_posix()!r}, 'w', encoding='utf-8'), type)[1],
+):
+    text: str = dspy.InputField(desc='input text')
+    output: str = dspy.OutputField(desc='output text')
+"""
+
+    ok, errors = sigsvc._smoke_signature_code(code, expected_class_name="SigSafe")
+
+    assert ok is False
+    assert errors
+    assert not marker.exists()
