@@ -39,17 +39,17 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "CONTRIBUTING.md",
-        "docs/project/developer_workflow.md\njust install\njust hooks-install\njust verify-full\n",
+        "docs/project/developer_workflow.md\njust install\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-full\n",
     )
     _write(
         tmp_path,
         "README.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust verify-full\n",
+        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-full\n",
     )
     _write(
         tmp_path,
         "docs/tech-stack.local.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust verify-full\n",
+        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-full\nnext_session_prompt.md\notherwise fails closed\n",
     )
     _write(
         tmp_path,
@@ -68,8 +68,9 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  python3 scripts/check_direction_to_execution.py\n"
         "governance-check:\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n"
-        "task-scope-check:\n"
-        "  uv run -q python scripts/check_task_scope.py --mode head --range auto\n"
+        "# next_session_prompt checkpoint before failing closed\n"
+        'task-scope-check task_id="" mode="head" rev_range="auto":\n'
+        '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
         "verify-full:\n"
         "  uvx pre-commit run --all-files\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n",

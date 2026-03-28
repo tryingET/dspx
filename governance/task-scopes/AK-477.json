@@ -1,0 +1,24 @@
+{
+  "task_id": 477,
+  "description": "Lock the deterministic task-binding workflow into repo contract checks and tests so docs or Justfile drift cannot silently weaken task-scope enforcement.",
+  "allowed_paths": [
+    "diary/2026-03-28--lock-deterministic-task-binding-into-contract-checks.md",
+    "governance/task-scopes/AK-477.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "scripts/check_workflow_contracts.py",
+    "tests/test_workflow_contracts.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-477.json",
+    "next_session_prompt.md",
+    "scripts/check_workflow_contracts.py",
+    "tests/test_workflow_contracts.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

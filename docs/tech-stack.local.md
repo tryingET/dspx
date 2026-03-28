@@ -23,6 +23,7 @@ Local notes for DSPx:
   - `Jinja2` for reusable text/config/html templates
 - Validation tiers:
   - install hooks once: `just hooks-install`
+  - current-slice validation before commit: `just task-scope-check task_id=<AK-ID> mode=working-tree`
   - pre-commit hook = fast staged checks (ruff/whitespace)
   - pre-push hook = `just verify-full`
   - `just verify-full` also runs `just task-scope-check`, which validates the full attested task slice in head mode using an explicit `task_id`, an active AK claim, changed manifest paths, or the committed `next_session_prompt.md` checkpoint, and otherwise fails closed
