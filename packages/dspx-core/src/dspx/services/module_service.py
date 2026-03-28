@@ -18,11 +18,14 @@ from dspx.lm_base import LMBase
 from dspx.services.module_synthesis_evidence import (
     ModuleSynthesisEvidenceRequest,
     build_module_synthesis_candidate_prior_audit,
+    build_module_synthesis_candidate_prior_divergence_explanation,
     build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_history_advisory,
     build_unavailable_module_synthesis_candidate_prior_audit,
+    build_unavailable_module_synthesis_candidate_prior_divergence_explanation,
     build_unavailable_module_synthesis_candidate_winner_priors,
     extract_module_synthesis_candidate_prior_inputs,
+    extract_module_synthesis_ranked_candidate_comparison_inputs,
     extract_module_synthesis_ranked_candidate_inputs,
     retrieve_module_synthesis_evidence,
 )
@@ -355,6 +358,12 @@ def _build_unavailable_synthesis_diagnostics(
         current_candidates=current_candidates,
         notes=["candidate-prior audit unavailable because evidence retrieval failed"],
     )
+    candidate_prior_divergence_explanation = build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+        candidate_prior_audit=candidate_prior_audit,
+        notes=[
+            "candidate-prior divergence explanation unavailable because evidence retrieval failed"
+        ],
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": "unavailable",
@@ -392,6 +401,9 @@ def _build_unavailable_synthesis_diagnostics(
             ],
         ),
         "candidate_prior_audit": candidate_prior_audit,
+        "candidate_prior_divergence_explanation": (
+            candidate_prior_divergence_explanation
+        ),
     }
 
 
@@ -437,6 +449,9 @@ def _build_synthesis_diagnostics(
     ranked_candidates = extract_module_synthesis_ranked_candidate_inputs(
         synthesis_payload
     )
+    ranked_candidate_comparison_inputs = (
+        extract_module_synthesis_ranked_candidate_comparison_inputs(synthesis_payload)
+    )
     retrieval_status = (
         "degraded"
         if evidence_bundle.receipt_scan_error_count > 0
@@ -446,6 +461,12 @@ def _build_synthesis_diagnostics(
     candidate_winner_priors = build_module_synthesis_candidate_winner_priors(
         evidence_bundle,
         current_candidates=current_candidates,
+    )
+    candidate_prior_audit = build_module_synthesis_candidate_prior_audit(
+        candidate_winner_priors,
+        current_candidates=current_candidates,
+        ranked_candidates=ranked_candidates,
+        selected_candidate_id=selected_candidate_id,
     )
     return {
         "evidence_bundle_version": "v1",
@@ -466,11 +487,12 @@ def _build_synthesis_diagnostics(
             cache_key=cache_key,
         ),
         "candidate_winner_priors": candidate_winner_priors,
-        "candidate_prior_audit": build_module_synthesis_candidate_prior_audit(
-            candidate_winner_priors,
-            current_candidates=current_candidates,
-            ranked_candidates=ranked_candidates,
-            selected_candidate_id=selected_candidate_id,
+        "candidate_prior_audit": candidate_prior_audit,
+        "candidate_prior_divergence_explanation": (
+            build_module_synthesis_candidate_prior_divergence_explanation(
+                candidate_prior_audit,
+                ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
+            )
         ),
     }
 

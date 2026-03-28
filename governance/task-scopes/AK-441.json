@@ -1,0 +1,35 @@
+{
+  "task_id": 441,
+  "description": "Materialize the read-only candidate-prior divergence explanation on live module metadata and persisted receipts using trusted current ranked/evaluation metadata while keeping V7 ranking and promotion behavior unchanged.",
+  "allowed_paths": [
+    "diary/2026-03-28--emit-candidate-prior-divergence-explanation.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-441.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-28--emit-candidate-prior-divergence-explanation.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-441.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

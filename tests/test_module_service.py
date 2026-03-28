@@ -77,6 +77,16 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
         diagnostics["candidate_prior_audit"]["status"] == "no_positive_prior_candidates"
     )
     assert (
+        diagnostics["candidate_prior_divergence_explanation"][
+            "candidate_prior_divergence_explanation_version"
+        ]
+        == "v1"
+    )
+    assert (
+        diagnostics["candidate_prior_divergence_explanation"]["status"]
+        == "no_divergence_to_explain"
+    )
+    assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
     )
@@ -188,6 +198,12 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
     assert (
         art.metadata["synthesis_diagnostics"]["candidate_prior_audit"]["status"]
         == "no_positive_prior_candidates"
+    )
+    assert (
+        art.metadata["synthesis_diagnostics"]["candidate_prior_divergence_explanation"][
+            "status"
+        ]
+        == "no_divergence_to_explain"
     )
 
 
@@ -340,6 +356,10 @@ def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
         diagnostics["candidate_prior_audit"]["status"]
         == "selected_candidate_prior_degraded"
     )
+    assert (
+        diagnostics["candidate_prior_divergence_explanation"]["status"]
+        == "selected_candidate_prior_unresolved"
+    )
 
 
 def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_unavailable(
@@ -387,6 +407,10 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
     assert diagnostics["candidate_winner_priors"]["status"] == "unavailable"
     assert (
         diagnostics["candidate_prior_audit"]["status"] == "candidate_priors_unavailable"
+    )
+    assert (
+        diagnostics["candidate_prior_divergence_explanation"]["status"]
+        == "candidate_prior_divergence_unavailable"
     )
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]

@@ -312,6 +312,22 @@ def _as_int(value: Any, *, default: int = 0) -> int:
         return default
 
 
+def _optional_float(value: Any) -> float | None:
+    if value in {None, ""}:
+        return None
+    if isinstance(value, bool):
+        return float(value)
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
 def _optional_str(value: Any) -> str | None:
     if value in {None, ""}:
         return None
@@ -825,7 +841,7 @@ def extract_module_synthesis_candidate_prior_inputs(
     return tuple(candidates)
 
 
-def extract_module_synthesis_ranked_candidate_inputs(
+def _module_synthesis_ranked_candidate_payloads(
     synthesis: Mapping[str, Any] | None,
 ) -> tuple[dict[str, Any], ...]:
     if not isinstance(synthesis, Mapping):
@@ -855,14 +871,7 @@ def extract_module_synthesis_ranked_candidate_inputs(
             rank = _as_int(raw_candidate.get("rank"), default=0)
             if rank <= 0:
                 continue
-            ranked_candidates.append(
-                {
-                    "candidate_id": candidate_id,
-                    "rank": rank,
-                    "variant_id": _optional_str(raw_candidate.get("variant_id")),
-                    "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
-                }
-            )
+            ranked_candidates.append(dict(raw_candidate))
         return tuple(ranked_candidates)
 
     ranked_candidates = _materialize_ranked_candidates(raw_ranked)
@@ -871,6 +880,64 @@ def extract_module_synthesis_ranked_candidate_inputs(
     if raw_ranked is not None:
         return _materialize_ranked_candidates(shell_ranked)
     return ()
+
+
+def extract_module_synthesis_ranked_candidate_inputs(
+    synthesis: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], ...]:
+    ranked_candidates: list[dict[str, Any]] = []
+    for raw_candidate in _module_synthesis_ranked_candidate_payloads(synthesis):
+        candidate_id = _optional_str(raw_candidate.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        ranked_candidates.append(
+            {
+                "candidate_id": candidate_id,
+                "rank": _as_int(raw_candidate.get("rank"), default=0),
+                "variant_id": _optional_str(raw_candidate.get("variant_id")),
+                "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
+            }
+        )
+    return tuple(ranked_candidates)
+
+
+def extract_module_synthesis_ranked_candidate_comparison_inputs(
+    synthesis: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], ...]:
+    if not isinstance(synthesis, Mapping):
+        return ()
+
+    evaluation_summaries: dict[str, str] = {}
+    raw_evaluations = synthesis.get("evaluations")
+    if isinstance(raw_evaluations, list):
+        for raw_evaluation in raw_evaluations:
+            if not isinstance(raw_evaluation, Mapping):
+                continue
+            candidate_id = _optional_str(raw_evaluation.get("candidate_id"))
+            summary = _optional_str(raw_evaluation.get("summary"))
+            if candidate_id is None or summary is None:
+                continue
+            evaluation_summaries[candidate_id] = summary
+
+    comparison_inputs: list[dict[str, Any]] = []
+    for raw_candidate in _module_synthesis_ranked_candidate_payloads(synthesis):
+        candidate_id = _optional_str(raw_candidate.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        passed_raw = raw_candidate.get("passed")
+        comparison_inputs.append(
+            {
+                "candidate_id": candidate_id,
+                "rank": _as_int(raw_candidate.get("rank"), default=0),
+                "variant_id": _optional_str(raw_candidate.get("variant_id")),
+                "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
+                "evaluation_status": _optional_str(raw_candidate.get("status")),
+                "passed": passed_raw if isinstance(passed_raw, bool) else None,
+                "ranking_score": _optional_float(raw_candidate.get("score")),
+                "evaluation_summary": evaluation_summaries.get(candidate_id),
+            }
+        )
+    return tuple(comparison_inputs)
 
 
 def _candidate_prior_identity_supported(identity: Mapping[str, Any]) -> bool:
@@ -1327,6 +1394,365 @@ def build_module_synthesis_candidate_prior_audit(
         "history_summary": history_summary,
         "positive_prior_candidates": positive_prior_candidates,
         "non_selected_positive_prior_candidates": non_selected_positive_prior_candidates,
+        "notes": notes,
+    }
+
+
+def _candidate_prior_divergence_history_summary(
+    candidate_prior_audit: Mapping[str, Any] | None,
+    *,
+    compared_candidate_count: int,
+) -> dict[str, int]:
+    history_summary_raw = _as_dict(
+        _as_dict(candidate_prior_audit).get("history_summary")
+    )
+    return {
+        "exact_match_receipt_count": _as_int(
+            history_summary_raw.get("exact_match_receipt_count"), default=0
+        ),
+        "positive_evidence_count": _as_int(
+            history_summary_raw.get("positive_evidence_count"), default=0
+        ),
+        "positive_prior_candidate_count": _as_int(
+            history_summary_raw.get("positive_prior_candidate_count"), default=0
+        ),
+        "compared_candidate_count": max(0, int(compared_candidate_count)),
+    }
+
+
+def _candidate_prior_divergence_selected_candidate_view(
+    *,
+    audit_candidate: Mapping[str, Any] | None,
+    comparison_candidate: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    audit = _as_dict(audit_candidate)
+    comparison = _as_dict(comparison_candidate)
+    rank = _as_int(comparison.get("rank"), default=0)
+    if rank <= 0:
+        rank = _as_int(audit.get("rank"), default=0)
+    return {
+        "candidate_id": _optional_str(audit.get("candidate_id")),
+        "variant_id": _optional_str(audit.get("variant_id")),
+        "variant_origin": _optional_str(audit.get("variant_origin")),
+        "prior_status": _optional_str(audit.get("prior_status")),
+        "rank": rank if rank > 0 else None,
+        "ranking_score": _optional_float(comparison.get("ranking_score")),
+    }
+
+
+def _candidate_prior_divergence_comparison_supported(
+    comparison_candidate: Mapping[str, Any] | None,
+) -> bool:
+    comparison = _as_dict(comparison_candidate)
+    return (
+        _optional_str(comparison.get("candidate_id")) is not None
+        and _as_int(comparison.get("rank"), default=0) > 0
+        and _optional_str(comparison.get("evaluation_status")) is not None
+        and isinstance(comparison.get("passed"), bool)
+        and _optional_float(comparison.get("ranking_score")) is not None
+    )
+
+
+def _candidate_prior_divergence_compared_candidate_view(
+    *,
+    audit_candidate: Mapping[str, Any],
+    comparison_candidate: Mapping[str, Any],
+    comparison_status: str,
+    notes: list[str],
+) -> dict[str, Any]:
+    comparison = _as_dict(comparison_candidate)
+    return {
+        "candidate_id": _optional_str(audit_candidate.get("candidate_id")),
+        "variant_id": _optional_str(audit_candidate.get("variant_id")),
+        "variant_origin": _optional_str(audit_candidate.get("variant_origin")),
+        "rank": _as_int(comparison.get("rank"), default=0),
+        "ranking_score": _optional_float(comparison.get("ranking_score")),
+        "evaluation_status": _optional_str(comparison.get("evaluation_status")),
+        "comparison_status": comparison_status,
+        "notes": list(notes),
+    }
+
+
+def build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+    *,
+    candidate_prior_audit: Mapping[str, Any] | None,
+    notes: list[str] | None = None,
+) -> dict[str, Any]:
+    audit = _as_dict(candidate_prior_audit)
+    raw_compared_candidates = audit.get("non_selected_positive_prior_candidates")
+    compared_candidate_count = (
+        len([item for item in raw_compared_candidates if isinstance(item, Mapping)])
+        if isinstance(raw_compared_candidates, list)
+        else 0
+    )
+    return {
+        "candidate_prior_divergence_explanation_version": "v1",
+        "status": "candidate_prior_divergence_unavailable",
+        "candidate_prior_audit_status": _optional_str(audit.get("status")),
+        "selected_candidate": _candidate_prior_divergence_selected_candidate_view(
+            audit_candidate=_as_dict(audit.get("selected_candidate")),
+            comparison_candidate=None,
+        ),
+        "history_summary": _candidate_prior_divergence_history_summary(
+            audit,
+            compared_candidate_count=compared_candidate_count,
+        ),
+        "compared_positive_prior_candidates": [],
+        "notes": list(notes or ["candidate-prior divergence explanation unavailable"]),
+    }
+
+
+def build_module_synthesis_candidate_prior_divergence_explanation(
+    candidate_prior_audit: Mapping[str, Any] | None,
+    *,
+    ranked_candidate_comparison_inputs: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    if not isinstance(candidate_prior_audit, Mapping):
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=None,
+            notes=[
+                "candidate-prior divergence explanation unavailable because candidate-prior audit is missing"
+            ],
+        )
+
+    audit_status = _optional_str(candidate_prior_audit.get("status"))
+    if audit_status is None:
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because candidate-prior audit is malformed"
+            ],
+        )
+    if audit_status == "candidate_priors_unavailable":
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because candidate-prior audit is unavailable"
+            ],
+        )
+
+    selected_candidate_audit = _as_dict(candidate_prior_audit.get("selected_candidate"))
+    selected_candidate_id = _optional_str(selected_candidate_audit.get("candidate_id"))
+    compared_candidates_raw = candidate_prior_audit.get(
+        "non_selected_positive_prior_candidates"
+    )
+    if not isinstance(compared_candidates_raw, list):
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because compared positive-prior candidates are malformed"
+            ],
+        )
+    compared_candidates = [
+        dict(item) for item in compared_candidates_raw if isinstance(item, Mapping)
+    ]
+    history_summary = _candidate_prior_divergence_history_summary(
+        candidate_prior_audit,
+        compared_candidate_count=len(compared_candidates),
+    )
+    comparison_by_id = {
+        candidate_id: item
+        for item in ranked_candidate_comparison_inputs
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    selected_comparison_candidate = (
+        comparison_by_id.get(selected_candidate_id)
+        if selected_candidate_id is not None
+        else None
+    )
+    selected_candidate = _candidate_prior_divergence_selected_candidate_view(
+        audit_candidate=selected_candidate_audit,
+        comparison_candidate=selected_comparison_candidate,
+    )
+    notes = [
+        "candidate-prior divergence explanation is descriptive only; V7 ranking and promotion remain unchanged"
+    ]
+    raw_audit_notes = candidate_prior_audit.get("notes")
+    if isinstance(raw_audit_notes, list):
+        for note in raw_audit_notes:
+            if isinstance(note, str):
+                _append_unique_note(notes, note)
+
+    if audit_status in {
+        "selected_matches_positive_winner_history",
+        "no_positive_prior_candidates",
+    }:
+        if audit_status == "selected_matches_positive_winner_history":
+            _append_unique_note(
+                notes,
+                "candidate-prior audit found no selected-vs-prior divergence to explain",
+            )
+        else:
+            _append_unique_note(
+                notes,
+                "candidate-prior audit found no positive-prior-supported alternative to compare",
+            )
+        return {
+            "candidate_prior_divergence_explanation_version": "v1",
+            "status": "no_divergence_to_explain",
+            "candidate_prior_audit_status": audit_status,
+            "selected_candidate": selected_candidate,
+            "history_summary": history_summary,
+            "compared_positive_prior_candidates": [],
+            "notes": notes,
+        }
+
+    if audit_status in {
+        "selected_candidate_prior_unsupported",
+        "selected_candidate_prior_degraded",
+    }:
+        if audit_status == "selected_candidate_prior_unsupported":
+            _append_unique_note(
+                notes,
+                "selected candidate lacks stable prior identity, so DSPx must not over-interpret divergence",
+            )
+        else:
+            _append_unique_note(
+                notes,
+                "selected candidate prior authority is degraded, so DSPx must not over-interpret divergence",
+            )
+        return {
+            "candidate_prior_divergence_explanation_version": "v1",
+            "status": "selected_candidate_prior_unresolved",
+            "candidate_prior_audit_status": audit_status,
+            "selected_candidate": selected_candidate,
+            "history_summary": history_summary,
+            "compared_positive_prior_candidates": [],
+            "notes": notes,
+        }
+
+    if audit_status != "positive_prior_candidates_present_but_not_selected":
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because candidate-prior audit status is unsupported"
+            ],
+        )
+    if selected_candidate_id is None:
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because selected candidate identity is missing"
+            ],
+        )
+    if not compared_candidates:
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because the audit has no compared positive-prior candidates"
+            ],
+        )
+
+    selected_comparison = comparison_by_id.get(selected_candidate_id)
+    if not _candidate_prior_divergence_comparison_supported(selected_comparison):
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because trusted current comparison metadata for the selected candidate is incomplete"
+            ],
+        )
+    if selected_comparison is None or selected_comparison.get("passed") is not True:
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because the selected candidate lacks a trusted passing runtime result"
+            ],
+        )
+
+    selected_candidate = _candidate_prior_divergence_selected_candidate_view(
+        audit_candidate=selected_candidate_audit,
+        comparison_candidate=selected_comparison,
+    )
+    selected_rank = _as_int(selected_comparison.get("rank"), default=0)
+
+    compared_candidate_views: list[dict[str, Any]] = []
+    comparison_statuses: list[str] = []
+    for compared_candidate in compared_candidates:
+        candidate_id = _optional_str(compared_candidate.get("candidate_id"))
+        if candidate_id is None:
+            return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior divergence explanation unavailable because a compared positive-prior candidate is missing candidate_id"
+                ],
+            )
+        comparison_candidate = comparison_by_id.get(candidate_id)
+        if not _candidate_prior_divergence_comparison_supported(comparison_candidate):
+            return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior divergence explanation unavailable because trusted current comparison metadata is incomplete for at least one compared positive-prior candidate"
+                ],
+            )
+        if comparison_candidate is None:
+            return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior divergence explanation unavailable because a compared positive-prior candidate is absent from trusted current comparison metadata"
+                ],
+            )
+
+        candidate_rank = _as_int(comparison_candidate.get("rank"), default=0)
+        candidate_notes: list[str] = []
+        evaluation_summary = _optional_str(
+            comparison_candidate.get("evaluation_summary")
+        )
+        if comparison_candidate.get("passed") is True:
+            if candidate_rank <= selected_rank:
+                return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+                    candidate_prior_audit=candidate_prior_audit,
+                    notes=[
+                        "candidate-prior divergence explanation unavailable because trusted current rank metadata does not show the selected candidate outranking all passing compared candidates"
+                    ],
+                )
+            comparison_status = "lower_ranked_pass"
+            candidate_notes.append(
+                "candidate passed current runtime validation but still ranked below the selected candidate"
+            )
+        else:
+            comparison_status = "failed_runtime_validation"
+            candidate_notes.append(
+                "candidate failed current runtime validation and therefore was not a viable V7 winner"
+            )
+        if evaluation_summary is not None:
+            candidate_notes.append(evaluation_summary)
+
+        compared_candidate_views.append(
+            _candidate_prior_divergence_compared_candidate_view(
+                audit_candidate=compared_candidate,
+                comparison_candidate=comparison_candidate,
+                comparison_status=comparison_status,
+                notes=candidate_notes,
+            )
+        )
+        comparison_statuses.append(comparison_status)
+
+    if all(status == "failed_runtime_validation" for status in comparison_statuses):
+        status = "divergence_explained_by_runtime_failures"
+        _append_unique_note(
+            notes,
+            "every compared positive-prior candidate failed current runtime validation",
+        )
+    elif all(status == "lower_ranked_pass" for status in comparison_statuses):
+        status = "divergence_explained_by_runtime_scoring"
+        _append_unique_note(
+            notes,
+            "at least one compared positive-prior candidate passed current validation, but the selected candidate still outranked them all",
+        )
+    else:
+        status = "divergence_explained_by_mixed_runtime_outcomes"
+        _append_unique_note(
+            notes,
+            "compared positive-prior candidates split across runtime failures and lower-ranked passing outcomes",
+        )
+
+    return {
+        "candidate_prior_divergence_explanation_version": "v1",
+        "status": status,
+        "candidate_prior_audit_status": audit_status,
+        "selected_candidate": selected_candidate,
+        "history_summary": history_summary,
+        "compared_positive_prior_candidates": compared_candidate_views,
         "notes": notes,
     }
 

@@ -7,17 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG15`
+Active tactical goal: `TG16`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-441` — **Synthesis evidence substrate: emit a read-only candidate-prior divergence explanation for module-gen outcomes**
+1. `AK-459` — **Synthesis evidence substrate: define the next SG2 contract after the read-only candidate-prior divergence explanation**
    - Status: ready
-   - Deliverable: materialize the ADR-backed divergence explanation on live metadata and persisted receipts using trusted current ranked/evaluation metadata, while leaving V7 ranking/promotion behavior unchanged.
+   - Deliverable: freeze the next post-`TG15` SG2 contract in dated docs, align the next implementation slice in AK, and keep V7 ranking/promotion behavior unchanged until that contract exists.
 
 ## Recently completed in this wave
+
+- `AK-441` — materialized the ADR-backed read-only candidate-prior divergence explanation on live module metadata and persisted receipts using trusted current ranked/evaluation metadata, while leaving V7 ranking/promotion behavior unchanged.
 
 - `AK-386` — froze the next SG2 contract after the post-selection candidate-prior audit as a read-only divergence explanation, explicitly reusing fail-closed rank truth from `AK-388`/`AK-431`, and aligned the next implementation slice to `AK-441`.
 - `AK-436` — hardened generated-code validation and server trust boundaries by isolating smoke checks, failing closed on auth token-file misconfiguration, hashing/bounding rate-limit token identity, and preventing promotion of non-selected candidates without widening SG2 evidence authority.
@@ -45,8 +47,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG14` is complete; `AK-441` is now the pinned SG2 implementation slice for materializing the read-only divergence explanation before any later implementation widens evidence authority.
-- `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without widening evidence authority; `AK-388` and `AK-431` now form part of the fail-closed rank-truth boundary for `AK-441`.
+- `TG15` is complete; `AK-459` is now the pinned SG2 contract-freezing slice for deciding what comes after the read-only divergence explanation.
+- `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without widening evidence authority; `AK-388` and `AK-431` now form part of the fail-closed rank-truth boundary that `AK-441` reused.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.

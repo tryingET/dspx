@@ -222,6 +222,16 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         diagnostics["candidate_prior_audit"]["status"] == "no_positive_prior_candidates"
     )
     assert (
+        diagnostics["candidate_prior_divergence_explanation"][
+            "candidate_prior_divergence_explanation_version"
+        ]
+        == "v1"
+    )
+    assert (
+        diagnostics["candidate_prior_divergence_explanation"]["status"]
+        == "no_divergence_to_explain"
+    )
+    assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
     )
@@ -263,6 +273,10 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert (
         followup_diagnostics["candidate_prior_audit"]["status"]
         == "selected_matches_positive_winner_history"
+    )
+    assert (
+        followup_diagnostics["candidate_prior_divergence_explanation"]["status"]
+        == "no_divergence_to_explain"
     )
     prior_receipt = followup_diagnostics["evidence_bundle"]["exact_match_receipts"][0]
     assert Path(prior_receipt["receipt"]["receipt_path"]).name == "mod.py.meta.json"
