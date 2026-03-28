@@ -15,10 +15,13 @@ from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
 from dspx.lm_base import LMBase
 from dspx.services.module_synthesis_evidence import (
     ModuleSynthesisEvidenceRequest,
+    build_module_synthesis_candidate_prior_audit,
     build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_history_advisory,
+    build_unavailable_module_synthesis_candidate_prior_audit,
     build_unavailable_module_synthesis_candidate_winner_priors,
     extract_module_synthesis_candidate_prior_inputs,
+    extract_module_synthesis_ranked_candidate_inputs,
     retrieve_module_synthesis_evidence,
 )
 from dspx.services.module_synthesis_quality import (
@@ -315,6 +318,11 @@ def _build_unavailable_synthesis_diagnostics(
     current_candidates = extract_module_synthesis_candidate_prior_inputs(
         synthesis_payload
     )
+    candidate_prior_audit = build_unavailable_module_synthesis_candidate_prior_audit(
+        selected_candidate_id=selected_candidate_id,
+        current_candidates=current_candidates,
+        notes=["candidate-prior audit unavailable because evidence retrieval failed"],
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": "unavailable",
@@ -351,6 +359,7 @@ def _build_unavailable_synthesis_diagnostics(
                 "candidate winner-prior payload unavailable because evidence retrieval failed"
             ],
         ),
+        "candidate_prior_audit": candidate_prior_audit,
     }
 
 
@@ -393,11 +402,18 @@ def _build_synthesis_diagnostics(
     current_candidates = extract_module_synthesis_candidate_prior_inputs(
         synthesis_payload
     )
+    ranked_candidates = extract_module_synthesis_ranked_candidate_inputs(
+        synthesis_payload
+    )
     retrieval_status = (
         "degraded"
         if evidence_bundle.receipt_scan_error_count > 0
         or evidence_bundle.oracle_lookup_status == "unavailable"
         else "ok"
+    )
+    candidate_winner_priors = build_module_synthesis_candidate_winner_priors(
+        evidence_bundle,
+        current_candidates=current_candidates,
     )
     return {
         "evidence_bundle_version": "v1",
@@ -417,9 +433,12 @@ def _build_synthesis_diagnostics(
             output_hash=output_hash,
             cache_key=cache_key,
         ),
-        "candidate_winner_priors": build_module_synthesis_candidate_winner_priors(
-            evidence_bundle,
+        "candidate_winner_priors": candidate_winner_priors,
+        "candidate_prior_audit": build_module_synthesis_candidate_prior_audit(
+            candidate_winner_priors,
             current_candidates=current_candidates,
+            ranked_candidates=ranked_candidates,
+            selected_candidate_id=selected_candidate_id,
         ),
     }
 

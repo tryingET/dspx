@@ -1,0 +1,35 @@
+{
+  "task_id": 379,
+  "description": "Emit the ADR-backed read-only post-selection candidate-prior audit for module-gen outcomes on live metadata and persisted receipts without changing V7 ranking or promotion behavior, then sync repo planning artifacts after task completion.",
+  "allowed_paths": [
+    "diary/2026-03-27--emit-post-selection-candidate-prior-audit.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-379.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-27--emit-post-selection-candidate-prior-audit.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-379.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

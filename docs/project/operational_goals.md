@@ -7,18 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG13`
+Active tactical goal: `TG14`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-379` — **Synthesis evidence substrate: emit a post-selection candidate-prior audit for module-gen outcomes**
+1. `AK-386` — **Synthesis evidence substrate: define the next SG2 contract after the post-selection candidate-prior audit**
    - Status: ready
-   - Deliverable: materialize the ADR-backed read-only candidate-prior audit on live metadata and persisted receipts so DSPx can inspect selected-vs-prior posture without changing V7 ranking or promotion behavior.
+   - Deliverable: freeze the next dated SG2 contract after `TG13`, then align the next implementation slice without widening evidence authority or changing V7 ranking/promotion behavior.
 
 ## Recently completed in this wave
 
+- `AK-379` — materialized the ADR-backed read-only candidate-prior audit on live module metadata and persisted receipts so DSPx now records how the V7-selected candidate relates to available positive prior support without changing ranking or promotion behavior.
 - `AK-378` — froze the next SG2 contract for consuming `candidate_winner_priors` as a post-selection audit of selected-vs-available positive prior support, then aligned the next implementation slice to `AK-379`.
 - `AK-377` — materialized the ADR-backed read-only candidate winner-prior payload for the current deterministic `module-gen` variants on live metadata and persisted receipts while preserving V7 ranking/promotion behavior.
 
@@ -40,7 +41,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG12` is complete; `AK-379` is now the pinned SG2 implementation slice for materializing the post-selection candidate-prior audit before any later predictive-ranking contract widens authority.
+- `TG13` is complete; `AK-386` is now the pinned SG2 planning slice for freezing the next evidence-authority contract before any later implementation resumes.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.

@@ -825,6 +825,40 @@ def extract_module_synthesis_candidate_prior_inputs(
     return tuple(candidates)
 
 
+def extract_module_synthesis_ranked_candidate_inputs(
+    synthesis: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any], ...]:
+    if not isinstance(synthesis, Mapping):
+        return ()
+
+    raw_ranked = None
+    promotion_decision = _as_dict(synthesis.get("promotion_decision"))
+    decision_metadata = _as_dict(promotion_decision.get("metadata"))
+    if isinstance(decision_metadata.get("ranked_candidates"), list):
+        raw_ranked = decision_metadata.get("ranked_candidates")
+    else:
+        promotion_shell = _as_dict(synthesis.get("promotion_shell"))
+        shell_metadata = _as_dict(promotion_shell.get("metadata"))
+        if isinstance(shell_metadata.get("ranked_candidates"), list):
+            raw_ranked = shell_metadata.get("ranked_candidates")
+
+    ranked_candidates: list[dict[str, Any]] = []
+    for index, raw_candidate in enumerate(_as_ranked_candidates(raw_ranked), start=1):
+        candidate_id = _optional_str(raw_candidate.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        rank = _as_int(raw_candidate.get("rank"), default=index)
+        ranked_candidates.append(
+            {
+                "candidate_id": candidate_id,
+                "rank": rank if rank > 0 else index,
+                "variant_id": _optional_str(raw_candidate.get("variant_id")),
+                "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
+            }
+        )
+    return tuple(ranked_candidates)
+
+
 def _candidate_prior_identity_supported(identity: Mapping[str, Any]) -> bool:
     return bool(_optional_str(identity.get("variant_id"))) and bool(
         _optional_str(identity.get("variant_origin"))
@@ -889,6 +923,56 @@ def _candidate_prior_receipt_identity(
         "variant_id": _optional_str(winner_identity.get("variant_id")),
         "variant_origin": _optional_str(winner_identity.get("variant_origin")),
         "positive_evidence": True,
+    }
+
+
+def _append_unique_note(notes: list[str], note: str | None) -> None:
+    if note and note not in notes:
+        notes.append(note)
+
+
+def _candidate_prior_rank_map(
+    *,
+    ranked_candidates: tuple[dict[str, Any], ...],
+    current_candidates: tuple[dict[str, Any], ...],
+) -> dict[str, int]:
+    rank_map: dict[str, int] = {}
+    for index, candidate in enumerate(ranked_candidates, start=1):
+        candidate_id = _optional_str(candidate.get("candidate_id"))
+        if candidate_id is None or candidate_id in rank_map:
+            continue
+        rank = _as_int(candidate.get("rank"), default=index)
+        rank_map[candidate_id] = rank if rank > 0 else index
+    if rank_map:
+        return rank_map
+
+    ordered_current = sorted(
+        current_candidates,
+        key=lambda item: (
+            _as_int(item.get("ordinal"), default=0) <= 0,
+            _as_int(item.get("ordinal"), default=0),
+            _optional_str(item.get("candidate_id")) or "",
+        ),
+    )
+    for index, candidate in enumerate(ordered_current, start=1):
+        candidate_id = _optional_str(candidate.get("candidate_id"))
+        if candidate_id is not None:
+            rank_map[candidate_id] = index
+    return rank_map
+
+
+def _candidate_prior_audit_candidate_view(
+    *,
+    candidate_prior: Mapping[str, Any],
+    rank_map: Mapping[str, int],
+) -> dict[str, Any]:
+    candidate_id = _optional_str(candidate_prior.get("candidate_id"))
+    return {
+        "candidate_id": candidate_id,
+        "variant_id": _optional_str(candidate_prior.get("variant_id")),
+        "variant_origin": _optional_str(candidate_prior.get("variant_origin")),
+        "prior_status": _optional_str(candidate_prior.get("status")),
+        "rank": rank_map.get(candidate_id) if candidate_id is not None else None,
     }
 
 
@@ -1032,6 +1116,209 @@ def build_module_synthesis_candidate_winner_priors(
         "mode": "winner_history_only",
         "history_summary": history_summary,
         "candidate_priors": candidate_priors,
+        "notes": notes,
+    }
+
+
+def build_unavailable_module_synthesis_candidate_prior_audit(
+    *,
+    selected_candidate_id: str | None,
+    current_candidates: tuple[dict[str, Any], ...] = (),
+    notes: list[str] | None = None,
+) -> dict[str, Any]:
+    selected_candidate = next(
+        (
+            candidate
+            for candidate in current_candidates
+            if _optional_str(candidate.get("candidate_id")) == selected_candidate_id
+        ),
+        None,
+    )
+    return {
+        "candidate_prior_audit_version": "v1",
+        "status": "candidate_priors_unavailable",
+        "selected_candidate": {
+            "candidate_id": selected_candidate_id,
+            "variant_id": (
+                _optional_str(selected_candidate.get("variant_id"))
+                if isinstance(selected_candidate, Mapping)
+                else None
+            ),
+            "variant_origin": (
+                _optional_str(selected_candidate.get("variant_origin"))
+                if isinstance(selected_candidate, Mapping)
+                else None
+            ),
+            "prior_status": None,
+            "rank": None,
+        },
+        "history_summary": {
+            "exact_match_receipt_count": 0,
+            "positive_evidence_count": 0,
+            "candidate_count": len(current_candidates),
+            "positive_prior_candidate_count": 0,
+        },
+        "positive_prior_candidates": [],
+        "non_selected_positive_prior_candidates": [],
+        "notes": list(notes or ["candidate-prior audit unavailable"]),
+    }
+
+
+def build_module_synthesis_candidate_prior_audit(
+    candidate_winner_priors: Mapping[str, Any] | None,
+    *,
+    current_candidates: tuple[dict[str, Any], ...],
+    ranked_candidates: tuple[dict[str, Any], ...],
+    selected_candidate_id: str | None,
+) -> dict[str, Any]:
+    if not isinstance(candidate_winner_priors, Mapping):
+        return build_unavailable_module_synthesis_candidate_prior_audit(
+            selected_candidate_id=selected_candidate_id,
+            current_candidates=current_candidates,
+            notes=[
+                "candidate-prior audit unavailable because candidate priors are missing"
+            ],
+        )
+    if _optional_str(candidate_winner_priors.get("status")) == "unavailable":
+        return build_unavailable_module_synthesis_candidate_prior_audit(
+            selected_candidate_id=selected_candidate_id,
+            current_candidates=current_candidates,
+            notes=[
+                "candidate-prior audit unavailable because candidate winner-prior payload is unavailable"
+            ],
+        )
+    if selected_candidate_id in {None, ""}:
+        return build_unavailable_module_synthesis_candidate_prior_audit(
+            selected_candidate_id=None,
+            current_candidates=current_candidates,
+            notes=[
+                "candidate-prior audit unavailable because selected candidate identity is missing"
+            ],
+        )
+
+    rank_map = _candidate_prior_rank_map(
+        ranked_candidates=ranked_candidates,
+        current_candidates=current_candidates,
+    )
+    raw_candidate_priors = candidate_winner_priors.get("candidate_priors")
+    if not isinstance(raw_candidate_priors, list):
+        return build_unavailable_module_synthesis_candidate_prior_audit(
+            selected_candidate_id=selected_candidate_id,
+            current_candidates=current_candidates,
+            notes=[
+                "candidate-prior audit unavailable because candidate priors are malformed"
+            ],
+        )
+
+    candidate_prior_entries = [
+        dict(item) for item in raw_candidate_priors if isinstance(item, Mapping)
+    ]
+    candidate_priors_by_id = {
+        candidate_id: item
+        for item in candidate_prior_entries
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    selected_candidate_prior = candidate_priors_by_id.get(selected_candidate_id)
+    if selected_candidate_prior is None:
+        return build_unavailable_module_synthesis_candidate_prior_audit(
+            selected_candidate_id=selected_candidate_id,
+            current_candidates=current_candidates,
+            notes=[
+                "candidate-prior audit unavailable because selected candidate has no prior entry"
+            ],
+        )
+
+    positive_prior_candidates = [
+        _candidate_prior_audit_candidate_view(candidate_prior=item, rank_map=rank_map)
+        for item in candidate_prior_entries
+        if _optional_str(item.get("status")) == "matches_positive_winner_history"
+    ]
+    positive_prior_candidates.sort(
+        key=lambda item: (
+            item.get("rank") is None,
+            _as_int(item.get("rank"), default=0),
+            _optional_str(item.get("candidate_id")) or "",
+        )
+    )
+    non_selected_positive_prior_candidates = [
+        item
+        for item in positive_prior_candidates
+        if _optional_str(item.get("candidate_id")) != selected_candidate_id
+    ]
+
+    history_summary_raw = _as_dict(candidate_winner_priors.get("history_summary"))
+    history_summary = {
+        "exact_match_receipt_count": _as_int(
+            history_summary_raw.get("exact_match_receipt_count"), default=0
+        ),
+        "positive_evidence_count": _as_int(
+            history_summary_raw.get("positive_evidence_count"), default=0
+        ),
+        "candidate_count": _as_int(
+            history_summary_raw.get("candidate_count"),
+            default=len(candidate_prior_entries),
+        ),
+        "positive_prior_candidate_count": len(positive_prior_candidates),
+    }
+
+    selected_candidate = _candidate_prior_audit_candidate_view(
+        candidate_prior=selected_candidate_prior,
+        rank_map=rank_map,
+    )
+    selected_prior_status = selected_candidate["prior_status"]
+    notes = [
+        "candidate-prior audit is descriptive only; V7 ranking and promotion remain unchanged"
+    ]
+
+    if selected_prior_status == "unsupported_candidate_identity":
+        status = "selected_candidate_prior_unsupported"
+        _append_unique_note(
+            notes,
+            "selected candidate lacks variant_id or variant_origin required by candidate-prior contract v1",
+        )
+    elif selected_prior_status == "degraded_history_only":
+        status = "selected_candidate_prior_degraded"
+        _append_unique_note(
+            notes,
+            "exact-match history exists, but selected candidate has only degraded prior authority",
+        )
+    elif selected_prior_status == "matches_positive_winner_history":
+        status = "selected_matches_positive_winner_history"
+        _append_unique_note(
+            notes,
+            "selected candidate matches replay-healthy exact-match winner history under candidate-prior contract v1",
+        )
+    elif not positive_prior_candidates:
+        status = "no_positive_prior_candidates"
+        _append_unique_note(
+            notes,
+            "no current candidate has positive winner support under candidate-prior contract v1",
+        )
+    else:
+        status = "positive_prior_candidates_present_but_not_selected"
+        _append_unique_note(
+            notes,
+            "non-selected candidates have positive winner support while the V7-selected candidate does not",
+        )
+
+    raw_notes = candidate_winner_priors.get("notes")
+    if isinstance(raw_notes, list):
+        for note in raw_notes:
+            if isinstance(note, str):
+                _append_unique_note(notes, note)
+    if not rank_map:
+        _append_unique_note(
+            notes,
+            "ranked-candidate order unavailable; audit reported without stable rank context",
+        )
+
+    return {
+        "candidate_prior_audit_version": "v1",
+        "status": status,
+        "selected_candidate": selected_candidate,
+        "history_summary": history_summary,
+        "positive_prior_candidates": positive_prior_candidates,
+        "non_selected_positive_prior_candidates": non_selected_positive_prior_candidates,
         "notes": notes,
     }
 

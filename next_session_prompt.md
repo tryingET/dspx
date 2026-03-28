@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-379` and materialize the ADR-backed post-selection candidate-prior audit on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
+- Objective (one sentence): Claim `AK-386` and freeze the next dated SG2 contract after the completed candidate-prior audit without widening evidence authority or changing V7 ranking/promotion behavior.
 - Constraints (hard limits): Keep the repo green under `./scripts/ci/smoke.sh`; do not widen candidate-prior authority beyond the read-only audit contract without a new dated ADR; keep live execution truth in AK.
-- Assumptions (max 3): `AK-378` is done and committed; `TG12` is complete and `TG13` is active; `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md` is the active authority boundary for post-selection prior consumption.
+- Assumptions (max 3): `AK-379` is done and committed; `TG13` is complete; `TG14` is the active planning wave after the completed audit implementation.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -43,8 +43,7 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md`
 7. `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md`
-8. `diary/2026-03-27--emit-read-only-candidate-winner-priors.md`
-9. `diary/2026-03-27--freeze-candidate-prior-audit-contract.md`
+8. `diary/2026-03-27--emit-post-selection-candidate-prior-audit.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -57,12 +56,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-378` — define the next SG2 contract and execution slice for consuming candidate winner priors after `TG11`.
-- Outcome: DSPx now has `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md`, which freezes post-selection candidate-prior consumption as a read-only audit of selected-vs-available positive prior support and aligns the next implementation slice to `AK-379` while preserving V7 ranking and promotion behavior.
-- Files changed: `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md`, `docs/adr/README.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `diary/2026-03-27--freeze-candidate-prior-audit-contract.md`, `governance/task-scopes/AK-378.json`, `governance/work-items.json`, and `next_session_prompt.md`.
-- Validation commands + results: `python scripts/check_task_scope.py --task-id 378 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task create --repo /home/tryinget/ai-society/softwareco/owned/dspx "Synthesis evidence substrate: emit a post-selection candidate-prior audit for module-gen outcomes"` ✅ (`AK-379`); `ak task complete 378 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `TG12` / `AK-378` are complete; `TG13` is active; `AK-379` is the next ready SG2 implementation slice.
-- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-379` and materialize the ADR-backed post-selection candidate-prior audit on live metadata and persisted receipts without widening evidence authority.
+- Slice executed: `AK-379` — materialize the ADR-backed post-selection candidate-prior audit on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
+- Outcome: DSPx now emits `candidate_prior_audit` on live `module-gen` metadata and persisted receipts, classifying how the selected candidate relates to available positive prior support while preserving V7 ranking and promotion behavior.
+- Files changed: `diary/2026-03-27--emit-post-selection-candidate-prior-audit.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-379.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, and `tests/test_run_receipts.py`.
+- Validation commands + results: `uv run pytest tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py -q` ✅; `python scripts/check_task_scope.py --task-id 379 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task create --repo /home/tryinget/ai-society/softwareco/owned/dspx "Synthesis evidence substrate: define the next SG2 contract after the post-selection candidate-prior audit"` ✅ (`AK-386`); `ak task complete 379 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `TG13` / `AK-379` are complete; `TG14` is active; `AK-386` is the next ready SG2 planning slice.
+- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-386` and freeze the next dated SG2 contract after the completed candidate-prior audit before editing runtime code again.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

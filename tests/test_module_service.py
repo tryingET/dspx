@@ -70,6 +70,10 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
     assert diagnostics["historical_convergence_advisory"]["status"] == "no_history"
     assert diagnostics["candidate_winner_priors"]["candidate_prior_version"] == "v1"
     assert diagnostics["candidate_winner_priors"]["mode"] == "winner_history_only"
+    assert diagnostics["candidate_prior_audit"]["candidate_prior_audit_version"] == "v1"
+    assert (
+        diagnostics["candidate_prior_audit"]["status"] == "no_positive_prior_candidates"
+    )
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
@@ -78,6 +82,10 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
         item["status"]
         for item in diagnostics["candidate_winner_priors"]["candidate_priors"]
     } == {"no_positive_winner_history"}
+    assert (
+        diagnostics["candidate_prior_audit"]["selected_candidate"]["candidate_id"]
+        == art.metadata["selected_candidate_id"]
+    )
     assert (
         diagnostics["historical_convergence_advisory"]["selected_artifact"][
             "selected_candidate_id"
@@ -175,6 +183,10 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
         ]["candidate_count"]
         >= 2
     )
+    assert (
+        art.metadata["synthesis_diagnostics"]["candidate_prior_audit"]["status"]
+        == "no_positive_prior_candidates"
+    )
 
 
 def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
@@ -255,6 +267,10 @@ def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
         item["status"]
         for item in diagnostics["candidate_winner_priors"]["candidate_priors"]
     } == {"degraded_history_only"}
+    assert (
+        diagnostics["candidate_prior_audit"]["status"]
+        == "selected_candidate_prior_degraded"
+    )
 
 
 def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_unavailable(
@@ -300,6 +316,9 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
     )
     assert diagnostics["historical_convergence_advisory"]["status"] == "unavailable"
     assert diagnostics["candidate_winner_priors"]["status"] == "unavailable"
+    assert (
+        diagnostics["candidate_prior_audit"]["status"] == "candidate_priors_unavailable"
+    )
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
