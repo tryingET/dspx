@@ -13,17 +13,16 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 ## Read Order
 1. `docs/system4d/compass.md` — Direction
 2. `docs/ARCHITECTURE.md` — System design
-3. `docs/VISION.md` — Compatibility landing page for product vision
-4. `docs/project/vision.md` — Canonical long-horizon direction
-5. `docs/project/strategic_goals.md` — Current strategic frontier
-6. `docs/project/tactical_goals.md` — Current tactical frontier
-7. `docs/project/operational_goals.md` — Active operating slices / AK mapping
+3. `docs/project/vision.md` — Canonical long-horizon direction
+4. `docs/project/strategic_goals.md` — Current strategic frontier
+5. `docs/project/tactical_goals.md` — Current tactical frontier
+6. `docs/project/operational_goals.md` — Active operating slices / AK mapping
 8. `docs/learnings/` — Crystallized patterns
 
 ## Stack
 - Python 3.13 + uv + just
 - Quality gates: ruff + ty + pytest
-- 358+ tests must pass
+- 490+ tests must pass
 
 ## Commands
 ```bash

@@ -7,6 +7,8 @@ read_when:
 
 # Vision
 
+This is the canonical product-vision document for DSPx.
+
 DSPx should become the local-first engineering runtime for DSPy systems: a toolkit that can **safely synthesize, optimize, replay, explain, and eventually improve LM-driven programs** without hiding the evidence trail.
 
 ## What success looks like

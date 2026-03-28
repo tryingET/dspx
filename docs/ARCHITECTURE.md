@@ -8,7 +8,7 @@ read_when:
 DSPx Architecture Overview
 ==========================
 
-This document gives multiple “views” of the system to help contributors and users quickly build a mental model. These diagrams complement docs/VISION.md (principles, roadmap).
+This document gives multiple “views” of the system to help contributors and users quickly build a mental model. These diagrams complement `docs/project/vision.md` (principles, roadmap).
 
 1) Architecture Layers (Unified)
 --------------------------------

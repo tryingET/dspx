@@ -16,7 +16,7 @@ Next tactical goal: `TBD`
 
 ### `TG1` — Freeze the synthesis target architecture in dated, referenceable docs
 - Status: complete
-- Definition of done: `docs/project/vision.md`, `docs/VISION.md`, strategic/tactical docs, and a dated ADR all agree on the V7/V8/V9 architecture horizon and the "V9-compatible core, V7-first implementation" posture.
+- Definition of done: `docs/project/vision.md`, the strategic/tactical docs, and a dated ADR all agree on the V7/V8/V9 architecture horizon and the "V9-compatible core, V7-first implementation" posture.
 
 ### `TG2` — Land a V9-compatible module synthesis runtime MVP inside the existing `module-gen` surface
 - Status: complete
