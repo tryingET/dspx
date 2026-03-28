@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-386` and freeze the next dated SG2 contract after the completed candidate-prior audit without widening evidence authority or changing V7 ranking/promotion behavior.
-- Constraints (hard limits): Keep the repo green under `./scripts/ci/smoke.sh`; do not widen candidate-prior authority beyond the read-only audit contract without a new dated ADR; keep live execution truth in AK.
-- Assumptions (max 3): `AK-436` is done and committed; `TG14` remains the active planning wave after the completed operator-directed guardrail fix; `AK-386` is still the next ready SG2 planning slice.
+- Objective (one sentence): Claim `AK-441` and materialize the read-only candidate-prior divergence explanation on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
+- Constraints (hard limits): Keep the repo green under `./scripts/ci/smoke.sh`; reuse only `candidate_prior_audit` plus trusted current ranked/evaluation metadata; fail closed when comparison rank/score context is incomplete; keep live execution truth in AK.
+- Assumptions (max 3): `AK-386` is done and committed; `TG15` is now the active SG2 implementation wave; `AK-441` is still the next ready SG2 slice.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -41,9 +41,9 @@ Do not ask for permission to start.
 3. `docs/project/strategic_goals.md`
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
-6. `docs/adr/20260327-synthesis-evidence-candidate-prior-v1.md`
-7. `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md`
-8. `diary/2026-03-27--emit-post-selection-candidate-prior-audit.md`
+6. `docs/adr/20260327-synthesis-evidence-candidate-prior-audit-v1.md`
+7. `docs/adr/20260328-synthesis-evidence-candidate-prior-divergence-explanation-v1.md`
+8. `diary/2026-03-28--freeze-candidate-prior-divergence-explanation-contract.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -56,12 +56,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-436` — harden generated-code validation and fail-closed server trust boundaries without widening SG2 evidence authority or changing V7 ranking/promotion behavior.
-- Outcome: DSPx now validates generated signature/module code through isolated guarded subprocesses, fails closed on auth token-file/config drift, hashes and bounds rate-limit token identity, and prevents promotion of non-selected candidates.
-- Files changed: `diary/2026-03-24--harden-generated-code-validation-and-server-trust-boundaries.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-436.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/generated_code_guard.py`, `packages/dspx-core/src/dspx/server/app.py`, `packages/dspx-core/src/dspx/server/security.py`, `packages/dspx-core/src/dspx/services/signatures_service.py`, `packages/dspx-core/src/dspx/synthesis/runtime.py`, `tests/test_server_auth.py`, `tests/test_server_rate_limit.py`, `tests/test_signature_native_pipeline.py`, `tests/test_synthesis_contracts.py`, and `tests/test_synthesis_runtime_smoke.py`.
-- Validation commands + results: `.venv/bin/ruff check packages/dspx-core/src/dspx/generated_code_guard.py packages/dspx-core/src/dspx/server/app.py packages/dspx-core/src/dspx/server/security.py packages/dspx-core/src/dspx/services/signatures_service.py packages/dspx-core/src/dspx/synthesis/runtime.py tests/test_server_auth.py tests/test_server_rate_limit.py tests/test_signature_native_pipeline.py tests/test_synthesis_contracts.py tests/test_synthesis_runtime_smoke.py` ✅; `.venv/bin/pytest -q tests/test_module_service.py tests/test_server_auth.py tests/test_server_rate_limit.py tests/test_server_api.py tests/test_signature_native_pipeline.py tests/test_signatures_service_dto.py tests/test_synthesis_contracts.py tests/test_synthesis_runtime_smoke.py` ✅; `python scripts/check_task_scope.py --task-id 436 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 436 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-436` is complete as an operator-directed guardrail fix that preserves the active `TG14` planning wave; `AK-386` remains the next ready SG2 planning slice.
-- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-386` and freeze the next dated SG2 contract after the completed candidate-prior audit before editing runtime code again.
+- Slice executed: `AK-386` — freeze the next SG2 contract after the post-selection candidate-prior audit without widening evidence authority or changing V7 ranking/promotion behavior.
+- Outcome: DSPx now has a dated ADR for a read-only `candidate_prior_divergence_explanation` that reuses `candidate_prior_audit` plus trusted current ranked/evaluation metadata, fails closed on incomplete comparison truth, and aligns the next implementation slice to `AK-441`.
+- Files changed: `diary/2026-03-28--freeze-candidate-prior-divergence-explanation-contract.md`, `docs/adr/20260328-synthesis-evidence-candidate-prior-divergence-explanation-v1.md`, `docs/adr/README.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-386.json`, `governance/work-items.json`, and `next_session_prompt.md`.
+- Validation commands + results: `python scripts/check_task_scope.py --task-id 386 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 386 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-386` is complete; `TG14` is complete; `TG15` is active with `AK-441` as the next ready SG2 implementation slice.
+- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-441` and materialize the read-only candidate-prior divergence explanation on live metadata and persisted receipts before attempting any later evidence-authority widening.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

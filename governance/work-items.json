@@ -428,14 +428,15 @@
         {
           "id": "AK-TASK-0386",
           "title": "Synthesis evidence substrate: define the next SG2 contract after the post-selection candidate-prior audit",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: define the next SG2 contract after the post-selection candidate-prior audit (task #386)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
         },
         {
           "id": "AK-TASK-0388",
@@ -475,6 +476,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-28"
+        },
+        {
+          "id": "AK-TASK-0441",
+          "title": "Synthesis evidence substrate: emit a read-only candidate-prior divergence explanation for module-gen outcomes",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit a read-only candidate-prior divergence explanation for module-gen outcomes (task #441)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

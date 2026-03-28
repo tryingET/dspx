@@ -7,18 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG14`
+Active tactical goal: `TG15`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-386` — **Synthesis evidence substrate: define the next SG2 contract after the post-selection candidate-prior audit**
+1. `AK-441` — **Synthesis evidence substrate: emit a read-only candidate-prior divergence explanation for module-gen outcomes**
    - Status: ready
-   - Deliverable: freeze the next dated SG2 contract after `TG13`, then align the next implementation slice without widening evidence authority or changing V7 ranking/promotion behavior.
+   - Deliverable: materialize the ADR-backed divergence explanation on live metadata and persisted receipts using trusted current ranked/evaluation metadata, while leaving V7 ranking/promotion behavior unchanged.
 
 ## Recently completed in this wave
 
+- `AK-386` — froze the next SG2 contract after the post-selection candidate-prior audit as a read-only divergence explanation, explicitly reusing fail-closed rank truth from `AK-388`/`AK-431`, and aligned the next implementation slice to `AK-441`.
 - `AK-436` — hardened generated-code validation and server trust boundaries by isolating smoke checks, failing closed on auth token-file misconfiguration, hashing/bounding rate-limit token identity, and preventing promotion of non-selected candidates without widening SG2 evidence authority.
 - `AK-431` — made candidate-prior audit rank reporting fail closed when ranked metadata only partially covers audited candidates, so DSPx now omits rank context rather than mixing real and missing order inside the same audit.
 - `AK-388` — made candidate-prior audit rank reporting fail closed under metadata drift so DSPx now reports rank only from explicit ranked-candidate metadata and falls back from empty decision-ranked data to valid shell-ranked data.
@@ -44,9 +45,9 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG13` is complete; `AK-386` remains the pinned SG2 planning slice for freezing the next evidence-authority contract before any later implementation resumes.
-- `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without changing the active SG2 planning wave or widening evidence authority.
+- `TG14` is complete; `AK-441` is now the pinned SG2 implementation slice for materializing the read-only divergence explanation before any later implementation widens evidence authority.
+- `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without widening evidence authority; `AK-388` and `AK-431` now form part of the fail-closed rank-truth boundary for `AK-441`.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.
-- Do not start predictive ranking, candidate pruning, promotion blocking, or governed self-evolution implementation until a later contract explicitly widens evidence authority beyond the read-only candidate-prior payload and audit surfaces now attached to runtime metadata and receipts.
+- Do not start predictive ranking, candidate pruning, promotion blocking, or governed self-evolution implementation until a later contract explicitly widens evidence authority beyond the read-only candidate-prior payload, audit, and divergence-explanation surfaces now attached to runtime metadata and receipts.
