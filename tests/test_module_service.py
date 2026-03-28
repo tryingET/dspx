@@ -97,6 +97,16 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
         == "insufficient_prior_history"
     )
     assert (
+        diagnostics["candidate_prior_counterfactual_advisory"][
+            "candidate_prior_counterfactual_advisory_version"
+        ]
+        == "v1"
+    )
+    assert (
+        diagnostics["candidate_prior_counterfactual_advisory"]["status"]
+        == "counterfactual_signal_sparse"
+    )
+    assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
     )
@@ -220,6 +230,12 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
             "status"
         ]
         == "insufficient_prior_history"
+    )
+    assert (
+        art.metadata["synthesis_diagnostics"][
+            "candidate_prior_counterfactual_advisory"
+        ]["status"]
+        == "counterfactual_signal_sparse"
     )
 
 
@@ -380,6 +396,10 @@ def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
         diagnostics["candidate_prior_readiness_advisory"]["status"]
         == "candidate_prior_readiness_unavailable"
     )
+    assert (
+        diagnostics["candidate_prior_counterfactual_advisory"]["status"]
+        == "candidate_prior_counterfactual_unavailable"
+    )
 
 
 def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_unavailable(
@@ -435,6 +455,10 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
     assert (
         diagnostics["candidate_prior_readiness_advisory"]["status"]
         == "candidate_prior_readiness_unavailable"
+    )
+    assert (
+        diagnostics["candidate_prior_counterfactual_advisory"]["status"]
+        == "candidate_prior_counterfactual_unavailable"
     )
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]

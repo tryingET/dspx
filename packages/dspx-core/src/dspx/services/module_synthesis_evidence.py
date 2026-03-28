@@ -79,6 +79,8 @@ class ModuleSynthesisHistoricalDiagnostics:
     candidate_winner_priors: dict[str, Any] | None
     candidate_prior_audit: dict[str, Any] | None
     candidate_prior_divergence_explanation: dict[str, Any] | None
+    candidate_prior_readiness_advisory: dict[str, Any] | None = None
+    candidate_prior_counterfactual_advisory: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -87,6 +89,8 @@ class ModuleSynthesisHistoricalDiagnostics:
             "candidate_winner_priors": self.candidate_winner_priors,
             "candidate_prior_audit": self.candidate_prior_audit,
             "candidate_prior_divergence_explanation": self.candidate_prior_divergence_explanation,
+            "candidate_prior_readiness_advisory": self.candidate_prior_readiness_advisory,
+            "candidate_prior_counterfactual_advisory": self.candidate_prior_counterfactual_advisory,
         }
 
 
@@ -545,6 +549,20 @@ def _extract_historical_diagnostics(
             _as_dict(diagnostics.get("candidate_prior_divergence_explanation"))
             if isinstance(
                 diagnostics.get("candidate_prior_divergence_explanation"), Mapping
+            )
+            else None
+        ),
+        candidate_prior_readiness_advisory=(
+            _as_dict(diagnostics.get("candidate_prior_readiness_advisory"))
+            if isinstance(
+                diagnostics.get("candidate_prior_readiness_advisory"), Mapping
+            )
+            else None
+        ),
+        candidate_prior_counterfactual_advisory=(
+            _as_dict(diagnostics.get("candidate_prior_counterfactual_advisory"))
+            if isinstance(
+                diagnostics.get("candidate_prior_counterfactual_advisory"), Mapping
             )
             else None
         ),
@@ -2176,6 +2194,486 @@ def build_module_synthesis_candidate_prior_readiness_advisory(
         "status": "priors_consistently_convergent",
         "history_summary": history_summary,
         "considered_receipts": considered_receipts,
+        "notes": notes,
+    }
+
+
+def _candidate_prior_counterfactual_history_summary(
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    *,
+    passing_positive_prior_candidate_count: int,
+) -> dict[str, int]:
+    history_summary_raw = _as_dict(
+        _as_dict(candidate_prior_readiness_advisory).get("history_summary")
+    )
+    positive_prior_signal_receipt_count = (
+        _as_int(history_summary_raw.get("convergent_receipt_count"), default=0)
+        + _as_int(
+            history_summary_raw.get("runtime_failure_divergence_count"), default=0
+        )
+        + _as_int(
+            history_summary_raw.get("runtime_scoring_divergence_count"), default=0
+        )
+        + _as_int(history_summary_raw.get("mixed_divergence_count"), default=0)
+        + _as_int(history_summary_raw.get("unresolved_receipt_count"), default=0)
+    )
+    return {
+        "exact_match_receipt_count": _as_int(
+            history_summary_raw.get("exact_match_receipt_count"), default=0
+        ),
+        "replay_healthy_receipt_count": _as_int(
+            history_summary_raw.get("replay_healthy_receipt_count"), default=0
+        ),
+        "usable_receipt_count": _as_int(
+            history_summary_raw.get("usable_receipt_count"), default=0
+        ),
+        "positive_prior_signal_receipt_count": positive_prior_signal_receipt_count,
+        "passing_positive_prior_candidate_count": max(
+            0, int(passing_positive_prior_candidate_count)
+        ),
+    }
+
+
+def _candidate_prior_counterfactual_selected_candidate_view(
+    *,
+    audit_candidate: Mapping[str, Any] | None,
+    divergence_candidate: Mapping[str, Any] | None,
+    comparison_candidate: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    audit = _as_dict(audit_candidate)
+    divergence = _as_dict(divergence_candidate)
+    comparison = _as_dict(comparison_candidate)
+    rank = _as_int(comparison.get("rank"), default=0)
+    if rank <= 0:
+        rank = _as_int(divergence.get("rank"), default=0)
+    return {
+        "candidate_id": _optional_str(audit.get("candidate_id"))
+        or _optional_str(divergence.get("candidate_id")),
+        "variant_id": _optional_str(audit.get("variant_id"))
+        or _optional_str(divergence.get("variant_id")),
+        "variant_origin": _optional_str(audit.get("variant_origin"))
+        or _optional_str(divergence.get("variant_origin")),
+        "rank": rank if rank > 0 else None,
+        "ranking_score": _optional_float(comparison.get("ranking_score"))
+        or _optional_float(divergence.get("ranking_score")),
+    }
+
+
+def _candidate_prior_counterfactual_candidate_view(
+    *,
+    audit_candidate: Mapping[str, Any],
+    comparison_candidate: Mapping[str, Any],
+) -> dict[str, Any]:
+    comparison = _as_dict(comparison_candidate)
+    notes = [
+        "candidate passed current runtime validation but still ranked below the selected candidate under trusted V7 scoring"
+    ]
+    evaluation_summary = _optional_str(comparison.get("evaluation_summary"))
+    if evaluation_summary is not None:
+        notes.append(evaluation_summary)
+    return {
+        "candidate_id": _optional_str(audit_candidate.get("candidate_id")),
+        "variant_id": _optional_str(audit_candidate.get("variant_id")),
+        "variant_origin": _optional_str(audit_candidate.get("variant_origin")),
+        "rank": _as_int(comparison.get("rank"), default=0),
+        "ranking_score": _optional_float(comparison.get("ranking_score")),
+        "evaluation_status": _optional_str(comparison.get("evaluation_status")),
+        "notes": notes,
+    }
+
+
+def build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+    *,
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    candidate_prior_divergence_explanation: Mapping[str, Any] | None,
+    candidate_prior_audit: Mapping[str, Any] | None,
+    notes: list[str] | None = None,
+) -> dict[str, Any]:
+    readiness = _as_dict(candidate_prior_readiness_advisory)
+    divergence = _as_dict(candidate_prior_divergence_explanation)
+    audit = _as_dict(candidate_prior_audit)
+    return {
+        "candidate_prior_counterfactual_advisory_version": "v1",
+        "status": "candidate_prior_counterfactual_unavailable",
+        "candidate_prior_readiness_status": _optional_str(readiness.get("status")),
+        "candidate_prior_divergence_explanation_status": _optional_str(
+            divergence.get("status")
+        ),
+        "selected_candidate": _candidate_prior_counterfactual_selected_candidate_view(
+            audit_candidate=_as_dict(audit.get("selected_candidate")),
+            divergence_candidate=_as_dict(divergence.get("selected_candidate")),
+            comparison_candidate=None,
+        ),
+        "history_summary": _candidate_prior_counterfactual_history_summary(
+            readiness,
+            passing_positive_prior_candidate_count=0,
+        ),
+        "counterfactual_positive_prior_candidates": [],
+        "notes": list(notes or ["candidate-prior counterfactual advisory unavailable"]),
+    }
+
+
+def build_module_synthesis_candidate_prior_counterfactual_advisory(
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    candidate_prior_divergence_explanation: Mapping[str, Any] | None,
+    candidate_prior_audit: Mapping[str, Any] | None,
+    *,
+    ranked_candidate_comparison_inputs: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    if not isinstance(candidate_prior_readiness_advisory, Mapping):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=None,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior readiness advisory is missing"
+            ],
+        )
+    if not isinstance(candidate_prior_divergence_explanation, Mapping):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=None,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior divergence explanation is missing"
+            ],
+        )
+    if not isinstance(candidate_prior_audit, Mapping):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=None,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior audit is missing"
+            ],
+        )
+
+    readiness_status = _optional_str(candidate_prior_readiness_advisory.get("status"))
+    divergence_status = _optional_str(
+        candidate_prior_divergence_explanation.get("status")
+    )
+    audit_status = _optional_str(candidate_prior_audit.get("status"))
+    if readiness_status is None or divergence_status is None or audit_status is None:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because required SG2 status fields are malformed"
+            ],
+        )
+    if readiness_status == "candidate_prior_readiness_unavailable":
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior readiness advisory is unavailable"
+            ],
+        )
+    if divergence_status == "candidate_prior_divergence_unavailable":
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior divergence explanation is unavailable"
+            ],
+        )
+    if audit_status == "candidate_priors_unavailable":
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior audit is unavailable"
+            ],
+        )
+
+    if (
+        audit_status
+        in {
+            "selected_matches_positive_winner_history",
+            "no_positive_prior_candidates",
+        }
+        and divergence_status != "no_divergence_to_explain"
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior audit/divergence surfaces disagree about whether divergence exists"
+            ],
+        )
+    if (
+        audit_status
+        in {
+            "selected_candidate_prior_unsupported",
+            "selected_candidate_prior_degraded",
+        }
+        and divergence_status != "selected_candidate_prior_unresolved"
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior audit/divergence surfaces disagree about selected-candidate prior resolution"
+            ],
+        )
+    if (
+        audit_status == "positive_prior_candidates_present_but_not_selected"
+        and divergence_status
+        not in {
+            "divergence_explained_by_runtime_failures",
+            "divergence_explained_by_runtime_scoring",
+            "divergence_explained_by_mixed_runtime_outcomes",
+        }
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior audit/divergence surfaces disagree about the divergence class"
+            ],
+        )
+
+    selected_candidate_audit = _as_dict(candidate_prior_audit.get("selected_candidate"))
+    selected_candidate_divergence = _as_dict(
+        candidate_prior_divergence_explanation.get("selected_candidate")
+    )
+    selected_candidate_id = _optional_str(selected_candidate_audit.get("candidate_id"))
+    if selected_candidate_id is None:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because selected candidate identity is missing"
+            ],
+        )
+
+    raw_compared_candidates = candidate_prior_audit.get(
+        "non_selected_positive_prior_candidates"
+    )
+    if not isinstance(raw_compared_candidates, list) or any(
+        not isinstance(item, Mapping) for item in raw_compared_candidates
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because compared positive-prior candidates are malformed"
+            ],
+        )
+    compared_candidates = [dict(item) for item in raw_compared_candidates]
+
+    comparison_by_id = {
+        candidate_id: item
+        for item in ranked_candidate_comparison_inputs
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    selected_comparison = comparison_by_id.get(selected_candidate_id)
+    if not _candidate_prior_divergence_comparison_supported(selected_comparison):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because trusted current comparison metadata for the selected candidate is incomplete"
+            ],
+        )
+    if selected_comparison is None or selected_comparison.get("passed") is not True:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because the selected candidate lacks a trusted passing runtime result"
+            ],
+        )
+
+    selected_candidate = _candidate_prior_counterfactual_selected_candidate_view(
+        audit_candidate=selected_candidate_audit,
+        divergence_candidate=selected_candidate_divergence,
+        comparison_candidate=selected_comparison,
+    )
+    selected_rank = _as_int(selected_comparison.get("rank"), default=0)
+    notes = [
+        "candidate-prior counterfactual advisory is descriptive only; V7 ranking and promotion remain unchanged"
+    ]
+    for source in (
+        candidate_prior_audit.get("notes"),
+        candidate_prior_divergence_explanation.get("notes"),
+        candidate_prior_readiness_advisory.get("notes"),
+    ):
+        if isinstance(source, list):
+            for note in source:
+                if isinstance(note, str):
+                    _append_unique_note(notes, note)
+
+    passing_candidate_views: list[dict[str, Any]] = []
+    failed_candidate_count = 0
+    for compared_candidate in compared_candidates:
+        candidate_id = _optional_str(compared_candidate.get("candidate_id"))
+        if candidate_id is None:
+            return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior counterfactual advisory unavailable because a compared positive-prior candidate is missing candidate_id"
+                ],
+            )
+        comparison_candidate = comparison_by_id.get(candidate_id)
+        if not _candidate_prior_divergence_comparison_supported(comparison_candidate):
+            return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior counterfactual advisory unavailable because trusted current comparison metadata is incomplete for at least one compared positive-prior candidate"
+                ],
+            )
+        if comparison_candidate is None:
+            return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior counterfactual advisory unavailable because a compared positive-prior candidate is absent from trusted current comparison metadata"
+                ],
+            )
+
+        candidate_rank = _as_int(comparison_candidate.get("rank"), default=0)
+        if comparison_candidate.get("passed") is True:
+            if candidate_rank <= selected_rank:
+                return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+                    candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                    candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                    candidate_prior_audit=candidate_prior_audit,
+                    notes=[
+                        "candidate-prior counterfactual advisory unavailable because trusted current rank metadata does not show the selected candidate outranking all passing compared candidates"
+                    ],
+                )
+            passing_candidate_views.append(
+                _candidate_prior_counterfactual_candidate_view(
+                    audit_candidate=compared_candidate,
+                    comparison_candidate=comparison_candidate,
+                )
+            )
+        else:
+            failed_candidate_count += 1
+
+    if (
+        divergence_status == "divergence_explained_by_runtime_failures"
+        and passing_candidate_views
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because divergence says runtime failures only, but current comparison metadata shows passing positive-prior candidates"
+            ],
+        )
+    if divergence_status == "divergence_explained_by_runtime_scoring" and (
+        failed_candidate_count > 0 or not passing_candidate_views
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because divergence says runtime scoring only, but current comparison metadata does not show an all-passing comparison set"
+            ],
+        )
+    if divergence_status == "divergence_explained_by_mixed_runtime_outcomes" and (
+        failed_candidate_count == 0 or not passing_candidate_views
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because divergence says runtime outcomes were mixed, but current comparison metadata does not show both failed and passing positive-prior candidates"
+            ],
+        )
+
+    history_summary = _candidate_prior_counterfactual_history_summary(
+        candidate_prior_readiness_advisory,
+        passing_positive_prior_candidate_count=len(passing_candidate_views),
+    )
+
+    if readiness_status == "insufficient_prior_history":
+        status = "counterfactual_signal_sparse"
+        _append_unique_note(
+            notes,
+            "candidate-prior history is still too sparse to treat the current run as meaningful predictive signal",
+        )
+    elif readiness_status in {
+        "priors_consistently_convergent",
+        "priors_mostly_blocked_by_runtime_failures",
+    }:
+        status = "no_counterfactual_signal"
+        if readiness_status == "priors_consistently_convergent":
+            _append_unique_note(
+                notes,
+                "historical readiness is convergent, so DSPx should not frame the current run as a counterfactual prior signal",
+            )
+        else:
+            _append_unique_note(
+                notes,
+                "historical readiness is mostly blocked by runtime failures, so DSPx should not frame the current run as a counterfactual prior signal",
+            )
+    elif divergence_status == "no_divergence_to_explain":
+        status = "no_counterfactual_signal"
+        _append_unique_note(
+            notes,
+            "the current run has no selected-vs-prior divergence that would make a counterfactual comparison meaningful",
+        )
+    elif divergence_status == "divergence_explained_by_runtime_failures":
+        status = "no_counterfactual_signal"
+        _append_unique_note(
+            notes,
+            "all positive-prior-supported alternatives failed current runtime validation",
+        )
+    elif readiness_status == "priors_mixed_or_inconclusive" or divergence_status in {
+        "selected_candidate_prior_unresolved",
+        "divergence_explained_by_mixed_runtime_outcomes",
+    }:
+        status = "counterfactual_signal_mixed_or_inconclusive"
+        _append_unique_note(
+            notes,
+            "historical readiness or current divergence remains too mixed to support a narrower counterfactual claim",
+        )
+    elif (
+        readiness_status == "priors_mostly_outscored_under_v7"
+        and divergence_status == "divergence_explained_by_runtime_scoring"
+    ):
+        status = "counterfactual_positive_prior_alternatives_present"
+        _append_unique_note(
+            notes,
+            "the current run contains passing positive-prior-supported alternatives that still lost under trusted V7 scoring",
+        )
+    else:
+        status = "counterfactual_signal_mixed_or_inconclusive"
+        _append_unique_note(
+            notes,
+            "readiness and divergence inputs do not support a narrower counterfactual claim under contract v1",
+        )
+
+    return {
+        "candidate_prior_counterfactual_advisory_version": "v1",
+        "status": status,
+        "candidate_prior_readiness_status": readiness_status,
+        "candidate_prior_divergence_explanation_status": divergence_status,
+        "selected_candidate": selected_candidate,
+        "history_summary": history_summary,
+        "counterfactual_positive_prior_candidates": passing_candidate_views,
         "notes": notes,
     }
 

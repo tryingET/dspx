@@ -532,14 +532,15 @@
         {
           "id": "AK-TASK-0473",
           "title": "Synthesis evidence substrate: emit a read-only candidate-prior counterfactual advisory for module-gen outcomes",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: emit a read-only candidate-prior counterfactual advisory for module-gen outcomes (task #473)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
         },
         {
           "id": "AK-TASK-0474",

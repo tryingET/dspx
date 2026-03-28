@@ -7,18 +7,19 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG19`
+Active tactical goal: `TBD`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-473` — **Synthesis evidence substrate: emit a read-only candidate-prior counterfactual advisory for module-gen outcomes**
+1. `AK-317` — **Remove repo-local `rocs_cli` GitLab baseline-resolution compatibility path**
    - Status: ready
-   - Deliverable: materialize the ADR-backed counterfactual advisory on live metadata and persisted receipts using already-emitted SG2 surfaces plus trusted current-run comparison metadata, while keeping V7 ranking/promotion behavior unchanged.
+   - Deliverable: remove the repo-local compatibility path now that the SG2 counterfactual-advisory slice is complete and no next SG2 contract is pinned yet.
 
 ## Recently completed in this wave
 
+- `AK-473` — materialized the ADR-backed read-only candidate-prior counterfactual advisory on live module metadata and persisted receipts using already-emitted SG2 surfaces plus trusted current-run comparison metadata, while leaving V7 ranking/promotion behavior unchanged.
 - `AK-466` — froze the next SG2 contract after the read-only candidate-prior readiness advisory as a read-only counterfactual advisory and aligned the next implementation slice to `AK-473`.
 - `AK-462` — materialized the ADR-backed read-only candidate-prior readiness advisory on live module metadata and persisted receipts by rolling up persisted exact-match candidate-prior audit/divergence-explanation outcomes, while leaving V7 ranking/promotion behavior unchanged.
 - `AK-459` — froze the next SG2 contract after the read-only candidate-prior divergence explanation as a receipt-backed readiness advisory and aligned the next implementation slice to `AK-462`.
@@ -50,7 +51,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG18` is complete; `AK-473` is now the pinned SG2 implementation slice for materializing the read-only candidate-prior counterfactual advisory.
+- `TG19` is complete; no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question, so the repo-scoped ready queue currently falls back to `AK-317`.
 - `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without widening evidence authority; `AK-388` and `AK-431` now form part of the fail-closed rank-truth boundary that `AK-441` reused.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.

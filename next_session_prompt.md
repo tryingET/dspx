@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-473` and materialize the read-only candidate-prior counterfactual advisory on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
+- Objective (one sentence): Claim `AK-317` and remove the repo-local `rocs_cli` GitLab baseline-resolution compatibility path now that `AK-473`/`TG19` are complete.
 - Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-466` is done and committed; `TG18` is complete; `AK-473` is now the next ready SG2 slice.
+- Assumptions (max 3): `AK-473` is done and committed; `TG19` is complete; the repo-scoped ready queue now falls back to `AK-317` until a later SG2 contract is frozen.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-28--freeze-candidate-prior-counterfactual-advisory-contract.md`
+7. `diary/2026-03-28--emit-candidate-prior-counterfactual-advisory.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -55,12 +55,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-482` — refactor `verify-full` into staged gates with parallel heavy checks.
-- Outcome: DSPx now splits validation into `verify-fast`, `verify-runtime`, `verify-tests`, `verify-pre-push`, and `verify-full`; the pre-push hook runs the fast guardrail path, while the explicit full gate runs the runtime/invariant branch and the typecheck/test branch in parallel after the fast gate passes.
-- Files changed: `.pre-commit-config.yaml`, `CONTRIBUTING.md`, `Justfile`, `README.md`, `diary/2026-03-28--refactor-verify-full-into-staged-parallel-gates.md`, `docs/project/developer_workflow.md`, `docs/tech-stack.local.md`, `governance/task-scopes/AK-482.json`, `governance/work-items.json`, `next_session_prompt.md`, `scripts/check_workflow_contracts.py`, `scripts/ci/verify-full.sh`, and `tests/test_workflow_contracts.py`.
-- Validation commands + results: `python scripts/check_task_scope.py --task-id 482 --mode working-tree` ✅; `uv run -m pytest -q tests/test_workflow_contracts.py` ✅; `python3 scripts/check_workflow_contracts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 482 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-482` is complete; `TG19` remains active with `AK-473` as the next ready SG2 slice.
-- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-473` and materialize the read-only candidate-prior counterfactual advisory on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
+- Slice executed: `AK-473` — emit a read-only candidate-prior counterfactual advisory for `module-gen` outcomes.
+- Outcome: DSPx now emits `candidate_prior_counterfactual_advisory` on live `module-gen` metadata and persisted receipts, deriving bounded counterfactual statuses and passing positive-prior-supported alternatives from the existing audit/divergence/readiness surfaces plus trusted current comparison metadata without changing V7 ranking or promotion behavior.
+- Files changed: `diary/2026-03-28--emit-candidate-prior-counterfactual-advisory.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-473.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, and `tests/test_run_receipts.py`.
+- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `uv run -q python scripts/check_task_scope.py --task-id 473 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 473 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-473` is complete; `TG19` is complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue currently points at `AK-317`.
+- Next-session starting point: confirm the repo-scoped ready queue still points at `AK-317`, then claim it and remove the repo-local `rocs_cli` GitLab baseline-resolution compatibility path unless the operator redirects the repo back to a new SG2 contract slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
