@@ -1215,6 +1215,12 @@ def build_module_synthesis_candidate_prior_audit(
         for item in candidate_prior_entries
         if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
     }
+    expected_rank_candidate_ids = set(candidate_priors_by_id)
+    incomplete_rank_context = bool(
+        rank_map
+    ) and not expected_rank_candidate_ids.issubset(set(rank_map))
+    if incomplete_rank_context:
+        rank_map = {}
     selected_candidate_prior = candidate_priors_by_id.get(selected_candidate_id)
     if selected_candidate_prior is None:
         return build_unavailable_module_synthesis_candidate_prior_audit(
@@ -1303,7 +1309,12 @@ def build_module_synthesis_candidate_prior_audit(
         for note in raw_notes:
             if isinstance(note, str):
                 _append_unique_note(notes, note)
-    if not rank_map:
+    if incomplete_rank_context:
+        _append_unique_note(
+            notes,
+            "ranked-candidate order incomplete; audit omitted rank context to avoid reporting a partial ordering",
+        )
+    elif not rank_map:
         _append_unique_note(
             notes,
             "ranked-candidate order unavailable; audit reported without stable rank context",
