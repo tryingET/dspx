@@ -4,9 +4,15 @@
     "spec": {
       "name": "Summarizer",
       "description": "Summarizes text",
-      "inputs": ["text"],
-      "outputs": ["summary"],
-      "options": {"template_version": "simple-v1"}
+      "inputs": [
+        "text"
+      ],
+      "outputs": [
+        "summary"
+      ],
+      "options": {
+        "template_version": "simple-v1"
+      }
     },
     "use_signature": false,
     "promote": false,
@@ -31,9 +37,15 @@
     "spec": {
       "name": "Intent",
       "description": "Extracts intent from context",
-      "inputs": ["context"],
-      "outputs": ["output"],
-      "options": {"template_version": "simple-v1"}
+      "inputs": [
+        "context"
+      ],
+      "outputs": [
+        "output"
+      ],
+      "options": {
+        "template_version": "simple-v1"
+      }
     },
     "use_signature": true,
     "promote": false,
@@ -51,16 +63,24 @@
     "expected_candidate_count": 3,
     "expected_promotion_status": "ready",
     "expected_promotion_outcome": "withheld",
-    "sha256": "a96e3d44e8d8d77e6d2ca54791f6fea92e2127feb1819fd99a4e73848879dcfa"
+    "sha256": "d0c3d2751c08fb18748211eda8a631edeff9203dabeadba650631fca2582021f"
   },
   {
     "name": "router_multi_io_promoted",
     "spec": {
       "name": "TicketRouter",
       "description": "Routes incoming tickets",
-      "inputs": ["ticket", "context"],
-      "outputs": ["team", "priority"],
-      "options": {"template_version": "simple-v1"}
+      "inputs": [
+        "ticket",
+        "context"
+      ],
+      "outputs": [
+        "team",
+        "priority"
+      ],
+      "options": {
+        "template_version": "simple-v1"
+      }
     },
     "use_signature": false,
     "promote": true,
