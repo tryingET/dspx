@@ -55,11 +55,11 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-477` — lock the deterministic task-binding workflow into contract checks and tests.
-- Outcome: DSPx now fails workflow-contract validation if the explicit working-tree task-scope command, the fail-closed wording, or the next-session-checkpoint binding semantics drift out of the repo docs or `Justfile`, so the `AK-474` workflow guardrail is protected by automated contract checks as well as runtime behavior.
-- Files changed: `diary/2026-03-28--lock-deterministic-task-binding-into-contract-checks.md`, `governance/task-scopes/AK-477.json`, `governance/work-items.json`, `next_session_prompt.md`, `scripts/check_workflow_contracts.py`, and `tests/test_workflow_contracts.py`.
-- Validation commands + results: `python scripts/check_task_scope.py --task-id 477 --mode working-tree` ✅; `uv run -m pytest -q tests/test_workflow_contracts.py` ✅; `python3 scripts/check_workflow_contracts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 477 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-477` is complete; `TG19` remains active with `AK-473` as the next ready SG2 slice.
+- Slice executed: `AK-478` — close the AK-477 task-scope manifest drift after contract-check hardening.
+- Outcome: DSPx now attests the full changed-file set of the committed `AK-477` workflow-contract hardening slice, so `just verify-full` can validate that slice cleanly under the stricter deterministic task-binding rules it introduced.
+- Files changed: `diary/2026-03-28--close-ak-477-task-scope-manifest-drift.md`, `governance/task-scopes/AK-477.json`, `governance/task-scopes/AK-478.json`, `governance/work-items.json`, and `next_session_prompt.md`.
+- Validation commands + results: `python scripts/check_task_scope.py --task-id 478 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 478 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-478` is complete; `TG19` remains active with `AK-473` as the next ready SG2 slice.
 - Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-473` and materialize the read-only candidate-prior counterfactual advisory on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
 
 ## END-OF-SESSION

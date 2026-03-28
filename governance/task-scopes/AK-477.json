@@ -3,6 +3,7 @@
   "description": "Lock the deterministic task-binding workflow into repo contract checks and tests so docs or Justfile drift cannot silently weaken task-scope enforcement.",
   "allowed_paths": [
     "diary/2026-03-28--lock-deterministic-task-binding-into-contract-checks.md",
+    "docs/tech-stack.local.md",
     "governance/task-scopes/AK-477.json",
     "governance/work-items.json",
     "next_session_prompt.md",

@@ -1,0 +1,22 @@
+{
+  "task_id": 478,
+  "description": "Close the AK-477 task-scope manifest drift so the committed contract-check hardening slice validates cleanly under verify-full.",
+  "allowed_paths": [
+    "diary/2026-03-28--close-ak-477-task-scope-manifest-drift.md",
+    "governance/task-scopes/AK-477.json",
+    "governance/task-scopes/AK-478.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-477.json",
+    "governance/task-scopes/AK-478.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

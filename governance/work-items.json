@@ -566,6 +566,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-28"
+        },
+        {
+          "id": "AK-TASK-0478",
+          "title": "Workflow guardrails: close AK-477 task-scope manifest drift after contract-check hardening",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: close AK-477 task-scope manifest drift after contract-check hardening (task #478)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
         }
       ]
     }
