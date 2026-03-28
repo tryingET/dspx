@@ -112,7 +112,11 @@ def module_gen(
     """Generate a DSPy module scaffold from a specification."""
     from dspx.dtos import ModuleSpec
     from dspx.services.module_service import run_generate as module_run_generate
-    from dspx.cli.commands.module import _write_module_output, _print_module_cache_info
+    from dspx.cli.commands.module import (
+        _write_module_output,
+        _print_module_cache_info,
+        validate_module_fields_or_exit,
+    )
 
     if template_config is not None:
         if not template_config.exists():
@@ -128,6 +132,8 @@ def module_gen(
         os.environ["DSPX_CACHE_ENABLE"] = "0"
     if budget_ms is not None:
         os.environ["DSPX_BUDGET_MODULE_MS"] = str(int(budget_ms))
+
+    validate_module_fields_or_exit(input, output)
 
     spec = ModuleSpec(
         name=name,

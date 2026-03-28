@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Optional
+import keyword
+import re
 
 from dspx.cache import (
     cache_enabled,
@@ -11,7 +13,7 @@ from dspx.cache import (
     write as cache_write,
 )
 from dspx.coordinates.storage import get_default_index_path
-from dspx.dtos import ModuleArtifact, ModuleSpec, SignatureGenRequest
+from dspx.dtos import ModuleArtifact, ModuleSpec
 from dspx.lm_base import LMBase
 from dspx.services.module_synthesis_evidence import (
     ModuleSynthesisEvidenceRequest,
@@ -28,7 +30,6 @@ from dspx.services.module_synthesis_quality import (
     append_module_quality_event,
     build_module_quality_event_from_metadata,
 )
-from dspx.services.signatures_service import run_generate_dto
 from dspx.synthesis import execute_module_synthesis_bundle, module_synthesis_run_summary
 from dspx.templates.module_templates import render_module_skeleton
 from dspx.templates.signature_templates import render_simple_signature
@@ -42,6 +43,35 @@ def _sig_class_name(module_name: str) -> str:
     if s[0].isdigit():
         s = f"_{s}"
     return f"Sig_{s}"
+
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_module_spec_identifiers(spec: ModuleSpec) -> None:
+    seen: set[str] = set()
+    invalid: list[str] = []
+
+    for role, values in (("input", spec.inputs or []), ("output", spec.outputs or [])):
+        for raw in values:
+            name = str(raw).strip()
+            if not name:
+                invalid.append(f"{role}:<empty>")
+                continue
+            if not _IDENTIFIER_RE.match(name) or keyword.iskeyword(name):
+                invalid.append(f"{role}:{name}")
+                continue
+            if name in seen:
+                invalid.append(f"duplicate:{name}")
+                continue
+            seen.add(name)
+
+    if invalid:
+        detail = ", ".join(invalid)
+        raise ValueError(
+            "Module inputs/outputs must be unique Python identifiers; "
+            f"invalid entries: {detail}"
+        )
 
 
 def _template_version(spec: ModuleSpec) -> Optional[str]:
@@ -178,6 +208,8 @@ def _seed_code(
         sig_code = render_simple_signature(
             sig_name,
             desc or f"Signature for {spec.name}",
+            inputs=inputs,
+            outputs=outputs,
         )
     return render_module_skeleton(
         spec.name,
@@ -553,6 +585,7 @@ def run_generate(
     desc = spec.description or ""
     inputs = list(spec.inputs or [])
     outputs = list(spec.outputs or [])
+    _validate_module_spec_identifiers(spec)
 
     if simple:
         key = make_key(
@@ -593,6 +626,8 @@ def run_generate(
             sig_code = render_simple_signature(
                 sig_name,
                 desc or f"Signature for {spec.name}",
+                inputs=inputs,
+                outputs=outputs,
             )
         code = render_module_skeleton(
             spec.name,
@@ -621,20 +656,13 @@ def run_generate(
     sig_code = None
     sig_name = None
     if use_signature:
-        try:
-            sig_name = _sig_class_name(spec.name)
-            req = SignatureGenRequest(
-                prompt=desc or f"Module {spec.name} signature",
-                template_version="simple-v1",
-                options={"class_name": sig_name},
-            )
-            res = run_generate_dto(req, lm=lm)
-            sig_code = res.code or None
-        except Exception:
-            sig_code = render_simple_signature(
-                sig_name or _sig_class_name(spec.name),
-                desc or f"Signature for {spec.name}",
-            )
+        sig_name = _sig_class_name(spec.name)
+        sig_code = render_simple_signature(
+            sig_name,
+            desc or f"Signature for {spec.name}",
+            inputs=inputs,
+            outputs=outputs,
+        )
 
     code = render_module_skeleton(
         spec.name,

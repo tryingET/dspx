@@ -58,18 +58,12 @@ def render_module_skeleton(
     # Build forward
     args_sig = ", ".join(f"{x}: str" for x in ins)
     body.append(f"    def forward(self, {args_sig}) -> dspy.Prediction:")
-    if signature_class_name:
-        # Best-effort mapping: pass 'context' if available; else first input.
-        ctx_arg = "context" if "context" in ins else (ins[0] if ins else "")
-        if ctx_arg:
-            body.append(f"        pred = self.predict(context={ctx_arg})")
-        else:
-            body.append("        pred = self.predict(context='')")
-        body.append("        return pred")
-    else:
-        call_args = ", ".join(f"{x}={x}" for x in ins)
+    call_args = ", ".join(f"{x}={x}" for x in ins)
+    if call_args:
         body.append(f"        pred = self.predict({call_args})")
-        body.append("        return pred")
+    else:
+        body.append("        pred = self.predict()")
+    body.append("        return pred")
 
     body.append("")
     body.append("")

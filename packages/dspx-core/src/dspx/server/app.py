@@ -105,7 +105,17 @@ def create_app() -> FastAPI:
             outputs=list(req.outputs or []),
             options={"template_version": req.template_version or "simple-v1"},
         )
-        art = module_run_generate(spec, use_signature=bool(req.use_signature))
+        try:
+            art = module_run_generate(spec, use_signature=bool(req.use_signature))
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "invalid_request",
+                    "detail": str(exc),
+                    "status": 400,
+                },
+            )
         return ModuleResponse(name=art.name, code=art.code)
 
     @app.post("/mermaid", response_model=MermaidResponse)

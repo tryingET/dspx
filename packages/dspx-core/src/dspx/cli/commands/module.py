@@ -5,7 +5,9 @@ Command for generating DSPy module scaffolds.
 
 from __future__ import annotations
 
+import keyword
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, List, Optional
@@ -15,6 +17,34 @@ import typer
 from dspx.cli.utils import ensure_env, require_template_adapter
 
 app = typer.Typer(no_args_is_help=True)
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _invalid_field_names(values: List[str]) -> list[str]:
+    invalid: list[str] = []
+    for raw in values:
+        name = str(raw).strip()
+        if not name or not _IDENTIFIER_RE.match(name) or keyword.iskeyword(name):
+            invalid.append(str(raw))
+    return invalid
+
+
+def validate_module_fields_or_exit(inputs: List[str], outputs: List[str]) -> None:
+    invalid_inputs = _invalid_field_names(inputs)
+    invalid_outputs = _invalid_field_names(outputs)
+    if invalid_inputs or invalid_outputs:
+        details: list[str] = []
+        if invalid_inputs:
+            details.append(f"inputs={invalid_inputs}")
+        if invalid_outputs:
+            details.append(f"outputs={invalid_outputs}")
+        typer.echo(
+            "Error: module fields must be valid Python identifiers; "
+            + "; ".join(details),
+            err=True,
+        )
+        raise typer.Exit(code=2)
 
 
 @app.command("module-gen")
@@ -67,6 +97,8 @@ def module_gen(
         os.environ["DSPX_CACHE_ENABLE"] = "0"
     if budget_ms is not None:
         os.environ["DSPX_BUDGET_MODULE_MS"] = str(int(budget_ms))
+
+    validate_module_fields_or_exit(input, output)
 
     spec = ModuleSpec(
         name=name,

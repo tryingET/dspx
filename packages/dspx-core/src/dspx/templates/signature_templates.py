@@ -220,22 +220,38 @@ def render_signature_from_spec(
 
 
 def render_simple_signature(
-    class_name: str, description: str, *, version: str = "v1"
+    class_name: str,
+    description: str,
+    *,
+    version: str = "v1",
+    inputs: list[str] | None = None,
+    outputs: list[str] | None = None,
 ) -> str:
     """Render a minimal, deterministic DSPy Signature class.
 
-    Fields are fixed to: context (InputField[str]), output (OutputField[str]).
+    Defaults remain `context -> output`, but callers may provide explicit
+    input/output field names when a stronger IO contract is available.
     """
     doc = (description or "Auto-generated Signature").strip().replace("\n", " ")
-    return "\n".join(
-        [
-            "import dspy",
-            "",
-            f"class {class_name}(dspy.Signature):",
-            f'    """{doc}"""',
-            "",
-            "    context: str = dspy.InputField(desc='Upstream context for this step')",
-            "    output: str = dspy.OutputField(desc='Result of this step')",
-            "",
-        ]
-    )
+    input_names = [str(item) for item in (inputs or []) if str(item).strip()] or [
+        "context"
+    ]
+    output_names = [str(item) for item in (outputs or []) if str(item).strip()] or [
+        "output"
+    ]
+
+    lines = [
+        "import dspy",
+        "",
+        f"class {class_name}(dspy.Signature):",
+        f'    """{doc}"""',
+        "",
+    ]
+    for name in input_names:
+        desc = f"{name.replace('_', ' ')} (input)"
+        lines.append(f"    {name}: str = dspy.InputField(desc={desc!r})")
+    for name in output_names:
+        desc = f"{name.replace('_', ' ')} (output)"
+        lines.append(f"    {name}: str = dspy.OutputField(desc={desc!r})")
+    lines.append("")
+    return "\n".join(lines)
