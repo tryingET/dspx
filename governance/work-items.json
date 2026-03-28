@@ -519,10 +519,23 @@
         {
           "id": "AK-TASK-0466",
           "title": "Synthesis evidence substrate: define the next SG2 contract after the read-only candidate-prior readiness advisory",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: define the next SG2 contract after the read-only candidate-prior readiness advisory (task #466)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
+        },
+        {
+          "id": "AK-TASK-0473",
+          "title": "Synthesis evidence substrate: emit a read-only candidate-prior counterfactual advisory for module-gen outcomes",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit a read-only candidate-prior counterfactual advisory for module-gen outcomes (task #473)",
               "done": false
             }
           ],

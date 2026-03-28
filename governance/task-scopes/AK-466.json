@@ -1,0 +1,28 @@
+{
+  "task_id": 466,
+  "description": "Freeze the next SG2 contract after the read-only candidate-prior readiness advisory and align the next implementation slice without changing V7 ranking or promotion behavior.",
+  "allowed_paths": [
+    "diary/2026-03-28--freeze-candidate-prior-counterfactual-advisory-contract.md",
+    "docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-466.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "diary/2026-03-28--freeze-candidate-prior-counterfactual-advisory-contract.md",
+    "docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-466.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}
