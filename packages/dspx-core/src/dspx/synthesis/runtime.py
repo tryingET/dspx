@@ -4,14 +4,12 @@ import ast
 import json
 import os
 import shutil
-import subprocess
-import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
 from dspx.cache import cache_dir, make_key
 from dspx.dtos import ModuleSpec
+from dspx.generated_code_guard import smoke_module_code
 
 from .contracts import (
     CandidateRecord,
@@ -417,177 +415,19 @@ def _module_smoke_checks(
     request: SynthesisRequest,
     code: str,
 ) -> tuple[bool, dict[str, bool], list[str]]:
-    checks: dict[str, bool] = {"module-smoke": False}
-    errors: list[str] = []
     inputs, outputs = _expected_io(request)
-    payload = {
-        "expected_module": _module_class_name(request),
-        "expected_signature": (
-            _signature_class_name(request) if request.spec.use_signature else None
-        ),
-        "use_signature": bool(request.spec.use_signature),
-        "inputs": inputs,
-        "outputs": outputs,
-    }
-    helper = """
-import json
-import sys
-from pathlib import Path
-
-code_path = Path(sys.argv[1])
-payload_path = Path(sys.argv[2])
-result_path = Path(sys.argv[3])
-code = code_path.read_text(encoding='utf-8')
-payload = json.loads(payload_path.read_text(encoding='utf-8'))
-checks = {'module-smoke': False}
-errors = []
-namespace = {}
-
-try:
-    exec(code, namespace, namespace)
-except Exception as exc:
-    errors.append(f'exec_error:{exc}')
-else:
-    try:
-        import dspy
-    except Exception as exc:
-        errors.append(f'dspy_import_error:{exc}')
-    else:
-        expected_module = payload['expected_module']
-        module_cls = namespace.get(expected_module)
-        if not isinstance(module_cls, type):
-            errors.append(f'class_not_found:{expected_module}')
-        else:
-            try:
-                if not issubclass(module_cls, dspy.Module):
-                    errors.append('class_not_dspy_module')
-            except Exception:
-                errors.append('class_not_dspy_module')
-
-        if payload.get('use_signature'):
-            expected_signature = payload.get('expected_signature')
-            signature_cls = namespace.get(expected_signature)
-            if not isinstance(signature_cls, type):
-                errors.append(f'signature_not_found:{expected_signature}')
-            else:
-                try:
-                    if not issubclass(signature_cls, dspy.Signature):
-                        errors.append('signature_not_dspy_signature')
-                except Exception:
-                    errors.append('signature_not_dspy_signature')
-
-        build_student = namespace.get('build_student')
-        if not callable(build_student):
-            errors.append('build_student_missing')
-        else:
-            try:
-                student = build_student(use_cot=False)
-                if not isinstance(student, dspy.Module):
-                    errors.append('build_student_not_module')
-                if getattr(student, 'predict', None) is None:
-                    errors.append('predict_missing')
-            except Exception as exc:
-                errors.append(f'build_student_error:{exc}')
-
-        io_spec = namespace.get('io_spec')
-        if not callable(io_spec):
-            errors.append('io_spec_missing')
-        else:
-            try:
-                if io_spec() != {'inputs': payload['inputs'], 'outputs': payload['outputs']}:
-                    errors.append('io_spec_mismatch')
-            except Exception as exc:
-                errors.append(f'io_spec_error:{exc}')
-
-        output_weights = namespace.get('output_weights')
-        if not callable(output_weights):
-            errors.append('output_weights_missing')
-        else:
-            try:
-                weights = output_weights()
-                if not isinstance(weights, dict) or set(weights.keys()) != set(payload['outputs']):
-                    errors.append('output_weights_mismatch')
-            except Exception as exc:
-                errors.append(f'output_weights_error:{exc}')
-
-        normalize_output = namespace.get('normalize_output')
-        if not callable(normalize_output):
-            errors.append('normalize_output_missing')
-        else:
-            try:
-                normalized = normalize_output(
-                    'key',
-                    'gold',
-                    'pred',
-                    pred_name='pred',
-                    pred_trace=None,
-                )
-                if not (
-                    isinstance(normalized, tuple)
-                    and len(normalized) == 2
-                    and normalized == ('gold', 'pred')
-                ):
-                    errors.append('normalize_output_mismatch')
-            except Exception as exc:
-                errors.append(f'normalize_output_error:{exc}')
-
-checks['module-smoke'] = len(errors) == 0
-result_path.write_text(
-    json.dumps({'ok': checks['module-smoke'], 'checks': checks, 'errors': errors}),
-    encoding='utf-8',
-)
-"""
-
-    try:
-        with tempfile.TemporaryDirectory(prefix="dspx_smoke_") as td:
-            workdir = Path(td)
-            code_path = workdir / "candidate.py"
-            payload_path = workdir / "payload.json"
-            result_path = workdir / "result.json"
-            code_path.write_text(code, encoding="utf-8")
-            payload_path.write_text(
-                json.dumps(payload, sort_keys=True),
-                encoding="utf-8",
-            )
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    "-c",
-                    helper,
-                    str(code_path),
-                    str(payload_path),
-                    str(result_path),
-                ],
-                cwd=workdir,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-                env=os.environ.copy(),
-            )
-            if not result_path.exists():
-                errors.append(f"smoke_runner_no_result:rc={proc.returncode}")
-                stderr = (proc.stderr or "").strip()
-                if stderr:
-                    errors.append(f"smoke_runner_stderr:{stderr.splitlines()[-1]}")
-                return False, checks, errors
-            result = json.loads(result_path.read_text(encoding="utf-8"))
-    except subprocess.TimeoutExpired:
-        errors.append("smoke_runner_timeout")
-        return False, checks, errors
-    except Exception as exc:
-        errors.append(f"smoke_runner_error:{exc}")
-        return False, checks, errors
-
-    loaded_checks = result.get("checks")
-    if isinstance(loaded_checks, dict):
-        for key, value in loaded_checks.items():
-            checks[str(key)] = bool(value)
-    loaded_errors = result.get("errors")
-    if isinstance(loaded_errors, list):
-        errors = [str(item) for item in loaded_errors]
-    checks["module-smoke"] = bool(result.get("ok")) and not errors
-    return checks["module-smoke"], checks, errors
+    return smoke_module_code(
+        code,
+        payload={
+            "expected_module": _module_class_name(request),
+            "expected_signature": (
+                _signature_class_name(request) if request.spec.use_signature else None
+            ),
+            "use_signature": bool(request.spec.use_signature),
+            "inputs": inputs,
+            "outputs": outputs,
+        },
+    )
 
 
 def _selection_bonus(candidate: CandidateRecord) -> float:
@@ -1059,15 +899,22 @@ def promote_selected_module_candidate(
     """Promote the explicitly selected candidate through the promotion shell."""
 
     shell = bundle.promotion_shell
-    chosen_candidate_id = (
-        candidate_id
-        or (shell.selected_candidate_id if shell is not None else None)
-        or bundle.promotion_decision.candidate_id
-    )
-    if chosen_candidate_id is None:
+    selected_candidate_id = (
+        shell.selected_candidate_id if shell is not None else None
+    ) or bundle.promotion_decision.candidate_id
+    if selected_candidate_id is None:
         raise ValueError("No selected candidate available for promotion")
+    if candidate_id is not None and candidate_id != selected_candidate_id:
+        raise ValueError("candidate_id does not match the selected candidate")
 
+    chosen_candidate_id = selected_candidate_id
     candidate = _candidate_by_id(bundle, chosen_candidate_id)
+    if candidate.status not in {"selected", "promoted"}:
+        raise ValueError("Selected candidate is not promotion-ready")
+    evaluation = _evaluation_for_candidate(bundle, chosen_candidate_id)
+    if evaluation.status != "passed":
+        raise ValueError("Selected candidate has not passed evaluation")
+
     workspace = _workspace_for_candidate(bundle, chosen_candidate_id)
     source_path = Path(workspace.artifact_path)
     if not source_path.exists():

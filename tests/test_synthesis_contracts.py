@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import json
 
+import pytest
+
 from dspx.dtos import ModuleSpec
 from dspx.synthesis import (
     build_module_synthesis_bundle,
@@ -249,6 +251,9 @@ def test_promote_selected_module_candidate_copies_only_selected_output(
             "candidates": [
                 bundle.candidates[0].model_copy(update={"status": "selected"})
             ],
+            "evaluations": [
+                bundle.evaluations[0].model_copy(update={"status": "passed"})
+            ],
             "promotion_shell": bundle.promotion_shell.model_copy(
                 update={"selected_candidate_id": bundle.candidates[0].candidate_id}
             )
@@ -274,3 +279,54 @@ def test_promote_selected_module_candidate_copies_only_selected_output(
     assert promoted.promotion_shell.status == "promoted"
     assert promoted.promotion_decision.outcome == "promoted"
     assert promoted.promotion_decision.metadata["promoted_path"] == str(out.resolve())
+
+
+def test_promote_selected_module_candidate_rejects_non_selected_candidate(
+    tmp_path: Path,
+) -> None:
+    spec = ModuleSpec(
+        name="Judge",
+        description="Judge candidate quality",
+        inputs=["text"],
+        outputs=["verdict"],
+        options={"template_version": "simple-v1"},
+    )
+    code_good = (
+        "import dspy\n\n"
+        "class Judge(dspy.Module):\n"
+        "    def __init__(self, use_cot: bool = False) -> None:\n"
+        "        super().__init__()\n"
+        "        self.predict = dspy.Predict('text -> verdict')\n\n"
+        "    def forward(self, text: str) -> dspy.Prediction:\n"
+        "        pred = self.predict(text=text)\n"
+        "        return pred\n\n"
+        "def build_student(*, use_cot: bool = False) -> dspy.Module:\n"
+        "    return Judge(use_cot=use_cot)\n\n"
+        "def io_spec() -> dict[str, list[str]]:\n"
+        "    return {'inputs': ['text'], 'outputs': ['verdict']}\n\n"
+        "def output_weights() -> dict[str, float]:\n"
+        "    return {'verdict': 1.0}\n\n"
+        "def normalize_output(key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None) -> tuple[str, str]:\n"
+        "    return gold, pred\n"
+    )
+    evaluated = execute_module_synthesis_bundle(
+        spec,
+        candidate_sources=[
+            {"code": "class Judge: ...\n", "candidate_metadata": {"variant_id": "bad"}},
+            {"code": code_good, "candidate_metadata": {"variant_id": "good"}},
+        ],
+        workspace_root=tmp_path / "scratch",
+    )
+
+    rejected_candidate_id = next(
+        candidate.candidate_id
+        for candidate in evaluated.candidates
+        if candidate.status == "rejected"
+    )
+
+    with pytest.raises(ValueError, match="selected candidate"):
+        promote_selected_module_candidate(
+            evaluated,
+            candidate_id=rejected_candidate_id,
+            target_path=tmp_path / "final" / "Judge.py",
+        )

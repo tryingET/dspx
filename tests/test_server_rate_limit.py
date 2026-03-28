@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 from typing import Any, cast
 
 import pytest
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
@@ -170,3 +172,76 @@ def test_global_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     r2 = c.post("/signature", json={"prompt": "p"})
     r3 = c.post("/signature", json={"prompt": "p"})
     assert r1.status_code == 200 and r2.status_code == 200 and r3.status_code == 429
+
+
+def test_valid_token_identity_is_hashed() -> None:
+    middleware = RateLimitMiddleware(
+        FastAPI(),
+        config=RateLimitConfig(
+            enabled=True,
+            default=[Rate(1, 1.0)],
+            per_path={},
+            identity="token",
+            trusted_proxies=[],
+            global_default=[],
+            global_per_path={},
+            valid_tokens=frozenset({"tok"}),
+        ),
+    )
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/signature",
+        "raw_path": b"/signature",
+        "query_string": b"",
+        "headers": [(b"authorization", b"Bearer tok")],
+        "client": ("127.0.0.1", 50000),
+        "server": ("testserver", 80),
+    }
+    ident, ident_kind = middleware._identity(Request(scope))
+
+    assert ident_kind == "token"
+    assert ident.startswith("tok:")
+    assert ident != "tok:tok"
+
+
+def test_invalid_tokens_fall_back_to_ip_identity_without_bucket_spray() -> None:
+    middleware = RateLimitMiddleware(
+        FastAPI(),
+        config=RateLimitConfig(
+            enabled=True,
+            default=[Rate(10, 60.0)],
+            per_path={},
+            identity="token",
+            trusted_proxies=[],
+            global_default=[],
+            global_per_path={},
+            valid_tokens=frozenset({"expected"}),
+        ),
+    )
+
+    async def _call_next(request: Request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    async def _exercise() -> None:
+        for idx in range(5):
+            scope = {
+                "type": "http",
+                "http_version": "1.1",
+                "method": "POST",
+                "scheme": "http",
+                "path": "/signature",
+                "raw_path": b"/signature",
+                "query_string": b"",
+                "headers": [(b"authorization", f"Bearer bad-{idx}".encode("utf-8"))],
+                "client": ("127.0.0.1", 50000),
+                "server": ("testserver", 80),
+            }
+            await middleware.dispatch(Request(scope), _call_next)
+
+    asyncio.run(_exercise())
+
+    assert len(middleware._buckets) == 1
+    assert list(middleware._buckets.keys()) == ["ip:127.0.0.1"]

@@ -24,6 +24,7 @@ from dspx.templates import (
     render_simple_signature,
 )
 from dspx.tracing import enable_mlflow_from_env
+from dspx.generated_code_guard import smoke_signature_code
 from dspx.services.signature_quality import append_quality_event
 
 
@@ -367,28 +368,10 @@ def _smoke_signature_code(
     *,
     expected_class_name: str | None = None,
 ) -> tuple[bool, list[str]]:
-    errs: list[str] = []
-    ns: dict[str, Any] = {}
-    try:
-        exec(code, ns, ns)
-    except Exception as e:
-        return False, [f"exec_error:{e}"]
-
-    name = expected_class_name or _extract_signature_name(code)
-    if not name:
-        return False, ["class_name_unknown"]
-
-    cls = ns.get(name)
-    if not isinstance(cls, type):
-        return False, [f"class_not_found:{name}"]
-
-    try:
-        if not issubclass(cls, dspy.Signature):
-            errs.append("class_not_dspy_signature")
-    except Exception:
-        errs.append("class_not_dspy_signature")
-
-    return (len(errs) == 0), errs
+    return smoke_signature_code(
+        code,
+        expected_class_name=expected_class_name or _extract_signature_name(code),
+    )
 
 
 def score_signature_code(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -204,3 +205,24 @@ def test_validate_and_score_signature_code() -> None:
     assert sigsvc.score_signature_code(
         good, expected_class_name="SigGood"
     ) > sigsvc.score_signature_code(bad)
+
+
+def test_signature_smoke_rejects_top_level_side_effects(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    marker = "signature-marker.txt"
+    code = f"""
+import dspy
+(__import__('pathlib').Path({marker!r}).write_text('executed', encoding='utf-8'))
+
+class SigSafe(dspy.Signature):
+    text: str = dspy.InputField(desc='input text')
+    output: str = dspy.OutputField(desc='output text')
+"""
+
+    ok, errors = sigsvc._smoke_signature_code(code, expected_class_name="SigSafe")
+
+    assert ok is False
+    assert errors
+    assert not (tmp_path / marker).exists()

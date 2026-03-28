@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional, Set, Dict, List, Tuple
+import hashlib
 import hmac
 import os
 import time
@@ -18,6 +19,12 @@ class UnauthorizedError(Exception):
 
     Handled centrally by the server to emit a standardized JSON error.
     """
+
+    pass
+
+
+class AuthConfigError(RuntimeError):
+    """Raised when auth configuration cannot be loaded safely."""
 
     pass
 
@@ -41,9 +48,12 @@ def _load_tokens_from_file(path: str) -> Set[str]:
                 tok = line.strip()
                 if tok:
                     tokens.add(tok)
-    except Exception:
-        # File missing or unreadable; ignore to keep server bootable in tests
-        return set()
+    except OSError as exc:
+        raise AuthConfigError(
+            f"failed to load auth token file '{path}': {exc}"
+        ) from exc
+    if not tokens:
+        raise AuthConfigError(f"auth token file '{path}' did not contain any tokens")
     return tokens
 
 
@@ -76,11 +86,16 @@ class AuthConfig:
                 if tok:
                     tokens.add(tok)
         tf = e.get("DSPX_SERVER_TOKEN_FILE")
-        if tf and tf.strip():
+        token_file_configured = bool(tf and tf.strip())
+        if token_file_configured and tf is not None:
             tokens.update(_load_tokens_from_file(tf.strip()))
-        # If tokens provided, default to required unless explicitly disabled
-        default_required = True if tokens else False
+        # If auth material is configured, default to required unless explicitly disabled.
+        default_required = True if (tokens or token_file_configured) else False
         required = _parse_bool_env(e.get("DSPX_AUTH_REQUIRED"), default_required)
+        if required and not tokens:
+            raise AuthConfigError(
+                "auth is required but no server tokens were configured"
+            )
         return AuthConfig(tokens=tokens, required=required)
 
 
@@ -154,9 +169,16 @@ class RateLimitConfig:
     trusted_proxies: List[ipaddress._BaseNetwork]
     global_default: List[Rate]
     global_per_path: Dict[str, List[Rate]]
+    valid_tokens: frozenset[str] = frozenset()
+    identity_ttl_seconds: float = 3600.0
+    max_identity_entries: int = 4096
 
     @staticmethod
-    def from_env(env: Optional[dict[str, str]] = None) -> "RateLimitConfig":
+    def from_env(
+        env: Optional[dict[str, str]] = None,
+        *,
+        valid_tokens: Optional[Set[str]] = None,
+    ) -> "RateLimitConfig":
         e = os.environ if env is None else env
         enabled = _parse_bool_env(e.get("DSPX_RATE_LIMIT_ENABLED"), False)
         default_spec = e.get("DSPX_RATE_LIMIT_DEFAULT", "")
@@ -204,6 +226,16 @@ class RateLimitConfig:
                         global_per_path[str(k)] = parse_rate_spec(v)
             except Exception:
                 pass
+        ttl_raw = (e.get("DSPX_RATE_LIMIT_IDENTITY_TTL_SECONDS") or "").strip()
+        try:
+            identity_ttl_seconds = float(ttl_raw) if ttl_raw else 3600.0
+        except Exception:
+            identity_ttl_seconds = 3600.0
+        max_raw = (e.get("DSPX_RATE_LIMIT_MAX_IDENTITIES") or "").strip()
+        try:
+            max_identity_entries = int(max_raw) if max_raw else 4096
+        except Exception:
+            max_identity_entries = 4096
         return RateLimitConfig(
             enabled=enabled,
             default=default,
@@ -212,6 +244,9 @@ class RateLimitConfig:
             trusted_proxies=trusted_proxies,
             global_default=global_default,
             global_per_path=global_per_path,
+            valid_tokens=frozenset(valid_tokens or set()),
+            identity_ttl_seconds=max(0.0, identity_ttl_seconds),
+            max_identity_entries=max(1, max_identity_entries),
         )
 
 
@@ -245,6 +280,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.config = config
         # Dict: identity -> key -> list[buckets]
         self._buckets: Dict[str, Dict[str, List[_TokenBucket]]] = {}
+        self._bucket_last_seen: Dict[str, float] = {}
         # Global buckets (identity-agnostic)
         self._global: Dict[str, List[_TokenBucket]] = {}
         self._log = logging.getLogger("dspx.server")
@@ -260,12 +296,42 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return False
         return any(addr in net for net in self.config.trusted_proxies)
 
+    def _token_identity(self, token: str) -> str:
+        digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:32]
+        return "tok:" + digest
+
+    def _cleanup_identities(self, now: float) -> None:
+        ttl = max(0.0, float(self.config.identity_ttl_seconds))
+        if ttl > 0.0:
+            expired = [
+                ident
+                for ident, seen in self._bucket_last_seen.items()
+                if (now - seen) > ttl
+            ]
+            for ident in expired:
+                self._bucket_last_seen.pop(ident, None)
+                self._buckets.pop(ident, None)
+        max_entries = max(1, int(self.config.max_identity_entries))
+        if len(self._buckets) <= max_entries:
+            return
+        overflow = len(self._buckets) - max_entries
+        victims = sorted(self._bucket_last_seen.items(), key=lambda item: item[1])[
+            0:overflow
+        ]
+        for ident, _ in victims:
+            self._bucket_last_seen.pop(ident, None)
+            self._buckets.pop(ident, None)
+
+    def _remember_identity(self, ident: str, now: float) -> None:
+        self._bucket_last_seen[ident] = now
+        self._cleanup_identities(now)
+
     def _identity(self, request: Request) -> Tuple[str, str]:
-        # Prefer token identity when configured and header present
+        # Prefer validated token identity when configured and a known token is present.
         if self.config.identity == "token":
             token = _extract_bearer_token(request.headers.get("authorization"))
-            if token:
-                return ("tok:" + token, "token")
+            if token and token in self.config.valid_tokens:
+                return (self._token_identity(token), "token")
         # Fallback to IP
         # Only trust X-Forwarded-For when the immediate peer is a trusted proxy.
         host = self._client_host(request)
@@ -349,6 +415,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     or path in self.config.per_path
                     else "GLOBAL"
                 )
+                now = time.monotonic()
+                self._remember_identity(ident, now)
                 buckmap = self._buckets.setdefault(ident, {})
                 buckets = buckmap.get(key)
                 if buckets is None:
@@ -356,7 +424,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         _TokenBucket(r.capacity, r.period_seconds) for r in rules
                     ]
                     buckmap[key] = buckets
-                now = time.monotonic()
                 if any(not b.allow(now) for b in buckets):
                     stats.status_429 += 1
                     self._log.info(

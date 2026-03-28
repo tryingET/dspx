@@ -19,6 +19,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Recently completed in this wave
 
+- `AK-436` — hardened generated-code validation and server trust boundaries by isolating smoke checks, failing closed on auth token-file misconfiguration, hashing/bounding rate-limit token identity, and preventing promotion of non-selected candidates without widening SG2 evidence authority.
 - `AK-431` — made candidate-prior audit rank reporting fail closed when ranked metadata only partially covers audited candidates, so DSPx now omits rank context rather than mixing real and missing order inside the same audit.
 - `AK-388` — made candidate-prior audit rank reporting fail closed under metadata drift so DSPx now reports rank only from explicit ranked-candidate metadata and falls back from empty decision-ranked data to valid shell-ranked data.
 - `AK-379` — materialized the ADR-backed read-only candidate-prior audit on live module metadata and persisted receipts so DSPx now records how the V7-selected candidate relates to available positive prior support without changing ranking or promotion behavior.
@@ -44,7 +45,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Notes
 
 - `TG13` is complete; `AK-386` remains the pinned SG2 planning slice for freezing the next evidence-authority contract before any later implementation resumes.
-- `AK-388` and `AK-431` were operator-directed guardrail fixes that hardened the trust boundary for candidate-prior audit rank reporting without changing the active SG2 planning wave.
+- `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without changing the active SG2 planning wave or widening evidence authority.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Claimed tasks that intend to pass `just verify-full` now need an attested scope manifest under `governance/task-scopes/AK-<id>.json`.

@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dspx.server.app import create_app
+from dspx.server.security import AuthConfigError
 
 
 @pytest.fixture(autouse=True)
@@ -72,3 +73,19 @@ def test_auth_accepts_case_insensitive_bearer_scheme(
         json={"prompt": "p"},
     )
     assert r.status_code == 200
+
+
+def test_auth_token_file_unreadable_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_SERVER_TOKEN_FILE", "/definitely/missing/tokenfile")
+    with pytest.raises(AuthConfigError):
+        create_app()
+
+
+def test_auth_required_without_tokens_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_AUTH_REQUIRED", "1")
+    with pytest.raises(AuthConfigError):
+        create_app()

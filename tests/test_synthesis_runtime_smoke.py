@@ -7,7 +7,7 @@ from dspx.synthesis.contracts import build_module_synthesis_request
 from dspx.synthesis.runtime import _module_smoke_checks
 
 
-def test_module_smoke_checks_run_generated_code_in_isolated_subprocess(
+def test_module_smoke_checks_fail_closed_on_top_level_side_effects(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -54,7 +54,7 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
 
     ok, checks, errors = _module_smoke_checks(request, code)
 
-    assert ok is True
-    assert checks["module-smoke"] is True
-    assert errors == []
+    assert ok is False
+    assert checks["module-smoke"] is False
+    assert errors
     assert not (tmp_path / marker).exists()

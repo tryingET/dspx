@@ -65,7 +65,7 @@ def create_app() -> FastAPI:
     guard = AuthGuard.from_env()
     # Install middleware unconditionally so request/response metrics stay truthful
     # even when rate limiting itself is disabled.
-    rl_cfg = RateLimitConfig.from_env()
+    rl_cfg = RateLimitConfig.from_env(valid_tokens=guard.config.tokens)
     app.add_middleware(cast(Any, RateLimitMiddleware), config=rl_cfg)
 
     @app.exception_handler(UnauthorizedError)
