@@ -579,6 +579,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-28"
+        },
+        {
+          "id": "AK-TASK-0480",
+          "title": "Workflow guardrails: let next-session checkpoint disambiguate multi-manifest head slices",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: let next-session checkpoint disambiguate multi-manifest head slices (task #480)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
         }
       ]
     }

@@ -1,0 +1,24 @@
+{
+  "task_id": 480,
+  "description": "Let the committed next_session checkpoint disambiguate multi-manifest head slices so verify-full remains deterministic after cleanup commits that touch more than one task manifest.",
+  "allowed_paths": [
+    "diary/2026-03-28--let-checkpoint-disambiguate-multi-manifest-head-slices.md",
+    "governance/task-scopes/AK-480.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-480.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "tests/test_task_scope.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

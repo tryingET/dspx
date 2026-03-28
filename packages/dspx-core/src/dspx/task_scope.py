@@ -331,26 +331,30 @@ def check_task_scope(
 ) -> ScopeCheckResult:
     resolved_task_id = task_id
     if resolved_task_id is None and manifest_path is None:
+        resolution_issue: str | None = None
         resolved_task_id = infer_claimed_task_id(repo_root)
         if resolved_task_id is None and mode == "working-tree":
             resolved_task_id = infer_task_id_from_working_tree(repo_root)
         if resolved_task_id is None:
             head_rev_range = "HEAD^..HEAD" if rev_range == "auto" else rev_range
-            resolved_task_id = infer_task_id_from_head(
-                repo_root, rev_range=head_rev_range
-            )
+            try:
+                resolved_task_id = infer_task_id_from_head(
+                    repo_root, rev_range=head_rev_range
+                )
+            except RuntimeError as exc:
+                resolution_issue = str(exc)
         if resolved_task_id is None and mode == "head":
             resolved_task_id = infer_task_id_from_next_session_checkpoint(repo_root)
         if resolved_task_id is None:
+            message = (
+                resolution_issue
+                or "task scope check could not resolve a task id from explicit input, AK claims, working-tree manifest changes, HEAD manifest changes, or next_session_prompt checkpoint"
+            )
             return ScopeCheckResult(
                 task_id=None,
                 mode=mode,
                 changed_files=(),
-                issues=(
-                    ScopeIssue(
-                        "task scope check could not resolve a task id from explicit input, AK claims, working-tree manifest changes, HEAD manifest changes, or next_session_prompt checkpoint"
-                    ),
-                ),
+                issues=(ScopeIssue(message),),
             )
 
     if manifest_path is not None:

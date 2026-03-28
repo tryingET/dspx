@@ -238,6 +238,77 @@ def test_check_task_scope_head_resolves_next_session_checkpoint_when_latest_comm
     assert "next_session_prompt.md" in result.changed_files
 
 
+def test_check_task_scope_head_uses_checkpoint_to_disambiguate_multiple_manifests(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                    "next_session_prompt.md",
+                ],
+                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "task 266 slice")
+
+    (repo / "governance" / "task-scopes" / "AK-267.json").write_text(
+        json.dumps(
+            {
+                "task_id": 267,
+                "description": "Other scope attestation",
+                "allowed_paths": ["governance/task-scopes/*.json"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation updated",
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                    "next_session_prompt.md",
+                ],
+                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "next_session_prompt.md").write_text(
+        "## SESSION CHECKPOINT (UPDATE BEFORE /commit)\n"
+        "- Slice executed: `AK-266` — completed slice\n",
+        encoding="utf-8",
+    )
+    _commit_all(repo, "checkpoint plus two manifests")
+
+    result = check_task_scope(repo, mode="head")
+    assert result.ok is True
+    assert result.task_id == 266
+    assert "governance/task-scopes/AK-266.json" in result.changed_files
+    assert "governance/task-scopes/AK-267.json" in result.changed_files
+
+
 def test_check_task_scope_auto_range_covers_full_multi_commit_slice(
     tmp_path: Path,
 ) -> None:
