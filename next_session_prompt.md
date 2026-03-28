@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-462` and materialize the read-only candidate-prior readiness advisory on live metadata and persisted receipts without changing V7 ranking or promotion behavior.
-- Constraints (hard limits): Reuse only persisted exact-match candidate-prior audit/divergence-explanation surfaces plus bounded receipt identity; do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness layers without a dated contract; keep live execution truth in AK.
-- Assumptions (max 3): `AK-459` is done and committed; `TG17` is now the active SG2 implementation wave; `AK-462` is the next ready SG2 slice.
+- Objective (one sentence): Claim `AK-466` and freeze the next SG2 contract after the read-only candidate-prior readiness advisory before any later evidence-authority widening.
+- Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
+- Assumptions (max 3): `AK-462` is done and committed; `TG17` is complete; `AK-466` is now the next ready SG2 slice.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-readiness-advisory-v1.md`
-7. `diary/2026-03-28--freeze-candidate-prior-readiness-advisory-contract.md`
+7. `diary/2026-03-28--emit-candidate-prior-readiness-advisory.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -55,12 +55,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-459` — freeze the next SG2 contract after the read-only candidate-prior divergence explanation without widening evidence authority or changing V7 ranking/promotion behavior.
-- Outcome: DSPx now has a dated ADR for a read-only `candidate_prior_readiness_advisory` that rolls up replay-healthy exact-match candidate-prior audit/divergence-explanation outcomes into bounded historical posture and aligns the next implementation slice to `AK-462`.
-- Files changed: `diary/2026-03-28--freeze-candidate-prior-readiness-advisory-contract.md`, `docs/adr/20260328-synthesis-evidence-candidate-prior-readiness-advisory-v1.md`, `docs/adr/README.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-459.json`, `governance/work-items.json`, and `next_session_prompt.md`.
-- Validation commands + results: `python scripts/check_task_scope.py --task-id 459 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 459 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-459` is complete; `TG16` is complete; `TG17` is active with `AK-462` as the next ready SG2 implementation slice.
-- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-462` and materialize the read-only candidate-prior readiness advisory on live metadata and persisted receipts before attempting any later evidence-authority widening.
+- Slice executed: `AK-462` — emit the read-only candidate-prior readiness advisory for `module-gen` outcomes using persisted exact-match candidate-prior audit/divergence-explanation surfaces without changing V7 ranking or promotion behavior.
+- Outcome: DSPx now attaches `candidate_prior_readiness_advisory` to live `module-gen` metadata and persisted receipts, exposes historical candidate-prior diagnostics through exact-match receipt retrieval, fails closed on malformed divergence comparison sets and malformed readiness inputs, and classifies readiness as unavailable, insufficient, convergent, runtime-failure-limited, runtime-scoring-limited, or mixed.
+- Files changed: `diary/2026-03-28--emit-candidate-prior-readiness-advisory.md`, `docs/adr/20260328-synthesis-evidence-candidate-prior-readiness-advisory-v1.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-462.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, and `tests/test_run_receipts.py`.
+- Validation commands + results: `python scripts/check_task_scope.py --task-id 462 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 462 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-462` is complete; `TG17` is complete; `TG18` is active with `AK-466` as the next ready SG2 slice.
+- Next-session starting point: inspect the repo-scoped ready queue, then claim `AK-466` and freeze the next SG2 post-readiness contract before any later evidence-authority widening.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

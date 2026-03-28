@@ -10,8 +10,15 @@ from dspx.coordinates import CoordinateIndex, get_embedding_engine
 from dspx.dtos import ModuleSpec
 from dspx.run_receipts import load_run_receipt
 from dspx.services.module_synthesis_evidence import (
+    ModuleSynthesisEvidenceBundle,
+    ModuleSynthesisEvidenceMatch,
+    ModuleSynthesisEvidenceRequest,
+    ModuleSynthesisHistoricalDiagnostics,
+    ModuleSynthesisReceiptEvidence,
+    ModuleSynthesisReplayEvidence,
     build_module_synthesis_candidate_prior_audit,
     build_module_synthesis_candidate_prior_divergence_explanation,
+    build_module_synthesis_candidate_prior_readiness_advisory,
     build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_history_advisory,
     extract_module_synthesis_candidate_prior_inputs,
@@ -22,6 +29,78 @@ from dspx.services.module_synthesis_evidence import (
 
 
 runner = CliRunner()
+
+
+def _synthetic_prior_readiness_match(
+    *,
+    receipt_path: str,
+    audit_status: str,
+    divergence_status: str,
+    healthy: bool = True,
+    include_diagnostics: bool = True,
+) -> ModuleSynthesisEvidenceMatch:
+    historical_diagnostics = (
+        ModuleSynthesisHistoricalDiagnostics(
+            evidence_bundle_version="v1",
+            historical_convergence_advisory=None,
+            candidate_winner_priors=None,
+            candidate_prior_audit={"status": audit_status},
+            candidate_prior_divergence_explanation={"status": divergence_status},
+        )
+        if include_diagnostics
+        else None
+    )
+    return ModuleSynthesisEvidenceMatch(
+        receipt=ModuleSynthesisReceiptEvidence(
+            receipt_path=receipt_path,
+            created_at="2026-03-28T00:00:00+00:00",
+            run_kind="module-gen",
+            provider="stub",
+            template_version="simple-v1",
+            replay_inputs={
+                "name": "Summarizer",
+                "description": "Summarizes text",
+                "inputs": ["text"],
+                "outputs": ["summary"],
+                "use_signature": False,
+                "template_version": "simple-v1",
+            },
+            output_path=f"{receipt_path}.py",
+            output_hash="hash",
+            cache_key="cache-key",
+            selected_candidate_id="cand-a",
+            selected_candidate_rank=1,
+            ranked_candidate_ids=("cand-a", "cand-b"),
+            ranking_policy_id="module.v7.multi-candidate-ranked",
+            ranking_policy_version="v0",
+            validation_pass_count=3,
+            validation_total=3,
+            smoke_pass_count=3,
+            smoke_total=3,
+            evaluation_status="passed",
+            promotion_status="withheld",
+            promotion_outcome="withheld",
+            synthesis=None,
+            synthesis_request_id=None,
+            synthesis_candidate_ids=(),
+            synthesis_evaluation_ids=(),
+            synthesis_selection_policy=None,
+            synthesis_ranked_candidates=(),
+            synthesis_promotion_shell=None,
+            synthesis_promotion_decision=None,
+            historical_diagnostics=historical_diagnostics,
+        ),
+        replay=ModuleSynthesisReplayEvidence(
+            replay_status="ok" if healthy else "failed",
+            replay_checks={"output_hash_match": healthy},
+            local_facts={
+                "failed_replay_checks": [] if healthy else ["output_hash_match"]
+            },
+            replay_error_codes=() if healthy else ("output_hash_mismatch",),
+            replay_error_details=(),
+            healthy=healthy,
+        ),
+    )
 
 
 def _configure_generation_env(tmp_path: Path, monkeypatch) -> None:
@@ -206,6 +285,12 @@ def test_retrieve_module_synthesis_evidence_collects_exact_match_receipts_and_or
     assert drift_match.receipt.synthesis is not None
     assert drift_match.receipt.synthesis_selection_policy is not None
     assert drift_match.receipt.synthesis_ranked_candidates
+    assert drift_match.receipt.historical_diagnostics is not None
+    assert drift_match.receipt.historical_diagnostics.candidate_prior_audit is not None
+    assert (
+        drift_match.receipt.historical_diagnostics.candidate_prior_divergence_explanation
+        is not None
+    )
 
     assert bundle.oracle_neighbors
     assert all(item.run_kind == "module-gen" for item in bundle.oracle_neighbors)
@@ -218,7 +303,46 @@ def test_retrieve_module_synthesis_evidence_collects_exact_match_receipts_and_or
         payload["exact_match_receipts"][0]["receipt"]["replay_inputs"]["name"]
         == "Summarizer"
     )
+    assert (
+        payload["exact_match_receipts"][0]["receipt"]["synthesis_diagnostics"][
+            "candidate_prior_audit"
+        ]
+        is not None
+    )
     assert all(item["run_kind"] == "module-gen" for item in payload["oracle_neighbors"])
+
+
+def test_retrieve_module_synthesis_evidence_exposes_missing_historical_diagnostics_to_readiness_rollup(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="single.py",
+    )
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    payload.pop("synthesis_diagnostics", None)
+    meta_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+
+    readiness = build_module_synthesis_candidate_prior_readiness_advisory(bundle)
+
+    assert len(bundle.exact_match_receipts) == 1
+    assert bundle.exact_match_receipts[0].receipt.historical_diagnostics is None
+    assert readiness["status"] == "candidate_prior_readiness_unavailable"
+    assert readiness["history_summary"]["unusable_receipt_count"] == 1
 
 
 def test_retrieve_module_synthesis_evidence_handles_missing_oracle_index(
@@ -1005,6 +1129,207 @@ def test_build_module_synthesis_candidate_prior_divergence_explanation_fails_clo
     assert explanation["status"] == "candidate_prior_divergence_unavailable"
     assert explanation["history_summary"]["compared_candidate_count"] == 1
     assert explanation["compared_positive_prior_candidates"] == []
+
+
+def test_build_module_synthesis_candidate_prior_divergence_explanation_fails_closed_on_malformed_compared_candidates() -> (
+    None
+):
+    explanation = build_module_synthesis_candidate_prior_divergence_explanation(
+        {
+            "status": "positive_prior_candidates_present_but_not_selected",
+            "selected_candidate": {
+                "candidate_id": "cand-a",
+                "variant_id": "variant-a",
+                "variant_origin": "deterministic_template_variant",
+                "prior_status": "no_positive_winner_history",
+                "rank": 1,
+            },
+            "history_summary": {
+                "exact_match_receipt_count": 1,
+                "positive_evidence_count": 1,
+                "positive_prior_candidate_count": 2,
+            },
+            "non_selected_positive_prior_candidates": [
+                {
+                    "candidate_id": "cand-b",
+                    "variant_id": "variant-b",
+                    "variant_origin": "deterministic_template_variant",
+                    "prior_status": "matches_positive_winner_history",
+                    "rank": 2,
+                },
+                "MALFORMED",
+            ],
+            "notes": [],
+        },
+        ranked_candidate_comparison_inputs=(
+            {
+                "candidate_id": "cand-a",
+                "rank": 1,
+                "evaluation_status": "passed",
+                "passed": True,
+                "ranking_score": 103.0,
+                "evaluation_summary": "selected passed",
+            },
+            {
+                "candidate_id": "cand-b",
+                "rank": 2,
+                "evaluation_status": "passed",
+                "passed": True,
+                "ranking_score": 102.0,
+                "evaluation_summary": "cand-b passed",
+            },
+        ),
+    )
+
+    assert explanation["status"] == "candidate_prior_divergence_unavailable"
+    assert explanation["compared_positive_prior_candidates"] == []
+
+
+def test_build_module_synthesis_candidate_prior_readiness_advisory_statuses() -> None:
+    request = ModuleSynthesisEvidenceRequest(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=("text",),
+        outputs=("summary",),
+        use_signature=False,
+        template_version="simple-v1",
+    )
+
+    def _bundle(
+        *matches: ModuleSynthesisEvidenceMatch,
+    ) -> ModuleSynthesisEvidenceBundle:
+        return ModuleSynthesisEvidenceBundle(
+            request=request,
+            retrieval_order=("exact_match_receipts", "replay_verification"),
+            exact_match_receipts=matches,
+            oracle_neighbors=(),
+            receipts_path="/tmp/receipts",
+            oracle_index_path="/tmp/oracle.db",
+            receipts_scanned=len(matches),
+            oracle_query_text=request.oracle_query_text(),
+            receipt_scan_errors=(),
+            exact_match_receipt_scan_errors=(),
+            oracle_lookup_status="missing",
+            oracle_lookup_error=None,
+        )
+
+    insufficient = build_module_synthesis_candidate_prior_readiness_advisory(
+        _bundle(
+            _synthetic_prior_readiness_match(
+                receipt_path="r1.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            )
+        )
+    )
+    assert insufficient["status"] == "insufficient_prior_history"
+
+    unavailable = build_module_synthesis_candidate_prior_readiness_advisory(
+        _bundle(
+            _synthetic_prior_readiness_match(
+                receipt_path="r1.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r2.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+                include_diagnostics=False,
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r3.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            ),
+        )
+    )
+    assert unavailable["status"] == "candidate_prior_readiness_unavailable"
+    assert unavailable["history_summary"]["unusable_receipt_count"] == 1
+
+    convergent = build_module_synthesis_candidate_prior_readiness_advisory(
+        _bundle(
+            _synthetic_prior_readiness_match(
+                receipt_path="r1.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r2.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r3.meta.json",
+                audit_status="no_positive_prior_candidates",
+                divergence_status="no_divergence_to_explain",
+            ),
+        )
+    )
+    assert convergent["status"] == "priors_consistently_convergent"
+
+    runtime_failures = build_module_synthesis_candidate_prior_readiness_advisory(
+        _bundle(
+            _synthetic_prior_readiness_match(
+                receipt_path="r1.meta.json",
+                audit_status="positive_prior_candidates_present_but_not_selected",
+                divergence_status="divergence_explained_by_runtime_failures",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r2.meta.json",
+                audit_status="positive_prior_candidates_present_but_not_selected",
+                divergence_status="divergence_explained_by_runtime_failures",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r3.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            ),
+        )
+    )
+    assert runtime_failures["status"] == "priors_mostly_blocked_by_runtime_failures"
+
+    runtime_scoring = build_module_synthesis_candidate_prior_readiness_advisory(
+        _bundle(
+            _synthetic_prior_readiness_match(
+                receipt_path="r1.meta.json",
+                audit_status="positive_prior_candidates_present_but_not_selected",
+                divergence_status="divergence_explained_by_runtime_scoring",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r2.meta.json",
+                audit_status="positive_prior_candidates_present_but_not_selected",
+                divergence_status="divergence_explained_by_runtime_scoring",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r3.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            ),
+        )
+    )
+    assert runtime_scoring["status"] == "priors_mostly_outscored_under_v7"
+
+    mixed = build_module_synthesis_candidate_prior_readiness_advisory(
+        _bundle(
+            _synthetic_prior_readiness_match(
+                receipt_path="r1.meta.json",
+                audit_status="positive_prior_candidates_present_but_not_selected",
+                divergence_status="divergence_explained_by_runtime_failures",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r2.meta.json",
+                audit_status="positive_prior_candidates_present_but_not_selected",
+                divergence_status="divergence_explained_by_runtime_scoring",
+            ),
+            _synthetic_prior_readiness_match(
+                receipt_path="r3.meta.json",
+                audit_status="selected_matches_positive_winner_history",
+                divergence_status="no_divergence_to_explain",
+            ),
+        )
+    )
+    assert mixed["status"] == "priors_mixed_or_inconclusive"
 
 
 def test_extract_module_synthesis_ranked_candidate_inputs_fails_closed_without_rank_metadata() -> (

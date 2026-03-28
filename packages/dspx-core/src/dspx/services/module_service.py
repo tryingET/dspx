@@ -19,10 +19,12 @@ from dspx.services.module_synthesis_evidence import (
     ModuleSynthesisEvidenceRequest,
     build_module_synthesis_candidate_prior_audit,
     build_module_synthesis_candidate_prior_divergence_explanation,
+    build_module_synthesis_candidate_prior_readiness_advisory,
     build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_history_advisory,
     build_unavailable_module_synthesis_candidate_prior_audit,
     build_unavailable_module_synthesis_candidate_prior_divergence_explanation,
+    build_unavailable_module_synthesis_candidate_prior_readiness_advisory,
     build_unavailable_module_synthesis_candidate_winner_priors,
     extract_module_synthesis_candidate_prior_inputs,
     extract_module_synthesis_ranked_candidate_comparison_inputs,
@@ -364,6 +366,11 @@ def _build_unavailable_synthesis_diagnostics(
             "candidate-prior divergence explanation unavailable because evidence retrieval failed"
         ],
     )
+    candidate_prior_readiness_advisory = build_unavailable_module_synthesis_candidate_prior_readiness_advisory(
+        notes=[
+            "candidate-prior readiness advisory unavailable because evidence retrieval failed"
+        ],
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": "unavailable",
@@ -404,6 +411,7 @@ def _build_unavailable_synthesis_diagnostics(
         "candidate_prior_divergence_explanation": (
             candidate_prior_divergence_explanation
         ),
+        "candidate_prior_readiness_advisory": candidate_prior_readiness_advisory,
     }
 
 
@@ -492,6 +500,11 @@ def _build_synthesis_diagnostics(
             build_module_synthesis_candidate_prior_divergence_explanation(
                 candidate_prior_audit,
                 ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
+            )
+        ),
+        "candidate_prior_readiness_advisory": (
+            build_module_synthesis_candidate_prior_readiness_advisory(
+                evidence_bundle,
             )
         ),
     }

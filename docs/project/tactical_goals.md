@@ -9,7 +9,7 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG17`
+Active tactical goal: `TG18`
 Next tactical goal: `TBD`
 
 ## Recently completed tactical goals for `SG1`
@@ -102,10 +102,16 @@ Next tactical goal: `TBD`
 - Execution reference: `AK-459`
 
 ### `TG17` — Materialize a read-only candidate-prior readiness advisory
-- Status: active
+- Status: complete
 - Definition of done: `module-gen` emits a contract-shaped readiness advisory that rolls up persisted exact-match candidate-prior audit/divergence-explanation outcomes into bounded historical posture on live metadata and persisted receipts, while leaving V7 ranking and promotion behavior unchanged.
 - Contract reference: `docs/adr/20260328-synthesis-evidence-candidate-prior-readiness-advisory-v1.md`
+- Implementation reference: `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `packages/dspx-core/src/dspx/services/module_service.py`
 - Execution reference: `AK-462`
+
+### `TG18` — Freeze the next SG2 contract after the read-only candidate-prior readiness advisory
+- Status: active
+- Definition of done: DSPx has a dated, referenceable contract for the next evidence-authority question after `TG17`, plus an AK-aligned next implementation slice, while keeping V7 ranking and promotion behavior unchanged until that contract exists.
+- Execution reference: `AK-466`
 
 ## Defer/until-later notes
 
@@ -115,4 +121,4 @@ The following are intentionally not tactical goals for the current strategic wav
 - further provider-runtime expansion beyond what the synthesis MVP needs,
 - exact-fidelity template-adapter work in the critical path.
 
-`TG11` closed the first read-only candidate-prior implementation wave. `TG12` then froze the first post-selection audit contract for consuming that payload without widening authority. `TG13` completed that read-only audit implementation wave on live metadata and persisted receipts. `TG14` then froze the next post-audit SG2 contract as a read-only divergence explanation, `TG15` completed that implementation wave on live metadata and persisted receipts, `TG16` froze the next post-divergence governance contract as a read-only readiness advisory, and `TG17` is now the active implementation wave before any later authority widening.
+`TG11` closed the first read-only candidate-prior implementation wave. `TG12` then froze the first post-selection audit contract for consuming that payload without widening authority. `TG13` completed that read-only audit implementation wave on live metadata and persisted receipts. `TG14` then froze the next post-audit SG2 contract as a read-only divergence explanation, `TG15` completed that implementation wave on live metadata and persisted receipts, `TG16` froze the next post-divergence governance contract as a read-only readiness advisory, `TG17` completed that implementation wave on live metadata and persisted receipts, and `TG18` is now the active contract-freezing wave before any later authority widening.

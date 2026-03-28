@@ -73,6 +73,24 @@ class ModuleSynthesisEvidenceRequest:
 
 
 @dataclass(frozen=True)
+class ModuleSynthesisHistoricalDiagnostics:
+    evidence_bundle_version: str | None
+    historical_convergence_advisory: dict[str, Any] | None
+    candidate_winner_priors: dict[str, Any] | None
+    candidate_prior_audit: dict[str, Any] | None
+    candidate_prior_divergence_explanation: dict[str, Any] | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "evidence_bundle_version": self.evidence_bundle_version,
+            "historical_convergence_advisory": self.historical_convergence_advisory,
+            "candidate_winner_priors": self.candidate_winner_priors,
+            "candidate_prior_audit": self.candidate_prior_audit,
+            "candidate_prior_divergence_explanation": self.candidate_prior_divergence_explanation,
+        }
+
+
+@dataclass(frozen=True)
 class ModuleSynthesisReceiptEvidence:
     receipt_path: str
     created_at: str | None
@@ -103,6 +121,7 @@ class ModuleSynthesisReceiptEvidence:
     synthesis_ranked_candidates: tuple[dict[str, Any], ...]
     synthesis_promotion_shell: dict[str, Any] | None
     synthesis_promotion_decision: dict[str, Any] | None
+    historical_diagnostics: ModuleSynthesisHistoricalDiagnostics | None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -135,6 +154,11 @@ class ModuleSynthesisReceiptEvidence:
             "synthesis_ranked_candidates": list(self.synthesis_ranked_candidates),
             "synthesis_promotion_shell": self.synthesis_promotion_shell,
             "synthesis_promotion_decision": self.synthesis_promotion_decision,
+            "synthesis_diagnostics": (
+                self.historical_diagnostics.to_dict()
+                if self.historical_diagnostics is not None
+                else None
+            ),
         }
 
 
@@ -491,12 +515,49 @@ def _load_receipt_for_evidence(
     return loaded, None
 
 
+def _extract_historical_diagnostics(
+    receipt: Mapping[str, Any],
+) -> ModuleSynthesisHistoricalDiagnostics | None:
+    raw = receipt.get("synthesis_diagnostics")
+    if not isinstance(raw, Mapping):
+        return None
+    diagnostics = _as_dict(raw)
+    return ModuleSynthesisHistoricalDiagnostics(
+        evidence_bundle_version=_optional_str(
+            diagnostics.get("evidence_bundle_version")
+        ),
+        historical_convergence_advisory=(
+            _as_dict(diagnostics.get("historical_convergence_advisory"))
+            if isinstance(diagnostics.get("historical_convergence_advisory"), Mapping)
+            else None
+        ),
+        candidate_winner_priors=(
+            _as_dict(diagnostics.get("candidate_winner_priors"))
+            if isinstance(diagnostics.get("candidate_winner_priors"), Mapping)
+            else None
+        ),
+        candidate_prior_audit=(
+            _as_dict(diagnostics.get("candidate_prior_audit"))
+            if isinstance(diagnostics.get("candidate_prior_audit"), Mapping)
+            else None
+        ),
+        candidate_prior_divergence_explanation=(
+            _as_dict(diagnostics.get("candidate_prior_divergence_explanation"))
+            if isinstance(
+                diagnostics.get("candidate_prior_divergence_explanation"), Mapping
+            )
+            else None
+        ),
+    )
+
+
 def _build_receipt_evidence(
     meta_path: Path,
     receipt: Mapping[str, Any],
 ) -> ModuleSynthesisReceiptEvidence:
     replay_inputs = _as_dict(receipt.get("replay_inputs"))
     run_summary = _as_dict(receipt.get("run_summary"))
+    historical_diagnostics = _extract_historical_diagnostics(receipt)
     return ModuleSynthesisReceiptEvidence(
         receipt_path=str(meta_path),
         created_at=(
@@ -586,6 +647,7 @@ def _build_receipt_evidence(
             if isinstance(receipt.get("synthesis_promotion_decision"), Mapping)
             else None
         ),
+        historical_diagnostics=historical_diagnostics,
     )
 
 
@@ -1536,16 +1598,16 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
     compared_candidates_raw = candidate_prior_audit.get(
         "non_selected_positive_prior_candidates"
     )
-    if not isinstance(compared_candidates_raw, list):
+    if not isinstance(compared_candidates_raw, list) or any(
+        not isinstance(item, Mapping) for item in compared_candidates_raw
+    ):
         return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
             candidate_prior_audit=candidate_prior_audit,
             notes=[
                 "candidate-prior divergence explanation unavailable because compared positive-prior candidates are malformed"
             ],
         )
-    compared_candidates = [
-        dict(item) for item in compared_candidates_raw if isinstance(item, Mapping)
-    ]
+    compared_candidates = [dict(item) for item in compared_candidates_raw]
     history_summary = _candidate_prior_divergence_history_summary(
         candidate_prior_audit,
         compared_candidate_count=len(compared_candidates),
@@ -1753,6 +1815,367 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
         "selected_candidate": selected_candidate,
         "history_summary": history_summary,
         "compared_positive_prior_candidates": compared_candidate_views,
+        "notes": notes,
+    }
+
+
+_MIN_USABLE_READINESS_RECEIPTS = 3
+_MIN_POSITIVE_SIGNAL_READINESS_RECEIPTS = 2
+_READINESS_DOMINANCE_NUMERATOR = 2
+_READINESS_DOMINANCE_DENOMINATOR = 3
+
+
+def _candidate_prior_readiness_history_summary(
+    *,
+    exact_match_receipt_count: int,
+    replay_healthy_receipt_count: int,
+    usable_receipt_count: int,
+    convergent_receipt_count: int,
+    no_positive_prior_receipt_count: int,
+    runtime_failure_divergence_count: int,
+    runtime_scoring_divergence_count: int,
+    mixed_divergence_count: int,
+    unresolved_receipt_count: int,
+    unusable_receipt_count: int,
+) -> dict[str, int]:
+    return {
+        "exact_match_receipt_count": max(0, int(exact_match_receipt_count)),
+        "replay_healthy_receipt_count": max(0, int(replay_healthy_receipt_count)),
+        "usable_receipt_count": max(0, int(usable_receipt_count)),
+        "convergent_receipt_count": max(0, int(convergent_receipt_count)),
+        "no_positive_prior_receipt_count": max(0, int(no_positive_prior_receipt_count)),
+        "runtime_failure_divergence_count": max(
+            0, int(runtime_failure_divergence_count)
+        ),
+        "runtime_scoring_divergence_count": max(
+            0, int(runtime_scoring_divergence_count)
+        ),
+        "mixed_divergence_count": max(0, int(mixed_divergence_count)),
+        "unresolved_receipt_count": max(0, int(unresolved_receipt_count)),
+        "unusable_receipt_count": max(0, int(unusable_receipt_count)),
+    }
+
+
+def _candidate_prior_readiness_considered_receipt(
+    *,
+    match: ModuleSynthesisEvidenceMatch,
+) -> tuple[dict[str, Any], str | None, bool]:
+    historical_diagnostics = match.receipt.historical_diagnostics
+    considered = {
+        "receipt_path": match.receipt.receipt_path,
+        "created_at": match.receipt.created_at,
+        "candidate_prior_audit_status": None,
+        "candidate_prior_divergence_explanation_status": None,
+        "usable_for_readiness": False,
+        "notes": [],
+    }
+    notes: list[str] = considered["notes"]
+
+    if historical_diagnostics is None:
+        notes.append(
+            "receipt missing persisted synthesis_diagnostics required for candidate-prior readiness"
+        )
+        return considered, None, False
+
+    candidate_prior_audit = historical_diagnostics.candidate_prior_audit
+    if not isinstance(candidate_prior_audit, Mapping):
+        notes.append(
+            "receipt missing persisted candidate_prior_audit required for candidate-prior readiness"
+        )
+        return considered, None, False
+    candidate_prior_divergence_explanation = (
+        historical_diagnostics.candidate_prior_divergence_explanation
+    )
+    if not isinstance(candidate_prior_divergence_explanation, Mapping):
+        notes.append(
+            "receipt missing persisted candidate_prior_divergence_explanation required for candidate-prior readiness"
+        )
+        return considered, None, False
+
+    audit_status = _optional_str(candidate_prior_audit.get("status"))
+    divergence_status = _optional_str(
+        candidate_prior_divergence_explanation.get("status")
+    )
+    considered["candidate_prior_audit_status"] = audit_status
+    considered["candidate_prior_divergence_explanation_status"] = divergence_status
+
+    if audit_status is None or divergence_status is None:
+        notes.append(
+            "receipt persisted candidate-prior audit/divergence status fields are malformed"
+        )
+        return considered, None, False
+    if divergence_status == "candidate_prior_divergence_unavailable":
+        notes.append(
+            "receipt persisted candidate_prior_divergence_explanation is unavailable and cannot support readiness rollup"
+        )
+        return considered, None, False
+
+    if audit_status == "selected_matches_positive_winner_history":
+        if divergence_status != "no_divergence_to_explain":
+            notes.append(
+                "receipt persisted candidate-prior audit/divergence statuses disagree for a convergent outcome"
+            )
+            return considered, None, False
+        considered["usable_for_readiness"] = True
+        notes.append(
+            "receipt shows selected candidate aligned with positive prior support"
+        )
+        return considered, "convergent", True
+
+    if audit_status == "no_positive_prior_candidates":
+        if divergence_status != "no_divergence_to_explain":
+            notes.append(
+                "receipt persisted candidate-prior audit/divergence statuses disagree for a no-positive-prior outcome"
+            )
+            return considered, None, False
+        considered["usable_for_readiness"] = True
+        notes.append(
+            "receipt has no positive-prior-supported candidates under current exact-match history"
+        )
+        return considered, "no_positive_prior", True
+
+    if audit_status in {
+        "selected_candidate_prior_unsupported",
+        "selected_candidate_prior_degraded",
+    }:
+        if divergence_status != "selected_candidate_prior_unresolved":
+            notes.append(
+                "receipt persisted candidate-prior audit/divergence statuses disagree for an unresolved selected-candidate prior outcome"
+            )
+            return considered, None, False
+        considered["usable_for_readiness"] = True
+        notes.append(
+            "receipt prior divergence remains unresolved under bounded prior authority"
+        )
+        return considered, "unresolved", True
+
+    if audit_status != "positive_prior_candidates_present_but_not_selected":
+        notes.append(
+            "receipt persisted candidate-prior audit status is unsupported for readiness rollup"
+        )
+        return considered, None, False
+
+    if divergence_status == "divergence_explained_by_runtime_failures":
+        considered["usable_for_readiness"] = True
+        notes.append("receipt divergence was explained by current runtime failures")
+        return considered, "runtime_failure", True
+    if divergence_status == "divergence_explained_by_runtime_scoring":
+        considered["usable_for_readiness"] = True
+        notes.append("receipt divergence was explained by current V7 runtime scoring")
+        return considered, "runtime_scoring", True
+    if divergence_status == "divergence_explained_by_mixed_runtime_outcomes":
+        considered["usable_for_readiness"] = True
+        notes.append(
+            "receipt divergence split across runtime failures and lower-ranked passing outcomes"
+        )
+        return considered, "mixed", True
+
+    notes.append(
+        "receipt persisted candidate-prior divergence status is unsupported for readiness rollup"
+    )
+    return considered, None, False
+
+
+def build_unavailable_module_synthesis_candidate_prior_readiness_advisory(
+    *,
+    bundle: ModuleSynthesisEvidenceBundle | None = None,
+    notes: list[str] | None = None,
+) -> dict[str, Any]:
+    exact_match_receipt_count = (
+        len(bundle.exact_match_receipts) if bundle is not None else 0
+    )
+    replay_healthy_receipt_count = (
+        bundle.positive_evidence_count if bundle is not None else 0
+    )
+    return {
+        "candidate_prior_readiness_advisory_version": "v1",
+        "status": "candidate_prior_readiness_unavailable",
+        "history_summary": _candidate_prior_readiness_history_summary(
+            exact_match_receipt_count=exact_match_receipt_count,
+            replay_healthy_receipt_count=replay_healthy_receipt_count,
+            usable_receipt_count=0,
+            convergent_receipt_count=0,
+            no_positive_prior_receipt_count=0,
+            runtime_failure_divergence_count=0,
+            runtime_scoring_divergence_count=0,
+            mixed_divergence_count=0,
+            unresolved_receipt_count=0,
+            unusable_receipt_count=replay_healthy_receipt_count,
+        ),
+        "considered_receipts": [],
+        "notes": list(notes or ["candidate-prior readiness advisory unavailable"]),
+    }
+
+
+def build_module_synthesis_candidate_prior_readiness_advisory(
+    bundle: ModuleSynthesisEvidenceBundle,
+) -> dict[str, Any]:
+    replay_healthy_matches = [
+        match for match in bundle.exact_match_receipts if match.positive_evidence
+    ]
+    notes = [
+        "candidate-prior readiness advisory is descriptive only; V7 ranking and promotion remain unchanged"
+    ]
+    if not bundle.exact_match_receipts:
+        notes.append("no exact-match receipts retrieved for candidate-prior readiness")
+    elif not replay_healthy_matches:
+        notes.append(
+            "exact-match history exists, but no replay-healthy receipts qualify for candidate-prior readiness"
+        )
+
+    if bundle.exact_match_receipt_scan_errors:
+        notes.append(
+            "exact-match receipt scan errors prevent a bounded candidate-prior readiness rollup"
+        )
+        return {
+            "candidate_prior_readiness_advisory_version": "v1",
+            "status": "candidate_prior_readiness_unavailable",
+            "history_summary": _candidate_prior_readiness_history_summary(
+                exact_match_receipt_count=len(bundle.exact_match_receipts),
+                replay_healthy_receipt_count=len(replay_healthy_matches),
+                usable_receipt_count=0,
+                convergent_receipt_count=0,
+                no_positive_prior_receipt_count=0,
+                runtime_failure_divergence_count=0,
+                runtime_scoring_divergence_count=0,
+                mixed_divergence_count=0,
+                unresolved_receipt_count=0,
+                unusable_receipt_count=0,
+            ),
+            "considered_receipts": [],
+            "notes": notes,
+        }
+
+    considered_receipts: list[dict[str, Any]] = []
+    counts = {
+        "convergent": 0,
+        "no_positive_prior": 0,
+        "runtime_failure": 0,
+        "runtime_scoring": 0,
+        "mixed": 0,
+        "unresolved": 0,
+        "unusable": 0,
+    }
+    for match in replay_healthy_matches:
+        considered_receipt, category, usable = (
+            _candidate_prior_readiness_considered_receipt(
+                match=match,
+            )
+        )
+        considered_receipts.append(considered_receipt)
+        if usable and category is not None:
+            counts[category] += 1
+        else:
+            counts["unusable"] += 1
+
+    history_summary = _candidate_prior_readiness_history_summary(
+        exact_match_receipt_count=len(bundle.exact_match_receipts),
+        replay_healthy_receipt_count=len(replay_healthy_matches),
+        usable_receipt_count=(
+            counts["convergent"]
+            + counts["no_positive_prior"]
+            + counts["runtime_failure"]
+            + counts["runtime_scoring"]
+            + counts["mixed"]
+            + counts["unresolved"]
+        ),
+        convergent_receipt_count=counts["convergent"],
+        no_positive_prior_receipt_count=counts["no_positive_prior"],
+        runtime_failure_divergence_count=counts["runtime_failure"],
+        runtime_scoring_divergence_count=counts["runtime_scoring"],
+        mixed_divergence_count=counts["mixed"],
+        unresolved_receipt_count=counts["unresolved"],
+        unusable_receipt_count=counts["unusable"],
+    )
+
+    if counts["unusable"] > 0:
+        notes.append(
+            "at least one replay-healthy exact-match receipt lacks well-formed persisted candidate-prior readiness inputs"
+        )
+        return {
+            "candidate_prior_readiness_advisory_version": "v1",
+            "status": "candidate_prior_readiness_unavailable",
+            "history_summary": history_summary,
+            "considered_receipts": considered_receipts,
+            "notes": notes,
+        }
+
+    positive_signal_receipt_count = (
+        counts["convergent"]
+        + counts["runtime_failure"]
+        + counts["runtime_scoring"]
+        + counts["mixed"]
+        + counts["unresolved"]
+    )
+    usable_receipt_count = history_summary["usable_receipt_count"]
+    if (
+        usable_receipt_count < _MIN_USABLE_READINESS_RECEIPTS
+        or positive_signal_receipt_count < _MIN_POSITIVE_SIGNAL_READINESS_RECEIPTS
+    ):
+        notes.append(
+            "candidate-prior readiness remains sparse until at least three usable replay-healthy exact-match receipts and at least two receipts with positive-prior signal exist"
+        )
+        return {
+            "candidate_prior_readiness_advisory_version": "v1",
+            "status": "insufficient_prior_history",
+            "history_summary": history_summary,
+            "considered_receipts": considered_receipts,
+            "notes": notes,
+        }
+
+    if counts["mixed"] > 0 or counts["unresolved"] > 0:
+        notes.append(
+            "candidate-prior readiness remains mixed or unresolved across replay-healthy exact-match history"
+        )
+        return {
+            "candidate_prior_readiness_advisory_version": "v1",
+            "status": "priors_mixed_or_inconclusive",
+            "history_summary": history_summary,
+            "considered_receipts": considered_receipts,
+            "notes": notes,
+        }
+
+    divergence_receipt_count = counts["runtime_failure"] + counts["runtime_scoring"]
+    if divergence_receipt_count > 0:
+        if (
+            counts["runtime_failure"] * _READINESS_DOMINANCE_DENOMINATOR
+            >= divergence_receipt_count * _READINESS_DOMINANCE_NUMERATOR
+            and counts["runtime_failure"] > counts["runtime_scoring"]
+        ):
+            notes.append(
+                "replay-healthy divergence cases are mostly blocked by current runtime failures"
+            )
+            status = "priors_mostly_blocked_by_runtime_failures"
+        elif (
+            counts["runtime_scoring"] * _READINESS_DOMINANCE_DENOMINATOR
+            >= divergence_receipt_count * _READINESS_DOMINANCE_NUMERATOR
+            and counts["runtime_scoring"] > counts["runtime_failure"]
+        ):
+            notes.append(
+                "replay-healthy divergence cases are mostly viable but still lose under current V7 scoring"
+            )
+            status = "priors_mostly_outscored_under_v7"
+        else:
+            notes.append(
+                "replay-healthy divergence cases split too evenly across runtime-failure and runtime-scoring outcomes"
+            )
+            status = "priors_mixed_or_inconclusive"
+        return {
+            "candidate_prior_readiness_advisory_version": "v1",
+            "status": status,
+            "history_summary": history_summary,
+            "considered_receipts": considered_receipts,
+            "notes": notes,
+        }
+
+    notes.append(
+        "usable replay-healthy exact-match history shows prior-supported outcomes without persistent divergence cases"
+    )
+    return {
+        "candidate_prior_readiness_advisory_version": "v1",
+        "status": "priors_consistently_convergent",
+        "history_summary": history_summary,
+        "considered_receipts": considered_receipts,
         "notes": notes,
     }
 

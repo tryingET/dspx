@@ -1,0 +1,36 @@
+{
+  "task_id": 462,
+  "description": "Materialize the read-only candidate-prior readiness advisory on live module metadata and persisted receipts by rolling up persisted exact-match candidate-prior audit/divergence-explanation outcomes, while hardening historical diagnostics extraction and keeping V7 ranking/promotion behavior unchanged.",
+  "allowed_paths": [
+    "diary/2026-03-28--emit-candidate-prior-readiness-advisory.md",
+    "docs/adr/20260328-synthesis-evidence-candidate-prior-readiness-advisory-v1.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-462.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-28--emit-candidate-prior-readiness-advisory.md",
+    "docs/project/operational_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-462.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

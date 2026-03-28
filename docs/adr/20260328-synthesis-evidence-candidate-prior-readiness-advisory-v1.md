@@ -74,8 +74,8 @@ It must not re-score historical candidates, reconstruct missing divergence class
 ## Status model
 
 The advisory must emit exactly one status from this set:
-- `candidate_prior_readiness_unavailable` — the exact-match receipt set or required persisted audit/explanation surfaces are missing, malformed, or unusable for a bounded rollup.
-- `insufficient_prior_history` — exact-match history exists, but too few replay-healthy receipts contain usable prior audit/explanation state to characterize candidate-prior posture.
+- `candidate_prior_readiness_unavailable` — the exact-match receipt set cannot support a bounded rollup because exact-match receipt scan errors exist or one or more replay-healthy exact-match receipts are missing, malformed, or unusable for the required persisted audit/explanation surfaces.
+- `insufficient_prior_history` — exact-match history exists, but after excluding unusable receipts there are fewer than three usable replay-healthy receipts or fewer than two receipts with positive-prior signal to characterize candidate-prior posture.
 - `priors_consistently_convergent` — usable history overwhelmingly shows either selected-prior alignment or no divergence to explain.
 - `priors_mostly_blocked_by_runtime_failures` — usable divergence cases predominantly resolve to runtime-failure explanations, suggesting prior-supported alternatives often are not viable current winners.
 - `priors_mostly_outscored_under_v7` — usable divergence cases predominantly resolve to lower-ranked-pass / runtime-scoring explanations, suggesting priors may contain signal worth studying later without granting authority yet.
@@ -87,6 +87,7 @@ They do **not** imply that priors should already influence ranking, that V7 is w
 ## Rollup rules
 
 V1 computes readiness over replay-healthy exact-match receipts only.
+If exact-match receipt scan errors exist, the advisory must fail closed to `candidate_prior_readiness_unavailable` rather than silently rolling up a partial historical set.
 For each considered receipt:
 - treat `candidate_prior_audit.status == selected_matches_positive_winner_history` as a convergent prior-supported outcome,
 - treat `candidate_prior_audit.status == no_positive_prior_candidates` as usable but non-divergent sparse context,
@@ -97,7 +98,15 @@ For each considered receipt:
 - treat `candidate_prior_divergence_explanation.status == candidate_prior_divergence_unavailable` as unusable for readiness classification.
 
 V1 must fail closed when the persisted audit/explanation surfaces needed for rollup are absent or malformed.
+A replay-healthy exact-match receipt missing those persisted surfaces makes the overall advisory unavailable rather than merely skipped.
 It must not infer a readiness posture from raw ranked candidates, candidate priors alone, or adjacent fields when the explanatory surfaces are missing.
+
+V1 uses these deterministic rollup thresholds:
+- require at least **three** usable replay-healthy exact-match receipts before any non-sparse readiness posture may be emitted,
+- require at least **two** usable receipts with positive-prior signal (`selected_matches_positive_winner_history`, runtime-failure divergence, runtime-scoring divergence, mixed divergence, or unresolved divergence) before any non-sparse readiness posture may be emitted,
+- emit `priors_consistently_convergent` only when usable positive-prior signal remains convergent and no usable divergence/unresolved outcomes remain,
+- emit `priors_mostly_blocked_by_runtime_failures` or `priors_mostly_outscored_under_v7` only when that posture covers at least two-thirds of usable divergence receipts and is a strict majority over the competing divergence posture,
+- otherwise emit `priors_mixed_or_inconclusive`.
 
 ## Minimum payload
 
