@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from dspx.dtos import ModuleSpec
 import dspx.services.module_service as module_service
 from dspx.services.module_service import run_generate
@@ -187,6 +189,73 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
         art.metadata["synthesis_diagnostics"]["candidate_prior_audit"]["status"]
         == "no_positive_prior_candidates"
     )
+
+
+def test_module_service_signature_mode_preserves_requested_io_contract(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_RECEIPTS_PATH",
+        str(tmp_path / "receipts"),
+    )
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH",
+        str(tmp_path / "oracle" / "coordinates.db"),
+    )
+
+    spec = ModuleSpec(
+        name="QA",
+        description="Answer the question using context",
+        inputs=["question", "context"],
+        outputs=["answer"],
+        options={"template_version": "simple-v1"},
+    )
+    art = run_generate(spec, use_signature=True)
+
+    namespace: dict[str, object] = {}
+    exec(art.code, namespace, namespace)
+    student = namespace["build_student"]()  # type: ignore[index, operator]
+    assert list(student.predict.signature.input_fields.keys()) == [
+        "question",
+        "context",
+    ]
+    assert list(student.predict.signature.output_fields.keys()) == ["answer"]
+
+    captured: list[dict[str, str]] = []
+
+    class _CapturePredict:
+        def __call__(self, **kwargs):
+            captured.append(dict(kwargs))
+            return kwargs
+
+    student.predict = _CapturePredict()
+    student.forward(question="What happened?", context="The sky is blue")
+    assert captured == [{"question": "What happened?", "context": "The sky is blue"}]
+
+    io_spec = namespace["io_spec"]()  # type: ignore[index, operator]
+    assert io_spec == {"inputs": ["question", "context"], "outputs": ["answer"]}
+
+
+def test_module_service_rejects_invalid_field_names(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    spec = ModuleSpec(
+        name="Weird",
+        description="Reject invalid identifiers",
+        inputs=["first-name"],
+        outputs=["answer"],
+        options={"template_version": "simple-v1"},
+    )
+
+    with pytest.raises(ValueError, match="Python identifiers"):
+        run_generate(spec, use_signature=False)
 
 
 def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(

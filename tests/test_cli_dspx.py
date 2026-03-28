@@ -45,6 +45,26 @@ def test_cli_module_gen_prints_module(monkeypatch) -> None:
     assert "class Summarizer(dspy.Module):" in result.stdout
 
 
+def test_cli_module_gen_rejects_invalid_field_names(monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    result = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "-n",
+            "Summarizer",
+            "-i",
+            "first-name",
+            "-o",
+            "summary",
+            "--template-version",
+            "simple-v1",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "valid python identifiers" in (result.stdout.lower() + result.stderr.lower())
+
+
 def test_cli_codegen_prints_python(monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     result = runner.invoke(

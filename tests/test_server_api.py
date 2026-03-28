@@ -45,3 +45,23 @@ def test_server_signature_and_module_and_mermaid(monkeypatch) -> None:
     data3 = r3.json()
     assert data3["name"] == "t1"
     assert any("program_" in p for p in data3["produced"])  # program_predict.py
+
+
+def test_server_module_rejects_invalid_field_names(monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.post(
+        "/module",
+        json={
+            "name": "Summarizer",
+            "description": "Summarizes text",
+            "inputs": ["first-name"],
+            "outputs": ["summary"],
+            "template_version": "simple-v1",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid_request"
