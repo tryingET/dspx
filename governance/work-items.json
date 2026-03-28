@@ -436,6 +436,19 @@
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0388",
+          "title": "Synthesis evidence substrate: fail closed candidate-prior audit rank extraction under metadata drift",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: fail closed candidate-prior audit rank extraction under metadata drift (task #388)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-28"
         }
       ]
     }

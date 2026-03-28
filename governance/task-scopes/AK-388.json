@@ -1,0 +1,26 @@
+{
+  "task_id": 388,
+  "description": "Fail closed candidate-prior audit rank extraction under metadata drift so the audit only reports explicit ranked metadata, falls back from empty decision-ranked data to valid shell-ranked data, adds regressions, and syncs repo planning artifacts after completion.",
+  "allowed_paths": [
+    "diary/2026-03-28--fail-closed-candidate-prior-audit-rank-extraction.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-388.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_synthesis_evidence.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-28--fail-closed-candidate-prior-audit-rank-extraction.md",
+    "governance/task-scopes/AK-388.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_synthesis_evidence.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

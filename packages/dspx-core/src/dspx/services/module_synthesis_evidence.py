@@ -834,29 +834,43 @@ def extract_module_synthesis_ranked_candidate_inputs(
     raw_ranked = None
     promotion_decision = _as_dict(synthesis.get("promotion_decision"))
     decision_metadata = _as_dict(promotion_decision.get("metadata"))
-    if isinstance(decision_metadata.get("ranked_candidates"), list):
-        raw_ranked = decision_metadata.get("ranked_candidates")
-    else:
-        promotion_shell = _as_dict(synthesis.get("promotion_shell"))
-        shell_metadata = _as_dict(promotion_shell.get("metadata"))
-        if isinstance(shell_metadata.get("ranked_candidates"), list):
-            raw_ranked = shell_metadata.get("ranked_candidates")
+    decision_ranked = decision_metadata.get("ranked_candidates")
+    if isinstance(decision_ranked, list) and decision_ranked:
+        raw_ranked = decision_ranked
 
-    ranked_candidates: list[dict[str, Any]] = []
-    for index, raw_candidate in enumerate(_as_ranked_candidates(raw_ranked), start=1):
-        candidate_id = _optional_str(raw_candidate.get("candidate_id"))
-        if candidate_id is None:
-            continue
-        rank = _as_int(raw_candidate.get("rank"), default=index)
-        ranked_candidates.append(
-            {
-                "candidate_id": candidate_id,
-                "rank": rank if rank > 0 else index,
-                "variant_id": _optional_str(raw_candidate.get("variant_id")),
-                "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
-            }
-        )
-    return tuple(ranked_candidates)
+    promotion_shell = _as_dict(synthesis.get("promotion_shell"))
+    shell_metadata = _as_dict(promotion_shell.get("metadata"))
+    shell_ranked = shell_metadata.get("ranked_candidates")
+    if raw_ranked is None and isinstance(shell_ranked, list) and shell_ranked:
+        raw_ranked = shell_ranked
+
+    def _materialize_ranked_candidates(
+        raw_items: Any,
+    ) -> tuple[dict[str, Any], ...]:
+        ranked_candidates: list[dict[str, Any]] = []
+        for raw_candidate in _as_ranked_candidates(raw_items):
+            candidate_id = _optional_str(raw_candidate.get("candidate_id"))
+            if candidate_id is None:
+                continue
+            rank = _as_int(raw_candidate.get("rank"), default=0)
+            if rank <= 0:
+                continue
+            ranked_candidates.append(
+                {
+                    "candidate_id": candidate_id,
+                    "rank": rank,
+                    "variant_id": _optional_str(raw_candidate.get("variant_id")),
+                    "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
+                }
+            )
+        return tuple(ranked_candidates)
+
+    ranked_candidates = _materialize_ranked_candidates(raw_ranked)
+    if ranked_candidates:
+        return ranked_candidates
+    if raw_ranked is not None:
+        return _materialize_ranked_candidates(shell_ranked)
+    return ()
 
 
 def _candidate_prior_identity_supported(identity: Mapping[str, Any]) -> bool:
@@ -934,30 +948,16 @@ def _append_unique_note(notes: list[str], note: str | None) -> None:
 def _candidate_prior_rank_map(
     *,
     ranked_candidates: tuple[dict[str, Any], ...],
-    current_candidates: tuple[dict[str, Any], ...],
 ) -> dict[str, int]:
     rank_map: dict[str, int] = {}
-    for index, candidate in enumerate(ranked_candidates, start=1):
+    for candidate in ranked_candidates:
         candidate_id = _optional_str(candidate.get("candidate_id"))
         if candidate_id is None or candidate_id in rank_map:
             continue
-        rank = _as_int(candidate.get("rank"), default=index)
-        rank_map[candidate_id] = rank if rank > 0 else index
-    if rank_map:
-        return rank_map
-
-    ordered_current = sorted(
-        current_candidates,
-        key=lambda item: (
-            _as_int(item.get("ordinal"), default=0) <= 0,
-            _as_int(item.get("ordinal"), default=0),
-            _optional_str(item.get("candidate_id")) or "",
-        ),
-    )
-    for index, candidate in enumerate(ordered_current, start=1):
-        candidate_id = _optional_str(candidate.get("candidate_id"))
-        if candidate_id is not None:
-            rank_map[candidate_id] = index
+        rank = _as_int(candidate.get("rank"), default=0)
+        if rank <= 0:
+            continue
+        rank_map[candidate_id] = rank
     return rank_map
 
 
@@ -1196,10 +1196,7 @@ def build_module_synthesis_candidate_prior_audit(
             ],
         )
 
-    rank_map = _candidate_prior_rank_map(
-        ranked_candidates=ranked_candidates,
-        current_candidates=current_candidates,
-    )
+    rank_map = _candidate_prior_rank_map(ranked_candidates=ranked_candidates)
     raw_candidate_priors = candidate_winner_priors.get("candidate_priors")
     if not isinstance(raw_candidate_priors, list):
         return build_unavailable_module_synthesis_candidate_prior_audit(
