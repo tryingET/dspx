@@ -3,25 +3,20 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "2734b962016147b56b48ce0f43dc96f19d6a1467"
-created_at: "2026-03-28T18:10:53Z"
-intent: "Remove docs/VISION.md compat shim; consolidate all references on docs/project/vision.md"
+created_at: "2026-03-28T18:12:15Z"
+intent: "update full_gate status"
 files:
-  - "AGENTS.md"
-  - "docs/ARCHITECTURE.md"
-  - "docs/VISION.md"
-  - "docs/project/tactical_goals.md"
-  - "docs/project/vision.md"
+  - "."
 validation:
   fast_gate:
     command: "just fmt lint typecheck test"
     status: "pass"
   full_gate:
     command: "just verify-full"
-    status: "pending"
+    status: "fail"
 group:
-  index: 1
+  index: 0
   total: 4
-  rationale: "docs-only cleanup before source changes"
 links:
   diary:
     - "."
