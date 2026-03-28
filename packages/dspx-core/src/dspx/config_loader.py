@@ -26,14 +26,17 @@ def _load_toml(path: Path) -> Dict[str, Any]:
         # Optional fallback if someone pins older Python (not expected here)
         try:
             import tomli as tomllib  # type: ignore
-        except Exception:
-            return {}
+        except Exception as exc:
+            raise RuntimeError(
+                "TOML parser unavailable for DSPx config loading"
+            ) from exc
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
-        assert isinstance(data, dict)
-        return data
-    except Exception:
-        return {}
+    except Exception as exc:
+        raise ValueError(f"Failed to parse DSPx config TOML at {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"DSPx config TOML must parse to a table at {path}")
+    return data
 
 
 def _find_config_path(explicit: Optional[str]) -> Optional[Path]:

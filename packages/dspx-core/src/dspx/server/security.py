@@ -160,6 +160,24 @@ def parse_rate_spec(spec: str) -> List[Rate]:
     return [_parse_rate_token(s) for s in spec.split(",") if s.strip()]
 
 
+def _parse_rate_mapping(raw: str, *, env_name: str) -> Dict[str, List[Rate]]:
+    import json as _json
+
+    try:
+        mapping = _json.loads(raw)
+    except Exception as exc:
+        raise ValueError(f"invalid JSON in {env_name}: {exc}") from exc
+    if not isinstance(mapping, dict):
+        raise ValueError(f"{env_name} must be a JSON object")
+
+    parsed: Dict[str, List[Rate]] = {}
+    for key, value in mapping.items():
+        if not isinstance(value, str):
+            raise ValueError(f"{env_name}[{key!r}] must be a rate spec string")
+        parsed[str(key)] = parse_rate_spec(value)
+    return parsed
+
+
 @dataclass(frozen=True)
 class RateLimitConfig:
     enabled: bool
@@ -184,17 +202,13 @@ class RateLimitConfig:
         default_spec = e.get("DSPX_RATE_LIMIT_DEFAULT", "")
         default = parse_rate_spec(default_spec) if default_spec else []
         per_path: Dict[str, List[Rate]] = {}
-        import json as _json
 
         paths_raw = e.get("DSPX_RATE_LIMIT_PATHS")
         if paths_raw:
-            try:
-                mapping = _json.loads(paths_raw)
-                for k, v in mapping.items():
-                    if isinstance(v, str):
-                        per_path[str(k)] = parse_rate_spec(v)
-            except Exception:
-                pass
+            per_path = _parse_rate_mapping(
+                paths_raw,
+                env_name="DSPX_RATE_LIMIT_PATHS",
+            )
         identity = (e.get("DSPX_RATE_LIMIT_IDENTITY") or "token").strip().lower()
         # Trusted proxies as CIDR list (comma-separated)
         trusted_proxies: List[ipaddress._BaseNetwork] = []
@@ -212,20 +226,14 @@ class RateLimitConfig:
         global_default: List[Rate] = []
         gspec = (e.get("DSPX_RATE_LIMIT_GLOBAL") or "").strip()
         if gspec:
-            try:
-                global_default = parse_rate_spec(gspec)
-            except Exception:
-                global_default = []
+            global_default = parse_rate_spec(gspec)
         global_per_path: Dict[str, List[Rate]] = {}
         gpaths = (e.get("DSPX_RATE_LIMIT_GLOBAL_PATHS") or "").strip()
         if gpaths:
-            try:
-                mapping = _json.loads(gpaths)
-                for k, v in mapping.items():
-                    if isinstance(v, str):
-                        global_per_path[str(k)] = parse_rate_spec(v)
-            except Exception:
-                pass
+            global_per_path = _parse_rate_mapping(
+                gpaths,
+                env_name="DSPX_RATE_LIMIT_GLOBAL_PATHS",
+            )
         ttl_raw = (e.get("DSPX_RATE_LIMIT_IDENTITY_TTL_SECONDS") or "").strip()
         try:
             identity_ttl_seconds = float(ttl_raw) if ttl_raw else 3600.0

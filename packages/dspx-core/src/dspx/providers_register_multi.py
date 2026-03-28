@@ -51,16 +51,19 @@ def _factory() -> MultiProviderLM:
     worktree_commitish = os.getenv("DSPX_MULTI_WORKTREE_COMMITISH", "HEAD")
     provs = []
     resolved_names: List[str] = []
+    resolution_errors: list[str] = []
     for n in names:
         try:
             provs.append(create(n))
             resolved_names.append(n)
-        except Exception:
+        except Exception as exc:
+            resolution_errors.append(f"{n}: {exc}")
             continue
     if not provs:
-        # fallback to pi-rpc if nothing resolves
-        provs = [create("pi-rpc")]
-        resolved_names = ["pi-rpc"]
+        joined = "; ".join(resolution_errors) if resolution_errors else "unknown"
+        raise RuntimeError(
+            "failed to resolve any providers for DSPX_MULTI_PROVIDERS: " + joined
+        )
     names = resolved_names
     return MultiProviderLM(
         providers=provs,

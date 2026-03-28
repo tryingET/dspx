@@ -205,3 +205,16 @@ def test_load_config_env_fails_closed_for_missing_dspx_config_env(
         raise AssertionError("expected FileNotFoundError for missing DSPX_CONFIG")
 
     assert os.getenv("DSPX_PROVIDER") is None
+
+
+def test_load_config_env_fails_closed_for_invalid_toml(tmp_path: Path) -> None:
+    cfg = tmp_path / "config.toml"
+    cfg.write_text('[provider\nname = "broken"\n', encoding="utf-8")
+
+    try:
+        load_config_env(str(cfg))
+    except ValueError as exc:
+        assert str(cfg) in str(exc)
+        assert "Failed to parse DSPx config TOML" in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected ValueError for invalid TOML")

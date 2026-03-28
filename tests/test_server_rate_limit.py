@@ -162,6 +162,16 @@ def test_rate_limit_per_path_override() -> None:
     assert ok.status_code == 200
 
 
+def test_rate_limit_from_env_fails_closed_on_invalid_path_mapping() -> None:
+    with pytest.raises(ValueError):
+        RateLimitConfig.from_env(
+            {
+                "DSPX_RATE_LIMIT_ENABLED": "1",
+                "DSPX_RATE_LIMIT_PATHS": '{"POST /module": "bad-spec"}',
+            }
+        )
+
+
 def test_global_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     # Global limit of 2/sec, identity rules allow high throughput
     monkeypatch.setenv("DSPX_RATE_LIMIT_ENABLED", "1")
