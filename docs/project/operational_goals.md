@@ -18,6 +18,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Recently completed in this wave
 
+- `AK-509` — added an executable Just-level regression for the documented `just task-scope-check task_id=<AK-ID> mode=working-tree` flow and tightened the next-session handoff back to its stated max-3 assumption contract.
 - `AK-505` — made the documented `just task-scope-check task_id=<AK-ID> mode=working-tree` flow executable by normalizing assignment-style CLI values before `argparse` validation and adding a regression test for that command boundary.
 - `AK-317` — removed the repo-local `rocs_cli` compatibility path by switching ontology refs to workspace-only `repo:` locators, deleting the vendored `tools/rocs-cli` copy, and simplifying `scripts/rocs.sh` to resolve ROCS from workspace core or `PATH`.
 - `AK-493` — closed residual SG2 counterfactual-advisory regression gaps by covering unsupported status drift and divergence comparison-set identity drift without changing runtime behavior.
@@ -54,8 +55,9 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG19` is complete, `AK-505` and `AK-317` are now complete, and no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question; the repo-scoped ready queue is currently empty.
+- `TG19` is complete, `AK-509`, `AK-505`, and `AK-317` are now complete, and no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question; the repo-scoped ready queue is currently empty.
 - `AK-487` was an operator-directed SG2 guardrail hardening slice after `TG19` completion; it tightened fail-closed counterfactual invariants without widening evidence authority or changing the pinned next ready slice.
+- `AK-509` was an operator-directed workflow guardrail follow-up that added an executable Just-level regression for the public task-scope command and removed the low-grade handoff contract smell without changing scope semantics or widening SG2 evidence authority.
 - `AK-505` was an operator-directed workflow guardrail fix that restored the documented current-slice task-scope command without changing scope semantics or widening SG2 evidence authority.
 - `AK-493` was an operator-directed follow-on test-hardening slice that closed the newly surfaced regression gaps for unsupported SG2 statuses and divergence comparison-set identity drift.
 - `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without widening evidence authority; `AK-388` and `AK-431` now form part of the fail-closed rank-truth boundary that `AK-441` reused.

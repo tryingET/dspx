@@ -1,0 +1,24 @@
+{
+  "task_id": 509,
+  "description": "Close the remaining workflow-guardrail gap after AK-505 by adding an executable just-level regression for the documented task-scope-check command, tightening next_session assumptions back to the stated max-3 contract, and refreshing the repo handoff/projection artifacts.",
+  "allowed_paths": [
+    "diary/2026-03-29--add-just-level-task-scope-regression-and-tighten-handoff.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-509.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "tests/test_task_scope.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-29--add-just-level-task-scope-regression-and-tighten-handoff.md",
+    "governance/task-scopes/AK-509.json",
+    "next_session_prompt.md",
+    "tests/test_task_scope.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

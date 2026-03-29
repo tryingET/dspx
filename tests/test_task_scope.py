@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -545,6 +547,68 @@ def test_check_task_scope_cli_accepts_documented_assignment_style_values(
             "rev_range=auto",
         ],
         cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    assert "ok: task-scope-check task=AK-266 mode=working-tree" in proc.stdout
+
+
+def test_task_scope_check_just_recipe_accepts_documented_assignment_style_values(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    repo_root = Path(__file__).resolve().parents[1]
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "packages" / "dspx-core" / "src" / "dspx").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    shutil.copy2(
+        repo_root / "scripts" / "check_task_scope.py",
+        repo / "scripts" / "check_task_scope.py",
+    )
+    shutil.copy2(
+        repo_root / "packages" / "dspx-core" / "src" / "dspx" / "task_scope.py",
+        repo / "packages" / "dspx-core" / "src" / "dspx" / "task_scope.py",
+    )
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    proc = subprocess.run(
+        [
+            "just",
+            "--justfile",
+            str(repo_root / "Justfile"),
+            "--working-directory",
+            str(repo),
+            "task-scope-check",
+            "task_id=266",
+            "mode=working-tree",
+        ],
+        cwd=repo_root,
+        env=env,
         check=False,
         capture_output=True,
         text=True,

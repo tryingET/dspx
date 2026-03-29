@@ -659,6 +659,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-29"
+        },
+        {
+          "id": "AK-TASK-0509",
+          "title": "Workflow guardrails: add executable just-level task-scope regression and tighten handoff assumptions",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: add executable just-level task-scope regression and tighten handoff assumptions (task #509)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-29"
         }
       ]
     }
