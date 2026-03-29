@@ -1,0 +1,25 @@
+{
+  "task_id": 493,
+  "description": "Close residual SG2 counterfactual advisory regression gaps by covering unsupported audit/divergence/readiness statuses and divergence comparison-set identity drift without changing runtime behavior.",
+  "allowed_paths": [
+    "diary/2026-03-28--close-counterfactual-advisory-regression-gaps.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-493.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "tests/test_module_synthesis_evidence.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-28--close-counterfactual-advisory-regression-gaps.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-493.json",
+    "next_session_prompt.md",
+    "tests/test_module_synthesis_evidence.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

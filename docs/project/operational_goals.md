@@ -19,6 +19,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Recently completed in this wave
 
+- `AK-493` — closed residual SG2 counterfactual-advisory regression gaps by covering unsupported status drift and divergence comparison-set identity drift without changing runtime behavior.
 - `AK-487` — made the candidate-prior counterfactual advisory fail closed under SG2 surface drift by validating status enums, selected-candidate identity, divergence comparison-set integrity, and zero-preserving selected ranking-score handling without changing V7 ranking/promotion behavior.
 - `AK-473` — materialized the ADR-backed read-only candidate-prior counterfactual advisory on live module metadata and persisted receipts using already-emitted SG2 surfaces plus trusted current-run comparison metadata, while leaving V7 ranking/promotion behavior unchanged.
 - `AK-466` — froze the next SG2 contract after the read-only candidate-prior readiness advisory as a read-only counterfactual advisory and aligned the next implementation slice to `AK-473`.
@@ -54,6 +55,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 - `TG19` is complete; no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question, so the repo-scoped ready queue currently falls back to `AK-317`.
 - `AK-487` was an operator-directed SG2 guardrail hardening slice after `TG19` completion; it tightened fail-closed counterfactual invariants without widening evidence authority or changing the pinned next ready slice.
+- `AK-493` was an operator-directed follow-on test-hardening slice that closed the newly surfaced regression gaps for unsupported SG2 statuses and divergence comparison-set identity drift.
 - `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without widening evidence authority; `AK-388` and `AK-431` now form part of the fail-closed rank-truth boundary that `AK-441` reused.
 - `AK-224` and `AK-235` remain manually deferred because they belong to older/non-active waves and would otherwise leave the ready queue pointing away from the current architecture slice.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.

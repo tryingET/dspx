@@ -1746,74 +1746,102 @@ def test_build_module_synthesis_candidate_prior_counterfactual_advisory_preserve
     assert advisory["selected_candidate"]["ranking_score"] == 0.0
 
 
-def test_build_module_synthesis_candidate_prior_counterfactual_advisory_fails_closed_on_unknown_readiness_status() -> (
+def test_build_module_synthesis_candidate_prior_counterfactual_advisory_fails_closed_on_unsupported_status_values() -> (
     None
 ):
-    advisory = build_module_synthesis_candidate_prior_counterfactual_advisory(
-        {
-            "status": "NOT_A_REAL_STATUS",
-            "history_summary": {},
-            "notes": [],
+    base_readiness = {
+        "status": "priors_mostly_outscored_under_v7",
+        "history_summary": {},
+        "notes": [],
+    }
+    base_divergence = {
+        "status": "divergence_explained_by_runtime_scoring",
+        "selected_candidate": {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "rank": 1,
+            "ranking_score": 10.0,
         },
-        {
-            "status": "divergence_explained_by_runtime_scoring",
-            "selected_candidate": {
-                "candidate_id": "cand-a",
-                "variant_id": "variant-a",
-                "variant_origin": "deterministic_template_variant",
-                "rank": 1,
-                "ranking_score": 10.0,
-            },
-            "compared_positive_prior_candidates": [
-                {
-                    "candidate_id": "cand-b",
-                    "comparison_status": "lower_ranked_pass",
-                }
-            ],
-            "notes": [],
-        },
-        {
-            "status": "positive_prior_candidates_present_but_not_selected",
-            "selected_candidate": {
-                "candidate_id": "cand-a",
-                "variant_id": "variant-a",
-                "variant_origin": "deterministic_template_variant",
-                "prior_status": "no_positive_winner_history",
-                "rank": 1,
-            },
-            "history_summary": {},
-            "non_selected_positive_prior_candidates": [
-                {
-                    "candidate_id": "cand-b",
-                    "variant_id": "variant-b",
-                    "variant_origin": "deterministic_template_variant",
-                    "prior_status": "matches_positive_winner_history",
-                    "rank": 2,
-                }
-            ],
-            "notes": [],
-        },
-        ranked_candidate_comparison_inputs=(
-            {
-                "candidate_id": "cand-a",
-                "rank": 1,
-                "evaluation_status": "passed",
-                "passed": True,
-                "ranking_score": 10.0,
-                "evaluation_summary": "selected passed",
-            },
+        "compared_positive_prior_candidates": [
             {
                 "candidate_id": "cand-b",
+                "comparison_status": "lower_ranked_pass",
+            }
+        ],
+        "notes": [],
+    }
+    base_audit = {
+        "status": "positive_prior_candidates_present_but_not_selected",
+        "selected_candidate": {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "prior_status": "no_positive_winner_history",
+            "rank": 1,
+        },
+        "history_summary": {},
+        "non_selected_positive_prior_candidates": [
+            {
+                "candidate_id": "cand-b",
+                "variant_id": "variant-b",
+                "variant_origin": "deterministic_template_variant",
+                "prior_status": "matches_positive_winner_history",
                 "rank": 2,
-                "evaluation_status": "passed",
-                "passed": True,
-                "ranking_score": 9.0,
-                "evaluation_summary": "cand-b passed",
-            },
-        ),
+            }
+        ],
+        "notes": [],
+    }
+    comparison_inputs = (
+        {
+            "candidate_id": "cand-a",
+            "rank": 1,
+            "evaluation_status": "passed",
+            "passed": True,
+            "ranking_score": 10.0,
+            "evaluation_summary": "selected passed",
+        },
+        {
+            "candidate_id": "cand-b",
+            "rank": 2,
+            "evaluation_status": "passed",
+            "passed": True,
+            "ranking_score": 9.0,
+            "evaluation_summary": "cand-b passed",
+        },
     )
 
-    assert advisory["status"] == "candidate_prior_counterfactual_unavailable"
+    unsupported_readiness = (
+        build_module_synthesis_candidate_prior_counterfactual_advisory(
+            {**base_readiness, "status": "NOT_A_REAL_STATUS"},
+            base_divergence,
+            base_audit,
+            ranked_candidate_comparison_inputs=comparison_inputs,
+        )
+    )
+    assert (
+        unsupported_readiness["status"] == "candidate_prior_counterfactual_unavailable"
+    )
+
+    unsupported_divergence = (
+        build_module_synthesis_candidate_prior_counterfactual_advisory(
+            base_readiness,
+            {**base_divergence, "status": "NOT_A_REAL_DIVERGENCE_STATUS"},
+            base_audit,
+            ranked_candidate_comparison_inputs=comparison_inputs,
+        )
+    )
+    assert (
+        unsupported_divergence["status"] == "candidate_prior_counterfactual_unavailable"
+    )
+
+    unsupported_audit = build_module_synthesis_candidate_prior_counterfactual_advisory(
+        base_readiness,
+        base_divergence,
+        {**base_audit, "status": "NOT_A_REAL_AUDIT_STATUS"},
+        ranked_candidate_comparison_inputs=comparison_inputs,
+    )
+    assert unsupported_audit["status"] == "candidate_prior_counterfactual_unavailable"
 
 
 def test_build_module_synthesis_candidate_prior_counterfactual_advisory_fails_closed_on_selected_candidate_identity_drift() -> (
@@ -1886,15 +1914,56 @@ def test_build_module_synthesis_candidate_prior_counterfactual_advisory_fails_cl
     assert advisory["status"] == "candidate_prior_counterfactual_unavailable"
 
 
-def test_build_module_synthesis_candidate_prior_counterfactual_advisory_fails_closed_on_malformed_divergence_compared_candidates() -> (
+def test_build_module_synthesis_candidate_prior_counterfactual_advisory_fails_closed_on_malformed_or_mismatched_divergence_compared_candidates() -> (
     None
 ):
-    advisory = build_module_synthesis_candidate_prior_counterfactual_advisory(
-        {
-            "status": "priors_mostly_outscored_under_v7",
-            "history_summary": {},
-            "notes": [],
+    base_readiness = {
+        "status": "priors_mostly_outscored_under_v7",
+        "history_summary": {},
+        "notes": [],
+    }
+    base_audit = {
+        "status": "positive_prior_candidates_present_but_not_selected",
+        "selected_candidate": {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "prior_status": "no_positive_winner_history",
+            "rank": 1,
         },
+        "history_summary": {},
+        "non_selected_positive_prior_candidates": [
+            {
+                "candidate_id": "cand-b",
+                "variant_id": "variant-b",
+                "variant_origin": "deterministic_template_variant",
+                "prior_status": "matches_positive_winner_history",
+                "rank": 2,
+            }
+        ],
+        "notes": [],
+    }
+    comparison_inputs = (
+        {
+            "candidate_id": "cand-a",
+            "rank": 1,
+            "evaluation_status": "passed",
+            "passed": True,
+            "ranking_score": 10.0,
+            "evaluation_summary": "selected passed",
+        },
+        {
+            "candidate_id": "cand-b",
+            "rank": 2,
+            "evaluation_status": "passed",
+            "passed": True,
+            "ranking_score": 9.0,
+            "evaluation_summary": "cand-b passed",
+        },
+    )
+
+    malformed = build_module_synthesis_candidate_prior_counterfactual_advisory(
+        base_readiness,
         {
             "status": "divergence_explained_by_runtime_scoring",
             "selected_candidate": {
@@ -1907,48 +1976,34 @@ def test_build_module_synthesis_candidate_prior_counterfactual_advisory_fails_cl
             "compared_positive_prior_candidates": ["MALFORMED"],
             "notes": [],
         },
+        base_audit,
+        ranked_candidate_comparison_inputs=comparison_inputs,
+    )
+    assert malformed["status"] == "candidate_prior_counterfactual_unavailable"
+
+    mismatched = build_module_synthesis_candidate_prior_counterfactual_advisory(
+        base_readiness,
         {
-            "status": "positive_prior_candidates_present_but_not_selected",
+            "status": "divergence_explained_by_runtime_scoring",
             "selected_candidate": {
                 "candidate_id": "cand-a",
                 "variant_id": "variant-a",
                 "variant_origin": "deterministic_template_variant",
-                "prior_status": "no_positive_winner_history",
                 "rank": 1,
+                "ranking_score": 10.0,
             },
-            "history_summary": {},
-            "non_selected_positive_prior_candidates": [
+            "compared_positive_prior_candidates": [
                 {
-                    "candidate_id": "cand-b",
-                    "variant_id": "variant-b",
-                    "variant_origin": "deterministic_template_variant",
-                    "prior_status": "matches_positive_winner_history",
-                    "rank": 2,
+                    "candidate_id": "cand-z",
+                    "comparison_status": "lower_ranked_pass",
                 }
             ],
             "notes": [],
         },
-        ranked_candidate_comparison_inputs=(
-            {
-                "candidate_id": "cand-a",
-                "rank": 1,
-                "evaluation_status": "passed",
-                "passed": True,
-                "ranking_score": 10.0,
-                "evaluation_summary": "selected passed",
-            },
-            {
-                "candidate_id": "cand-b",
-                "rank": 2,
-                "evaluation_status": "passed",
-                "passed": True,
-                "ranking_score": 9.0,
-                "evaluation_summary": "cand-b passed",
-            },
-        ),
+        base_audit,
+        ranked_candidate_comparison_inputs=comparison_inputs,
     )
-
-    assert advisory["status"] == "candidate_prior_counterfactual_unavailable"
+    assert mismatched["status"] == "candidate_prior_counterfactual_unavailable"
 
 
 def test_extract_module_synthesis_ranked_candidate_inputs_fails_closed_without_rank_metadata() -> (
