@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "59817bb5d9c4e8f2c2c6620f280c760c6ed69d21"
+created_at: "2026-03-29T08:45:02Z"
+intent: "Forge issue dedup uses workorder fingerprint for disambiguation, local IDs include digest suffix"
+files:
+  - "apps/forge/src/dspx_forge/issues.py"
+  - "tests/test_forge_mvp.py"
+validation:
+  fast_gate:
+    command: "just fmt && just lint && just typecheck"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 4
+  total: 4
+  rationale: "Same-title workorders no longer collide; fingerprint-based resolution prevents wrong-issue updates"
+links:
+  diary:
+    - "."
