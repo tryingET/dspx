@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-28--emit-candidate-prior-counterfactual-advisory.md`
+7. `diary/2026-03-28--fail-closed-counterfactual-advisory-invariants.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -55,11 +55,11 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-473` — emit a read-only candidate-prior counterfactual advisory for `module-gen` outcomes.
-- Outcome: DSPx now emits `candidate_prior_counterfactual_advisory` on live `module-gen` metadata and persisted receipts, deriving bounded counterfactual statuses and passing positive-prior-supported alternatives from the existing audit/divergence/readiness surfaces plus trusted current comparison metadata without changing V7 ranking or promotion behavior.
-- Files changed: `diary/2026-03-28--emit-candidate-prior-counterfactual-advisory.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-473.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, and `tests/test_run_receipts.py`.
-- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `uv run -q python scripts/check_task_scope.py --task-id 473 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 473 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-473` is complete; `TG19` is complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue currently points at `AK-317`.
+- Slice executed: `AK-487` — fail closed candidate-prior counterfactual advisory invariants under SG2 surface drift.
+- Outcome: DSPx now preserves zero-valued selected ranking scores and fails the counterfactual advisory closed when SG2 readiness/divergence/audit statuses drift, selected-candidate identity disagrees across SG2 surfaces, or divergence comparison-set payloads are malformed, without changing V7 ranking or promotion behavior.
+- Files changed: `diary/2026-03-28--fail-closed-counterfactual-advisory-invariants.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-487.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, and `tests/test_module_synthesis_evidence.py`.
+- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py` ✅; `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `uv run -q python scripts/check_task_scope.py --task-id 487 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 487 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-487` is complete as an operator-directed SG2 guardrail hardening slice; `TG19` remains complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue still points at `AK-317`.
 - Next-session starting point: confirm the repo-scoped ready queue still points at `AK-317`, then claim it and remove the repo-local `rocs_cli` GitLab baseline-resolution compatibility path unless the operator redirects the repo back to a new SG2 contract slice.
 
 ## END-OF-SESSION

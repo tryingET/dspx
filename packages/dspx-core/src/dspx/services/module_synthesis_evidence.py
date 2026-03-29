@@ -2246,6 +2246,8 @@ def _candidate_prior_counterfactual_selected_candidate_view(
     rank = _as_int(comparison.get("rank"), default=0)
     if rank <= 0:
         rank = _as_int(divergence.get("rank"), default=0)
+    comparison_ranking_score = _optional_float(comparison.get("ranking_score"))
+    divergence_ranking_score = _optional_float(divergence.get("ranking_score"))
     return {
         "candidate_id": _optional_str(audit.get("candidate_id"))
         or _optional_str(divergence.get("candidate_id")),
@@ -2254,8 +2256,11 @@ def _candidate_prior_counterfactual_selected_candidate_view(
         "variant_origin": _optional_str(audit.get("variant_origin"))
         or _optional_str(divergence.get("variant_origin")),
         "rank": rank if rank > 0 else None,
-        "ranking_score": _optional_float(comparison.get("ranking_score"))
-        or _optional_float(divergence.get("ranking_score")),
+        "ranking_score": (
+            comparison_ranking_score
+            if comparison_ranking_score is not None
+            else divergence_ranking_score
+        ),
     }
 
 
@@ -2313,6 +2318,45 @@ def build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
     }
 
 
+_COUNTERFACTUAL_ALLOWED_READINESS_STATUSES = {
+    "candidate_prior_readiness_unavailable",
+    "insufficient_prior_history",
+    "priors_consistently_convergent",
+    "priors_mostly_blocked_by_runtime_failures",
+    "priors_mostly_outscored_under_v7",
+    "priors_mixed_or_inconclusive",
+}
+
+_COUNTERFACTUAL_ALLOWED_AUDIT_STATUSES = {
+    "candidate_priors_unavailable",
+    "selected_matches_positive_winner_history",
+    "no_positive_prior_candidates",
+    "selected_candidate_prior_unsupported",
+    "selected_candidate_prior_degraded",
+    "positive_prior_candidates_present_but_not_selected",
+}
+
+_COUNTERFACTUAL_ALLOWED_DIVERGENCE_STATUSES = {
+    "candidate_prior_divergence_unavailable",
+    "no_divergence_to_explain",
+    "selected_candidate_prior_unresolved",
+    "divergence_explained_by_runtime_failures",
+    "divergence_explained_by_runtime_scoring",
+    "divergence_explained_by_mixed_runtime_outcomes",
+}
+
+
+def _candidate_prior_counterfactual_identity(
+    candidate: Mapping[str, Any] | None,
+) -> tuple[str | None, str | None, str | None]:
+    candidate_view = _as_dict(candidate)
+    return (
+        _optional_str(candidate_view.get("candidate_id")),
+        _optional_str(candidate_view.get("variant_id")),
+        _optional_str(candidate_view.get("variant_origin")),
+    )
+
+
 def build_module_synthesis_candidate_prior_counterfactual_advisory(
     candidate_prior_readiness_advisory: Mapping[str, Any] | None,
     candidate_prior_divergence_explanation: Mapping[str, Any] | None,
@@ -2360,6 +2404,33 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
             candidate_prior_audit=candidate_prior_audit,
             notes=[
                 "candidate-prior counterfactual advisory unavailable because required SG2 status fields are malformed"
+            ],
+        )
+    if readiness_status not in _COUNTERFACTUAL_ALLOWED_READINESS_STATUSES:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior readiness advisory status is unsupported"
+            ],
+        )
+    if divergence_status not in _COUNTERFACTUAL_ALLOWED_DIVERGENCE_STATUSES:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior divergence explanation status is unsupported"
+            ],
+        )
+    if audit_status not in _COUNTERFACTUAL_ALLOWED_AUDIT_STATUSES:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because candidate-prior audit status is unsupported"
             ],
         )
     if readiness_status == "candidate_prior_readiness_unavailable":
@@ -2444,6 +2515,17 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
     selected_candidate_divergence = _as_dict(
         candidate_prior_divergence_explanation.get("selected_candidate")
     )
+    if _candidate_prior_counterfactual_identity(
+        selected_candidate_audit
+    ) != _candidate_prior_counterfactual_identity(selected_candidate_divergence):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because selected-candidate identity disagrees across SG2 surfaces"
+            ],
+        )
     selected_candidate_id = _optional_str(selected_candidate_audit.get("candidate_id"))
     if selected_candidate_id is None:
         return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
@@ -2470,6 +2552,39 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
             ],
         )
     compared_candidates = [dict(item) for item in raw_compared_candidates]
+    divergence_compared_candidates_raw = candidate_prior_divergence_explanation.get(
+        "compared_positive_prior_candidates"
+    )
+    if not isinstance(divergence_compared_candidates_raw, list) or any(
+        not isinstance(item, Mapping) for item in divergence_compared_candidates_raw
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because divergence compared-candidate payload is malformed"
+            ],
+        )
+    divergence_compared_candidate_ids = {
+        candidate_id
+        for item in divergence_compared_candidates_raw
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    audit_compared_candidate_ids = {
+        candidate_id
+        for item in compared_candidates
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    if divergence_compared_candidate_ids != audit_compared_candidate_ids:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because divergence compared-candidate identity disagrees with the audit comparison set"
+            ],
+        )
 
     comparison_by_id = {
         candidate_id: item
