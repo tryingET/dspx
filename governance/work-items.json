@@ -672,6 +672,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-29"
+        },
+        {
+          "id": "AK-TASK-0517",
+          "title": "Harden HTTP/OpenAPI/Forge boundary handling and dedup invariants",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Harden HTTP/OpenAPI/Forge boundary handling and dedup invariants (task #517)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-29"
         }
       ]
     }

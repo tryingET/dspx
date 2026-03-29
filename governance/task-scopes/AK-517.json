@@ -25,16 +25,9 @@
   ],
   "required_paths": [
     "diary/2026-03-29--harden-http-openapi-and-forge-boundary-handling.md",
+    "docs/project/operational_goals.md",
     "governance/task-scopes/AK-517.json",
-    "governance/work-items.json",
-    "next_session_prompt.md",
-    "tests/test_forge_gitlab_client.py",
-    "tests/test_forge_mvp.py",
-    "tests/test_openapi_registry_tools.py",
-    "tests/test_openapi_toolpack.py",
-    "tests/test_openapi_url_loading.py",
-    "tests/test_server_rate_limit.py",
-    "tests/test_web_tools_allowlist.py"
+    "next_session_prompt.md"
   ],
   "forbidden_paths": [
     "**/__pycache__/**",
