@@ -999,17 +999,27 @@ def extract_module_synthesis_ranked_candidate_comparison_inputs(
                 continue
             evaluation_summaries[candidate_id] = summary
 
+    current_candidates = {
+        candidate_id: candidate
+        for candidate in extract_module_synthesis_candidate_prior_inputs(synthesis)
+        if (candidate_id := _optional_str(candidate.get("candidate_id"))) is not None
+    }
+
     comparison_inputs: list[dict[str, Any]] = []
     for raw_candidate in _module_synthesis_ranked_candidate_payloads(synthesis):
         candidate_id = _optional_str(raw_candidate.get("candidate_id"))
         if candidate_id is None:
             continue
+        current_candidate = current_candidates.get(candidate_id, {})
         passed_raw = raw_candidate.get("passed")
         comparison_inputs.append(
             {
                 "candidate_id": candidate_id,
                 "rank": _as_int(raw_candidate.get("rank"), default=0),
-                "variant_id": _optional_str(raw_candidate.get("variant_id")),
+                "variant_id": _optional_str(raw_candidate.get("variant_id"))
+                or _optional_str(current_candidate.get("variant_id")),
+                "variant_origin": _optional_str(raw_candidate.get("variant_origin"))
+                or _optional_str(current_candidate.get("variant_origin")),
                 "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
                 "evaluation_status": _optional_str(raw_candidate.get("status")),
                 "passed": passed_raw if isinstance(passed_raw, bool) else None,
@@ -1018,6 +1028,125 @@ def extract_module_synthesis_ranked_candidate_comparison_inputs(
             }
         )
     return tuple(comparison_inputs)
+
+
+def _strict_positive_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, float):
+        if not value.is_integer():
+            return None
+        value_int = int(value)
+        return value_int if value_int > 0 else None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            value_int = int(text)
+        except ValueError:
+            return None
+        return value_int if value_int > 0 else None
+    return None
+
+
+def _strict_optional_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _candidate_prior_identity_conflicts(
+    *,
+    expected: Mapping[str, Any] | None,
+    observed: Mapping[str, Any] | None,
+) -> bool:
+    expected_view = _as_dict(expected)
+    observed_view = _as_dict(observed)
+    for field in ("candidate_id", "variant_id", "variant_origin"):
+        expected_value = _optional_str(expected_view.get(field))
+        observed_value = _optional_str(observed_view.get(field))
+        if (
+            expected_value is not None
+            and observed_value is not None
+            and expected_value != observed_value
+        ):
+            return True
+    return False
+
+
+def _duplicate_candidate_id(
+    candidates: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...],
+) -> str | None:
+    seen: set[str] = set()
+    for candidate in candidates:
+        candidate_id = _optional_str(candidate.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        if candidate_id in seen:
+            return candidate_id
+        seen.add(candidate_id)
+    return None
+
+
+def _canonicalize_candidate_prior_comparison_inputs(
+    ranked_candidate_comparison_inputs: tuple[dict[str, Any], ...],
+) -> dict[str, dict[str, Any]] | None:
+    comparison_by_id: dict[str, dict[str, Any]] = {}
+    for raw_candidate in ranked_candidate_comparison_inputs:
+        if not isinstance(raw_candidate, Mapping):
+            return None
+        candidate_id = _optional_str(raw_candidate.get("candidate_id"))
+        rank = _strict_positive_int(raw_candidate.get("rank"))
+        evaluation_status = _optional_str(raw_candidate.get("evaluation_status"))
+        passed = raw_candidate.get("passed")
+        ranking_score = _strict_optional_float(raw_candidate.get("ranking_score"))
+        if (
+            candidate_id is None
+            or rank is None
+            or evaluation_status is None
+            or not isinstance(passed, bool)
+            or ranking_score is None
+            or candidate_id in comparison_by_id
+        ):
+            return None
+        comparison_by_id[candidate_id] = {
+            "candidate_id": candidate_id,
+            "rank": rank,
+            "variant_id": _optional_str(raw_candidate.get("variant_id")),
+            "variant_origin": _optional_str(raw_candidate.get("variant_origin")),
+            "ordinal": _as_int(raw_candidate.get("ordinal"), default=0),
+            "evaluation_status": evaluation_status,
+            "passed": passed,
+            "ranking_score": ranking_score,
+            "evaluation_summary": _optional_str(
+                raw_candidate.get("evaluation_summary")
+            ),
+        }
+    return comparison_by_id
+
+
+def _candidate_prior_identity_disagrees_with_current_comparison(
+    *,
+    candidate: Mapping[str, Any] | None,
+    comparison_candidate: Mapping[str, Any] | None,
+) -> bool:
+    return _candidate_prior_identity_conflicts(
+        expected=candidate,
+        observed=comparison_candidate,
+    )
 
 
 def _candidate_prior_identity_supported(identity: Mapping[str, Any]) -> bool:
@@ -1526,10 +1655,10 @@ def _candidate_prior_divergence_comparison_supported(
     comparison = _as_dict(comparison_candidate)
     return (
         _optional_str(comparison.get("candidate_id")) is not None
-        and _as_int(comparison.get("rank"), default=0) > 0
+        and _strict_positive_int(comparison.get("rank")) is not None
         and _optional_str(comparison.get("evaluation_status")) is not None
         and isinstance(comparison.get("passed"), bool)
-        and _optional_float(comparison.get("ranking_score")) is not None
+        and _strict_optional_float(comparison.get("ranking_score")) is not None
     )
 
 
@@ -1630,11 +1759,24 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
         candidate_prior_audit,
         compared_candidate_count=len(compared_candidates),
     )
-    comparison_by_id = {
-        candidate_id: item
-        for item in ranked_candidate_comparison_inputs
-        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
-    }
+    duplicate_compared_candidate_id = _duplicate_candidate_id(compared_candidates)
+    if duplicate_compared_candidate_id is not None:
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because the audit comparison set contains duplicate candidate_id entries"
+            ],
+        )
+    comparison_by_id = _canonicalize_candidate_prior_comparison_inputs(
+        ranked_candidate_comparison_inputs
+    )
+    if comparison_by_id is None:
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because trusted current comparison metadata is malformed or duplicated"
+            ],
+        )
     selected_comparison_candidate = (
         comparison_by_id.get(selected_candidate_id)
         if selected_candidate_id is not None
@@ -1724,6 +1866,13 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
         )
 
     selected_comparison = comparison_by_id.get(selected_candidate_id)
+    if selected_comparison is None:
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because trusted current comparison metadata for the selected candidate is incomplete"
+            ],
+        )
     if not _candidate_prior_divergence_comparison_supported(selected_comparison):
         return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
             candidate_prior_audit=candidate_prior_audit,
@@ -1731,11 +1880,21 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
                 "candidate-prior divergence explanation unavailable because trusted current comparison metadata for the selected candidate is incomplete"
             ],
         )
-    if selected_comparison is None or selected_comparison.get("passed") is not True:
+    if selected_comparison.get("passed") is not True:
         return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
             candidate_prior_audit=candidate_prior_audit,
             notes=[
                 "candidate-prior divergence explanation unavailable because the selected candidate lacks a trusted passing runtime result"
+            ],
+        )
+    if _candidate_prior_identity_disagrees_with_current_comparison(
+        candidate=selected_candidate_audit,
+        comparison_candidate=selected_comparison,
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior divergence explanation unavailable because selected candidate identity disagrees with trusted current comparison metadata"
             ],
         )
 
@@ -1757,6 +1916,13 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
                 ],
             )
         comparison_candidate = comparison_by_id.get(candidate_id)
+        if comparison_candidate is None:
+            return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior divergence explanation unavailable because a compared positive-prior candidate is absent from trusted current comparison metadata"
+                ],
+            )
         if not _candidate_prior_divergence_comparison_supported(comparison_candidate):
             return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
                 candidate_prior_audit=candidate_prior_audit,
@@ -1764,11 +1930,14 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
                     "candidate-prior divergence explanation unavailable because trusted current comparison metadata is incomplete for at least one compared positive-prior candidate"
                 ],
             )
-        if comparison_candidate is None:
+        if _candidate_prior_identity_disagrees_with_current_comparison(
+            candidate=compared_candidate,
+            comparison_candidate=comparison_candidate,
+        ):
             return build_unavailable_module_synthesis_candidate_prior_divergence_explanation(
                 candidate_prior_audit=candidate_prior_audit,
                 notes=[
-                    "candidate-prior divergence explanation unavailable because a compared positive-prior candidate is absent from trusted current comparison metadata"
+                    "candidate-prior divergence explanation unavailable because a compared positive-prior candidate identity disagrees with trusted current comparison metadata"
                 ],
             )
 
@@ -2566,6 +2735,28 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
                 "candidate-prior counterfactual advisory unavailable because divergence compared-candidate payload is malformed"
             ],
         )
+    duplicate_compared_candidate_id = _duplicate_candidate_id(compared_candidates)
+    if duplicate_compared_candidate_id is not None:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because the audit comparison set contains duplicate candidate_id entries"
+            ],
+        )
+    duplicate_divergence_compared_candidate_id = _duplicate_candidate_id(
+        [dict(item) for item in divergence_compared_candidates_raw]
+    )
+    if duplicate_divergence_compared_candidate_id is not None:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because divergence compared-candidate payload contains duplicate candidate_id entries"
+            ],
+        )
     divergence_compared_candidate_ids = {
         candidate_id
         for item in divergence_compared_candidates_raw
@@ -2586,12 +2777,28 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
             ],
         )
 
-    comparison_by_id = {
-        candidate_id: item
-        for item in ranked_candidate_comparison_inputs
-        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
-    }
+    comparison_by_id = _canonicalize_candidate_prior_comparison_inputs(
+        ranked_candidate_comparison_inputs
+    )
+    if comparison_by_id is None:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because trusted current comparison metadata is malformed or duplicated"
+            ],
+        )
     selected_comparison = comparison_by_id.get(selected_candidate_id)
+    if selected_comparison is None:
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because trusted current comparison metadata for the selected candidate is incomplete"
+            ],
+        )
     if not _candidate_prior_divergence_comparison_supported(selected_comparison):
         return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
             candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
@@ -2601,13 +2808,25 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
                 "candidate-prior counterfactual advisory unavailable because trusted current comparison metadata for the selected candidate is incomplete"
             ],
         )
-    if selected_comparison is None or selected_comparison.get("passed") is not True:
+    if selected_comparison.get("passed") is not True:
         return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
             candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
             candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
             candidate_prior_audit=candidate_prior_audit,
             notes=[
                 "candidate-prior counterfactual advisory unavailable because the selected candidate lacks a trusted passing runtime result"
+            ],
+        )
+    if _candidate_prior_identity_disagrees_with_current_comparison(
+        candidate=selected_candidate_audit,
+        comparison_candidate=selected_comparison,
+    ):
+        return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_audit=candidate_prior_audit,
+            notes=[
+                "candidate-prior counterfactual advisory unavailable because selected candidate identity disagrees with trusted current comparison metadata"
             ],
         )
 
@@ -2644,6 +2863,15 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
                 ],
             )
         comparison_candidate = comparison_by_id.get(candidate_id)
+        if comparison_candidate is None:
+            return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_audit=candidate_prior_audit,
+                notes=[
+                    "candidate-prior counterfactual advisory unavailable because a compared positive-prior candidate is absent from trusted current comparison metadata"
+                ],
+            )
         if not _candidate_prior_divergence_comparison_supported(comparison_candidate):
             return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
                 candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
@@ -2653,13 +2881,16 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
                     "candidate-prior counterfactual advisory unavailable because trusted current comparison metadata is incomplete for at least one compared positive-prior candidate"
                 ],
             )
-        if comparison_candidate is None:
+        if _candidate_prior_identity_disagrees_with_current_comparison(
+            candidate=compared_candidate,
+            comparison_candidate=comparison_candidate,
+        ):
             return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
                 candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
                 candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
                 candidate_prior_audit=candidate_prior_audit,
                 notes=[
-                    "candidate-prior counterfactual advisory unavailable because a compared positive-prior candidate is absent from trusted current comparison metadata"
+                    "candidate-prior counterfactual advisory unavailable because a compared positive-prior candidate identity disagrees with trusted current comparison metadata"
                 ],
             )
 

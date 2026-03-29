@@ -455,6 +455,7 @@ def _ranking_entry(
         "score": evaluation.score,
         "evaluation_id": evaluation.evaluation_id,
         "variant_id": candidate.metadata.get("variant_id"),
+        "variant_origin": candidate.lineage.get("variant_origin"),
         "variant_label": candidate.metadata.get("variant_label"),
         "selection_basis": candidate.metadata.get("selection_basis"),
         "passed": passed,
@@ -529,6 +530,7 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
                 "selection_bonus": bonus,
                 "selection_basis": candidate.metadata.get("selection_basis"),
                 "variant_id": candidate.metadata.get("variant_id"),
+                "variant_origin": candidate.lineage.get("variant_origin"),
                 "variant_label": candidate.metadata.get("variant_label"),
                 "ranking_components": {
                     "runtime_validation_gate": 100.0 if passed else 0.0,
