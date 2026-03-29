@@ -633,6 +633,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-29"
+        },
+        {
+          "id": "AK-TASK-0502",
+          "title": "Workflow guardrails: refresh idle-state handoff after empty ready-queue confirmation",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: refresh idle-state handoff after empty ready-queue confirmation (task #502)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-29"
         }
       ]
     }

@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Confirm the repo-scoped ready queue is still empty after `AK-317` and wait for the next operator-directed slice or a newly frozen SG2 contract before editing code.
+- Objective (one sentence): Confirm the repo-scoped DSPx AK ready queue is still empty, keep the handoff aligned with the operating-plan docs, and then wait for the next operator-directed slice or newly frozen SG2 contract before editing code.
 - Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-317` is complete and committed; `TG19` remains complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue stays empty unless the operator or AK changes it.
+- Assumptions (max 3): `TG19`, `AK-487`, `AK-493`, `AK-317`, and `AK-502` are complete; no next SG2 implementation slice is pinned yet; any new implementation work requires either operator direction or a repo-scoped ready AK task.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,25 +42,26 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-28--remove-rocs-cli-gitlab-baseline-compatibility-path.md`
+7. `diary/2026-03-29--confirm-empty-ready-queue-and-refresh-handoff.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the ready queue with `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. Claim the current active task before editing docs or code.
-4. Implement one operating slice end-to-end.
-5. Validate:
+3. If the repo-scoped ready queue is empty, do not start a new implementation slice; wait for operator direction or a newly ready AK slice.
+4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
+5. Implement at most one operating slice end-to-end.
+6. Validate the slice with:
    - `./scripts/ci/smoke.sh`
    - `just verify-full`
-6. Update source-of-truth docs/diary/ADR references before commit.
+7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-317` — remove the repo-local `rocs_cli` GitLab baseline-resolution compatibility path.
-- Outcome: DSPx now points its ontology manifest at workspace-only `repo:` locators, no longer vendors `tools/rocs-cli`, and resolves ROCS through workspace core or `PATH` instead of the repo-local compatibility copy.
-- Files changed: `diary/2026-03-28--remove-rocs-cli-gitlab-baseline-compatibility-path.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-317.json`, `governance/work-items.json`, `next_session_prompt.md`, `ontology/index.md`, `ontology/manifest.yaml`, `scripts/check_direction_to_execution.py`, `scripts/rocs.sh`, and deleted `tools/rocs-cli/**`.
-- Validation commands + results: `./scripts/rocs.sh --doctor` ✅; `./scripts/rocs.sh --which` ✅; `uv run -q python scripts/check_task_scope.py --task-id 317 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 317 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-317` is complete; `TG19` remains complete; no next SG2 implementation slice is pinned; the repo-scoped ready queue is empty.
-- Next-session starting point: confirm the repo-scoped ready queue is still empty, then wait for operator direction or a newly frozen SG2 contract before starting another slice.
+- Slice executed: `AK-502` — refresh the idle-state handoff after confirming the empty repo-scoped ready queue.
+- Outcome: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` still returns `[]`; no repo-scoped implementation slice is pinned in AK; the repo remains idle until operator direction or a newly frozen SG2 contract produces the next slice.
+- Files changed: `diary/2026-03-29--confirm-empty-ready-queue-and-refresh-handoff.md`, `governance/task-scopes/AK-502.json`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ (`[]`); `ak task list -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id, status, title})'` ✅; `just task-scope-check 502 working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `ak task complete 502 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `just verify-full` ✅.
+- Source-of-truth updates: refreshed `next_session_prompt.md` to match `docs/project/operational_goals.md`, recorded the confirmation session in `diary/2026-03-29--confirm-empty-ready-queue-and-refresh-handoff.md`, and added `governance/task-scopes/AK-502.json` for the handoff-refresh slice.
+- Next-session starting point: re-run the repo-scoped `ak task ready` filter; if it is still empty, wait for operator direction or a newly frozen SG2 contract before starting another slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
