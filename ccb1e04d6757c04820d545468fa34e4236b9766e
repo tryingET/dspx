@@ -1,0 +1,25 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "ccb1e04d6757c04820d545468fa34e4236b9766e"
+created_at: "2026-03-29T03:22:39Z"
+intent: "harden candidate-prior divergence and counterfactual advisory pipelines against identity drift and malformed comparison metadata"
+files:
+  - "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py"
+  - "packages/dspx-core/src/dspx/synthesis/runtime.py"
+  - "tests/test_module_synthesis_evidence.py"
+validation:
+  fast_gate:
+    command: "just verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "single coherent change hardening identity checks and variant_origin propagation across evidence and runtime"
+links:
+  diary:
+    - "."
