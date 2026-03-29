@@ -54,6 +54,10 @@ def _issue_local_id(doc: WorkOrderDoc) -> str:
     return f"iss_{slugify(wo.title, max_len=24)}_{digest}"
 
 
+def _stable_system_definition_card_ref(doc: WorkOrderDoc) -> str:
+    return f"workorder://{doc.work_order.id}/system_definition_card.md"
+
+
 def build_issue_spec(
     doc: WorkOrderDoc, *, project_key: Optional[str] = None
 ) -> IssueSpecDoc:
@@ -61,11 +65,11 @@ def build_issue_spec(
     pk = project_key or wo.routing.primary_project or "core"
     local_id = _issue_local_id(doc)
 
-    system_card = (Path(wo.outputs.out_dir) / "system_definition_card.md").as_posix()
+    system_card_ref = _stable_system_definition_card_ref(doc)
     managed = build_managed_block(
         workorder_id=wo.id,
         fingerprint=wo.fingerprint,
-        system_definition_card_path=system_card,
+        system_definition_card_path=system_card_ref,
     )
     description = (
         "\n\n".join(

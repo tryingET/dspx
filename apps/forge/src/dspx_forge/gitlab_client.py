@@ -190,17 +190,39 @@ class GitLabClient:
     def list_issues(
         self, project_id: int, *, labels: list[str]
     ) -> list[dict[str, Any]]:
-        params = {"labels": ",".join(labels)} if labels else {}
-        resp = self._request(
-            "GET", f"/api/v4/projects/{project_id}/issues", params=params
-        )
-        if resp.status_code == 401 or resp.status_code == 403:
-            raise PermissionError("GitLab auth failed (401/403)")
-        if resp.status_code == 404:
-            raise FileNotFoundError(f"GitLab project not found: {project_id}")
-        resp.raise_for_status()
-        data = resp.json()
-        return data if isinstance(data, list) else []
+        page = 1
+        issues: list[dict[str, Any]] = []
+        while True:
+            params = {
+                "labels": ",".join(labels),
+                "page": page,
+                "per_page": 100,
+            }
+            resp = self._request(
+                "GET",
+                f"/api/v4/projects/{project_id}/issues",
+                params=params,
+            )
+            if resp.status_code == 401 or resp.status_code == 403:
+                raise PermissionError("GitLab auth failed (401/403)")
+            if resp.status_code == 404:
+                raise FileNotFoundError(f"GitLab project not found: {project_id}")
+            resp.raise_for_status()
+            data = resp.json()
+            batch = data if isinstance(data, list) else []
+            issues.extend(item for item in batch if isinstance(item, dict))
+
+            next_page = str(resp.headers.get("x-next-page") or "").strip()
+            if next_page:
+                try:
+                    page = int(next_page)
+                    continue
+                except Exception:
+                    pass
+            if len(batch) < 100:
+                break
+            page += 1
+        return issues
 
     def get_issue(self, project_id: int, iid: int) -> dict[str, Any]:
         resp = self._request("GET", f"/api/v4/projects/{project_id}/issues/{iid}")

@@ -53,6 +53,20 @@ def test_collect_scope_issues_rejects_files_outside_manifest() -> None:
     assert any(issue.message == "falls outside attested task scope" for issue in issues)
 
 
+def test_collect_scope_issues_rejects_root_level_forbidden_artifacts() -> None:
+    manifest = TaskScopeManifest(
+        task_id=266,
+        description="test",
+        allowed_paths=("**",),
+    )
+
+    issues = collect_scope_issues(manifest, ["foo.pyc", "bar.backup"])
+
+    assert any(issue.path == "foo.pyc" for issue in issues)
+    assert any(issue.path == "bar.backup" for issue in issues)
+    assert all(issue.message == "matches forbidden path pattern" for issue in issues)
+
+
 def test_load_manifest_roundtrip(tmp_path: Path) -> None:
     path = tmp_path / "AK-266.json"
     path.write_text(

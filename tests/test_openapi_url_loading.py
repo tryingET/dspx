@@ -60,6 +60,12 @@ def test_load_spec_url_rejects_unallowed_host(tmp_path: Path) -> None:
         pass
 
 
+def test_load_spec_url_rejects_empty_allowlist(tmp_path: Path) -> None:
+    url = "http://api.example.com/spec.json"
+    with pytest.raises(PermissionError):
+        load_spec(url, allowed_hosts={})
+
+
 def test_load_spec_url_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None:
     seen: list[str] = []
 

@@ -28,12 +28,8 @@ tests_pid=$!
 
 runtime_status=0
 tests_status=0
-if ! wait "$runtime_pid"; then
-  runtime_status=$?
-fi
-if ! wait "$tests_pid"; then
-  tests_status=$?
-fi
+wait "$runtime_pid" || runtime_status=$?
+wait "$tests_pid" || tests_status=$?
 
 say "--- verify-runtime output ---"
 cat "$log_dir/runtime.log"

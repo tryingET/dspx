@@ -202,6 +202,7 @@ work_order:
 Notes:
 - `project_key` selects the GitLab project from the routing map.
 - `depends_on` entries are fully-qualified as `<project_key>/<issue_local_id>`.
+- The managed block stores the 4D card as a stable `workorder://<workorder_id>/system_definition_card.md` reference so issue identity does not drift with the local output root or current working directory.
 
 ```yaml
 issue_spec:
@@ -214,7 +215,7 @@ issue_spec:
     Context...
     - WorkOrder: wo_build_cli_ab12cd34
     - Fingerprint: sha256:...
-    - 4D: generated/forge/wo_build_cli_ab12cd34/system_definition_card.md
+    - 4D: workorder://wo_build_cli_ab12cd34/system_definition_card.md
     <!-- DSPX_FINGERPRINT: sha256:... -->
     <!-- DSPX_MANAGED_END -->
 

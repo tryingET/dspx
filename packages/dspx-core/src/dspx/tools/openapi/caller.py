@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import httpx
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, cast
 import re as _re
 from urllib.parse import quote, urljoin
 
@@ -51,6 +51,20 @@ def _coerce_numeric_param(value: Any, *, integer: bool, label: str) -> float | i
         raise ValueError(f"{label}: expected {expected}")
 
 
+def _exclusive_threshold(
+    schema: Mapping[str, Any], *, key: str, fallback_key: str
+) -> float | None:
+    raw = schema.get(key)
+    if isinstance(raw, bool):
+        if not raw:
+            return None
+        fallback = schema.get(fallback_key)
+        return float(fallback) if fallback is not None else None
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    return None
+
+
 def _validate_numeric_bounds(
     value: float | int, schema: Mapping[str, Any], *, label: str
 ) -> None:
@@ -58,19 +72,21 @@ def _validate_numeric_bounds(
         raise ValueError(f"{label}: below minimum")
     if "maximum" in schema and value > float(schema["maximum"]):
         raise ValueError(f"{label}: above maximum")
-    minimum = schema.get("minimum")
-    if (
-        minimum is not None
-        and schema.get("exclusiveMinimum")
-        and value <= float(minimum)
-    ):
+
+    exclusive_minimum = _exclusive_threshold(
+        schema,
+        key="exclusiveMinimum",
+        fallback_key="minimum",
+    )
+    if exclusive_minimum is not None and value <= exclusive_minimum:
         raise ValueError(f"{label}: <= exclusiveMinimum")
-    maximum = schema.get("maximum")
-    if (
-        maximum is not None
-        and schema.get("exclusiveMaximum")
-        and value >= float(maximum)
-    ):
+
+    exclusive_maximum = _exclusive_threshold(
+        schema,
+        key="exclusiveMaximum",
+        fallback_key="maximum",
+    )
+    if exclusive_maximum is not None and value >= exclusive_maximum:
         raise ValueError(f"{label}: >= exclusiveMaximum")
 
 
@@ -400,7 +416,7 @@ def _validate_json_value_against_schema(
 ) -> None:
     """Recursive, conservative validation against a subset of JSON Schema used in OpenAPI.
 
-    Supported: type, enum, required, properties, items, oneOf/anyOf, $ref (local), allOf (object merge),
+    Supported: type, enum, required, properties, items, oneOf/anyOf, $ref (local), allOf,
     and a small set of bounds (min/max length, numeric min/max, min/max items, pattern).
     Raises ValueError with a helpful message on the first failure.
     """
@@ -423,6 +439,33 @@ def _validate_json_value_against_schema(
     if "const" in schema:
         if value != schema.get("const"):
             raise ValueError(f"{path}: value must equal const")
+
+    all_of = schema.get("allOf")
+    if isinstance(all_of, list) and all_of:
+        for idx, branch in enumerate(all_of):
+            branch_schema = (
+                cast(Mapping[str, Any], branch) if isinstance(branch, Mapping) else {}
+            )
+            try:
+                _validate_json_value_against_schema(
+                    value,
+                    branch_schema,
+                    path=path,
+                    _depth=_depth + 1,
+                    _max=_max,
+                )
+            except ValueError as e:
+                raise ValueError(f"{path}: allOf[{idx}] failed: {e}") from e
+        remainder = {k: v for k, v in schema.items() if k != "allOf"}
+        if remainder:
+            _validate_json_value_against_schema(
+                value,
+                remainder,
+                path=path,
+                _depth=_depth + 1,
+                _max=_max,
+            )
+        return
 
     # Combinators: oneOf/anyOf
     for key in ("oneOf", "anyOf"):
@@ -553,9 +596,19 @@ def _validate_json_value_against_schema(
                 raise ValueError(f"{path}: below minimum")
             if "maximum" in schema and v > int(schema["maximum"]):
                 raise ValueError(f"{path}: above maximum")
-            if schema.get("exclusiveMinimum") and v <= int(schema.get("minimum", v)):
+            exclusive_minimum = _exclusive_threshold(
+                schema,
+                key="exclusiveMinimum",
+                fallback_key="minimum",
+            )
+            if exclusive_minimum is not None and v <= exclusive_minimum:
                 raise ValueError(f"{path}: <= exclusiveMinimum")
-            if schema.get("exclusiveMaximum") and v >= int(schema.get("maximum", v)):
+            exclusive_maximum = _exclusive_threshold(
+                schema,
+                key="exclusiveMaximum",
+                fallback_key="maximum",
+            )
+            if exclusive_maximum is not None and v >= exclusive_maximum:
                 raise ValueError(f"{path}: >= exclusiveMaximum")
         except ValueError:
             raise
@@ -585,9 +638,19 @@ def _validate_json_value_against_schema(
                 raise ValueError(f"{path}: below minimum")
             if "maximum" in schema and v > float(schema["maximum"]):
                 raise ValueError(f"{path}: above maximum")
-            if schema.get("exclusiveMinimum") and v <= float(schema.get("minimum", v)):
+            exclusive_minimum = _exclusive_threshold(
+                schema,
+                key="exclusiveMinimum",
+                fallback_key="minimum",
+            )
+            if exclusive_minimum is not None and v <= exclusive_minimum:
                 raise ValueError(f"{path}: <= exclusiveMinimum")
-            if schema.get("exclusiveMaximum") and v >= float(schema.get("maximum", v)):
+            exclusive_maximum = _exclusive_threshold(
+                schema,
+                key="exclusiveMaximum",
+                fallback_key="maximum",
+            )
+            if exclusive_maximum is not None and v >= exclusive_maximum:
                 raise ValueError(f"{path}: >= exclusiveMaximum")
         except ValueError:
             raise
@@ -642,7 +705,7 @@ def _resolve_schema(
     components: Mapping[str, Any],
     _seen: Optional[set[str]] = None,
 ) -> Mapping[str, Any]:
-    """Resolve $ref and merge allOf for object schemas (shallow) recursively.
+    """Resolve $ref recursively while preserving combinator semantics.
 
     Only resolves local refs under #/components/schemas. Returns a new dict.
     """
@@ -669,41 +732,19 @@ def _resolve_schema(
             return _resolve_schema(target, components, _seen)
         # Unresolvable: return as-is
         return schema
-    # allOf merge (object schemas)
+    # Preserve allOf semantics; resolve refs within each branch.
+    out = dict(schema)
     all_of = schema.get("allOf")
     if isinstance(all_of, list):
-        merged: Dict[str, Any] = {}
-        required: set[str] = set()
-        props: Dict[str, Any] = {}
-        for part in all_of:
-            part = _resolve_schema(part or {}, components, _seen)
-            if not isinstance(part, Mapping):
-                continue
-            if (
-                part.get("type") == "object"
-                or "properties" in part
-                or "required" in part
-            ):
-                rp = part.get("properties") or {}
-                if isinstance(rp, Mapping):
-                    props.update(rp)  # later wins
-                rr = part.get("required") or []
-                try:
-                    required.update([str(x) for x in rr])
-                except Exception:
-                    pass
-                # carry other object-level constraints conservatively
-        if props or required:
-            merged.update({"type": "object", "properties": props})
-            if required:
-                merged["required"] = sorted(required)
-            # Merge back any additional top-level keywords except allOf
-            for k, v in schema.items():
-                if k not in {"allOf", "properties", "required", "type"}:
-                    merged[k] = v
-            return merged
+        out["allOf"] = [
+            (
+                _resolve_schema(part or {}, components, _seen)
+                if isinstance(part, Mapping)
+                else part
+            )
+            for part in all_of
+        ]
     # Recurse into object properties/items
-    out = dict(schema)
     if isinstance(schema.get("properties"), Mapping):
         new_props: Dict[str, Any] = {}
         for k, v in schema["properties"].items():

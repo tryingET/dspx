@@ -15,7 +15,7 @@ OpenAPI‑described HTTP APIs are exposed as safe, policy‑aware tools that can
 Key Features
 ------------
 - Loader: `dspx.tools.openapi.load_spec(path_or_url)`
-  - JSON and YAML (via PyYAML). URLs enforce per‑call host allowlists and support on‑disk caching (`DSPX_OPENAPI_CACHE[=_1_]`, `DSPX_OPENAPI_CACHE_DIR`).
+  - JSON and YAML (via PyYAML). URLs enforce per‑call host allowlists, fail closed on an explicit empty allowlist, and support on‑disk caching (`DSPX_OPENAPI_CACHE[=_1_]`, `DSPX_OPENAPI_CACHE_DIR`).
 - Operation extraction: `extract_operation_infos(spec)`
   - Merges path‑level and op‑level params; captures method, path, server, tags, summary, requestBody schema, and response schemas.
 - Caller: `call_operation(request, operation, allowed_hosts, client=None)`
@@ -43,7 +43,7 @@ Mermaid Integration
 
 Policy & Safety
 ---------------
-- Host allowlists at call time; mutating methods (POST/PUT/PATCH/DELETE) require explicit allowance.
+- Host allowlists at call time; mutating methods (POST/PUT/PATCH/DELETE) require explicit allowance, and an explicit empty allowlist denies all URL-based access.
 - Capability gating for `network.read` vs `network.mutate`. Optional dry‑run prints a redacted preview.
 - Redaction covers URL userinfo and sensitive headers; MLflow logging integrates with standard tags.
 
@@ -55,9 +55,9 @@ Validation Coverage (Current)
   - Array: item validation for primitives and objects (arrays of objects supported).
   - Nested objects: validates nested required/primitive types recursively.
   - `$ref`: resolves local refs under `#/components/schemas/*` (request bodies) and `#/components/parameters/*` (path/query params).
-  - `allOf`: shallow merge for object schemas (properties + required; later wins).
+  - `allOf`: preserves branch semantics during validation, resolves local refs inside each branch, and keeps branch-local constraints such as `required` and `additionalProperties` instead of flattening them into a shallow object merge.
   - Combinators: basic `oneOf|anyOf` handling (passes when any branch validates).
-  - Bounds: `minLength|maxLength|pattern` for strings; `minimum|maximum|exclusiveMinimum|exclusiveMaximum` for numbers/integers; `minItems|maxItems` for arrays.
+  - Bounds: `minLength|maxLength|pattern` for strings; `minimum|maximum|exclusiveMinimum|exclusiveMaximum` for numbers/integers (including OpenAPI 3.1 numeric exclusive thresholds); `minItems|maxItems` for arrays.
   - Objects: `minProperties|maxProperties` and `additionalProperties` (false rejects unknown keys; schema validates extras).
   - Nullable: OpenAPI `nullable: true` and JSON Schema `type: ["...", "null"]` accept `null` values.
   - Numeric: `multipleOf` (best-effort float-safe check).
@@ -66,7 +66,7 @@ Validation Coverage (Current)
 Limitations (Deliberate)
 ------------------------
 - No remote `$ref` resolution (only local `#/components/...`).
-- `allOf` merge is shallow (object-ish only); deep conflict semantics are intentionally conservative.
+- `allOf` support is still conservative: DSPx validates each resolved branch plus enclosing constraints, but it does not attempt full schema normalization or advanced conflict explanation across deeply composed branches.
 - No advanced constraints (`format`, `not`, tuple-typed arrays, etc.).
 - Arrays with tuple typing (`items: [..]`) are treated as unconstrained.
 - Only `application/json` request bodies are validated.
@@ -88,6 +88,6 @@ Examples
 Roadmap
 -------
 - More complete `$ref` support (response schemas; additional component locations; optional remote refs).
-- More faithful `allOf` semantics (deep merge + conflict handling).
+- Richer `allOf` conflict diagnostics and broader schema-composition coverage.
 - Deeper nested arrays/objects with numeric/string bounds.
 - Expanded response schema summaries and example generation.

@@ -113,3 +113,59 @@ def test_path_exclusive_numeric_bounds_enforced(
     )
     assert result.status_code == 200
     assert result.body == {"ok": True, "url": "http://api.example.com/items/6"}
+
+
+def test_numeric_exclusive_bounds_support_openapi_31_form(
+    tmp_path: Path, mock_client: httpx.Client
+) -> None:
+    spec = {
+        "openapi": "3.1.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/search": {
+                "get": {
+                    "operationId": "search31",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "limit",
+                            "required": True,
+                            "schema": {
+                                "type": "number",
+                                "exclusiveMinimum": 5,
+                                "exclusiveMaximum": 10,
+                            },
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    spec_path = tmp_path / "spec31.json"
+    spec_path.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(spec_path)))
+
+    with pytest.raises(ValueError, match="exclusiveMinimum"):
+        call_operation(
+            OpenAPICallRequest(operation_id="search31", params={"limit": 5}),
+            operation=ops["search31"],
+            allowed_hosts={"api.example.com": True},
+            client=mock_client,
+        )
+
+    with pytest.raises(ValueError, match="exclusiveMaximum"):
+        call_operation(
+            OpenAPICallRequest(operation_id="search31", params={"limit": 10}),
+            operation=ops["search31"],
+            allowed_hosts={"api.example.com": True},
+            client=mock_client,
+        )
+
+    result = call_operation(
+        OpenAPICallRequest(operation_id="search31", params={"limit": 7.5}),
+        operation=ops["search31"],
+        allowed_hosts={"api.example.com": True},
+        client=mock_client,
+    )
+    assert result.status_code == 200

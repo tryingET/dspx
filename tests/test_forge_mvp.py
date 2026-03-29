@@ -95,10 +95,13 @@ def test_forge_custom_out_root_persists_into_workorder_and_issue_specs(
     assert loaded.work_order.outputs.out_dir == str(paths.root)
 
     spec = build_issue_spec(loaded)
-    assert str(paths.system_definition_card) in spec.issue_spec.description_md
+    assert (
+        f"workorder://{loaded.work_order.id}/system_definition_card.md"
+        in spec.issue_spec.description_md
+    )
 
 
-def test_forge_issue_spec_uses_stable_absolute_paths_across_cwd_changes(
+def test_forge_issue_spec_uses_stable_workorder_reference_across_cwd_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo_root = tmp_path / "repo"
@@ -116,7 +119,27 @@ def test_forge_issue_spec_uses_stable_absolute_paths_across_cwd_changes(
     monkeypatch.chdir(elsewhere)
 
     spec = build_issue_spec(loaded)
-    assert str(paths.system_definition_card) in spec.issue_spec.description_md
+    assert (
+        f"workorder://{loaded.work_order.id}/system_definition_card.md"
+        in spec.issue_spec.description_md
+    )
+
+
+def test_forge_issue_spec_fingerprint_stable_across_output_roots(
+    tmp_path: Path,
+) -> None:
+    prompt = "Build thing\nDo it safely"
+    first = write_workorder(tmp_path / "first-root", build_workorder(prompt))
+    second = write_workorder(tmp_path / "second-root", build_workorder(prompt))
+
+    loaded_first = load_workorder(first.workorder_yaml)
+    loaded_second = load_workorder(second.workorder_yaml)
+
+    spec_first = build_issue_spec(loaded_first)
+    spec_second = build_issue_spec(loaded_second)
+
+    assert loaded_first.work_order.fingerprint == loaded_second.work_order.fingerprint
+    assert spec_first.issue_spec.fingerprint == spec_second.issue_spec.fingerprint
 
 
 def test_forge_plan_marks_invalid_gitlab_map_as_unconfigured(

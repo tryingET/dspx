@@ -31,7 +31,12 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path) -> None:
                         {
                             "type": "object",
                             "required": ["active"],
-                            "properties": {"active": {"type": "boolean"}},
+                            "properties": {
+                                "name": {"type": "string"},
+                                "age": {"type": "integer"},
+                                "active": {"type": "boolean"},
+                            },
+                            "additionalProperties": False,
                         },
                     ]
                 },
@@ -102,6 +107,21 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path) -> None:
                 operation_id="updateUser",
                 params={"id": 1},
                 body={"name": "bc", "active": True},
+            ),
+            operation=ops["updateUser"],
+            allowed_hosts={"api.example.com": True},
+            client=httpx.Client(
+                transport=httpx.MockTransport(lambda r: httpx.Response(200))
+            ),
+        )
+
+    # Violates additionalProperties preserved inside allOf branch
+    with pytest.raises(ValueError, match="unexpected properties"):
+        call_operation(
+            OpenAPICallRequest(
+                operation_id="updateUser",
+                params={"id": 1},
+                body={"name": "abc", "active": True, "extra": "nope"},
             ),
             operation=ops["updateUser"],
             allowed_hosts={"api.example.com": True},

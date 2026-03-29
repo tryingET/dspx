@@ -291,7 +291,13 @@ def changed_files_for_working_tree(repo_root: Path) -> list[str]:
 
 def _matches_any(path: str, patterns: tuple[str, ...]) -> bool:
     path = path.replace("\\", "/")
-    return any(fnmatchcase(path, pattern) for pattern in patterns)
+    for pattern in patterns:
+        candidates = [pattern]
+        if pattern.startswith("**/"):
+            candidates.append(pattern[3:])
+        if any(fnmatchcase(path, candidate) for candidate in candidates):
+            return True
+    return False
 
 
 def collect_scope_issues(

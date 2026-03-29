@@ -724,6 +724,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-29"
+        },
+        {
+          "id": "AK-TASK-0534",
+          "title": "Boundary hardening: close residual allowlist/OpenAPI/Forge/verify-full regressions",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Boundary hardening: close residual allowlist/OpenAPI/Forge/verify-full regressions (task #534)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-29"
         }
       ]
     }

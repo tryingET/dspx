@@ -1,0 +1,39 @@
+{
+  "task_id": 534,
+  "description": "Close the residual allowlist/OpenAPI/Forge/verify-full regression gaps by failing closed on empty host allowlists, preserving allOf validation semantics and OpenAPI 3.1 exclusive numeric bounds, stabilizing Forge issue references/pagination, fixing verify-full parallel wait status capture, extending task-scope forbidden-path matching, and refreshing the repo handoff/projection artifacts.",
+  "allowed_paths": [
+    "apps/forge/src/dspx_forge/gitlab_client.py",
+    "apps/forge/src/dspx_forge/issues.py",
+    "diary/2026-03-29--close-residual-allowlist-openapi-forge-verify-full-regressions.md",
+    "docs/FORGE.md",
+    "docs/OPENAPI_TOOLING.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-534.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/http_guard.py",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "packages/dspx-core/src/dspx/tools/openapi/caller.py",
+    "scripts/ci/verify-full.sh",
+    "tests/test_forge_gitlab_client.py",
+    "tests/test_forge_mvp.py",
+    "tests/test_openapi_numeric_bounds.py",
+    "tests/test_openapi_schema_refs_allof.py",
+    "tests/test_openapi_url_loading.py",
+    "tests/test_task_scope.py",
+    "tests/test_verify_full.py",
+    "tests/test_web_tools_allowlist.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-29--close-residual-allowlist-openapi-forge-verify-full-regressions.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-534.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

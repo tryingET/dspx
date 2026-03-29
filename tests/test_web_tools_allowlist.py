@@ -39,6 +39,19 @@ def test_web_fetch_allows_allowed_host() -> None:
     assert "world" in out.get("text", "")
 
 
+def test_web_fetch_denies_empty_allowlist() -> None:
+    ensure_default_tools()
+    fn = get_tool("web_fetch")
+    client = _mock_ok("hello")
+
+    with pytest.raises(PermissionError):
+        fn(
+            "http://allowed.example/hi",
+            allowed_hosts={},
+            client=client,
+        )
+
+
 def test_web_scrape_respects_allowlist() -> None:
     ensure_default_tools()
     fn = get_tool("web_scrape")
