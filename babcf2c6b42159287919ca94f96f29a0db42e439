@@ -1,0 +1,28 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "babcf2c6b42159287919ca94f96f29a0db42e439"
+created_at: "2026-03-29T09:20:29Z"
+intent: "Reject GitLab client redirects that escape the configured allowlist."
+files:
+  - "apps/forge/src/dspx_forge/gitlab_client.py"
+  - "tests/test_forge_gitlab_client.py"
+validation:
+  fast_gate:
+    command: "uv run -m pytest -q tests/test_forge_gitlab_client.py"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 3
+  total: 7
+  rationale: "Forge GitLab transport hardening is isolated from the shared OpenAPI/web redirect changes."
+links:
+  task_ids:
+    - 517
+  evidence_ids:
+    - 368
+  diary:
+    - "."
