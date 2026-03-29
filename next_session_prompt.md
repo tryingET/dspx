@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Confirm the repo-scoped DSPx AK ready queue is still empty after `AK-531`, keep the handoff aligned with the operating-plan docs, and then wait for the next operator-directed slice or newly frozen SG2 contract before editing code.
+- Objective (one sentence): Confirm the repo-scoped DSPx AK ready queue is still empty after `AK-532`, keep the handoff aligned with the operating-plan docs, and then wait for the next operator-directed slice or newly frozen SG2 contract before editing code.
 - Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-531` is complete and committed; no next SG2 implementation slice is pinned yet; any new implementation work requires either operator direction or a repo-scoped ready AK task.
+- Assumptions (max 3): `AK-532` is complete and committed; no next SG2 implementation slice is pinned yet; any new implementation work requires either operator direction or a repo-scoped ready AK task.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-29--reconfirm-empty-ready-queue-and-refresh-handoff-at-current-head.md`
+7. `diary/2026-03-29--reconfirm-post-ak-531-empty-ready-queue-and-refresh-handoff-at-current-head.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -56,11 +56,11 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-531` — reconfirm empty repo-scoped ready queue and refresh idle-state handoff at current HEAD.
-- Outcome: Confirmed the repo-scoped `ak task ready` filter was empty before creating the operator-directed housekeeping slice, refreshed the handoff/diary/operating-plan artifacts at current HEAD, completed `AK-531`, and left the repo waiting for operator direction or a newly frozen SG2 contract before any new implementation slice.
-- Files changed: `diary/2026-03-29--reconfirm-empty-ready-queue-and-refresh-handoff-at-current-head.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-531.json`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ before `AK-531` (`[]`) and again after completion (`[]`); `just task-scope-check task_id=531 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 531 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: refreshed `next_session_prompt.md` and `docs/project/operational_goals.md` to keep the current-HEAD idle-state checkpoint aligned, recorded the confirmation in `diary/2026-03-29--reconfirm-empty-ready-queue-and-refresh-handoff-at-current-head.md`, and added `governance/task-scopes/AK-531.json` for the attested workflow slice.
+- Slice executed: `AK-532` — reconfirm post-`AK-531` empty repo-scoped ready queue and refresh idle-state handoff at current HEAD.
+- Outcome: Confirmed the repo-scoped `ak task ready` filter was still empty before creating the operator-directed housekeeping slice, refreshed the handoff/diary/operating-plan artifacts at current HEAD, completed `AK-532`, and left the repo waiting for operator direction or a newly frozen SG2 contract before any new implementation slice.
+- Files changed: `diary/2026-03-29--reconfirm-post-ak-531-empty-ready-queue-and-refresh-handoff-at-current-head.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-532.json`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ before `AK-532` (`[]`) and again after completion (`[]`); `just task-scope-check task_id=532 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 532 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: refreshed `next_session_prompt.md` and `docs/project/operational_goals.md` to keep the current-HEAD idle-state checkpoint aligned, recorded the confirmation in `diary/2026-03-29--reconfirm-post-ak-531-empty-ready-queue-and-refresh-handoff-at-current-head.md`, and added `governance/task-scopes/AK-532.json` for the attested workflow slice.
 - Next-session starting point: re-run the repo-scoped `ak task ready` filter; if it is still empty, wait for operator direction or a newly frozen SG2 contract before starting another slice.
 
 ## END-OF-SESSION
