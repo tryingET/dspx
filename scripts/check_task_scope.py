@@ -14,7 +14,26 @@ if str(SRC_ROOT) not in sys.path:
 from dspx.task_scope import check_task_scope, format_scope_result  # noqa: E402
 
 
-def _parse_args() -> argparse.Namespace:
+def _normalize_assignment_style_values(argv: list[str]) -> list[str]:
+    prefix_by_flag = {
+        "--task-id": ("task_id=",),
+        "--mode": ("mode=",),
+        "--range": ("rev_range=", "range="),
+    }
+    normalized = list(argv)
+    for index, token in enumerate(normalized[:-1]):
+        prefixes = prefix_by_flag.get(token)
+        if prefixes is None:
+            continue
+        value = normalized[index + 1]
+        for prefix in prefixes:
+            if value.startswith(prefix):
+                normalized[index + 1] = value[len(prefix) :]
+                break
+    return normalized
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Check an attested task slice against a file-scope manifest"
     )
@@ -36,7 +55,10 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--json", action="store_true")
-    return parser.parse_args()
+    normalized_argv = _normalize_assignment_style_values(
+        sys.argv[1:] if argv is None else argv
+    )
+    return parser.parse_args(normalized_argv)
 
 
 def main() -> int:

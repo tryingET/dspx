@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Confirm the repo-scoped DSPx AK ready queue is still empty, keep the handoff aligned with the operating-plan docs, and then wait for the next operator-directed slice or newly frozen SG2 contract before editing code.
+- Objective (one sentence): Confirm the repo-scoped DSPx AK ready queue is still empty after `AK-505`, keep the handoff aligned with the operating-plan docs, and then wait for the next operator-directed slice or newly frozen SG2 contract before editing code.
 - Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `TG19`, `AK-487`, `AK-493`, `AK-317`, and `AK-502` are complete; no next SG2 implementation slice is pinned yet; any new implementation work requires either operator direction or a repo-scoped ready AK task.
+- Assumptions (max 3): `TG19`, `AK-505`, `AK-493`, `AK-317`, and `AK-502` are complete; no next SG2 implementation slice is pinned yet; any new implementation work requires either operator direction or a repo-scoped ready AK task.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-29--confirm-empty-ready-queue-and-refresh-handoff.md`
+7. `diary/2026-03-29--make-documented-task-scope-check-invocation-executable.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -56,11 +56,11 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-502` — refresh the idle-state handoff after confirming the empty repo-scoped ready queue.
-- Outcome: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` still returns `[]`; no repo-scoped implementation slice is pinned in AK; the repo remains idle until operator direction or a newly frozen SG2 contract produces the next slice.
-- Files changed: `diary/2026-03-29--confirm-empty-ready-queue-and-refresh-handoff.md`, `governance/task-scopes/AK-502.json`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ (`[]`); `ak task list -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id, status, title})'` ✅; `just task-scope-check 502 working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `ak task complete 502 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `just verify-full` ✅.
-- Source-of-truth updates: refreshed `next_session_prompt.md` to match `docs/project/operational_goals.md`, recorded the confirmation session in `diary/2026-03-29--confirm-empty-ready-queue-and-refresh-handoff.md`, and added `governance/task-scopes/AK-502.json` for the handoff-refresh slice.
+- Slice executed: `AK-505` — make the documented `task-scope-check` invocation executable.
+- Outcome: the canonical `just task-scope-check task_id=<AK-ID> mode=working-tree` flow now works because `scripts/check_task_scope.py` normalizes the assignment-style values emitted by the Just recipe before `argparse` validation; the repo-scoped ready queue still returns `[]`, so no next implementation slice is pinned in AK.
+- Files changed: `diary/2026-03-29--make-documented-task-scope-check-invocation-executable.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-505.json`, `governance/work-items.json`, `next_session_prompt.md`, `scripts/check_task_scope.py`, `tests/test_task_scope.py`.
+- Validation commands + results: `python3 scripts/check_task_scope.py --root . --task-id task_id=505 --mode mode=working-tree --range rev_range=auto` ✅; `just task-scope-check task_id=505 mode=working-tree` ✅; `uv run -m pytest -q tests/test_task_scope.py` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 505 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: refreshed `next_session_prompt.md` to match `docs/project/operational_goals.md`, recorded the workflow-guardrail slice in `diary/2026-03-29--make-documented-task-scope-check-invocation-executable.md`, and added `governance/task-scopes/AK-505.json` for the command-boundary fix.
 - Next-session starting point: re-run the repo-scoped `ak task ready` filter; if it is still empty, wait for operator direction or a newly frozen SG2 contract before starting another slice.
 
 ## END-OF-SESSION

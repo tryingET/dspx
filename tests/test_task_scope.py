@@ -499,3 +499,56 @@ def test_check_task_scope_cli_help_matches_current_contract() -> None:
     assert "latest committed slice" not in proc.stdout
     assert "the full task slice from the task-scope manifest" in proc.stdout
     assert "introduction through HEAD" in proc.stdout
+
+
+def test_check_task_scope_cli_accepts_documented_assignment_style_values(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "check_task_scope.py"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--root",
+            str(repo),
+            "--task-id",
+            "task_id=266",
+            "--mode",
+            "mode=working-tree",
+            "--range",
+            "rev_range=auto",
+        ],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    assert "ok: task-scope-check task=AK-266 mode=working-tree" in proc.stdout
