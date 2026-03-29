@@ -1,0 +1,25 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "d6c0c9a98a2884b941a3cdfad11b9cb3d66c6420"
+created_at: "2026-03-29T03:57:20Z"
+intent: "fix the evidence helper typing so candidate-prior hardening passes repository typechecks without changing runtime behavior"
+files:
+  - "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py"
+validation:
+  fast_gate:
+    command: "just verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "narrow follow-up typing fix for the previous evidence hardening change"
+links:
+  task_ids:
+    - 493
+  diary:
+    - "."
