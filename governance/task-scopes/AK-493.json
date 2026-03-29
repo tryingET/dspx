@@ -7,6 +7,8 @@
     "governance/task-scopes/AK-493.json",
     "governance/work-items.json",
     "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "packages/dspx-core/src/dspx/synthesis/runtime.py",
     "tests/test_module_synthesis_evidence.py"
   ],
   "required_paths": [
@@ -14,6 +16,8 @@
     "docs/project/operational_goals.md",
     "governance/task-scopes/AK-493.json",
     "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "packages/dspx-core/src/dspx/synthesis/runtime.py",
     "tests/test_module_synthesis_evidence.py"
   ],
   "forbidden_paths": [
