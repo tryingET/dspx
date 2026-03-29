@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "dc76c7cd97bb29e8f00c8446dc26de362112cff5"
+created_at: "2026-03-29T08:43:50Z"
+intent: "Fix rate-limit middleware consuming tokens even when request is rejected"
+files:
+  - "packages/dspx-core/src/dspx/server/security.py"
+  - "tests/test_server_rate_limit.py"
+validation:
+  fast_gate:
+    command: "just fmt && just lint && just typecheck"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 2
+  total: 4
+  rationale: "Split TokenBucket.allow into would_allow + consume; call would_allow before reject, consume after"
+links:
+  diary:
+    - "."
