@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from dspx.http_guard import send_with_host_allowlist
 from dspx.policy import (
     allow_network_mutate as _policy_allow_mutate,
     allowed_http_methods as _policy_allowed_methods,
@@ -138,7 +139,7 @@ class GitLabClient:
         close_client = False
         client = self._client
         if client is None:
-            client = httpx.Client(timeout=20.0, follow_redirects=True)
+            client = httpx.Client(timeout=20.0)
             close_client = True
         try:
             url = f"{self.cfg.base_url}{path}"
@@ -147,8 +148,19 @@ class GitLabClient:
                 raise PermissionError(f"Host not allowed: {host}")
             headers = {"Authorization": f"Bearer {self.cfg.token}"}
             for _attempt in range(3):
-                resp = client.request(
-                    method, url, params=params, json=json_body, headers=headers
+                req = client.build_request(
+                    method,
+                    url,
+                    params=params,
+                    json=json_body,
+                    headers=headers,
+                )
+                resp = send_with_host_allowlist(
+                    client,
+                    req,
+                    allowed_hosts=self.cfg.allowed_hosts,
+                    blocked_error_prefix="Host not allowed",
+                    redirect_error_prefix="Redirect target host not allowed",
                 )
                 if resp.status_code != 429:
                     return resp
