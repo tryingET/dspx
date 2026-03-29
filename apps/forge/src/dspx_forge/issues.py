@@ -40,9 +40,18 @@ def default_paths(workorder_yaml: Path) -> ForgePaths:
     )
 
 
+def _workorder_fingerprint_digest(doc: WorkOrderDoc) -> str:
+    return doc.work_order.fingerprint.split(":", 1)[-1]
+
+
+def _workorder_label(doc: WorkOrderDoc) -> str:
+    return f"dspx-wo:{_workorder_fingerprint_digest(doc)[:8]}"
+
+
 def _issue_local_id(doc: WorkOrderDoc) -> str:
     wo = doc.work_order
-    return "iss_" + slugify(wo.title, max_len=24)
+    digest = _workorder_fingerprint_digest(doc)[:8]
+    return f"iss_{slugify(wo.title, max_len=24)}_{digest}"
 
 
 def build_issue_spec(
@@ -74,7 +83,7 @@ def build_issue_spec(
         list(
             {
                 "dspx-forge",
-                f"dspx-wo:{wo.fingerprint.split(':', 1)[-1][:8]}",
+                _workorder_label(doc),
                 f"dspx-iss:{local_id}",
             }
         )
@@ -138,6 +147,59 @@ def _gitlab_enabled() -> bool:
         (os.getenv("DSPX_GITLAB_BASE_URL") or "").strip()
         and (os.getenv("DSPX_GITLAB_TOKEN") or "").strip()
     )
+
+
+def _issue_matches_workorder_fingerprint(
+    issue: dict[str, Any], expected_fingerprint: str
+) -> bool:
+    description = str(issue.get("description") or "")
+    return f"<!-- DSPX_FINGERPRINT: {expected_fingerprint} -->" in description
+
+
+def _resolve_existing_issue(
+    gl: GitLabClient,
+    *,
+    project_id: int,
+    spec: IssueSpecDoc,
+    doc: WorkOrderDoc,
+) -> dict[str, Any] | None:
+    issue_label = f"dspx-iss:{spec.issue_spec.local_id}"
+    matches = gl.list_issues(project_id, labels=[issue_label])
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        raise RuntimeError(f"multiple GitLab issues match label {issue_label}")
+
+    workorder_label = _workorder_label(doc)
+    matches = gl.list_issues(project_id, labels=[workorder_label])
+    if not matches:
+        return None
+    if len(matches) == 1:
+        raw_mid = matches[0].get("iid")
+        if raw_mid is None:
+            raise RuntimeError("GitLab returned issue without iid")
+        mid = int(cast(Any, raw_mid))
+        existing = gl.get_issue(project_id, mid)
+        if _issue_matches_workorder_fingerprint(existing, doc.work_order.fingerprint):
+            return existing
+        return None
+
+    resolved: list[dict[str, Any]] = []
+    for match in matches:
+        raw_mid = match.get("iid")
+        if raw_mid is None:
+            continue
+        mid = int(cast(Any, raw_mid))
+        existing = gl.get_issue(project_id, mid)
+        if _issue_matches_workorder_fingerprint(existing, doc.work_order.fingerprint):
+            resolved.append(existing)
+    if len(resolved) == 1:
+        return resolved[0]
+    if len(resolved) > 1:
+        raise RuntimeError(
+            f"multiple GitLab issues match workorder fingerprint {doc.work_order.fingerprint}"
+        )
+    return None
 
 
 def apply_issue_specs(
@@ -220,13 +282,17 @@ def apply_issue_specs(
             }
             item.update({"action": "update", "iid": updated.get("iid")})
         else:
-            matches = gl.list_issues(project_id, labels=[f"dspx-iss:{iss.local_id}"])
-            if len(matches) == 1:
-                raw_mid = matches[0].get("iid")
+            existing = _resolve_existing_issue(
+                gl,
+                project_id=project_id,
+                spec=sdoc,
+                doc=doc,
+            )
+            if existing is not None:
+                raw_mid = existing.get("iid")
                 if raw_mid is None:
                     raise RuntimeError("GitLab returned issue without iid")
                 mid = int(cast(Any, raw_mid))
-                existing = gl.get_issue(project_id, mid)
                 desc_existing = str(existing.get("description") or "")
                 desc_new = upsert_managed_block(
                     desc_existing, iss.description_md.split("\n\n", 1)[0]
@@ -244,7 +310,7 @@ def apply_issue_specs(
                     "fingerprint": iss.fingerprint,
                 }
                 item.update({"action": "update", "iid": updated.get("iid")})
-            elif len(matches) == 0:
+            else:
                 created = gl.create_issue(
                     project_id,
                     title=iss.title,
@@ -257,10 +323,6 @@ def apply_issue_specs(
                     "fingerprint": iss.fingerprint,
                 }
                 item.update({"action": "create", "iid": created.get("iid")})
-            else:
-                raise RuntimeError(
-                    f"multiple GitLab issues match label dspx-iss:{iss.local_id}"
-                )
 
         results.append(item)
         write_json(paths.manifest_json, manifest.model_dump())
