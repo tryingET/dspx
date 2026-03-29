@@ -1,0 +1,25 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "1db0040212a80172aeacc5b276590fc5c54b10a1"
+created_at: "2026-03-29T03:48:00Z"
+intent: "widen AK-493 task scope so the completed evidence/runtime changes are covered by task-scope attestation"
+files:
+  - "governance/task-scopes/AK-493.json"
+validation:
+  fast_gate:
+    command: "just verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "task-scope follow-up to cover the already-landed evidence/runtime paths under AK-493"
+links:
+  task_ids:
+    - 493
+  diary:
+    - "."
