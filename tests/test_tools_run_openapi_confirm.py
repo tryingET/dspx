@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
@@ -35,3 +37,54 @@ def test_tools_run_skips_confirmation_with_yes() -> None:
     res = runner.invoke(app, ["tools", "run", name, "--yes"], input="\n")
     # It proceeds past the confirmation; network may fail but exit code should not be 2
     assert res.exit_code != 2
+
+
+def test_tools_run_coerces_openapi_typed_params(monkeypatch) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/search": {
+                "get": {
+                    "operationId": "searchItems",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "ids",
+                            "required": True,
+                            "schema": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                            },
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    name = register_openapi_operations(
+        "t3", spec, allowed_hosts={"api.example.com": True}
+    )[0]
+
+    captured: dict[str, object] = {}
+
+    from dspx.tools import registry as registry_mod
+
+    original = registry_mod.get_tool(name)
+
+    def _fake_tool(*, params=None, body=None):
+        captured["params"] = dict(params or {})
+        return "ok"
+
+    for key, value in getattr(original, "__dict__", {}).items():
+        if str(key).startswith("_dspx_"):
+            setattr(_fake_tool, key, value)
+
+    monkeypatch.setitem(registry_mod._TOOLS, name, _fake_tool)
+
+    res = runner.invoke(app, ["tools", "run", name, "--params", "ids=1,2"])
+
+    assert res.exit_code == 0
+    assert captured["params"] == {"ids": [1, 2]}
+    assert res.stdout.strip() == json.dumps("ok")

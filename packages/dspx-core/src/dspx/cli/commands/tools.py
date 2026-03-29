@@ -154,11 +154,27 @@ def tools_run(
 
     pmap = {}
     if params:
-        for part in params.split(","):
-            if not part.strip() or "=" not in part:
-                continue
-            k, v = part.split("=", 1)
-            pmap[k.strip()] = v.strip()
+        pmap = None
+        try:
+            is_openapi_for_parse = bool(getattr(fn, "_dspx_is_openapi_tool", False))
+        except Exception:
+            is_openapi_for_parse = False
+        if is_openapi_for_parse:
+            try:
+                desc_for_parse = get_descriptor(name)
+            except Exception:
+                desc_for_parse = None
+            if desc_for_parse is not None and getattr(desc_for_parse, "openapi", None):
+                from dspx.cli.commands.openapi import _coerce_cli_params
+
+                pmap = _coerce_cli_params(params, desc_for_parse.openapi)
+        if pmap is None:
+            pmap = {}
+            for part in params.split(","):
+                if not part.strip() or "=" not in part:
+                    continue
+                k, v = part.split("=", 1)
+                pmap[k.strip()] = v.strip()
 
     body = None
     if body_json:
