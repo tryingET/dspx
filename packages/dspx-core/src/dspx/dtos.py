@@ -198,14 +198,14 @@ class OpenAPICallRequest(BaseModel):
     server: Optional[str] = None
     path: Optional[str] = None
     params: Dict[str, Any] = Field(default_factory=dict)
-    body: Optional[Dict[str, Any]] = None
+    body: Any = None
     headers: Dict[str, str] = Field(default_factory=dict)
     timeout: Optional[float] = None
 
 
 class OpenAPICallResult(BaseModel):
     status_code: int
-    body: Optional[Dict[str, Any]] = None
+    body: Any = None
     headers: Dict[str, str] = Field(default_factory=dict)
     raw_text: Optional[str] = None
 

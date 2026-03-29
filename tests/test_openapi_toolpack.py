@@ -189,3 +189,96 @@ def test_openapi_call_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None
         assert "Redirect target host not allowed" in str(exc)
     else:  # pragma: no cover - fail closed assertion
         raise AssertionError("expected PermissionError for redirected OpenAPI call")
+
+    assert seen == ["http://api.example.com/ping"]
+
+
+def test_openapi_call_accepts_array_json_body_and_response(tmp_path: Path) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/bulk": {
+                "post": {
+                    "operationId": "bulkCreate",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "required": ["id"],
+                                        "properties": {"id": {"type": "integer"}},
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "bulk.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert json.loads(request.content.decode("utf-8")) == [{"id": 1}, {"id": 2}]
+        return httpx.Response(200, json=[{"ok": True}], request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    res = call_operation(
+        OpenAPICallRequest(operation_id="bulkCreate", body=[{"id": 1}, {"id": 2}]),
+        operation=ops["bulkCreate"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+    assert res.status_code == 200
+    assert res.body == [{"ok": True}]
+
+
+def test_openapi_call_preserves_falsey_json_body(tmp_path: Path) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/bulk": {
+                "post": {
+                    "operationId": "bulkCreate",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {"type": "object"},
+                                }
+                            }
+                        },
+                    },
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "bulk-empty.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.content.decode("utf-8") == "[]"
+        return httpx.Response(200, json=[], request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    res = call_operation(
+        OpenAPICallRequest(operation_id="bulkCreate", body=[]),
+        operation=ops["bulkCreate"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+    assert res.status_code == 200
+    assert res.body == []

@@ -91,7 +91,7 @@ def call_operation(
     server = request.server or operation.get("server") or ""
     path = request.path or operation.get("path") or request.operation_id
     params = dict(request.params or {})
-    body = request.body or None
+    body = request.body if request.body is not None else None
     headers = request.headers or {}
     # Validate required path/query parameters and request body schema
     # Validate required path parameters when present in operation description

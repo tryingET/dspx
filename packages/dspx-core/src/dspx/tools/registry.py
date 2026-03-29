@@ -232,7 +232,7 @@ def register_openapi_operations(
             def _tool(
                 *,
                 params: Optional[Mapping[str, Any]] = None,
-                body: Optional[Mapping[str, Any]] = None,
+                body: Any = None,
                 headers: Optional[Mapping[str, str]] = None,
                 timeout: Optional[float] = None,
                 method: Optional[str] = None,
@@ -246,7 +246,7 @@ def register_openapi_operations(
                     server=server,
                     path=path,
                     params=dict(params or {}),
-                    body=dict(body) if body is not None else None,
+                    body=body,
                     headers=dict(headers or {}),
                     timeout=timeout,
                 )
