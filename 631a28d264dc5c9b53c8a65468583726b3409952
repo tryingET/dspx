@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "631a28d264dc5c9b53c8a65468583726b3409952"
-created_at: "2026-03-29T11:10:08Z"
+created_at: "2026-03-29T11:24:03Z"
 intent: "Replace eager thread join + immediate cleanup with deferred reaper thread that waits for all workers"
 files:
   - "packages/dspx-core/src/dspx/multi_provider_lm.py"
@@ -14,7 +14,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just test"
-    status: "pending"
+    status: "pass"
 group:
   index: 2
   total: 4
