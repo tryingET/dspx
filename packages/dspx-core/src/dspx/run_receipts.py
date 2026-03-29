@@ -300,6 +300,19 @@ def _normalized_optional_str(value: Any) -> str | None:
     return text or None
 
 
+def _normalized_path_str(value: Path | str) -> str:
+    return str(Path(value).expanduser().resolve())
+
+
+def _normalized_optional_path_str(value: Any) -> str | None:
+    if value in {None, ""}:
+        return None
+    try:
+        return _normalized_path_str(str(value))
+    except Exception:
+        return _normalized_optional_str(value)
+
+
 def _normalize_run_id_list(
     values: Iterable[Any], *, field_name: str
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:
@@ -671,11 +684,11 @@ def build_run_receipt(
         "run_kind": str(run_kind),
         "provider": provider_name,
         "provider_details": _json_safe(_current_provider_details()),
-        "output_path": str(output_path),
+        "output_path": _normalized_path_str(output_path),
         "hash": str(output_hash),
         "template_version": template_version,
         "cache_key": cache_key,
-        "cache_file": cache_file,
+        "cache_file": _normalized_optional_path_str(cache_file),
         "cache_enabled": bool(cache_enabled),
         "replay_inputs": _json_safe(dict(replay_inputs or {})),
         "run_summary": _json_safe(dict(run_summary or {})),

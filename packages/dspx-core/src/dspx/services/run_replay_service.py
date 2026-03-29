@@ -105,18 +105,22 @@ def _resolve_path(raw_path: str, *, meta_path: Path, output_hint: bool = False) 
     if p.is_absolute():
         return p
 
-    candidates: list[Path] = [p, meta_path.parent / p]
+    candidates: list[Path] = []
+    meta_relative = meta_path.parent / p
+    candidates.append(meta_relative)
     if output_hint:
         inferred = _infer_output_path_from_meta(meta_path)
-        if inferred is not None:
+        if inferred is not None and inferred not in candidates:
             candidates.append(inferred)
+    if p not in candidates:
+        candidates.append(p)
 
     for cand in candidates:
         if cand.exists():
             return cand
 
-    # Stable fallback for diagnostics.
-    return candidates[1] if len(candidates) > 1 else p
+    # Stable fallback for diagnostics: prefer the receipt-relative interpretation.
+    return candidates[0] if candidates else p
 
 
 def _sha256_file(path: Path) -> str:

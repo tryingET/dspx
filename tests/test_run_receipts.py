@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
 import json
 import subprocess
 
 from typer.testing import CliRunner
 
 import dspx.cli.utils as dspx_utils
+from dspx.cache import make_key
 from dspx.cli.dspx import app
 from dspx.run_receipts import (
     _capture_git_dirty,
@@ -19,6 +21,7 @@ from dspx.run_receipts import (
     resolve_run_identity,
     write_run_receipt,
 )
+from dspx.services.run_replay_service import check_run_receipt
 
 
 runner = CliRunner()
@@ -64,6 +67,67 @@ def _generate_signature_receipt(
     )
     assert result.exit_code == 0
     return tmp_path / f"{output_name}.meta.json"
+
+
+def test_run_replay_prefers_receipt_relative_paths_over_ambient_cwd(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    receipt_dir = tmp_path / "receipt-dir"
+    receipt_dir.mkdir()
+    actual_output = receipt_dir / "artifact.py"
+    actual_output.write_text("print('right')\n", encoding="utf-8")
+    (tmp_path / "artifact.py").write_text("print('wrong')\n", encoding="utf-8")
+
+    replay_inputs = {
+        "prompt": "Extract names from text",
+        "template_version": "simple-v1",
+        "options": {},
+        "class_name": "GeneratedSignature",
+    }
+    cache_key = make_key(
+        {
+            "kind": "signature",
+            "prompt": replay_inputs["prompt"],
+            "template_version": replay_inputs["template_version"],
+            "class_name": replay_inputs["class_name"],
+            "options": replay_inputs["options"],
+        }
+    )
+    cache_dir = receipt_dir / "cache" / "signature"
+    cache_dir.mkdir(parents=True)
+    cache_file = cache_dir / f"{cache_key}.json"
+    cache_file.write_text(
+        json.dumps({"code": actual_output.read_text(encoding="utf-8")}),
+        encoding="utf-8",
+    )
+
+    output_hash = hashlib.sha256(
+        actual_output.read_text(encoding="utf-8").encode("utf-8")
+    ).hexdigest()
+
+    receipt = {
+        "receipt_version": "v2",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "run_kind": "signature-gen",
+        "provider": "stub",
+        "output_path": "artifact.py",
+        "hash": output_hash,
+        "template_version": "simple-v1",
+        "cache_key": cache_key,
+        "cache_file": f"cache/signature/{cache_key}.json",
+        "cache_enabled": True,
+        "replay_inputs": replay_inputs,
+    }
+    meta_path = write_run_receipt(actual_output, receipt)
+
+    report = check_run_receipt(meta_path)
+
+    assert report["status"] == "ok"
+    assert report["output_path"] == str(actual_output)
+    assert report["cache_file"] == str(cache_file)
+    assert report["error_codes"] == []
 
 
 def test_capture_git_dirty_includes_untracked_files(
@@ -255,6 +319,7 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
     )
+
     assert {
         item["status"]
         for item in diagnostics["candidate_winner_priors"]["candidate_priors"]
@@ -389,6 +454,34 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         refine_meta["mlflow_hints"]["expected_tags"]["dspx.run_kind"]
         == "signature-refine"
     )
+
+
+def test_cli_meta_receipts_normalize_relative_paths_to_absolute(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", "cache")
+
+    r_sig = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            "sig.py",
+        ],
+    )
+    assert r_sig.exit_code == 0
+
+    sig_meta = json.loads((tmp_path / "sig.py.meta.json").read_text(encoding="utf-8"))
+    assert sig_meta["output_path"] == str((tmp_path / "sig.py").resolve())
+    assert sig_meta["cache_file"] == str(Path(str(sig_meta["cache_file"])).resolve())
 
 
 def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) -> None:
