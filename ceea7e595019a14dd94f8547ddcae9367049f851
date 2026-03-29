@@ -1,0 +1,27 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "ceea7e595019a14dd94f8547ddcae9367049f851"
+created_at: "2026-03-29T09:20:29Z"
+intent: "Introduce the AK-517 task-scope manifest before the implementation commits."
+files:
+  - "governance/task-scopes/AK-517.json"
+validation:
+  fast_gate:
+    command: "pre-commit hooks via git commit"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 1
+  total: 7
+  rationale: "Task-scope attestation must appear before the implementation slice for head-mode validation."
+links:
+  task_ids:
+    - 517
+  evidence_ids:
+    - 368
+  diary:
+    - "."
