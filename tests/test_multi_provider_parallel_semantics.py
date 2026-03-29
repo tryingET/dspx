@@ -102,6 +102,46 @@ def test_parallel_first_sync_isolated_cleanup_runs_on_fast_return(
     assert not any(path.name.startswith("dspx_multi_") for path in tmp_path.iterdir())
 
 
+class _SlowSyncProvider(_SyncProvider):
+    def __init__(self, model: str, delay: float) -> None:
+        super().__init__(model)
+        self.delay = delay
+
+    def forward(self, prompt=None, messages=None):
+        time.sleep(self.delay)
+        return super().forward(prompt=prompt, messages=messages)
+
+
+def test_parallel_first_sync_isolated_cleanup_waits_for_slow_losers(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "input.txt").write_text("ok\n", encoding="utf-8")
+
+    lm = MultiProviderLM(
+        [_SlowSyncProvider("fast", 0.0), _SlowSyncProvider("slow", 0.5)],
+        names=["fast", "slow"],
+        strategy="parallel_first",
+        parallel_isolated=True,
+        base_cwd=str(base),
+        cleanup_isolated=True,
+    )
+
+    result = lm._run_parallel_first(prompt="p", messages=None)
+
+    assert [r.text for r in result] == ["fast"]
+
+    deadline = time.time() + 2.0
+    while time.time() < deadline:
+        if not any(path.name.startswith("dspx_multi_") for path in tmp_path.iterdir()):
+            break
+        time.sleep(0.05)
+
+    assert not any(path.name.startswith("dspx_multi_") for path in tmp_path.iterdir())
+
+
 def test_restore_cwd_restores_none_value() -> None:
     provider = _CwdProvider()
     lm = MultiProviderLM([provider])

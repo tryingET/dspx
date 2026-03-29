@@ -545,17 +545,12 @@ class MultiProviderLM(DSPyBaseLM):
         finally:
             for j, pr in enumerate(self.providers):
                 self._restore_cwd(pr, prev_cwds[j])
-            for th in sync_threads:
-                try:
-                    th.join(timeout=0.1)
-                except Exception:
-                    pass
-            if (
-                cleanup_info
-                and self.cleanup_isolated
-                and not any(th.is_alive() for th in sync_threads)
-            ):
-                self._cleanup_isolated(cleanup_info)
+            if cleanup_info and self.cleanup_isolated:
+                self._schedule_isolated_cleanup(
+                    cleanup_info,
+                    sync_threads=tuple(sync_threads),
+                    async_runs=tuple(run for run in async_runs if run is not None),
+                )
 
         candidates = completion_order
         if not candidates:
@@ -811,6 +806,54 @@ class MultiProviderLM(DSPyBaseLM):
                     shutil.rmtree(tmp, ignore_errors=True)
                 except Exception:
                     pass
+
+    def _schedule_isolated_cleanup(
+        self,
+        info: Dict[str, Any],
+        *,
+        sync_threads: Sequence[threading.Thread],
+        async_runs: Sequence[Any],
+    ) -> None:
+        pending_sync = [th for th in sync_threads if th.is_alive()]
+        pending_async = []
+        for run in async_runs:
+            popen = getattr(run, "popen", None)
+            if popen is None:
+                continue
+            try:
+                if popen.poll() is None:
+                    pending_async.append(popen)
+            except Exception:
+                continue
+
+        if not pending_sync and not pending_async:
+            self._cleanup_isolated(info)
+            return
+
+        def _cleanup_when_safe() -> None:
+            for th in sync_threads:
+                try:
+                    th.join()
+                except Exception:
+                    pass
+
+            if pending_async:
+                while True:
+                    alive = []
+                    for popen in pending_async:
+                        try:
+                            if popen.poll() is None:
+                                alive.append(popen)
+                        except Exception:
+                            continue
+                    if not alive:
+                        break
+                    time.sleep(0.05)
+
+            self._cleanup_isolated(info)
+
+        reaper = threading.Thread(target=_cleanup_when_safe, daemon=True)
+        reaper.start()
 
     def _reduce_text(self, results: List[ProviderResult]) -> str:
         if not results:
