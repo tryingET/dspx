@@ -1,0 +1,28 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "a8b07c4518b7e84ce1bd90d09a8bdbd685d7eddb"
+created_at: "2026-03-29T09:20:29Z"
+intent: "Disambiguate Forge issue sync by workorder fingerprint instead of title-only identity."
+files:
+  - "apps/forge/src/dspx_forge/issues.py"
+  - "tests/test_forge_mvp.py"
+validation:
+  fast_gate:
+    command: "uv run -m pytest -q tests/test_forge_mvp.py"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 6
+  total: 7
+  rationale: "Keep Forge issue-identity matching separate from transport hardening."
+links:
+  task_ids:
+    - 517
+  evidence_ids:
+    - 368
+  diary:
+    - "."
