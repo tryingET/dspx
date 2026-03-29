@@ -1,0 +1,25 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "b82991daa97c485b2223772d510dc50aa427f09d"
+created_at: "2026-03-29T04:19:29Z"
+intent: "reduce unnecessary Any usage in evidence boundary helpers by narrowing opaque inputs to object and confining Any to conversion cast points"
+files:
+  - "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py"
+validation:
+  fast_gate:
+    command: "just verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "small type-surface cleanup without changing receipt payload behavior"
+links:
+  task_ids:
+    - 493
+  diary:
+    - "."
