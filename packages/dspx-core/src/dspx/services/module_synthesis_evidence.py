@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, cast
 
 from dspx.coordinates.storage import CoordinateIndex, get_default_index_path
 from dspx.dtos import ModuleSpec
@@ -289,7 +289,7 @@ class ModuleSynthesisEvidenceBundle:
         }
 
 
-def _parse_created_at(raw: Any) -> datetime:
+def _parse_created_at(raw: object) -> datetime:
     if isinstance(raw, str) and raw.strip():
         try:
             parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
@@ -301,27 +301,27 @@ def _parse_created_at(raw: Any) -> datetime:
     return datetime.min.replace(tzinfo=timezone.utc)
 
 
-def _as_dict(value: Any) -> dict[str, Any]:
-    return dict(value) if isinstance(value, Mapping) else {}
+def _as_dict(value: object) -> dict[str, Any]:
+    return dict(cast(Mapping[str, Any], value)) if isinstance(value, Mapping) else {}
 
 
-def _as_str_list(value: Any) -> tuple[str, ...]:
+def _as_str_list(value: object) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(item) for item in value if str(item).strip())
 
 
-def _as_ranked_candidates(value: Any) -> tuple[dict[str, Any], ...]:
+def _as_ranked_candidates(value: object) -> tuple[dict[str, Any], ...]:
     if not isinstance(value, list):
         return ()
     out: list[dict[str, Any]] = []
     for item in value:
         if isinstance(item, Mapping):
-            out.append(dict(item))
+            out.append(dict(cast(Mapping[str, Any], item)))
     return tuple(out)
 
 
-def _as_int(value: Any, *, default: int = 0) -> int:
+def _as_int(value: object, *, default: int = 0) -> int:
     if isinstance(value, bool):
         return int(value)
     if isinstance(value, int):
@@ -335,12 +335,12 @@ def _as_int(value: Any, *, default: int = 0) -> int:
         except ValueError:
             return default
     try:
-        return int(value)
+        return int(cast(Any, value))
     except (TypeError, ValueError):
         return default
 
 
-def _optional_float(value: Any) -> float | None:
+def _optional_float(value: object) -> float | None:
     if value in {None, ""}:
         return None
     if isinstance(value, bool):
@@ -356,7 +356,7 @@ def _optional_float(value: Any) -> float | None:
         return None
 
 
-def _optional_str(value: Any) -> str | None:
+def _optional_str(value: object) -> str | None:
     if value in {None, ""}:
         return None
     text = str(value).strip()
@@ -1030,7 +1030,7 @@ def extract_module_synthesis_ranked_candidate_comparison_inputs(
     return tuple(comparison_inputs)
 
 
-def _strict_positive_int(value: Any) -> int | None:
+def _strict_positive_int(value: object) -> int | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, int):
@@ -1052,7 +1052,7 @@ def _strict_positive_int(value: Any) -> int | None:
     return None
 
 
-def _strict_optional_float(value: Any) -> float | None:
+def _strict_optional_float(value: object) -> float | None:
     if value is None or value == "":
         return None
     if isinstance(value, bool):
@@ -1070,8 +1070,8 @@ def _strict_optional_float(value: Any) -> float | None:
 
 def _candidate_prior_identity_conflicts(
     *,
-    expected: Mapping[str, Any] | None,
-    observed: Mapping[str, Any] | None,
+    expected: Mapping[str, object] | None,
+    observed: Mapping[str, object] | None,
 ) -> bool:
     expected_view = _as_dict(expected)
     observed_view = _as_dict(observed)
@@ -1088,7 +1088,7 @@ def _candidate_prior_identity_conflicts(
 
 
 def _duplicate_candidate_id(
-    candidates: Iterable[Mapping[str, Any]],
+    candidates: Iterable[Mapping[str, object]],
 ) -> str | None:
     seen: set[str] = set()
     for candidate in candidates:
@@ -1140,8 +1140,8 @@ def _canonicalize_candidate_prior_comparison_inputs(
 
 def _candidate_prior_identity_disagrees_with_current_comparison(
     *,
-    candidate: Mapping[str, Any] | None,
-    comparison_candidate: Mapping[str, Any] | None,
+    candidate: Mapping[str, object] | None,
+    comparison_candidate: Mapping[str, object] | None,
 ) -> bool:
     return _candidate_prior_identity_conflicts(
         expected=candidate,
@@ -1149,7 +1149,7 @@ def _candidate_prior_identity_disagrees_with_current_comparison(
     )
 
 
-def _candidate_prior_identity_supported(identity: Mapping[str, Any]) -> bool:
+def _candidate_prior_identity_supported(identity: Mapping[str, object]) -> bool:
     return bool(_optional_str(identity.get("variant_id"))) and bool(
         _optional_str(identity.get("variant_origin"))
     )
