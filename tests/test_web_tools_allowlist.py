@@ -68,16 +68,19 @@ def test_web_scrape_respects_allowlist() -> None:
 def test_web_fetch_rejects_redirect_to_unallowed_host() -> None:
     ensure_default_tools()
     fn = get_tool("web_fetch")
+    seen: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
         if request.url.host == "allowed.example":
             return httpx.Response(
                 302,
                 headers={"location": "http://evil.example/secret"},
+                request=request,
             )
         if request.url.host == "evil.example":
-            return httpx.Response(200, text="evil")
-        return httpx.Response(404)
+            return httpx.Response(200, text="evil", request=request)
+        return httpx.Response(404, request=request)
 
     client = httpx.Client(
         transport=httpx.MockTransport(handler),
@@ -90,3 +93,5 @@ def test_web_fetch_rejects_redirect_to_unallowed_host() -> None:
             allowed_hosts={"allowed.example": True},
             client=client,
         )
+
+    assert seen == ["http://allowed.example/start"]

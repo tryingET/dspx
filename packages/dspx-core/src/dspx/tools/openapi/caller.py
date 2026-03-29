@@ -3,9 +3,10 @@ from __future__ import annotations
 import httpx
 from typing import Any, Dict, Mapping, Optional
 import re as _re
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, urljoin
 
 from dspx.dtos import OpenAPICallRequest, OpenAPICallResult
+from dspx.http_guard import host_allowed, send_with_host_allowlist
 from dspx.policy import (
     bypass as _policy_bypass,
     allow_network_mutate as _policy_allow_mutate,
@@ -40,13 +41,6 @@ def _build_url(server: str, path: str, params: Mapping[str, Any]) -> str:
         joined = urljoin(base, out_path.lstrip("/"))
         return joined
     return out_path
-
-
-def _host_allowed(url: str, allowed_hosts: Optional[Mapping[str, bool]]) -> bool:
-    if not allowed_hosts:
-        return True
-    host = urlparse(url).hostname or ""
-    return bool(allowed_hosts.get(host, False))
 
 
 def _coerce_numeric_param(value: Any, *, integer: bool, label: str) -> float | int:
@@ -244,7 +238,7 @@ def call_operation(
 
     url = _build_url(server, path, params)
 
-    if not _host_allowed(url, allowed_hosts):
+    if not host_allowed(url, allowed_hosts):
         raise PermissionError(f"Host not allowed for URL: {url}")
 
     # Remove path params from query
@@ -330,24 +324,23 @@ def call_operation(
         client = httpx.Client(timeout=request.timeout)
         close_client = True
     try:
-        t0 = _time.time()
-        resp = client.request(
+        req = client.build_request(
             method,
             url,
             params=query,
             json=body,
             headers=headers,
-            timeout=request.timeout,
+        )
+        t0 = _time.time()
+        resp = send_with_host_allowlist(
+            client,
+            req,
+            allowed_hosts=allowed_hosts,
         )
         t1 = _time.time()
-        final_url = str(resp.url)
-        if not _host_allowed(final_url, allowed_hosts):
-            raise PermissionError(
-                f"Redirect target host not allowed for URL: {final_url}"
-            )
         raw_text = resp.text
         content_type = resp.headers.get("content-type", "")
-        parsed: Optional[Dict[str, Any]] = None
+        parsed: Any = None
         if "json" in content_type:
             try:
                 parsed = resp.json()

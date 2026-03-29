@@ -7,19 +7,14 @@ import os
 from urllib.parse import urlparse
 import httpx
 
+from dspx.http_guard import host_allowed, send_with_host_allowlist
+
 
 def _is_url(s: str) -> bool:
     try:
         return urlparse(s).scheme in {"http", "https"}
     except Exception:
         return False
-
-
-def _host_allowed(url: str, allowed_hosts: Optional[Mapping[str, bool]]) -> bool:
-    if not allowed_hosts:
-        return False
-    host = urlparse(url).hostname or ""
-    return bool(allowed_hosts.get(host, False))
 
 
 def _cache_enabled() -> bool:
@@ -88,21 +83,24 @@ def load_spec(
             _cap = None  # type: ignore
         if _cap is not None:
             _cap("network.read")
-        if not _host_allowed(path, allowed_hosts):
+        if not allowed_hosts or not host_allowed(path, allowed_hosts):
             raise PermissionError(f"Host not allowed for spec URL: {path}")
         pth = _cache_path(path)
         close_client = False
         if client is None:
-            client = httpx.Client(follow_redirects=True, timeout=20.0)
+            client = httpx.Client(timeout=20.0)
             close_client = True
         try:
-            resp = client.get(path)
+            req = client.build_request("GET", path)
+            resp = send_with_host_allowlist(
+                client,
+                req,
+                allowed_hosts=allowed_hosts,
+                blocked_error_prefix="Host not allowed for spec URL",
+                redirect_error_prefix="Redirect target host not allowed for spec URL",
+            )
             resp.raise_for_status()
             final_url = str(resp.url)
-            if not _host_allowed(final_url, allowed_hosts):
-                raise PermissionError(
-                    f"Redirect target host not allowed for spec URL: {final_url}"
-                )
             text = resp.text
             parsed = _load_text(text, final_url)
             if _cache_enabled():

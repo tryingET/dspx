@@ -61,15 +61,21 @@ def test_load_spec_url_rejects_unallowed_host(tmp_path: Path) -> None:
 
 
 def test_load_spec_url_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None:
+    seen: list[str] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
         if request.url.host == "api.example.com":
             return httpx.Response(
                 302,
                 headers={"location": "http://evil.example/spec.json"},
+                request=request,
             )
         if request.url.host == "evil.example":
-            return httpx.Response(200, text='{"openapi":"3.0.0","paths":{}}')
-        return httpx.Response(404)
+            return httpx.Response(
+                200, text='{"openapi":"3.0.0","paths":{}}', request=request
+            )
+        return httpx.Response(404, request=request)
 
     client = httpx.Client(
         transport=httpx.MockTransport(handler),
@@ -82,6 +88,8 @@ def test_load_spec_url_rejects_redirect_to_unallowed_host(tmp_path: Path) -> Non
             allowed_hosts={"api.example.com": True},
             client=client,
         )
+
+    assert seen == ["http://api.example.com/spec.json"]
 
 
 def test_load_spec_keeps_last_good_cache_on_malformed_success(

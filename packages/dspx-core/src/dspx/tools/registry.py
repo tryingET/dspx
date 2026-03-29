@@ -9,7 +9,7 @@ import httpx
 from bs4 import BeautifulSoup
 import pandas as pd
 from duckduckgo_search import DDGS
-from urllib.parse import urlparse
+from dspx.http_guard import host_allowed, send_with_host_allowlist
 from dspx.tools.descriptors import ToolDescriptor
 from dspx.tools.openapi.models import OpenAPIOperationInfo
 
@@ -300,13 +300,6 @@ def register_openapi_operations(
     return names
 
 
-def _host_allowed(url: str, allowed_hosts: Optional[Mapping[str, bool]]) -> bool:
-    if not allowed_hosts:
-        return True
-    host = urlparse(url).hostname or ""
-    return bool(allowed_hosts.get(host, False))
-
-
 def _web_fetch(
     url: str,
     *,
@@ -327,20 +320,20 @@ def _web_fetch(
         _cap = None  # type: ignore
     if _cap is not None:
         _cap("network.read")
-    if not _host_allowed(url, allowed_hosts):
+    if not host_allowed(url, allowed_hosts):
         raise PermissionError(f"Host not allowed for URL: {url}")
 
     close_client = False
     if client is None:
-        client = httpx.Client(follow_redirects=True, timeout=timeout)
+        client = httpx.Client(timeout=timeout)
         close_client = True
     try:
-        resp = client.get(url, headers=headers, timeout=timeout)
-        final_url = str(resp.url)
-        if not _host_allowed(final_url, allowed_hosts):
-            raise PermissionError(
-                f"Redirect target host not allowed for URL: {final_url}"
-            )
+        req = client.build_request("GET", url, headers=headers)
+        resp = send_with_host_allowlist(
+            client,
+            req,
+            allowed_hosts=allowed_hosts,
+        )
         text = resp.text
         max_len = 100_000
         if len(text) > max_len:

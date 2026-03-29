@@ -159,16 +159,19 @@ def test_openapi_call_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None
     spec_path = _make_spec(tmp_path)
     data = load_spec(spec_path)
     ops = extract_operations(data)
+    seen: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
         if request.url.host == "api.example.com":
             return httpx.Response(
                 302,
                 headers={"location": "http://evil.example/leak"},
+                request=request,
             )
         if request.url.host == "evil.example":
-            return httpx.Response(200, text="evil")
-        return httpx.Response(404, text="not found")
+            return httpx.Response(200, text="evil", request=request)
+        return httpx.Response(404, text="not found", request=request)
 
     client = httpx.Client(
         transport=httpx.MockTransport(handler),
