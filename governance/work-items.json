@@ -698,6 +698,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-29"
+        },
+        {
+          "id": "AK-TASK-0531",
+          "title": "Workflow guardrails: reconfirm empty repo-scoped ready queue and refresh idle-state handoff at current HEAD",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: reconfirm empty repo-scoped ready queue and refresh idle-state handoff at current HEAD (task #531)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-29"
         }
       ]
     }

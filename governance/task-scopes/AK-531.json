@@ -1,0 +1,23 @@
+{
+  "task_id": 531,
+  "description": "Reconfirm the DSPx repo-scoped ready queue is empty at current HEAD, refresh the idle-state handoff/operating docs, and record the confirmation in repo diary/work-item projection artifacts.",
+  "allowed_paths": [
+    "diary/2026-03-29--reconfirm-empty-ready-queue-and-refresh-handoff-at-current-head.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-531.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "diary/2026-03-29--reconfirm-empty-ready-queue-and-refresh-handoff-at-current-head.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-531.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}
