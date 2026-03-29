@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "ccb1e04d6757c04820d545468fa34e4236b9766e"
-created_at: "2026-03-29T03:23:00Z"
+created_at: "2026-03-29T04:08:52Z"
 intent: "harden candidate-prior divergence and counterfactual advisory pipelines against identity drift and malformed comparison metadata"
 files:
   - "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py"
@@ -15,7 +15,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-full"
-    status: "fail"
+    status: "pass"
 group:
   index: 1
   total: 1
