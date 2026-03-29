@@ -1,0 +1,25 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "39e2739f351373f665cbe09620b79ff3359a7ceb"
+created_at: "2026-03-29T08:44:29Z"
+intent: "Widen OpenAPI body DTO fields from Optional[Dict] to Any so arrays and scalars pass through"
+files:
+  - "packages/dspx-core/src/dspx/dtos.py"
+  - "tests/test_openapi_registry_tools.py"
+  - "tests/test_openapi_toolpack.py"
+validation:
+  fast_gate:
+    command: "just fmt && just lint && just typecheck"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 3
+  total: 4
+  rationale: "OpenAPI specs with array-type request/response bodies were silently dropped by dict-only DTO typing"
+links:
+  diary:
+    - "."
