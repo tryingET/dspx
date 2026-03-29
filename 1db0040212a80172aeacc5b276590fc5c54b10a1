@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "1db0040212a80172aeacc5b276590fc5c54b10a1"
-created_at: "2026-03-29T03:48:00Z"
+created_at: "2026-03-29T03:48:39Z"
 intent: "widen AK-493 task scope so the completed evidence/runtime changes are covered by task-scope attestation"
 files:
   - "governance/task-scopes/AK-493.json"
@@ -13,7 +13,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-full"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
