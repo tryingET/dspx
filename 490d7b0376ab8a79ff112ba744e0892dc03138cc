@@ -1,0 +1,28 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "490d7b0376ab8a79ff112ba744e0892dc03138cc"
+created_at: "2026-03-29T09:20:29Z"
+intent: "Prevent rejected requests from burning sibling rate-limit buckets."
+files:
+  - "packages/dspx-core/src/dspx/server/security.py"
+  - "tests/test_server_rate_limit.py"
+validation:
+  fast_gate:
+    command: "uv run -m pytest -q tests/test_server_rate_limit.py"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 4
+  total: 7
+  rationale: "Separate behavioral fix for token accounting from transport and Forge changes."
+links:
+  task_ids:
+    - 517
+  evidence_ids:
+    - 368
+  diary:
+    - "."
