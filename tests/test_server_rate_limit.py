@@ -255,3 +255,44 @@ def test_invalid_tokens_fall_back_to_ip_identity_without_bucket_spray() -> None:
 
     assert len(middleware._buckets) == 1
     assert list(middleware._buckets.keys()) == ["ip:127.0.0.1"]
+
+
+def test_rejected_request_does_not_burn_other_rate_buckets() -> None:
+    middleware = RateLimitMiddleware(
+        FastAPI(),
+        config=RateLimitConfig(
+            enabled=True,
+            default=[Rate(60, 60.0), Rate(1, 1.0)],
+            per_path={},
+            identity="ip",
+            trusted_proxies=[],
+            global_default=[],
+            global_per_path={},
+        ),
+    )
+
+    async def _call_next(request: Request):
+        return JSONResponse({"status": "ok"}, status_code=200)
+
+    async def _dispatch_once() -> int:
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/signature",
+            "raw_path": b"/signature",
+            "query_string": b"",
+            "headers": [],
+            "client": ("127.0.0.1", 50000),
+            "server": ("testserver", 80),
+        }
+        resp = await middleware.dispatch(Request(scope), _call_next)
+        return resp.status_code
+
+    assert asyncio.run(_dispatch_once()) == 200
+    buckets = middleware._buckets["ip:127.0.0.1"]["GLOBAL"]
+    first_bucket_tokens = buckets[0].tokens
+
+    assert asyncio.run(_dispatch_once()) == 429
+    assert buckets[0].tokens == first_bucket_tokens

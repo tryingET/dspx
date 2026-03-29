@@ -270,16 +270,27 @@ class _TokenBucket:
         )
         self.last = now if now is not None else time.monotonic()
 
-    def allow(self, now: Optional[float] = None) -> bool:
+    def _refilled_tokens(self, now: Optional[float] = None) -> tuple[float, float]:
         t = now if now is not None else time.monotonic()
         elapsed = max(0.0, t - self.last)
+        tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)
+        return t, tokens
+
+    def would_allow(self, now: Optional[float] = None) -> bool:
+        _, tokens = self._refilled_tokens(now)
+        return tokens >= 1.0
+
+    def consume(self, now: Optional[float] = None) -> bool:
+        t, tokens = self._refilled_tokens(now)
         self.last = t
-        # refill
-        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)
+        self.tokens = tokens
         if self.tokens >= 1.0:
             self.tokens -= 1.0
             return True
         return False
+
+    def allow(self, now: Optional[float] = None) -> bool:
+        return self.consume(now)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -402,7 +413,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     gb = [_TokenBucket(r.capacity, r.period_seconds) for r in grules]
                     self._global[key_g] = gb
                 now = time.monotonic()
-                if any(not b.allow(now) for b in gb):
+                if not all(b.would_allow(now) for b in gb):
                     stats.status_429 += 1
                     self._log.info(
                         "rate_limit",
@@ -416,6 +427,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                             "status": 429,
                         },
                     )
+                for bucket in gb:
+                    bucket.consume(now)
             if rules:
                 key = (
                     f"{method} {path}"
@@ -432,7 +445,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         _TokenBucket(r.capacity, r.period_seconds) for r in rules
                     ]
                     buckmap[key] = buckets
-                if any(not b.allow(now) for b in buckets):
+                if not all(b.would_allow(now) for b in buckets):
                     stats.status_429 += 1
                     self._log.info(
                         "rate_limit",
@@ -446,6 +459,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                             "status": 429,
                         },
                     )
+                for bucket in buckets:
+                    bucket.consume(now)
         # Proceed
         resp = await call_next(request)
         if resp.status_code == 401:
