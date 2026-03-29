@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from dspx.coordinates.storage import CoordinateIndex, get_default_index_path
 from dspx.dtos import ModuleSpec
@@ -1088,7 +1088,7 @@ def _candidate_prior_identity_conflicts(
 
 
 def _duplicate_candidate_id(
-    candidates: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...],
+    candidates: Iterable[Mapping[str, Any]],
 ) -> str | None:
     seen: set[str] = set()
     for candidate in candidates:
@@ -1754,7 +1754,7 @@ def build_module_synthesis_candidate_prior_divergence_explanation(
                 "candidate-prior divergence explanation unavailable because compared positive-prior candidates are malformed"
             ],
         )
-    compared_candidates = [dict(item) for item in compared_candidates_raw]
+    compared_candidates = [_as_dict(item) for item in compared_candidates_raw]
     history_summary = _candidate_prior_divergence_history_summary(
         candidate_prior_audit,
         compared_candidate_count=len(compared_candidates),
@@ -2720,7 +2720,7 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
                 "candidate-prior counterfactual advisory unavailable because compared positive-prior candidates are malformed"
             ],
         )
-    compared_candidates = [dict(item) for item in raw_compared_candidates]
+    compared_candidates = [_as_dict(item) for item in raw_compared_candidates]
     divergence_compared_candidates_raw = candidate_prior_divergence_explanation.get(
         "compared_positive_prior_candidates"
     )
@@ -2746,7 +2746,7 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
             ],
         )
     duplicate_divergence_compared_candidate_id = _duplicate_candidate_id(
-        [dict(item) for item in divergence_compared_candidates_raw]
+        [_as_dict(item) for item in divergence_compared_candidates_raw]
     )
     if duplicate_divergence_compared_candidate_id is not None:
         return build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory(
