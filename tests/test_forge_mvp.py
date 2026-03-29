@@ -98,6 +98,27 @@ def test_forge_custom_out_root_persists_into_workorder_and_issue_specs(
     assert str(paths.system_definition_card) in spec.issue_spec.description_md
 
 
+def test_forge_issue_spec_uses_stable_absolute_paths_across_cwd_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    monkeypatch.chdir(repo_root)
+
+    wo = build_workorder("Build thing\nDo it safely")
+    paths = write_workorder(repo_root / "generated" / "forge", wo)
+
+    loaded = load_workorder(paths.workorder_yaml)
+    assert loaded.work_order.outputs.out_dir == str(paths.root)
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    spec = build_issue_spec(loaded)
+    assert str(paths.system_definition_card) in spec.issue_spec.description_md
+
+
 def test_forge_plan_marks_invalid_gitlab_map_as_unconfigured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -33,11 +33,7 @@ class WorkOrderPaths:
 
 
 def _display_path(path: Path) -> str:
-    candidate = path.resolve()
-    try:
-        return candidate.relative_to(Path.cwd().resolve()).as_posix()
-    except ValueError:
-        return candidate.as_posix()
+    return path.resolve().as_posix()
 
 
 def _now_run_id() -> str:
