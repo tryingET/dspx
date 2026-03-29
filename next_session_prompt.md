@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Confirm the repo-scoped DSPx AK ready queue is still empty after `AK-517`, keep the handoff aligned with the operating-plan docs, and then wait for the next operator-directed slice or newly frozen SG2 contract before editing code.
+- Objective (one sentence): Confirm the repo-scoped DSPx AK ready queue is still empty after `AK-525`, keep the handoff aligned with the operating-plan docs, and then wait for the next operator-directed slice or newly frozen SG2 contract before editing code.
 - Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-517` is complete and committed; no next SG2 implementation slice is pinned yet; any new implementation work requires either operator direction or a repo-scoped ready AK task.
+- Assumptions (max 3): `AK-525` is complete and committed; no next SG2 implementation slice is pinned yet; any new implementation work requires either operator direction or a repo-scoped ready AK task.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -56,11 +56,11 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-517` — harden HTTP/OpenAPI/Forge boundary handling and dedup invariants.
-- Outcome: DSPx now validates redirect hops before following them across HTTP entrypoints, preserves non-dict OpenAPI JSON bodies, avoids burning sibling rate-limit buckets on rejected requests, and disambiguates Forge issue sync by workorder fingerprint; the repo-scoped ready queue still returns `[]`, so no next implementation slice is pinned in AK.
-- Files changed: `apps/forge/src/dspx_forge/gitlab_client.py`, `apps/forge/src/dspx_forge/issues.py`, `diary/2026-03-29--harden-http-openapi-and-forge-boundary-handling.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-517.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/dtos.py`, `packages/dspx-core/src/dspx/http_guard.py`, `packages/dspx-core/src/dspx/server/security.py`, `packages/dspx-core/src/dspx/tools/openapi/caller.py`, `packages/dspx-core/src/dspx/tools/openapi/loader.py`, `packages/dspx-core/src/dspx/tools/registry.py`, `tests/test_forge_gitlab_client.py`, `tests/test_forge_mvp.py`, `tests/test_openapi_registry_tools.py`, `tests/test_openapi_toolpack.py`, `tests/test_openapi_url_loading.py`, `tests/test_server_rate_limit.py`, `tests/test_web_tools_allowlist.py`.
-- Validation commands + results: `uv run -m pytest -q tests/test_openapi_url_loading.py tests/test_web_tools_allowlist.py tests/test_openapi_toolpack.py -k 'redirect or allowlist'` ✅; `uv run -m pytest -q tests/test_forge_gitlab_client.py` ✅; `uv run -m pytest -q tests/test_server_rate_limit.py` ✅; `uv run -m pytest -q tests/test_openapi_registry_tools.py tests/test_openapi_toolpack.py -k 'array or falsey or bulk or redirect'` ✅; `uv run -m pytest -q tests/test_forge_mvp.py` ✅; `just task-scope-check task_id=517 mode=working-tree` ✅; `just verify-full` ✅; `ak task complete 517 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: refreshed `next_session_prompt.md` to match `docs/project/operational_goals.md`, recorded the boundary-hardening slice in `diary/2026-03-29--harden-http-openapi-and-forge-boundary-handling.md`, and added `governance/task-scopes/AK-517.json` for the attested implementation slice.
+- Slice executed: `AK-525` — confirm post-AK-517 empty ready queue and refresh idle-state handoff.
+- Outcome: Re-checked the repo-scoped `ak task ready` filter after `AK-517`, confirmed it still returns `[]`, refreshed the handoff/diary/operating-plan artifacts, and left the repo waiting for operator direction or a newly frozen SG2 contract before any new implementation slice.
+- Files changed: `diary/2026-03-29--confirm-post-ak-517-empty-ready-queue-and-refresh-handoff.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-525.json`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ (`[]`); `ak task list -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id, title, status, assignee, repo})'` ✅; `just task-scope-check task_id=525 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 525 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: refreshed `next_session_prompt.md` and `docs/project/operational_goals.md` to keep the idle-state checkpoint aligned, recorded the confirmation in `diary/2026-03-29--confirm-post-ak-517-empty-ready-queue-and-refresh-handoff.md`, and added `governance/task-scopes/AK-525.json` for the attested workflow slice.
 - Next-session starting point: re-run the repo-scoped `ak task ready` filter; if it is still empty, wait for operator direction or a newly frozen SG2 contract before starting another slice.
 
 ## END-OF-SESSION

@@ -1,0 +1,23 @@
+{
+  "task_id": 525,
+  "description": "Confirm the DSPx repo-scoped AK ready queue is still empty after AK-517, refresh the idle-state handoff/operating docs, and record the confirmation in the repo diary/work-item projection.",
+  "allowed_paths": [
+    "diary/2026-03-29--confirm-post-ak-517-empty-ready-queue-and-refresh-handoff.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-525.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "diary/2026-03-29--confirm-post-ak-517-empty-ready-queue-and-refresh-handoff.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-525.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

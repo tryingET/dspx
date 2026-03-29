@@ -14,10 +14,11 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Active operating slices
 
 - No repo-scoped implementation slice is currently pinned in AK.
-- The repo-scoped ready queue is empty after the compatibility-cleanup slice completed.
+- The repo-scoped ready queue remains empty after the latest boundary-hardening and idle-state handoff-refresh slices.
 
 ## Recently completed in this wave
 
+- `AK-525` — confirmed the repo-scoped AK ready queue stayed empty after `AK-517`, refreshed the idle-state handoff/operating-plan artifacts, and kept the repo waiting for operator direction or a newly frozen SG2 contract before any new implementation slice.
 - `AK-517` — hardened HTTP/OpenAPI/Forge boundary handling by enforcing redirect-safe allowlist checks, preserving non-dict OpenAPI JSON bodies, fixing rate-limit token accounting, tightening Forge issue identity matching, and aligning the repo handoff/projection artifacts.
 - `AK-509` — added an executable Just-level regression for the documented `just task-scope-check task_id=<AK-ID> mode=working-tree` flow and tightened the next-session handoff back to its stated max-3 assumption contract.
 - `AK-505` — made the documented `just task-scope-check task_id=<AK-ID> mode=working-tree` flow executable by normalizing assignment-style CLI values before `argparse` validation and adding a regression test for that command boundary.
@@ -56,9 +57,10 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG19` is complete, `AK-517`, `AK-509`, `AK-505`, and `AK-317` are now complete, and no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question; the repo-scoped ready queue is currently empty.
+- `TG19` is complete, `AK-525`, `AK-517`, `AK-509`, `AK-505`, and `AK-317` are now complete, and no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question; the repo-scoped ready queue is currently empty.
 - `AK-487` was an operator-directed SG2 guardrail hardening slice after `TG19` completion; it tightened fail-closed counterfactual invariants without widening evidence authority or changing the pinned next ready slice.
 - `AK-517` was an operator-directed boundary-hardening slice that closed redirect-following allowlist gaps across HTTP entrypoints, preserved non-dict OpenAPI JSON bodies, fixed rate-limit token accounting drift, and prevented same-title Forge workorders from colliding during issue sync.
+- `AK-525` was an operator-directed idle-state confirmation slice after `AK-517`; it rechecked AK/work-item alignment and refreshed the handoff/operating docs without starting a new implementation slice.
 - `AK-509` was an operator-directed workflow guardrail follow-up that added an executable Just-level regression for the public task-scope command and removed the low-grade handoff contract smell without changing scope semantics or widening SG2 evidence authority.
 - `AK-505` was an operator-directed workflow guardrail fix that restored the documented current-slice task-scope command without changing scope semantics or widening SG2 evidence authority.
 - `AK-493` was an operator-directed follow-on test-hardening slice that closed the newly surfaced regression gaps for unsupported SG2 statuses and divergence comparison-set identity drift.
