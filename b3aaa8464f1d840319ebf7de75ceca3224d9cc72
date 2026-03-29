@@ -1,0 +1,31 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "b3aaa8464f1d840319ebf7de75ceca3224d9cc72"
+created_at: "2026-03-29T09:20:29Z"
+intent: "Record the AK-517 handoff, diary, and deterministic work-items projection for the completed slice."
+files:
+  - "diary/2026-03-29--harden-http-openapi-and-forge-boundary-handling.md"
+  - "docs/project/operational_goals.md"
+  - "governance/task-scopes/AK-517.json"
+  - "governance/work-items.json"
+  - "next_session_prompt.md"
+validation:
+  fast_gate:
+    command: "just task-scope-check task_id=517 mode=working-tree"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 7
+  total: 7
+  rationale: "Refresh the committed handoff and projection after the slice passes and completes in AK."
+links:
+  task_ids:
+    - 517
+  evidence_ids:
+    - 368
+  diary:
+    - "diary/2026-03-29--harden-http-openapi-and-forge-boundary-handling.md"
