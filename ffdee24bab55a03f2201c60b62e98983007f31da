@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "ffdee24bab55a03f2201c60b62e98983007f31da"
-created_at: "2026-03-29T11:08:47Z"
+created_at: "2026-03-29T11:23:53Z"
 intent: "Normalize receipt paths to absolute at write time and resolve relative paths relative to the receipt file, not CWD"
 files:
   - "packages/dspx-core/src/dspx/run_receipts.py"
@@ -15,11 +15,11 @@ validation:
     status: "pass"
   full_gate:
     command: "just test"
-    status: "pending"
+    status: "pass"
 group:
   index: 1
   total: 4
-  rationale: "Path normalization + replay resolution + tests; logically single fix"
+  rationale: "Path normalization + replay resolution + tests"
 links:
   diary:
     - "."
