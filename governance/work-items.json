@@ -234,14 +234,15 @@
         {
           "id": "AK-TASK-0317",
           "title": "Remove repo-local rocs_cli GitLab baseline-resolution compatibility path",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Remove repo-local rocs_cli GitLab baseline-resolution compatibility path (task #317)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-29"
         },
         {
           "id": "AK-TASK-0337",

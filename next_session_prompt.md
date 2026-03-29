@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-317` and remove the repo-local `rocs_cli` GitLab baseline-resolution compatibility path now that `AK-473`/`TG19` are complete.
+- Objective (one sentence): Confirm the repo-scoped ready queue is still empty after `AK-317` and wait for the next operator-directed slice or a newly frozen SG2 contract before editing code.
 - Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-473` is done and committed; `TG19` is complete; the repo-scoped ready queue now falls back to `AK-317` until a later SG2 contract is frozen.
+- Assumptions (max 3): `AK-317` is complete and committed; `TG19` remains complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue stays empty unless the operator or AK changes it.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-28--close-counterfactual-advisory-regression-gaps.md`
+7. `diary/2026-03-28--remove-rocs-cli-gitlab-baseline-compatibility-path.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -55,12 +55,12 @@ Do not ask for permission to start.
 6. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-493` — close residual SG2 counterfactual-advisory regression gaps.
-- Outcome: DSPx now has explicit regression coverage for unsupported readiness/divergence/audit status drift and divergence comparison-set identity drift on the counterfactual advisory, without changing runtime behavior or V7 ranking/promotion logic.
-- Files changed: `diary/2026-03-28--close-counterfactual-advisory-regression-gaps.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-493.json`, `governance/work-items.json`, `next_session_prompt.md`, and `tests/test_module_synthesis_evidence.py`.
-- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py` ✅; `uv run -q python scripts/check_task_scope.py --task-id 493 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 493 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: `AK-493` is complete as an operator-directed SG2 test-hardening slice; `TG19` remains complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue still points at `AK-317`.
-- Next-session starting point: confirm the repo-scoped ready queue still points at `AK-317`, then claim it and remove the repo-local `rocs_cli` GitLab baseline-resolution compatibility path unless the operator redirects the repo back to a new SG2 contract slice.
+- Slice executed: `AK-317` — remove the repo-local `rocs_cli` GitLab baseline-resolution compatibility path.
+- Outcome: DSPx now points its ontology manifest at workspace-only `repo:` locators, no longer vendors `tools/rocs-cli`, and resolves ROCS through workspace core or `PATH` instead of the repo-local compatibility copy.
+- Files changed: `diary/2026-03-28--remove-rocs-cli-gitlab-baseline-compatibility-path.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-317.json`, `governance/work-items.json`, `next_session_prompt.md`, `ontology/index.md`, `ontology/manifest.yaml`, `scripts/check_direction_to_execution.py`, `scripts/rocs.sh`, and deleted `tools/rocs-cli/**`.
+- Validation commands + results: `./scripts/rocs.sh --doctor` ✅; `./scripts/rocs.sh --which` ✅; `uv run -q python scripts/check_task_scope.py --task-id 317 --mode working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 317 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: `AK-317` is complete; `TG19` remains complete; no next SG2 implementation slice is pinned; the repo-scoped ready queue is empty.
+- Next-session starting point: confirm the repo-scoped ready queue is still empty, then wait for operator direction or a newly frozen SG2 contract before starting another slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

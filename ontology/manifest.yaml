@@ -1,9 +1,9 @@
 rocs:
   layers:
     - name: core
-      ref: "<gitlab:ai-society/core/ontology-kernel@main>"
+      ref: "<repo:ai-society/core/ontology-kernel@main>"
     - name: company
-      ref: "<gitlab:ai-society/softwareco/ontology@main>"
+      ref: "<repo:ai-society/softwareco/ontology@main>"
     - name: repo
       path: "ontology/src"
   profiles:

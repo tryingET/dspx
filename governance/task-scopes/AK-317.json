@@ -1,0 +1,32 @@
+{
+  "task_id": 317,
+  "description": "Remove the repo-local rocs_cli GitLab baseline-resolution compatibility path by switching ontology refs to workspace-only repo locators, deleting the vendored rocs-cli copy, updating the local ROCS launcher/docs to use workspace core resolution, and letting repo direction checks fail closed when the ready queue is intentionally empty.",
+  "allowed_paths": [
+    "diary/2026-03-28--remove-rocs-cli-gitlab-baseline-compatibility-path.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-317.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "ontology/dist/*.json",
+    "ontology/index.md",
+    "ontology/manifest.yaml",
+    "scripts/check_direction_to_execution.py",
+    "scripts/rocs.sh",
+    "tools/rocs-cli/**"
+  ],
+  "required_paths": [
+    "diary/2026-03-28--remove-rocs-cli-gitlab-baseline-compatibility-path.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-317.json",
+    "next_session_prompt.md",
+    "ontology/manifest.yaml",
+    "scripts/check_direction_to_execution.py",
+    "scripts/rocs.sh"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

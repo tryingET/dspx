@@ -48,10 +48,14 @@ def _extract_active_operational_task(
     )
     section_text = section_match.group("body") if section_match else text
     ids = re.findall(r"AK-(\d+)", section_text)
-    if not ids:
-        issues.append(Issue(Path(relpath), "missing active operating-slice AK task ID"))
+    if ids:
+        return f"AK-{ids[0]}"
+    if re.search(
+        r"\bno repo-scoped implementation slice\b", section_text, re.IGNORECASE
+    ):
         return None
-    return f"AK-{ids[0]}"
+    issues.append(Issue(Path(relpath), "missing active operating-slice AK task ID"))
+    return None
 
 
 def _run_json(cmd: list[str], *, relpath: str, issues: list[Issue]) -> object | None:
@@ -155,13 +159,21 @@ def collect_issues(root: Path) -> list[Issue]:
     objective_match = re.search(
         r"Objective \(one sentence\): Claim `(AK-\d+)`", next_session
     )
-    if objective_match is None:
-        issues.append(
-            Issue(
-                Path("next_session_prompt.md"),
-                "missing Objective claim marker for active AK task",
-            )
+    next_session_declares_empty_queue = bool(
+        re.search(
+            r"Objective \(one sentence\): .*ready queue.*empty",
+            next_session,
+            flags=re.IGNORECASE,
         )
+    )
+    if objective_match is None:
+        if not next_session_declares_empty_queue:
+            issues.append(
+                Issue(
+                    Path("next_session_prompt.md"),
+                    "missing Objective claim marker for active AK task",
+                )
+            )
         next_session_ak = None
     else:
         next_session_ak = objective_match.group(1)
@@ -202,6 +214,20 @@ def collect_issues(root: Path) -> list[Issue]:
                 Issue(
                     Path("docs/project/operational_goals.md"),
                     f"active operating slice {first_operational} is not currently ready in AK",
+                )
+            )
+        if ready_ids and next_session_ak is None and next_session_declares_empty_queue:
+            issues.append(
+                Issue(
+                    Path("next_session_prompt.md"),
+                    "next-session prompt declares an empty ready queue but AK has ready tasks",
+                )
+            )
+        if ready_ids and first_operational is None:
+            issues.append(
+                Issue(
+                    Path("docs/project/operational_goals.md"),
+                    "operational goals declare no active slice but AK has ready tasks",
                 )
             )
 

@@ -13,12 +13,12 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-1. `AK-317` — **Remove repo-local `rocs_cli` GitLab baseline-resolution compatibility path**
-   - Status: ready
-   - Deliverable: remove the repo-local compatibility path now that the SG2 counterfactual-advisory slice is complete and no next SG2 contract is pinned yet.
+- No repo-scoped implementation slice is currently pinned in AK.
+- The repo-scoped ready queue is empty after the compatibility-cleanup slice completed.
 
 ## Recently completed in this wave
 
+- `AK-317` — removed the repo-local `rocs_cli` compatibility path by switching ontology refs to workspace-only `repo:` locators, deleting the vendored `tools/rocs-cli` copy, and simplifying `scripts/rocs.sh` to resolve ROCS from workspace core or `PATH`.
 - `AK-493` — closed residual SG2 counterfactual-advisory regression gaps by covering unsupported status drift and divergence comparison-set identity drift without changing runtime behavior.
 - `AK-487` — made the candidate-prior counterfactual advisory fail closed under SG2 surface drift by validating status enums, selected-candidate identity, divergence comparison-set integrity, and zero-preserving selected ranking-score handling without changing V7 ranking/promotion behavior.
 - `AK-473` — materialized the ADR-backed read-only candidate-prior counterfactual advisory on live module metadata and persisted receipts using already-emitted SG2 surfaces plus trusted current-run comparison metadata, while leaving V7 ranking/promotion behavior unchanged.
@@ -53,7 +53,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG19` is complete; no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question, so the repo-scoped ready queue currently falls back to `AK-317`.
+- `TG19` is complete, `AK-317` is now complete, and no next SG2 implementation slice is pinned until a later contract freezes the next evidence-authority question; the repo-scoped ready queue is currently empty.
 - `AK-487` was an operator-directed SG2 guardrail hardening slice after `TG19` completion; it tightened fail-closed counterfactual invariants without widening evidence authority or changing the pinned next ready slice.
 - `AK-493` was an operator-directed follow-on test-hardening slice that closed the newly surfaced regression gaps for unsupported SG2 statuses and divergence comparison-set identity drift.
 - `AK-388`, `AK-431`, and `AK-436` were operator-directed guardrail fixes that hardened runtime trust boundaries without widening evidence authority; `AK-388` and `AK-431` now form part of the fail-closed rank-truth boundary that `AK-441` reused.
