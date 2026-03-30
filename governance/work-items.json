@@ -850,6 +850,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0567",
+          "title": "Provider runtime: document how to verify dspy-lm-auth uses the Pi auth store",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Provider runtime: document how to verify dspy-lm-auth uses the Pi auth store (task #567)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
         }
       ]
     }

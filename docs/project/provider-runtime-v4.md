@@ -49,6 +49,40 @@ just link-dspy-lm-auth
 
 That helper installs the contrib checkout and verifies `import dspy_lm_auth` resolves from the requested path.
 
+## How to prove DSPx is using your Pi auth store
+
+DSPx only uses your Pi/Codex-backed auth when the active route is `dspy-lm-auth`.
+That route defaults to `~/.pi/agent/auth.json`, not `~/.pi/auth.json`.
+
+Check the configured route:
+
+```bash
+just dspx providers resolve --provider dspy-lm-auth --json
+```
+
+In the JSON payload, confirm:
+- `runtime.provider_family == "dspy-lm-auth"`
+- `runtime.auth_storage == "/home/<you>/.pi/agent/auth.json"` (or your explicit override)
+- `runtime.auth_storage_exists == true`
+- `runtime.requested_model` is the model you expect
+
+Then prove the auth-backed route can actually use those credentials:
+
+```bash
+just dspx providers health --provider dspy-lm-auth --probe --json
+```
+
+In the health payload, confirm:
+- `checks` includes `auth available for provider=codex` (or your configured auth provider)
+- `probe.ok == true`
+
+Interpretation:
+- if those checks pass, DSPx is able to use the credentials from the configured auth store for the `dspy-lm-auth` route
+- if `DSPX_PROVIDER=vllm-local`, the run is local and does **not** use your Pi auth-backed subscription
+- in the mixed optimize profile, the usual split is: student = `vllm-local`, reflection = `dspy-lm-auth`; that means only the reflection path uses the auth-backed route
+
+Run receipts also record safe provider details such as `provider`, `requested_model`, `auth_storage`, and `auth_storage_exists`, so you can confirm after the fact which route a DSPx run used without exposing secrets.
+
 ## Verified local setup snapshot
 
 The currently verified local/runtime combination is:

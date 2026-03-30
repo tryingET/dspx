@@ -1,0 +1,28 @@
+{
+  "task_id": 567,
+  "description": "Document how operators can verify whether DSPx is using the Pi auth-backed dspy-lm-auth route, including the default auth-store path, the decisive resolve/health checks, and the mixed local-vs-auth-backed provider split, then refresh the aligned handoff artifacts.",
+  "allowed_paths": [
+    "README.md",
+    "diary/2026-03-29--document-how-to-verify-pi-auth-backed-provider-usage.md",
+    "docs/project/operational_goals.md",
+    "docs/project/provider-runtime-v4.md",
+    "governance/task-scopes/AK-567.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "README.md",
+    "diary/2026-03-29--document-how-to-verify-pi-auth-backed-provider-usage.md",
+    "docs/project/operational_goals.md",
+    "docs/project/provider-runtime-v4.md",
+    "governance/task-scopes/AK-567.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

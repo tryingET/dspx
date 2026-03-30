@@ -328,6 +328,21 @@ just dspx providers health --provider vllm-local --probe --json
 just dspx providers health --provider dspy-lm-auth --probe --json
 ```
 
+How to verify DSPx is using your Pi auth-backed subscription:
+
+```bash
+just dspx providers resolve --provider dspy-lm-auth --json
+just dspx providers health --provider dspy-lm-auth --probe --json
+```
+
+What to check:
+- `runtime.auth_storage` / `metadata.auth_storage` should point to `~/.pi/agent/auth.json`
+- `auth_storage_exists` should be `true`
+- the health payload should report `auth available for provider=codex`
+- `--probe` should succeed if DSPx can actually use that auth-backed route
+
+Important: DSPx does **not** always use your Pi auth-backed subscription. In the mixed provider profile, `vllm-local` stays local while `dspy-lm-auth` uses the auth-backed route. For optimize runs, that usually means the student path is local and only the reflection path uses your Pi/Codex-backed auth.
+
 Benchmark providers:
 
 ```bash
