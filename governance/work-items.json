@@ -916,6 +916,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0600",
+          "title": "Workflow guardrails: reconfirm post-AK-593 empty ready queue and refresh idle-state handoff at current HEAD",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Workflow guardrails: reconfirm post-AK-593 empty ready queue and refresh idle-state handoff at current HEAD (task #600)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
         }
       ]
     }

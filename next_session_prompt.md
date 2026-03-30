@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Re-run the repo-scoped ready queue after `AK-593`; if it is still empty, do not start a new implementation slice until the next truthful post-`TG23` contract/materialization step is created.
+- Objective (one sentence): Re-run the repo-scoped ready queue after `AK-600`; if it is still empty, do not start a new implementation slice until the next truthful post-`TG23` contract/materialization step is created.
 - Constraints (hard limits): Do not widen authority beyond the governance-only receipt boundary frozen in `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-593` is complete and committed; `TG23` is complete and no next SG2 implementation slice is pinned yet; SG3 `AK-549`–`AK-551` remain blocked on cross-repo `AK-548` and are not the active wave.
+- Assumptions (max 3): `AK-593` and `AK-600` are complete and committed; `TG23` is complete and no next SG2 implementation slice is pinned yet; SG3 `AK-549`–`AK-551` remain blocked on cross-repo `AK-548` and are not the active wave.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,8 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`
-7. `diary/2026-03-30--emit-governed-policy-evaluation-receipts.md`
+7. `diary/2026-03-30--reconfirm-post-ak-593-empty-ready-queue-and-refresh-handoff-at-current-head.md`
+8. `diary/2026-03-30--emit-governed-policy-evaluation-receipts.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -56,12 +57,12 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-593` — emit the first governed policy-evaluation receipts for named governance-only ranking/promotion variants from bounded shadow predictive-ranking evidence.
-- Outcome: added a fail-closed governed receipt builder, emitted two named governance-only variant receipts under `synthesis_diagnostics.governed_policy_evaluations`, recorded the supporting SG2 surface versions/comparison scope on the receipts, extended persisted diagnostics parsing, and kept live V7 ranking/tie-breaking/pruning/promotion unchanged.
-- Files changed: `diary/2026-03-30--emit-governed-policy-evaluation-receipts.md`, `docs/project/operational_goals.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-593.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, and `tests/test_run_receipts.py`.
-- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after completion (`[]`); `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=593 mode=working-tree` ✅; `just verify-full` ✅; `ak task complete 593 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: refreshed `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and this handoff so `TG23`/`AK-593` are recorded as the newly completed governed-receipt seam with no next SG2 slice pinned yet; recorded the session in `diary/2026-03-30--emit-governed-policy-evaluation-receipts.md`; added `governance/task-scopes/AK-593.json`; and refreshed `governance/work-items.json` after the AK completion/export.
-- Next-session starting point: re-run the repo-scoped ready queue filter; if it is still empty, do not start a new implementation slice until the next truthful post-`TG23` contract/materialization step is created.
+- Slice executed: `AK-600` — reconfirm post-`AK-593` empty ready queue and refresh the idle-state handoff at current `HEAD`.
+- Outcome: created an operator-directed workflow-guardrail slice, confirmed the repo-scoped `ak task ready` filter still returned `[]` before and after the slice, refreshed the operating-plan/handoff checkpoint at current `HEAD`, and avoided starting an unpinned SG2 implementation slice.
+- Files changed: `diary/2026-03-30--reconfirm-post-ak-593-empty-ready-queue-and-refresh-handoff-at-current-head.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-600.json`, `governance/work-items.json`, and `next_session_prompt.md`.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ before `AK-600` (`[]`); `just task-scope-check task_id=600 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 600 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after `AK-600` (`[]`).
+- Source-of-truth updates: recorded this idle-state confirmation in `diary/2026-03-30--reconfirm-post-ak-593-empty-ready-queue-and-refresh-handoff-at-current-head.md`; refreshed `docs/project/operational_goals.md` and this handoff so they point at the current-`HEAD` empty-queue checkpoint after `AK-593`; added `governance/task-scopes/AK-600.json`; and refreshed `governance/work-items.json` after the AK completion/export.
+- Next-session starting point: re-run the repo-scoped ready queue filter; if it is still empty, wait for operator direction or the next truthful post-`TG23` contract/materialization step instead of starting a new implementation slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
