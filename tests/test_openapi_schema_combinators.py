@@ -220,3 +220,148 @@ def test_request_body_anyof_resolves_refs_and_requires_one_passing_branch(
         client=mock_client,
     )
     assert result.status_code == 200
+
+
+def test_request_body_repeated_ref_branches_do_not_collapse_to_unconstrained_schema(
+    tmp_path: Path, mock_client: httpx.Client
+) -> None:
+    ops = _ops_from_spec(
+        tmp_path,
+        {
+            "openapi": "3.1.0",
+            "servers": [{"url": "http://api.example.com"}],
+            "components": {
+                "schemas": {
+                    "Shared": {
+                        "type": "object",
+                        "required": ["x"],
+                        "properties": {"x": {"type": "integer"}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
+            "paths": {
+                "/items": {
+                    "post": {
+                        "operationId": "createRepeatedRefOneOfItem",
+                        "requestBody": {
+                            "required": True,
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "oneOf": [
+                                            {"$ref": "#/components/schemas/Shared"},
+                                            {"$ref": "#/components/schemas/Shared"},
+                                        ]
+                                    }
+                                }
+                            },
+                        },
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+        },
+    )
+
+    with pytest.raises(ValueError, match="none matched"):
+        call_operation(
+            OpenAPICallRequest(operation_id="createRepeatedRefOneOfItem", body={}),
+            operation=ops["createRepeatedRefOneOfItem"],
+            allowed_hosts={"api.example.com": True},
+            client=mock_client,
+        )
+
+    with pytest.raises(ValueError, match="none matched"):
+        call_operation(
+            OpenAPICallRequest(
+                operation_id="createRepeatedRefOneOfItem",
+                body={"y": 1},
+            ),
+            operation=ops["createRepeatedRefOneOfItem"],
+            allowed_hosts={"api.example.com": True},
+            client=mock_client,
+        )
+
+    with pytest.raises(ValueError, match="matched multiple oneOf branches"):
+        call_operation(
+            OpenAPICallRequest(
+                operation_id="createRepeatedRefOneOfItem",
+                body={"x": 1},
+            ),
+            operation=ops["createRepeatedRefOneOfItem"],
+            allowed_hosts={"api.example.com": True},
+            client=mock_client,
+        )
+
+
+def test_request_body_reused_property_refs_validate_each_sibling_independently(
+    tmp_path: Path, mock_client: httpx.Client
+) -> None:
+    ops = _ops_from_spec(
+        tmp_path,
+        {
+            "openapi": "3.1.0",
+            "servers": [{"url": "http://api.example.com"}],
+            "components": {
+                "schemas": {
+                    "Shared": {
+                        "type": "object",
+                        "required": ["x"],
+                        "properties": {"x": {"type": "integer"}},
+                        "additionalProperties": False,
+                    }
+                }
+            },
+            "paths": {
+                "/items": {
+                    "post": {
+                        "operationId": "createRepeatedPropertyRefItem",
+                        "requestBody": {
+                            "required": True,
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": ["a", "b"],
+                                        "properties": {
+                                            "a": {
+                                                "$ref": "#/components/schemas/Shared"
+                                            },
+                                            "b": {
+                                                "$ref": "#/components/schemas/Shared"
+                                            },
+                                        },
+                                        "additionalProperties": False,
+                                    }
+                                }
+                            },
+                        },
+                        "responses": {"200": {"description": "ok"}},
+                    }
+                }
+            },
+        },
+    )
+
+    with pytest.raises(ValueError, match="body.b: missing required property 'x'"):
+        call_operation(
+            OpenAPICallRequest(
+                operation_id="createRepeatedPropertyRefItem",
+                body={"a": {"x": 1}, "b": {}},
+            ),
+            operation=ops["createRepeatedPropertyRefItem"],
+            allowed_hosts={"api.example.com": True},
+            client=mock_client,
+        )
+
+    result = call_operation(
+        OpenAPICallRequest(
+            operation_id="createRepeatedPropertyRefItem",
+            body={"a": {"x": 1}, "b": {"x": 2}},
+        ),
+        operation=ops["createRepeatedPropertyRefItem"],
+        allowed_hosts={"api.example.com": True},
+        client=mock_client,
+    )
+    assert result.status_code == 200

@@ -768,7 +768,7 @@ def _resolve_schema(
         ref = str(schema.get("$ref"))
         if ref in _seen:
             return {}
-        _seen.add(ref)
+        next_seen = {*_seen, ref}
         target: Optional[Mapping[str, Any]] = None
         try:
             if ref.startswith("#/components/schemas/") and isinstance(
@@ -779,7 +779,7 @@ def _resolve_schema(
         except Exception:
             target = None
         if isinstance(target, Mapping):
-            return _resolve_schema(target, components, _seen)
+            return _resolve_schema(target, components, next_seen)
         # Unresolvable: return as-is
         return schema
     # Preserve composition semantics; resolve refs within each branch.
@@ -789,7 +789,7 @@ def _resolve_schema(
         if isinstance(parts, list):
             out[key] = [
                 (
-                    _resolve_schema(part or {}, components, _seen)
+                    _resolve_schema(part or {}, components, set(_seen))
                     if isinstance(part, Mapping)
                     else part
                 )
@@ -799,14 +799,14 @@ def _resolve_schema(
     if isinstance(schema.get("properties"), Mapping):
         new_props: Dict[str, Any] = {}
         for k, v in schema["properties"].items():
-            new_props[k] = _resolve_schema(v, components, _seen)
+            new_props[k] = _resolve_schema(v, components, set(_seen))
         out["properties"] = new_props
     if isinstance(schema.get("items"), Mapping):
-        out["items"] = _resolve_schema(schema["items"], components, _seen)
+        out["items"] = _resolve_schema(schema["items"], components, set(_seen))
     if isinstance(schema.get("additionalProperties"), Mapping):
         out["additionalProperties"] = _resolve_schema(
             schema["additionalProperties"],
             components,
-            _seen,
+            set(_seen),
         )
     return out

@@ -799,6 +799,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0559",
+          "title": "OpenAPI validation: resolve repeated local schema refs independently across sibling branches",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "OpenAPI validation: resolve repeated local schema refs independently across sibling branches (task #559)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
         }
       ]
     }

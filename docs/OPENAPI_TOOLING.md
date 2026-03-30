@@ -54,7 +54,7 @@ Validation Coverage (Current)
   - Object: required properties, per‑property types (`string|integer|number|boolean|array|object`), and enums.
   - Array: item validation for primitives and objects (arrays of objects supported).
   - Nested objects: validates nested required/primitive types recursively.
-  - `$ref`: resolves local refs under `#/components/schemas/*` (request bodies, including `allOf|oneOf|anyOf` branches) and `#/components/parameters/*` (path/query params).
+  - `$ref`: resolves local refs under `#/components/schemas/*` (request bodies, including reused sibling properties plus `allOf|oneOf|anyOf` branches) and `#/components/parameters/*` (path/query params).
   - `allOf`: preserves branch semantics during validation, resolves local refs inside each branch, and keeps branch-local constraints such as `required` and `additionalProperties` instead of flattening them into a shallow object merge.
   - Combinators: `oneOf` enforces exactly one matching branch, while `anyOf` requires at least one matching branch.
   - Bounds: `minLength|maxLength|pattern` for strings; `minimum|maximum|exclusiveMinimum|exclusiveMaximum` for numbers/integers (including OpenAPI 3.1 numeric exclusive thresholds); `minItems|maxItems` for arrays.
