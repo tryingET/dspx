@@ -1,0 +1,28 @@
+{
+  "task_id": 577,
+  "description": "Refresh the SG2 direction stack after AK-562, promote TG22 to the active tactical goal, materialize the next truthful repo-local slice, and refresh the aligned handoff/projection artifacts.",
+  "allowed_paths": [
+    "diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-577.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-577.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

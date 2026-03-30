@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Re-run the repo-scoped ready queue after `AK-562`; if it is still empty, do not start a new implementation slice until the next truthful `TG22` contract/materialization step is created.
-- Constraints (hard limits): Do not widen evidence authority beyond `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-562` is complete and committed; the repo-scoped ready queue is empty again unless a new truthful slice has been materialized; SG3 AK-native scope-snapshot work remains blocked on cross-repo `AK-548` and is not the active wave.
+- Objective (one sentence): Claim `AK-578` and freeze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence.
+- Constraints (hard limits): Keep authority bounded to the already-emitted shadow predictive-ranking evidence surfaces; do not mutate live V7 ranking, tie-breaking, pruning, or promotion behavior; keep `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and this file aligned.
+- Assumptions (max 3): `AK-577` is complete and committed; `AK-578` is the only repo-scoped ready task for active `TG22`; SG3 `AK-549`–`AK-551` remain blocked on cross-repo `AK-548` and are not in scope.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,26 +42,26 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`
-7. `diary/2026-03-29--emit-shadow-predictive-ranking-advisory.md`
+7. `diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the ready queue with `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the repo-scoped ready queue is empty, do not start a new implementation slice; wait for operator direction or the next truthful decomposition/materialization step.
-4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
-5. Implement at most one operating slice end-to-end.
-6. Validate the slice with:
+3. Claim `AK-578` before editing docs or code.
+4. Freeze only the `TG22` contract slice; do not start `TG23` receipt materialization in the same session.
+5. Validate the slice with:
    - `./scripts/ci/smoke.sh`
+   - `just task-scope-check task_id=576 mode=working-tree`
    - `just verify-full`
-7. Update source-of-truth docs/diary/ADR references before commit.
+6. Update source-of-truth docs/diary/ADR references before commit, then refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify it with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-562` — emit the ADR-backed read-only shadow predictive-ranking advisory for `module-gen` outcomes.
-- Outcome: DSPx now emits `shadow_predictive_ranking_advisory` on live `module-gen` metadata and persisted receipts, deriving bounded shadow statuses from the existing winner-prior/audit/divergence/readiness/counterfactual surfaces plus trusted current comparison metadata without changing V7 ranking, tie-breaking, pruning, or promotion behavior.
-- Files changed: `diary/2026-03-29--emit-shadow-predictive-ranking-advisory.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-562.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, and `tests/test_run_receipts.py`.
-- Validation commands + results: `uv run -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `just task-scope-check task_id=562 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 562 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: refreshed `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and `next_session_prompt.md`; recorded the session in `diary/2026-03-29--emit-shadow-predictive-ranking-advisory.md`; refreshed `governance/work-items.json`; added `governance/task-scopes/AK-562.json`; and recorded `AK-562`/`TG21` as complete with the repo-scoped ready queue empty again until the next truthful `TG22` contract/materialization step is created.
-- Next-session starting point: re-run the repo-scoped ready queue filter; if it is still empty, do not start a new implementation slice until the next truthful `TG22` contract/materialization step is created, and do not widen SG2 authority beyond the new shadow predictive-ranking advisory.
+- Slice executed: `AK-577` — promote `TG22` and materialize the next governed policy-evaluation contract slice.
+- Outcome: refreshed the SG2 strategic rationale after `AK-562`, promoted `TG22` to the active tactical goal, created `AK-578` as the single next repo-local slice, and converted the repo from an empty-ready-queue decomposition gap into a truthful ready handoff without materializing `TG23` early.
+- Files changed: `diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md`, `docs/project/operational_goals.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-577.json`, `governance/work-items.json`, and `next_session_prompt.md`.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` (empty before materialization) ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` (preflight) ✅; `just task-scope-check task_id=577 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 577 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: refreshed `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and `next_session_prompt.md`; recorded the session in `diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md`; added `governance/task-scopes/AK-577.json`; created repo-local task `AK-578`; and refreshed `governance/work-items.json`.
+- Next-session starting point: claim `AK-578`, freeze the governed policy-evaluation contract for shadow predictive-ranking evidence, and keep `TG23` unmaterialized until that contract lands.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

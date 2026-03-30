@@ -7,16 +7,17 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TBD`
+Active tactical goal: `TG22`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-- No repo-scoped implementation slice is currently pinned. The repo-scoped ready queue is empty again until the next truthful `TG22` contract/materialization step is created.
+- `AK-578` — freeze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence, defining the bounded evaluation inputs, variant surfaces, receipt payload, and promotion-authority limits for governance-only ranking/policy experiments without mutating the live V7 default policy.
 
 ## Recently completed in this wave
 
+- `AK-577` — refreshed the SG2 direction stack after `AK-562`, promoted `TG22` to the active tactical goal, and materialized `AK-578` as the next ready repo-local slice instead of treating the empty ready queue as repo completion.
 - `AK-562` — materialized the ADR-backed read-only shadow predictive-ranking advisory on live module metadata and persisted receipts, using already-emitted SG2 surfaces plus trusted current ranked/evaluation metadata while leaving live V7 ranking, tie-breaking, pruning, and promotion unchanged.
 - `AK-570` — added `just show-dspy-lm-auth-route` so operators can prove the active import path plus the auth-backed resolve/health route in one command, and documented that helper without displacing active slice `AK-562`.
 - `AK-567` — documented how to verify that DSPx is actually using the Pi auth-backed `dspy-lm-auth` route, including the default `~/.pi/agent/auth.json` path, the resolve/health probe checks, and the local-vs-auth-backed split in mixed-provider runs, without displacing active slice `AK-562`.
@@ -29,11 +30,12 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG21` is complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue is empty until the next truthful `TG22` contract/materialization step is created.
+- `TG22` is now the active tactical goal, and `AK-578` is the single ready operating slice for freezing the governed policy-evaluation contract that must precede any `TG23` receipt materialization.
+- `TG21` is complete; the empty post-`AK-562` ready queue was a decomposition gap rather than evidence that SG2 repo-local work was finished.
 - `AK-570` was an operator-directed provider-runtime helper/documentation slice; it collapsed the route proof into one stable command without replacing the active SG2 implementation slice.
 - `AK-567` was an operator-directed provider-runtime documentation slice; it made the auth-store routing proof explicit for operators without replacing the active SG2 implementation slice.
 - `AK-564` was an operator-directed provider-runtime/workflow slice; it fixed local editable import resolution for `dspy-lm-auth` but did not replace the active SG2 implementation slice.
-- Do not start live predictive ranking, candidate pruning, promotion blocking, or strategy/policy mutation until a later contract explicitly widens authority beyond the new shadow predictive-ranking advisory.
+- Do not start live predictive ranking, candidate pruning, promotion blocking, or strategy/policy mutation until `AK-578` freezes the governed policy-evaluation contract and a later tactical wave explicitly widens authority beyond the shadow predictive-ranking advisory.
 - `AK-549`–`AK-551` remain the next strategic-wave AK-native task-scope migration, but they stay out of the active operating plan because `AK-549` is blocked on cross-repo `AK-548`.
 - Older deferred/provider/runtime follow-ons (`AK-224`, `AK-235`–`AK-239`) remain non-active backlog and were intentionally not resumed in this SG2 wave.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.

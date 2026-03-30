@@ -877,6 +877,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0577",
+          "title": "Direction-to-execution: promote TG22 and materialize the next governed policy-evaluation contract slice",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Direction-to-execution: promote TG22 and materialize the next governed policy-evaluation contract slice (task #577)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0578",
+          "title": "Synthesis evidence substrate: define the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: define the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence (task #578)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

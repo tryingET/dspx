@@ -9,13 +9,13 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TBD`
-Next tactical goal: `TG22`
+Active tactical goal: `TG22`
+Next tactical goal: `TG23`
 
 ## Upcoming tactical goals for `SG2`
 
 ### `TG22` — Freeze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence
-- Status: next
+- Status: active
 - Definition of done: DSPx has a dated, referenceable contract for evaluating candidate-ranking or promotion-policy variants against receipt-backed shadow predictive-ranking evidence under governance, without mutating the live default policy yet.
 
 ### `TG23` — Materialize governed policy-evaluation receipts for evidence-aware synthesis variants
@@ -55,4 +55,5 @@ The following remain intentionally out of the active tactical wave until `TG22` 
 - live predictive ranking from Oracle priors,
 - live candidate pruning or promotion blocking from prior-backed signals,
 - strategy/policy mutation without explicit governed evaluation receipts,
+- decomposing or materializing `TG23` before `TG22` freezes the contract it must obey,
 - SG3 AK-native scope-snapshot execution while `AK-548` still blocks `AK-549`.
