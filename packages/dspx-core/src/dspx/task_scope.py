@@ -327,6 +327,12 @@ def collect_scope_issues(
     return issues
 
 
+def _resolve_scope_check_mode(repo_root: Path, mode: str) -> str:
+    if mode != "auto":
+        return mode
+    return "working-tree" if changed_files_for_working_tree(repo_root) else "head"
+
+
 def check_task_scope(
     repo_root: Path,
     *,
@@ -335,6 +341,7 @@ def check_task_scope(
     mode: str = "head",
     rev_range: str = "auto",
 ) -> ScopeCheckResult:
+    mode = _resolve_scope_check_mode(repo_root, mode)
     resolved_task_id = task_id
     if resolved_task_id is None and manifest_path is None:
         resolution_issue: str | None = None

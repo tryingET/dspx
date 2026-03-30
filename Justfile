@@ -93,10 +93,11 @@ module-synthesis-quality-check:
   uv run -q python scripts/build_module_synthesis_quality_log.py
 
 # Check the attested task slice against an explicit file-scope manifest.
-# Head mode validates the full task slice from manifest introduction through HEAD.
-# Without an explicit task_id, head mode falls back to deterministic repo-local binding
-# via the committed next_session_prompt checkpoint before failing closed.
-task-scope-check task_id="" mode="head" rev_range="auto":
+# Auto mode validates the working tree when the repo is dirty, otherwise the full
+# committed task slice from manifest introduction through HEAD.
+# Without an explicit task_id, head mode still falls back to deterministic repo-local
+# binding via the committed next_session_prompt checkpoint before failing closed.
+task-scope-check task_id="" mode="auto" rev_range="auto":
   if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi
 
 # Fast deterministic validation gate (cheap enough for frequent local use)

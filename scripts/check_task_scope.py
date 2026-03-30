@@ -42,9 +42,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--manifest", type=Path, default=None)
     parser.add_argument(
         "--mode",
-        choices=("head", "working-tree"),
+        choices=("auto", "head", "working-tree"),
         default="head",
-        help="Check the attested task slice reachable from HEAD or the current working tree",
+        help=(
+            "Check the attested task slice reachable from HEAD, the current "
+            "working tree, or auto-select working-tree when the repo is dirty "
+            "and HEAD when it is clean"
+        ),
     )
     parser.add_argument(
         "--range",

@@ -78,8 +78,9 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  python3 scripts/check_direction_to_execution.py\n"
         "governance-check:\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n"
+        "# working tree when the repo is dirty\n"
         "# next_session_prompt checkpoint before failing closed\n"
-        'task-scope-check task_id="" mode="head" rev_range="auto":\n'
+        'task-scope-check task_id="" mode="auto" rev_range="auto":\n'
         '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
         "verify-fast:\n"
         "  uvx pre-commit run --all-files\n"

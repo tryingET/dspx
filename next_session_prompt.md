@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Re-run the repo-scoped DSPx AK ready queue filter after `AK-556`; if the queue is still empty, wait for the next operator-directed slice or newly frozen SG2 contract before starting new implementation work.
+- Objective (one sentence): Re-run the repo-scoped DSPx AK ready queue filter after `AK-558`; if the queue is still empty, wait for the next operator-directed slice or newly frozen SG2 contract before starting new implementation work.
 - Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-556` is complete and committed; no next SG2 implementation slice is pinned yet; any new implementation work still requires either operator direction or a repo-scoped ready AK task.
+- Assumptions (max 3): `AK-558` is complete and committed; no next SG2 implementation slice is pinned yet; any new implementation work still requires either operator direction or a repo-scoped ready AK task.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -42,7 +42,7 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-29--reconfirm-post-ak-534-empty-ready-queue-and-refresh-handoff-at-current-head.md`
+7. `diary/2026-03-29--implement-nexus-validation-contract-fixes-for-task-scope-and-openapi-combinators.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -56,11 +56,11 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-556` — reconfirm post-AK-534 empty ready queue and refresh the repo handoff at current HEAD.
-- Outcome: Confirmed the repo-scoped ready queue remained empty after `AK-534`, refreshed the source-of-truth handoff/operating artifacts at the current branch HEAD, recorded the idle-state checkpoint in diary/task-scope/work-item projection artifacts, and returned the repo to a no-ready-slice state without starting a new implementation slice.
-- Files changed: `diary/2026-03-29--reconfirm-post-ak-534-empty-ready-queue-and-refresh-handoff-at-current-head.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-556.json`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ before `AK-556` (`[]`); `just task-scope-check task_id=556 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 556 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after completion (`[]`).
-- Source-of-truth updates: updated `docs/project/operational_goals.md` and `next_session_prompt.md` to the latest current-HEAD idle-state checkpoint, recorded the slice in `diary/2026-03-29--reconfirm-post-ak-534-empty-ready-queue-and-refresh-handoff-at-current-head.md`, and added `governance/task-scopes/AK-556.json` for the attested workflow slice.
+- Slice executed: `AK-558` — implement the nexus validation-contract fixes for task-scope auto mode and OpenAPI combinator semantics.
+- Outcome: Made task-scope mode selection deterministic for dirty vs clean repos so `verify-fast`/`verify-full` validate active working-tree slices when needed, hardened OpenAPI `oneOf|anyOf` request-body semantics including local `$ref` branches, refreshed the aligned docs/handoff artifacts, and returned the repo to a no-ready-slice state after the operator-directed validation-contract slice.
+- Files changed: `Justfile`, `diary/2026-03-29--implement-nexus-validation-contract-fixes-for-task-scope-and-openapi-combinators.md`, `docs/OPENAPI_TOOLING.md`, `docs/project/developer_workflow.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-558.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/task_scope.py`, `packages/dspx-core/src/dspx/tools/openapi/caller.py`, `scripts/check_task_scope.py`, `scripts/check_workflow_contracts.py`, `tests/test_openapi_schema_combinators.py`, `tests/test_task_scope.py`, `tests/test_workflow_contracts.py`.
+- Validation commands + results: `uv run -m pytest -q tests/test_openapi_schema_combinators.py tests/test_openapi_schema_refs_allof.py tests/test_openapi_numeric_bounds.py tests/test_openapi_url_loading.py tests/test_task_scope.py tests/test_workflow_contracts.py tests/test_direction_to_execution.py` ✅; `just task-scope-check task_id=558 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 558 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after completion (`[]`).
+- Source-of-truth updates: refreshed `docs/project/developer_workflow.md` and `docs/OPENAPI_TOOLING.md` for the new task-scope/OpenAPI behavior, updated `docs/project/operational_goals.md` and `next_session_prompt.md` to the latest current-HEAD checkpoint, recorded the slice in `diary/2026-03-29--implement-nexus-validation-contract-fixes-for-task-scope-and-openapi-combinators.md`, and added `governance/task-scopes/AK-558.json` for the attested workflow slice.
 - Next-session starting point: re-run the repo-scoped `ak task ready` filter; if it is still empty, wait for operator direction or a newly frozen SG2 contract before starting another slice.
 
 ## END-OF-SESSION

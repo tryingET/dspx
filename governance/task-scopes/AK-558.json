@@ -1,0 +1,37 @@
+{
+  "task_id": 558,
+  "description": "Implement the nexus validation-contract slice by making task-scope mode selection deterministic for dirty vs clean repos, hardening OpenAPI oneOf/anyOf schema semantics including ref resolution, and refreshing the aligned docs/handoff artifacts.",
+  "allowed_paths": [
+    "Justfile",
+    "diary/2026-03-29--implement-nexus-validation-contract-fixes-for-task-scope-and-openapi-combinators.md",
+    "docs/OPENAPI_TOOLING.md",
+    "docs/project/developer_workflow.md",
+    "docs/project/operational_goals.md",
+    "governance/task-scopes/AK-558.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "packages/dspx-core/src/dspx/tools/openapi/caller.py",
+    "scripts/check_task_scope.py",
+    "scripts/check_workflow_contracts.py",
+    "tests/test_openapi_schema_combinators.py",
+    "tests/test_task_scope.py",
+    "tests/test_workflow_contracts.py"
+  ],
+  "required_paths": [
+    "governance/task-scopes/AK-558.json",
+    "packages/dspx-core/src/dspx/task_scope.py",
+    "packages/dspx-core/src/dspx/tools/openapi/caller.py",
+    "tests/test_task_scope.py",
+    "tests/test_openapi_schema_combinators.py",
+    "tests/test_workflow_contracts.py",
+    "docs/project/operational_goals.md",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

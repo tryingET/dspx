@@ -468,18 +468,68 @@ def _validate_json_value_against_schema(
         return
 
     # Combinators: oneOf/anyOf
-    for key in ("oneOf", "anyOf"):
-        if isinstance(schema.get(key), list) and schema[key]:
-            errs: list[str] = []
-            for idx, branch in enumerate(schema[key]):
-                try:
+    one_of = schema.get("oneOf")
+    if isinstance(one_of, list) and one_of:
+        errs: list[str] = []
+        matched: list[int] = []
+        for idx, branch in enumerate(one_of):
+            branch_schema = (
+                cast(Mapping[str, Any], branch) if isinstance(branch, Mapping) else {}
+            )
+            try:
+                _validate_json_value_against_schema(
+                    value,
+                    branch_schema,
+                    path=path,
+                    _depth=_depth + 1,
+                    _max=_max,
+                )
+                matched.append(idx)
+            except ValueError as e:
+                errs.append(f"oneOf[{idx}]: {e}")
+        if len(matched) != 1:
+            if not matched:
+                raise ValueError(f"{path}: none matched ({'; '.join(errs)})")
+            raise ValueError(f"{path}: matched multiple oneOf branches {matched}")
+        remainder = {k: v for k, v in schema.items() if k != "oneOf"}
+        if remainder:
+            _validate_json_value_against_schema(
+                value,
+                remainder,
+                path=path,
+                _depth=_depth + 1,
+                _max=_max,
+            )
+        return
+
+    any_of = schema.get("anyOf")
+    if isinstance(any_of, list) and any_of:
+        errs: list[str] = []
+        for idx, branch in enumerate(any_of):
+            branch_schema = (
+                cast(Mapping[str, Any], branch) if isinstance(branch, Mapping) else {}
+            )
+            try:
+                _validate_json_value_against_schema(
+                    value,
+                    branch_schema,
+                    path=path,
+                    _depth=_depth + 1,
+                    _max=_max,
+                )
+                remainder = {k: v for k, v in schema.items() if k != "anyOf"}
+                if remainder:
                     _validate_json_value_against_schema(
-                        value, branch or {}, path=path, _depth=_depth + 1, _max=_max
+                        value,
+                        remainder,
+                        path=path,
+                        _depth=_depth + 1,
+                        _max=_max,
                     )
-                    return  # any branch passing is enough
-                except ValueError as e:
-                    errs.append(f"{key}[{idx}]: {e}")
-            raise ValueError(f"{path}: none matched ({'; '.join(errs)})")
+                return
+            except ValueError as e:
+                errs.append(f"anyOf[{idx}]: {e}")
+        raise ValueError(f"{path}: none matched ({'; '.join(errs)})")
 
     # Enum constraint
     if isinstance(schema.get("enum"), list):
@@ -732,18 +782,19 @@ def _resolve_schema(
             return _resolve_schema(target, components, _seen)
         # Unresolvable: return as-is
         return schema
-    # Preserve allOf semantics; resolve refs within each branch.
+    # Preserve composition semantics; resolve refs within each branch.
     out = dict(schema)
-    all_of = schema.get("allOf")
-    if isinstance(all_of, list):
-        out["allOf"] = [
-            (
-                _resolve_schema(part or {}, components, _seen)
-                if isinstance(part, Mapping)
-                else part
-            )
-            for part in all_of
-        ]
+    for key in ("allOf", "oneOf", "anyOf"):
+        parts = schema.get(key)
+        if isinstance(parts, list):
+            out[key] = [
+                (
+                    _resolve_schema(part or {}, components, _seen)
+                    if isinstance(part, Mapping)
+                    else part
+                )
+                for part in parts
+            ]
     # Recurse into object properties/items
     if isinstance(schema.get("properties"), Mapping):
         new_props: Dict[str, Any] = {}

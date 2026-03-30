@@ -54,9 +54,9 @@ Validation Coverage (Current)
   - Object: required properties, per‑property types (`string|integer|number|boolean|array|object`), and enums.
   - Array: item validation for primitives and objects (arrays of objects supported).
   - Nested objects: validates nested required/primitive types recursively.
-  - `$ref`: resolves local refs under `#/components/schemas/*` (request bodies) and `#/components/parameters/*` (path/query params).
+  - `$ref`: resolves local refs under `#/components/schemas/*` (request bodies, including `allOf|oneOf|anyOf` branches) and `#/components/parameters/*` (path/query params).
   - `allOf`: preserves branch semantics during validation, resolves local refs inside each branch, and keeps branch-local constraints such as `required` and `additionalProperties` instead of flattening them into a shallow object merge.
-  - Combinators: basic `oneOf|anyOf` handling (passes when any branch validates).
+  - Combinators: `oneOf` enforces exactly one matching branch, while `anyOf` requires at least one matching branch.
   - Bounds: `minLength|maxLength|pattern` for strings; `minimum|maximum|exclusiveMinimum|exclusiveMaximum` for numbers/integers (including OpenAPI 3.1 numeric exclusive thresholds); `minItems|maxItems` for arrays.
   - Objects: `minProperties|maxProperties` and `additionalProperties` (false rejects unknown keys; schema validates extras).
   - Nullable: OpenAPI `nullable: true` and JSON Schema `type: ["...", "null"]` accept `null` values.
@@ -66,7 +66,7 @@ Validation Coverage (Current)
 Limitations (Deliberate)
 ------------------------
 - No remote `$ref` resolution (only local `#/components/...`).
-- `allOf` support is still conservative: DSPx validates each resolved branch plus enclosing constraints, but it does not attempt full schema normalization or advanced conflict explanation across deeply composed branches.
+- Schema-composition support is still conservative: DSPx validates resolved `allOf|oneOf|anyOf` branches plus enclosing constraints, but it does not attempt full schema normalization or advanced conflict explanation across deeply composed branches.
 - No advanced constraints (`format`, `not`, tuple-typed arrays, etc.).
 - Arrays with tuple typing (`items: [..]`) are treated as unconstrained.
 - Only `application/json` request bodies are validated.
@@ -88,6 +88,6 @@ Examples
 Roadmap
 -------
 - More complete `$ref` support (response schemas; additional component locations; optional remote refs).
-- Richer `allOf` conflict diagnostics and broader schema-composition coverage.
+- Richer schema-composition conflict diagnostics and broader composition coverage.
 - Deeper nested arrays/objects with numeric/string bounds.
 - Expanded response schema summaries and example generation.

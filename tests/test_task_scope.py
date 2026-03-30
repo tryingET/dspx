@@ -497,6 +497,85 @@ def test_check_task_scope_working_tree_resolves_uncommitted_manifest_before_head
     ]
 
 
+def test_check_task_scope_auto_uses_working_tree_for_uncommitted_slice(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+
+    result = check_task_scope(repo, mode="auto")
+
+    assert result.ok is True
+    assert result.mode == "working-tree"
+    assert result.task_id == 266
+    assert sorted(result.changed_files) == [
+        "governance/task-scopes/AK-266.json",
+        "scripts/allowed.py",
+    ]
+
+
+def test_check_task_scope_auto_uses_working_tree_to_catch_dirty_out_of_scope_files(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "task slice")
+
+    (repo / "rogue.md").write_text("oops\n", encoding="utf-8")
+
+    result = check_task_scope(repo, mode="auto")
+
+    assert result.ok is False
+    assert result.mode == "working-tree"
+    assert result.task_id == 266
+    assert "rogue.md" in result.changed_files
+    assert any(issue.path == "rogue.md" for issue in result.issues)
+
+
 def test_check_task_scope_cli_help_matches_current_contract() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     script_path = repo_root / "scripts" / "check_task_scope.py"
@@ -510,8 +589,9 @@ def test_check_task_scope_cli_help_matches_current_contract() -> None:
 
     assert proc.returncode == 0
     assert "Check an attested task slice against a file-scope manifest" in proc.stdout
-    assert "Check the attested task slice reachable from HEAD or" in proc.stdout
-    assert "the current working tree" in proc.stdout
+    assert "Check the attested task slice reachable from HEAD" in proc.stdout
+    assert "current working tree, or auto-select working-tree when" in proc.stdout
+    assert "the repo is dirty and HEAD when it is clean" in proc.stdout
     assert "latest committed slice" not in proc.stdout
     assert "the full task slice from the task-scope manifest" in proc.stdout
     assert "introduction through HEAD" in proc.stdout
@@ -630,3 +710,68 @@ def test_task_scope_check_just_recipe_accepts_documented_assignment_style_values
 
     assert proc.returncode == 0, proc.stderr or proc.stdout
     assert "ok: task-scope-check task=AK-266 mode=working-tree" in proc.stdout
+
+
+def test_task_scope_check_just_recipe_defaults_to_auto_and_catches_dirty_working_tree(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    repo_root = Path(__file__).resolve().parents[1]
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "packages" / "dspx-core" / "src" / "dspx").mkdir(parents=True)
+    (repo / "governance" / "task-scopes").mkdir(parents=True)
+    shutil.copy2(
+        repo_root / "scripts" / "check_task_scope.py",
+        repo / "scripts" / "check_task_scope.py",
+    )
+    shutil.copy2(
+        repo_root / "packages" / "dspx-core" / "src" / "dspx" / "task_scope.py",
+        repo / "packages" / "dspx-core" / "src" / "dspx" / "task_scope.py",
+    )
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
+        json.dumps(
+            {
+                "task_id": 266,
+                "description": "Scope attestation",
+                "allowed_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.json",
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "task slice")
+
+    (repo / "rogue.md").write_text("oops\n", encoding="utf-8")
+
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    proc = subprocess.run(
+        [
+            "just",
+            "--justfile",
+            str(repo_root / "Justfile"),
+            "--working-directory",
+            str(repo),
+            "task-scope-check",
+            "task_id=266",
+        ],
+        cwd=repo_root,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode != 0
+    assert "task-scope-check failed for AK-266 mode=working-tree" in proc.stdout
+    assert "rogue.md: falls outside attested task scope" in proc.stdout
