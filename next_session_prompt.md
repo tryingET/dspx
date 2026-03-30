@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-578` and freeze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence.
-- Constraints (hard limits): Keep authority bounded to the already-emitted shadow predictive-ranking evidence surfaces; do not mutate live V7 ranking, tie-breaking, pruning, or promotion behavior; keep `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and this file aligned.
-- Assumptions (max 3): `AK-577` is complete and committed; `AK-578` is the only repo-scoped ready task for active `TG22`; SG3 `AK-549`–`AK-551` remain blocked on cross-repo `AK-548` and are not in scope.
+- Objective (one sentence): Claim `AK-593` and emit the first governed policy-evaluation receipts for named governance-only ranking/promotion variants from bounded shadow predictive-ranking evidence.
+- Constraints (hard limits): Obey `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`; consume only the already-emitted shadow predictive-ranking evidence surfaces plus trusted current run metadata; keep live V7 ranking, tie-breaking, pruning, and promotion unchanged; do not widen into dashboards, registries, or policy switches; keep `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and this file aligned.
+- Assumptions (max 3): `AK-578` is complete and committed; `AK-593` is the only repo-scoped ready task for active `TG23`; SG3 `AK-549`–`AK-551` remain blocked on cross-repo `AK-548` and are not in scope.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -41,27 +41,27 @@ Do not ask for permission to start.
 3. `docs/project/strategic_goals.md`
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
-6. `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`
-7. `diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md`
+6. `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`
+7. `diary/2026-03-30--freeze-governed-policy-evaluation-contract.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the ready queue with `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. Claim `AK-578` before editing docs or code.
-4. Freeze only the `TG22` contract slice; do not start `TG23` receipt materialization in the same session.
+3. Claim `AK-593` before editing docs or code.
+4. Materialize only the first governed receipt wave for `TG23`; do not decompose the post-`TG23` tactical wave in the same session.
 5. Validate the slice with:
    - `./scripts/ci/smoke.sh`
-   - `just task-scope-check task_id=576 mode=working-tree`
+   - `just task-scope-check task_id=593 mode=working-tree`
    - `just verify-full`
 6. Update source-of-truth docs/diary/ADR references before commit, then refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify it with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-577` — promote `TG22` and materialize the next governed policy-evaluation contract slice.
-- Outcome: refreshed the SG2 strategic rationale after `AK-562`, promoted `TG22` to the active tactical goal, created `AK-578` as the single next repo-local slice, and converted the repo from an empty-ready-queue decomposition gap into a truthful ready handoff without materializing `TG23` early.
-- Files changed: `diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md`, `docs/project/operational_goals.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-577.json`, `governance/work-items.json`, and `next_session_prompt.md`.
-- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` (empty before materialization) ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` (preflight) ✅; `just task-scope-check task_id=577 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 577 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: refreshed `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and `next_session_prompt.md`; recorded the session in `diary/2026-03-29--promote-tg22-and-materialize-next-governed-policy-evaluation-contract-slice.md`; added `governance/task-scopes/AK-577.json`; created repo-local task `AK-578`; and refreshed `governance/work-items.json`.
-- Next-session starting point: claim `AK-578`, freeze the governed policy-evaluation contract for shadow predictive-ranking evidence, and keep `TG23` unmaterialized until that contract lands.
+- Slice executed: `AK-578` — freeze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence.
+- Outcome: authored `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`, promoted `TG23` to the active tactical goal, created `AK-593` as the single next repo-local receipt slice, and refreshed the aligned handoff/projection artifacts without widening live V7 authority.
+- Files changed: `diary/2026-03-30--freeze-governed-policy-evaluation-contract.md`, `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`, `docs/adr/README.md`, `docs/project/operational_goals.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-578.json`, `governance/work-items.json`, and `next_session_prompt.md`.
+- Validation commands + results: `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅; `just task-scope-check task_id=578 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 578 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: refreshed `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and `next_session_prompt.md`; recorded the session in `diary/2026-03-30--freeze-governed-policy-evaluation-contract.md`; added `governance/task-scopes/AK-578.json`; created repo-local task `AK-593`; and refreshed `governance/work-items.json`.
+- Next-session starting point: claim `AK-593`, materialize the first governed policy-evaluation receipts under ADR 20260330, and keep authority bounded to governance-only evaluation until a later wave explicitly widens it.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

@@ -14,7 +14,7 @@ Next strategic goal: `SG3`
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx has completed the read-only SG2 evidence chain through the shadow predictive-ranking advisory, but it still lacks the first governed policy-evaluation contract and receipt flow that can evaluate evidence-aware ranking or promotion variants without mutating the live default policy. |
+| `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx has frozen the first governed policy-evaluation contract after the shadow predictive-ranking advisory, but it still lacks the first governed receipt flow that can evaluate named evidence-aware ranking or promotion variants without mutating the live default policy. |
 | `SG3` | next | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Repo-local tasks `AK-549`–`AK-551` already capture this work and it directly strengthens reproducibility/governance, but the first repo-local slice is blocked on cross-repo fixture work `AK-548`, so it stays next rather than active. |
 
 ## Strategic definitions of done
@@ -44,6 +44,7 @@ Done when:
 ## Explicit exclusions for the active wave
 
 These remain important but are not the active strategic wave:
-- live predictive ranking, candidate pruning, or promotion blocking before the governed policy-evaluation contract is frozen and the first bounded evaluation receipts exist,
+- live predictive ranking, candidate pruning, or promotion blocking before the first bounded governed policy-evaluation receipt wave exists and a later contract explicitly widens authority beyond governance-only evaluation,
+- treating repeated governance-only receipt outcomes as de facto live policy authority before an explicit human-governed promotion step exists,
 - resuming blocked SG3 scope-snapshot tasks before `AK-548` unblocks the repo-local chain,
 - older provider/runtime and Oracle follow-ons (`AK-224`, `AK-235`–`AK-239`) that are not selected by the current strategic ranking.

@@ -1,0 +1,32 @@
+{
+  "task_id": 578,
+  "description": "Freeze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence, promote TG23 as the active tactical goal, materialize the next truthful repo-local receipt slice, and refresh the aligned handoff/projection artifacts.",
+  "allowed_paths": [
+    "diary/2026-03-30--freeze-governed-policy-evaluation-contract.md",
+    "docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-578.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "diary/2026-03-30--freeze-governed-policy-evaluation-contract.md",
+    "docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-578.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

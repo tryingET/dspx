@@ -894,10 +894,23 @@
         {
           "id": "AK-TASK-0578",
           "title": "Synthesis evidence substrate: define the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: define the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence (task #578)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0593",
+          "title": "Synthesis evidence substrate: emit first governed policy-evaluation receipts for named governance-only ranking/promotion variants from shadow predictive-ranking evidence",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit first governed policy-evaluation receipts for named governance-only ranking/promotion variants from shadow predictive-ranking evidence (task #593)",
               "done": false
             }
           ],
