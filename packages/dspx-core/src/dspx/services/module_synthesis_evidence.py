@@ -82,6 +82,7 @@ class ModuleSynthesisHistoricalDiagnostics:
     candidate_prior_readiness_advisory: dict[str, Any] | None = None
     candidate_prior_counterfactual_advisory: dict[str, Any] | None = None
     shadow_predictive_ranking_advisory: dict[str, Any] | None = None
+    governed_policy_evaluations: list[dict[str, Any]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -93,6 +94,7 @@ class ModuleSynthesisHistoricalDiagnostics:
             "candidate_prior_readiness_advisory": self.candidate_prior_readiness_advisory,
             "candidate_prior_counterfactual_advisory": self.candidate_prior_counterfactual_advisory,
             "shadow_predictive_ranking_advisory": self.shadow_predictive_ranking_advisory,
+            "governed_policy_evaluations": list(self.governed_policy_evaluations or []),
         }
 
 
@@ -528,6 +530,7 @@ def _extract_historical_diagnostics(
     if not isinstance(raw, Mapping):
         return None
     diagnostics = _as_dict(raw)
+    raw_governed_policy_evaluations = diagnostics.get("governed_policy_evaluations")
     return ModuleSynthesisHistoricalDiagnostics(
         evidence_bundle_version=_optional_str(
             diagnostics.get("evidence_bundle_version")
@@ -573,6 +576,15 @@ def _extract_historical_diagnostics(
             if isinstance(
                 diagnostics.get("shadow_predictive_ranking_advisory"), Mapping
             )
+            else None
+        ),
+        governed_policy_evaluations=(
+            [
+                _as_dict(item)
+                for item in raw_governed_policy_evaluations
+                if isinstance(item, Mapping)
+            ]
+            if isinstance(raw_governed_policy_evaluations, list)
             else None
         ),
     )
@@ -3117,6 +3129,532 @@ def _shadow_predictive_ranking_preferred_candidate_view(
         or _optional_str(prior.get("prior_status")),
         "match_reason": match_reason,
     }
+
+
+_GOVERNED_POLICY_EVALUATION_RECEIPT_VERSION = "v1"
+_GOVERNED_POLICY_EVALUATION_CONTRACT_VERSION = "20260330.v1"
+_GOVERNED_RANKING_VARIANT_POLICY_ID = "module.sg2.shadow-ranking-review"
+_GOVERNED_PROMOTION_VARIANT_POLICY_ID = "module.sg2.shadow-promotion-review"
+_GOVERNED_POLICY_VARIANT_MODE = "governance_only"
+_GOVERNED_POLICY_INPUT_CONTRACTS = (
+    "candidate_winner_priors:v1",
+    "candidate_prior_audit:v1",
+    "candidate_prior_divergence_explanation:v1",
+    "candidate_prior_readiness_advisory:v1",
+    "candidate_prior_counterfactual_advisory:v1",
+    "shadow_predictive_ranking_advisory:v1",
+    "trusted_current_run_metadata:v7",
+)
+_GOVERNED_POLICY_SURFACE_VERSION_FIELDS = {
+    "candidate_winner_priors": "candidate_prior_version",
+    "candidate_prior_audit": "candidate_prior_audit_version",
+    "candidate_prior_divergence_explanation": (
+        "candidate_prior_divergence_explanation_version"
+    ),
+    "candidate_prior_readiness_advisory": (
+        "candidate_prior_readiness_advisory_version"
+    ),
+    "candidate_prior_counterfactual_advisory": (
+        "candidate_prior_counterfactual_advisory_version"
+    ),
+    "shadow_predictive_ranking_advisory": (
+        "shadow_predictive_ranking_advisory_version"
+    ),
+}
+_GOVERNED_RANKING_DECISION_RULE_SUMMARY = (
+    "Compare the live selected candidate to the bounded shadow preferred "
+    "candidate from the current shadow advisory comparison set."
+)
+_GOVERNED_PROMOTION_DECISION_RULE_SUMMARY = (
+    "Classify the live-selected candidate's promotion posture from the "
+    "current shadow advisory status without reopening ranking."
+)
+
+
+def _request_tuple_identity(synthesis: Mapping[str, Any] | None) -> dict[str, Any]:
+    request = _as_dict(_as_dict(synthesis).get("request"))
+    spec = _as_dict(request.get("spec"))
+    return {
+        "name": _optional_str(spec.get("name")),
+        "description": _optional_str(spec.get("description")),
+        "inputs": [str(item) for item in spec.get("inputs") or [] if item is not None],
+        "outputs": [
+            str(item) for item in spec.get("outputs") or [] if item is not None
+        ],
+        "use_signature": bool(spec.get("use_signature")) if spec else None,
+        "template_version": _optional_str(spec.get("template_version")),
+    }
+
+
+def _governed_policy_live_context(
+    synthesis: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    selection_policy = _as_dict(_as_dict(synthesis).get("selection_policy"))
+    promotion_shell = _as_dict(_as_dict(synthesis).get("promotion_shell"))
+    promotion_metadata = _as_dict(promotion_shell.get("metadata"))
+    return {
+        "ranking_policy_id": _optional_str(selection_policy.get("policy_id")),
+        "ranking_policy_version": _optional_str(selection_policy.get("policy_version")),
+        "promotion_policy_id": _optional_str(
+            promotion_metadata.get("promotion_policy_id")
+        )
+        or _optional_str(promotion_shell.get("policy_id"))
+        or "module.v7.selected-candidate-promotion",
+        "promotion_policy_version": _optional_str(
+            promotion_metadata.get("promotion_policy_version")
+        )
+        or _optional_str(promotion_shell.get("policy_version"))
+        or "v0",
+    }
+
+
+def _governed_policy_comparison_by_id(
+    ranked_candidate_comparison_inputs: tuple[dict[str, Any], ...],
+) -> dict[str, dict[str, Any]] | None:
+    comparison_by_id = _canonicalize_candidate_prior_comparison_inputs(
+        ranked_candidate_comparison_inputs
+    )
+    if comparison_by_id is None:
+        return None
+    return comparison_by_id
+
+
+def _governed_policy_request_context(
+    selected_candidate: Mapping[str, Any] | None,
+    synthesis: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    selected = _as_dict(selected_candidate)
+    return {
+        "request_tuple_identity": _request_tuple_identity(synthesis),
+        "selected_candidate_id": _optional_str(selected.get("candidate_id")),
+        "selected_variant_id": _optional_str(selected.get("variant_id")),
+        "selected_variant_origin": _optional_str(selected.get("variant_origin")),
+    }
+
+
+def _governed_policy_surface_contract_details(
+    *,
+    candidate_winner_priors: Mapping[str, Any] | None,
+    candidate_prior_audit: Mapping[str, Any] | None,
+    candidate_prior_divergence_explanation: Mapping[str, Any] | None,
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    candidate_prior_counterfactual_advisory: Mapping[str, Any] | None,
+    shadow_predictive_ranking_advisory: Mapping[str, Any] | None,
+) -> tuple[dict[str, str | None], dict[str, str | None], list[str]]:
+    surfaces = {
+        "candidate_winner_priors": _as_dict(candidate_winner_priors),
+        "candidate_prior_audit": _as_dict(candidate_prior_audit),
+        "candidate_prior_divergence_explanation": _as_dict(
+            candidate_prior_divergence_explanation
+        ),
+        "candidate_prior_readiness_advisory": _as_dict(
+            candidate_prior_readiness_advisory
+        ),
+        "candidate_prior_counterfactual_advisory": _as_dict(
+            candidate_prior_counterfactual_advisory
+        ),
+        "shadow_predictive_ranking_advisory": _as_dict(
+            shadow_predictive_ranking_advisory
+        ),
+    }
+    versions: dict[str, str | None] = {}
+    statuses: dict[str, str | None] = {}
+    missing: list[str] = []
+    for surface_name, version_field in _GOVERNED_POLICY_SURFACE_VERSION_FIELDS.items():
+        surface = surfaces[surface_name]
+        version = _optional_str(surface.get(version_field))
+        versions[surface_name] = version
+        statuses[surface_name] = _optional_str(surface.get("status"))
+        if version is None:
+            missing.append(surface_name)
+    return versions, statuses, missing
+
+
+def _governed_policy_shadow_scope_candidate_ids(
+    *,
+    selected_candidate_id: str | None,
+    candidate_prior_counterfactual_advisory: Mapping[str, Any] | None,
+    comparison_by_id: dict[str, dict[str, Any]] | None,
+) -> tuple[list[str] | None, str | None]:
+    if selected_candidate_id is None:
+        return None, "the selected candidate is missing from the shadow advisory"
+    if comparison_by_id is None:
+        return None, "trusted current comparison metadata is malformed or duplicated"
+
+    selected_comparison = comparison_by_id.get(selected_candidate_id)
+    if selected_comparison is None or selected_comparison.get("passed") is not True:
+        return (
+            None,
+            "the selected candidate is missing from trusted passing comparison metadata",
+        )
+
+    counterfactual = _as_dict(candidate_prior_counterfactual_advisory)
+    raw_candidates = counterfactual.get("counterfactual_positive_prior_candidates")
+    if not isinstance(raw_candidates, list) or any(
+        not isinstance(item, Mapping) for item in raw_candidates
+    ):
+        return (
+            None,
+            "the counterfactual passing comparison set is missing or malformed",
+        )
+
+    candidates = [_as_dict(item) for item in raw_candidates]
+    duplicate_candidate_id = _duplicate_candidate_id(candidates)
+    if duplicate_candidate_id is not None:
+        return (
+            None,
+            "the counterfactual passing comparison set contains duplicate candidate_id entries",
+        )
+
+    scope_candidate_ids: list[str] = [selected_candidate_id]
+    for candidate in candidates:
+        candidate_id = _optional_str(candidate.get("candidate_id"))
+        if candidate_id is None:
+            return (
+                None,
+                "the counterfactual passing comparison set includes a candidate without candidate_id",
+            )
+        comparison_candidate = comparison_by_id.get(candidate_id)
+        if (
+            comparison_candidate is None
+            or comparison_candidate.get("passed") is not True
+        ):
+            return (
+                None,
+                "the counterfactual passing comparison set disagrees with trusted current passing comparison metadata",
+            )
+        scope_candidate_ids.append(candidate_id)
+
+    unique_scope_candidate_ids = list(dict.fromkeys(scope_candidate_ids))
+    sorted_non_selected_ids = sorted(
+        unique_scope_candidate_ids[1:],
+        key=lambda candidate_id: (
+            _as_int(
+                _as_dict(comparison_by_id.get(candidate_id)).get("rank"), default=0
+            ),
+            candidate_id,
+        ),
+    )
+    return [selected_candidate_id, *sorted_non_selected_ids], None
+
+
+def _governed_policy_base_receipt(
+    *,
+    variant_class: str,
+    variant_policy_id: str,
+    variant_policy_version: str,
+    outcome: str,
+    authority_limit: str,
+    input_contracts: list[str],
+    comparison_scope: list[str] | str,
+    decision_rule_summary: str,
+    live_policy_context: dict[str, Any],
+    request_context: dict[str, Any],
+    bounded_inputs: dict[str, Any],
+    evaluation_result: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "policy_evaluation_receipt_version": _GOVERNED_POLICY_EVALUATION_RECEIPT_VERSION,
+        "evaluation_contract_version": _GOVERNED_POLICY_EVALUATION_CONTRACT_VERSION,
+        "variant_class": variant_class,
+        "variant_policy_id": variant_policy_id,
+        "variant_policy_version": variant_policy_version,
+        "variant_policy_mode": _GOVERNED_POLICY_VARIANT_MODE,
+        "input_contracts": list(input_contracts),
+        "comparison_scope": comparison_scope,
+        "decision_rule_summary": decision_rule_summary,
+        "outcome": outcome,
+        "authority_limit": authority_limit,
+        "live_policy_context": live_policy_context,
+        "request_context": request_context,
+        "bounded_inputs": bounded_inputs,
+        "evaluation_result": evaluation_result,
+        "promotion_authority": {
+            "can_change_live_ranking": False,
+            "can_change_live_tie_breaking": False,
+            "can_change_live_pruning": False,
+            "can_change_live_promotion": False,
+            "requires_explicit_human_governance": True,
+        },
+        "provenance": {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "source_references": [
+                "current_run.synthesis.selection_policy",
+                "current_run.synthesis.promotion_shell",
+                "current_run.synthesis_diagnostics.shadow_predictive_ranking_advisory",
+                "current_run.synthesis_diagnostics.candidate_winner_priors",
+                "current_run.synthesis_diagnostics.candidate_prior_audit",
+                "current_run.synthesis_diagnostics.candidate_prior_divergence_explanation",
+                "current_run.synthesis_diagnostics.candidate_prior_readiness_advisory",
+                "current_run.synthesis_diagnostics.candidate_prior_counterfactual_advisory",
+            ],
+        },
+    }
+
+
+def build_module_synthesis_governed_policy_evaluations(
+    *,
+    synthesis: Mapping[str, Any] | None,
+    candidate_winner_priors: Mapping[str, Any] | None,
+    candidate_prior_audit: Mapping[str, Any] | None,
+    candidate_prior_divergence_explanation: Mapping[str, Any] | None,
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    candidate_prior_counterfactual_advisory: Mapping[str, Any] | None,
+    shadow_predictive_ranking_advisory: Mapping[str, Any] | None,
+    ranked_candidate_comparison_inputs: tuple[dict[str, Any], ...],
+) -> list[dict[str, Any]]:
+    live_policy_context = _governed_policy_live_context(synthesis)
+    shadow = _as_dict(shadow_predictive_ranking_advisory)
+    selected_candidate = _as_dict(shadow.get("selected_candidate"))
+    preferred_candidate = _as_dict(shadow.get("shadow_preferred_candidate"))
+    request_context = _governed_policy_request_context(selected_candidate, synthesis)
+    comparison_by_id = _governed_policy_comparison_by_id(
+        ranked_candidate_comparison_inputs
+    )
+    surface_versions, surface_statuses, missing_supporting_surfaces = (
+        _governed_policy_surface_contract_details(
+            candidate_winner_priors=candidate_winner_priors,
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=(
+                candidate_prior_divergence_explanation
+            ),
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=(
+                candidate_prior_counterfactual_advisory
+            ),
+            shadow_predictive_ranking_advisory=shadow_predictive_ranking_advisory,
+        )
+    )
+    shadow_status = _optional_str(shadow.get("status"))
+    selected_candidate_id = _optional_str(selected_candidate.get("candidate_id"))
+    preferred_candidate_id = _optional_str(preferred_candidate.get("candidate_id"))
+    comparison_scope_ids, comparison_scope_issue = (
+        _governed_policy_shadow_scope_candidate_ids(
+            selected_candidate_id=selected_candidate_id,
+            candidate_prior_counterfactual_advisory=(
+                candidate_prior_counterfactual_advisory
+            ),
+            comparison_by_id=comparison_by_id,
+        )
+    )
+    input_contracts = list(_GOVERNED_POLICY_INPUT_CONTRACTS)
+    authority_limit = (
+        "governance-only evaluation receipt; cannot mutate live V7 ranking, "
+        "tie-breaking, pruning, or promotion"
+    )
+    common_notes = [
+        "governed policy-evaluation receipt is descriptive only; explicit "
+        "human governance is required before any future policy change",
+    ]
+    bounded_inputs = {
+        "shadow_predictive_ranking_status": shadow_status,
+        "input_contracts": list(input_contracts),
+        "surface_versions": surface_versions,
+        "surface_statuses": surface_statuses,
+        "candidate_count_summary": {
+            "compared_candidate_count": len(comparison_scope_ids or []),
+        },
+        "comparison_scope": list(comparison_scope_ids or []),
+    }
+
+    ranking_outcome = "policy_evaluation_unavailable"
+    ranking_governance_candidate_id = None
+    ranking_reason = None
+    ranking_notes = list(common_notes)
+    ranking_scope: list[str] | str = list(comparison_scope_ids or [])
+
+    if not shadow:
+        ranking_notes.append("shadow predictive-ranking advisory is missing")
+    elif missing_supporting_surfaces:
+        ranking_notes.append(
+            "ranking evaluation unavailable because required SG2 surface versions "
+            f"are missing: {', '.join(sorted(missing_supporting_surfaces))}"
+        )
+    elif comparison_scope_issue is not None:
+        ranking_notes.append(
+            f"ranking evaluation unavailable because {comparison_scope_issue}"
+        )
+    elif selected_candidate_id is None:
+        ranking_notes.append(
+            "ranking evaluation unavailable because the selected candidate is missing"
+        )
+    else:
+        assert comparison_by_id is not None
+        selected_comparison = _as_dict(comparison_by_id.get(selected_candidate_id))
+        if _candidate_prior_identity_disagrees_with_current_comparison(
+            candidate=selected_candidate,
+            comparison_candidate=selected_comparison,
+        ):
+            ranking_notes.append(
+                "ranking evaluation unavailable because selected candidate identity "
+                "disagrees with trusted current comparison metadata"
+            )
+        elif shadow_status == "no_shadow_predictive_signal":
+            ranking_outcome = "policy_evaluation_no_signal"
+            ranking_notes.append(
+                "shadow advisory exposed no bounded predictive-ranking signal for "
+                "governance evaluation"
+            )
+        elif shadow_status == "shadow_predictive_ranking_matches_v7":
+            if preferred_candidate_id not in {None, selected_candidate_id}:
+                ranking_notes.append(
+                    "ranking evaluation unavailable because the bounded shadow "
+                    "comparison set disagrees with the trusted V7 selected candidate"
+                )
+            else:
+                ranking_outcome = "policy_evaluation_affirms_live_policy"
+                ranking_notes.append(
+                    "bounded shadow preference agrees with the trusted V7 selected "
+                    "candidate"
+                )
+        elif (
+            shadow_status
+            == "shadow_predictive_ranking_prefers_positive_prior_alternative"
+        ):
+            preferred_comparison = (
+                comparison_by_id.get(preferred_candidate_id)
+                if preferred_candidate_id is not None and comparison_by_id is not None
+                else None
+            )
+            if (
+                preferred_candidate_id is None
+                or preferred_candidate_id == selected_candidate_id
+                or preferred_candidate_id not in set(comparison_scope_ids or [])
+                or preferred_comparison is None
+                or preferred_comparison.get("passed") is not True
+                or _candidate_prior_identity_disagrees_with_current_comparison(
+                    candidate=preferred_candidate,
+                    comparison_candidate=preferred_comparison,
+                )
+            ):
+                ranking_notes.append(
+                    "ranking evaluation unavailable because the bounded governance "
+                    "candidate disagrees with trusted current passing comparison "
+                    "metadata"
+                )
+            else:
+                ranking_outcome = "policy_evaluation_surfaces_governance_candidate"
+                ranking_governance_candidate_id = preferred_candidate_id
+                ranking_reason = (
+                    "bounded shadow ranking variant would have preferred a "
+                    "different already-passing candidate for governance review "
+                    "only"
+                )
+                ranking_notes.append(ranking_reason)
+        elif shadow_status == "shadow_predictive_ranking_mixed_or_inconclusive":
+            ranking_outcome = "policy_evaluation_mixed_or_inconclusive"
+            ranking_notes.append(
+                "bounded shadow evidence remains mixed or inconclusive for a "
+                "narrower governance ranking claim"
+            )
+        elif shadow_status == "shadow_predictive_ranking_unavailable":
+            ranking_notes.append(
+                "ranking evaluation unavailable because the shadow advisory failed "
+                "closed"
+            )
+        else:
+            ranking_outcome = "policy_evaluation_mixed_or_inconclusive"
+            ranking_notes.append(
+                "shadow advisory status is present but does not map to a narrower "
+                "governed ranking conclusion"
+            )
+
+    promotion_outcome = "policy_evaluation_unavailable"
+    promotion_posture = "promotion_posture_not_assessable"
+    promotion_notes = list(common_notes)
+    promotion_scope: list[str] | str = "selected_candidate_only"
+    if not shadow:
+        promotion_notes.append("shadow predictive-ranking advisory is missing")
+    elif missing_supporting_surfaces:
+        promotion_notes.append(
+            "promotion evaluation unavailable because required SG2 surface "
+            f"versions are missing: {', '.join(sorted(missing_supporting_surfaces))}"
+        )
+    elif comparison_scope_issue is not None:
+        promotion_notes.append(
+            f"promotion evaluation unavailable because {comparison_scope_issue}"
+        )
+    elif selected_candidate_id is None:
+        promotion_notes.append(
+            "promotion evaluation unavailable because the live selected candidate "
+            "is missing"
+        )
+    elif shadow_status in {None, "shadow_predictive_ranking_unavailable"}:
+        promotion_notes.append(
+            "promotion evaluation unavailable because the shadow advisory is "
+            "unavailable"
+        )
+    elif shadow_status in {
+        "no_shadow_predictive_signal",
+        "shadow_predictive_ranking_matches_v7",
+    }:
+        promotion_outcome = "policy_evaluation_affirms_live_policy"
+        promotion_posture = "promotion_posture_affirms_live_decision"
+        promotion_notes.append(
+            "bounded promotion review finds no shadow-evidence reason to question "
+            "the already-executed live promotion path"
+        )
+    elif (
+        shadow_status == "shadow_predictive_ranking_prefers_positive_prior_alternative"
+    ):
+        promotion_outcome = "policy_evaluation_surfaces_governance_candidate"
+        promotion_posture = "promotion_posture_requires_human_review"
+        promotion_notes.append(
+            "bounded promotion review would require human governance before "
+            "promoting a comparable future policy variant"
+        )
+    elif shadow_status == "shadow_predictive_ranking_mixed_or_inconclusive":
+        promotion_outcome = "policy_evaluation_mixed_or_inconclusive"
+        promotion_notes.append(
+            "bounded promotion review is mixed or inconclusive and cannot support "
+            "a narrower posture"
+        )
+
+    ranking_receipt = _governed_policy_base_receipt(
+        variant_class="ranking_evaluation",
+        variant_policy_id=_GOVERNED_RANKING_VARIANT_POLICY_ID,
+        variant_policy_version="v1",
+        outcome=ranking_outcome,
+        authority_limit=authority_limit,
+        input_contracts=input_contracts,
+        comparison_scope=ranking_scope,
+        decision_rule_summary=_GOVERNED_RANKING_DECISION_RULE_SUMMARY,
+        live_policy_context=live_policy_context,
+        request_context=request_context,
+        bounded_inputs=bounded_inputs,
+        evaluation_result={
+            "evaluated_candidate_ids": list(comparison_scope_ids or []),
+            "governance_candidate_id": ranking_governance_candidate_id,
+            "governance_candidate_reason": ranking_reason,
+            "notes": ranking_notes,
+        },
+    )
+    promotion_receipt = _governed_policy_base_receipt(
+        variant_class="promotion_evaluation",
+        variant_policy_id=_GOVERNED_PROMOTION_VARIANT_POLICY_ID,
+        variant_policy_version="v1",
+        outcome=promotion_outcome,
+        authority_limit=authority_limit,
+        input_contracts=input_contracts,
+        comparison_scope=promotion_scope,
+        decision_rule_summary=_GOVERNED_PROMOTION_DECISION_RULE_SUMMARY,
+        live_policy_context=live_policy_context,
+        request_context=request_context,
+        bounded_inputs={
+            **bounded_inputs,
+            "comparison_scope": promotion_scope,
+        },
+        evaluation_result={
+            "evaluated_candidate_ids": [selected_candidate_id]
+            if selected_candidate_id
+            else [],
+            "governance_candidate_id": None,
+            "governance_candidate_reason": None,
+            "promotion_posture": promotion_posture,
+            "notes": promotion_notes,
+        },
+    )
+    return [ranking_receipt, promotion_receipt]
 
 
 def build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(

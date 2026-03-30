@@ -1,0 +1,37 @@
+{
+  "task_id": 593,
+  "description": "Emit the first governed policy-evaluation receipts for named governance-only ranking/promotion variants from bounded shadow predictive-ranking evidence, keep live V7 ranking/tie-breaking/pruning/promotion unchanged, and refresh the aligned handoff/projection artifacts.",
+  "allowed_paths": [
+    "diary/2026-03-30--emit-governed-policy-evaluation-receipts.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-593.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "required_paths": [
+    "diary/2026-03-30--emit-governed-policy-evaluation-receipts.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-593.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/services/module_service.py",
+    "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+    "tests/test_module_service.py",
+    "tests/test_module_synthesis_evidence.py",
+    "tests/test_run_receipts.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

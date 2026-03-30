@@ -325,6 +325,12 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         diagnostics["shadow_predictive_ranking_advisory"]["status"]
         == "no_shadow_predictive_signal"
     )
+    governed = diagnostics["governed_policy_evaluations"]
+    assert len(governed) == 2
+    assert {item["variant_class"] for item in governed} == {
+        "ranking_evaluation",
+        "promotion_evaluation",
+    }
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
@@ -385,6 +391,11 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         followup_diagnostics["shadow_predictive_ranking_advisory"]["status"]
         == "shadow_predictive_ranking_matches_v7"
     )
+    followup_governed = followup_diagnostics["governed_policy_evaluations"]
+    assert len(followup_governed) == 2
+    assert {item["outcome"] for item in followup_governed} == {
+        "policy_evaluation_affirms_live_policy"
+    }
     prior_receipt = followup_diagnostics["evidence_bundle"]["exact_match_receipts"][0]
     assert Path(prior_receipt["receipt"]["receipt_path"]).name == "mod.py.meta.json"
     assert prior_receipt["positive_evidence"] is True

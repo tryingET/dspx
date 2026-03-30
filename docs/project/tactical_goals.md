@@ -9,19 +9,17 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG23`
+Active tactical goal: `TBD`
 Next tactical goal: `unmaterialized`
 
-## Current tactical goal for `SG2`
+## Upcoming tactical goals for `SG2`
 
-### `TG23` — Materialize governed policy-evaluation receipts for evidence-aware synthesis variants
-- Status: active
-- Definition of done: DSPx can run named strategy/policy variants against bounded shadow/evidence surfaces and emit governance receipts that support explicit promotion or rejection, while the default live policy remains stable until governance approves change.
-- Contract baseline: `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`
-- Current execution slice: `AK-593`
+No next tactical goal is pinned yet.
+`TG23` is complete, and the repo should not guess the post-receipt tactical wave until the truthful next contract or implementation slice exists.
 
 ## Recently completed tactical goals for `SG2`
 
+- `TG23` — materialized the first governance-only ranking/promotion evaluation receipts on `synthesis_diagnostics.governed_policy_evaluations`, evaluating named bounded variants against shadow predictive-ranking evidence plus trusted current metadata without changing live V7 ranking, tie-breaking, pruning, or promotion behavior.
 - `TG22` — froze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence as `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`, defining the bounded evaluation inputs, variant surfaces, receipt payload, and promotion-authority limits before the first governed receipt wave.
 - `TG21` — materialized the read-only shadow predictive-ranking advisory on live module metadata and persisted receipts, comparing a bounded prior-aware shadow preference against the trusted V7 winner without changing live ranking, tie-breaking, pruning, or promotion behavior.
 - `TG20` — froze the first offline/shadow predictive-ranking contract after the read-only counterfactual advisory.
@@ -50,7 +48,7 @@ Next tactical goal: `unmaterialized`
 
 ## Defer/until-later notes
 
-The following remain intentionally out of the active tactical wave until `TG23` advances:
+The following remain intentionally out of the active tactical wave until the next SG2 tactical wave is truthfully materialized:
 - live predictive ranking from Oracle priors,
 - live candidate pruning or promotion blocking from prior-backed signals,
 - strategy/policy mutation without explicit governed evaluation receipts,

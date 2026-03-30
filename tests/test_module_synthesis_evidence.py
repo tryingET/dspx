@@ -21,6 +21,7 @@ from dspx.services.module_synthesis_evidence import (
     build_module_synthesis_candidate_prior_divergence_explanation,
     build_module_synthesis_candidate_prior_readiness_advisory,
     build_module_synthesis_candidate_winner_priors,
+    build_module_synthesis_governed_policy_evaluations,
     build_module_synthesis_shadow_predictive_ranking_advisory,
     build_module_synthesis_history_advisory,
     extract_module_synthesis_candidate_prior_inputs,
@@ -1723,6 +1724,252 @@ def test_build_module_synthesis_candidate_prior_counterfactual_advisory_statuses
     )
     assert mixed["status"] == "counterfactual_signal_mixed_or_inconclusive"
     assert len(mixed["counterfactual_positive_prior_candidates"]) == 1
+
+
+def test_build_module_synthesis_governed_policy_evaluations_statuses() -> None:
+    synthesis = {
+        "request": {
+            "spec": {
+                "name": "Summarizer",
+                "description": "Summarizes text",
+                "inputs": ["text"],
+                "outputs": ["summary"],
+                "use_signature": False,
+                "template_version": "simple-v1",
+            }
+        },
+        "selection_policy": {
+            "policy_id": "module.v7.multi-candidate-ranked",
+            "policy_version": "v0",
+        },
+        "promotion_shell": {
+            "metadata": {
+                "promotion_policy_id": "module.v7.selected-candidate-promotion",
+                "promotion_policy_version": "v0",
+            }
+        },
+    }
+    candidate_winner_priors = {
+        "candidate_prior_version": "v1",
+        "mode": "winner_history_only",
+        "history_summary": {
+            "exact_match_receipt_count": 4,
+            "positive_evidence_count": 4,
+            "oracle_neighbor_count": 0,
+            "candidate_count": 3,
+        },
+        "candidate_priors": [
+            {
+                "candidate_id": "cand-a",
+                "variant_id": "variant-a",
+                "variant_origin": "deterministic_template_variant",
+                "status": "no_positive_winner_history",
+            },
+            {
+                "candidate_id": "cand-b",
+                "variant_id": "variant-b",
+                "variant_origin": "deterministic_template_variant",
+                "status": "matches_positive_winner_history",
+            },
+            {
+                "candidate_id": "cand-c",
+                "variant_id": "variant-c",
+                "variant_origin": "deterministic_template_variant",
+                "status": "matches_positive_winner_history",
+            },
+        ],
+        "notes": [],
+    }
+    audit = {
+        "candidate_prior_audit_version": "v1",
+        "status": "positive_prior_candidates_present_but_not_selected",
+        "selected_candidate": {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "prior_status": "no_positive_winner_history",
+            "rank": 1,
+        },
+        "notes": [],
+    }
+    divergence = {
+        "candidate_prior_divergence_explanation_version": "v1",
+        "status": "divergence_explained_by_runtime_scoring",
+        "selected_candidate": {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "prior_status": "no_positive_winner_history",
+            "rank": 1,
+            "ranking_score": 103.0,
+        },
+        "compared_positive_prior_candidates": [
+            {"candidate_id": "cand-b", "comparison_status": "lower_ranked_pass"},
+            {"candidate_id": "cand-c", "comparison_status": "lower_ranked_pass"},
+        ],
+        "notes": [],
+    }
+    readiness = {
+        "candidate_prior_readiness_advisory_version": "v1",
+        "status": "priors_mostly_outscored_under_v7",
+        "history_summary": {
+            "exact_match_receipt_count": 4,
+            "replay_healthy_receipt_count": 4,
+            "usable_receipt_count": 4,
+            "convergent_receipt_count": 1,
+            "runtime_failure_divergence_count": 0,
+            "runtime_scoring_divergence_count": 3,
+            "mixed_divergence_count": 0,
+            "unresolved_receipt_count": 0,
+        },
+        "notes": [],
+    }
+    counterfactual = {
+        "candidate_prior_counterfactual_advisory_version": "v1",
+        "status": "counterfactual_positive_prior_alternatives_present",
+        "selected_candidate": {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "rank": 1,
+            "ranking_score": 103.0,
+        },
+        "counterfactual_positive_prior_candidates": [
+            {
+                "candidate_id": "cand-b",
+                "variant_id": "variant-b",
+                "variant_origin": "deterministic_template_variant",
+                "rank": 2,
+                "ranking_score": 102.0,
+                "evaluation_status": "passed",
+                "notes": [],
+            }
+        ],
+        "notes": [],
+    }
+    shadow = {
+        "shadow_predictive_ranking_advisory_version": "v1",
+        "status": "shadow_predictive_ranking_prefers_positive_prior_alternative",
+        "shadow_policy_id": "module.sg2.shadow-predictive-ranking.v1",
+        "selected_candidate": {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "rank": 1,
+            "ranking_score": 103.0,
+        },
+        "shadow_preferred_candidate": {
+            "candidate_id": "cand-b",
+            "variant_id": "variant-b",
+            "variant_origin": "deterministic_template_variant",
+            "rank": 2,
+            "ranking_score": 102.0,
+        },
+        "notes": [],
+    }
+    comparison_inputs = (
+        {
+            "candidate_id": "cand-a",
+            "variant_id": "variant-a",
+            "variant_origin": "deterministic_template_variant",
+            "rank": 1,
+            "evaluation_status": "passed",
+            "passed": True,
+            "ranking_score": 103.0,
+            "evaluation_summary": "selected passed",
+        },
+        {
+            "candidate_id": "cand-b",
+            "variant_id": "variant-b",
+            "variant_origin": "deterministic_template_variant",
+            "rank": 2,
+            "evaluation_status": "passed",
+            "passed": True,
+            "ranking_score": 102.0,
+            "evaluation_summary": "cand-b passed",
+        },
+    )
+
+    receipts = build_module_synthesis_governed_policy_evaluations(
+        synthesis=synthesis,
+        candidate_winner_priors=candidate_winner_priors,
+        candidate_prior_audit=audit,
+        candidate_prior_divergence_explanation=divergence,
+        candidate_prior_readiness_advisory=readiness,
+        candidate_prior_counterfactual_advisory=counterfactual,
+        shadow_predictive_ranking_advisory=shadow,
+        ranked_candidate_comparison_inputs=comparison_inputs,
+    )
+
+    assert len(receipts) == 2
+    ranking = next(
+        item for item in receipts if item["variant_class"] == "ranking_evaluation"
+    )
+    promotion = next(
+        item for item in receipts if item["variant_class"] == "promotion_evaluation"
+    )
+    assert ranking["outcome"] == "policy_evaluation_surfaces_governance_candidate"
+    assert ranking["comparison_scope"] == ["cand-a", "cand-b"]
+    assert ranking["evaluation_result"]["governance_candidate_id"] == "cand-b"
+    assert ranking["decision_rule_summary"].startswith("Compare the live selected")
+    assert "shadow_predictive_ranking_advisory:v1" in ranking["input_contracts"]
+    assert (
+        ranking["bounded_inputs"]["surface_versions"][
+            "shadow_predictive_ranking_advisory"
+        ]
+        == "v1"
+    )
+    assert ranking["promotion_authority"]["can_change_live_ranking"] is False
+    assert ranking["request_context"]["selected_candidate_id"] == "cand-a"
+    assert promotion["outcome"] == "policy_evaluation_surfaces_governance_candidate"
+    assert promotion["comparison_scope"] == "selected_candidate_only"
+    assert (
+        promotion["evaluation_result"]["promotion_posture"]
+        == "promotion_posture_requires_human_review"
+    )
+    assert promotion["promotion_authority"]["can_change_live_promotion"] is False
+
+
+def test_build_module_synthesis_governed_policy_evaluations_fail_closed_without_shadow() -> (
+    None
+):
+    receipts = build_module_synthesis_governed_policy_evaluations(
+        synthesis={
+            "request": {
+                "spec": {
+                    "name": "Summarizer",
+                    "description": "Summarizes text",
+                    "inputs": ["text"],
+                    "outputs": ["summary"],
+                }
+            }
+        },
+        candidate_winner_priors={"candidate_prior_version": "v1"},
+        candidate_prior_audit={"candidate_prior_audit_version": "v1"},
+        candidate_prior_divergence_explanation={
+            "candidate_prior_divergence_explanation_version": "v1"
+        },
+        candidate_prior_readiness_advisory={
+            "candidate_prior_readiness_advisory_version": "v1"
+        },
+        candidate_prior_counterfactual_advisory={
+            "candidate_prior_counterfactual_advisory_version": "v1",
+            "counterfactual_positive_prior_candidates": [],
+        },
+        shadow_predictive_ranking_advisory=None,
+        ranked_candidate_comparison_inputs=(),
+    )
+
+    assert len(receipts) == 2
+    assert {item["outcome"] for item in receipts} == {"policy_evaluation_unavailable"}
+    ranking = next(
+        item for item in receipts if item["variant_class"] == "ranking_evaluation"
+    )
+    promotion = next(
+        item for item in receipts if item["variant_class"] == "promotion_evaluation"
+    )
+    assert ranking["comparison_scope"] == []
+    assert promotion["comparison_scope"] == "selected_candidate_only"
 
 
 def test_build_module_synthesis_shadow_predictive_ranking_advisory_statuses() -> None:

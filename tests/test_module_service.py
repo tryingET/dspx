@@ -116,6 +116,25 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
         diagnostics["shadow_predictive_ranking_advisory"]["status"]
         == "no_shadow_predictive_signal"
     )
+    governed = diagnostics["governed_policy_evaluations"]
+    assert len(governed) == 2
+    assert {item["variant_class"] for item in governed} == {
+        "ranking_evaluation",
+        "promotion_evaluation",
+    }
+    assert {item["variant_policy_mode"] for item in governed} == {"governance_only"}
+    assert {item["outcome"] for item in governed} == {
+        "policy_evaluation_no_signal",
+        "policy_evaluation_affirms_live_policy",
+    }
+    ranking = next(
+        item for item in governed if item["variant_class"] == "ranking_evaluation"
+    )
+    promotion = next(
+        item for item in governed if item["variant_class"] == "promotion_evaluation"
+    )
+    assert ranking["comparison_scope"] == [art.metadata["selected_candidate_id"]]
+    assert promotion["comparison_scope"] == "selected_candidate_only"
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
@@ -253,6 +272,12 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
         ]
         == "no_shadow_predictive_signal"
     )
+    governed = art.metadata["synthesis_diagnostics"]["governed_policy_evaluations"]
+    assert len(governed) == 2
+    assert {item["variant_class"] for item in governed} == {
+        "ranking_evaluation",
+        "promotion_evaluation",
+    }
 
 
 def test_module_service_signature_mode_preserves_requested_io_contract(
@@ -484,6 +509,9 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
         diagnostics["shadow_predictive_ranking_advisory"]["status"]
         == "shadow_predictive_ranking_unavailable"
     )
+    governed = diagnostics["governed_policy_evaluations"]
+    assert len(governed) == 2
+    assert {item["outcome"] for item in governed} == {"policy_evaluation_unavailable"}
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2

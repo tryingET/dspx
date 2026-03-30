@@ -22,6 +22,7 @@ from dspx.services.module_synthesis_evidence import (
     build_module_synthesis_candidate_prior_divergence_explanation,
     build_module_synthesis_candidate_prior_readiness_advisory,
     build_module_synthesis_candidate_winner_priors,
+    build_module_synthesis_governed_policy_evaluations,
     build_module_synthesis_history_advisory,
     build_module_synthesis_shadow_predictive_ranking_advisory,
     build_unavailable_module_synthesis_candidate_prior_audit,
@@ -394,6 +395,23 @@ def _build_unavailable_synthesis_diagnostics(
             "shadow predictive-ranking advisory unavailable because evidence retrieval failed"
         ],
     )
+    governed_policy_evaluations = build_module_synthesis_governed_policy_evaluations(
+        synthesis=synthesis_payload,
+        candidate_winner_priors=build_unavailable_module_synthesis_candidate_winner_priors(
+            current_candidates=current_candidates,
+            notes=[
+                "candidate winner-prior payload unavailable because evidence retrieval failed"
+            ],
+        ),
+        candidate_prior_audit=candidate_prior_audit,
+        candidate_prior_divergence_explanation=(candidate_prior_divergence_explanation),
+        candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+        candidate_prior_counterfactual_advisory=(
+            candidate_prior_counterfactual_advisory
+        ),
+        shadow_predictive_ranking_advisory=shadow_predictive_ranking_advisory,
+        ranked_candidate_comparison_inputs=(),
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": "unavailable",
@@ -439,6 +457,7 @@ def _build_unavailable_synthesis_diagnostics(
             candidate_prior_counterfactual_advisory
         ),
         "shadow_predictive_ranking_advisory": shadow_predictive_ranking_advisory,
+        "governed_policy_evaluations": governed_policy_evaluations,
     }
 
 
@@ -532,6 +551,18 @@ def _build_synthesis_diagnostics(
             ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
         )
     )
+    governed_policy_evaluations = build_module_synthesis_governed_policy_evaluations(
+        synthesis=synthesis_payload,
+        candidate_winner_priors=candidate_winner_priors,
+        candidate_prior_audit=candidate_prior_audit,
+        candidate_prior_divergence_explanation=(candidate_prior_divergence_explanation),
+        candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+        candidate_prior_counterfactual_advisory=(
+            candidate_prior_counterfactual_advisory
+        ),
+        shadow_predictive_ranking_advisory=shadow_predictive_ranking_advisory,
+        ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": retrieval_status,
@@ -560,6 +591,7 @@ def _build_synthesis_diagnostics(
             candidate_prior_counterfactual_advisory
         ),
         "shadow_predictive_ranking_advisory": shadow_predictive_ranking_advisory,
+        "governed_policy_evaluations": governed_policy_evaluations,
     }
 
 
