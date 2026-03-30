@@ -8,33 +8,42 @@ read_when:
 # Strategic Goals
 
 Active strategic goal: `SG2`
-Next strategic goal: `TBD`
+Next strategic goal: `SG3`
 
 ## Strategic ranking (Eisenhower-3D)
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `SG1` | complete | Deliver a V9-compatible synthesis core and ship V7 module synthesis through the existing `module-gen` surface. | 5 | 5 | 4 | This wave is now materially complete: `module-gen` runs through the synthesis runtime, ranked candidate selection/promotion receipts exist, and the ranked path is hardened with deterministic regression corpus + CI coverage. |
-| `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 4 | 4 | With the V7-ranked runtime now explicit and guarded by regression gates, the next highest-leverage move is to define how synthesis retrieves structured evidence from receipts/replay/Oracle history before attempting predictive ranking or governed strategy evolution. |
+| `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx has completed the read-only SG2 evidence chain through candidate-prior counterfactual advisories, but it still lacks the next bounded step: a shadow predictive-ranking contract that can test evidence-aware behavior without changing live V7 ranking or promotion. |
+| `SG3` | next | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Repo-local tasks `AK-549`–`AK-551` already capture this work and it directly strengthens reproducibility/governance, but the first repo-local slice is blocked on cross-repo fixture work `AK-548`, so it stays next rather than active. |
 
 ## Strategic definitions of done
 
+### `SG2` — Evidence substrate for V8/V9
+Done when:
+- DSPx can retrieve and consume structured receipt/replay/Oracle evidence through bounded shadow predictive-ranking or equivalent evidence-aware comparisons without mutating live V7 behavior by accident,
+- evidence-backed candidate priors can be evaluated under explicit contracts before any live pre-ranking/pruning is authorized,
+- strategy/policy variants can be evaluated and governed with explicit receipts instead of silent prompt or policy drift.
+
+### `SG3` — AK-native scope snapshots for repo validation/handoff
+Done when:
+- repo validation derives task scope from AK-native snapshots instead of hand-authored manifest bookkeeping,
+- `next_session_prompt.md`, workflow docs, and verification commands no longer depend on manual task-scope manifest coupling,
+- regression coverage proves the AK-native scope flow across dirty working-tree and committed `HEAD` modes.
+
+## Recently completed strategic goal
+
 ### `SG1` — V9-compatible synthesis core, V7-first delivery
+Status: complete
+
 Done when:
 - `module-gen` runs through a synthesis runtime rather than an ad-hoc template-only service path,
 - synthesis requests, candidate records, evaluation results, and promotion decisions are explicit/versioned,
 - the first V7 path can generate, validate, and promote a module artifact while preserving the current CLI contract.
 
-### `SG2` — Evidence substrate for V8/V9
-Done when:
-- receipts, replay outputs, and Oracle history can be retrieved as structured evidence for synthesis decisions,
-- DSPx can pre-rank or prune candidate work with evidence-backed priors,
-- strategy/policy changes can be evaluated and governed instead of silently changing via prompt drift.
-
-## Explicit exclusions for this wave
+## Explicit exclusions for the active wave
 
 These remain important but are not the active strategic wave:
-- exact-fidelity `dspy-template-adapter` critical-path integration,
-- more provider-family expansion for its own sake,
-- app-first features that would weaken the core/app boundary,
-- V9-style self-evolving behavior before V7 contracts and V8 evidence exist.
+- live predictive ranking, candidate pruning, or promotion blocking before the shadow predictive-ranking contract is frozen and materialized,
+- resuming blocked SG3 scope-snapshot tasks before `AK-548` unblocks the repo-local chain,
+- older provider/runtime and Oracle follow-ons (`AK-224`, `AK-235`–`AK-239`) that are not selected by the current strategic ranking.

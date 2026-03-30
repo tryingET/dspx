@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Re-run the repo-scoped DSPx AK ready queue filter after `AK-559`; if the queue is still empty, wait for the next operator-directed slice or newly frozen SG2 contract before starting new implementation work.
-- Constraints (hard limits): Do not widen evidence authority beyond the read-only candidate-prior payload/audit/divergence/readiness/counterfactual layers without a dated contract; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-559` is complete and committed; no next SG2 implementation slice is pinned yet; any new implementation work still requires either operator direction or a repo-scoped ready AK task.
+- Objective (one sentence): Claim `AK-562` and implement the ADR-backed read-only shadow predictive-ranking advisory for `module-gen` outcomes.
+- Constraints (hard limits): Do not widen evidence authority beyond `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`; keep live execution truth in AK; keep `docs/project/operational_goals.md` and this file aligned.
+- Assumptions (max 3): `AK-561` is complete and committed; the repo-scoped ready queue exposes `AK-562`; SG3 AK-native scope-snapshot work remains blocked on cross-repo `AK-548` and is not the active wave.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -41,13 +41,13 @@ Do not ask for permission to start.
 3. `docs/project/strategic_goals.md`
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
-6. `docs/adr/20260328-synthesis-evidence-candidate-prior-counterfactual-advisory-v1.md`
-7. `diary/2026-03-29--fix-repeated-openapi-local-ref-resolution-across-sibling-branches.md`
+6. `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`
+7. `diary/2026-03-29--refresh-sg2-decomposition-and-materialize-shadow-ranking-wave.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the ready queue with `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the repo-scoped ready queue is empty, do not start a new implementation slice; wait for operator direction or a newly ready AK slice.
+3. If the repo-scoped ready queue is empty, do not start a new implementation slice; wait for operator direction or the next truthful decomposition/materialization step.
 4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
 5. Implement at most one operating slice end-to-end.
 6. Validate the slice with:
@@ -56,12 +56,12 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-559` — fix repeated OpenAPI local ref resolution across sibling branches.
-- Outcome: Fixed repeated local OpenAPI schema ref resolution so reused sibling properties and combinator branches no longer collapse into unconstrained schemas, added regressions for the surfaced false-pass cases, refreshed the aligned docs/handoff artifacts, and returned the repo to a no-ready-slice state after the operator-directed follow-on validation slice.
-- Files changed: `diary/2026-03-29--fix-repeated-openapi-local-ref-resolution-across-sibling-branches.md`, `docs/OPENAPI_TOOLING.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-559.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/tools/openapi/caller.py`, `tests/test_openapi_schema_combinators.py`.
-- Validation commands + results: `uv run -m pytest -q tests/test_openapi_schema_combinators.py tests/test_openapi_schema_refs_allof.py tests/test_openapi_numeric_bounds.py tests/test_openapi_url_loading.py` ✅; `uvx ty check packages/dspx-core/src apps/forge/src` ✅; `just task-scope-check task_id=559 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 559 ...` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after completion (`[]`).
-- Source-of-truth updates: refreshed `docs/OPENAPI_TOOLING.md` for the repeated-ref behavior, updated `docs/project/operational_goals.md` and `next_session_prompt.md` to the latest current-HEAD checkpoint, recorded the slice in `diary/2026-03-29--fix-repeated-openapi-local-ref-resolution-across-sibling-branches.md`, and added `governance/task-scopes/AK-559.json` for the attested workflow slice.
-- Next-session starting point: re-run the repo-scoped `ak task ready` filter; if it is still empty, wait for operator direction or a newly frozen SG2 contract before starting another slice.
+- Slice executed: `AK-561` — define the next SG2 contract after the read-only candidate-prior counterfactual advisory.
+- Outcome: Refreshed the SG2/SG3 strategic hierarchy from repo reality, froze the next SG2 tactical contract as a bounded shadow predictive-ranking advisory in a dated ADR, materialized `AK-562` as the next ready repo-local slice, refreshed the direction/handoff artifacts, and re-exported the checked-in work-item projection.
+- Files changed: `diary/2026-03-29--refresh-sg2-decomposition-and-materialize-shadow-ranking-wave.md`, `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`, `docs/adr/README.md`, `docs/project/operational_goals.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-561.json`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `just task-scope-check task_id=561 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict` ⚠️ expected failure from pre-existing repo-wide metadata debt (97 files, tracked separately via `AK-239`); `just direction-contract-check` ✅; `just verify-full` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
+- Source-of-truth updates: refreshed `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, and `docs/project/operational_goals.md`; authored `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`; updated `next_session_prompt.md`; recorded the session in `diary/2026-03-29--refresh-sg2-decomposition-and-materialize-shadow-ranking-wave.md`; refreshed `governance/work-items.json`; and added `governance/task-scopes/AK-561.json`.
+- Next-session starting point: re-run the repo-scoped ready queue filter, then claim `AK-562` if it is still ready.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

@@ -1,0 +1,32 @@
+{
+  "task_id": 561,
+  "description": "Refresh the SG2/SG3 direction stack from current repo truth, freeze the next SG2 contract as a bounded shadow predictive-ranking advisory, materialize the next ready AK slice, and refresh the aligned handoff/projection artifacts.",
+  "allowed_paths": [
+    "diary/2026-03-29--refresh-sg2-decomposition-and-materialize-shadow-ranking-wave.md",
+    "docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-561.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "diary/2026-03-29--refresh-sg2-decomposition-and-materialize-shadow-ranking-wave.md",
+    "docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md",
+    "docs/adr/README.md",
+    "docs/project/operational_goals.md",
+    "docs/project/strategic_goals.md",
+    "docs/project/tactical_goals.md",
+    "governance/task-scopes/AK-561.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

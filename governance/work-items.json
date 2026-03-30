@@ -812,6 +812,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0561",
+          "title": "Synthesis evidence substrate: define the next SG2 contract after the read-only candidate-prior counterfactual advisory",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: define the next SG2 contract after the read-only candidate-prior counterfactual advisory (task #561)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0562",
+          "title": "Synthesis evidence substrate: emit a read-only shadow predictive-ranking advisory for module-gen outcomes",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit a read-only shadow predictive-ranking advisory for module-gen outcomes (task #562)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
