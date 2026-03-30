@@ -13,6 +13,8 @@ read_when:
 For upstream dependencies (especially `dspy`, `mlflow`, and `attachments`),
 prefer **sibling upstream clones** over git submodules in this repo.
 
+`dspy-lm-auth` is the important exception for DSPx local work: prefer the workspace contrib checkout at `~/ai-society/softwareco/contrib/dspy-lm-auth`, not an unrelated `~/programming/upstream/...` clone.
+
 Current repo posture: no git submodules tracked.
 
 Why:
@@ -47,6 +49,14 @@ For attachments helpers, use `PYTHONPATH` when needed:
 uv run env PYTHONPATH=~/programming/upstream/attachments/src python -c "import attachments; print('attachments ok')"
 ```
 
+For `dspy-lm-auth`, use the repo-local helper instead of an upstream-link recipe:
+
+```bash
+just link-dspy-lm-auth
+# optional explicit override:
+# just link-dspy-lm-auth path=~/ai-society/softwareco/contrib/dspy-lm-auth
+```
+
 Then run focused checks in `dspx`:
 
 ```bash
@@ -58,10 +68,12 @@ just monorepo-check
 ## Upstream-first fix loop
 
 1. Reproduce in `dspx`.
-2. Patch in upstream clone (`~/programming/upstream/dspy` or `.../mlflow`).
+2. Patch in the appropriate local checkout:
+   - upstream clone (`~/programming/upstream/dspy` or `.../mlflow`) for true upstream fixes
+   - workspace contrib clone (`~/ai-society/softwareco/contrib/dspy-lm-auth`) for `dspy-lm-auth`
 3. Re-run failing `dspx` checks.
-4. Open upstream PR.
-5. After upstream release, bump `dspx` dependency constraints to released version.
+4. Open the upstream or contrib PR in the owning repo.
+5. After release, bump `dspx` dependency constraints to the released version when appropriate.
 
 ## Reset back to released dependencies
 

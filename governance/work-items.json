@@ -837,6 +837,19 @@
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0564",
+          "title": "Provider runtime: prefer the contrib dspy-lm-auth checkout for local editable installs",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Provider runtime: prefer the contrib dspy-lm-auth checkout for local editable installs (task #564)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
         }
       ]
     }

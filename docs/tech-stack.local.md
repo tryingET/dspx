@@ -18,6 +18,7 @@ Local notes for DSPx:
 - Typechecking uses `ty` (not mypy): `uvx ty check packages/dspx-core/src apps/forge/src`
 - Canonical local workflow contract: `docs/project/developer_workflow.md`
 - Commands are standardized in `Justfile` (`just test`, `just fmt`, `just lint`, `just typecheck`).
+- Local auth-backed provider work should prefer the workspace contrib checkout via `just link-dspy-lm-auth` (defaults to `~/ai-society/softwareco/contrib/dspy-lm-auth`).
 - Optional py-lane companions when the repo actually benefits:
   - `pytest-bdd` for executable Gherkin/BDD scenarios
   - `Jinja2` for reusable text/config/html templates

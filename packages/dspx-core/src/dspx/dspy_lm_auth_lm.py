@@ -95,7 +95,8 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         except ImportError as e:  # pragma: no cover - exercised in tests via message
             raise RuntimeError(
                 "dspy-lm-auth is not installed. Install with 'pip install dspx-core[lm-auth]' "
-                "or 'pip install dspy-lm-auth'."
+                "or 'pip install dspy-lm-auth'. From the DSPx repo, prefer 'just link-dspy-lm-auth' "
+                "to use the workspace contrib checkout."
             ) from e
         return dspy_lm_auth
 

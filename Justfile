@@ -43,6 +43,14 @@ upstream-link-mlflow path="":
   if [ -z "{{path}}" ]; then echo "usage: just upstream-link-mlflow path=~/programming/upstream/mlflow"; exit 1; fi
   uv pip install -e "{{path}}"
 
+# Link the repo-local contrib dspy-lm-auth checkout and verify DSPx resolves imports from it
+link-dspy-lm-auth path="":
+  target="{{path}}"; \
+  if [ -z "$target" ]; then target="$HOME/ai-society/softwareco/contrib/dspy-lm-auth"; fi; \
+  if [ ! -f "$target/pyproject.toml" ]; then echo "missing dspy-lm-auth checkout: $target"; exit 1; fi; \
+  uv pip install -e "$target"; \
+  uv run python -c 'from pathlib import Path; import sys, dspy_lm_auth; target = Path(sys.argv[1]).expanduser().resolve(); actual = Path(dspy_lm_auth.__file__).resolve(); print(actual); assert target in actual.parents or actual == target, f"dspy_lm_auth resolved to {actual}, expected under {target}"' "$target"
+
 # Reset environment back to locked/released dependencies
 upstream-reset:
   uv sync

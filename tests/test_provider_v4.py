@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import builtins
 import json
 import sys
 import types
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
@@ -86,6 +88,22 @@ def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -
 
     runtime = lm.runtime_metadata()
     assert runtime["resolved_headers"]["Authorization"] == "[REDACTED]"
+
+
+def test_dspy_lm_auth_wrapper_import_error_mentions_repo_helper(monkeypatch) -> None:
+    monkeypatch.delitem(sys.modules, "dspy_lm_auth", raising=False)
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "dspy_lm_auth":
+            raise ImportError("missing test dependency")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    lm = DspyLMAuthLM()
+    with pytest.raises(RuntimeError, match="just link-dspy-lm-auth"):
+        lm._import_module()
 
 
 def test_dspy_lm_auth_wrapper_strips_max_tokens_for_codex_route(

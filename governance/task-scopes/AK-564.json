@@ -1,0 +1,38 @@
+{
+  "task_id": 564,
+  "description": "Prefer the workspace contrib dspy-lm-auth checkout for local editable installs by adding a linking helper, documenting the canonical path, tightening import guidance, verifying the active environment resolves the contrib package, and refreshing the aligned handoff artifacts.",
+  "allowed_paths": [
+    "Justfile",
+    "README.md",
+    "diary/2026-03-29--prefer-contrib-dspy-lm-auth-checkout.md",
+    "docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md",
+    "docs/project/developer_workflow.md",
+    "docs/project/operational_goals.md",
+    "docs/project/provider-runtime-v4.md",
+    "docs/tech-stack.local.md",
+    "governance/task-scopes/AK-564.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+    "tests/test_provider_v4.py"
+  ],
+  "required_paths": [
+    "Justfile",
+    "diary/2026-03-29--prefer-contrib-dspy-lm-auth-checkout.md",
+    "docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md",
+    "docs/project/developer_workflow.md",
+    "docs/project/operational_goals.md",
+    "docs/project/provider-runtime-v4.md",
+    "governance/task-scopes/AK-564.json",
+    "governance/work-items.json",
+    "next_session_prompt.md",
+    "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+    "tests/test_provider_v4.py"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

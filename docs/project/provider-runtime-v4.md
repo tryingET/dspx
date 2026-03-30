@@ -37,6 +37,18 @@ Support a production-grade mixed-provider DSPx workflow:
 - `dspx providers health [--probe]`
 - `dspx providers benchmark --provider ...`
 
+## Local editable checkout note
+
+When DSPx should use a local editable `dspy-lm-auth` checkout, prefer the workspace contrib repo instead of an unrelated upstream clone:
+
+```bash
+just link-dspy-lm-auth
+# optional explicit override:
+# just link-dspy-lm-auth path=~/ai-society/softwareco/contrib/dspy-lm-auth
+```
+
+That helper installs the contrib checkout and verifies `import dspy_lm_auth` resolves from the requested path.
+
 ## Verified local setup snapshot
 
 The currently verified local/runtime combination is:

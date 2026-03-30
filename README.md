@@ -338,6 +338,7 @@ Known compatibility note:
 - mixed-provider profile (`vllm-local` + `dspy-lm-auth`) live-verified on `2026-03-22`
 - `codex/gpt-5.4` is verified through `dspy-lm-auth`
 - `codex/gpt-5.4-nano` is rejected on the active ChatGPT/Codex account route
+- for local editable `dspy-lm-auth` work, prefer `just link-dspy-lm-auth` so DSPx resolves `dspy_lm_auth` from `~/ai-society/softwareco/contrib/dspy-lm-auth`
 - details and benchmark snapshot: `docs/project/provider-runtime-v4.md`
 
 ---

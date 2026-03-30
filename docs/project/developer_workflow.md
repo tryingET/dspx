@@ -28,6 +28,18 @@ just hooks-install
 
 Implementation detail: this uses `uvx pre-commit install` for both `pre-commit` and `pre-push` hooks.
 
+### Optional local auth-provider checkout
+
+When DSPx should use the local `dspy-lm-auth` checkout rather than a published wheel or an unrelated clone, install the contrib repo in editable mode from this workspace:
+
+```bash
+just link-dspy-lm-auth
+# optional explicit override:
+# just link-dspy-lm-auth path=~/ai-society/softwareco/contrib/dspy-lm-auth
+```
+
+The helper defaults to `~/ai-society/softwareco/contrib/dspy-lm-auth`, installs it with `uv pip install -e`, and fails if `import dspy_lm_auth` still resolves somewhere else.
+
 ### 3. Validate before push
 
 ```bash
