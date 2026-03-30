@@ -331,6 +331,12 @@ just dspx providers health --provider dspy-lm-auth --probe --json
 How to verify DSPx is using your Pi auth-backed subscription:
 
 ```bash
+just show-dspy-lm-auth-route
+```
+
+Equivalent manual checks:
+
+```bash
 just dspx providers resolve --provider dspy-lm-auth --json
 just dspx providers health --provider dspy-lm-auth --probe --json
 ```

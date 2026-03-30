@@ -863,6 +863,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0570",
+          "title": "Provider runtime: add a one-command dspy-lm-auth route check",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Provider runtime: add a one-command dspy-lm-auth route check (task #570)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
         }
       ]
     }

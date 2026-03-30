@@ -51,6 +51,15 @@ link-dspy-lm-auth path="":
   uv pip install -e "$target"; \
   uv run python -c 'from pathlib import Path; import sys, dspy_lm_auth; target = Path(sys.argv[1]).expanduser().resolve(); actual = Path(dspy_lm_auth.__file__).resolve(); print(actual); assert target in actual.parents or actual == target, f"dspy_lm_auth resolved to {actual}, expected under {target}"' "$target"
 
+# Show the active dspy-lm-auth import path plus the auth-backed route/health proof in one command
+show-dspy-lm-auth-route:
+  @echo "# import path"
+  @uv run python -c "import dspy_lm_auth; print(dspy_lm_auth.__file__)"
+  @echo "# provider resolve"
+  @just dspx providers resolve --provider dspy-lm-auth --json
+  @echo "# provider health"
+  @just dspx providers health --provider dspy-lm-auth --probe --json
+
 # Reset environment back to locked/released dependencies
 upstream-reset:
   uv sync

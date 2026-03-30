@@ -54,7 +54,18 @@ That helper installs the contrib checkout and verifies `import dspy_lm_auth` res
 DSPx only uses your Pi/Codex-backed auth when the active route is `dspy-lm-auth`.
 That route defaults to `~/.pi/agent/auth.json`, not `~/.pi/auth.json`.
 
-Check the configured route:
+Fast path:
+
+```bash
+just show-dspy-lm-auth-route
+```
+
+That one command prints:
+- the imported `dspy_lm_auth` module path
+- the resolved `dspy-lm-auth` runtime config
+- the auth-backed health/probe result
+
+Equivalent manual checks:
 
 ```bash
 just dspx providers resolve --provider dspy-lm-auth --json

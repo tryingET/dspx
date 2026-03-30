@@ -1,0 +1,30 @@
+{
+  "task_id": 570,
+  "description": "Add a one-command helper that shows the active dspy-lm-auth import path plus the auth-backed resolve/health proof, document that helper in the provider-facing docs, and refresh the aligned handoff artifacts.",
+  "allowed_paths": [
+    "Justfile",
+    "README.md",
+    "diary/2026-03-29--add-one-command-dspy-lm-auth-route-check.md",
+    "docs/project/operational_goals.md",
+    "docs/project/provider-runtime-v4.md",
+    "governance/task-scopes/AK-570.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "required_paths": [
+    "Justfile",
+    "README.md",
+    "diary/2026-03-29--add-one-command-dspy-lm-auth-route-check.md",
+    "docs/project/operational_goals.md",
+    "docs/project/provider-runtime-v4.md",
+    "governance/task-scopes/AK-570.json",
+    "governance/work-items.json",
+    "next_session_prompt.md"
+  ],
+  "forbidden_paths": [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.backup"
+  ]
+}

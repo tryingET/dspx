@@ -19,6 +19,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Recently completed in this wave
 
+- `AK-570` — added `just show-dspy-lm-auth-route` so operators can prove the active import path plus the auth-backed resolve/health route in one command, and documented that helper without displacing active slice `AK-562`.
 - `AK-567` — documented how to verify that DSPx is actually using the Pi auth-backed `dspy-lm-auth` route, including the default `~/.pi/agent/auth.json` path, the resolve/health probe checks, and the local-vs-auth-backed split in mixed-provider runs, without displacing active slice `AK-562`.
 - `AK-564` — added a repo-local `just link-dspy-lm-auth` helper, documented the workspace contrib checkout as the canonical editable `dspy-lm-auth` source, tightened the provider import guidance, and verified DSPx now resolves `dspy_lm_auth` from `~/ai-society/softwareco/contrib/dspy-lm-auth` without displacing active slice `AK-562`.
 - `AK-561` — froze the next SG2 contract after the read-only candidate-prior counterfactual advisory as a bounded offline/shadow predictive-ranking advisory and aligned the next implementation slice to `AK-562`.
@@ -30,6 +31,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Notes
 
 - `TG20` is complete, `TG21` is active, and `AK-562` still gives the active tactical goal live backlog coverage.
+- `AK-570` was an operator-directed provider-runtime helper/documentation slice; it collapsed the route proof into one stable command without replacing the active SG2 implementation slice.
 - `AK-567` was an operator-directed provider-runtime documentation slice; it made the auth-store routing proof explicit for operators without replacing the active SG2 implementation slice.
 - `AK-564` was an operator-directed provider-runtime/workflow slice; it fixed local editable import resolution for `dspy-lm-auth` but did not replace the active SG2 implementation slice.
 - Do not start live predictive ranking, candidate pruning, promotion blocking, or strategy/policy mutation until a later contract explicitly widens authority beyond the new shadow predictive-ranking advisory.
