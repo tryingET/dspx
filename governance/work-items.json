@@ -829,14 +829,15 @@
         {
           "id": "AK-TASK-0562",
           "title": "Synthesis evidence substrate: emit a read-only shadow predictive-ranking advisory for module-gen outcomes",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: emit a read-only shadow predictive-ranking advisory for module-gen outcomes (task #562)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-30"
         },
         {
           "id": "AK-TASK-0564",

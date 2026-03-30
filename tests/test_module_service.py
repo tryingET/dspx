@@ -107,6 +107,16 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
         == "counterfactual_signal_sparse"
     )
     assert (
+        diagnostics["shadow_predictive_ranking_advisory"][
+            "shadow_predictive_ranking_advisory_version"
+        ]
+        == "v1"
+    )
+    assert (
+        diagnostics["shadow_predictive_ranking_advisory"]["status"]
+        == "no_shadow_predictive_signal"
+    )
+    assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
     )
@@ -236,6 +246,12 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
             "candidate_prior_counterfactual_advisory"
         ]["status"]
         == "counterfactual_signal_sparse"
+    )
+    assert (
+        art.metadata["synthesis_diagnostics"]["shadow_predictive_ranking_advisory"][
+            "status"
+        ]
+        == "no_shadow_predictive_signal"
     )
 
 
@@ -400,6 +416,10 @@ def test_module_service_degrades_diagnostics_when_evidence_is_partially_broken(
         diagnostics["candidate_prior_counterfactual_advisory"]["status"]
         == "candidate_prior_counterfactual_unavailable"
     )
+    assert (
+        diagnostics["shadow_predictive_ranking_advisory"]["status"]
+        == "shadow_predictive_ranking_unavailable"
+    )
 
 
 def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_unavailable(
@@ -459,6 +479,10 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
     assert (
         diagnostics["candidate_prior_counterfactual_advisory"]["status"]
         == "candidate_prior_counterfactual_unavailable"
+    )
+    assert (
+        diagnostics["shadow_predictive_ranking_advisory"]["status"]
+        == "shadow_predictive_ranking_unavailable"
     )
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]

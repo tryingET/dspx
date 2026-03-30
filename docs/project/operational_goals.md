@@ -7,18 +7,17 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG21`
+Active tactical goal: `TBD`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. `AK-562` — emit the ADR-backed read-only shadow predictive-ranking advisory on live module metadata and persisted receipts, using already-emitted SG2 surfaces plus trusted current ranked/evaluation metadata while leaving live V7 ranking, tie-breaking, pruning, and promotion unchanged.
-   - Status: ready after `AK-561`
-   - Deliverables: contract-shaped advisory payload, attachment on live `synthesis_diagnostics` + persisted receipt metadata, and focused tests/docs aligned to the new ADR.
+- No repo-scoped implementation slice is currently pinned. The repo-scoped ready queue is empty again until the next truthful `TG22` contract/materialization step is created.
 
 ## Recently completed in this wave
 
+- `AK-562` — materialized the ADR-backed read-only shadow predictive-ranking advisory on live module metadata and persisted receipts, using already-emitted SG2 surfaces plus trusted current ranked/evaluation metadata while leaving live V7 ranking, tie-breaking, pruning, and promotion unchanged.
 - `AK-570` — added `just show-dspy-lm-auth-route` so operators can prove the active import path plus the auth-backed resolve/health route in one command, and documented that helper without displacing active slice `AK-562`.
 - `AK-567` — documented how to verify that DSPx is actually using the Pi auth-backed `dspy-lm-auth` route, including the default `~/.pi/agent/auth.json` path, the resolve/health probe checks, and the local-vs-auth-backed split in mixed-provider runs, without displacing active slice `AK-562`.
 - `AK-564` — added a repo-local `just link-dspy-lm-auth` helper, documented the workspace contrib checkout as the canonical editable `dspy-lm-auth` source, tightened the provider import guidance, and verified DSPx now resolves `dspy_lm_auth` from `~/ai-society/softwareco/contrib/dspy-lm-auth` without displacing active slice `AK-562`.
@@ -30,7 +29,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG20` is complete, `TG21` is active, and `AK-562` still gives the active tactical goal live backlog coverage.
+- `TG21` is complete; no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue is empty until the next truthful `TG22` contract/materialization step is created.
 - `AK-570` was an operator-directed provider-runtime helper/documentation slice; it collapsed the route proof into one stable command without replacing the active SG2 implementation slice.
 - `AK-567` was an operator-directed provider-runtime documentation slice; it made the auth-store routing proof explicit for operators without replacing the active SG2 implementation slice.
 - `AK-564` was an operator-directed provider-runtime/workflow slice; it fixed local editable import resolution for `dspy-lm-auth` but did not replace the active SG2 implementation slice.

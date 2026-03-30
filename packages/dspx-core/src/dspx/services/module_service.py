@@ -23,11 +23,13 @@ from dspx.services.module_synthesis_evidence import (
     build_module_synthesis_candidate_prior_readiness_advisory,
     build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_history_advisory,
+    build_module_synthesis_shadow_predictive_ranking_advisory,
     build_unavailable_module_synthesis_candidate_prior_audit,
     build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory,
     build_unavailable_module_synthesis_candidate_prior_divergence_explanation,
     build_unavailable_module_synthesis_candidate_prior_readiness_advisory,
     build_unavailable_module_synthesis_candidate_winner_priors,
+    build_unavailable_module_synthesis_shadow_predictive_ranking_advisory,
     extract_module_synthesis_candidate_prior_inputs,
     extract_module_synthesis_ranked_candidate_comparison_inputs,
     extract_module_synthesis_ranked_candidate_inputs,
@@ -381,6 +383,17 @@ def _build_unavailable_synthesis_diagnostics(
             "candidate-prior counterfactual advisory unavailable because evidence retrieval failed"
         ],
     )
+    shadow_predictive_ranking_advisory = build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+        candidate_prior_audit=candidate_prior_audit,
+        candidate_prior_divergence_explanation=(candidate_prior_divergence_explanation),
+        candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+        candidate_prior_counterfactual_advisory=(
+            candidate_prior_counterfactual_advisory
+        ),
+        notes=[
+            "shadow predictive-ranking advisory unavailable because evidence retrieval failed"
+        ],
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": "unavailable",
@@ -425,6 +438,7 @@ def _build_unavailable_synthesis_diagnostics(
         "candidate_prior_counterfactual_advisory": (
             candidate_prior_counterfactual_advisory
         ),
+        "shadow_predictive_ranking_advisory": shadow_predictive_ranking_advisory,
     }
 
 
@@ -508,6 +522,16 @@ def _build_synthesis_diagnostics(
             ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
         )
     )
+    shadow_predictive_ranking_advisory = (
+        build_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_winner_priors,
+            candidate_prior_audit,
+            candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory,
+            ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
+        )
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": retrieval_status,
@@ -535,6 +559,7 @@ def _build_synthesis_diagnostics(
         "candidate_prior_counterfactual_advisory": (
             candidate_prior_counterfactual_advisory
         ),
+        "shadow_predictive_ranking_advisory": shadow_predictive_ranking_advisory,
     }
 
 

@@ -9,22 +9,10 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG21`
+Active tactical goal: `TBD`
 Next tactical goal: `TG22`
 
-## Active and upcoming tactical goals for `SG2`
-
-### `TG20` — Freeze the first offline/shadow predictive-ranking contract after the read-only counterfactual advisory
-- Status: complete
-- Definition of done: DSPx has a dated ADR defining the first read-only shadow predictive-ranking surface, the authority order it may use, and the next AK-backed implementation slice while keeping live V7 ranking, tie-breaking, pruning, and promotion unchanged.
-- Reference: `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`
-- Execution reference: `AK-561`
-
-### `TG21` — Materialize a read-only shadow predictive-ranking advisory for module-gen outcomes
-- Status: active
-- Definition of done: `module-gen` emits a contract-shaped shadow predictive-ranking advisory on live metadata and persisted receipts that compares a bounded prior-aware shadow preference against the trusted V7 winner without changing live ranking, tie-breaking, pruning, or promotion behavior.
-- Contract reference: `docs/adr/20260329-synthesis-evidence-shadow-predictive-ranking-advisory-v1.md`
-- Execution reference: `AK-562`
+## Upcoming tactical goals for `SG2`
 
 ### `TG22` — Freeze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence
 - Status: next
@@ -36,6 +24,8 @@ Next tactical goal: `TG22`
 
 ## Recently completed tactical goals for `SG2`
 
+- `TG21` — materialized the read-only shadow predictive-ranking advisory on live module metadata and persisted receipts, comparing a bounded prior-aware shadow preference against the trusted V7 winner without changing live ranking, tie-breaking, pruning, or promotion behavior.
+- `TG20` — froze the first offline/shadow predictive-ranking contract after the read-only counterfactual advisory.
 - `TG19` — materialized the read-only candidate-prior counterfactual advisory on live module metadata and persisted receipts before any predictive-ranking authority widened.
 - `TG18` — froze the next post-readiness SG2 contract as the read-only candidate-prior counterfactual advisory contract.
 - `TG17` — materialized the read-only candidate-prior readiness advisory on live metadata and persisted receipts.
@@ -61,7 +51,7 @@ Next tactical goal: `TG22`
 
 ## Defer/until-later notes
 
-The following remain intentionally out of the active tactical wave until `TG21` and `TG22` advance:
+The following remain intentionally out of the active tactical wave until `TG22` advances:
 - live predictive ranking from Oracle priors,
 - live candidate pruning or promotion blocking from prior-backed signals,
 - strategy/policy mutation without explicit governed evaluation receipts,

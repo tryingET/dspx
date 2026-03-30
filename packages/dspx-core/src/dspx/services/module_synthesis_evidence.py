@@ -81,6 +81,7 @@ class ModuleSynthesisHistoricalDiagnostics:
     candidate_prior_divergence_explanation: dict[str, Any] | None
     candidate_prior_readiness_advisory: dict[str, Any] | None = None
     candidate_prior_counterfactual_advisory: dict[str, Any] | None = None
+    shadow_predictive_ranking_advisory: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -91,6 +92,7 @@ class ModuleSynthesisHistoricalDiagnostics:
             "candidate_prior_divergence_explanation": self.candidate_prior_divergence_explanation,
             "candidate_prior_readiness_advisory": self.candidate_prior_readiness_advisory,
             "candidate_prior_counterfactual_advisory": self.candidate_prior_counterfactual_advisory,
+            "shadow_predictive_ranking_advisory": self.shadow_predictive_ranking_advisory,
         }
 
 
@@ -563,6 +565,13 @@ def _extract_historical_diagnostics(
             _as_dict(diagnostics.get("candidate_prior_counterfactual_advisory"))
             if isinstance(
                 diagnostics.get("candidate_prior_counterfactual_advisory"), Mapping
+            )
+            else None
+        ),
+        shadow_predictive_ranking_advisory=(
+            _as_dict(diagnostics.get("shadow_predictive_ranking_advisory"))
+            if isinstance(
+                diagnostics.get("shadow_predictive_ranking_advisory"), Mapping
             )
             else None
         ),
@@ -3020,6 +3029,1050 @@ def build_module_synthesis_candidate_prior_counterfactual_advisory(
         "selected_candidate": selected_candidate,
         "history_summary": history_summary,
         "counterfactual_positive_prior_candidates": passing_candidate_views,
+        "notes": notes,
+    }
+
+
+_SHADOW_PREDICTIVE_RANKING_POLICY_ID = (
+    "module.shadow-predictive-ranking.v1.bounded-positive-winner-history"
+)
+
+_SHADOW_ALLOWED_COUNTERFACTUAL_STATUSES = {
+    "candidate_prior_counterfactual_unavailable",
+    "no_counterfactual_signal",
+    "counterfactual_signal_sparse",
+    "counterfactual_positive_prior_alternatives_present",
+    "counterfactual_signal_mixed_or_inconclusive",
+}
+
+
+def _shadow_predictive_ranking_history_summary(
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    *,
+    passing_positive_prior_candidate_count: int,
+) -> dict[str, int]:
+    counterfactual_history_summary = _candidate_prior_counterfactual_history_summary(
+        candidate_prior_readiness_advisory,
+        passing_positive_prior_candidate_count=passing_positive_prior_candidate_count,
+    )
+    return {
+        "exact_match_receipt_count": counterfactual_history_summary[
+            "exact_match_receipt_count"
+        ],
+        "replay_healthy_receipt_count": counterfactual_history_summary[
+            "replay_healthy_receipt_count"
+        ],
+        "positive_prior_signal_receipt_count": counterfactual_history_summary[
+            "positive_prior_signal_receipt_count"
+        ],
+        "passing_positive_prior_candidate_count": counterfactual_history_summary[
+            "passing_positive_prior_candidate_count"
+        ],
+    }
+
+
+def _shadow_predictive_ranking_selected_candidate_view(
+    *,
+    audit_candidate: Mapping[str, Any] | None,
+    comparison_candidate: Mapping[str, Any] | None,
+    candidate_prior_status: str | None,
+) -> dict[str, Any]:
+    audit = _as_dict(audit_candidate)
+    comparison = _as_dict(comparison_candidate)
+    rank = _as_int(comparison.get("rank"), default=0)
+    if rank <= 0:
+        rank = _as_int(audit.get("rank"), default=0)
+    return {
+        "candidate_id": _optional_str(audit.get("candidate_id"))
+        or _optional_str(comparison.get("candidate_id")),
+        "variant_id": _optional_str(audit.get("variant_id"))
+        or _optional_str(comparison.get("variant_id")),
+        "variant_origin": _optional_str(audit.get("variant_origin"))
+        or _optional_str(comparison.get("variant_origin")),
+        "rank": rank if rank > 0 else None,
+        "ranking_score": _optional_float(comparison.get("ranking_score")),
+        "candidate_prior_status": candidate_prior_status,
+    }
+
+
+def _shadow_predictive_ranking_preferred_candidate_view(
+    *,
+    candidate_prior: Mapping[str, Any] | None,
+    comparison_candidate: Mapping[str, Any] | None,
+    match_reason: str | None,
+) -> dict[str, Any]:
+    prior = _as_dict(candidate_prior)
+    comparison = _as_dict(comparison_candidate)
+    rank = _as_int(comparison.get("rank"), default=0)
+    return {
+        "candidate_id": _optional_str(prior.get("candidate_id"))
+        or _optional_str(comparison.get("candidate_id")),
+        "variant_id": _optional_str(prior.get("variant_id"))
+        or _optional_str(comparison.get("variant_id")),
+        "variant_origin": _optional_str(prior.get("variant_origin"))
+        or _optional_str(comparison.get("variant_origin")),
+        "rank": rank if rank > 0 else None,
+        "ranking_score": _optional_float(comparison.get("ranking_score")),
+        "candidate_prior_status": _optional_str(prior.get("status"))
+        or _optional_str(prior.get("prior_status")),
+        "match_reason": match_reason,
+    }
+
+
+def build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+    *,
+    candidate_prior_audit: Mapping[str, Any] | None,
+    candidate_prior_divergence_explanation: Mapping[str, Any] | None,
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    candidate_prior_counterfactual_advisory: Mapping[str, Any] | None,
+    notes: list[str] | None = None,
+) -> dict[str, Any]:
+    audit = _as_dict(candidate_prior_audit)
+    divergence = _as_dict(candidate_prior_divergence_explanation)
+    readiness = _as_dict(candidate_prior_readiness_advisory)
+    counterfactual = _as_dict(candidate_prior_counterfactual_advisory)
+    selected_candidate_audit = _as_dict(audit.get("selected_candidate"))
+    return {
+        "shadow_predictive_ranking_advisory_version": "v1",
+        "status": "shadow_predictive_ranking_unavailable",
+        "shadow_policy_id": _SHADOW_PREDICTIVE_RANKING_POLICY_ID,
+        "candidate_prior_audit_status": _optional_str(audit.get("status")),
+        "candidate_prior_divergence_explanation_status": _optional_str(
+            divergence.get("status")
+        ),
+        "candidate_prior_readiness_status": _optional_str(readiness.get("status")),
+        "candidate_prior_counterfactual_status": _optional_str(
+            counterfactual.get("status")
+        ),
+        "selected_candidate": _shadow_predictive_ranking_selected_candidate_view(
+            audit_candidate=selected_candidate_audit,
+            comparison_candidate=None,
+            candidate_prior_status=_optional_str(
+                selected_candidate_audit.get("prior_status")
+            ),
+        ),
+        "shadow_preferred_candidate": (
+            _shadow_predictive_ranking_preferred_candidate_view(
+                candidate_prior=None,
+                comparison_candidate=None,
+                match_reason=None,
+            )
+        ),
+        "history_summary": _shadow_predictive_ranking_history_summary(
+            candidate_prior_readiness_advisory,
+            passing_positive_prior_candidate_count=0,
+        ),
+        "notes": list(notes or ["shadow predictive-ranking advisory unavailable"]),
+    }
+
+
+def build_module_synthesis_shadow_predictive_ranking_advisory(
+    candidate_winner_priors: Mapping[str, Any] | None,
+    candidate_prior_audit: Mapping[str, Any] | None,
+    candidate_prior_divergence_explanation: Mapping[str, Any] | None,
+    candidate_prior_readiness_advisory: Mapping[str, Any] | None,
+    candidate_prior_counterfactual_advisory: Mapping[str, Any] | None,
+    *,
+    ranked_candidate_comparison_inputs: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
+    if not isinstance(candidate_winner_priors, Mapping):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate winner-prior payload is missing"
+            ],
+        )
+    if _optional_str(candidate_winner_priors.get("status")) == "unavailable":
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate winner-prior payload is unavailable"
+            ],
+        )
+    if not isinstance(candidate_prior_audit, Mapping):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=None,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit is missing"
+            ],
+        )
+    if not isinstance(candidate_prior_divergence_explanation, Mapping):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=None,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior divergence explanation is missing"
+            ],
+        )
+    if not isinstance(candidate_prior_readiness_advisory, Mapping):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=None,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior readiness advisory is missing"
+            ],
+        )
+    if not isinstance(candidate_prior_counterfactual_advisory, Mapping):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=None,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior counterfactual advisory is missing"
+            ],
+        )
+
+    audit_status = _optional_str(candidate_prior_audit.get("status"))
+    divergence_status = _optional_str(
+        candidate_prior_divergence_explanation.get("status")
+    )
+    readiness_status = _optional_str(candidate_prior_readiness_advisory.get("status"))
+    counterfactual_status = _optional_str(
+        candidate_prior_counterfactual_advisory.get("status")
+    )
+    if (
+        audit_status is None
+        or divergence_status is None
+        or readiness_status is None
+        or counterfactual_status is None
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because required SG2 status fields are malformed"
+            ],
+        )
+    if audit_status not in _COUNTERFACTUAL_ALLOWED_AUDIT_STATUSES:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit status is unsupported"
+            ],
+        )
+    if divergence_status not in _COUNTERFACTUAL_ALLOWED_DIVERGENCE_STATUSES:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior divergence explanation status is unsupported"
+            ],
+        )
+    if readiness_status not in _COUNTERFACTUAL_ALLOWED_READINESS_STATUSES:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior readiness advisory status is unsupported"
+            ],
+        )
+    if counterfactual_status not in _SHADOW_ALLOWED_COUNTERFACTUAL_STATUSES:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior counterfactual advisory status is unsupported"
+            ],
+        )
+    if audit_status == "candidate_priors_unavailable":
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit is unavailable"
+            ],
+        )
+    if divergence_status == "candidate_prior_divergence_unavailable":
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior divergence explanation is unavailable"
+            ],
+        )
+    if readiness_status == "candidate_prior_readiness_unavailable":
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior readiness advisory is unavailable"
+            ],
+        )
+    if counterfactual_status == "candidate_prior_counterfactual_unavailable":
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior counterfactual advisory is unavailable"
+            ],
+        )
+
+    if (
+        audit_status
+        in {
+            "selected_matches_positive_winner_history",
+            "no_positive_prior_candidates",
+        }
+        and divergence_status != "no_divergence_to_explain"
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit/divergence surfaces disagree about whether divergence exists"
+            ],
+        )
+    if (
+        audit_status
+        in {
+            "selected_candidate_prior_unsupported",
+            "selected_candidate_prior_degraded",
+        }
+        and divergence_status != "selected_candidate_prior_unresolved"
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit/divergence surfaces disagree about selected-candidate prior resolution"
+            ],
+        )
+    if (
+        audit_status == "positive_prior_candidates_present_but_not_selected"
+        and divergence_status
+        not in {
+            "divergence_explained_by_runtime_failures",
+            "divergence_explained_by_runtime_scoring",
+            "divergence_explained_by_mixed_runtime_outcomes",
+        }
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit/divergence surfaces disagree about the divergence class"
+            ],
+        )
+
+    raw_candidate_priors = candidate_winner_priors.get("candidate_priors")
+    if not isinstance(raw_candidate_priors, list) or any(
+        not isinstance(item, Mapping) for item in raw_candidate_priors
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate winner-prior entries are malformed"
+            ],
+        )
+    candidate_prior_entries = [_as_dict(item) for item in raw_candidate_priors]
+    duplicate_candidate_prior_id = _duplicate_candidate_id(candidate_prior_entries)
+    if duplicate_candidate_prior_id is not None:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate winner-prior entries contain duplicate candidate_id values"
+            ],
+        )
+    candidate_priors_by_id = {
+        candidate_id: item
+        for item in candidate_prior_entries
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+
+    selected_candidate_audit = _as_dict(candidate_prior_audit.get("selected_candidate"))
+    selected_candidate_divergence = _as_dict(
+        candidate_prior_divergence_explanation.get("selected_candidate")
+    )
+    selected_candidate_counterfactual = _as_dict(
+        candidate_prior_counterfactual_advisory.get("selected_candidate")
+    )
+    if _candidate_prior_counterfactual_identity(
+        selected_candidate_audit
+    ) != _candidate_prior_counterfactual_identity(selected_candidate_divergence):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because selected-candidate identity disagrees across SG2 surfaces"
+            ],
+        )
+    if _candidate_prior_counterfactual_identity(
+        selected_candidate_audit
+    ) != _candidate_prior_counterfactual_identity(selected_candidate_counterfactual):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because selected-candidate identity disagrees between the audit and counterfactual surfaces"
+            ],
+        )
+
+    selected_candidate_id = _optional_str(selected_candidate_audit.get("candidate_id"))
+    if selected_candidate_id is None:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because selected candidate identity is missing"
+            ],
+        )
+    selected_candidate_prior = candidate_priors_by_id.get(selected_candidate_id)
+    if selected_candidate_prior is None:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because selected candidate has no candidate winner-prior entry"
+            ],
+        )
+    if _candidate_prior_identity_conflicts(
+        expected=selected_candidate_audit,
+        observed=selected_candidate_prior,
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because selected-candidate prior identity disagrees with the candidate winner-prior payload"
+            ],
+        )
+    selected_candidate_prior_status = _optional_str(
+        selected_candidate_prior.get("status")
+    )
+    if (
+        selected_candidate_prior_status is None
+        or _optional_str(selected_candidate_audit.get("prior_status"))
+        != selected_candidate_prior_status
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because selected-candidate prior status disagrees across SG2 surfaces"
+            ],
+        )
+
+    comparison_by_id = _canonicalize_candidate_prior_comparison_inputs(
+        ranked_candidate_comparison_inputs
+    )
+    if comparison_by_id is None:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because trusted current comparison metadata is malformed or duplicated"
+            ],
+        )
+    selected_comparison = comparison_by_id.get(selected_candidate_id)
+    if (
+        selected_comparison is None
+        or not _candidate_prior_divergence_comparison_supported(selected_comparison)
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because trusted current comparison metadata for the selected candidate is incomplete"
+            ],
+        )
+    if selected_comparison.get("passed") is not True:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because the selected candidate lacks a trusted passing runtime result"
+            ],
+        )
+    if _candidate_prior_identity_disagrees_with_current_comparison(
+        candidate=selected_candidate_audit,
+        comparison_candidate=selected_comparison,
+    ) or _candidate_prior_identity_disagrees_with_current_comparison(
+        candidate=selected_candidate_prior,
+        comparison_candidate=selected_comparison,
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because selected candidate identity disagrees with trusted current comparison metadata"
+            ],
+        )
+
+    raw_positive_prior_candidates = candidate_prior_audit.get(
+        "positive_prior_candidates"
+    )
+    raw_non_selected_positive_prior_candidates = candidate_prior_audit.get(
+        "non_selected_positive_prior_candidates"
+    )
+    if not isinstance(raw_positive_prior_candidates, list) or any(
+        not isinstance(item, Mapping) for item in raw_positive_prior_candidates
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit positive-candidate payload is malformed"
+            ],
+        )
+    if not isinstance(raw_non_selected_positive_prior_candidates, list) or any(
+        not isinstance(item, Mapping)
+        for item in raw_non_selected_positive_prior_candidates
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit non-selected positive-candidate payload is malformed"
+            ],
+        )
+    positive_prior_candidates = [
+        _as_dict(item) for item in raw_positive_prior_candidates
+    ]
+    non_selected_positive_prior_candidates = [
+        _as_dict(item) for item in raw_non_selected_positive_prior_candidates
+    ]
+    if (
+        _duplicate_candidate_id(positive_prior_candidates) is not None
+        or _duplicate_candidate_id(non_selected_positive_prior_candidates) is not None
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit positive-candidate payload contains duplicate candidate_id entries"
+            ],
+        )
+    positive_prior_candidates_by_id = {
+        candidate_id: item
+        for item in positive_prior_candidates
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    non_selected_positive_prior_candidates_by_id = {
+        candidate_id: item
+        for item in non_selected_positive_prior_candidates
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    positive_prior_ids = {
+        candidate_id
+        for candidate_id, item in candidate_priors_by_id.items()
+        if _optional_str(item.get("status")) == "matches_positive_winner_history"
+    }
+    if set(positive_prior_candidates_by_id) != positive_prior_ids:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because positive prior candidate identity disagrees between the audit and candidate winner-prior payload"
+            ],
+        )
+    expected_non_selected_positive_ids = positive_prior_ids - (
+        {selected_candidate_id}
+        if selected_candidate_prior_status == "matches_positive_winner_history"
+        else set()
+    )
+    if (
+        set(non_selected_positive_prior_candidates_by_id)
+        != expected_non_selected_positive_ids
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because non-selected positive prior candidate identity disagrees with the candidate winner-prior payload"
+            ],
+        )
+    for candidate_id, audit_candidate in positive_prior_candidates_by_id.items():
+        if _candidate_prior_identity_conflicts(
+            expected=audit_candidate,
+            observed=candidate_priors_by_id.get(candidate_id),
+        ):
+            return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+                candidate_prior_audit=candidate_prior_audit,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+                notes=[
+                    "shadow predictive-ranking advisory unavailable because a positive prior candidate identity disagrees across SG2 surfaces"
+                ],
+            )
+
+    if (
+        (
+            audit_status == "selected_matches_positive_winner_history"
+            and selected_candidate_prior_status != "matches_positive_winner_history"
+        )
+        or (
+            audit_status == "selected_candidate_prior_unsupported"
+            and selected_candidate_prior_status != "unsupported_candidate_identity"
+        )
+        or (
+            audit_status == "selected_candidate_prior_degraded"
+            and selected_candidate_prior_status != "degraded_history_only"
+        )
+        or (audit_status == "no_positive_prior_candidates" and positive_prior_ids)
+        or (
+            audit_status == "positive_prior_candidates_present_but_not_selected"
+            and (
+                not expected_non_selected_positive_ids
+                or selected_candidate_prior_status == "matches_positive_winner_history"
+            )
+        )
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because candidate-prior audit status disagrees with current candidate prior status"
+            ],
+        )
+
+    raw_divergence_compared_candidates = candidate_prior_divergence_explanation.get(
+        "compared_positive_prior_candidates"
+    )
+    if not isinstance(raw_divergence_compared_candidates, list) or any(
+        not isinstance(item, Mapping) for item in raw_divergence_compared_candidates
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because divergence compared-candidate payload is malformed"
+            ],
+        )
+    divergence_compared_candidates = [
+        _as_dict(item) for item in raw_divergence_compared_candidates
+    ]
+    if _duplicate_candidate_id(divergence_compared_candidates) is not None:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because divergence compared-candidate payload contains duplicate candidate_id entries"
+            ],
+        )
+    divergence_compared_candidates_by_id = {
+        candidate_id: item
+        for item in divergence_compared_candidates
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    if set(divergence_compared_candidates_by_id) != expected_non_selected_positive_ids:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because divergence compared-candidate identity disagrees with the audit comparison set"
+            ],
+        )
+
+    selected_rank = _as_int(selected_comparison.get("rank"), default=0)
+    passing_non_selected_positive_ids: set[str] = set()
+    for (
+        candidate_id,
+        divergence_candidate,
+    ) in divergence_compared_candidates_by_id.items():
+        comparison_candidate = comparison_by_id.get(candidate_id)
+        audit_candidate = non_selected_positive_prior_candidates_by_id.get(candidate_id)
+        prior_candidate = candidate_priors_by_id.get(candidate_id)
+        if (
+            comparison_candidate is None
+            or audit_candidate is None
+            or prior_candidate is None
+            or not _candidate_prior_divergence_comparison_supported(
+                comparison_candidate
+            )
+        ):
+            return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+                candidate_prior_audit=candidate_prior_audit,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+                notes=[
+                    "shadow predictive-ranking advisory unavailable because trusted current comparison metadata is incomplete for a positive prior candidate"
+                ],
+            )
+        if (
+            _candidate_prior_identity_disagrees_with_current_comparison(
+                candidate=audit_candidate,
+                comparison_candidate=comparison_candidate,
+            )
+            or _candidate_prior_identity_disagrees_with_current_comparison(
+                candidate=prior_candidate,
+                comparison_candidate=comparison_candidate,
+            )
+            or _candidate_prior_identity_conflicts(
+                expected=divergence_candidate,
+                observed=prior_candidate,
+            )
+        ):
+            return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+                candidate_prior_audit=candidate_prior_audit,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+                notes=[
+                    "shadow predictive-ranking advisory unavailable because a positive prior candidate identity disagrees across SG2 surfaces or current comparison metadata"
+                ],
+            )
+        comparison_status = _optional_str(divergence_candidate.get("comparison_status"))
+        if comparison_status not in {
+            "lower_ranked_pass",
+            "failed_runtime_validation",
+        }:
+            return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+                candidate_prior_audit=candidate_prior_audit,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+                notes=[
+                    "shadow predictive-ranking advisory unavailable because divergence compared-candidate status is unsupported"
+                ],
+            )
+        expected_comparison_status = (
+            "lower_ranked_pass"
+            if comparison_candidate.get("passed") is True
+            else "failed_runtime_validation"
+        )
+        if comparison_status != expected_comparison_status:
+            return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+                candidate_prior_audit=candidate_prior_audit,
+                candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+                notes=[
+                    "shadow predictive-ranking advisory unavailable because divergence compared-candidate status disagrees with trusted current comparison metadata"
+                ],
+            )
+        if comparison_candidate.get("passed") is True:
+            candidate_rank = _as_int(comparison_candidate.get("rank"), default=0)
+            if candidate_rank <= selected_rank:
+                return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+                    candidate_prior_audit=candidate_prior_audit,
+                    candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+                    candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+                    candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+                    notes=[
+                        "shadow predictive-ranking advisory unavailable because trusted current rank metadata does not show the selected candidate outranking all passing compared positive-prior candidates"
+                    ],
+                )
+            passing_non_selected_positive_ids.add(candidate_id)
+
+    if (
+        divergence_status == "no_divergence_to_explain"
+        and expected_non_selected_positive_ids
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because divergence status does not expose the required comparison set"
+            ],
+        )
+    if divergence_status == "divergence_explained_by_runtime_failures" and (
+        not expected_non_selected_positive_ids or passing_non_selected_positive_ids
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because divergence status does not match the current passing comparison set"
+            ],
+        )
+    if divergence_status == "divergence_explained_by_runtime_scoring" and (
+        not expected_non_selected_positive_ids
+        or passing_non_selected_positive_ids != expected_non_selected_positive_ids
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because divergence status does not match the current all-passing comparison set"
+            ],
+        )
+    if divergence_status == "divergence_explained_by_mixed_runtime_outcomes" and (
+        not expected_non_selected_positive_ids
+        or not passing_non_selected_positive_ids
+        or passing_non_selected_positive_ids == expected_non_selected_positive_ids
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because divergence status does not match the current mixed comparison set"
+            ],
+        )
+
+    raw_counterfactual_positive_prior_candidates = (
+        candidate_prior_counterfactual_advisory.get(
+            "counterfactual_positive_prior_candidates"
+        )
+    )
+    if not isinstance(raw_counterfactual_positive_prior_candidates, list) or any(
+        not isinstance(item, Mapping)
+        for item in raw_counterfactual_positive_prior_candidates
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because counterfactual positive-candidate payload is malformed"
+            ],
+        )
+    counterfactual_positive_prior_candidates = [
+        _as_dict(item) for item in raw_counterfactual_positive_prior_candidates
+    ]
+    if _duplicate_candidate_id(counterfactual_positive_prior_candidates) is not None:
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because counterfactual positive-candidate payload contains duplicate candidate_id entries"
+            ],
+        )
+    counterfactual_positive_prior_candidates_by_id = {
+        candidate_id: item
+        for item in counterfactual_positive_prior_candidates
+        if (candidate_id := _optional_str(item.get("candidate_id"))) is not None
+    }
+    if (
+        set(counterfactual_positive_prior_candidates_by_id)
+        != passing_non_selected_positive_ids
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because the counterfactual passing comparison set disagrees with current SG2 evidence"
+            ],
+        )
+    if (
+        counterfactual_status == "no_counterfactual_signal"
+        and counterfactual_positive_prior_candidates_by_id
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because the counterfactual status disagrees with the passing comparison set"
+            ],
+        )
+    if (
+        counterfactual_status == "counterfactual_positive_prior_alternatives_present"
+        and not counterfactual_positive_prior_candidates_by_id
+    ):
+        return build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(
+            candidate_prior_audit=candidate_prior_audit,
+            candidate_prior_divergence_explanation=candidate_prior_divergence_explanation,
+            candidate_prior_readiness_advisory=candidate_prior_readiness_advisory,
+            candidate_prior_counterfactual_advisory=candidate_prior_counterfactual_advisory,
+            notes=[
+                "shadow predictive-ranking advisory unavailable because the counterfactual status requires a passing positive-prior alternative"
+            ],
+        )
+
+    selected_candidate = _shadow_predictive_ranking_selected_candidate_view(
+        audit_candidate=selected_candidate_audit,
+        comparison_candidate=selected_comparison,
+        candidate_prior_status=selected_candidate_prior_status,
+    )
+    notes = [
+        "shadow predictive-ranking advisory is descriptive only; V7 ranking, tie-breaking, pruning, and promotion remain unchanged"
+    ]
+    for source in (
+        candidate_winner_priors.get("notes"),
+        candidate_prior_audit.get("notes"),
+        candidate_prior_divergence_explanation.get("notes"),
+        candidate_prior_readiness_advisory.get("notes"),
+        candidate_prior_counterfactual_advisory.get("notes"),
+    ):
+        if isinstance(source, list):
+            for note in source:
+                if isinstance(note, str):
+                    _append_unique_note(notes, note)
+
+    passing_positive_candidates: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    if selected_candidate_prior_status == "matches_positive_winner_history":
+        passing_positive_candidates.append(
+            (selected_candidate_prior, selected_comparison)
+        )
+    for candidate_id in sorted(passing_non_selected_positive_ids):
+        passing_positive_candidates.append(
+            (
+                candidate_priors_by_id[candidate_id],
+                comparison_by_id[candidate_id],
+            )
+        )
+    passing_positive_candidates.sort(
+        key=lambda item: (
+            _as_int(item[1].get("rank"), default=0),
+            _optional_str(item[0].get("candidate_id")) or "",
+        )
+    )
+
+    preferred_candidate = _shadow_predictive_ranking_preferred_candidate_view(
+        candidate_prior=None,
+        comparison_candidate=None,
+        match_reason=None,
+    )
+    history_summary = _shadow_predictive_ranking_history_summary(
+        candidate_prior_readiness_advisory,
+        passing_positive_prior_candidate_count=len(passing_positive_candidates),
+    )
+
+    if selected_candidate_prior_status in {
+        "unsupported_candidate_identity",
+        "degraded_history_only",
+    }:
+        status = "shadow_predictive_ranking_mixed_or_inconclusive"
+        _append_unique_note(
+            notes,
+            "selected-candidate prior posture remains unresolved or degraded, so the bounded shadow policy cannot make a narrower claim",
+        )
+    elif not passing_positive_candidates:
+        status = "no_shadow_predictive_signal"
+        _append_unique_note(
+            notes,
+            "no passing candidate in the current comparison set has matches_positive_winner_history",
+        )
+    else:
+        preferred_prior, preferred_comparison = passing_positive_candidates[0]
+        preferred_candidate_id = _optional_str(preferred_prior.get("candidate_id"))
+        if preferred_candidate_id == selected_candidate_id:
+            status = "shadow_predictive_ranking_matches_v7"
+            preferred_candidate = _shadow_predictive_ranking_preferred_candidate_view(
+                candidate_prior=preferred_prior,
+                comparison_candidate=preferred_comparison,
+                match_reason=(
+                    "selected candidate is the highest-ranked passing candidate with matches_positive_winner_history"
+                ),
+            )
+            _append_unique_note(
+                notes,
+                "bounded shadow preference agrees with the trusted V7 winner",
+            )
+        else:
+            status = "shadow_predictive_ranking_prefers_positive_prior_alternative"
+            preferred_candidate = _shadow_predictive_ranking_preferred_candidate_view(
+                candidate_prior=preferred_prior,
+                comparison_candidate=preferred_comparison,
+                match_reason=(
+                    "highest-ranked passing candidate with matches_positive_winner_history under the bounded shadow policy"
+                ),
+            )
+            _append_unique_note(
+                notes,
+                "bounded shadow preference would choose a different passing positive-prior candidate for governance inspection only",
+            )
+
+    return {
+        "shadow_predictive_ranking_advisory_version": "v1",
+        "status": status,
+        "shadow_policy_id": _SHADOW_PREDICTIVE_RANKING_POLICY_ID,
+        "candidate_prior_audit_status": audit_status,
+        "candidate_prior_divergence_explanation_status": divergence_status,
+        "candidate_prior_readiness_status": readiness_status,
+        "candidate_prior_counterfactual_status": counterfactual_status,
+        "selected_candidate": selected_candidate,
+        "shadow_preferred_candidate": preferred_candidate,
+        "history_summary": history_summary,
         "notes": notes,
     }
 

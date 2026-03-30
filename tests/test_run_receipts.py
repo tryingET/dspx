@@ -316,6 +316,16 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         == "counterfactual_signal_sparse"
     )
     assert (
+        diagnostics["shadow_predictive_ranking_advisory"][
+            "shadow_predictive_ranking_advisory_version"
+        ]
+        == "v1"
+    )
+    assert (
+        diagnostics["shadow_predictive_ranking_advisory"]["status"]
+        == "no_shadow_predictive_signal"
+    )
+    assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
     )
@@ -370,6 +380,10 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert (
         followup_diagnostics["candidate_prior_counterfactual_advisory"]["status"]
         == "counterfactual_signal_sparse"
+    )
+    assert (
+        followup_diagnostics["shadow_predictive_ranking_advisory"]["status"]
+        == "shadow_predictive_ranking_matches_v7"
     )
     prior_receipt = followup_diagnostics["evidence_bundle"]["exact_match_receipts"][0]
     assert Path(prior_receipt["receipt"]["receipt_path"]).name == "mod.py.meta.json"
