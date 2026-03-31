@@ -15,6 +15,7 @@ from dspx.task_scope import (
     collect_scope_issues,
     infer_task_id_from_next_session_checkpoint,
     load_manifest,
+    load_snapshot,
 )
 
 
@@ -32,6 +33,12 @@ def _init_repo(repo: Path) -> None:
 def _commit_all(repo: Path, message: str) -> None:
     _git(repo, "git", "add", ".")
     _git(repo, "git", "commit", "-m", message)
+
+
+def _write_snapshot(repo: Path, task_id: int, payload: dict[str, object]) -> None:
+    path = repo / "governance" / "task-scopes" / f"AK-{task_id}.snapshot.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
 
 
 def test_collect_scope_issues_rejects_files_outside_manifest() -> None:
@@ -87,6 +94,38 @@ def test_load_manifest_roundtrip(tmp_path: Path) -> None:
     assert manifest.required_paths == ("scripts/*.py",)
 
 
+def test_load_snapshot_roundtrip(tmp_path: Path) -> None:
+    path = tmp_path / "AK-266.snapshot.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "exported_at": "2026-03-31T00:00:00Z",
+                "task_id": 266,
+                "entity_version": 2,
+                "commit_sha": None,
+                "scope": {
+                    "allowed_paths": ["scripts/*.py", "tests/*.py"],
+                    "required_paths": ["scripts/*.py"],
+                    "forbidden_paths": ["**/*.pyc"],
+                },
+                "default_applies": False,
+                "export_tool": "ak task scope export",
+                "export_tool_version": "snapshot-v1",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    snapshot = load_snapshot(path)
+    assert snapshot.task_id == 266
+    assert snapshot.allowed_paths == ("scripts/*.py", "tests/*.py")
+    assert snapshot.required_paths == ("scripts/*.py",)
+    assert snapshot.forbidden_paths == ("**/*.pyc",)
+    assert snapshot.source_kind == "ak_snapshot"
+    assert snapshot.default_applies is False
+
+
 def test_check_task_scope_head_passes_for_attested_commit(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
@@ -129,7 +168,7 @@ def test_check_task_scope_head_passes_for_attested_commit(tmp_path: Path) -> Non
     assert result.changed_files == tuple(changed)
 
 
-def test_check_task_scope_fails_without_manifest(tmp_path: Path) -> None:
+def test_check_task_scope_skips_when_no_scope_artifact_exists(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
 
@@ -140,8 +179,9 @@ def test_check_task_scope_fails_without_manifest(tmp_path: Path) -> None:
 
     result = check_task_scope(repo, task_id=266, mode="head")
     assert result.ok is False
-    assert result.issues
-    assert "missing task scope manifest" in result.issues[0].message
+    assert result.skipped is True
+    assert result.issues == ()
+    assert "repo-default scope applies" in (result.skip_reason or "")
 
 
 def test_check_task_scope_resolves_head_manifest_when_no_claim(tmp_path: Path) -> None:
@@ -176,6 +216,81 @@ def test_check_task_scope_resolves_head_manifest_when_no_claim(tmp_path: Path) -
         "governance/task-scopes/AK-266.json",
         "scripts/allowed.py",
     ]
+
+
+def test_check_task_scope_head_passes_for_snapshot_commit(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 2,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "snapshot task slice")
+
+    result = check_task_scope(repo, task_id=266, mode="head")
+    assert result.ok is True
+    assert result.task_id == 266
+    assert sorted(result.changed_files) == [
+        "governance/task-scopes/AK-266.snapshot.json",
+        "scripts/allowed.py",
+    ]
+
+
+def test_check_task_scope_skips_when_snapshot_default_applies(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 1,
+            "commit_sha": None,
+            "scope": None,
+            "default_applies": True,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+
+    result = check_task_scope(repo, task_id=266, mode="head")
+    assert result.ok is False
+    assert result.skipped is True
+    assert result.task_id == 266
+    assert "repo-default scope applies" in (result.skip_reason or "")
 
 
 def test_check_task_scope_fails_closed_when_task_id_cannot_be_resolved(
@@ -497,6 +612,55 @@ def test_check_task_scope_working_tree_resolves_uncommitted_manifest_before_head
     ]
 
 
+def test_check_task_scope_working_tree_resolves_uncommitted_snapshot_before_head(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+    (repo / "README.md").write_text("hello again\n", encoding="utf-8")
+    _commit_all(repo, "second")
+
+    (repo / "scripts").mkdir(parents=True)
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 2,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+
+    result = check_task_scope(repo, mode="working-tree")
+
+    assert result.ok is True
+    assert result.task_id == 266
+    assert sorted(result.changed_files) == [
+        "governance/task-scopes/AK-266.snapshot.json",
+        "scripts/allowed.py",
+    ]
+
+
 def test_check_task_scope_auto_uses_working_tree_for_uncommitted_slice(
     tmp_path: Path,
 ) -> None:
@@ -588,12 +752,13 @@ def test_check_task_scope_cli_help_matches_current_contract() -> None:
     )
 
     assert proc.returncode == 0
-    assert "Check an attested task slice against a file-scope manifest" in proc.stdout
+    assert "AK task-scope snapshot or transitional" in proc.stdout
+    assert "legacy manifest" in proc.stdout
     assert "Check the attested task slice reachable from HEAD" in proc.stdout
     assert "current working tree, or auto-select working-tree when" in proc.stdout
     assert "the repo is dirty and HEAD when it is clean" in proc.stdout
     assert "latest committed slice" not in proc.stdout
-    assert "the full task slice from the task-scope manifest" in proc.stdout
+    assert "the full task slice from the first task-scope artifact" in proc.stdout
     assert "introduction through HEAD" in proc.stdout
 
 

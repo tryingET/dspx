@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-30",
+  "updated_at": "2026-03-31",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -741,14 +741,15 @@
         {
           "id": "AK-TASK-0549",
           "title": "[FCOS-M36-05] Migrate DSPx task-scope validation to AK-native scope snapshots",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "[FCOS-M36-05] Migrate DSPx task-scope validation to AK-native scope snapshots (task #549)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-31"
         },
         {
           "id": "AK-TASK-0550",
@@ -929,6 +930,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-30"
+        },
+        {
+          "id": "AK-TASK-0615",
+          "title": "[Justfile rollout] Audit existing Justfile against the standardized contract control case",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "[Justfile rollout] Audit existing Justfile against the standardized contract control case (task #615)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

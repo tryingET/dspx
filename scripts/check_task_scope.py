@@ -35,7 +35,10 @@ def _normalize_assignment_style_values(argv: list[str]) -> list[str]:
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check an attested task slice against a file-scope manifest"
+        description=(
+            "Check an attested task slice against an AK task-scope snapshot "
+            "or transitional legacy manifest"
+        )
     )
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--task-id", type=int, default=None)
@@ -55,7 +58,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="auto",
         help=(
             "Git rev range when --mode=head; use 'auto' to validate the full "
-            "task slice from the task-scope manifest introduction through HEAD"
+            "task slice from the first task-scope artifact introduction through HEAD"
         ),
     )
     parser.add_argument("--json", action="store_true")

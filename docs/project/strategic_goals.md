@@ -15,7 +15,7 @@ Next strategic goal: `SG3`
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
 | `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx now emits the first bounded governance-only ranking/promotion evaluation receipts from shadow predictive-ranking evidence, but it still lacks the next explicit contract for how any named variant could ever move from governance-only evaluation into future live-authorized policy under human control. |
-| `SG3` | next | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Repo-local tasks `AK-549`–`AK-551` already capture this work and it directly strengthens reproducibility/governance, but the first repo-local slice is blocked on cross-repo fixture work `AK-548`, so it stays next rather than active. |
+| `SG3` | next | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Repo-local tasks `AK-549`–`AK-551` already capture this work and it directly strengthens reproducibility/governance. Cross-repo fixture work `AK-548` is now complete, `AK-549` has landed as the first repo-local migration slice, and the remaining SG3 chain is unblocked whenever operator direction or scheduling pulls it forward. |
 
 ## Strategic definitions of done
 
@@ -46,5 +46,5 @@ Done when:
 These remain important but are not the active strategic wave:
 - live predictive ranking, candidate pruning, or promotion blocking until a later contract explicitly widens authority beyond governance-only evaluation receipts,
 - treating repeated governance-only receipt outcomes as de facto live policy authority before an explicit human-governed promotion step exists,
-- resuming blocked SG3 scope-snapshot tasks before `AK-548` unblocks the repo-local chain,
+- auto-promoting the SG3 scope-snapshot chain just because `AK-548` landed, without an explicit slice choice or operator direction,
 - older provider/runtime and Oracle follow-ons (`AK-224`, `AK-235`–`AK-239`) that are not selected by the current strategic ranking.

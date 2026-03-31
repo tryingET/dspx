@@ -29,6 +29,8 @@ class TaskScopeManifest:
     allowed_paths: tuple[str, ...]
     required_paths: tuple[str, ...] = ()
     forbidden_paths: tuple[str, ...] = tuple(DEFAULT_FORBIDDEN_PATTERNS)
+    source_kind: str = "legacy_manifest"
+    default_applies: bool = False
 
 
 @dataclass(frozen=True)
@@ -116,21 +118,41 @@ def infer_claimed_task_id(repo_root: Path) -> int | None:
     return claimed[0]
 
 
+def snapshot_path_for_task(repo_root: Path, task_id: int) -> Path:
+    return repo_root / "governance" / "task-scopes" / f"AK-{task_id}.snapshot.json"
+
+
 def manifest_path_for_task(repo_root: Path, task_id: int) -> Path:
     return repo_root / "governance" / "task-scopes" / f"AK-{task_id}.json"
+
+
+def _scope_snapshot_relpath_for_task(task_id: int) -> str:
+    return f"governance/task-scopes/AK-{task_id}.snapshot.json"
 
 
 def _manifest_relpath_for_task(task_id: int) -> str:
     return f"governance/task-scopes/AK-{task_id}.json"
 
 
-def _task_id_from_manifest_path(path: str) -> int | None:
+def _scope_artifact_relpaths_for_task(task_id: int) -> tuple[str, ...]:
+    return (
+        _scope_snapshot_relpath_for_task(task_id),
+        _manifest_relpath_for_task(task_id),
+    )
+
+
+def _task_id_from_scope_path(path: str) -> int | None:
     normalized = path.replace("\\", "/")
     prefix = "governance/task-scopes/AK-"
-    suffix = ".json"
-    if not normalized.startswith(prefix) or not normalized.endswith(suffix):
+    if not normalized.startswith(prefix):
         return None
-    raw = normalized[len(prefix) : -len(suffix)]
+    raw = normalized[len(prefix) :]
+    if raw.endswith(".snapshot.json"):
+        raw = raw[: -len(".snapshot.json")]
+    elif raw.endswith(".json"):
+        raw = raw[: -len(".json")]
+    else:
+        return None
     if not raw.isdigit():
         return None
     return int(raw)
@@ -140,13 +162,13 @@ def infer_task_id_from_changed_files(changed_files: list[str]) -> int | None:
     task_ids = {
         task_id
         for path in changed_files
-        if (task_id := _task_id_from_manifest_path(path)) is not None
+        if (task_id := _task_id_from_scope_path(path)) is not None
     }
     if not task_ids:
         return None
     if len(task_ids) > 1:
         raise RuntimeError(
-            "multiple task scope manifests detected in changed files: "
+            "multiple task-scope artifacts detected in changed files: "
             + ", ".join(f"AK-{item}" for item in sorted(task_ids))
         )
     return next(iter(task_ids))
@@ -180,14 +202,20 @@ def infer_task_id_from_working_tree(repo_root: Path) -> int | None:
 
 
 def task_slice_commits(repo_root: Path, task_id: int) -> list[str]:
-    manifest_relpath = _manifest_relpath_for_task(task_id)
-    manifest_commits = _git_output(
-        ["rev-list", "--reverse", "HEAD", "--", manifest_relpath], cwd=repo_root
+    scope_commits = _git_output(
+        [
+            "rev-list",
+            "--reverse",
+            "HEAD",
+            "--",
+            *_scope_artifact_relpaths_for_task(task_id),
+        ],
+        cwd=repo_root,
     )
-    if not manifest_commits:
+    if not scope_commits:
         return []
 
-    first_commit = manifest_commits[0]
+    first_commit = scope_commits[0]
     remainder = _git_output(
         ["rev-list", "--reverse", "--ancestry-path", f"{first_commit}..HEAD"],
         cwd=repo_root,
@@ -216,6 +244,22 @@ def changed_files_for_task_slice(repo_root: Path, task_id: int) -> list[str]:
     return sorted(changed)
 
 
+def _validated_string_list(
+    value: object,
+    *,
+    field: str,
+    path: Path,
+    allow_empty: bool = True,
+) -> list[str]:
+    if not isinstance(value, list) or not all(
+        isinstance(item, str) and item for item in value
+    ):
+        raise ValueError(f"task scope artifact has invalid {field}: {path}")
+    if not allow_empty and not value:
+        raise ValueError(f"task scope artifact missing {field}: {path}")
+    return [str(item) for item in value]
+
+
 def load_manifest(path: Path) -> TaskScopeManifest:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -231,28 +275,93 @@ def load_manifest(path: Path) -> TaskScopeManifest:
         raise ValueError(f"task scope manifest missing integer task_id: {path}")
     if not isinstance(description, str) or not description.strip():
         raise ValueError(f"task scope manifest missing description: {path}")
-    if (
-        not isinstance(allowed_paths, list)
-        or not allowed_paths
-        or not all(isinstance(item, str) and item for item in allowed_paths)
-    ):
-        raise ValueError(f"task scope manifest missing allowed_paths: {path}")
-    if not isinstance(required_paths, list) or not all(
-        isinstance(item, str) and item for item in required_paths
-    ):
-        raise ValueError(f"task scope manifest has invalid required_paths: {path}")
-    if not isinstance(forbidden_paths, list) or not all(
-        isinstance(item, str) and item for item in forbidden_paths
-    ):
-        raise ValueError(f"task scope manifest has invalid forbidden_paths: {path}")
 
     return TaskScopeManifest(
         task_id=task_id,
         description=description.strip(),
-        allowed_paths=tuple(allowed_paths),
-        required_paths=tuple(required_paths),
-        forbidden_paths=tuple(forbidden_paths),
+        allowed_paths=tuple(
+            _validated_string_list(
+                allowed_paths,
+                field="allowed_paths",
+                path=path,
+                allow_empty=False,
+            )
+        ),
+        required_paths=tuple(
+            _validated_string_list(required_paths, field="required_paths", path=path)
+        ),
+        forbidden_paths=tuple(
+            _validated_string_list(forbidden_paths, field="forbidden_paths", path=path)
+        ),
+        source_kind="legacy_manifest",
     )
+
+
+def load_snapshot(path: Path) -> TaskScopeManifest:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"task scope snapshot must be a JSON object: {path}")
+
+    task_id = data.get("task_id")
+    default_applies = data.get("default_applies")
+    scope = data.get("scope")
+    if not isinstance(task_id, int):
+        raise ValueError(f"task scope snapshot missing integer task_id: {path}")
+    if not isinstance(default_applies, bool):
+        raise ValueError(f"task scope snapshot missing boolean default_applies: {path}")
+
+    if scope is None:
+        if not default_applies:
+            raise ValueError(
+                f"task scope snapshot with null scope must set default_applies=true: {path}"
+            )
+        return TaskScopeManifest(
+            task_id=task_id,
+            description="AK task-scope snapshot (repo default applies)",
+            allowed_paths=(),
+            required_paths=(),
+            forbidden_paths=tuple(DEFAULT_FORBIDDEN_PATTERNS),
+            source_kind="ak_snapshot",
+            default_applies=True,
+        )
+
+    if not isinstance(scope, dict):
+        raise ValueError(f"task scope snapshot has invalid scope payload: {path}")
+
+    allowed_paths = scope.get("allowed_paths") or []
+    required_paths = scope.get("required_paths") or []
+    forbidden_paths = scope.get("forbidden_paths") or DEFAULT_FORBIDDEN_PATTERNS
+    return TaskScopeManifest(
+        task_id=task_id,
+        description="AK task-scope snapshot",
+        allowed_paths=tuple(
+            _validated_string_list(allowed_paths, field="allowed_paths", path=path)
+        ),
+        required_paths=tuple(
+            _validated_string_list(required_paths, field="required_paths", path=path)
+        ),
+        forbidden_paths=tuple(
+            _validated_string_list(forbidden_paths, field="forbidden_paths", path=path)
+        ),
+        source_kind="ak_snapshot",
+        default_applies=default_applies,
+    )
+
+
+def load_scope_artifact(path: Path) -> TaskScopeManifest:
+    if path.name.endswith(".snapshot.json"):
+        return load_snapshot(path)
+    return load_manifest(path)
+
+
+def scope_artifact_path_for_task(repo_root: Path, task_id: int) -> Path | None:
+    snapshot_path = snapshot_path_for_task(repo_root, task_id)
+    if snapshot_path.exists():
+        return snapshot_path
+    legacy_path = manifest_path_for_task(repo_root, task_id)
+    if legacy_path.exists():
+        return legacy_path
+    return None
 
 
 def changed_files_for_head(
@@ -361,7 +470,7 @@ def check_task_scope(
         if resolved_task_id is None:
             message = (
                 resolution_issue
-                or "task scope check could not resolve a task id from explicit input, AK claims, working-tree manifest changes, HEAD manifest changes, or next_session_prompt checkpoint"
+                or "task scope check could not resolve a task id from explicit input, AK claims, working-tree task-scope artifact changes, HEAD task-scope artifact changes, or next_session_prompt checkpoint"
             )
             return ScopeCheckResult(
                 task_id=None,
@@ -371,24 +480,34 @@ def check_task_scope(
             )
 
     if manifest_path is not None:
-        resolved_manifest_path = manifest_path
+        resolved_scope_path = manifest_path
     else:
         if resolved_task_id is None:
             raise RuntimeError("task scope check could not resolve a task id")
-        resolved_manifest_path = manifest_path_for_task(repo_root, resolved_task_id)
-    if not resolved_manifest_path.exists():
+        resolved_scope_path = scope_artifact_path_for_task(repo_root, resolved_task_id)
+
+    if resolved_scope_path is None:
+        return ScopeCheckResult(
+            task_id=resolved_task_id,
+            mode=mode,
+            changed_files=(),
+            issues=(),
+            skipped=True,
+            skip_reason="no explicit AK task-scope snapshot or legacy manifest is present; repo-default scope applies",
+        )
+    if not resolved_scope_path.exists():
         return ScopeCheckResult(
             task_id=resolved_task_id,
             mode=mode,
             changed_files=(),
             issues=(
                 ScopeIssue(
-                    f"missing task scope manifest: {resolved_manifest_path.relative_to(repo_root)}"
+                    f"missing task-scope artifact: {resolved_scope_path.relative_to(repo_root)}"
                 ),
             ),
         )
 
-    manifest = load_manifest(resolved_manifest_path)
+    manifest = load_scope_artifact(resolved_scope_path)
     if resolved_task_id is not None and manifest.task_id != int(resolved_task_id):
         return ScopeCheckResult(
             task_id=resolved_task_id,
@@ -396,9 +515,19 @@ def check_task_scope(
             changed_files=(),
             issues=(
                 ScopeIssue(
-                    f"manifest task_id mismatch: expected {resolved_task_id}, found {manifest.task_id}"
+                    f"task-scope artifact task_id mismatch: expected {resolved_task_id}, found {manifest.task_id}"
                 ),
             ),
+        )
+
+    if manifest.default_applies:
+        return ScopeCheckResult(
+            task_id=manifest.task_id,
+            mode=mode,
+            changed_files=(),
+            issues=(),
+            skipped=True,
+            skip_reason="AK task-scope snapshot explicitly says repo-default scope applies",
         )
 
     if mode == "head":
@@ -422,7 +551,8 @@ def check_task_scope(
 
 def format_scope_result(result: ScopeCheckResult) -> str:
     if result.skipped:
-        return f"skip: task-scope-check ({result.skip_reason})"
+        task = f" task=AK-{result.task_id}" if result.task_id is not None else ""
+        return f"skip: task-scope-check{task} mode={result.mode} ({result.skip_reason})"
     if result.ok:
         changed = ", ".join(result.changed_files) if result.changed_files else "-"
         return (

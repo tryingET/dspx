@@ -61,7 +61,8 @@ Validation contract:
 - `just verify-fast`
   - re-checks workflow contracts
   - runs governance validation
-  - runs `just task-scope-check`, which auto-selects working-tree validation when the repo is dirty and otherwise validates the full committed attested task slice from task-scope-manifest introduction through `HEAD`, using an explicit `task_id`, an active AK claim, changed manifest paths, or the committed `next_session_prompt.md` checkpoint, and otherwise fails closed
+  - runs `just task-scope-check`, which auto-selects working-tree validation when the repo is dirty and otherwise validates the full committed attested task slice from the first task-scope artifact introduction through `HEAD`, using an explicit `task_id`, an active AK claim, changed task-scope snapshot/legacy-manifest paths, or the committed `next_session_prompt.md` checkpoint, and otherwise fails closed
+  - when no explicit AK task-scope snapshot (or transitional legacy manifest) exists for the task, the checker skips cleanly and applies repo-default scope instead of failing on missing repo-local scaffolding
   - runs `uvx pre-commit run --all-files`
 - `just verify-pre-push`
   - runs `just verify-fast`

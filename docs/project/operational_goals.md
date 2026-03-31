@@ -13,10 +13,11 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-- No repo-scoped implementation slice is currently pinned. The repo-scoped ready queue still returns `[]` at the current branch `HEAD`, so stay idle until the next truthful post-`TG23` contract/materialization step is created.
+- `AK-550` — remove residual workflow and handoff coupling to hand-authored task-scope manifests now that `AK-549` has migrated repo validation onto AK-native task-scope snapshots.
 
 ## Recently completed in this wave
 
+- `AK-549` — migrated DSPx task-scope validation to consume AK task-scope snapshots first, added brownfield fallback when no explicit scope artifact exists, refreshed the first repo-local AK snapshot under `governance/task-scopes/AK-549.snapshot.json`, and updated the task-scope validation/test surface for the new contract.
 - `AK-600` — reconfirmed the repo-scoped AK ready queue was still empty after `AK-593`, refreshed the idle-state handoff/operating-plan artifacts at the current branch `HEAD`, and returned the repo to a no-ready-slice state.
 - `AK-593` — emitted the first governance-only ranking/promotion evaluation receipts under `synthesis_diagnostics.governed_policy_evaluations`, keeping live V7 ranking, tie-breaking, pruning, and promotion behavior unchanged while extending persisted diagnostics parsing and regression coverage for the new receipt seam.
 - `AK-578` — froze the ADR-backed first governed policy-evaluation contract after the read-only shadow predictive-ranking advisory, created `AK-593` as the next truthful repo-local implementation slice, and refreshed the aligned docs/handoff artifacts without widening live V7 authority.
@@ -33,14 +34,15 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `TG23` is complete; `AK-600` reconfirmed that no next SG2 implementation slice is pinned yet, so the repo-scoped ready queue remains empty until the next truthful post-`TG23` contract/materialization step is created.
+- `TG23` is complete; no next SG2 implementation slice is pinned yet, so the SG2 queue remains intentionally unmaterialized until the next truthful post-`TG23` contract/materialization step exists.
 - `TG22` is complete; do not materialize the post-`TG23` tactical wave until the first governed receipt seam reveals the truthful next contract or follow-on slice.
 - `TG21` is complete; the empty post-`AK-562` ready queue was a decomposition gap rather than evidence that SG2 repo-local work was finished.
 - `AK-570` was an operator-directed provider-runtime helper/documentation slice; it collapsed the route proof into one stable command without replacing the active SG2 implementation slice.
 - `AK-567` was an operator-directed provider-runtime documentation slice; it made the auth-store routing proof explicit for operators without replacing the active SG2 implementation slice.
 - `AK-564` was an operator-directed provider-runtime/workflow slice; it fixed local editable import resolution for `dspy-lm-auth` but did not replace the active SG2 implementation slice.
 - Do not start live predictive ranking, candidate pruning, promotion blocking, or strategy/policy mutation now that `AK-593` has landed; wait until a later tactical wave explicitly widens authority beyond governance-only receipts.
-- `AK-549`–`AK-551` remain the next strategic-wave AK-native task-scope migration, but they stay out of the active operating plan because `AK-549` is blocked on cross-repo `AK-548`.
+- `AK-548` is complete and `AK-549` has landed, so `AK-550` is now the selected next SG3 slice, `AK-551` remains queued behind it, and unrelated ready backlog such as `AK-615` stays non-selected.
 - Older deferred/provider/runtime follow-ons (`AK-224`, `AK-235`–`AK-239`) remain non-active backlog and were intentionally not resumed in this SG2 wave.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
-- Claimed tasks that intend to pass `just verify-full` still need an attested scope manifest under `governance/task-scopes/AK-<id>.json`, and current-slice working-tree validation should run explicitly via `just task-scope-check task_id=<AK-ID> mode=working-tree` before commit.
+- Tasks that opt into explicit AK task scope now validate against frozen exports under `governance/task-scopes/AK-<id>.snapshot.json`; transitional `governance/task-scopes/AK-*.json` manifests remain fallback-only scaffolding until the follow-on cleanup slice removes the residual workflow/handoff coupling.
+- Current-slice working-tree validation should still run explicitly via `just task-scope-check task_id=<AK-ID> mode=working-tree` before commit.
