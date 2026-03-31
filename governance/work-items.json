@@ -945,6 +945,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-31"
+        },
+        {
+          "id": "AK-TASK-0645",
+          "title": "[Justfile rollout] Harden standardized Justfile surface with side-effect-free probes and target-aware checks",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "[Justfile rollout] Harden standardized Justfile surface with side-effect-free probes and target-aware checks (task #645)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-31"
         }
       ]
     }

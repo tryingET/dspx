@@ -166,8 +166,8 @@ doctor:
   @just --version
   @cue version
   @command -v ak
-  @uv run --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null
-  @uv run --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null
+  @uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null
+  @uv run --no-sync --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null
 
 # Run core-focused test slice (exclude forge-marked tests)
 test-core:
@@ -212,7 +212,7 @@ dspx *args:
 
 # Canonical one-shot repo entrypoint from the standardized owned-lane Justfile surface
 run *args:
-  @bash -lc 'uv run --package dspx-core -q python -m dspx.cli.dspx "$@"' -- {{args}}
+  @bash -lc 'if [ "$#" -eq 0 ]; then set -- --help; fi; uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx "$@"' -- {{args}}
 
 # No standardized `dev` target: DSPx has multiple long-running helper surfaces,
 # but no single canonical watch/dev server entrypoint.

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-03-31T17:43:21.211006029+00:00",
+  "task_id": 645,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "diary/2026-03-31--harden-standardized-justfile-surface-with-side-effect-free-probes-and-target-aware-checks.md",
+      "docs/project/operational_goals.md",
+      "docs/tech-stack.local.md",
+      "governance/task-scopes/AK-645.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "scripts/check_workflow_contracts.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "required_paths": [
+      "Justfile",
+      "diary/2026-03-31--harden-standardized-justfile-surface-with-side-effect-free-probes-and-target-aware-checks.md",
+      "docs/project/operational_goals.md",
+      "governance/task-scopes/AK-645.snapshot.json",
+      "next_session_prompt.md",
+      "scripts/check_workflow_contracts.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

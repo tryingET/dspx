@@ -47,6 +47,42 @@ def _check_forbidden_substrings(
             )
 
 
+def _extract_recipe_body(text: str, header: str) -> str | None:
+    lines = text.splitlines()
+    for idx, line in enumerate(lines):
+        if line.rstrip() != header:
+            continue
+        body: list[str] = []
+        for candidate in lines[idx + 1 :]:
+            if candidate.startswith(("  ", "\t")) or candidate == "":
+                body.append(candidate)
+                continue
+            break
+        return "\n".join(body)
+    return None
+
+
+def _check_recipe_body_contains(
+    text: str,
+    relpath: str,
+    header: str,
+    required: list[str],
+    issues: list[Issue],
+) -> None:
+    body = _extract_recipe_body(text, header)
+    if body is None:
+        issues.append(Issue(Path(relpath), f"missing recipe: {header}"))
+        return
+    for needle in required:
+        if needle not in body:
+            issues.append(
+                Issue(
+                    Path(relpath),
+                    f"recipe {header!r} missing required text in body: {needle!r}",
+                )
+            )
+
+
 def collect_issues(root: Path) -> list[Issue]:
     root = root.resolve()
     issues: list[Issue] = []
@@ -174,7 +210,6 @@ def collect_issues(root: Path) -> list[Issue]:
                 "bash scripts/ci/verify-full.sh",
                 "uvx pre-commit run --all-files",
                 "cue vet governance/work-items.json governance/work-items.cue",
-                'uv run --package dspx-core -q python -m dspx.cli.dspx "$@"',
             ],
             "forbidden": [
                 "next_session_prompt checkpoint before failing closed",
@@ -209,6 +244,48 @@ def collect_issues(root: Path) -> list[Issue]:
         text = path.read_text(encoding="utf-8")
         _check_required_substrings(text, relpath, spec["required"], issues)
         _check_forbidden_substrings(text, relpath, spec["forbidden"], issues)
+        if relpath == "Justfile":
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "help:",
+                ["just --list"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "check:",
+                ["just verify-fast"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "ci:",
+                ["just verify-full"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "doctor:",
+                [
+                    "uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null",
+                    "uv run --no-sync --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null",
+                ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "run *args:",
+                [
+                    'if [ "$#" -eq 0 ]; then set -- --help; fi;',
+                    'uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx "$@"',
+                ],
+                issues,
+            )
 
     return issues
 
