@@ -423,7 +423,7 @@ Validation tiers:
 # pre-push hook (fast gate):
 # - just verify-pre-push
 #   - workflow contract + governance validation
-#   - task-scope attestation for the committed slice via explicit task_id, AK claim, changed manifest path, or next_session checkpoint
+#   - task-scope attestation for the committed slice via explicit task_id, AK claim, or changed task-scope artifact path
 #   - pre-commit all-files
 # explicit full gate:
 # - just verify-full

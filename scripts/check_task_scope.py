@@ -37,12 +37,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Check an attested task slice against an AK task-scope snapshot "
-            "or transitional legacy manifest"
+            "with brownfield legacy scope-file fallback"
         )
     )
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--task-id", type=int, default=None)
-    parser.add_argument("--manifest", type=Path, default=None)
+    parser.add_argument(
+        "--scope-artifact",
+        "--manifest",
+        dest="scope_artifact",
+        type=Path,
+        default=None,
+        help=(
+            "Explicit task-scope artifact path (AK snapshot first; legacy scope "
+            "file only for brownfield fallback)"
+        ),
+    )
     parser.add_argument(
         "--mode",
         choices=("auto", "head", "working-tree"),
@@ -73,7 +83,9 @@ def main() -> int:
     result = check_task_scope(
         args.root.resolve(),
         task_id=args.task_id,
-        manifest_path=args.manifest.resolve() if args.manifest else None,
+        scope_artifact_path=(
+            args.scope_artifact.resolve() if args.scope_artifact else None
+        ),
         mode=args.mode,
         rev_range=args.range,
     )

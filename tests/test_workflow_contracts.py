@@ -38,7 +38,14 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "        entry: just verify-pre-push\n"
         "        stages: [pre-push]\n",
     )
-    _write(tmp_path, "docs/project/developer_workflow.md", "workflow\n")
+    _write(
+        tmp_path,
+        "docs/project/developer_workflow.md",
+        "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
+        "`next_session_prompt.md` remains handoff context only\n"
+        "brownfield legacy scope file\n",
+    )
     _write(tmp_path, "scripts/ci/verify-full.sh", "#!/bin/sh\nexit 0\n")
     _write(
         tmp_path,
@@ -79,7 +86,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "governance-check:\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n"
         "# working tree when the repo is dirty\n"
-        "# next_session_prompt checkpoint before failing closed\n"
+        "# active AK claim or changed task-scope artifact paths\n"
         'task-scope-check task_id="" mode="auto" rev_range="auto":\n'
         '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
         "verify-fast:\n"
@@ -114,13 +121,18 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
     _write(tmp_path, ".gitignore", "")
     _write(tmp_path, "AGENTS.md", "Run ./scripts/install-hooks.sh after cloning.\n")
     _write(tmp_path, "CONTRIBUTING.md", "uv pip install -e .\n")
-    _write(tmp_path, "README.md", "")
+    _write(
+        tmp_path,
+        "README.md",
+        "changed manifest path, or next_session checkpoint\n",
+    )
     _write(tmp_path, "docs/tech-stack.local.md", "")
     _write(tmp_path, "next_session_prompt.md", "Active/deferred work contract\n")
     _write(
         tmp_path,
         "Justfile",
-        "pre-commit install --hook-type pre-commit --hook-type pre-push\n",
+        "pre-commit install --hook-type pre-commit --hook-type pre-push\n"
+        "next_session_prompt checkpoint before failing closed\n",
     )
     _write(tmp_path, "scripts/ci/smoke.sh", "")
     _write(tmp_path, "governance/README.md", "")
@@ -139,6 +151,14 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         in messages
     )
     assert (
+        "README.md: contains forbidden stale text: 'changed manifest path, or next_session checkpoint'"
+        in messages
+    )
+    assert (
         "next_session_prompt.md: contains forbidden stale text: 'Active/deferred work contract'"
+        in messages
+    )
+    assert (
+        "Justfile: contains forbidden stale text: 'next_session_prompt checkpoint before failing closed'"
         in messages
     )

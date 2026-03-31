@@ -109,11 +109,12 @@ replay-provenance-check:
 module-synthesis-quality-check:
   uv run -q python scripts/build_module_synthesis_quality_log.py
 
-# Check the attested task slice against an AK task-scope snapshot (or legacy manifest fallback).
+# Check the attested task slice against an AK task-scope snapshot
+# (with brownfield legacy scope-file fallback).
 # Auto mode validates the working tree when the repo is dirty, otherwise the full
 # committed task slice from first task-scope artifact introduction through HEAD.
-# Without an explicit task_id, head mode still falls back to deterministic repo-local
-# binding via the committed next_session_prompt checkpoint before failing closed.
+# Without an explicit task_id, auto/head binding trusts only an
+# active AK claim or changed task-scope artifact paths, and otherwise fails closed.
 task-scope-check task_id="" mode="auto" rev_range="auto":
   if [ -n "{{task_id}}" ]; then python3 scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else python3 scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi
 

@@ -13,7 +13,6 @@ from dspx.task_scope import (
     changed_files_for_working_tree,
     check_task_scope,
     collect_scope_issues,
-    infer_task_id_from_next_session_checkpoint,
     load_manifest,
     load_snapshot,
 )
@@ -312,132 +311,206 @@ def test_check_task_scope_fails_closed_when_task_id_cannot_be_resolved(
     assert "could not resolve a task id" in result.issues[0].message
 
 
-def test_infer_task_id_from_next_session_checkpoint(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    _init_repo(repo)
-    (repo / "next_session_prompt.md").write_text(
-        "## SESSION CHECKPOINT (UPDATE BEFORE /commit)\n"
-        "- Slice executed: `AK-266` — something\n",
-        encoding="utf-8",
-    )
-
-    assert infer_task_id_from_next_session_checkpoint(repo) == 266
-
-
-def test_check_task_scope_head_resolves_next_session_checkpoint_when_latest_commit_lacks_manifest(
+def test_check_task_scope_head_fails_closed_when_latest_commit_only_updates_handoff(
     tmp_path: Path,
 ) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
 
-    (repo / "governance" / "task-scopes").mkdir(parents=True)
     (repo / "scripts").mkdir(parents=True)
     (repo / "README.md").write_text("hello\n", encoding="utf-8")
     _commit_all(repo, "init")
 
-    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
-        json.dumps(
-            {
-                "task_id": 266,
-                "description": "Scope attestation",
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 2,
+            "commit_sha": None,
+            "scope": {
                 "allowed_paths": [
                     "scripts/*.py",
-                    "governance/task-scopes/*.json",
+                    "governance/task-scopes/*.snapshot.json",
                     "next_session_prompt.md",
                 ],
-                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
-            }
-        )
-        + "\n",
-        encoding="utf-8",
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
     )
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
-    _commit_all(repo, "manifest and allowed file")
+    _commit_all(repo, "snapshot and allowed file")
 
     (repo / "next_session_prompt.md").write_text(
         "## SESSION CHECKPOINT (UPDATE BEFORE /commit)\n"
         "- Slice executed: `AK-266` — completed slice\n",
         encoding="utf-8",
     )
-    _commit_all(repo, "checkpoint only")
+    _commit_all(repo, "handoff only")
 
     result = check_task_scope(repo, mode="head")
+    assert result.ok is False
+    assert result.task_id is None
+    assert result.issues
+    assert "HEAD task-scope artifact changes" in result.issues[0].message
+    assert "next_session_prompt checkpoint" not in result.issues[0].message
+
+
+def test_check_task_scope_head_passes_for_explicit_task_id_when_latest_commit_only_updates_handoff(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 2,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                    "next_session_prompt.md",
+                ],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "snapshot and allowed file")
+
+    (repo / "next_session_prompt.md").write_text(
+        "## SESSION CHECKPOINT (UPDATE BEFORE /commit)\n"
+        "- Slice executed: `AK-266` — completed slice\n",
+        encoding="utf-8",
+    )
+    _commit_all(repo, "handoff only")
+
+    result = check_task_scope(repo, task_id=266, mode="head")
     assert result.ok is True
     assert result.task_id == 266
-    assert "governance/task-scopes/AK-266.json" in result.changed_files
+    assert "governance/task-scopes/AK-266.snapshot.json" in result.changed_files
     assert "scripts/allowed.py" in result.changed_files
     assert "next_session_prompt.md" in result.changed_files
 
 
-def test_check_task_scope_head_uses_checkpoint_to_disambiguate_multiple_manifests(
+def test_check_task_scope_head_fails_closed_when_latest_commit_touches_multiple_scope_artifacts_without_explicit_binding(
     tmp_path: Path,
 ) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
 
-    (repo / "governance" / "task-scopes").mkdir(parents=True)
     (repo / "scripts").mkdir(parents=True)
     (repo / "README.md").write_text("hello\n", encoding="utf-8")
     _commit_all(repo, "init")
 
-    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
-        json.dumps(
-            {
-                "task_id": 266,
-                "description": "Scope attestation",
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 2,
+            "commit_sha": None,
+            "scope": {
                 "allowed_paths": [
                     "scripts/*.py",
-                    "governance/task-scopes/*.json",
-                    "next_session_prompt.md",
+                    "governance/task-scopes/*.snapshot.json",
                 ],
-                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
-            }
-        )
-        + "\n",
-        encoding="utf-8",
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
     )
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
     _commit_all(repo, "task 266 slice")
 
-    (repo / "governance" / "task-scopes" / "AK-267.json").write_text(
-        json.dumps(
-            {
-                "task_id": 267,
-                "description": "Other scope attestation",
-                "allowed_paths": ["governance/task-scopes/*.json"],
-            }
-        )
-        + "\n",
-        encoding="utf-8",
+    _write_snapshot(
+        repo,
+        267,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 267,
+            "entity_version": 1,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": ["governance/task-scopes/*.snapshot.json"],
+                "required_paths": ["governance/task-scopes/*.snapshot.json"],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
     )
-    (repo / "governance" / "task-scopes" / "AK-266.json").write_text(
-        json.dumps(
-            {
-                "task_id": 266,
-                "description": "Scope attestation updated",
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 3,
+            "commit_sha": None,
+            "scope": {
                 "allowed_paths": [
                     "scripts/*.py",
-                    "governance/task-scopes/*.json",
-                    "next_session_prompt.md",
+                    "governance/task-scopes/*.snapshot.json",
                 ],
-                "required_paths": ["scripts/*.py", "governance/task-scopes/*.json"],
-            }
-        )
-        + "\n",
-        encoding="utf-8",
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
     )
-    (repo / "next_session_prompt.md").write_text(
-        "## SESSION CHECKPOINT (UPDATE BEFORE /commit)\n"
-        "- Slice executed: `AK-266` — completed slice\n",
-        encoding="utf-8",
-    )
-    _commit_all(repo, "checkpoint plus two manifests")
+    _commit_all(repo, "two scope artifacts")
 
     result = check_task_scope(repo, mode="head")
-    assert result.ok is True
-    assert result.task_id == 266
-    assert "governance/task-scopes/AK-266.json" in result.changed_files
-    assert "governance/task-scopes/AK-267.json" in result.changed_files
+    assert result.ok is False
+    assert result.task_id is None
+    assert result.issues
+    assert (
+        "multiple task-scope artifacts detected in changed files"
+        in result.issues[0].message
+    )
 
 
 def test_check_task_scope_auto_range_covers_full_multi_commit_slice(
@@ -752,8 +825,12 @@ def test_check_task_scope_cli_help_matches_current_contract() -> None:
     )
 
     assert proc.returncode == 0
-    assert "AK task-scope snapshot or transitional" in proc.stdout
-    assert "legacy manifest" in proc.stdout
+    assert "AK task-scope snapshot" in proc.stdout
+    assert "brownfield" in proc.stdout
+    assert "legacy scope-file fallback" in proc.stdout
+    assert "--scope-artifact" in proc.stdout
+    assert "Explicit task-scope artifact path" in proc.stdout
+    assert "legacy manifest" not in proc.stdout
     assert "Check the attested task slice reachable from HEAD" in proc.stdout
     assert "current working tree, or auto-select working-tree when" in proc.stdout
     assert "the repo is dirty and HEAD when it is clean" in proc.stdout

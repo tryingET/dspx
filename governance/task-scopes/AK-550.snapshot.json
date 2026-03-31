@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-03-29T19:31:40.445045721+00:00",
+  "task_id": 550,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "README.md",
+      "diary/2026-03-31--remove-task-scope-manifest-coupling-from-workflow-and-handoff.md",
+      "docs/project/developer_workflow.md",
+      "docs/project/operational_goals.md",
+      "docs/project/strategic_goals.md",
+      "docs/project/tactical_goals.md",
+      "governance/task-scopes/AK-550.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/task_scope.py",
+      "scripts/check_task_scope.py",
+      "scripts/check_workflow_contracts.py",
+      "tests/test_task_scope.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "required_paths": [
+      "diary/2026-03-31--remove-task-scope-manifest-coupling-from-workflow-and-handoff.md",
+      "docs/project/developer_workflow.md",
+      "docs/project/operational_goals.md",
+      "governance/task-scopes/AK-550.snapshot.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/task_scope.py",
+      "scripts/check_task_scope.py",
+      "scripts/check_workflow_contracts.py",
+      "tests/test_task_scope.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "forbidden_paths": [
+      "**/*.backup",
+      "**/*.pyc",
+      "**/*.pyo",
+      "**/__pycache__/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

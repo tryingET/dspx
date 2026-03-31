@@ -15,7 +15,7 @@ Next strategic goal: `SG3`
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
 | `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx now emits the first bounded governance-only ranking/promotion evaluation receipts from shadow predictive-ranking evidence, but it still lacks the next explicit contract for how any named variant could ever move from governance-only evaluation into future live-authorized policy under human control. |
-| `SG3` | next | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Repo-local tasks `AK-549`–`AK-551` already capture this work and it directly strengthens reproducibility/governance. Cross-repo fixture work `AK-548` is now complete, `AK-549` has landed as the first repo-local migration slice, and the remaining SG3 chain is unblocked whenever operator direction or scheduling pulls it forward. |
+| `SG3` | next | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Repo-local tasks `AK-549`–`AK-551` already capture this work and it directly strengthens reproducibility/governance. Cross-repo fixture work `AK-548` plus repo-local cleanup slices `AK-549` and `AK-550` have landed, leaving `AK-551` as the remaining queued regression follow-on whenever operator direction or scheduling pulls the SG3 wave forward. |
 
 ## Strategic definitions of done
 

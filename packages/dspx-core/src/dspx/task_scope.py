@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
@@ -180,21 +179,6 @@ def infer_task_id_from_head(
     return infer_task_id_from_changed_files(
         changed_files_for_head(repo_root, rev_range=rev_range)
     )
-
-
-def _extract_task_id_from_next_session_marker(text: str, *, label: str) -> int | None:
-    match = re.search(rf"^\s*-\s*{re.escape(label)}\s*`AK-(\d+)`", text, re.MULTILINE)
-    if match is None:
-        return None
-    return int(match.group(1))
-
-
-def infer_task_id_from_next_session_checkpoint(repo_root: Path) -> int | None:
-    path = repo_root / "next_session_prompt.md"
-    if not path.exists():
-        return None
-    text = path.read_text(encoding="utf-8")
-    return _extract_task_id_from_next_session_marker(text, label="Slice executed:")
 
 
 def infer_task_id_from_working_tree(repo_root: Path) -> int | None:
@@ -446,13 +430,13 @@ def check_task_scope(
     repo_root: Path,
     *,
     task_id: int | None = None,
-    manifest_path: Path | None = None,
+    scope_artifact_path: Path | None = None,
     mode: str = "head",
     rev_range: str = "auto",
 ) -> ScopeCheckResult:
     mode = _resolve_scope_check_mode(repo_root, mode)
     resolved_task_id = task_id
-    if resolved_task_id is None and manifest_path is None:
+    if resolved_task_id is None and scope_artifact_path is None:
         resolution_issue: str | None = None
         resolved_task_id = infer_claimed_task_id(repo_root)
         if resolved_task_id is None and mode == "working-tree":
@@ -465,12 +449,10 @@ def check_task_scope(
                 )
             except RuntimeError as exc:
                 resolution_issue = str(exc)
-        if resolved_task_id is None and mode == "head":
-            resolved_task_id = infer_task_id_from_next_session_checkpoint(repo_root)
         if resolved_task_id is None:
             message = (
                 resolution_issue
-                or "task scope check could not resolve a task id from explicit input, AK claims, working-tree task-scope artifact changes, HEAD task-scope artifact changes, or next_session_prompt checkpoint"
+                or "task scope check could not resolve a task id from explicit input, AK claims, working-tree task-scope artifact changes, or HEAD task-scope artifact changes"
             )
             return ScopeCheckResult(
                 task_id=None,
@@ -479,8 +461,8 @@ def check_task_scope(
                 issues=(ScopeIssue(message),),
             )
 
-    if manifest_path is not None:
-        resolved_scope_path = manifest_path
+    if scope_artifact_path is not None:
+        resolved_scope_path = scope_artifact_path
     else:
         if resolved_task_id is None:
             raise RuntimeError("task scope check could not resolve a task id")
@@ -493,7 +475,7 @@ def check_task_scope(
             changed_files=(),
             issues=(),
             skipped=True,
-            skip_reason="no explicit AK task-scope snapshot or legacy manifest is present; repo-default scope applies",
+            skip_reason="no explicit AK task-scope snapshot or brownfield legacy scope file is present; repo-default scope applies",
         )
     if not resolved_scope_path.exists():
         return ScopeCheckResult(

@@ -108,7 +108,19 @@ def collect_issues(root: Path) -> list[Issue]:
                 "just verify-pre-push",
                 "just verify-full",
             ],
-            "forbidden": [],
+            "forbidden": ["changed manifest path, or next_session checkpoint"],
+        },
+        "docs/project/developer_workflow.md": {
+            "required": [
+                "just task-scope-check task_id=<AK-ID> mode=working-tree",
+                "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths",
+                "`next_session_prompt.md` remains handoff context only",
+                "brownfield legacy scope file",
+            ],
+            "forbidden": [
+                "changed task-scope snapshot/legacy-manifest paths, or the committed `next_session_prompt.md` checkpoint",
+                "transitional legacy manifest",
+            ],
         },
         "docs/tech-stack.local.md": {
             "required": [
@@ -138,7 +150,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 "governance-check:",
                 'task-scope-check task_id="" mode="auto" rev_range="auto":',
                 "working tree when the repo is dirty",
-                "next_session_prompt checkpoint before failing closed",
+                "active AK claim or changed task-scope artifact paths",
                 "verify-fast:",
                 "verify-runtime:",
                 "verify-tests:",
@@ -147,7 +159,10 @@ def collect_issues(root: Path) -> list[Issue]:
                 "uvx pre-commit run --all-files",
                 "cue vet governance/work-items.json governance/work-items.cue",
             ],
-            "forbidden": [],
+            "forbidden": [
+                "next_session_prompt checkpoint before failing closed",
+                "legacy manifest fallback",
+            ],
         },
         "scripts/ci/smoke.sh": {
             "required": [

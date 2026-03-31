@@ -754,14 +754,15 @@
         {
           "id": "AK-TASK-0550",
           "title": "[FCOS-M36-05] Remove residual workflow and handoff coupling to hand-authored task-scope manifests",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "[FCOS-M36-05] Remove residual workflow and handoff coupling to hand-authored task-scope manifests (task #550)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-31"
         },
         {
           "id": "AK-TASK-0551",
