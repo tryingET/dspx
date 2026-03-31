@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): The repo-scoped ready queue is empty after `AK-645`; wait for operator direction or the next truthful post-`TG23` contract/materialization step before starting a new implementation slice.
+- Objective (one sentence): The repo-scoped ready queue is empty after `AK-646`; wait for operator direction or the next truthful post-`TG23` contract/materialization step before starting a new implementation slice.
 - Constraints (hard limits): Keep the cleaned-up AK-native task-scope workflow/help contract intact; do not regress snapshot-first authority or reintroduce handoff-based task binding; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-645` is complete and reflected in `governance/work-items.json`; no new SG2 tactical goal has been materialized yet; no repo-scoped ready task currently exists at `HEAD`.
+- Assumptions (max 3): `AK-646` is complete and reflected in `governance/work-items.json`; no new SG2 tactical goal has been materialized yet; no repo-scoped ready task currently exists at `HEAD`.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -43,7 +43,7 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/project/developer_workflow.md`
 7. `Justfile`
-8. `diary/2026-03-31--harden-standardized-justfile-surface-with-side-effect-free-probes-and-target-aware-checks.md`
+8. `diary/2026-03-31--close-remaining-clean-tree-validation-drift-and-documentation-gaps.md`
 9. `governance/work-items.json`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
@@ -58,11 +58,11 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-645` — harden the standardized Justfile surface with side-effect-free probes and target-aware checks.
-- Outcome: the public standardized `just doctor` and `just run` targets are now side-effect-free on a clean tree, plain `just run` truthfully falls back to DSPx CLI help, and the workflow-contract checker/tests now validate specific recipe bodies plus adversarial/runtime behavior instead of only raw substring presence.
-- Files changed: `Justfile`, `diary/2026-03-31--harden-standardized-justfile-surface-with-side-effect-free-probes-and-target-aware-checks.md`, `docs/project/operational_goals.md`, `docs/tech-stack.local.md`, `governance/task-scopes/AK-645.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `scripts/check_workflow_contracts.py`, and `tests/test_workflow_contracts.py`.
-- Validation commands + results: `python3 scripts/check_workflow_contracts.py` ✅; `uv run -m pytest -q tests/test_workflow_contracts.py` ✅; `git checkout -- uv.lock && just doctor` ✅ (`uv.lock` stayed clean); `git checkout -- uv.lock && just run` ✅ (zero-arg help fallback worked and `uv.lock` stayed clean); `just task-scope-check task_id=645 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅ (then restored incidental pre-existing `uv.lock` drift from other syncful `uv run` validation paths outside the public-target hardening scope); `ak task complete 645 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after completion (empty queue).
-- Source-of-truth updates: recorded the Justfile hardening pass in `diary/2026-03-31--harden-standardized-justfile-surface-with-side-effect-free-probes-and-target-aware-checks.md`; refreshed `docs/project/operational_goals.md`, `docs/tech-stack.local.md`, and this handoff to the post-`AK-645` empty-queue state; exported `governance/task-scopes/AK-645.snapshot.json`; and refreshed `governance/work-items.json` after the AK completion/export.
+- Slice executed: `AK-646` — close the remaining clean-tree validation drift and documentation gaps after the standardized Justfile rollout.
+- Outcome: the remaining read-only validation recipes now keep `uv.lock` clean via `uv run --no-sync`, contributor-facing docs now expose the standardized `help`/`check`/`ci`/`doctor`/`run` surface directly, and the workflow-contract checker/tests now lock both the clean-tree validation behavior and the rollout documentation alignment into place.
+- Files changed: `CONTRIBUTING.md`, `Justfile`, `README.md`, `diary/2026-03-31--close-remaining-clean-tree-validation-drift-and-documentation-gaps.md`, `docs/project/developer_workflow.md`, `docs/project/operational_goals.md`, `docs/tech-stack.local.md`, `governance/task-scopes/AK-646.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `scripts/check_replay_provenance.py`, `scripts/check_workflow_contracts.py`, and `tests/test_workflow_contracts.py`.
+- Validation commands + results: `python3 scripts/check_workflow_contracts.py` ✅; `uv run -m pytest -q tests/test_workflow_contracts.py` ✅; `git checkout -- uv.lock && just test` ✅ (`uv.lock` stayed clean); `git checkout -- uv.lock && just replay-provenance-check` ✅ (`uv.lock` stayed clean after internal `--no-sync` hardening); `git checkout -- uv.lock && just monorepo-check` ✅ (`uv.lock` stayed clean); `git checkout -- uv.lock && just verify-full` ✅ (`uv.lock` stayed clean); `just task-scope-check task_id=646 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `ak task complete 646 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after completion (empty queue).
+- Source-of-truth updates: recorded the cleanup pass in `diary/2026-03-31--close-remaining-clean-tree-validation-drift-and-documentation-gaps.md`; refreshed `README.md`, `CONTRIBUTING.md`, `docs/project/developer_workflow.md`, `docs/project/operational_goals.md`, `docs/tech-stack.local.md`, and this handoff to the post-`AK-646` empty-queue state; exported `governance/task-scopes/AK-646.snapshot.json`; and refreshed `governance/work-items.json` after the AK completion/export.
 - Next-session starting point: if the repo-scoped AK ready queue is still empty, wait for operator direction or the next truthful post-`TG23` contract/materialization step; otherwise claim the next ready repo-local slice before editing.
 
 ## END-OF-SESSION

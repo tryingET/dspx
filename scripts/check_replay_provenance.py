@@ -123,6 +123,7 @@ def main() -> int:
             [
                 "uv",
                 "run",
+                "--no-sync",
                 "--package",
                 "dspx-core",
                 "-q",
@@ -147,6 +148,7 @@ def main() -> int:
             [
                 "uv",
                 "run",
+                "--no-sync",
                 "--package",
                 "dspx-core",
                 "-q",
@@ -182,6 +184,7 @@ def main() -> int:
             [
                 "uv",
                 "run",
+                "--no-sync",
                 "--package",
                 "dspx-core",
                 "-q",

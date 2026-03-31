@@ -106,18 +106,18 @@ typecheck-forge:
 test:
   # Run only local tests (none by default); skip submodules' test suites
   if [ -d tests ]; then \
-    uv run -m pytest -q tests; \
+    uv run --no-sync -m pytest -q tests; \
   else \
     echo "no local tests"; \
   fi
 
 # Deterministic replay provenance guard (receipt-first CI signal)
 replay-provenance-check:
-  uv run -q python scripts/check_replay_provenance.py
+  uv run --no-sync -q python scripts/check_replay_provenance.py
 
 # Deterministic ranked module-synthesis regression corpus + quality gate
 module-synthesis-quality-check:
-  uv run -q python scripts/build_module_synthesis_quality_log.py
+  uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py
 
 # Check the attested task slice against an AK task-scope snapshot
 # (with brownfield legacy scope-file fallback).
@@ -172,7 +172,7 @@ doctor:
 # Run core-focused test slice (exclude forge-marked tests)
 test-core:
   if [ -d tests ]; then \
-    uv run -m pytest -q tests -m "not forge"; \
+    uv run --no-sync -m pytest -q tests -m "not forge"; \
   else \
     echo "no local tests"; \
   fi
@@ -180,7 +180,7 @@ test-core:
 # Run forge-focused test slice (explicit pytest marker)
 test-forge:
   if [ -d tests ]; then \
-    uv run -m pytest -q tests -m "forge"; \
+    uv run --no-sync -m pytest -q tests -m "forge"; \
   else \
     echo "no local tests"; \
   fi
@@ -200,7 +200,7 @@ clean-clone-smoke:
 
 # Monorepo boundary guardrail check
 monorepo-check:
-  uv run -q python scripts/check_monorepo_boundaries.py
+  uv run --no-sync -q python scripts/check_monorepo_boundaries.py
 
 # Run unified CLI from source (pass-through)
 # Examples:

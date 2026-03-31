@@ -45,10 +45,16 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "docs/project/developer_workflow.md",
+        "just help\n"
+        "just check\n"
+        "just ci\n"
+        "just doctor\n"
+        "just run\n"
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
         "`next_session_prompt.md` remains handoff context only\n"
-        "brownfield legacy scope file\n",
+        "brownfield legacy scope file\n"
+        "uv run --no-sync\n",
     )
     _write(tmp_path, "scripts/ci/verify-full.sh", "#!/bin/sh\nexit 0\n")
     _write(
@@ -60,17 +66,47 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "CONTRIBUTING.md",
-        "docs/project/developer_workflow.md\njust install\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\n",
+        "docs/project/developer_workflow.md\n"
+        "just install\n"
+        "just hooks-install\n"
+        "just help\n"
+        "just doctor\n"
+        "just run\n"
+        "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-pre-push\n"
+        "just verify-full\n",
     )
     _write(
         tmp_path,
         "README.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\n",
+        "docs/project/developer_workflow.md\n"
+        "just help\n"
+        "just check\n"
+        "just ci\n"
+        "just doctor\n"
+        "just run\n"
+        "just hooks-install\n"
+        "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-pre-push\n"
+        "just verify-full\n"
+        "uv run --no-sync\n",
     )
     _write(
         tmp_path,
         "docs/tech-stack.local.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\njust help\njust check\njust ci\njust doctor\njust run ...\nNo `just dev` target\nfails closed\nparallel\n",
+        "docs/project/developer_workflow.md\n"
+        "just hooks-install\n"
+        "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-pre-push\n"
+        "just verify-full\n"
+        "just help\n"
+        "just check\n"
+        "just ci\n"
+        "just doctor\n"
+        "just run ...\n"
+        "No `just dev` target\n"
+        "fails closed\n"
+        "parallel\n",
     )
     _write(
         tmp_path,
@@ -99,7 +135,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "lint:\n"
         "  echo lint\n"
         "test:\n"
-        "  echo test\n"
+        "  uv run --no-sync -m pytest -q tests\n"
         "build:\n"
         "  echo build\n"
         "# working tree when the repo is dirty\n"
@@ -108,6 +144,10 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
         "verify-fast:\n"
         "  uvx pre-commit run --all-files\n"
+        "replay-provenance-check:\n"
+        "  uv run --no-sync -q python scripts/check_replay_provenance.py\n"
+        "module-synthesis-quality-check:\n"
+        "  uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py\n"
         "verify-runtime:\n"
         "  echo runtime\n"
         "verify-tests:\n"
@@ -121,6 +161,8 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "doctor:\n"
         "  uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null\n"
         "  uv run --no-sync --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null\n"
+        "monorepo-check:\n"
+        "  uv run --no-sync -q python scripts/check_monorepo_boundaries.py\n"
         "run *args:\n"
         '  bash -lc \'if [ "$#" -eq 0 ]; then set -- --help; fi; uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx "$@"\' -- {{args}}\n',
     )
@@ -204,10 +246,16 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
     _write(
         tmp_path,
         "docs/project/developer_workflow.md",
+        "just help\n"
+        "just check\n"
+        "just ci\n"
+        "just doctor\n"
+        "just run\n"
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
         "`next_session_prompt.md` remains handoff context only\n"
-        "brownfield legacy scope file\n",
+        "brownfield legacy scope file\n"
+        "uv run --no-sync\n",
     )
     _write(tmp_path, "scripts/ci/verify-full.sh", "#!/bin/sh\nexit 0\n")
     _write(
@@ -219,17 +267,47 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
     _write(
         tmp_path,
         "CONTRIBUTING.md",
-        "docs/project/developer_workflow.md\njust install\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\n",
+        "docs/project/developer_workflow.md\n"
+        "just install\n"
+        "just hooks-install\n"
+        "just help\n"
+        "just doctor\n"
+        "just run\n"
+        "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-pre-push\n"
+        "just verify-full\n",
     )
     _write(
         tmp_path,
         "README.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\n",
+        "docs/project/developer_workflow.md\n"
+        "just help\n"
+        "just check\n"
+        "just ci\n"
+        "just doctor\n"
+        "just run\n"
+        "just hooks-install\n"
+        "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-pre-push\n"
+        "just verify-full\n"
+        "uv run --no-sync\n",
     )
     _write(
         tmp_path,
         "docs/tech-stack.local.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\njust help\njust check\njust ci\njust doctor\njust run ...\nNo `just dev` target\nfails closed\nparallel\n",
+        "docs/project/developer_workflow.md\n"
+        "just hooks-install\n"
+        "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-pre-push\n"
+        "just verify-full\n"
+        "just help\n"
+        "just check\n"
+        "just ci\n"
+        "just doctor\n"
+        "just run ...\n"
+        "No `just dev` target\n"
+        "fails closed\n"
+        "parallel\n",
     )
     _write(
         tmp_path,
@@ -258,7 +336,7 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "lint:\n"
         "  echo lint\n"
         "test:\n"
-        "  echo test\n"
+        "  echo broken test\n"
         "build:\n"
         "  echo build\n"
         "# working tree when the repo is dirty\n"
@@ -267,6 +345,10 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
         "verify-fast:\n"
         "  uvx pre-commit run --all-files\n"
+        "replay-provenance-check:\n"
+        "  echo bad replay\n"
+        "module-synthesis-quality-check:\n"
+        "  echo bad quality\n"
         "verify-runtime:\n"
         "  echo runtime\n"
         "verify-tests:\n"
@@ -279,9 +361,14 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "  just verify-full\n"
         "doctor:\n"
         "  echo fake doctor\n"
+        "monorepo-check:\n"
+        "  echo fake monorepo\n"
         "_helper:\n"
         "  uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null\n"
         "  uv run --no-sync --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null\n"
+        "  uv run --no-sync -q python scripts/check_replay_provenance.py\n"
+        "  uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py\n"
+        "  uv run --no-sync -q python scripts/check_monorepo_boundaries.py\n"
         '  bash -lc \'if [ "$#" -eq 0 ]; then set -- --help; fi; uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx "$@"\' -- {{args}}\n'
         "run *args:\n"
         "  echo broken run\n",
@@ -309,6 +396,18 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "Justfile: recipe 'run *args:' missing required text in body: 'if [ \"$#\" -eq 0 ]; then set -- --help; fi;'"
         in messages
     )
+    assert (
+        "Justfile: recipe 'test:' missing required text in body: 'uv run --no-sync -m pytest -q tests'"
+        in messages
+    )
+    assert (
+        "Justfile: recipe 'replay-provenance-check:' missing required text in body: 'uv run --no-sync -q python scripts/check_replay_provenance.py'"
+        in messages
+    )
+    assert (
+        "Justfile: recipe 'monorepo-check:' missing required text in body: 'uv run --no-sync -q python scripts/check_monorepo_boundaries.py'"
+        in messages
+    )
 
 
 def test_current_repo_standardized_targets_are_side_effect_free() -> None:
@@ -320,15 +419,21 @@ def test_current_repo_standardized_targets_are_side_effect_free() -> None:
     before = uv_lock.read_bytes()
 
     try:
-        doctor = subprocess.run(
+        for command in (
             ["just", "doctor"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert doctor.returncode == 0, doctor.stderr
-        assert uv_lock.read_bytes() == before
+            ["just", "run"],
+            ["just", "replay-provenance-check"],
+            ["just", "monorepo-check"],
+        ):
+            result = subprocess.run(
+                command,
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            assert result.returncode == 0, result.stderr
+            assert uv_lock.read_bytes() == before
 
         run = subprocess.run(
             ["just", "run"],

@@ -130,6 +130,9 @@ def collect_issues(root: Path) -> list[Issue]:
                 "docs/project/developer_workflow.md",
                 "just install",
                 "just hooks-install",
+                "just help",
+                "just doctor",
+                "just run",
                 "just task-scope-check task_id=<AK-ID> mode=working-tree",
                 "just verify-pre-push",
                 "just verify-full",
@@ -139,19 +142,31 @@ def collect_issues(root: Path) -> list[Issue]:
         "README.md": {
             "required": [
                 "docs/project/developer_workflow.md",
+                "just help",
+                "just check",
+                "just ci",
+                "just doctor",
+                "just run",
                 "just hooks-install",
                 "just task-scope-check task_id=<AK-ID> mode=working-tree",
                 "just verify-pre-push",
                 "just verify-full",
+                "uv run --no-sync",
             ],
             "forbidden": ["changed manifest path, or next_session checkpoint"],
         },
         "docs/project/developer_workflow.md": {
             "required": [
+                "just help",
+                "just check",
+                "just ci",
+                "just doctor",
+                "just run",
                 "just task-scope-check task_id=<AK-ID> mode=working-tree",
                 "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths",
                 "`next_session_prompt.md` remains handoff context only",
                 "brownfield legacy scope file",
+                "uv run --no-sync",
             ],
             "forbidden": [
                 "changed task-scope snapshot/legacy-manifest paths, or the committed `next_session_prompt.md` checkpoint",
@@ -274,6 +289,36 @@ def collect_issues(root: Path) -> list[Issue]:
                     "uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null",
                     "uv run --no-sync --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null",
                 ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "test:",
+                ["uv run --no-sync -m pytest -q tests"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "replay-provenance-check:",
+                ["uv run --no-sync -q python scripts/check_replay_provenance.py"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "module-synthesis-quality-check:",
+                [
+                    "uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py"
+                ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "monorepo-check:",
+                ["uv run --no-sync -q python scripts/check_monorepo_boundaries.py"],
                 issues,
             )
             _check_recipe_body_contains(

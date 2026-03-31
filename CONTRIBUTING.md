@@ -5,6 +5,7 @@ Thanks for your interest in contributing! A few quick guidelines:
 
 - Use Python 3.13 and uv for dependency management.
 - Canonical local workflow: `docs/project/developer_workflow.md`.
+- Standardized outer Justfile surface: `just help`, `just check`, `just ci`, `just doctor`, `just run` (plain `just run` falls back to DSPx CLI help).
 - Run quality checks locally: `just fmt`, `just lint`, `just typecheck`, `just test`.
 - Keep changes focused and minimal; include docs updates when behavior changes.
 - For larger proposals, open an issue first to discuss design and scope.
@@ -26,6 +27,9 @@ Development Setup
 - Enable hooks:
 
   just hooks-install
+  # optional standardized sanity checks
+  just help
+  just doctor
   # validate the current slice explicitly before commit, then run the hook-facing fast gate
   just task-scope-check task_id=<AK-ID> mode=working-tree
   just verify-pre-push

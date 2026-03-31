@@ -42,6 +42,16 @@ The helper defaults to `~/ai-society/softwareco/contrib/dspy-lm-auth`, installs 
 
 ### 3. Validate before push
 
+Standardized owned-lane outer surface available in this repo:
+
+```bash
+just help
+just check
+just ci
+just doctor
+just run              # falls back to DSPx CLI help when called without args
+```
+
 ```bash
 ./scripts/ci/smoke.sh
 just task-scope-check task_id=<AK-ID> mode=working-tree   # before commit, for the current slice
@@ -71,6 +81,7 @@ Validation contract:
 - `just verify-full`
   - runs `just verify-fast` first
   - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel
+  - keeps `uv.lock` clean for the read-only validation commands it delegates through `uv run --no-sync`
   - remains the explicit full confidence gate before merge/release or when the current slice needs the whole suite
 
 ## Governance + session planning

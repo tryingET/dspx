@@ -958,6 +958,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-31"
+        },
+        {
+          "id": "AK-TASK-0646",
+          "title": "[Justfile rollout] Close remaining clean-tree validation drift and documentation gaps",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "[Justfile rollout] Close remaining clean-tree validation drift and documentation gaps (task #646)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-31"
         }
       ]
     }

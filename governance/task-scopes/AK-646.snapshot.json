@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-03-31T18:06:50.931853623+00:00",
+  "task_id": 646,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "CONTRIBUTING.md",
+      "Justfile",
+      "README.md",
+      "diary/2026-03-31--close-remaining-clean-tree-validation-drift-and-documentation-gaps.md",
+      "docs/project/developer_workflow.md",
+      "docs/project/operational_goals.md",
+      "docs/tech-stack.local.md",
+      "governance/task-scopes/AK-646.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "scripts/check_replay_provenance.py",
+      "scripts/check_workflow_contracts.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "required_paths": [
+      "Justfile",
+      "diary/2026-03-31--close-remaining-clean-tree-validation-drift-and-documentation-gaps.md",
+      "docs/project/developer_workflow.md",
+      "docs/project/operational_goals.md",
+      "governance/task-scopes/AK-646.snapshot.json",
+      "next_session_prompt.md",
+      "scripts/check_replay_provenance.py",
+      "scripts/check_workflow_contracts.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

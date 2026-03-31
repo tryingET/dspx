@@ -381,6 +381,18 @@ just monorepo-check
 
 ## Day-to-day commands
 
+Standardized outer surface:
+
+```bash
+just help
+just check
+just ci
+just doctor
+just run              # falls back to DSPx CLI help when called without args
+```
+
+Repo-local quality commands:
+
 ```bash
 just fmt
 just lint
@@ -437,6 +449,8 @@ just task-scope-check task_id=<AK-ID> mode=working-tree
 just verify-pre-push
 just verify-full
 ```
+
+Read-only verification and sanity commands keep `uv.lock` clean by using `uv run --no-sync` under the hood.
 
 ---
 
