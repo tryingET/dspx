@@ -936,14 +936,15 @@
         {
           "id": "AK-TASK-0615",
           "title": "[Justfile rollout] Audit existing Justfile against the standardized contract control case",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "[Justfile rollout] Audit existing Justfile against the standardized contract control case (task #615)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-31"
         }
       ]
     }

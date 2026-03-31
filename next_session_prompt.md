@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-615` and audit DSPx's existing `Justfile` against the standardized contract control case.
+- Objective (one sentence): The repo-scoped ready queue is empty after `AK-615`; wait for operator direction or the next truthful post-`TG23` contract/materialization step before starting a new implementation slice.
 - Constraints (hard limits): Keep the cleaned-up AK-native task-scope workflow/help contract intact; do not regress snapshot-first authority or reintroduce handoff-based task binding; keep `docs/project/operational_goals.md` and this file aligned.
-- Assumptions (max 3): `AK-551` is complete and committed; `AK-615` is the remaining repo-scoped ready slice at `HEAD`; no new SG2 tactical goal has been materialized yet.
+- Assumptions (max 3): `AK-615` is complete and reflected in `governance/work-items.json`; no new SG2 tactical goal has been materialized yet; no repo-scoped ready task currently exists at `HEAD`.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -43,8 +43,8 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/project/developer_workflow.md`
 7. `Justfile`
-8. `diary/2026-03-31--add-regression-coverage-for-ak-native-task-scope-workflow.md`
-9. `governance/task-scopes/AK-551.snapshot.json`
+8. `diary/2026-03-31--audit-dspx-justfile-against-standardized-contract-control-case.md`
+9. `governance/work-items.json`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -58,12 +58,12 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-551` — add regression coverage for the cleaned-up DSPx AK-native task-scope workflow.
-- Outcome: broadened the regression surface around claim-based binding, explicit scope-artifact CLI paths, snapshot-over-legacy artifact preference, and real repo workflow-contract alignment so the snapshot-first authority story is covered end to end.
-- Files changed: `diary/2026-03-31--add-regression-coverage-for-ak-native-task-scope-workflow.md`, `docs/project/operational_goals.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-551.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `tests/test_task_scope.py`, and `tests/test_workflow_contracts.py`.
-- Validation commands + results: `uv run -m pytest -q tests/test_task_scope.py tests/test_workflow_contracts.py` ✅; `just task-scope-check task_id=551 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 551 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after completion (`AK-615`).
-- Source-of-truth updates: recorded the broader regression pass in `diary/2026-03-31--add-regression-coverage-for-ak-native-task-scope-workflow.md`; refreshed `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and this handoff so SG3 is treated as complete and the next ready slice points at `AK-615`; exported `governance/task-scopes/AK-551.snapshot.json`; and refreshed `governance/work-items.json` after the AK completion/export.
-- Next-session starting point: claim `AK-615` and audit DSPx's `Justfile` against the standardized contract control case unless operator direction changes.
+- Slice executed: `AK-615` — audit DSPx's existing `Justfile` against the standardized contract control case.
+- Outcome: DSPx now exposes the standardized owned-lane `help`/`check`/`ci`/`doctor`/`run` surface as thin wrappers around its existing workflow while explicitly omitting `dev`, and the repo-level workflow-contract checks now lock that surface in alongside the AK-native validation contract.
+- Files changed: `Justfile`, `diary/2026-03-31--audit-dspx-justfile-against-standardized-contract-control-case.md`, `docs/project/operational_goals.md`, `docs/tech-stack.local.md`, `governance/task-scopes/AK-615.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `scripts/check_workflow_contracts.py`, and `tests/test_workflow_contracts.py`.
+- Validation commands + results: `python3 scripts/check_workflow_contracts.py` ✅; `uv run -m pytest -q tests/test_workflow_contracts.py` ✅; `just help` ✅; `just doctor` ✅; `just run tools list` ✅; `just check` ✅; `just task-scope-check task_id=615 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `ak task complete 615 --result '{...}'` ✅; `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after completion (empty queue).
+- Source-of-truth updates: recorded the Justfile audit in `diary/2026-03-31--audit-dspx-justfile-against-standardized-contract-control-case.md`; refreshed `docs/project/operational_goals.md`, `docs/tech-stack.local.md`, and this handoff to the post-`AK-615` empty-queue state; exported `governance/task-scopes/AK-615.snapshot.json`; and refreshed `governance/work-items.json` after the AK completion/export.
+- Next-session starting point: if the repo-scoped AK ready queue is still empty, wait for operator direction or the next truthful post-`TG23` contract/materialization step; otherwise claim the next ready repo-local slice before editing.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

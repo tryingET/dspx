@@ -13,10 +13,11 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-- `AK-615` — audit DSPx's existing `Justfile` against the standardized contract control case now that the SG3 AK-native task-scope workflow chain is complete.
+- no repo-scoped implementation slice is currently ready; wait for operator direction or the next truthful post-`TG23` contract/materialization step.
 
 ## Recently completed in this wave
 
+- `AK-615` — audited DSPx's existing `Justfile` against the standardized owned-lane contract, added the missing `help`/`check`/`ci`/`doctor`/`run` surface as thin wrappers around existing DSPx behavior, documented the intentional no-`dev` omission, and locked the standardized surface into workflow-contract checks.
 - `AK-551` — broadened regression coverage for the cleaned-up AK-native task-scope workflow across claim-based binding, snapshot-first scope selection, explicit `--scope-artifact`/`--manifest` CLI paths, snapshot-over-legacy artifact preference, and the real workflow-contract surface.
 - `AK-550` — removed manifest-centric workflow/help wording, dropped `next_session_prompt.md` checkpoint fallback from task-scope binding, kept brownfield legacy scope files as validation-only fallback, and refreshed the task-scope CLI/tests/contracts around the snapshot-first authority story.
 - `AK-549` — migrated DSPx task-scope validation to consume AK task-scope snapshots first, added brownfield fallback when no explicit scope artifact exists, refreshed the first repo-local AK snapshot under `governance/task-scopes/AK-549.snapshot.json`, and updated the task-scope validation/test surface for the new contract.
@@ -43,7 +44,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 - `AK-567` was an operator-directed provider-runtime documentation slice; it made the auth-store routing proof explicit for operators without replacing the active SG2 implementation slice.
 - `AK-564` was an operator-directed provider-runtime/workflow slice; it fixed local editable import resolution for `dspy-lm-auth` but did not replace the active SG2 implementation slice.
 - Do not start live predictive ranking, candidate pruning, promotion blocking, or strategy/policy mutation now that `AK-593` has landed; wait until a later tactical wave explicitly widens authority beyond governance-only receipts.
-- `AK-548`–`AK-551` are now complete, so the SG3 AK-native scope-snapshot chain is closed and `AK-615` becomes the next ready repo-local slice unless operator direction overrides it.
+- `AK-548`–`AK-551` plus `AK-615` are now complete, so the SG3 AK-native scope-snapshot chain plus the Justfile control-case audit are closed and the repo returns to an empty ready queue until operator direction or the next truthful post-`TG23` contract/materialization step appears.
 - Older deferred/provider/runtime follow-ons (`AK-224`, `AK-235`–`AK-239`) remain non-active backlog and were intentionally not resumed in this SG2 wave.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
 - Tasks that opt into explicit AK task scope now validate against frozen exports under `governance/task-scopes/AK-<id>.snapshot.json`; brownfield `governance/task-scopes/AK-*.json` files remain validation-only fallback scaffolding, while workflow/handoff binding now relies only on explicit task IDs, AK claims, or changed task-scope artifacts.

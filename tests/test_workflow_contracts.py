@@ -66,7 +66,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "docs/tech-stack.local.md",
-        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\nfails closed\nparallel\n",
+        "docs/project/developer_workflow.md\njust hooks-install\njust task-scope-check task_id=<AK-ID> mode=working-tree\njust verify-pre-push\njust verify-full\njust help\njust check\njust ci\njust doctor\njust run ...\nNo `just dev` target\nfails closed\nparallel\n",
     )
     _write(
         tmp_path,
@@ -77,6 +77,9 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "Justfile",
+        "# Contract: /home/tryinget/ai-society/softwareco/owned/docs/project/standardized-justfile-contract.md\n"
+        "help:\n"
+        "  just --list\n"
         "hooks-install:\n"
         "  uvx pre-commit install --hook-type pre-commit --hook-type pre-push\n"
         "workflow-contract-check:\n"
@@ -85,6 +88,16 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  python3 scripts/check_direction_to_execution.py\n"
         "governance-check:\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n"
+        "check:\n"
+        "  just verify-fast\n"
+        "fmt:\n"
+        "  echo fmt\n"
+        "lint:\n"
+        "  echo lint\n"
+        "test:\n"
+        "  echo test\n"
+        "build:\n"
+        "  echo build\n"
         "# working tree when the repo is dirty\n"
         "# active AK claim or changed task-scope artifact paths\n"
         'task-scope-check task_id="" mode="auto" rev_range="auto":\n'
@@ -99,6 +112,12 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  just verify-fast\n"
         "verify-full:\n"
         "  bash scripts/ci/verify-full.sh\n"
+        "ci:\n"
+        "  just verify-full\n"
+        "doctor:\n"
+        "  uv run --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null\n"
+        "run *args:\n"
+        "  bash -lc 'uv run --package dspx-core -q python -m dspx.cli.dspx \"$@\"' -- {{args}}\n"
         "  cue vet governance/work-items.json governance/work-items.cue\n",
     )
     _write(

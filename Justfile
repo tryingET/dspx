@@ -1,8 +1,14 @@
+# DSPx Justfile — standardized command surface + repo-local workflow helpers
+# Contract: /home/tryinget/ai-society/softwareco/owned/docs/project/standardized-justfile-contract.md
+# Lane addendum: /home/tryinget/ai-society/core/tech-stack-core/src/tech_stack_core/lanes/tech-stack-py.justfile.md
 set shell := ["bash", "-uc"]
 set dotenv-load := true
 set export
 
 # List available tasks
+help:
+  @just --list
+
 default:
   @just --list
 
@@ -27,6 +33,10 @@ direction-contract-check:
 # NOTE: work-items stay planning-only, but the schema must remain valid.
 governance-check:
   cue vet governance/work-items.json governance/work-items.cue
+
+# Fast local validation gate from the standardized owned-lane Justfile surface
+check:
+  @just verify-fast
 
 # Install workspace packages in editable mode to expose console scripts (dev workflow)
 dev-install:
@@ -145,6 +155,20 @@ verify-pre-push:
 verify-full:
   bash scripts/ci/verify-full.sh
 
+# Full local CI-equivalent gate from the standardized owned-lane Justfile surface
+ci:
+  @just verify-full
+
+# Toolchain/runtime/environment sanity checks from the standardized owned-lane Justfile surface
+doctor:
+  @python3 --version
+  @uv --version
+  @just --version
+  @cue version
+  @command -v ak
+  @uv run --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null
+  @uv run --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null
+
 # Run core-focused test slice (exclude forge-marked tests)
 test-core:
   if [ -d tests ]; then \
@@ -185,6 +209,13 @@ monorepo-check:
 dspx *args:
   # Use bash to preserve argument boundaries reliably.
   bash -lc 'uv run --package dspx-core -q python -m dspx.cli.dspx "$@"' -- {{args}}
+
+# Canonical one-shot repo entrypoint from the standardized owned-lane Justfile surface
+run *args:
+  @bash -lc 'uv run --package dspx-core -q python -m dspx.cli.dspx "$@"' -- {{args}}
+
+# No standardized `dev` target: DSPx has multiple long-running helper surfaces,
+# but no single canonical watch/dev server entrypoint.
 
 # Forge app CLI from monorepo app boundary
 forge *args:

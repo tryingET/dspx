@@ -17,7 +17,9 @@ Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
 - Typechecking uses `ty` (not mypy): `uvx ty check packages/dspx-core/src apps/forge/src`
 - Canonical local workflow contract: `docs/project/developer_workflow.md`
-- Commands are standardized in `Justfile` (`just test`, `just fmt`, `just lint`, `just typecheck`).
+- Commands are standardized in `Justfile` via the owned-lane contract: `just help`, `just test`, `just check`, `just build`, `just lint`, `just fmt`, `just ci`, `just doctor`, plus repo-specific helpers like `just typecheck`.
+- `just run ...` is the truthful one-shot entrypoint and delegates to the DSPx CLI surface.
+- No `just dev` target is exposed because DSPx has multiple long-running helper surfaces but no single canonical dev/watch entrypoint.
 - Local auth-backed provider work should prefer the workspace contrib checkout via `just link-dspy-lm-auth` (defaults to `~/ai-society/softwareco/contrib/dspy-lm-auth`).
 - Optional py-lane companions when the repo actually benefits:
   - `pytest-bdd` for executable Gherkin/BDD scenarios
