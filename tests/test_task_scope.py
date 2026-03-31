@@ -7,14 +7,20 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+import dspx.task_scope as task_scope_module
 from dspx.task_scope import (
     TaskScopeManifest,
     changed_files_for_head,
     changed_files_for_working_tree,
     check_task_scope,
+    claimed_task_ids_for_repo,
     collect_scope_issues,
+    infer_claimed_task_id,
     load_manifest,
     load_snapshot,
+    scope_artifact_path_for_task,
 )
 
 
@@ -1017,3 +1023,286 @@ def test_task_scope_check_just_recipe_defaults_to_auto_and_catches_dirty_working
     assert proc.returncode != 0
     assert "task-scope-check failed for AK-266 mode=working-tree" in proc.stdout
     assert "rogue.md: falls outside attested task scope" in proc.stdout
+
+
+def test_claimed_task_ids_for_repo_filters_to_current_repo(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    other_repo = tmp_path / "other"
+    other_repo.mkdir()
+
+    def fake_run(cmd: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
+        assert cmd == ["ak", "task", "list", "-s", "claimed", "-F", "json"]
+        assert cwd == repo
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout=json.dumps(
+                [
+                    {"id": 266, "repo": str(repo.resolve())},
+                    {"id": "bad", "repo": str(repo.resolve())},
+                    {"id": 267, "repo": str(other_repo.resolve())},
+                    "not-a-dict",
+                ]
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(task_scope_module, "_run", fake_run)
+
+    assert claimed_task_ids_for_repo(repo) == [266]
+
+
+def test_infer_claimed_task_id_rejects_multiple_repo_claims(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(
+        task_scope_module,
+        "claimed_task_ids_for_repo",
+        lambda repo_root: [266, 267],
+    )
+
+    with pytest.raises(RuntimeError, match="multiple claimed tasks"):
+        infer_claimed_task_id(repo)
+
+
+def test_scope_artifact_path_for_task_prefers_snapshot_over_legacy_manifest(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    snapshot = repo / "governance" / "task-scopes" / "AK-266.snapshot.json"
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    snapshot.write_text("{}\n", encoding="utf-8")
+    legacy_manifest = repo / "governance" / "task-scopes" / "AK-266.json"
+    legacy_manifest.write_text("{}\n", encoding="utf-8")
+
+    assert scope_artifact_path_for_task(repo, 266) == snapshot
+
+
+def test_check_task_scope_head_uses_claimed_task_binding_for_full_slice(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 1,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    _commit_all(repo, "snapshot")
+
+    (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
+    _commit_all(repo, "allowed change")
+
+    monkeypatch.setattr(task_scope_module, "infer_claimed_task_id", lambda _: 266)
+
+    result = check_task_scope(repo, mode="head")
+
+    assert result.ok is True
+    assert result.task_id == 266
+    assert result.changed_files == (
+        "governance/task-scopes/AK-266.snapshot.json",
+        "scripts/allowed.py",
+    )
+
+
+def test_check_task_scope_working_tree_uses_claimed_task_binding_without_scope_artifact_change(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 1,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": ["scripts/*.py"],
+                "required_paths": ["scripts/*.py"],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    _commit_all(repo, "snapshot")
+
+    (repo / "scripts" / "seed.py").write_text("print('seed')\n", encoding="utf-8")
+    _commit_all(repo, "seed")
+
+    (repo / "scripts" / "allowed.py").write_text("print('dirty')\n", encoding="utf-8")
+
+    monkeypatch.setattr(task_scope_module, "infer_claimed_task_id", lambda _: 266)
+
+    result = check_task_scope(repo, mode="working-tree")
+
+    assert result.ok is True
+    assert result.task_id == 266
+    assert result.changed_files == ("scripts/allowed.py",)
+
+
+def test_check_task_scope_cli_accepts_explicit_scope_artifact_path_for_snapshot(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 1,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('dirty')\n", encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "check_task_scope.py"
+    snapshot_path = repo / "governance" / "task-scopes" / "AK-266.snapshot.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--root",
+            str(repo),
+            "--scope-artifact",
+            str(snapshot_path),
+            "--mode",
+            "working-tree",
+        ],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    assert "ok: task-scope-check task=AK-266 mode=working-tree" in proc.stdout
+
+
+def test_check_task_scope_cli_manifest_alias_accepts_snapshot_path(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 1,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "required_paths": [
+                    "scripts/*.py",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    (repo / "scripts" / "allowed.py").write_text("print('dirty')\n", encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "check_task_scope.py"
+    snapshot_path = repo / "governance" / "task-scopes" / "AK-266.snapshot.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--root",
+            str(repo),
+            "--manifest",
+            str(snapshot_path),
+            "--mode",
+            "working-tree",
+        ],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr or proc.stdout
+    assert "ok: task-scope-check task=AK-266 mode=working-tree" in proc.stdout

@@ -162,3 +162,9 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         "Justfile: contains forbidden stale text: 'next_session_prompt checkpoint before failing closed'"
         in messages
     )
+
+
+def test_collect_issues_passes_for_current_repo() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+
+    assert MODULE.collect_issues(repo_root) == []

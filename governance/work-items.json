@@ -767,14 +767,15 @@
         {
           "id": "AK-TASK-0551",
           "title": "[FCOS-M36-05] Add regression coverage for DSPx AK-native task-scope workflow",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "[FCOS-M36-05] Add regression coverage for DSPx AK-native task-scope workflow (task #551)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-03-31"
         },
         {
           "id": "AK-TASK-0556",

@@ -15,7 +15,7 @@ Next tactical goal: `unmaterialized`
 ## Upcoming tactical goals for `SG2`
 
 No next tactical goal is pinned yet.
-`TG23` is complete, and the repo should not guess the post-receipt tactical wave until the truthful next contract or implementation slice exists. `AK-548`, `AK-549`, and `AK-550` are now complete, so `AK-551` remains queued as the explicit SG3 regression follow-on when that separate next-wave chain is selected.
+`TG23` is complete, the SG3 follow-on chain `AK-548`–`AK-551` is now complete as well, and the repo should not guess the next SG2 or adjacent execution wave until the truthful next contract or implementation slice exists.
 
 ## Recently completed tactical goals for `SG2`
 
@@ -54,4 +54,4 @@ The following remain intentionally out of the active tactical wave until the nex
 - strategy/policy mutation without explicit governed evaluation receipts,
 - widening authority beyond governance-only receipt emission before a later contract explicitly promotes a named variant into live policy,
 - decomposing the post-`TG23` tactical wave early just to keep the queue non-empty,
-- auto-promoting the SG3 AK-native scope-snapshot chain just because the prerequisite slices landed, instead of selecting `AK-551` explicitly when that wave is actually chosen.
+- reopening the completed SG3 AK-native scope-snapshot chain without a new contract, surfaced regression, or operator pull.
