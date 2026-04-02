@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-31",
+  "updated_at": "2026-04-02",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -971,6 +971,43 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-03-31"
+        },
+        {
+          "id": "AK-TASK-0707",
+          "title": "Receipt/runtime hardening: persist server-generated artifacts and confirmation boundaries across signature/module/mermaid",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Receipt/runtime hardening: persist server-generated artifacts and confirmation boundaries across signature/module/mermaid (task #707)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-02"
+        },
+        {
+          "id": "AK-TASK-0708",
+          "title": "Multi-provider runtime: harden dynamic capabilities, policy overrides, and dirty-worktree isolation",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Multi-provider runtime: harden dynamic capabilities, policy overrides, and dirty-worktree isolation (task #708)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0709",
+          "title": "Boundary invariants: tighten SG2 receipt parsing, explain artifact matching, OpenAPI numerics, and rate-limit parsing",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Boundary invariants: tighten SG2 receipt parsing, explain artifact matching, OpenAPI numerics, and rate-limit parsing (task #709)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

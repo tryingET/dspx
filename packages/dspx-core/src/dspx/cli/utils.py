@@ -178,6 +178,7 @@ def write_receipt_for_output(
     replay_inputs: dict[str, Any],
     extra: Optional[dict[str, Any]] = None,
     class_name: Optional[str] = None,
+    run_summary: Optional[dict[str, Any]] = None,
 ) -> None:
     """Write a run receipt for generated output.
 
@@ -217,6 +218,7 @@ def write_receipt_for_output(
         cache_file=str(cfile),
         cache_enabled=cache_enabled,
         replay_inputs=replay_inputs,
+        run_summary=run_summary,
         extra={
             **(extra or {}),
             "class_name": class_name or "",

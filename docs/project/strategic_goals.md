@@ -14,7 +14,7 @@ Next strategic goal: `unmaterialized`
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx now emits the first bounded governance-only ranking/promotion evaluation receipts from shadow predictive-ranking evidence, but it still lacks the next explicit contract for how any named variant could ever move from governance-only evaluation into future live-authorized policy under human control. |
+| `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx now emits the first bounded governance-only ranking/promotion evaluation receipts from shadow predictive-ranking evidence, but it still lacks both the receipt/runtime hardening wave that makes those surfaces trustworthy across server and multi-provider paths and the later explicit contract for how any named variant could ever move from governance-only evaluation into future live-authorized policy under human control. |
 | `SG3` | complete | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Cross-repo fixture work `AK-548` plus repo-local validation, workflow/handoff cleanup, and regression slices `AK-549`–`AK-551` have all landed, so DSPx now validates task scope from AK-native snapshots, keeps legacy scope files as brownfield fallback only, and covers the cleaned-up authority story with broader regressions. |
 
 ## Strategic definitions of done

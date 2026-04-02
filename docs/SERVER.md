@@ -16,6 +16,16 @@ Overview
 - `POST /module` — generate a module via templates
 - `POST /mermaid` — generate DSPy programs from a Mermaid diagram
 
+By default, server-generated artifacts are persisted under `generated/server/` (override with `DSPX_SERVER_OUTPUT_DIR`).
+Successful responses now return stable artifact references rooted at that directory:
+
+- `/signature` and `/module` return `output_path`, `receipt_path`, and `output_hash`
+- `/mermaid` returns `output_dir`, `manifest_path`, and `produced` artifact refs
+
+Persistence truthfulness rules:
+- `/signature` and `/module` degrade cleanly when artifact persistence fails by returning `null` refs but still returning the generated code plus `output_hash`
+- `/mermaid` returns `artifact_persistence_failed` (`500`) when the generated directory cannot be persisted, because the response contract is the persisted artifact set itself
+
 Run
 ---
 Use Granian (recommended) or any ASGI server. Defaults can be overridden via `DSPX_SERVER_HOST` and `DSPX_SERVER_PORT`.
@@ -42,6 +52,17 @@ Auth (Bearer tokens)
 - Require auth: `DSPX_AUTH_REQUIRED=1` (defaults on when any token present)
 - Client header: `Authorization: Bearer <token>`
 
+Mutation confirmation
+---------------------
+Set `DSPX_CONFIRM_MUTATIONS=1` to require `X-DSPX-Confirm: 1` on all mutating server endpoints:
+
+- `POST /signature`
+- `POST /module`
+- `POST /mermaid`
+
+When enabled, requests without that header fail closed with:
+`{ "error": "confirmation_required", "detail": "Mutation requires confirmation header X-DSPX-Confirm: 1", "status": 403 }`
+
 Rate limiting
 -------------
 - Enable: `DSPX_RATE_LIMIT_ENABLED=1`
@@ -63,7 +84,9 @@ The server can expose lightweight counters for health/debugging.
 Errors (standardized JSON)
 -------------------------
 - Unauthorized: `{ "error": "unauthorized", "detail": "missing bearer token", "status": 401 }`
+- Confirmation required: `{ "error": "confirmation_required", "detail": "Mutation requires confirmation header X-DSPX-Confirm: 1", "status": 403 }`
 - Rate limited: `{ "error": "rate_limited", "detail": "limit exceeded", "status": 429 }`
+- Artifact persistence failure: `{ "error": "artifact_persistence_failed", "detail": "failed to persist <kind> artifacts: ...", "status": 500 }`
 
 Trusted Proxies & X-Forwarded-For
 ---------------------------------
