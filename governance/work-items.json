@@ -988,14 +988,15 @@
         {
           "id": "AK-TASK-0708",
           "title": "Multi-provider runtime: harden dynamic capabilities, policy overrides, and dirty-worktree isolation",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Multi-provider runtime: harden dynamic capabilities, policy overrides, and dirty-worktree isolation (task #708)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-02"
         },
         {
           "id": "AK-TASK-0709",

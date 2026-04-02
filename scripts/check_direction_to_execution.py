@@ -58,6 +58,13 @@ def _extract_active_operational_task(
     return None
 
 
+def _ak_cmd(root: Path) -> list[str]:
+    wrapper = (root / "scripts" / "ak.sh").resolve()
+    if wrapper.exists():
+        return [str(wrapper)]
+    return ["ak"]
+
+
 def _run_json(cmd: list[str], *, relpath: str, issues: list[Issue]) -> object | None:
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -187,7 +194,7 @@ def collect_issues(root: Path) -> list[Issue]:
         )
 
     ready_payload = _run_json(
-        ["ak", "task", "ready", "-F", "json"],
+        [*_ak_cmd(root), "task", "ready", "-F", "json"],
         relpath="next_session_prompt.md",
         issues=issues,
     )
@@ -232,7 +239,7 @@ def collect_issues(root: Path) -> list[Issue]:
             )
 
     _run_check(
-        ["ak", "work-items", "check", "--repo", str(root)],
+        [*_ak_cmd(root), "work-items", "check", "--repo", str(root)],
         relpath="governance/work-items.json",
         issues=issues,
     )

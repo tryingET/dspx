@@ -46,6 +46,13 @@ class ScopeCheckResult:
         return not self.skipped and not self.issues
 
 
+def _ak_cmd(repo_root: Path) -> list[str]:
+    wrapper = (repo_root / "scripts" / "ak.sh").resolve()
+    if wrapper.exists():
+        return [str(wrapper)]
+    return ["ak"]
+
+
 def _run(
     cmd: list[str],
     *,
@@ -86,7 +93,10 @@ def _git_output_nul(cmd: list[str], *, cwd: Path) -> list[str]:
 
 
 def claimed_task_ids_for_repo(repo_root: Path) -> list[int]:
-    proc = _run(["ak", "task", "list", "-s", "claimed", "-F", "json"], cwd=repo_root)
+    proc = _run(
+        [*_ak_cmd(repo_root), "task", "list", "-s", "claimed", "-F", "json"],
+        cwd=repo_root,
+    )
     if proc.returncode != 0:
         raise RuntimeError(
             (proc.stderr or proc.stdout or "ak task list failed").strip()

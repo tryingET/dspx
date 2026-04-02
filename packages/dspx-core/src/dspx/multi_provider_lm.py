@@ -8,12 +8,13 @@ from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple
 
 # Internal DTO/provider base (optional)
 try:
-    from dspx.dtos import LMRequest, LMResponse
+    from dspx.dtos import LMRequest, LMResponse, Message
     from dspx.lm_base import LMBase as InternalLMBase
     from dspx.capabilities import ProviderCapabilities
 except Exception:  # pragma: no cover
     LMRequest = None  # type: ignore
     LMResponse = None  # type: ignore
+    Message = None  # type: ignore
 
     class InternalLMBase:
         pass
@@ -58,6 +59,60 @@ class ProviderCwdState:
     workspace: Optional[str] = None
     has_cwd: bool = False
     cwd: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class ProviderPolicyState:
+    has_dangerously_bypass: bool = False
+    dangerously_bypass: Any = None
+    has_auto_mode: bool = False
+    auto_mode: Any = None
+    has_permission_mode: bool = False
+    permission_mode: Any = None
+    has_allowed_tools: bool = False
+    allowed_tools: Any = None
+    has_disallowed_tools: bool = False
+    disallowed_tools: Any = None
+    has_append_system_prompt: bool = False
+    append_system_prompt: Any = None
+
+
+def _materialize_messages(
+    messages: Optional[Iterable[Dict[str, Any]]],
+) -> Optional[List[Dict[str, Any]]]:
+    if messages is None:
+        return None
+
+    materialized: List[Dict[str, Any]] = []
+    for message in messages:
+        if isinstance(message, dict):
+            materialized.append(dict(message))
+            continue
+        materialized.append(
+            {
+                "role": getattr(message, "role", None),
+                "content": getattr(message, "content", None),
+            }
+        )
+    return materialized
+
+
+def _build_lm_request_messages(
+    messages: Optional[Iterable[Dict[str, Any]]],
+) -> Optional[List[Any]]:
+    if Message is None or messages is None:
+        return None
+
+    typed_messages: List[Any] = []
+    for message in messages:
+        role = message.get("role")
+        content = message.get("content")
+        if role not in {"system", "user", "assistant", "tool"}:
+            raise ValueError(f"unsupported message role for LMRequest: {role!r}")
+        if not isinstance(content, str):
+            raise ValueError("LMRequest messages require string content")
+        typed_messages.append(Message(role=role, content=content))
+    return typed_messages
 
 
 def _extract_text_from_response(resp: Any) -> str:
@@ -250,9 +305,9 @@ class MultiProviderLM(DSPyBaseLM):
         self.worktree_branch_prefix = worktree_branch_prefix
         self.worktree_commitish = worktree_commitish
         self.cleanup_isolated = cleanup_isolated
-
-        # Align cross-SDK policy knobs (best-effort)
-        self._apply_alignment_policies()
+        self._async_cleanup_grace_s = 1.0
+        self._async_cleanup_poll_s = 0.05
+        self._async_cleanup_kill_wait_s = 0.2
 
         # capabilities
         caps = _combine_caps(self.providers)
@@ -261,6 +316,7 @@ class MultiProviderLM(DSPyBaseLM):
                 InternalLMBase.__init__(self, capabilities=caps)  # type: ignore
         except Exception:
             pass
+        self._refresh_capabilities()
         # expose last results snapshot for observability
         self.last_results: List[ProviderResult] = []
 
@@ -314,23 +370,45 @@ class MultiProviderLM(DSPyBaseLM):
     def _run_all(
         self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
     ) -> List[ProviderResult]:
-        strat = self.strategy
-        if strat == "parallel_first":
-            return self._run_parallel_first(prompt=prompt, messages=messages)
-        elif strat in {"collect_concat", "collect_longest"}:
-            # sequential collection to avoid simultaneous side-effects
-            outs: List[ProviderResult] = []
+        materialized_messages = _materialize_messages(messages)
+        self._refresh_capabilities()
+        policy_states = self._apply_alignment_policies()
+        try:
+            strat = self.strategy
+            if strat == "parallel_first":
+                return self._run_parallel_first(
+                    prompt=prompt,
+                    messages=materialized_messages,
+                )
+            elif strat in {"collect_concat", "collect_longest"}:
+                # sequential collection to avoid simultaneous side-effects
+                outs: List[ProviderResult] = []
+                for idx, p in enumerate(self.providers):
+                    outs.append(
+                        self._run_one(
+                            idx,
+                            p,
+                            prompt=prompt,
+                            messages=materialized_messages,
+                        )
+                    )
+                return outs
+            # default: sequential_first
+            outs2: List[ProviderResult] = []
             for idx, p in enumerate(self.providers):
-                outs.append(self._run_one(idx, p, prompt=prompt, messages=messages))
-            return outs
-        # default: sequential_first
-        outs2: List[ProviderResult] = []
-        for idx, p in enumerate(self.providers):
-            res = self._run_one(idx, p, prompt=prompt, messages=messages)
-            outs2.append(res)
-            if (res.error is None) and res.text.strip():
-                return [res]
-        return outs2
+                res = self._run_one(
+                    idx,
+                    p,
+                    prompt=prompt,
+                    messages=materialized_messages,
+                )
+                outs2.append(res)
+                if (res.error is None) and res.text.strip():
+                    return [res]
+            return outs2
+        finally:
+            self._restore_alignment_policies(policy_states)
+            self._refresh_capabilities()
 
     def _run_one(
         self,
@@ -351,11 +429,9 @@ class MultiProviderLM(DSPyBaseLM):
                 resp = provider.forward(prompt=prompt, messages=messages)
                 text = _extract_text_from_response(resp)
             elif LMRequest is not None and hasattr(provider, "generate"):
-                # Build LMRequest for provider.generate if only DTO is available
-                # We don't have the typed Message class here; pass prompt only.
                 req = LMRequest(
                     prompt=prompt,
-                    messages=None,
+                    messages=_build_lm_request_messages(messages),
                 )
                 r = provider.generate(req)
                 text = (
@@ -368,7 +444,7 @@ class MultiProviderLM(DSPyBaseLM):
                 name=name,
                 model=getattr(provider, "model", None),
                 text=text or "",
-                raw=resp if "resp" in locals() else None,
+                raw=(r if "r" in locals() else (resp if "resp" in locals() else None)),
                 started_at=t0,
                 ended_at=t1,
             )
@@ -570,51 +646,118 @@ class MultiProviderLM(DSPyBaseLM):
                 pass
         return [candidates[0]]
 
-    def _apply_alignment_policies(self) -> None:
-        for p in self.providers:
+    def _refresh_capabilities(self) -> None:
+        try:
+            setattr(self, "capabilities", _combine_caps(self.providers))
+        except Exception:
+            pass
+
+    def _capture_policy_state(self, provider: Any) -> ProviderPolicyState:
+        return ProviderPolicyState(
+            has_dangerously_bypass=hasattr(provider, "dangerously_bypass"),
+            dangerously_bypass=getattr(provider, "dangerously_bypass", None),
+            has_auto_mode=hasattr(provider, "auto_mode"),
+            auto_mode=getattr(provider, "auto_mode", None),
+            has_permission_mode=hasattr(provider, "permission_mode"),
+            permission_mode=getattr(provider, "permission_mode", None),
+            has_allowed_tools=hasattr(provider, "allowed_tools"),
+            allowed_tools=getattr(provider, "allowed_tools", None),
+            has_disallowed_tools=hasattr(provider, "disallowed_tools"),
+            disallowed_tools=getattr(provider, "disallowed_tools", None),
+            has_append_system_prompt=hasattr(provider, "append_system_prompt"),
+            append_system_prompt=getattr(provider, "append_system_prompt", None),
+        )
+
+    def _apply_alignment_policies(self) -> List[ProviderPolicyState]:
+        states: List[ProviderPolicyState] = []
+        for provider in self.providers:
+            states.append(self._capture_policy_state(provider))
             try:
                 if self.policy_bypass_permissions is True:
-                    # CodexExecLM: dangerously_bypass
-                    if hasattr(p, "dangerously_bypass"):
+                    if hasattr(provider, "dangerously_bypass"):
                         try:
-                            setattr(p, "dangerously_bypass", True)
-                            # if auto_mode is a thing, prefer bypass over auto
-                            if hasattr(p, "auto_mode"):
-                                setattr(p, "auto_mode", False)
+                            setattr(provider, "dangerously_bypass", True)
+                            if hasattr(provider, "auto_mode"):
+                                setattr(provider, "auto_mode", False)
                         except Exception:
                             pass
-                    # ClaudeHeadlessLM: permission_mode=acceptEdits
-                    if hasattr(p, "permission_mode"):
+                    if hasattr(provider, "permission_mode"):
                         try:
-                            if getattr(p, "permission_mode", None) in (None, ""):
-                                setattr(p, "permission_mode", "acceptEdits")
+                            if getattr(provider, "permission_mode", None) in (None, ""):
+                                setattr(provider, "permission_mode", "acceptEdits")
                         except Exception:
                             pass
                 if self.policy_allowed_tools is not None and hasattr(
-                    p, "allowed_tools"
+                    provider, "allowed_tools"
                 ):
                     try:
-                        setattr(p, "allowed_tools", self.policy_allowed_tools)
+                        setattr(provider, "allowed_tools", self.policy_allowed_tools)
                     except Exception:
                         pass
                 if self.policy_disallowed_tools is not None and hasattr(
-                    p, "disallowed_tools"
-                ):
-                    try:
-                        setattr(p, "disallowed_tools", self.policy_disallowed_tools)
-                    except Exception:
-                        pass
-                if self.policy_append_system_prompt is not None and hasattr(
-                    p, "append_system_prompt"
+                    provider, "disallowed_tools"
                 ):
                     try:
                         setattr(
-                            p, "append_system_prompt", self.policy_append_system_prompt
+                            provider,
+                            "disallowed_tools",
+                            self.policy_disallowed_tools,
+                        )
+                    except Exception:
+                        pass
+                if self.policy_append_system_prompt is not None and hasattr(
+                    provider, "append_system_prompt"
+                ):
+                    try:
+                        setattr(
+                            provider,
+                            "append_system_prompt",
+                            self.policy_append_system_prompt,
                         )
                     except Exception:
                         pass
             except Exception:
                 continue
+        return states
+
+    def _restore_alignment_policies(
+        self, states: Sequence[ProviderPolicyState]
+    ) -> None:
+        for provider, state in zip(self.providers, states):
+            try:
+                if state.has_dangerously_bypass:
+                    setattr(provider, "dangerously_bypass", state.dangerously_bypass)
+            except Exception:
+                pass
+            try:
+                if state.has_auto_mode:
+                    setattr(provider, "auto_mode", state.auto_mode)
+            except Exception:
+                pass
+            try:
+                if state.has_permission_mode:
+                    setattr(provider, "permission_mode", state.permission_mode)
+            except Exception:
+                pass
+            try:
+                if state.has_allowed_tools:
+                    setattr(provider, "allowed_tools", state.allowed_tools)
+            except Exception:
+                pass
+            try:
+                if state.has_disallowed_tools:
+                    setattr(provider, "disallowed_tools", state.disallowed_tools)
+            except Exception:
+                pass
+            try:
+                if state.has_append_system_prompt:
+                    setattr(
+                        provider,
+                        "append_system_prompt",
+                        state.append_system_prompt,
+                    )
+            except Exception:
+                pass
 
     def _apply_cwd(self, provider: Any, cwd: Optional[str]) -> ProviderCwdState:
         state = ProviderCwdState(
@@ -654,6 +797,29 @@ class MultiProviderLM(DSPyBaseLM):
 
     def base_cwdsafe(self) -> Optional[str]:
         return self.base_cwd
+
+    def _repo_has_dirty_worktree(self, repo_root: str) -> bool:
+        import subprocess
+
+        try:
+            cp = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    repo_root,
+                    "status",
+                    "--porcelain",
+                    "--untracked-files=all",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            return True
+        if cp.returncode != 0:
+            return True
+        return bool(cp.stdout.strip())
 
     # Isolation helpers
     def _prepare_isolated_cwds(
@@ -725,6 +891,9 @@ class MultiProviderLM(DSPyBaseLM):
                 return self._prepare_mirror_isolated_cwds(n)
             repo_root = cp.stdout.strip()
         except Exception:
+            return self._prepare_mirror_isolated_cwds(n)
+
+        if self._repo_has_dirty_worktree(repo_root):
             return self._prepare_mirror_isolated_cwds(n)
 
         worktrees: List[Optional[str]] = [None] * n
@@ -830,6 +999,42 @@ class MultiProviderLM(DSPyBaseLM):
             self._cleanup_isolated(info)
             return
 
+        def _popen_is_alive(popen: Any) -> bool:
+            try:
+                return popen.poll() is None
+            except Exception:
+                return False
+
+        def _force_kill_popen(popen: Any) -> None:
+            pid = getattr(popen, "pid", None)
+            if pid is not None:
+                try:
+                    import os
+                    import signal
+
+                    os.killpg(pid, signal.SIGKILL)
+                except Exception:
+                    pass
+            for method_name in ("terminate", "kill"):
+                try:
+                    method = getattr(popen, method_name)
+                except Exception:
+                    method = None
+                if callable(method):
+                    try:
+                        method()
+                    except Exception:
+                        pass
+            try:
+                wait = getattr(popen, "wait")
+            except Exception:
+                wait = None
+            if callable(wait):
+                try:
+                    wait(timeout=self._async_cleanup_kill_wait_s)
+                except Exception:
+                    pass
+
         def _cleanup_when_safe() -> None:
             for th in sync_threads:
                 try:
@@ -838,17 +1043,20 @@ class MultiProviderLM(DSPyBaseLM):
                     pass
 
             if pending_async:
-                while True:
-                    alive = []
-                    for popen in pending_async:
-                        try:
-                            if popen.poll() is None:
-                                alive.append(popen)
-                        except Exception:
-                            continue
-                    if not alive:
-                        break
-                    time.sleep(0.05)
+                deadline = time.time() + max(0.0, self._async_cleanup_grace_s)
+                alive = [popen for popen in pending_async if _popen_is_alive(popen)]
+                while alive and time.time() < deadline:
+                    time.sleep(self._async_cleanup_poll_s)
+                    alive = [popen for popen in alive if _popen_is_alive(popen)]
+                for popen in alive:
+                    _force_kill_popen(popen)
+                kill_deadline = time.time() + max(
+                    self._async_cleanup_kill_wait_s,
+                    self._async_cleanup_poll_s,
+                )
+                while alive and time.time() < kill_deadline:
+                    time.sleep(self._async_cleanup_poll_s)
+                    alive = [popen for popen in alive if _popen_is_alive(popen)]
 
             self._cleanup_isolated(info)
 

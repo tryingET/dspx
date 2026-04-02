@@ -36,8 +36,8 @@ Done when:
 ## Active operating decomposition for `TG24`
 
 - `AK-707` (done) — persist server-generated signature/module/mermaid artifacts and receipts, enforce confirmation gates across all mutating server endpoints, and return stable artifact references/manifest paths.
-- `AK-708` (ready) — harden multi-provider orchestration with dynamic capability aggregation, request-message preservation, policy override restoration, dirty-worktree-safe git-worktree isolation, and hung-loser cleanup.
-- `AK-709` (after `AK-708`) — tighten SG2 receipt parsing, MLflow explain artifact matching, OpenAPI numeric strictness, rate-limit token parsing, and adjacent regression coverage.
+- `AK-708` (done) — harden multi-provider orchestration with dynamic capability aggregation, request-message preservation, policy override restoration, dirty-worktree-safe git-worktree isolation, and hung-loser cleanup.
+- `AK-709` (ready) — tighten SG2 receipt parsing, MLflow explain artifact matching, OpenAPI numeric strictness, rate-limit token parsing, and adjacent regression coverage.
 
 ## Recently completed tactical goals for `SG2`
 

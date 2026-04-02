@@ -15,6 +15,7 @@ from dspx.dspy_lm_auth_lm import DspyLMAuthLM
 import dspx.provider_registry as provider_registry
 from dspx.capabilities import ProviderCapabilities
 from dspx.provider_registry import available, ensure_default_providers
+import dspx.providers_register_multi as providers_register_multi
 from dspx.providers_register_openai_compatible import _truthy
 from dspx.dtos import LMRequest
 from dspx.run_receipts import build_run_receipt
@@ -213,6 +214,91 @@ def test_cli_provider_capabilities_match_runtime_json_mode(monkeypatch) -> None:
         == resolved_payload["capabilities"]["structured_output_format"]
         == "json"
     )
+
+
+def test_cli_multi_provider_capabilities_follow_runtime_aggregation(
+    monkeypatch,
+) -> None:
+    saved_registry = dict(provider_registry._REGISTRY)
+
+    class _FakeProvider:
+        def __init__(self, model: str, caps: ProviderCapabilities) -> None:
+            self.model = model
+            self.model_type = "text"
+            self.capabilities = caps
+
+    left_caps = ProviderCapabilities(
+        supports_tools=False,
+        code_exec=False,
+        json_mode=True,
+        multi_turn=False,
+        structured_output_format="json",
+    )
+    right_caps = ProviderCapabilities(
+        supports_tools=True,
+        code_exec=False,
+        json_mode=False,
+        multi_turn=True,
+        structured_output_format="none",
+        supports_vision=True,
+    )
+
+    try:
+        provider_registry._REGISTRY.clear()
+        provider_registry.register_provider(
+            "left",
+            lambda: _FakeProvider("left/model", left_caps),
+            left_caps,
+        )
+        provider_registry.register_provider(
+            "right",
+            lambda: _FakeProvider("right/model", right_caps),
+            right_caps,
+        )
+        provider_registry.register_provider(
+            "multi",
+            providers_register_multi._factory,
+            ProviderCapabilities(
+                supports_tools=False,
+                code_exec=True,
+                json_mode=True,
+                multi_turn=False,
+                structured_output_format="json",
+            ),
+        )
+
+        monkeypatch.setenv("MLFLOW_ENABLE", "0")
+        monkeypatch.setenv("DSPX_MULTI_PROVIDERS", "left,right")
+
+        caps_result = runner.invoke(
+            app, ["providers", "capabilities", "--provider", "multi", "--json"]
+        )
+        assert caps_result.exit_code == 0
+        caps_payload = json.loads(caps_result.stdout)
+
+        resolved_result = runner.invoke(
+            app, ["providers", "resolve", "--provider", "multi", "--json"]
+        )
+        assert resolved_result.exit_code == 0
+        resolved_payload = json.loads(resolved_result.stdout)
+
+        assert caps_payload == {
+            "provider": "multi",
+            "supports_tools": True,
+            "code_exec": False,
+            "json_mode": False,
+            "multi_turn": True,
+            "structured_output_format": "none",
+            "supports_vision": True,
+            "supports_audio": False,
+        }
+        assert caps_payload == {
+            "provider": "multi",
+            **resolved_payload["capabilities"],
+        }
+    finally:
+        provider_registry._REGISTRY.clear()
+        provider_registry._REGISTRY.update(saved_registry)
 
 
 def test_truthy_strips_whitespace_and_falsey_variants(monkeypatch) -> None:

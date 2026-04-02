@@ -42,24 +42,22 @@ def providers_capabilities(
     json_out: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Show capabilities for a specific provider."""
-    from dspx.provider_registry import ensure_default_providers, capabilities as _caps
+    from dspx.provider_runtime import describe_provider
 
     ensure_env(provider, tracing=False)
-    ensure_default_providers()
     name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
-    caps = _caps(name)
+    resolved = describe_provider(name)
+    caps = resolved.get("capabilities") or {}
 
     payload = {
         "provider": name,
-        "supports_tools": bool(getattr(caps, "supports_tools", False)),
-        "code_exec": bool(getattr(caps, "code_exec", False)),
-        "json_mode": bool(getattr(caps, "json_mode", False)),
-        "multi_turn": bool(getattr(caps, "multi_turn", False)),
-        "structured_output_format": str(
-            getattr(caps, "structured_output_format", "none")
-        ),
-        "supports_vision": bool(getattr(caps, "supports_vision", False)),
-        "supports_audio": bool(getattr(caps, "supports_audio", False)),
+        "supports_tools": bool(caps.get("supports_tools", False)),
+        "code_exec": bool(caps.get("code_exec", False)),
+        "json_mode": bool(caps.get("json_mode", False)),
+        "multi_turn": bool(caps.get("multi_turn", False)),
+        "structured_output_format": str(caps.get("structured_output_format", "none")),
+        "supports_vision": bool(caps.get("supports_vision", False)),
+        "supports_audio": bool(caps.get("supports_audio", False)),
     }
 
     output_json(payload, json_out)
