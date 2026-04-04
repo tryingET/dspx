@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 from typing import Any, Dict, Mapping, Optional, cast
+import math as _math
 import re as _re
 from urllib.parse import quote, urljoin
 
@@ -43,12 +44,66 @@ def _build_url(server: str, path: str, params: Mapping[str, Any]) -> str:
     return out_path
 
 
+_INTEGER_PATTERN = _re.compile(r"^[+-]?\d+$")
+
+
+def _coerce_integer_value(
+    value: Any,
+    *,
+    label: str,
+    allow_strings: bool,
+) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{label}: expected integer")
+    if isinstance(value, int):
+        return value
+    if allow_strings and isinstance(value, str):
+        text = value.strip()
+        if _INTEGER_PATTERN.fullmatch(text):
+            return int(text)
+    raise ValueError(f"{label}: expected integer")
+
+
+def _coerce_number_value(
+    value: Any,
+    *,
+    label: str,
+    allow_strings: bool,
+) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{label}: expected number")
+    if isinstance(value, (int, float)):
+        number = float(value)
+        if _math.isfinite(number):
+            return number
+        raise ValueError(f"{label}: expected finite number")
+    if allow_strings and isinstance(value, str):
+        text = value.strip()
+        if not text:
+            raise ValueError(f"{label}: expected number")
+        try:
+            number = float(text)
+        except Exception:
+            raise ValueError(f"{label}: expected number")
+        if _math.isfinite(number):
+            return number
+        raise ValueError(f"{label}: expected finite number")
+    raise ValueError(f"{label}: expected number")
+
+
 def _coerce_numeric_param(value: Any, *, integer: bool, label: str) -> float | int:
-    try:
-        return int(str(value)) if integer else float(str(value))
-    except Exception:
-        expected = "integer" if integer else "number"
-        raise ValueError(f"{label}: expected {expected}")
+    if integer:
+        return _coerce_integer_value(value, label=label, allow_strings=True)
+    return _coerce_number_value(value, label=label, allow_strings=True)
+
+
+def _schema_numeric_value(raw: Any, *, label: str) -> float:
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise ValueError(f"{label}: expected finite number")
+    number = float(raw)
+    if not _math.isfinite(number):
+        raise ValueError(f"{label}: expected finite number")
+    return number
 
 
 def _exclusive_threshold(
@@ -58,20 +113,28 @@ def _exclusive_threshold(
     if isinstance(raw, bool):
         if not raw:
             return None
-        fallback = schema.get(fallback_key)
-        return float(fallback) if fallback is not None else None
-    if isinstance(raw, (int, float)):
-        return float(raw)
-    return None
+        if fallback_key not in schema:
+            raise ValueError(f"{key}: missing {fallback_key}")
+        return _schema_numeric_value(
+            schema.get(fallback_key),
+            label=f"{key}/{fallback_key}",
+        )
+    if raw is None:
+        return None
+    return _schema_numeric_value(raw, label=key)
 
 
 def _validate_numeric_bounds(
     value: float | int, schema: Mapping[str, Any], *, label: str
 ) -> None:
-    if "minimum" in schema and value < float(schema["minimum"]):
-        raise ValueError(f"{label}: below minimum")
-    if "maximum" in schema and value > float(schema["maximum"]):
-        raise ValueError(f"{label}: above maximum")
+    if "minimum" in schema:
+        minimum = _schema_numeric_value(schema["minimum"], label="minimum")
+        if value < minimum:
+            raise ValueError(f"{label}: below minimum")
+    if "maximum" in schema:
+        maximum = _schema_numeric_value(schema["maximum"], label="maximum")
+        if value > maximum:
+            raise ValueError(f"{label}: above maximum")
 
     exclusive_minimum = _exclusive_threshold(
         schema,
@@ -179,21 +242,33 @@ def call_operation(
                             f"Invalid type for query param {p.get('name')}: expected array/list"
                         )
                     if itype == "integer":
-                        for el in val:
-                            try:
-                                int(str(el))
-                            except Exception:
-                                raise ValueError(
-                                    f"Invalid item type in array param {p.get('name')}: expected integer"
-                                )
+                        for idx, el in enumerate(val):
+                            coerced = _coerce_integer_value(
+                                el,
+                                label=f"Invalid item type in array param {p.get('name')}",
+                                allow_strings=True,
+                            )
+                            _validate_numeric_bounds(
+                                coerced,
+                                items,
+                                label=(
+                                    f"Invalid item value in array param {p.get('name')}[{idx}]"
+                                ),
+                            )
                     elif itype == "number":
-                        for el in val:
-                            try:
-                                float(str(el))
-                            except Exception:
-                                raise ValueError(
-                                    f"Invalid item type in array param {p.get('name')}: expected number"
-                                )
+                        for idx, el in enumerate(val):
+                            coerced = _coerce_number_value(
+                                el,
+                                label=f"Invalid item type in array param {p.get('name')}",
+                                allow_strings=True,
+                            )
+                            _validate_numeric_bounds(
+                                coerced,
+                                items,
+                                label=(
+                                    f"Invalid item value in array param {p.get('name')}[{idx}]"
+                                ),
+                            )
                     elif itype == "boolean":
                         for el in val:
                             if str(el).lower() not in {
@@ -635,39 +710,14 @@ def _validate_json_value_against_schema(
 
     # Primitive types
     if t == "integer":
-        try:
-            int(value)
-        except Exception:
-            raise ValueError(f"{path}: expected integer")
-        # numeric bounds
-        try:
-            v = int(value)
-            if "minimum" in schema and v < int(schema["minimum"]):
-                raise ValueError(f"{path}: below minimum")
-            if "maximum" in schema and v > int(schema["maximum"]):
-                raise ValueError(f"{path}: above maximum")
-            exclusive_minimum = _exclusive_threshold(
-                schema,
-                key="exclusiveMinimum",
-                fallback_key="minimum",
-            )
-            if exclusive_minimum is not None and v <= exclusive_minimum:
-                raise ValueError(f"{path}: <= exclusiveMinimum")
-            exclusive_maximum = _exclusive_threshold(
-                schema,
-                key="exclusiveMaximum",
-                fallback_key="maximum",
-            )
-            if exclusive_maximum is not None and v >= exclusive_maximum:
-                raise ValueError(f"{path}: >= exclusiveMaximum")
-        except ValueError:
-            raise
-        except Exception:
-            pass
+        v = _coerce_integer_value(value, label=path, allow_strings=False)
+        _validate_numeric_bounds(v, schema, label=path)
         # multipleOf
-        if isinstance(schema.get("multipleOf"), (int, float)):
+        if isinstance(schema.get("multipleOf"), (int, float)) and not isinstance(
+            schema.get("multipleOf"), bool
+        ):
             try:
-                m = float(schema["multipleOf"])
+                m = _schema_numeric_value(schema["multipleOf"], label="multipleOf")
                 if m != 0.0:
                     q = float(v) / m
                     if abs(q - round(q)) > 1e-9:
@@ -678,39 +728,14 @@ def _validate_json_value_against_schema(
                 pass
         return
     if t == "number":
-        try:
-            float(value)
-        except Exception:
-            raise ValueError(f"{path}: expected number")
-        try:
-            v = float(value)
-            if "minimum" in schema and v < float(schema["minimum"]):
-                raise ValueError(f"{path}: below minimum")
-            if "maximum" in schema and v > float(schema["maximum"]):
-                raise ValueError(f"{path}: above maximum")
-            exclusive_minimum = _exclusive_threshold(
-                schema,
-                key="exclusiveMinimum",
-                fallback_key="minimum",
-            )
-            if exclusive_minimum is not None and v <= exclusive_minimum:
-                raise ValueError(f"{path}: <= exclusiveMinimum")
-            exclusive_maximum = _exclusive_threshold(
-                schema,
-                key="exclusiveMaximum",
-                fallback_key="maximum",
-            )
-            if exclusive_maximum is not None and v >= exclusive_maximum:
-                raise ValueError(f"{path}: >= exclusiveMaximum")
-        except ValueError:
-            raise
-        except Exception:
-            pass
+        v = _coerce_number_value(value, label=path, allow_strings=False)
+        _validate_numeric_bounds(v, schema, label=path)
         # multipleOf
-        if isinstance(schema.get("multipleOf"), (int, float)):
+        if isinstance(schema.get("multipleOf"), (int, float)) and not isinstance(
+            schema.get("multipleOf"), bool
+        ):
             try:
-                v = float(value)
-                m = float(schema["multipleOf"])
+                m = _schema_numeric_value(schema["multipleOf"], label="multipleOf")
                 if m != 0.0:
                     q = v / m
                     if abs(q - round(q)) > 1e-9:

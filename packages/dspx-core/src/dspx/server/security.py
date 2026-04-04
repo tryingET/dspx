@@ -8,6 +8,7 @@ import os
 import time
 import logging
 import ipaddress
+import re
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -138,6 +139,9 @@ class Rate:
     period_seconds: float
 
 
+_RATE_LIMIT_COUNT_RE = re.compile(r"^[1-9][0-9]*$")
+
+
 def _parse_rate_token(tok: str) -> Rate:
     tok = tok.strip().lower()
     if not tok:
@@ -145,7 +149,12 @@ def _parse_rate_token(tok: str) -> Rate:
     if "/" not in tok:
         raise ValueError("rate token must be like '10/sec' or '60/min'")
     n_str, per = tok.split("/", 1)
-    n = int(float(n_str.strip()))
+    count_text = n_str.strip()
+    if not _RATE_LIMIT_COUNT_RE.fullmatch(count_text):
+        raise ValueError(
+            f"rate token count must be a positive integer in rate token '{tok}'"
+        )
+    n = int(count_text)
     per = per.strip()
     if per in {"s", "sec", "second", "seconds"}:
         return Rate(n, 1.0)

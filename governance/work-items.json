@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-02",
+  "updated_at": "2026-04-04",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -1001,14 +1001,15 @@
         {
           "id": "AK-TASK-0709",
           "title": "Boundary invariants: tighten SG2 receipt parsing, explain artifact matching, OpenAPI numerics, and rate-limit parsing",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Boundary invariants: tighten SG2 receipt parsing, explain artifact matching, OpenAPI numerics, and rate-limit parsing (task #709)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-04"
         }
       ]
     }

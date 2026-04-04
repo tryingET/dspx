@@ -9,23 +9,17 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
 
-Active tactical goal: `TG24`
-Next tactical goal: `TG25`
+Active tactical goal: `TG25`
+Next tactical goal: `unmaterialized`
 
 ## Tactical ranking for `SG2` (Eisenhower-3D)
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TG24` | active | Harden receipt-bearing runtime boundaries so server, multi-provider, replay/explain, and SG2 evidence surfaces persist trustworthy artifacts and fail closed under drift. | 5 | 5 | 3 | The working tree already carries concrete repo-local edits across server artifact persistence, mutation confirmation, multi-provider isolation/policy restoration, strict boundary validators, and SG2 receipt parsing, while AK had no live slice for that wave. |
-| `TG25` | next | Freeze the first explicit human-governed promotion-eligibility contract for moving named governance-only policy variants toward future live-authorized policy. | 5 | 4 | 4 | SG2 still needs an explicit bridge beyond governance-only receipts, but that bridge should sit on hardened receipt/runtime surfaces instead of today’s partially implicit boundary behavior. |
+| `TG25` | active | Freeze the first explicit human-governed promotion-eligibility contract for moving named governance-only policy variants toward future live-authorized policy. | 5 | 4 | 4 | `AK-707`/`AK-708`/`AK-709` closed the receipt/runtime boundary hardening wave, so SG2's next leverage is to freeze the bounded human-governed contract that decides how governance-only receipts may ever nominate a variant for review toward live authority. |
+| `TG24` | complete | Harden receipt-bearing runtime boundaries so server, multi-provider, replay/explain, and SG2 evidence surfaces persist trustworthy artifacts and fail closed under drift. | 5 | 5 | 3 | Completed via `AK-707`/`AK-708`/`AK-709`, which landed server artifact persistence/confirmation hardening, multi-provider isolation/capability hardening, and final parser/strictness tightening without widening live policy authority. |
 
 ## Tactical definitions of done
-
-### `TG24` — Receipt-bearing runtime boundary hardening
-Done when:
-- server-generated signature/module/mermaid runs persist stable artifacts and receipts or degrade cleanly without lying about persistence,
-- multi-provider orchestration preserves request/policy isolation semantics and fail-closed winner/capability behavior under dirty-worktree and async edge cases,
-- receipt/explain/openapi/rate-limit/evidence parsers reject malformed boundary inputs instead of silently coercing them.
 
 ### `TG25` — Governed promotion-eligibility contract
 Done when:
@@ -33,14 +27,21 @@ Done when:
 - the contract defines allowed evidence inputs, required review/audit artifacts, and explicit non-authority defaults,
 - the repo can materialize the first bounded follow-on slice without silently widening live ranking/promotion power.
 
-## Active operating decomposition for `TG24`
+### `TG24` — Receipt-bearing runtime boundary hardening
+Done when:
+- server-generated signature/module/mermaid runs persist stable artifacts and receipts or degrade cleanly without lying about persistence,
+- multi-provider orchestration preserves request/policy isolation semantics and fail-closed winner/capability behavior under dirty-worktree and async edge cases,
+- receipt/explain/openapi/rate-limit/evidence parsers reject malformed boundary inputs instead of silently coercing them.
 
-- `AK-707` (done) — persist server-generated signature/module/mermaid artifacts and receipts, enforce confirmation gates across all mutating server endpoints, and return stable artifact references/manifest paths.
-- `AK-708` (done) — harden multi-provider orchestration with dynamic capability aggregation, request-message preservation, policy override restoration, dirty-worktree-safe git-worktree isolation, and hung-loser cleanup.
-- `AK-709` (ready) — tighten SG2 receipt parsing, MLflow explain artifact matching, OpenAPI numeric strictness, rate-limit token parsing, and adjacent regression coverage.
+## Active operating decomposition for `TG25`
+
+- No repo-local `TG25` operating slice is pinned yet.
+- Materialize the first `TG25` contract-freezing or contract-grounding slice only when AK truthfully names it.
+- Do not guess the first `TG25` slice just to keep the queue non-empty.
 
 ## Recently completed tactical goals for `SG2`
 
+- `TG24` — closed the receipt-bearing runtime-boundary hardening wave via `AK-707`/`AK-708`/`AK-709`, persisting trustworthy server artifacts, hardening multi-provider isolation/capability boundaries, and tightening SG2 receipt/explain/openapi/rate-limit parsing without widening live policy authority.
 - `TG23` — materialized the first governance-only ranking/promotion evaluation receipts on `synthesis_diagnostics.governed_policy_evaluations`, evaluating named bounded variants against shadow predictive-ranking evidence plus trusted current metadata without changing live V7 ranking, tie-breaking, pruning, or promotion behavior.
 - `TG22` — froze the first governed policy-evaluation contract that consumes shadow predictive-ranking evidence as `docs/adr/20260330-synthesis-evidence-governed-policy-evaluation-contract-v1.md`, defining the bounded evaluation inputs, variant surfaces, receipt payload, and promotion-authority limits before the first governed receipt wave.
 - `TG21` — materialized the read-only shadow predictive-ranking advisory on live module metadata and persisted receipts, comparing a bounded prior-aware shadow preference against the trusted V7 winner without changing live ranking, tie-breaking, pruning, or promotion behavior.
@@ -71,10 +72,11 @@ Done when:
 ## Defer/until-later notes
 
 The following remain intentionally out of the active tactical wave until the lifecycle promotes them:
-- jumping directly from governance-only evaluation receipts to a live-authority promotion contract while `TG24` runtime-boundary hardening is still incomplete,
 - live predictive ranking from Oracle priors,
 - live candidate pruning or promotion blocking from prior-backed signals,
 - strategy/policy mutation without explicit governed evaluation receipts,
-- widening authority beyond governance-only receipt emission before a later contract explicitly promotes a named variant into live policy,
+- widening authority beyond governance-only receipt emission before `TG25` freezes the explicit human-governed promotion-eligibility contract,
+- guessing the first `TG25` operating slice just to keep the queue non-empty,
+- reopening the completed `TG24` runtime-boundary hardening wave without a new contract, surfaced regression, or operator pull,
 - reopening the completed SG3 AK-native scope-snapshot chain without a new contract, surfaced regression, or operator pull,
 - older provider/runtime and Oracle follow-ons (`AK-224`, `AK-235`–`AK-239`) that remain non-active backlog.

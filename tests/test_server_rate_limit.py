@@ -11,7 +11,12 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from dspx.server.app import create_app
-from dspx.server.security import Rate, RateLimitConfig, RateLimitMiddleware
+from dspx.server.security import (
+    Rate,
+    RateLimitConfig,
+    RateLimitMiddleware,
+    parse_rate_spec,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -182,6 +187,12 @@ def test_global_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     r2 = c.post("/signature", json={"prompt": "p"})
     r3 = c.post("/signature", json={"prompt": "p"})
     assert r1.status_code == 200 and r2.status_code == 200 and r3.status_code == 429
+
+
+def test_rate_specs_reject_fractional_zero_and_negative_counts() -> None:
+    for spec in ("1.5/sec", "0/sec", "-1/sec"):
+        with pytest.raises(ValueError, match="positive integer"):
+            parse_rate_spec(spec)
 
 
 def test_valid_token_identity_is_hashed() -> None:

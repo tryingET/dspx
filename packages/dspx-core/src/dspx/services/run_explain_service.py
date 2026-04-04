@@ -94,6 +94,111 @@ def _load_mlflow_run_meta(run_dir: Path) -> dict[str, Any]:
     return out
 
 
+_MLFLOW_CORRELATION_TAG_KEYS: tuple[str, ...] = (
+    "dspx.run_kind",
+    "dspx.template_version",
+    "dspx.output_basename",
+    "dspx.cache_key",
+    "dspx.output_hash_prefix",
+    "service",
+    "template_version",
+)
+
+
+def _normalized_expected_mlflow_tags(receipt: Mapping[str, Any]) -> dict[str, str]:
+    hints = _as_dict(receipt.get("mlflow_hints"))
+    expected = _as_dict(hints.get("expected_tags"))
+    output_basename = Path(str(receipt.get("output_path") or "")).name
+    run_kind = str(
+        expected.get("dspx.run_kind") or receipt.get("run_kind") or ""
+    ).strip()
+    template_version = str(
+        expected.get("dspx.template_version")
+        or expected.get("template_version")
+        or receipt.get("template_version")
+        or ""
+    ).strip()
+    service = str(
+        expected.get("service") or _service_from_run_kind(run_kind) or ""
+    ).strip()
+
+    normalized: dict[str, str] = {}
+    for key in _MLFLOW_CORRELATION_TAG_KEYS:
+        raw = expected.get(key)
+        if key == "dspx.run_kind" and raw in {None, ""}:
+            raw = run_kind
+        elif key == "dspx.template_version" and raw in {None, ""}:
+            raw = template_version
+        elif key == "template_version" and raw in {None, ""}:
+            raw = template_version
+        elif key == "service" and raw in {None, ""}:
+            raw = service
+        elif key == "dspx.output_basename" and raw in {None, ""}:
+            raw = output_basename
+        value = str(raw or "").strip()
+        if value:
+            normalized[key] = value
+    return normalized
+
+
+def _load_mlflow_run_tags(run_dir: Path) -> dict[str, str]:
+    tags_dir = run_dir / "tags"
+    if not tags_dir.exists() or not tags_dir.is_dir():
+        return {}
+
+    out: dict[str, str] = {}
+    for path in tags_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        try:
+            key = path.relative_to(tags_dir).as_posix()
+            out[key] = path.read_text(encoding="utf-8").strip()
+        except Exception:
+            continue
+    return out
+
+
+def _expected_local_artifacts(
+    *, meta_path: Path, receipt: Mapping[str, Any]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    required: list[str] = []
+    optional: list[str] = []
+
+    if meta_path.name:
+        required.append(meta_path.name)
+
+    output_name = Path(str(receipt.get("output_path") or "")).name
+    if output_name and Path(output_name).suffix:
+        if output_name not in required:
+            required.append(output_name)
+    elif output_name or str(receipt.get("run_kind") or "").strip().lower() == "mermaid":
+        optional.append("manifest.json")
+
+    return tuple(required), tuple(dict.fromkeys(optional))
+
+
+def _mlflow_candidate_tags_match(
+    tags: Mapping[str, Any],
+    expected_tags: Mapping[str, str],
+    *,
+    strict: bool,
+) -> bool:
+    relevant_actual = {
+        key: str(tags.get(key) or "").strip()
+        for key in _MLFLOW_CORRELATION_TAG_KEYS
+        if str(tags.get(key) or "").strip()
+    }
+    if not relevant_actual:
+        return not strict
+
+    for key, expected in expected_tags.items():
+        if key not in _MLFLOW_CORRELATION_TAG_KEYS:
+            continue
+        if relevant_actual.get(key) != str(expected).strip():
+            return False
+    return True
+
+
 def _resolve_tracking_root(tracking_uri: str | None) -> tuple[Path | None, str, str]:
     """Resolve tracking root.
 
@@ -244,18 +349,43 @@ def _run_meta_from_client(run_id: str, *, tracking_uri: str) -> dict[str, Any]:
     return out
 
 
+def _run_tags_from_client(run_id: str, *, tracking_uri: str) -> dict[str, str]:
+    try:
+        from mlflow.tracking import MlflowClient
+    except Exception:
+        return {}
+
+    try:
+        client = MlflowClient(tracking_uri=tracking_uri)
+        run = client.get_run(run_id)
+    except Exception:
+        return {}
+
+    tags = getattr(run.data, "tags", {}) if hasattr(run, "data") else {}
+    if not isinstance(tags, Mapping):
+        return {}
+    return {
+        str(key): str(value).strip()
+        for key, value in tags.items()
+        if str(value).strip()
+    }
+
+
 def _find_linked_local_runs(
     *,
     tracking_roots: list[Path],
-    artifact_names: set[str],
+    required_artifacts: tuple[str, ...],
+    optional_artifacts: tuple[str, ...],
     tracking_uri: str,
+    expected_tags: Mapping[str, str],
     limit: int = 20,
 ) -> list[dict[str, Any]]:
     found: dict[str, dict[str, Any]] = {}
+    search_artifacts = tuple(dict.fromkeys([*required_artifacts, *optional_artifacts]))
     for tracking_root in tracking_roots:
         if not tracking_root.exists() or not tracking_root.is_dir():
             continue
-        for artifact_name in sorted(artifact_names):
+        for artifact_name in search_artifacts:
             if not artifact_name:
                 continue
             for candidate in tracking_root.rglob(artifact_name):
@@ -289,12 +419,24 @@ def _find_linked_local_runs(
         if len(found) >= limit:
             break
 
-    out = list(found.values())
-    for rec in out:
+    out: list[dict[str, Any]] = []
+    for rec in found.values():
         run_id = str(rec.get("run_id") or "")
         run_dir = rec.pop("_run_dir", None)
+        matched_artifacts = {
+            str(item)
+            for item in rec.get("matched_artifacts") or []
+            if str(item).strip()
+        }
+        if required_artifacts and not all(
+            artifact in matched_artifacts for artifact in required_artifacts
+        ):
+            continue
+
+        tags: dict[str, str] = {}
         if isinstance(run_dir, Path):
             rec.update(_load_mlflow_run_meta(run_dir))
+            tags = _load_mlflow_run_tags(run_dir)
 
         if run_id and (
             not rec.get("artifact_uri")
@@ -302,6 +444,26 @@ def _find_linked_local_runs(
             or not rec.get("start_time")
         ):
             rec.update(_run_meta_from_client(run_id, tracking_uri=tracking_uri))
+        if run_id and expected_tags and not tags:
+            tags = _run_tags_from_client(run_id, tracking_uri=tracking_uri)
+
+        if expected_tags and not _mlflow_candidate_tags_match(
+            tags,
+            expected_tags,
+            strict=False,
+        ):
+            continue
+
+        matched_tags = [
+            key
+            for key, expected in expected_tags.items()
+            if str(tags.get(key) or "").strip() == str(expected).strip()
+        ]
+        if matched_tags:
+            rec["matched_tags"] = matched_tags
+        out.append(rec)
+        if len(out) >= limit:
+            break
 
     return out
 
@@ -402,22 +564,24 @@ def _remote_search_candidates(
         reasons.append("mlflow_remote_no_candidate")
         return [], reasons, elapsed
 
-    hints = _as_dict(receipt.get("mlflow_hints"))
-    expected_tags = _as_dict(hints.get("expected_tags"))
+    expected_tags = _normalized_expected_mlflow_tags(receipt)
 
-    run_kind = str(
-        expected_tags.get("dspx.run_kind") or receipt.get("run_kind") or ""
-    ).strip()
-    template_version = str(
-        expected_tags.get("dspx.template_version")
-        or receipt.get("template_version")
-        or ""
-    ).strip()
-    service = str(
-        expected_tags.get("service") or _service_from_run_kind(run_kind) or ""
-    ).strip()
+    run_kind = str(expected_tags.get("dspx.run_kind") or "").strip()
+    template_version = str(expected_tags.get("dspx.template_version") or "").strip()
+    output_basename = str(expected_tags.get("dspx.output_basename") or "").strip()
+    service = str(expected_tags.get("service") or "").strip()
 
     filter_candidates: list[str] = []
+    if run_kind and template_version and output_basename:
+        filter_candidates.append(
+            " and ".join(
+                [
+                    f"tags.dspx.run_kind = '{_quote_filter_value(run_kind)}'",
+                    f"tags.dspx.template_version = '{_quote_filter_value(template_version)}'",
+                    f"tags.dspx.output_basename = '{_quote_filter_value(output_basename)}'",
+                ]
+            )
+        )
     if run_kind and template_version:
         filter_candidates.append(
             " and ".join(
@@ -427,12 +591,31 @@ def _remote_search_candidates(
                 ]
             )
         )
+    if service and template_version and output_basename:
+        filter_candidates.append(
+            " and ".join(
+                [
+                    f"tags.service = '{_quote_filter_value(service)}'",
+                    f"tags.template_version = '{_quote_filter_value(template_version)}'",
+                    f"tags.dspx.output_basename = '{_quote_filter_value(output_basename)}'",
+                ]
+            )
+        )
     if service and template_version:
         filter_candidates.append(
             " and ".join(
                 [
                     f"tags.service = '{_quote_filter_value(service)}'",
                     f"tags.template_version = '{_quote_filter_value(template_version)}'",
+                ]
+            )
+        )
+    if service and output_basename:
+        filter_candidates.append(
+            " and ".join(
+                [
+                    f"tags.service = '{_quote_filter_value(service)}'",
+                    f"tags.dspx.output_basename = '{_quote_filter_value(output_basename)}'",
                 ]
             )
         )
@@ -484,19 +667,31 @@ def _remote_search_candidates(
         info = getattr(run, "info", None)
         data = getattr(run, "data", None)
         tags = _as_dict(getattr(data, "tags", {}))
+        if expected_tags and not _mlflow_candidate_tags_match(
+            tags,
+            expected_tags,
+            strict=True,
+        ):
+            continue
         run_name = getattr(info, "run_name", None) or tags.get("mlflow.runName")
-        candidates.append(
-            {
-                "run_id": str(getattr(info, "run_id", "") or ""),
-                "experiment_id": str(getattr(info, "experiment_id", "") or ""),
-                "status": getattr(info, "status", None),
-                "lifecycle_stage": getattr(info, "lifecycle_stage", None),
-                "start_time": getattr(info, "start_time", None),
-                "end_time": getattr(info, "end_time", None),
-                "artifact_uri": getattr(info, "artifact_uri", None),
-                "run_name": run_name,
-            }
-        )
+        candidate = {
+            "run_id": str(getattr(info, "run_id", "") or ""),
+            "experiment_id": str(getattr(info, "experiment_id", "") or ""),
+            "status": getattr(info, "status", None),
+            "lifecycle_stage": getattr(info, "lifecycle_stage", None),
+            "start_time": getattr(info, "start_time", None),
+            "end_time": getattr(info, "end_time", None),
+            "artifact_uri": getattr(info, "artifact_uri", None),
+            "run_name": run_name,
+        }
+        matched_tags = [
+            key
+            for key, expected in expected_tags.items()
+            if str(tags.get(key) or "").strip() == str(expected).strip()
+        ]
+        if matched_tags:
+            candidate["matched_tags"] = matched_tags
+        candidates.append(candidate)
 
     if len(candidates) >= int(candidate_cap):
         reasons.append("mlflow_remote_candidate_cap_reached")
@@ -601,12 +796,17 @@ def _mlflow_context(
         out["degrade_reason_codes"] = _ordered_unique_reason_codes(reasons)
         return out
 
-    output_name = Path(str(receipt.get("output_path") or "")).name
-    artifact_names = {meta_path.name, output_name, "manifest.json"}
+    expected_tags = _normalized_expected_mlflow_tags(receipt)
+    required_artifacts, optional_artifacts = _expected_local_artifacts(
+        meta_path=meta_path,
+        receipt=receipt,
+    )
     linked_runs = _find_linked_local_runs(
         tracking_roots=local_roots,
-        artifact_names=artifact_names,
+        required_artifacts=required_artifacts,
+        optional_artifacts=optional_artifacts,
         tracking_uri=tracking_display,
+        expected_tags=expected_tags,
     )
     out["linked_runs"] = linked_runs
     out["candidate_count"] = len(linked_runs)

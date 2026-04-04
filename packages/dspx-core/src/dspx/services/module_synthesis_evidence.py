@@ -367,6 +367,167 @@ def _optional_str(value: object) -> str | None:
     return text or None
 
 
+_RECEIPT_HISTORICAL_SURFACE_VERSION_FIELDS = {
+    "candidate_winner_priors": "candidate_prior_version",
+    "candidate_prior_audit": "candidate_prior_audit_version",
+    "candidate_prior_divergence_explanation": (
+        "candidate_prior_divergence_explanation_version"
+    ),
+    "candidate_prior_readiness_advisory": (
+        "candidate_prior_readiness_advisory_version"
+    ),
+    "candidate_prior_counterfactual_advisory": (
+        "candidate_prior_counterfactual_advisory_version"
+    ),
+    "shadow_predictive_ranking_advisory": (
+        "shadow_predictive_ranking_advisory_version"
+    ),
+}
+
+_RECEIPT_HISTORICAL_SURFACES_WITH_STATUS = {
+    "candidate_prior_audit",
+    "candidate_prior_divergence_explanation",
+    "candidate_prior_readiness_advisory",
+    "candidate_prior_counterfactual_advisory",
+    "shadow_predictive_ranking_advisory",
+}
+
+_RECEIPT_GOVERNED_POLICY_REQUIRED_STRING_FIELDS = (
+    "policy_evaluation_receipt_version",
+    "evaluation_contract_version",
+    "variant_class",
+    "variant_policy_id",
+    "variant_policy_version",
+    "variant_policy_mode",
+    "outcome",
+    "authority_limit",
+    "decision_rule_summary",
+)
+
+_RECEIPT_GOVERNED_POLICY_REQUIRED_OBJECT_FIELDS = (
+    "live_policy_context",
+    "request_context",
+    "bounded_inputs",
+    "evaluation_result",
+    "promotion_authority",
+)
+
+
+def _historical_sg2_diagnostics_issue(
+    meta_path: Path,
+    receipt: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    raw_diagnostics = receipt.get("synthesis_diagnostics")
+    if raw_diagnostics is None:
+        return None
+    if not isinstance(raw_diagnostics, Mapping):
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_invalid_synthesis_diagnostics",
+            "message": "exact-match receipt synthesis_diagnostics must be a JSON object when present",
+            "stage": "parse",
+        }
+
+    diagnostics = _as_dict(raw_diagnostics)
+    for (
+        surface_name,
+        version_field,
+    ) in _RECEIPT_HISTORICAL_SURFACE_VERSION_FIELDS.items():
+        if surface_name not in diagnostics:
+            continue
+        surface = diagnostics.get(surface_name)
+        if not isinstance(surface, Mapping):
+            return {
+                "receipt_path": str(meta_path),
+                "code": "receipt_invalid_sg2_surface",
+                "message": f"exact-match receipt {surface_name} must be an object when present",
+                "stage": "parse",
+                "surface": surface_name,
+            }
+        surface_dict = _as_dict(surface)
+        if _optional_str(surface_dict.get(version_field)) is None:
+            return {
+                "receipt_path": str(meta_path),
+                "code": "receipt_invalid_sg2_surface",
+                "message": (
+                    f"exact-match receipt {surface_name} missing {version_field}"
+                ),
+                "stage": "parse",
+                "surface": surface_name,
+                "field": version_field,
+            }
+        if (
+            surface_name in _RECEIPT_HISTORICAL_SURFACES_WITH_STATUS
+            and _optional_str(surface_dict.get("status")) is None
+        ):
+            return {
+                "receipt_path": str(meta_path),
+                "code": "receipt_invalid_sg2_surface",
+                "message": f"exact-match receipt {surface_name} missing status",
+                "stage": "parse",
+                "surface": surface_name,
+                "field": "status",
+            }
+
+    if "governed_policy_evaluations" not in diagnostics:
+        return None
+
+    governed = diagnostics.get("governed_policy_evaluations")
+    if not isinstance(governed, list) or not governed:
+        return {
+            "receipt_path": str(meta_path),
+            "code": "receipt_invalid_governed_policy_evaluations",
+            "message": "exact-match receipt governed_policy_evaluations must be a non-empty list when present",
+            "stage": "parse",
+            "surface": "governed_policy_evaluations",
+        }
+
+    for idx, raw_item in enumerate(governed):
+        if not isinstance(raw_item, Mapping):
+            return {
+                "receipt_path": str(meta_path),
+                "code": "receipt_invalid_governed_policy_evaluations",
+                "message": (
+                    "exact-match receipt governed_policy_evaluations entries must "
+                    "be objects"
+                ),
+                "stage": "parse",
+                "surface": "governed_policy_evaluations",
+                "index": idx,
+            }
+        item = _as_dict(raw_item)
+        for field in _RECEIPT_GOVERNED_POLICY_REQUIRED_STRING_FIELDS:
+            if _optional_str(item.get(field)) is None:
+                return {
+                    "receipt_path": str(meta_path),
+                    "code": "receipt_invalid_governed_policy_evaluations",
+                    "message": (
+                        "exact-match receipt governed_policy_evaluations entry "
+                        f"missing {field}"
+                    ),
+                    "stage": "parse",
+                    "surface": "governed_policy_evaluations",
+                    "index": idx,
+                    "field": field,
+                }
+        for field in _RECEIPT_GOVERNED_POLICY_REQUIRED_OBJECT_FIELDS:
+            if not isinstance(item.get(field), Mapping):
+                return {
+                    "receipt_path": str(meta_path),
+                    "code": "receipt_invalid_governed_policy_evaluations",
+                    "message": (
+                        "exact-match receipt governed_policy_evaluations entry "
+                        f"must contain object field {field}"
+                    ),
+                    "stage": "parse",
+                    "surface": "governed_policy_evaluations",
+                    "index": idx,
+                    "field": field,
+                }
+
+    return None
+
+
 def _exact_match_request(
     receipt: Mapping[str, Any],
     request: ModuleSynthesisEvidenceRequest,
@@ -437,6 +598,10 @@ def _exact_match_receipt_issue(
             "message": "exact-match receipt missing ranking_policy_id",
             "stage": "eligibility",
         }
+
+    historical_issue = _historical_sg2_diagnostics_issue(meta_path, receipt)
+    if historical_issue is not None:
+        return historical_issue
 
     return None
 

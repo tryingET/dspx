@@ -372,6 +372,81 @@ def test_retrieve_module_synthesis_evidence_exposes_missing_historical_diagnosti
     assert readiness["history_summary"]["unusable_receipt_count"] == 1
 
 
+def test_retrieve_module_synthesis_evidence_rejects_malformed_shadow_surface(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="single.py",
+    )
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    diagnostics = dict(payload.get("synthesis_diagnostics") or {})
+    diagnostics["shadow_predictive_ranking_advisory"] = {
+        "shadow_predictive_ranking_advisory_version": "v1"
+    }
+    payload["synthesis_diagnostics"] = diagnostics
+    meta_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+
+    assert bundle.exact_match_receipts == ()
+    assert bundle.receipt_scan_error_count == 1
+    assert bundle.receipt_scan_errors[0]["code"] == "receipt_invalid_sg2_surface"
+    assert (
+        bundle.receipt_scan_errors[0]["surface"] == "shadow_predictive_ranking_advisory"
+    )
+
+
+def test_retrieve_module_synthesis_evidence_rejects_malformed_governed_policy_receipts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="single.py",
+    )
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    diagnostics = dict(payload.get("synthesis_diagnostics") or {})
+    diagnostics["governed_policy_evaluations"] = [
+        {"variant_class": "ranking_evaluation"}
+    ]
+    payload["synthesis_diagnostics"] = diagnostics
+    meta_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+
+    assert bundle.exact_match_receipts == ()
+    assert bundle.receipt_scan_error_count == 1
+    assert (
+        bundle.receipt_scan_errors[0]["code"]
+        == "receipt_invalid_governed_policy_evaluations"
+    )
+    assert bundle.receipt_scan_errors[0]["surface"] == "governed_policy_evaluations"
+
+
 def test_retrieve_module_synthesis_evidence_handles_missing_oracle_index(
     tmp_path: Path, monkeypatch
 ) -> None:

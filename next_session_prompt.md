@@ -30,9 +30,9 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-709` and land the final `TG24` slice by tightening SG2 receipt/explain/openapi/rate-limit boundary parsing without widening live policy authority.
-- Constraints (hard limits): Keep the `AK-707` server artifact/confirmation behavior and the `AK-708` multi-provider runtime hardening unchanged; preserve fail-closed boundary semantics; do not bundle the later `TG25` governance-to-live contract into the `AK-709` commit unless a smaller prerequisite doc tweak is strictly required.
-- Assumptions (max 3): `AK-708` is complete and exported in `governance/work-items.json`; the repo-scoped ready queue now points at `AK-709`; `TG24` should close once `AK-709` lands.
+- Objective (one sentence): The repo-scoped ready queue is empty after `AK-709`; wait for operator direction or the first truthful `TG25` contract/materialization step before starting a new implementation slice.
+- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve fail-closed SG2 boundary semantics; use `AK_BIN=ak` for repo-local AK validation in this environment so the wrapper resolves the PATH binary instead of the failing workspace-core cargo path.
+- Assumptions (max 3): `AK-709` is complete and exported in `governance/work-items.json`; no repo-scoped ready task currently exists; `TG25` is now the active SG2 tactical wave but its first operating slice has not been materialized yet.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -43,30 +43,27 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/project/developer_workflow.md`
 7. `Justfile`
-8. `diary/2026-04-02--materialize-tg24-runtime-boundary-hardening-wave.md`
-9. `diary/2026-04-02--persist-server-artifacts-and-confirmation-boundaries.md`
-10. `diary/2026-04-02--harden-multi-provider-runtime-boundaries.md`
-11. `governance/work-items.json`
+8. `diary/2026-04-04--tighten-runtime-boundary-parsers-and-mlflow-matching.md`
+9. `governance/work-items.json`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
-2. Confirm the repo-scoped ready queue with `ak task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` and verify it points at `AK-709`.
-3. Claim `AK-709` before editing docs or code.
-4. Keep the implementation bounded to SG2 receipt parsing, MLflow explain artifact matching, OpenAPI numeric strictness, rate-limit token parsing, and only the adjacent regressions needed to fail closed.
-5. Do not reopen the landed `AK-707`/`AK-708` runtime boundaries unless `AK-709` exposes a narrower shared fix that cannot stay isolated.
-6. Implement at most one operating slice end-to-end.
-7. Validate the slice with:
-   - `./scripts/ci/smoke.sh`
-   - `just verify-full`
-8. Update source-of-truth docs/diary/ADR references before commit.
+2. Confirm the ready queue with `AK_BIN=ak ./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
+3. If the repo-scoped ready queue is empty, do not start a new implementation slice; wait for operator direction or the first truthful `TG25` contract/materialization step.
+4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
+5. Implement at most one operating slice end-to-end.
+6. Validate the slice with:
+   - `AK_BIN=ak ./scripts/ci/smoke.sh`
+   - `AK_BIN=ak just verify-full`
+7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-708` — harden multi-provider orchestration with dynamic capability aggregation, request-message preservation, policy override restoration, dirty-worktree-safe git-worktree isolation, and hung-loser cleanup.
-- Outcome: DSPx now derives `providers capabilities` from runtime-resolved provider metadata, materializes message history before fan-out so forward/generate-only providers see the same request payload, restores temporary policy overrides after each multi-provider run, falls back from git worktrees to mirror isolation when dirty repos would hide local edits, and force-cleans hung async losers before isolated workspace cleanup.
-- Files changed: `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-708.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/cli/commands/providers.py`, `packages/dspx-core/src/dspx/multi_provider_lm.py`, `packages/dspx-core/src/dspx/task_scope.py`, `scripts/ak.sh`, `scripts/check_direction_to_execution.py`, `tests/test_multi_provider_parallel_semantics.py`, `tests/test_provider_v4.py`, and `diary/2026-04-02--harden-multi-provider-runtime-boundaries.md`.
-- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_multi_provider_caps.py tests/test_multi_provider_parallel_semantics.py tests/test_provider_registry.py tests/test_provider_v4.py` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=708 mode=working-tree` ⚠️ skipped (`governance/task-scopes/AK-708.snapshot.json` explicitly says repo-default scope applies); `just verify-full` ✅; `./scripts/ak.sh task complete 708 --result '{...}'` ✅; `./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ (`AK-709` ready).
-- Source-of-truth updates: recorded the `AK-708` implementation in `diary/2026-04-02--harden-multi-provider-runtime-boundaries.md`, refreshed the `TG24` operating docs and handoff for `AK-709`, restored the missing repo-local `./scripts/ak.sh` wrapper plus validation-side wrapper preference so repo-scoped AK commands stay deterministic again, exported `governance/task-scopes/AK-708.snapshot.json`, and refreshed `governance/work-items.json` after the AK completion/export.
-- Next-session starting point: claim `AK-709`, keep the slice bounded to boundary-parser strictness plus the directly supporting regressions, and close `TG24` without jumping early to the later governance-to-live contract.
+- Slice executed: `AK-709` — tighten SG2 receipt parsing, MLflow explain artifact matching, OpenAPI numeric strictness, rate-limit token parsing, and adjacent regression coverage.
+- Outcome: DSPx now rejects malformed SG2 historical/governed-policy receipt surfaces during exact-match evidence scans, filters same-artifact local MLflow explain candidates by expected correlation tags, enforces stricter OpenAPI numeric parsing/bounds across query/path/body validation, and fails closed on fractional/zero/negative server rate-limit counts without reopening the landed `AK-707`/`AK-708` boundaries.
+- Files changed: `docs/project/operational_goals.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-709.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/server/security.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `packages/dspx-core/src/dspx/services/run_explain_service.py`, `packages/dspx-core/src/dspx/tools/openapi/caller.py`, `tests/test_module_synthesis_evidence.py`, `tests/test_openapi_numeric_bounds.py`, `tests/test_run_receipts.py`, `tests/test_server_rate_limit.py`, and `diary/2026-04-04--tighten-runtime-boundary-parsers-and-mlflow-matching.md`.
+- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_server_rate_limit.py tests/test_openapi_numeric_bounds.py tests/test_module_synthesis_evidence.py tests/test_run_receipts.py` ✅; `uvx ruff check packages/dspx-core/src/dspx/server/security.py packages/dspx-core/src/dspx/services/module_synthesis_evidence.py packages/dspx-core/src/dspx/services/run_explain_service.py packages/dspx-core/src/dspx/tools/openapi/caller.py tests/test_module_synthesis_evidence.py tests/test_openapi_numeric_bounds.py tests/test_run_receipts.py tests/test_server_rate_limit.py` ✅; `uvx ty check packages/dspx-core/src/dspx/server/security.py packages/dspx-core/src/dspx/services/module_synthesis_evidence.py packages/dspx-core/src/dspx/services/run_explain_service.py packages/dspx-core/src/dspx/tools/openapi/caller.py` ✅; `just task-scope-check 709 working-tree auto` ✅ (repo-default snapshot skip); `AK_BIN=ak ./scripts/ci/smoke.sh` ✅; `AK_BIN=ak just verify-full` ✅; `AK_BIN=ak ./scripts/ak.sh task complete 709 --result '{...}'` ✅; `AK_BIN=ak ./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `AK_BIN=ak ./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `AK_BIN=ak ./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after completion (empty queue).
+- Source-of-truth updates: recorded the `AK-709` implementation in `diary/2026-04-04--tighten-runtime-boundary-parsers-and-mlflow-matching.md`, closed `TG24`, promoted `TG25` to the active tactical wave with an intentionally empty ready queue, exported `governance/task-scopes/AK-709.snapshot.json`, refreshed `governance/work-items.json` after the AK completion/export, and updated the handoff/operating docs to the post-`AK-709` idle-state checkpoint.
+- Next-session starting point: re-run the repo-scoped ready-queue check with `AK_BIN=ak ./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`; if it is still empty, wait for operator direction or the first truthful `TG25` contract/materialization step; otherwise claim the next ready repo-local slice before editing.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

@@ -44,6 +44,46 @@ def _end_active_mlflow_runs() -> None:
         pass
 
 
+def _write_fake_local_mlflow_run(
+    tracking_root: Path,
+    *,
+    experiment_id: str,
+    run_id: str,
+    artifacts: dict[str, str],
+    tags: dict[str, str],
+) -> None:
+    run_dir = tracking_root / experiment_id / run_id
+    artifacts_dir = run_dir / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    for rel_path, content in artifacts.items():
+        path = artifacts_dir / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    (run_dir / "meta.yaml").write_text(
+        "\n".join(
+            [
+                f"run_id: {run_id}",
+                f"experiment_id: {experiment_id}",
+                "status: FINISHED",
+                "lifecycle_stage: active",
+                "start_time: 1",
+                "end_time: 2",
+                f"artifact_uri: {artifacts_dir.resolve().as_uri()}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    tags_dir = run_dir / "tags"
+    tags_dir.mkdir(parents=True, exist_ok=True)
+    for key, value in tags.items():
+        tag_path = tags_dir / key
+        tag_path.parent.mkdir(parents=True, exist_ok=True)
+        tag_path.write_text(str(value), encoding="utf-8")
+
+
 def _generate_signature_receipt(
     tmp_path: Path, monkeypatch, *, output_name: str
 ) -> Path:
@@ -1126,6 +1166,63 @@ def test_run_explain_with_mlflow_sqlite_custom_artifact_root(
         )
     finally:
         _end_active_mlflow_runs()
+
+
+def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="sig.py",
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    expected_tags = dict(receipt["mlflow_hints"]["expected_tags"])
+    output_path = tmp_path / "sig.py"
+
+    tracking_root = tmp_path / "mlruns"
+    artifact_payloads = {
+        "sig.py": output_path.read_text(encoding="utf-8"),
+        "sig.py.meta.json": meta_path.read_text(encoding="utf-8"),
+    }
+    _write_fake_local_mlflow_run(
+        tracking_root,
+        experiment_id="0",
+        run_id="matching-run",
+        artifacts=artifact_payloads,
+        tags=expected_tags,
+    )
+    mismatched_tags = dict(expected_tags)
+    mismatched_tags["dspx.output_hash_prefix"] = "deadbeefdead"
+    _write_fake_local_mlflow_run(
+        tracking_root,
+        experiment_id="0",
+        run_id="mismatched-run",
+        artifacts=artifact_payloads,
+        tags=mismatched_tags,
+    )
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(meta_path),
+            "--with-mlflow",
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    linked_runs = payload["mlflow_context"].get("linked_runs") or []
+    assert len(linked_runs) == 1
+    assert linked_runs[0]["run_id"] == "matching-run"
+    assert payload["mlflow_context"]["candidate_count"] == 1
+    assert payload["mlflow_context"]["matched_count"] == 1
 
 
 def test_run_explain_remote_uri_default_off_lookup(tmp_path: Path, monkeypatch) -> None:
