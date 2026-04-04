@@ -40,7 +40,13 @@ read_when:
 - `./scripts/ak.sh task unclaim 734` ❌ → same foreign-key failure
 - Result: the code and repo artifacts are ready, but the live AK task cannot currently be completed or released in this environment.
 
+## Closure After AK Repair
+- Repaired the live `society.v2.db` task-mutation blocker by rebuilding AK task storage, releasing the expired claimed state for `AK-734`, and recording the matching `task.auto_release_expired_lease` governance receipt before re-claiming and completing the task normally.
+- Re-recorded validation evidence in AK, completed `AK-734` with the implementation/result payload, re-exported `governance/work-items.json`, and restored the repo to the truthful empty-ready-queue `TG25` waiting state.
+- Post-repair AK confirmation:
+  - `./scripts/ak.sh task show 734 -F json` ✅ (`status=done`)
+  - `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json` ✅ (`[]`)
+
 ## Next
-- Resolve or operator-direct around the claimed-`AK-734` AK foreign-key blocker before starting another repo-local slice.
-- If the blocker clears, complete `AK-734`, export `governance/work-items.json` again, and refresh the handoff back to the normal empty-ready-queue `TG25` waiting state.
+- Confirm the repo-scoped ready queue before starting work; if it is empty, wait for operator direction or the next truthful `TG25` slice instead of inventing one.
 - Preserve the rule from this pass: verify suspected workflow-contract mismatches against the actual parser/normalization path before rewriting docs around them.

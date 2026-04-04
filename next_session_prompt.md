@@ -30,10 +30,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): The repo-scoped ready queue is empty, but claimed `AK-734` is hard-blocked on an AK task-mutation foreign-key failure after code/test completion; resolve or operator-direct around that authority issue before starting a new implementation slice.
-- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve fail-closed SG2 boundary semantics; do not silently discard or reword the claimed-`AK-734` authority blocker until the live AK state changes.
-- Assumptions (max 3): the `AK-734` code changes and validation are already complete locally; `./scripts/ak.sh task complete 734 ...` and `./scripts/ak.sh task unclaim 734` currently fail with the same `society.v2.db` foreign-key error; no repo-scoped ready task currently exists.
-- Blockers (none or list): `AK-734` cannot currently be completed or released in AK because task mutation returns `Database error: engine error: FOREIGN KEY constraint failed`.
+- Objective (one sentence): Confirm the repo-scoped ready queue, then either wait in the truthful empty-ready-queue `TG25` state or execute the one highest-leverage ready slice the operator names.
+- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve fail-closed SG2 boundary semantics; do not invent a `TG25` slice just to keep the queue non-empty.
+- Assumptions (max 3): `AK-734` is closed in AK and reflected in the checked-in projection; no repo-scoped task is currently ready; `governance/work-items.json` remains a checked-in mirror rather than the live scheduler.
+- Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -49,7 +49,7 @@ Do not ask for permission to start.
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the ready queue with `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the repo-scoped ready queue is empty and a claimed task is blocked in AK, resolve or explicitly operator-direct around the blocker before starting a new implementation slice.
+3. If the repo-scoped ready queue is empty, stay in the truthful idle `TG25` waiting state unless the operator explicitly redirects the session.
 4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
 5. Implement at most one operating slice end-to-end.
 6. Validate the slice with:
@@ -58,12 +58,12 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-734` — surface MLflow tag-contract drift reason codes and revalidate the task-scope invocation contract before touching docs.
-- Outcome: DSPx now emits `mlflow_tag_contract_violation` whenever contradictory MLflow correlation tags are dropped during local or remote explain candidate selection, keeps partial/nested historical MLflow matches accepted without false positives, and confirms the existing assignment-style `just task-scope-check task_id=<AK-ID> mode=working-tree` contract already works through `scripts/check_task_scope.py` normalization so no doc/changelog churn was required there.
+- Slice executed: `AK-734` — surface MLflow tag-contract drift reason codes, reconfirm the assignment-style task-scope invocation contract, and then close the slice after repairing the live AK authority blocker.
+- Outcome: DSPx now emits `mlflow_tag_contract_violation` whenever contradictory MLflow correlation tags are dropped during local or remote explain candidate selection, keeps partial/nested historical MLflow matches accepted without false positives, preserved the existing task-scope invocation contract without unnecessary doc churn, and is back to the truthful empty-ready-queue `TG25` waiting state after AK repair + task completion.
 - Files changed: `docs/project/operational_goals.md`, `governance/task-scopes/AK-734.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/run_explain_service.py`, `tests/test_run_receipts.py`, and `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`.
-- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_run_receipts.py` ✅; `uvx ruff check packages/dspx-core/src/dspx/services/run_explain_service.py tests/test_run_receipts.py` ✅; `uvx ty check packages/dspx-core/src/dspx/services/run_explain_service.py` ✅; `just task-scope-check task_id=734 mode=working-tree` ✅ (repo-default snapshot skip, assignment-style contract reconfirmed); `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ (empty queue).
-- Source-of-truth updates: recorded the `AK-734` implementation in `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`, refreshed `docs/project/operational_goals.md` and this handoff to the blocked post-`AK-734` checkpoint, exported `governance/task-scopes/AK-734.snapshot.json`, and refreshed `governance/work-items.json` while the task remains claimed in AK.
-- Next-session starting point: first resolve or operator-direct around the claimed-`AK-734` AK foreign-key blocker; only after that should the repo resume the normal empty-ready-queue `TG25` waiting state or claim a new ready slice.
+- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_run_receipts.py` ✅; `uvx ruff check packages/dspx-core/src/dspx/services/run_explain_service.py tests/test_run_receipts.py` ✅; `uvx ty check packages/dspx-core/src/dspx/services/run_explain_service.py` ✅; `just task-scope-check task_id=734 mode=working-tree` ✅ (repo-default snapshot skip, assignment-style contract reconfirmed); `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after implementation (`[]`); post-repair reconfirmation: `./scripts/ak.sh task show 734 -F json` ✅ (`status=done`), `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json` ✅ (`[]`).
+- Source-of-truth updates: recorded the `AK-734` implementation + closure in `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`, refreshed `docs/project/operational_goals.md` and this handoff back to the idle `TG25` checkpoint, kept `governance/task-scopes/AK-734.snapshot.json` as the frozen slice export, and refreshed `governance/work-items.json` after AK completion.
+- Next-session starting point: confirm the repo-scoped ready queue; if it is still empty, stay in the truthful idle `TG25` waiting state until the operator or AK names the next slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

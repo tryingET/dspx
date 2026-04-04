@@ -17,6 +17,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Recently completed in this wave
 
+- `AK-734` — surfaced `mlflow_tag_contract_violation` for contradictory MLflow correlation tags during explain candidate filtering, reconfirmed the existing assignment-style `just task-scope-check task_id=<AK-ID> mode=working-tree` contract without unnecessary doc churn, recorded the completed slice in `governance/task-scopes/AK-734.snapshot.json` + diary/handoff artifacts, and then closed the task after repairing the live AK task-mutation foreign-key blocker.
 - `AK-729` — landed the operator-directed adversarial TG24 follow-on by making exact-match SG2 receipt validation type-strict, allowing compatible partial/nested local MLflow artifact linkage, moving sync-provider `cwd` isolation into worker-local scope, centralizing OpenAPI numeric `multipleOf` enforcement across params/body/items, preferring PATH `ak` over the broken workspace-core cargo launcher in `./scripts/ak.sh`, exporting `governance/task-scopes/AK-729.snapshot.json`, and extending regressions.
 - `AK-709` — tightened SG2 exact-match receipt parsing so malformed historical/governed-policy surfaces fail closed, tightened MLflow explain linkage by requiring same-artifact local runs to match expected correlation tags, hardened OpenAPI numeric validation against bool/float/string-integer/non-finite drift, rejected fractional/zero/negative server rate-limit counts, exported `governance/task-scopes/AK-709.snapshot.json`, and extended regressions.
 - `AK-708` — hardened multi-provider orchestration by materializing runtime capability aggregation in the CLI/runtime surfaces, preserving request message history across fan-out and DTO-only providers, restoring temporary policy overrides after each run, falling back to mirror isolation when git worktrees would miss dirty changes, force-cleaning hung async losers before isolated workspace cleanup, exporting `governance/task-scopes/AK-708.snapshot.json`, and extending regressions for the new boundary behavior.
@@ -30,7 +31,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Notes
 
 - `TG24` is complete; `TG25` is now the active post-hardening SG2 tactical wave, but no repo-scoped `TG25` implementation slice is pinned yet.
-- `AK-734` is an operator-directed post-`AK-729` cleanup slice whose code/test work is done locally, but AK task mutation is currently hard-blocked by a `society.v2.db` foreign-key failure during `task complete` / `task unclaim`, so do not start a new slice until that authority issue is resolved or the operator explicitly redirects the work.
+- `AK-734` is closed; the repo is back to the normal post-`TG24` empty-ready-queue waiting state until a truthful `TG25` slice is selected.
 - `AK-729` was an operator-directed adversarial follow-on that repaired hidden TG24 regressions without reopening the broader tactical-wave selection.
 - Keep the `AK-707`/`AK-708`/`AK-709` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam.
 - Do not guess the first `TG25` contract/materialization slice just to keep the queue non-empty; wait for operator direction or a truthful AK-ready task.
