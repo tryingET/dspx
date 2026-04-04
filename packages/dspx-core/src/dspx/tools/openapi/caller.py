@@ -153,6 +153,28 @@ def _validate_numeric_bounds(
         raise ValueError(f"{label}: >= exclusiveMaximum")
 
 
+def _validate_numeric_multiple_of(
+    value: float | int, schema: Mapping[str, Any], *, label: str
+) -> None:
+    multiple_of = schema.get("multipleOf")
+    if not isinstance(multiple_of, (int, float)) or isinstance(multiple_of, bool):
+        return
+
+    step = _schema_numeric_value(multiple_of, label="multipleOf")
+    if step == 0.0:
+        return
+    quotient = float(value) / step
+    if abs(quotient - round(quotient)) > 1e-9:
+        raise ValueError(f"{label}: not a multipleOf {step}")
+
+
+def _validate_numeric_schema(
+    value: float | int, schema: Mapping[str, Any], *, label: str
+) -> None:
+    _validate_numeric_bounds(value, schema, label=label)
+    _validate_numeric_multiple_of(value, schema, label=label)
+
+
 def call_operation(
     request: OpenAPICallRequest,
     *,
@@ -248,7 +270,7 @@ def call_operation(
                                 label=f"Invalid item type in array param {p.get('name')}",
                                 allow_strings=True,
                             )
-                            _validate_numeric_bounds(
+                            _validate_numeric_schema(
                                 coerced,
                                 items,
                                 label=(
@@ -262,7 +284,7 @@ def call_operation(
                                 label=f"Invalid item type in array param {p.get('name')}",
                                 allow_strings=True,
                             )
-                            _validate_numeric_bounds(
+                            _validate_numeric_schema(
                                 coerced,
                                 items,
                                 label=(
@@ -297,7 +319,7 @@ def call_operation(
                                 )
                 # Numeric min/max for integer/number
                 if numeric_value is not None:
-                    _validate_numeric_bounds(
+                    _validate_numeric_schema(
                         numeric_value,
                         schema,
                         label=f"Invalid value for {param_kind} {p.get('name')}",
@@ -362,7 +384,7 @@ def call_operation(
                     integer=True,
                     label=f"Invalid type for path param {name}",
                 )
-                _validate_numeric_bounds(
+                _validate_numeric_schema(
                     iv,
                     schema,
                     label=f"Invalid value for path param {name}",
@@ -373,7 +395,7 @@ def call_operation(
                     integer=False,
                     label=f"Invalid type for path param {name}",
                 )
-                _validate_numeric_bounds(
+                _validate_numeric_schema(
                     fv,
                     schema,
                     label=f"Invalid value for path param {name}",
@@ -711,39 +733,11 @@ def _validate_json_value_against_schema(
     # Primitive types
     if t == "integer":
         v = _coerce_integer_value(value, label=path, allow_strings=False)
-        _validate_numeric_bounds(v, schema, label=path)
-        # multipleOf
-        if isinstance(schema.get("multipleOf"), (int, float)) and not isinstance(
-            schema.get("multipleOf"), bool
-        ):
-            try:
-                m = _schema_numeric_value(schema["multipleOf"], label="multipleOf")
-                if m != 0.0:
-                    q = float(v) / m
-                    if abs(q - round(q)) > 1e-9:
-                        raise ValueError(f"{path}: not a multipleOf {m}")
-            except ValueError:
-                raise
-            except Exception:
-                pass
+        _validate_numeric_schema(v, schema, label=path)
         return
     if t == "number":
         v = _coerce_number_value(value, label=path, allow_strings=False)
-        _validate_numeric_bounds(v, schema, label=path)
-        # multipleOf
-        if isinstance(schema.get("multipleOf"), (int, float)) and not isinstance(
-            schema.get("multipleOf"), bool
-        ):
-            try:
-                m = _schema_numeric_value(schema["multipleOf"], label="multipleOf")
-                if m != 0.0:
-                    q = v / m
-                    if abs(q - round(q)) > 1e-9:
-                        raise ValueError(f"{path}: not a multipleOf {m}")
-            except ValueError:
-                raise
-            except Exception:
-                pass
+        _validate_numeric_schema(v, schema, label=path)
         return
     if t == "boolean":
         if isinstance(value, bool):

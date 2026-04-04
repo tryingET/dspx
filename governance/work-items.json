@@ -1010,6 +1010,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-04"
+        },
+        {
+          "id": "AK-TASK-0729",
+          "title": "Adversarial TG24 follow-on: harden boundary validators, MLflow linkage, sync isolation, and AK fallback",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Adversarial TG24 follow-on: harden boundary validators, MLflow linkage, sync isolation, and AK fallback (task #729)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-04"
         }
       ]
     }

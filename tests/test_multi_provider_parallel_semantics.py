@@ -48,6 +48,18 @@ class _CwdProvider:
         self.cwd = None
 
 
+class _DelayedCwdProvider(_SyncProvider):
+    def __init__(self, model: str, delay: float) -> None:
+        super().__init__(model)
+        self.delay = delay
+        self.seen_cwds: list[str | None] = []
+
+    def forward(self, prompt=None, messages=None):
+        time.sleep(self.delay)
+        self.seen_cwds.append(self.cwd)
+        return super().forward(prompt=prompt, messages=messages)
+
+
 class _RecordingForwardProvider(_SyncProvider):
     def __init__(self, model: str) -> None:
         super().__init__(model)
@@ -367,6 +379,39 @@ def test_git_worktree_isolation_falls_back_to_mirror_for_dirty_repo(
         )
     finally:
         lm._cleanup_isolated(info)
+
+
+def test_parallel_first_sync_workers_keep_isolated_cwd_until_completion(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    tempfile.tempdir = None
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "input.txt").write_text("ok\n", encoding="utf-8")
+
+    fast = _SyncProvider("fast")
+    slow = _DelayedCwdProvider("slow", delay=0.2)
+    lm = MultiProviderLM(
+        [fast, slow],
+        names=["fast", "slow"],
+        strategy="parallel_first",
+        parallel_isolated=True,
+        base_cwd=str(base),
+        cleanup_isolated=True,
+    )
+
+    result = lm._run_parallel_first(prompt="p", messages=None)
+
+    assert [r.text for r in result] == ["fast"]
+
+    deadline = time.time() + 1.0
+    while time.time() < deadline and not slow.seen_cwds:
+        time.sleep(0.02)
+
+    assert slow.seen_cwds
+    assert slow.seen_cwds[0] is not None
+    assert slow.seen_cwds[0] != str(base)
 
 
 def test_parallel_first_cleanup_force_kills_hung_async_loser(

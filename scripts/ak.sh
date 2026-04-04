@@ -58,8 +58,8 @@ usage: scripts/ak.sh [--doctor|--which|--help] [ak args...]
 Portable Agent Kernel launcher with deterministic resolution order:
   1) AK_BIN override
   2) vendored ./crates/ak-cli/Cargo.toml via cargo run --bin ak
-  3) workspace core ~/ai-society/softwareco/owned/agent-kernel via cargo run --bin ak
-  4) ak on PATH
+  3) ak on PATH
+  4) workspace core ~/ai-society/softwareco/owned/agent-kernel via cargo run --bin ak
 
 When invoked as:
   ./scripts/ak.sh work-items export ...
@@ -180,17 +180,17 @@ select_runner() {
     return
   fi
 
+  if has_cmd ak; then
+    printf '%s\n' "path-ak"
+    return
+  fi
+
   if [ -f "$core_project_default/crates/ak-cli/Cargo.toml" ]; then
     if has_cmd cargo; then
       printf '%s\n' "workspace-core-cargo"
       return
     fi
     printf '%s\n' "workspace-core-missing-cargo"
-    return
-  fi
-
-  if has_cmd ak; then
-    printf '%s\n' "path-ak"
     return
   fi
 

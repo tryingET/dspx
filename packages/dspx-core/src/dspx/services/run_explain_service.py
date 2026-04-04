@@ -191,11 +191,38 @@ def _mlflow_candidate_tags_match(
     if not relevant_actual:
         return not strict
 
-    for key, expected in expected_tags.items():
-        if key not in _MLFLOW_CORRELATION_TAG_KEYS:
+    if strict:
+        for key, expected in expected_tags.items():
+            if key not in _MLFLOW_CORRELATION_TAG_KEYS:
+                continue
+            if relevant_actual.get(key) != str(expected).strip():
+                return False
+        return True
+
+    for key, actual in relevant_actual.items():
+        expected = expected_tags.get(key)
+        if expected is None:
             continue
-        if relevant_actual.get(key) != str(expected).strip():
+        if actual != str(expected).strip():
             return False
+    return True
+
+
+def _artifacts_cover_required(
+    *,
+    required_artifacts: tuple[str, ...],
+    matched_artifacts: set[str],
+) -> bool:
+    if not required_artifacts:
+        return True
+
+    matched_names = {Path(artifact).name for artifact in matched_artifacts}
+    for artifact in required_artifacts:
+        if artifact in matched_artifacts:
+            continue
+        if artifact in matched_names:
+            continue
+        return False
     return True
 
 
@@ -428,8 +455,9 @@ def _find_linked_local_runs(
             for item in rec.get("matched_artifacts") or []
             if str(item).strip()
         }
-        if required_artifacts and not all(
-            artifact in matched_artifacts for artifact in required_artifacts
+        if not _artifacts_cover_required(
+            required_artifacts=required_artifacts,
+            matched_artifacts=matched_artifacts,
         ):
             continue
 

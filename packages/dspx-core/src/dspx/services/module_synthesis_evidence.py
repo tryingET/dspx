@@ -367,6 +367,33 @@ def _optional_str(value: object) -> str | None:
     return text or None
 
 
+def _strict_nonempty_str(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def _strict_positive_int(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    if value <= 0:
+        return None
+    return value
+
+
+def _strict_nonempty_str_list(value: object) -> tuple[str, ...] | None:
+    if not isinstance(value, (list, tuple)):
+        return None
+    out: list[str] = []
+    for item in value:
+        text = _strict_nonempty_str(item)
+        if text is None:
+            return None
+        out.append(text)
+    return tuple(out)
+
+
 _RECEIPT_HISTORICAL_SURFACE_VERSION_FIELDS = {
     "candidate_winner_priors": "candidate_prior_version",
     "candidate_prior_audit": "candidate_prior_audit_version",
@@ -445,7 +472,7 @@ def _historical_sg2_diagnostics_issue(
                 "surface": surface_name,
             }
         surface_dict = _as_dict(surface)
-        if _optional_str(surface_dict.get(version_field)) is None:
+        if _strict_nonempty_str(surface_dict.get(version_field)) is None:
             return {
                 "receipt_path": str(meta_path),
                 "code": "receipt_invalid_sg2_surface",
@@ -458,7 +485,7 @@ def _historical_sg2_diagnostics_issue(
             }
         if (
             surface_name in _RECEIPT_HISTORICAL_SURFACES_WITH_STATUS
-            and _optional_str(surface_dict.get("status")) is None
+            and _strict_nonempty_str(surface_dict.get("status")) is None
         ):
             return {
                 "receipt_path": str(meta_path),
@@ -497,7 +524,7 @@ def _historical_sg2_diagnostics_issue(
             }
         item = _as_dict(raw_item)
         for field in _RECEIPT_GOVERNED_POLICY_REQUIRED_STRING_FIELDS:
-            if _optional_str(item.get(field)) is None:
+            if _strict_nonempty_str(item.get(field)) is None:
                 return {
                     "receipt_path": str(meta_path),
                     "code": "receipt_invalid_governed_policy_evaluations",
@@ -546,7 +573,7 @@ def _exact_match_receipt_issue(
     receipt: Mapping[str, Any],
 ) -> dict[str, Any] | None:
     run_summary = _as_dict(receipt.get("run_summary"))
-    if str(run_summary.get("backend") or "") != "synthesis_runtime":
+    if _strict_nonempty_str(run_summary.get("backend")) != "synthesis_runtime":
         return {
             "receipt_path": str(meta_path),
             "code": "receipt_backend_not_synthesis_runtime",
@@ -554,8 +581,10 @@ def _exact_match_receipt_issue(
             "stage": "eligibility",
         }
 
-    selected_candidate_id = str(run_summary.get("selected_candidate_id") or "").strip()
-    if not selected_candidate_id:
+    selected_candidate_id = _strict_nonempty_str(
+        run_summary.get("selected_candidate_id")
+    )
+    if selected_candidate_id is None:
         return {
             "receipt_path": str(meta_path),
             "code": "receipt_missing_selected_candidate_id",
@@ -563,10 +592,10 @@ def _exact_match_receipt_issue(
             "stage": "eligibility",
         }
 
-    selected_candidate_rank = _as_int(
-        run_summary.get("selected_candidate_rank"), default=0
+    selected_candidate_rank = _strict_positive_int(
+        run_summary.get("selected_candidate_rank")
     )
-    if selected_candidate_rank <= 0:
+    if selected_candidate_rank is None:
         return {
             "receipt_path": str(meta_path),
             "code": "receipt_invalid_selected_candidate_rank",
@@ -574,7 +603,9 @@ def _exact_match_receipt_issue(
             "stage": "eligibility",
         }
 
-    ranked_candidate_ids = _as_str_list(run_summary.get("ranked_candidate_ids"))
+    ranked_candidate_ids = _strict_nonempty_str_list(
+        run_summary.get("ranked_candidate_ids")
+    )
     if not ranked_candidate_ids:
         return {
             "receipt_path": str(meta_path),
@@ -590,8 +621,8 @@ def _exact_match_receipt_issue(
             "stage": "eligibility",
         }
 
-    ranking_policy_id = str(run_summary.get("ranking_policy_id") or "").strip()
-    if not ranking_policy_id:
+    ranking_policy_id = _strict_nonempty_str(run_summary.get("ranking_policy_id"))
+    if ranking_policy_id is None:
         return {
             "receipt_path": str(meta_path),
             "code": "receipt_missing_ranking_policy_id",

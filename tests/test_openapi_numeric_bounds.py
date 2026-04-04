@@ -225,6 +225,50 @@ def test_integer_query_params_reject_float_and_non_finite_values(
         )
 
 
+def test_query_numeric_params_enforce_multiple_of(
+    tmp_path: Path, mock_client: httpx.Client
+) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "listEvenItems",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "limit",
+                            "required": True,
+                            "schema": {"type": "integer", "multipleOf": 2},
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    spec_path = tmp_path / "query-multiple-of.json"
+    spec_path.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(spec_path)))
+
+    with pytest.raises(ValueError, match="multipleOf"):
+        call_operation(
+            OpenAPICallRequest(operation_id="listEvenItems", params={"limit": "3"}),
+            operation=ops["listEvenItems"],
+            allowed_hosts={"api.example.com": True},
+            client=mock_client,
+        )
+
+    result = call_operation(
+        OpenAPICallRequest(operation_id="listEvenItems", params={"limit": "4"}),
+        operation=ops["listEvenItems"],
+        allowed_hosts={"api.example.com": True},
+        client=mock_client,
+    )
+    assert result.status_code == 200
+
+
 def test_request_body_numeric_validation_rejects_bool_float_and_string_integers(
     tmp_path: Path, mock_client: httpx.Client
 ) -> None:

@@ -447,6 +447,94 @@ def test_retrieve_module_synthesis_evidence_rejects_malformed_governed_policy_re
     assert bundle.receipt_scan_errors[0]["surface"] == "governed_policy_evaluations"
 
 
+def test_retrieve_module_synthesis_evidence_rejects_wrongly_typed_governed_policy_fields(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="single.py",
+    )
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    diagnostics = dict(payload.get("synthesis_diagnostics") or {})
+    diagnostics["governed_policy_evaluations"] = [
+        {
+            "policy_evaluation_receipt_version": False,
+            "evaluation_contract_version": "v1",
+            "variant_class": "ranking_evaluation",
+            "variant_policy_id": "policy-id",
+            "variant_policy_version": "v1",
+            "variant_policy_mode": "governance_only",
+            "outcome": "match",
+            "authority_limit": "governance_only",
+            "decision_rule_summary": "summary",
+            "live_policy_context": {},
+            "request_context": {},
+            "bounded_inputs": {},
+            "evaluation_result": {},
+            "promotion_authority": {},
+        }
+    ]
+    payload["synthesis_diagnostics"] = diagnostics
+    meta_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+
+    assert bundle.exact_match_receipts == ()
+    assert bundle.receipt_scan_error_count == 1
+    assert (
+        bundle.receipt_scan_errors[0]["code"]
+        == "receipt_invalid_governed_policy_evaluations"
+    )
+    assert bundle.receipt_scan_errors[0]["field"] == "policy_evaluation_receipt_version"
+
+
+def test_retrieve_module_synthesis_evidence_rejects_wrongly_typed_run_summary_fields(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_module_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="single.py",
+    )
+    payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    run_summary = dict(payload.get("run_summary") or {})
+    run_summary["selected_candidate_rank"] = True
+    payload["run_summary"] = run_summary
+    meta_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    spec = ModuleSpec(
+        name="Summarizer",
+        description="Summarizes text",
+        inputs=["text"],
+        outputs=["summary"],
+        options={"template_version": "simple-v1"},
+    )
+    bundle = retrieve_module_synthesis_evidence(
+        spec,
+        use_signature=False,
+        receipts_path=tmp_path,
+    )
+
+    assert bundle.exact_match_receipts == ()
+    assert bundle.receipt_scan_error_count == 1
+    assert (
+        bundle.receipt_scan_errors[0]["code"]
+        == "receipt_invalid_selected_candidate_rank"
+    )
+
+
 def test_retrieve_module_synthesis_evidence_handles_missing_oracle_index(
     tmp_path: Path, monkeypatch
 ) -> None:

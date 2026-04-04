@@ -1225,6 +1225,103 @@ def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
     assert payload["mlflow_context"]["matched_count"] == 1
 
 
+def test_run_explain_local_mlflow_accepts_partial_matching_tags(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="sig.py",
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    expected_tags = dict(receipt["mlflow_hints"]["expected_tags"])
+    output_path = tmp_path / "sig.py"
+
+    tracking_root = tmp_path / "mlruns"
+    artifact_payloads = {
+        "sig.py": output_path.read_text(encoding="utf-8"),
+        "sig.py.meta.json": meta_path.read_text(encoding="utf-8"),
+    }
+    _write_fake_local_mlflow_run(
+        tracking_root,
+        experiment_id="0",
+        run_id="partial-run",
+        artifacts=artifact_payloads,
+        tags={"service": expected_tags["service"]},
+    )
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(meta_path),
+            "--with-mlflow",
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    linked_runs = payload["mlflow_context"].get("linked_runs") or []
+    assert len(linked_runs) == 1
+    assert linked_runs[0]["run_id"] == "partial-run"
+    assert payload["mlflow_context"]["candidate_count"] == 1
+
+
+def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="sig.py",
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    expected_tags = dict(receipt["mlflow_hints"]["expected_tags"])
+    output_path = tmp_path / "sig.py"
+
+    tracking_root = tmp_path / "mlruns"
+    artifact_payloads = {
+        "nested/sig.py": output_path.read_text(encoding="utf-8"),
+        "nested/sig.py.meta.json": meta_path.read_text(encoding="utf-8"),
+    }
+    _write_fake_local_mlflow_run(
+        tracking_root,
+        experiment_id="0",
+        run_id="nested-run",
+        artifacts=artifact_payloads,
+        tags=expected_tags,
+    )
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(meta_path),
+            "--with-mlflow",
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    linked_runs = payload["mlflow_context"].get("linked_runs") or []
+    assert len(linked_runs) == 1
+    assert linked_runs[0]["run_id"] == "nested-run"
+    assert sorted(linked_runs[0]["matched_artifacts"]) == [
+        "nested/sig.py",
+        "nested/sig.py.meta.json",
+    ]
+
+
 def test_run_explain_remote_uri_default_off_lookup(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")

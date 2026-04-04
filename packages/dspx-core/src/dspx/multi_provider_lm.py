@@ -518,11 +518,15 @@ class MultiProviderLM(DSPyBaseLM):
                 return result
             return None
 
-        def _start_sync_worker(i: int, prov: Any) -> None:
+        def _start_sync_worker(i: int, prov: Any, cwd_override: Optional[str]) -> None:
             pending_sync.add(i)
 
             def worker() -> None:
-                res = self._run_one(i, prov, prompt=prompt, messages=messages)
+                prev = self._apply_cwd(prov, cwd_override)
+                try:
+                    res = self._run_one(i, prov, prompt=prompt, messages=messages)
+                finally:
+                    self._restore_cwd(prov, prev)
                 sync_results.put((i, res))
 
             th = threading.Thread(target=worker, daemon=True)
@@ -536,14 +540,15 @@ class MultiProviderLM(DSPyBaseLM):
                 if (self.parallel_isolated and self.base_cwd)
                 else self.base_cwdsafe()
             )
-            prev_cwds[i] = self._apply_cwd(prov, cwd_override)
             if hasattr(prov, "start"):
+                prev_cwds[i] = self._apply_cwd(prov, cwd_override)
                 try:
                     async_runs[i] = prov.start(prompt=prompt, messages=messages)
                     continue
                 except Exception:
-                    pass
-            _start_sync_worker(i, prov)
+                    self._restore_cwd(prov, prev_cwds[i])
+                    prev_cwds[i] = ProviderCwdState()
+            _start_sync_worker(i, prov, cwd_override)
 
         remaining_async = set(i for i, run in enumerate(async_runs) if run is not None)
 
