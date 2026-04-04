@@ -30,6 +30,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Notes
 
 - `TG24` is complete; `TG25` is now the active post-hardening SG2 tactical wave, but no repo-scoped `TG25` implementation slice is pinned yet.
+- `AK-734` is an operator-directed post-`AK-729` cleanup slice whose code/test work is done locally, but AK task mutation is currently hard-blocked by a `society.v2.db` foreign-key failure during `task complete` / `task unclaim`, so do not start a new slice until that authority issue is resolved or the operator explicitly redirects the work.
 - `AK-729` was an operator-directed adversarial follow-on that repaired hidden TG24 regressions without reopening the broader tactical-wave selection.
 - Keep the `AK-707`/`AK-708`/`AK-709` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam.
 - Do not guess the first `TG25` contract/materialization slice just to keep the queue non-empty; wait for operator direction or a truthful AK-ready task.

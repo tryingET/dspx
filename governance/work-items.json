@@ -1023,6 +1023,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-04"
+        },
+        {
+          "id": "AK-TASK-0734",
+          "title": "Workflow contract: fix task-scope docs and surface MLflow tag-contract drift",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Workflow contract: fix task-scope docs and surface MLflow tag-contract drift (task #734)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

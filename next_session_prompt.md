@@ -30,10 +30,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): The repo-scoped ready queue is empty after `AK-729`; wait for operator direction or the first truthful `TG25` contract/materialization step before starting a new implementation slice.
-- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve fail-closed SG2 boundary semantics; keep the repaired default repo-local AK validation path working without reintroducing the old `AK_BIN=ak` workaround dependency.
-- Assumptions (max 3): `AK-729` is complete and exported in `governance/work-items.json`; no repo-scoped ready task currently exists; `TG25` remains the active SG2 tactical wave but its first operating slice has still not been materialized.
-- Blockers (none or list): none.
+- Objective (one sentence): The repo-scoped ready queue is empty, but claimed `AK-734` is hard-blocked on an AK task-mutation foreign-key failure after code/test completion; resolve or operator-direct around that authority issue before starting a new implementation slice.
+- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve fail-closed SG2 boundary semantics; do not silently discard or reword the claimed-`AK-734` authority blocker until the live AK state changes.
+- Assumptions (max 3): the `AK-734` code changes and validation are already complete locally; `./scripts/ak.sh task complete 734 ...` and `./scripts/ak.sh task unclaim 734` currently fail with the same `society.v2.db` foreign-key error; no repo-scoped ready task currently exists.
+- Blockers (none or list): `AK-734` cannot currently be completed or released in AK because task mutation returns `Database error: engine error: FOREIGN KEY constraint failed`.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -43,13 +43,13 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/project/developer_workflow.md`
 7. `Justfile`
-8. `diary/2026-04-04--land-adversarial-tg24-follow-on-fixes.md`
+8. `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`
 9. `governance/work-items.json`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the ready queue with `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the repo-scoped ready queue is empty, do not start a new implementation slice; wait for operator direction or the first truthful `TG25` contract/materialization step.
+3. If the repo-scoped ready queue is empty and a claimed task is blocked in AK, resolve or explicitly operator-direct around the blocker before starting a new implementation slice.
 4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
 5. Implement at most one operating slice end-to-end.
 6. Validate the slice with:
@@ -58,12 +58,12 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-729` — land the highest-leverage adversarial TG24 follow-on across SG2 receipt validation, local MLflow linkage, sync-provider isolation, OpenAPI numeric enforcement, and AK wrapper fallback.
-- Outcome: DSPx now rejects wrong-type exact-match SG2 receipt fields instead of coercing them, accepts compatible partial/nested local MLflow histories without false negatives, keeps sync-provider `cwd` isolation alive until worker completion, enforces `multipleOf` consistently across OpenAPI params/body/items, and restores truthful default `smoke` / `verify-full` validation without requiring `AK_BIN=ak` on this machine.
-- Files changed: `docs/project/operational_goals.md`, `governance/task-scopes/AK-729.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/multi_provider_lm.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `packages/dspx-core/src/dspx/services/run_explain_service.py`, `packages/dspx-core/src/dspx/tools/openapi/caller.py`, `scripts/ak.sh`, `tests/test_module_synthesis_evidence.py`, `tests/test_multi_provider_parallel_semantics.py`, `tests/test_openapi_numeric_bounds.py`, `tests/test_run_receipts.py`, and `diary/2026-04-04--land-adversarial-tg24-follow-on-fixes.md`.
-- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_module_synthesis_evidence.py tests/test_run_receipts.py tests/test_multi_provider_parallel_semantics.py tests/test_openapi_numeric_bounds.py` ✅; `uvx ruff check packages/dspx-core/src/dspx/services/module_synthesis_evidence.py packages/dspx-core/src/dspx/services/run_explain_service.py packages/dspx-core/src/dspx/multi_provider_lm.py packages/dspx-core/src/dspx/tools/openapi/caller.py tests/test_module_synthesis_evidence.py tests/test_run_receipts.py tests/test_multi_provider_parallel_semantics.py tests/test_openapi_numeric_bounds.py` ✅; `uvx ty check packages/dspx-core/src/dspx/services/module_synthesis_evidence.py packages/dspx-core/src/dspx/services/run_explain_service.py packages/dspx-core/src/dspx/multi_provider_lm.py packages/dspx-core/src/dspx/tools/openapi/caller.py` ✅; one-off repro harnesses for wrong-type receipts, partial/nested MLflow histories, sync-provider `cwd` isolation, and query `multipleOf` enforcement ✅; `just task-scope-check 729 working-tree auto` ✅ (repo-default snapshot skip); `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `./scripts/ak.sh task complete 729 --result '{...}'` ✅; `./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after completion (empty queue).
-- Source-of-truth updates: recorded the `AK-729` implementation in `diary/2026-04-04--land-adversarial-tg24-follow-on-fixes.md`, refreshed `docs/project/operational_goals.md` and this handoff to the post-`AK-729` idle-state checkpoint, exported `governance/task-scopes/AK-729.snapshot.json`, and refreshed `governance/work-items.json` after the AK completion/export.
-- Next-session starting point: re-run the repo-scoped ready-queue check with `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`; if it is still empty, wait for operator direction or the first truthful `TG25` contract/materialization step; otherwise claim the next ready repo-local slice before editing.
+- Slice executed: `AK-734` — surface MLflow tag-contract drift reason codes and revalidate the task-scope invocation contract before touching docs.
+- Outcome: DSPx now emits `mlflow_tag_contract_violation` whenever contradictory MLflow correlation tags are dropped during local or remote explain candidate selection, keeps partial/nested historical MLflow matches accepted without false positives, and confirms the existing assignment-style `just task-scope-check task_id=<AK-ID> mode=working-tree` contract already works through `scripts/check_task_scope.py` normalization so no doc/changelog churn was required there.
+- Files changed: `docs/project/operational_goals.md`, `governance/task-scopes/AK-734.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/run_explain_service.py`, `tests/test_run_receipts.py`, and `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`.
+- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_run_receipts.py` ✅; `uvx ruff check packages/dspx-core/src/dspx/services/run_explain_service.py tests/test_run_receipts.py` ✅; `uvx ty check packages/dspx-core/src/dspx/services/run_explain_service.py` ✅; `just task-scope-check task_id=734 mode=working-tree` ✅ (repo-default snapshot skip, assignment-style contract reconfirmed); `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ (empty queue).
+- Source-of-truth updates: recorded the `AK-734` implementation in `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`, refreshed `docs/project/operational_goals.md` and this handoff to the blocked post-`AK-734` checkpoint, exported `governance/task-scopes/AK-734.snapshot.json`, and refreshed `governance/work-items.json` while the task remains claimed in AK.
+- Next-session starting point: first resolve or operator-direct around the claimed-`AK-734` AK foreign-key blocker; only after that should the repo resume the normal empty-ready-queue `TG25` waiting state or claim a new ready slice.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.

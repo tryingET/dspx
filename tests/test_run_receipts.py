@@ -1223,6 +1223,9 @@ def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
     assert linked_runs[0]["run_id"] == "matching-run"
     assert payload["mlflow_context"]["candidate_count"] == 1
     assert payload["mlflow_context"]["matched_count"] == 1
+    assert "mlflow_tag_contract_violation" in (
+        payload["mlflow_context"].get("degrade_reason_codes") or []
+    )
 
 
 def test_run_explain_local_mlflow_accepts_partial_matching_tags(
@@ -1270,6 +1273,9 @@ def test_run_explain_local_mlflow_accepts_partial_matching_tags(
     assert len(linked_runs) == 1
     assert linked_runs[0]["run_id"] == "partial-run"
     assert payload["mlflow_context"]["candidate_count"] == 1
+    assert "mlflow_tag_contract_violation" not in (
+        payload["mlflow_context"].get("degrade_reason_codes") or []
+    )
 
 
 def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
@@ -1320,6 +1326,9 @@ def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
         "nested/sig.py",
         "nested/sig.py.meta.json",
     ]
+    assert "mlflow_tag_contract_violation" not in (
+        payload["mlflow_context"].get("degrade_reason_codes") or []
+    )
 
 
 def test_run_explain_remote_uri_default_off_lookup(tmp_path: Path, monkeypatch) -> None:

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-04T14:36:08.533526176+00:00",
+  "task_id": 734,
+  "entity_version": 1,
+  "commit_sha": null,
+  "scope": null,
+  "default_applies": true,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

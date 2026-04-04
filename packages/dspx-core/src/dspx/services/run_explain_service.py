@@ -177,17 +177,38 @@ def _expected_local_artifacts(
     return tuple(required), tuple(dict.fromkeys(optional))
 
 
+def _relevant_mlflow_actual_tags(tags: Mapping[str, Any]) -> dict[str, str]:
+    return {
+        key: str(tags.get(key) or "").strip()
+        for key in _MLFLOW_CORRELATION_TAG_KEYS
+        if str(tags.get(key) or "").strip()
+    }
+
+
+def _mlflow_candidate_tag_conflicts(
+    tags: Mapping[str, Any],
+    expected_tags: Mapping[str, str],
+) -> bool:
+    relevant_actual = _relevant_mlflow_actual_tags(tags)
+    if not relevant_actual:
+        return False
+
+    for key, actual in relevant_actual.items():
+        expected = expected_tags.get(key)
+        if expected is None:
+            continue
+        if actual != str(expected).strip():
+            return True
+    return False
+
+
 def _mlflow_candidate_tags_match(
     tags: Mapping[str, Any],
     expected_tags: Mapping[str, str],
     *,
     strict: bool,
 ) -> bool:
-    relevant_actual = {
-        key: str(tags.get(key) or "").strip()
-        for key in _MLFLOW_CORRELATION_TAG_KEYS
-        if str(tags.get(key) or "").strip()
-    }
+    relevant_actual = _relevant_mlflow_actual_tags(tags)
     if not relevant_actual:
         return not strict
 
@@ -199,13 +220,7 @@ def _mlflow_candidate_tags_match(
                 return False
         return True
 
-    for key, actual in relevant_actual.items():
-        expected = expected_tags.get(key)
-        if expected is None:
-            continue
-        if actual != str(expected).strip():
-            return False
-    return True
+    return not _mlflow_candidate_tag_conflicts(tags, expected_tags)
 
 
 def _artifacts_cover_required(
@@ -406,8 +421,9 @@ def _find_linked_local_runs(
     tracking_uri: str,
     expected_tags: Mapping[str, str],
     limit: int = 20,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], bool]:
     found: dict[str, dict[str, Any]] = {}
+    tag_contract_violation = False
     search_artifacts = tuple(dict.fromkeys([*required_artifacts, *optional_artifacts]))
     for tracking_root in tracking_roots:
         if not tracking_root.exists() or not tracking_root.is_dir():
@@ -475,6 +491,8 @@ def _find_linked_local_runs(
         if run_id and expected_tags and not tags:
             tags = _run_tags_from_client(run_id, tracking_uri=tracking_uri)
 
+        if expected_tags and _mlflow_candidate_tag_conflicts(tags, expected_tags):
+            tag_contract_violation = True
         if expected_tags and not _mlflow_candidate_tags_match(
             tags,
             expected_tags,
@@ -493,7 +511,7 @@ def _find_linked_local_runs(
         if len(out) >= limit:
             break
 
-    return out
+    return out, tag_contract_violation
 
 
 def _truthy_env(name: str, default: str = "1") -> bool:
@@ -691,10 +709,13 @@ def _remote_search_candidates(
     elapsed = (time.perf_counter() - started) * 1000.0
 
     candidates: list[dict[str, Any]] = []
+    tag_contract_violation = False
     for run in runs[: int(candidate_cap)]:
         info = getattr(run, "info", None)
         data = getattr(run, "data", None)
         tags = _as_dict(getattr(data, "tags", {}))
+        if expected_tags and _mlflow_candidate_tag_conflicts(tags, expected_tags):
+            tag_contract_violation = True
         if expected_tags and not _mlflow_candidate_tags_match(
             tags,
             expected_tags,
@@ -721,6 +742,8 @@ def _remote_search_candidates(
             candidate["matched_tags"] = matched_tags
         candidates.append(candidate)
 
+    if tag_contract_violation:
+        reasons.append("mlflow_tag_contract_violation")
     if len(candidates) >= int(candidate_cap):
         reasons.append("mlflow_remote_candidate_cap_reached")
     if not candidates:
@@ -829,13 +852,15 @@ def _mlflow_context(
         meta_path=meta_path,
         receipt=receipt,
     )
-    linked_runs = _find_linked_local_runs(
+    linked_runs, tag_contract_violation = _find_linked_local_runs(
         tracking_roots=local_roots,
         required_artifacts=required_artifacts,
         optional_artifacts=optional_artifacts,
         tracking_uri=tracking_display,
         expected_tags=expected_tags,
     )
+    if tag_contract_violation:
+        reasons.append("mlflow_tag_contract_violation")
     out["linked_runs"] = linked_runs
     out["candidate_count"] = len(linked_runs)
     out["matched_count"] = len(linked_runs)
