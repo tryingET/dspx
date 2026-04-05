@@ -44,14 +44,15 @@ def _trusted_program_roots() -> List[Path]:
 
 def _require_trusted_program_path(program_path: Path) -> Path:
     resolved = program_path.resolve()
-    for root in _trusted_program_roots():
+    trusted_roots = _trusted_program_roots()
+    for root in trusted_roots:
         try:
             resolved.relative_to(root)
             return resolved
         except ValueError:
             continue
 
-    allowed = ", ".join(str(root) for root in _trusted_program_roots())
+    allowed = ", ".join(str(root) for root in trusted_roots)
     raise ValueError(
         "Program path must stay under a trusted root. "
         f"Got {resolved}; trusted roots: {allowed}. "

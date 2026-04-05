@@ -543,7 +543,12 @@ _SIZE_SUFFIXES: dict[str, int] = {
 
 
 def _parse_size(raw: str) -> int:
-    """Parse a human-friendly size string like '10MB', '1m', '512k', '1048576'."""
+    """Parse a human-friendly size string like '10MB', '1m', '512k', '1048576'.
+
+    Suffix values must use integer counts. Fractional inputs such as ``0.5k`` are
+    rejected explicitly so operators do not accidentally get a silently truncated
+    byte limit.
+    """
     s = raw.strip().lower()
     if not s:
         return BodySizeLimitConfig._DEFAULT_MAX_BYTES
@@ -552,20 +557,26 @@ def _parse_size(raw: str) -> int:
         return int(s)
     except ValueError:
         pass
-    # Try <number><suffix>
+    # Try <integer><suffix>
     for suffix, multiplier in sorted(
         _SIZE_SUFFIXES.items(), key=lambda kv: -len(kv[0])
     ):
         if s.endswith(suffix):
             num_part = s[: -len(suffix)].strip()
+            if not num_part:
+                break
+            if not re.fullmatch(r"[0-9]+", num_part):
+                raise ValueError(
+                    f"invalid size value '{raw}': suffix-based sizes must use an integer count"
+                )
             try:
-                return int(float(num_part) * multiplier)
+                return int(num_part) * multiplier
             except (ValueError, OverflowError):
                 raise ValueError(
-                    f"invalid size value '{raw}': cannot parse '{num_part}' as number"
+                    f"invalid size value '{raw}': cannot parse '{num_part}' as integer"
                 )
     raise ValueError(
-        f"invalid size value '{raw}': expected integer or <number><suffix> "
+        f"invalid size value '{raw}': expected integer bytes or <integer><suffix> "
         f"(suffixes: {', '.join(sorted(_SIZE_SUFFIXES))})"
     )
 
@@ -619,21 +630,37 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
 
 class _Stats:
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self.reset()
 
     def reset(self) -> None:
-        self.requests_total = 0
-        self.status_401 = 0
-        self.status_429 = 0
-        self.status_413 = 0
+        with self._lock:
+            self.requests_total = 0
+            self.status_401 = 0
+            self.status_429 = 0
+            self.status_413 = 0
+
+    def increment_requests(self) -> None:
+        with self._lock:
+            self.requests_total += 1
+
+    def increment_status(self, code: int) -> None:
+        with self._lock:
+            if code == 401:
+                self.status_401 += 1
+            elif code == 429:
+                self.status_429 += 1
+            elif code == 413:
+                self.status_413 += 1
 
     def snapshot(self) -> Dict[str, int]:
-        return {
-            "requests_total": self.requests_total,
-            "status_401": self.status_401,
-            "status_429": self.status_429,
-            "status_413": self.status_413,
-        }
+        with self._lock:
+            return {
+                "requests_total": self.requests_total,
+                "status_401": self.status_401,
+                "status_429": self.status_429,
+                "status_413": self.status_413,
+            }
 
 
 stats = _Stats()
@@ -648,13 +675,7 @@ class RequestStatsMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        stats.requests_total += 1
+        stats.increment_requests()
         response = await call_next(request)
-        code = response.status_code
-        if code == 401:
-            stats.status_401 += 1
-        elif code == 429:
-            stats.status_429 += 1
-        elif code == 413:
-            stats.status_413 += 1
+        stats.increment_status(response.status_code)
         return response

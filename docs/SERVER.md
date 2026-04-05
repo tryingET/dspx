@@ -131,10 +131,14 @@ The server rejects request bodies that exceed a configurable size limit.
   - Plain integer bytes: `DSPX_MAX_BODY_SIZE=5242880`
   - Human-friendly suffix: `DSPX_MAX_BODY_SIZE=5MB`, `DSPX_MAX_BODY_SIZE=1GB`, `DSPX_MAX_BODY_SIZE=512k`
   - Supported suffixes: `b`, `k`/`kb`, `m`/`mb`, `g`/`gb` (case-insensitive)
+  - Suffix-based values must use an integer count; fractional values like `0.5k` or `1.5mb` are rejected explicitly
 
 Fail-closed behavior:
 - If `Content-Length` exceeds the limit, the server rejects with `413 Payload Too Large` before the request body is read
 - Invalid `Content-Length` headers are rejected with `400 Bad Request`
+
+Known limitation:
+- The current middleware enforces the limit from the `Content-Length` header only. Requests streamed without `Content-Length` (for example `Transfer-Encoding: chunked`) are not rejected by this middleware yet; stream-level body-size enforcement would need a deeper ASGI receive wrapper in a follow-up change.
 
 Error response:
 ```json

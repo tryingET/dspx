@@ -82,6 +82,10 @@ class TestParseSize:
     def test_whitespace(self) -> None:
         assert _parse_size("  2MB  ") == 2 * 1024 * 1024
 
+    def test_fractional_suffix_rejected(self) -> None:
+        with pytest.raises(ValueError, match="integer count"):
+            _parse_size("0.5k")
+
 
 # ---------------------------------------------------------------------------
 # BodySizeLimitConfig.from_env
@@ -107,6 +111,13 @@ class TestBodySizeLimitConfig:
     def test_negative_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DSPX_MAX_BODY_SIZE", "-1")
         with pytest.raises(ValueError, match="non-negative"):
+            BodySizeLimitConfig.from_env()
+
+    def test_fractional_suffix_env_rejected(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DSPX_MAX_BODY_SIZE", "1.5mb")
+        with pytest.raises(ValueError, match="integer count"):
             BodySizeLimitConfig.from_env()
 
 
