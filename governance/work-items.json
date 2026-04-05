@@ -1066,14 +1066,15 @@
         {
           "id": "AK-TASK-0799",
           "title": "security(TG25): flip server auth default to required; add DSPX_AUTH_SKIP_FOR_DEV opt-in for local development",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "security(TG25): flip server auth default to required; add DSPX_AUTH_SKIP_FOR_DEV opt-in for local development (task #799)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-05"
         },
         {
           "id": "AK-TASK-0800",

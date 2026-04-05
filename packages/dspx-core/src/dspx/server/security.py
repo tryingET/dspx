@@ -90,12 +90,17 @@ class AuthConfig:
         token_file_configured = bool(tf and tf.strip())
         if token_file_configured and tf is not None:
             tokens.update(_load_tokens_from_file(tf.strip()))
-        # If auth material is configured, default to required unless explicitly disabled.
-        default_required = True if (tokens or token_file_configured) else False
-        required = _parse_bool_env(e.get("DSPX_AUTH_REQUIRED"), default_required)
+        skip_for_dev = _parse_bool_env(e.get("DSPX_AUTH_SKIP_FOR_DEV"), False)
+        required = (
+            False
+            if skip_for_dev
+            else _parse_bool_env(e.get("DSPX_AUTH_REQUIRED"), True)
+        )
         if required and not tokens:
             raise AuthConfigError(
-                "auth is required but no server tokens were configured"
+                "auth is required but no server tokens were configured; "
+                "set DSPX_SERVER_TOKEN/DSPX_SERVER_TOKENS/DSPX_SERVER_TOKEN_FILE "
+                "or opt into local-only bypass with DSPX_AUTH_SKIP_FOR_DEV=1"
             )
         return AuthConfig(tokens=tokens, required=required)
 

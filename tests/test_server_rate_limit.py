@@ -26,6 +26,7 @@ def clear_env(monkeypatch: pytest.MonkeyPatch):
         "DSPX_SERVER_TOKENS",
         "DSPX_SERVER_TOKEN_FILE",
         "DSPX_AUTH_REQUIRED",
+        "DSPX_AUTH_SKIP_FOR_DEV",
         "DSPX_RATE_LIMIT_ENABLED",
         "DSPX_RATE_LIMIT_DEFAULT",
         "DSPX_RATE_LIMIT_PATHS",
@@ -33,6 +34,7 @@ def clear_env(monkeypatch: pytest.MonkeyPatch):
         "DSPX_TRUSTED_PROXIES",
     ]:
         monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
 
 
 def _client() -> TestClient:

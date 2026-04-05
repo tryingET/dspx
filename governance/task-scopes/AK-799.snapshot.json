@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-05T05:31:07.230890391+00:00",
+  "task_id": 799,
+  "entity_version": 7,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/2026-04-05--flip-server-auth-default-to-required.md",
+      "docs/SERVER.md",
+      "docs/project/operational_goals.md",
+      "governance/task-scopes/AK-799.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/server/app.py",
+      "packages/dspx-core/src/dspx/server/security.py",
+      "tests/test_server_api.py",
+      "tests/test_server_auth.py",
+      "tests/test_server_confirm_mutations.py",
+      "tests/test_server_global_app.py",
+      "tests/test_server_metrics.py",
+      "tests/test_server_metrics_negotiation.py",
+      "tests/test_server_rate_limit.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/server/app.py",
+      "packages/dspx-core/src/dspx/server/security.py",
+      "tests/test_server_auth.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

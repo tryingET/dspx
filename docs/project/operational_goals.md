@@ -13,11 +13,11 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-- `AK-799` — flip server auth default to required and add `DSPX_AUTH_SKIP_FOR_DEV` as the explicit local opt-in.
 - `AK-800` — add request body size limits middleware to the DSPx server.
 
 ## Recently completed in this wave
 
+- `AK-799` — flipped DSPx server auth to required-by-default startup semantics, added the explicit local-only `DSPX_AUTH_SKIP_FOR_DEV=1` bypass, updated server docs plus server-facing tests to opt into the bypass only when intended, exported `governance/task-scopes/AK-799.snapshot.json`, and refreshed the checked-in AK projection after completion.
 - `AK-798` — replaced contract-expression `eval()` with a tiny AST interpreter over a narrowed helper namespace plus a read-only embedding view, rejected arbitrary method calls / non-allowlisted helpers / arbitrary attribute traversal, added regressions in `tests/test_coordinates_phase_b.py`, exported `governance/task-scopes/AK-798.snapshot.json`, and refreshed the checked-in AK projection after completion.
 - `AK-797` — confined `optimize_service._import_program_module()` to trusted program roots (`cwd`, the system temp root, plus `DSPX_TRUSTED_PROGRAM_ROOTS` overrides), added rejection/allowlist regressions in `tests/test_optimize_gepa_stub.py`, exported `governance/task-scopes/AK-797.snapshot.json`, and refreshed the checked-in AK projection after completion.
 - `AK-734` — surfaced `mlflow_tag_contract_violation` for contradictory MLflow correlation tags during explain candidate filtering, reconfirmed the existing assignment-style `just task-scope-check task_id=<AK-ID> mode=working-tree` contract without unnecessary doc churn, recorded the completed slice in `governance/task-scopes/AK-734.snapshot.json` + diary/handoff artifacts, and then closed the task after repairing the live AK task-mutation foreign-key blocker.
@@ -34,7 +34,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Notes
 
 - `TG24` is complete; `TG25` is now an active repo-scoped security hardening queue rather than an empty waiting state.
-- `AK-798` is closed; the truthful ready queue now starts at `AK-799` and `AK-800`.
+- `AK-799` is closed; the truthful ready queue now starts at `AK-800`.
+- Keep the `AK-799` required-by-default server auth boundary closed unless a smaller follow-up explicitly widens it.
 - Keep the `AK-797` trusted-program-root boundary closed unless a smaller follow-up explicitly widens it.
 - Keep the `AK-798` narrowed contract-expression boundary closed unless a smaller follow-up explicitly widens the helper/attribute contract.
 - `AK-729` was an operator-directed adversarial follow-on that repaired hidden TG24 regressions without reopening the broader tactical-wave selection.

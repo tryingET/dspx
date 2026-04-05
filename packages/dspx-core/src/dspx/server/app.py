@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, cast
+from collections.abc import Callable
 from datetime import datetime, timezone
 import json
 import logging
@@ -9,6 +10,7 @@ import re
 import shutil
 from tempfile import TemporaryDirectory
 from pathlib import Path
+from threading import Lock
 from uuid import uuid4
 
 from fastapi import FastAPI, Header, Request
@@ -545,6 +547,28 @@ def create_app() -> FastAPI:
     return app
 
 
+class _LazyASGIApp:
+    def __init__(self, factory: Callable[[], FastAPI]) -> None:
+        self._factory = factory
+        self._app: FastAPI | None = None
+        self._lock = Lock()
+
+    def _get_app(self) -> FastAPI:
+        app = self._app
+        if app is not None:
+            return app
+        with self._lock:
+            if self._app is None:
+                self._app = self._factory()
+            return self._app
+
+    async def __call__(self, scope, receive, send) -> None:
+        await self._get_app()(scope, receive, send)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._get_app(), name)
+
+
 def main() -> None:
     """Start the ASGI server using Granian.
 
@@ -573,5 +597,7 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-# Global app for Granian target convenience
-app = create_app()
+# Global lazy ASGI app for Granian target convenience; defer env-sensitive
+# configuration loading until first use so import order does not freeze runtime
+# auth/rate-limit settings.
+app = _LazyASGIApp(create_app)

@@ -8,6 +8,11 @@ from fastapi.testclient import TestClient
 from dspx.server.app import create_app
 
 
+@pytest.fixture(autouse=True)
+def _skip_server_auth_for_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+
+
 def _configure_server_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("DSPX_CONFIRM_MUTATIONS", "1")
     monkeypatch.setenv("MLFLOW_ENABLE", "0")

@@ -7,8 +7,9 @@ from dspx.server.app import create_app
 
 
 @pytest.fixture(autouse=True)
-def _enable_metrics(monkeypatch: pytest.MonkeyPatch):
+def _server_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DSPX_METRICS_ENABLED", "1")
+    monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
 
 
 def test_metrics_json_default() -> None:

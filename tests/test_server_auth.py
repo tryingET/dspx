@@ -17,6 +17,7 @@ def clear_auth_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         "DSPX_SERVER_TOKENS",
         "DSPX_SERVER_TOKEN_FILE",
         "DSPX_AUTH_REQUIRED",
+        "DSPX_AUTH_SKIP_FOR_DEV",
     ]:
         monkeypatch.delenv(k, raising=False)
     yield
@@ -27,7 +28,15 @@ def _client() -> TestClient:
     return TestClient(app)
 
 
-def test_auth_disabled_allows_requests() -> None:
+def test_auth_defaults_to_required_without_tokens_fails_closed() -> None:
+    with pytest.raises(AuthConfigError, match="DSPX_AUTH_SKIP_FOR_DEV=1"):
+        create_app()
+
+
+def test_auth_skip_for_dev_allows_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
     client = _client()
     r = client.post(
         "/signature",

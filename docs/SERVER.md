@@ -46,11 +46,18 @@ For Docker / remote access, bind `--host 0.0.0.0` and put auth + TLS in front (r
 
 Auth (Bearer tokens)
 --------------------
-- Single token: `DSPX_SERVER_TOKEN='s3cr3t'`
-- Multiple tokens: `DSPX_SERVER_TOKENS='tok1,tok2'`
-- Token file: `DSPX_SERVER_TOKEN_FILE=/path/tokens.txt` (one per line)
-- Require auth: `DSPX_AUTH_REQUIRED=1` (defaults on when any token present)
+- Server auth is now **required by default**.
+- Configure one of:
+  - Single token: `DSPX_SERVER_TOKEN='s3cr3t'`
+  - Multiple tokens: `DSPX_SERVER_TOKENS='tok1,tok2'`
+  - Token file: `DSPX_SERVER_TOKEN_FILE=/path/tokens.txt` (one per line)
+- Optional explicit override: `DSPX_AUTH_REQUIRED=0|1`
+- Local-only dev bypass: `DSPX_AUTH_SKIP_FOR_DEV=1`
 - Client header: `Authorization: Bearer <token>`
+
+Fail-closed startup rule:
+- if auth remains required and no tokens are configured, the server refuses to start
+- use `DSPX_AUTH_SKIP_FOR_DEV=1` only for intentional local development bypasses, not for shared or production-like deployments
 
 Mutation confirmation
 ---------------------

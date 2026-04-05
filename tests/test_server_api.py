@@ -3,10 +3,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 import dspx.server.app as server_app
 from dspx.server.app import create_app
+
+
+@pytest.fixture(autouse=True)
+def _skip_server_auth_for_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
 
 
 def _artifact_path(root: Path, rel_path: str | None) -> Path | None:
