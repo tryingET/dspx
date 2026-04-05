@@ -90,6 +90,13 @@ def smoke_module_code(
     return bool(result.get("ok")) and not errors, checks, errors
 
 
+def _bounded_worker_error(text: str, *, limit: int = 240) -> str:
+    compact = str(text or "").strip()
+    if len(compact) <= limit:
+        return compact
+    return compact[:limit] + "…[truncated]"
+
+
 def _run_worker(
     *,
     mode: str,
@@ -129,16 +136,40 @@ def _run_worker(
             errors = [f"smoke_runner_no_result:rc={proc.returncode}"]
             stderr = (proc.stderr or "").strip()
             if stderr:
-                errors.append(f"smoke_runner_stderr:{stderr.splitlines()[-1]}")
+                errors.append(
+                    f"smoke_runner_stderr:{_bounded_worker_error(stderr.splitlines()[-1])}"
+                )
             stdout = (proc.stdout or "").strip()
             if stdout:
-                errors.append(f"smoke_runner_stdout:{stdout.splitlines()[-1]}")
+                errors.append(
+                    f"smoke_runner_stdout:{_bounded_worker_error(stdout.splitlines()[-1])}"
+                )
             return {
                 "ok": False,
                 "checks": {"module-smoke": False} if mode == "module" else {},
                 "errors": errors,
             }
-        loaded = json.loads(result_path.read_text(encoding="utf-8"))
+        try:
+            loaded = json.loads(result_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return {
+                "ok": False,
+                "checks": {"module-smoke": False} if mode == "module" else {},
+                "errors": [f"smoke_runner_invalid_result:{exc.__class__.__name__}"],
+            }
+        if not isinstance(loaded, dict):
+            return {
+                "ok": False,
+                "checks": {"module-smoke": False} if mode == "module" else {},
+                "errors": ["smoke_runner_invalid_result:non_object"],
+            }
+        raw_errors = loaded.get("errors")
+        if isinstance(raw_errors, list):
+            loaded["errors"] = [
+                _bounded_worker_error(str(item)) for item in raw_errors[:20]
+            ]
+        elif raw_errors is not None:
+            loaded["errors"] = [_bounded_worker_error(str(raw_errors))]
         if proc.returncode != 0 and not loaded.get("errors"):
             loaded["errors"] = [f"smoke_runner_failed:rc={proc.returncode}"]
         return loaded

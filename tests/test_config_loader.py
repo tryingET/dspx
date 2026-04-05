@@ -218,3 +218,89 @@ def test_load_config_env_fails_closed_for_invalid_toml(tmp_path: Path) -> None:
         assert "Failed to parse DSPx config TOML" in str(exc)
     else:  # pragma: no cover - fail closed assertion
         raise AssertionError("expected ValueError for invalid TOML")
+
+
+def test_load_config_env_refreshes_previous_config_managed_values(
+    monkeypatch, tmp_path: Path
+) -> None:
+    for key in [
+        "DSPX_PROVIDER",
+        "DSPX_PI_TIMEOUT",
+        "MLFLOW_EXPERIMENT",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    cfg_a = tmp_path / "a.toml"
+    cfg_a.write_text(
+        """
+        [provider]
+        name = "stub"
+
+        [pi]
+        timeout_s = 42
+
+        [mlflow]
+        experiment = "EXP_A"
+        """,
+        encoding="utf-8",
+    )
+    cfg_b = tmp_path / "b.toml"
+    cfg_b.write_text(
+        """
+        [provider]
+        name = "pi-rpc"
+
+        [mlflow]
+        experiment = "EXP_B"
+        """,
+        encoding="utf-8",
+    )
+
+    load_config_env(str(cfg_a))
+    assert os.environ["DSPX_PROVIDER"] == "stub"
+    assert os.environ["DSPX_PI_TIMEOUT"] == "42"
+    assert os.environ["MLFLOW_EXPERIMENT"] == "EXP_A"
+
+    load_config_env(str(cfg_b))
+    assert os.environ["DSPX_PROVIDER"] == "pi-rpc"
+    assert os.environ["MLFLOW_EXPERIMENT"] == "EXP_B"
+    assert os.getenv("DSPX_PI_TIMEOUT") is None
+
+
+def test_load_config_env_preserves_explicit_env_override_on_refresh(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "explicit-provider")
+
+    cfg_a = tmp_path / "a.toml"
+    cfg_a.write_text('[provider]\nname = "stub"\n', encoding="utf-8")
+    cfg_b = tmp_path / "b.toml"
+    cfg_b.write_text('[provider]\nname = "pi-rpc"\n', encoding="utf-8")
+
+    load_config_env(str(cfg_a))
+    load_config_env(str(cfg_b))
+
+    assert os.environ["DSPX_PROVIDER"] == "explicit-provider"
+
+
+def test_load_config_env_rejects_embedded_secrets(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("DSPX_OPENAI_COMPAT_API_KEY", raising=False)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [openai_compatible]
+        api_key = "super-secret"
+        api_base = "http://127.0.0.1:8000/v1"
+        """,
+        encoding="utf-8",
+    )
+
+    try:
+        load_config_env(str(cfg))
+    except ValueError as exc:
+        assert "must not embed secrets" in str(exc)
+        assert "openai_compatible.api_key" in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected ValueError for embedded secret")
+
+    assert os.getenv("DSPX_OPENAI_COMPAT_API_KEY") is None

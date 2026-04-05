@@ -123,12 +123,44 @@ class PiRPCLM(DSPyBaseLM):
             verbose=self.verbose,
         )
 
+    @staticmethod
+    def _should_retry_prompt_error(exc: Exception) -> bool:
+        if isinstance(exc, TimeoutError):
+            return False
+        if isinstance(
+            exc,
+            (
+                BrokenPipeError,
+                ConnectionAbortedError,
+                ConnectionResetError,
+                EOFError,
+            ),
+        ):
+            return True
+        if isinstance(exc, OSError):
+            return True
+        text = str(exc).strip().lower()
+        return any(
+            marker in text
+            for marker in (
+                "broken pipe",
+                "connection reset",
+                "connection aborted",
+                "pipe closed",
+                "process exited",
+                "process not running",
+                "eof",
+            )
+        )
+
     def _call_prompt_with_retry(self, query: str) -> str:
         timeout = self.timeout
         try:
             return self.client.prompt(query, timeout=timeout).text
-        except Exception:
-            # One best-effort restart + retry for process-level failures.
+        except Exception as exc:
+            if not self._should_retry_prompt_error(exc):
+                raise
+            # One best-effort restart + retry for process-level failures only.
             self.client.restart()
             return self.client.prompt(query, timeout=timeout).text
 

@@ -73,3 +73,28 @@ def test_refine_interactive_uses_structured_feedback_memory(monkeypatch) -> None
     assert len(prompts) == 2
     assert "Refinement feedback history" in prompts[1]
     assert "Use explicit output field" in prompts[1]
+
+
+def test_refine_interactive_fails_closed_without_tty(monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+    class _Stream:
+        def isatty(self) -> bool:
+            return False
+
+    monkeypatch.setattr(refine.sys, "stdin", _Stream())
+    monkeypatch.setattr(refine.sys, "stdout", _Stream())
+
+    try:
+        refine.run_refine(
+            "Create a signature",
+            attempts=1,
+            non_interactive=False,
+            lm=cast(Any, object()),
+        )
+    except RuntimeError as exc:
+        assert "requires a TTY" in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError(
+            "expected RuntimeError when interactive prompting is unavailable"
+        )

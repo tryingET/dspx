@@ -1589,6 +1589,43 @@ def test_run_receipt_execution_context_hash_tracks_env_value_changes(
     )
 
 
+def test_run_receipt_execution_context_hash_redacts_secret_env_values(
+    tmp_path: Path, monkeypatch
+) -> None:
+    out = tmp_path / "artifact.py"
+    out.write_text("print('ok')\n", encoding="utf-8")
+
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_API_KEY", "secret-a")
+    receipt_a = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        capture_context=True,
+    )
+
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_API_KEY", "secret-b")
+    receipt_b = build_run_receipt(
+        run_kind="module-gen",
+        output_path=out,
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key="k1",
+        cache_file=None,
+        cache_enabled=False,
+        capture_context=True,
+    )
+
+    assert (
+        receipt_a["execution_context"]["env_hash"]
+        == receipt_b["execution_context"]["env_hash"]
+    )
+
+
 def test_resolve_run_identity_exposes_contract_facets() -> None:
     receipt = {
         "execution_id": "exec-123",

@@ -1,11 +1,111 @@
 from __future__ import annotations
 
+import re
 import statistics
 import time
+from collections.abc import Mapping as MappingABC
 from typing import Any, Sequence
 
 from dspx.dtos import LMRequest
 from dspx.provider_registry import create, ensure_default_providers
+from dspx.redaction import redact_headers, redact_url
+
+_MAX_PREVIEW_CHARS = 320
+_MAX_COLLECTION_ITEMS = 20
+_MAX_MAPPING_ITEMS = 40
+_SENSITIVE_FIELD_NAMES = {
+    "access_token",
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "password",
+    "proxy-authorization",
+    "secret",
+    "set-cookie",
+    "token",
+}
+_SENSITIVE_FIELD_SUFFIXES = (
+    "_access_token",
+    "_api_key",
+    "_password",
+    "_secret",
+    "_token",
+)
+_URL_RE = re.compile(r"https?://[^\s'\"<>]+", re.IGNORECASE)
+_BEARER_RE = re.compile(r"(?i)\b(bearer\s+)([^\s,;]+)")
+_AUTH_HEADER_RE = re.compile(r"(?i)\b(authorization\s*:\s*bearer\s+)([^\s,;]+)")
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)\b((?:api[-_]?key|access[-_]?token|token|secret|password)\s*[=:]\s*)([^\s,;]+)"
+)
+_JSON_SECRET_RE = re.compile(
+    r'(?i)("(?:api[-_]?key|access[-_]?token|token|secret|password|authorization)"\s*:\s*")([^"]+)(")'
+)
+
+
+def _looks_sensitive_field(name: str) -> bool:
+    lowered = str(name or "").strip().lower()
+    return lowered in _SENSITIVE_FIELD_NAMES or lowered.endswith(
+        _SENSITIVE_FIELD_SUFFIXES
+    )
+
+
+def _truncate_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "…[truncated]"
+
+
+def _sanitize_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
+    sanitized = str(text or "")
+    sanitized = _URL_RE.sub(lambda m: redact_url(m.group(0)), sanitized)
+    sanitized = _AUTH_HEADER_RE.sub(r"\1[REDACTED]", sanitized)
+    sanitized = _JSON_SECRET_RE.sub(r"\1[REDACTED]\3", sanitized)
+    sanitized = _SECRET_ASSIGNMENT_RE.sub(r"\1[REDACTED]", sanitized)
+    sanitized = _BEARER_RE.sub(r"\1[REDACTED]", sanitized)
+    return _truncate_text(sanitized, limit=limit)
+
+
+def _sanitize_mapping(value: MappingABC[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    items = list(value.items())
+    for index, (key, item) in enumerate(items):
+        if index >= _MAX_MAPPING_ITEMS:
+            out["__truncated_items__"] = max(0, len(items) - _MAX_MAPPING_ITEMS)
+            break
+        key_text = str(key)
+        lowered = key_text.lower()
+        if key_text == "headers" and isinstance(item, MappingABC):
+            out[key_text] = redact_headers(
+                {str(header): str(val) for header, val in item.items()}
+            )
+            continue
+        if _looks_sensitive_field(lowered):
+            out[key_text] = "[REDACTED]"
+            continue
+        if isinstance(item, str) and (
+            lowered.endswith("_url") or lowered in {"artifact_uri", "base_url", "url"}
+        ):
+            out[key_text] = _truncate_text(redact_url(item))
+            continue
+        out[key_text] = _sanitize_payload(item)
+    return out
+
+
+def _sanitize_payload(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        return _sanitize_text(value)
+    if isinstance(value, MappingABC):
+        return _sanitize_mapping({str(key): item for key, item in value.items()})
+    if isinstance(value, (list, tuple, set)):
+        items = list(value)
+        sanitized = [_sanitize_payload(item) for item in items[:_MAX_COLLECTION_ITEMS]]
+        if len(items) > _MAX_COLLECTION_ITEMS:
+            sanitized.append(f"…[{len(items) - _MAX_COLLECTION_ITEMS} more items]")
+        return sanitized
+    return _sanitize_text(str(value))
 
 
 def extract_text_from_result(result: Any) -> str:
@@ -69,9 +169,9 @@ def provider_metadata_from_instance(provider: str, lm: Any) -> dict[str, Any]:
     meta_fn = getattr(lm, "runtime_metadata", None)
     if callable(meta_fn):
         try:
-            payload["runtime"] = meta_fn()
+            payload["runtime"] = _sanitize_payload(meta_fn())
         except Exception as e:
-            payload["runtime_error"] = str(e)
+            payload["runtime_error"] = _sanitize_text(str(e))
     return payload
 
 
@@ -115,20 +215,29 @@ def check_provider_health(
         return {
             "ok": False,
             "provider": provider,
-            "error": str(e),
+            "error": _sanitize_text(str(e)),
             "duration_ms": round((time.time() - started) * 1000.0, 3),
         }
 
     health_fn = getattr(lm, "healthcheck", None)
     if callable(health_fn):
-        payload = health_fn(probe=probe, prompt=prompt, max_tokens=max_tokens)
+        raw_payload = health_fn(probe=probe, prompt=prompt, max_tokens=max_tokens)
+        payload: dict[str, Any] = (
+            dict(raw_payload)
+            if isinstance(raw_payload, MappingABC)
+            else {
+                "ok": False,
+                "provider": provider,
+                "error": f"invalid health payload: {type(raw_payload).__name__}",
+            }
+        )
         if "duration_ms" not in payload:
             payload["duration_ms"] = round((time.time() - started) * 1000.0, 3)
         if "provider" not in payload:
             payload["provider"] = provider
         if "metadata" not in payload:
             payload["metadata"] = provider_metadata_from_instance(provider, lm)
-        return payload
+        return _sanitize_payload(payload)
 
     payload = provider_metadata_from_instance(provider, lm)
     payload.update(
@@ -144,19 +253,20 @@ def check_provider_health(
             text, usage = invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
             payload["probe"] = {
                 "ok": True,
-                "text": text,
-                "usage": usage,
+                "text": _sanitize_text(text),
+                "usage": _sanitize_payload(usage),
                 "duration_ms": round((time.time() - probe_started) * 1000.0, 3),
             }
         except Exception as e:
+            sanitized_error = _sanitize_text(str(e))
             payload["ok"] = False
-            payload["error"] = str(e)
+            payload["error"] = sanitized_error
             payload["probe"] = {
                 "ok": False,
-                "error": str(e),
+                "error": sanitized_error,
                 "duration_ms": round((time.time() - probe_started) * 1000.0, 3),
             }
-    return payload
+    return _sanitize_payload(payload)
 
 
 def benchmark_providers(
@@ -181,7 +291,7 @@ def benchmark_providers(
             item.update(
                 {
                     "ok": False,
-                    "error": str(e),
+                    "error": _sanitize_text(str(e)),
                     "durations_ms": [],
                     "successes": 0,
                     "failures": repeats,
@@ -204,10 +314,10 @@ def benchmark_providers(
             try:
                 text, _usage = invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
                 durations.append((time.time() - t0) * 1000.0)
-                last_text = text
+                last_text = _sanitize_text(text)
             except Exception as e:
                 durations.append((time.time() - t0) * 1000.0)
-                errors.append(str(e))
+                errors.append(_sanitize_text(str(e)))
 
         successes = max(0, repeats - len(errors))
         item.update(

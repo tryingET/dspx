@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Mapping
 from pathlib import Path
 import os
 import sqlite3
+import threading
 
 import httpx
 from bs4 import BeautifulSoup
@@ -16,6 +17,39 @@ from dspx.tools.openapi.models import OpenAPIOperationInfo
 
 _TOOLS: Dict[str, Callable[..., Any]] = {}
 _TOOL_DESCRIPTORS: Dict[str, ToolDescriptor] = {}
+_TOOLS_LOCK = threading.RLock()
+_MAX_PREVIEW_ROWS = 50
+_MAX_PREVIEW_VALUE_CHARS = 240
+
+
+def _bounded_preview_rows(nrows: int) -> int:
+    try:
+        value = int(nrows)
+    except Exception:
+        value = 5
+    return max(1, min(value, _MAX_PREVIEW_ROWS))
+
+
+def _truncate_preview_value(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        if len(value) <= _MAX_PREVIEW_VALUE_CHARS:
+            return value
+        return value[:_MAX_PREVIEW_VALUE_CHARS] + "…[truncated]"
+    if isinstance(value, dict):
+        return {str(k): _truncate_preview_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_truncate_preview_value(item) for item in value]
+    return _truncate_preview_value(str(value))
+
+
+def _preview_rows(df: pd.DataFrame, *, nrows: int) -> list[dict[str, Any]]:
+    bounded = _bounded_preview_rows(nrows)
+    return [
+        {str(key): _truncate_preview_value(value) for key, value in row.items()}
+        for row in df.head(bounded).to_dict(orient="records")
+    ]
 
 
 def register_tool(
@@ -55,7 +89,6 @@ def register_tool(
         # Best-effort metadata propagation; ignore failures.
         pass
 
-    _TOOLS[name] = _wrapped
     # Store descriptor
     if descriptor is None:
         try:
@@ -88,27 +121,33 @@ def register_tool(
             kind=kind,
             openapi=openapi_info,
         )
-    _TOOL_DESCRIPTORS[name] = descriptor
+    with _TOOLS_LOCK:
+        _TOOLS[name] = _wrapped
+        _TOOL_DESCRIPTORS[name] = descriptor
 
 
 def get_tool(name: str) -> Callable[..., Any]:
-    return _TOOLS[name]
+    with _TOOLS_LOCK:
+        return _TOOLS[name]
 
 
 def available() -> List[str]:
-    return sorted(_TOOLS.keys())
+    with _TOOLS_LOCK:
+        return sorted(_TOOLS.keys())
 
 
 def available_descriptors() -> List[ToolDescriptor]:
-    return [
-        _TOOL_DESCRIPTORS[name]
-        for name in sorted(_TOOL_DESCRIPTORS.keys())
-        if name in _TOOLS
-    ]
+    with _TOOLS_LOCK:
+        return [
+            _TOOL_DESCRIPTORS[name]
+            for name in sorted(_TOOL_DESCRIPTORS.keys())
+            if name in _TOOLS
+        ]
 
 
 def get_descriptor(name: str) -> ToolDescriptor:
-    return _TOOL_DESCRIPTORS[name]
+    with _TOOLS_LOCK:
+        return _TOOL_DESCRIPTORS[name]
 
 
 def ensure_default_tools() -> None:
@@ -431,27 +470,28 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
     if _cap is not None:
         _cap("filesystem.read")
     """Preview a local data file (CSV, JSON, Parquet). Returns schema + head."""
+    bounded_rows = _bounded_preview_rows(nrows)
     lower = path.lower()
-    out: Dict[str, Any] = {"path": path}
+    out: Dict[str, Any] = {"path": path, "preview_rows": bounded_rows}
     if lower.endswith(".csv"):
-        df = pd.read_csv(path, nrows=nrows)
+        df = pd.read_csv(path, nrows=bounded_rows)
         out.update(
             {
                 "type": "csv",
-                "columns": df.columns.tolist(),
-                "rows": df.head(nrows).to_dict(orient="records"),
+                "columns": [str(col) for col in df.columns.tolist()],
+                "rows": _preview_rows(df, nrows=bounded_rows),
             }
         )
     elif lower.endswith(".json") or lower.endswith(".jsonl"):
         try:
-            df = pd.read_json(path, lines=True, nrows=nrows)
+            df = pd.read_json(path, lines=True, nrows=bounded_rows)
         except ValueError:
             df = pd.read_json(path)
         out.update(
             {
                 "type": "json",
-                "columns": df.columns.tolist(),
-                "rows": df.head(nrows).to_dict(orient="records"),
+                "columns": [str(col) for col in df.columns.tolist()],
+                "rows": _preview_rows(df, nrows=bounded_rows),
             }
         )
     elif lower.endswith(".parquet"):
@@ -459,8 +499,8 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
         out.update(
             {
                 "type": "parquet",
-                "columns": df.columns.tolist(),
-                "rows": df.head(nrows).to_dict(orient="records"),
+                "columns": [str(col) for col in df.columns.tolist()],
+                "rows": _preview_rows(df, nrows=bounded_rows),
             }
         )
     else:

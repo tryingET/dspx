@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import builtins
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, cast
@@ -49,6 +51,20 @@ def _extract_sig_class_name(code: str) -> str | None:
     if m:
         return m.group(1)
     return None
+
+
+_ORIGINAL_INPUT = builtins.input
+
+
+def _interactive_refine_available() -> bool:
+    if builtins.input is not _ORIGINAL_INPUT:
+        return True
+    stdin = getattr(sys, "stdin", None)
+    stdout = getattr(sys, "stdout", None)
+    try:
+        return bool(stdin and stdout and stdin.isatty() and stdout.isatty())
+    except Exception:
+        return False
 
 
 @dataclass
@@ -172,6 +188,10 @@ def run_refine(
             lm=active_lm,
         )
     else:
+        if not _interactive_refine_available():
+            raise RuntimeError(
+                "interactive refine requires a TTY; use non_interactive=True when prompting is unavailable"
+            )
         for idx in range(max(1, int(attempts))):
             rounds += 1
             code = _native_generate_signature(

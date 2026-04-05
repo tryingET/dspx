@@ -22,6 +22,22 @@ OutcomeType = Literal["success", "failure", "partial", "cached", "unknown"]
 
 # Cached execution context (static portion computed once per process)
 _CACHED_STATIC_EXECUTION_CONTEXT: dict[str, Any] | None = None
+_SENSITIVE_ENV_FIELD_NAMES = {
+    "access_token",
+    "api_key",
+    "apikey",
+    "authorization",
+    "password",
+    "secret",
+    "token",
+}
+_SENSITIVE_ENV_FIELD_SUFFIXES = (
+    "_access_token",
+    "_api_key",
+    "_password",
+    "_secret",
+    "_token",
+)
 
 
 @dataclass(frozen=True)
@@ -209,12 +225,20 @@ def _capture_git_dirty() -> bool:
     return bool(result.returncode == 0 and result.stdout.strip())
 
 
+def _env_key_is_sensitive(key: str) -> bool:
+    lowered = str(key or "").strip().lower()
+    return lowered in _SENSITIVE_ENV_FIELD_NAMES or lowered.endswith(
+        _SENSITIVE_ENV_FIELD_SUFFIXES
+    )
+
+
 def _environment_context_hash() -> str | None:
     entries = []
     for key in sorted(
         k for k in os.environ if k.startswith(("DSPX_", "DSPY_", "MLFLOW_"))
     ):
-        entries.append(f"{key}={os.environ.get(key, '')}")
+        value = "[REDACTED]" if _env_key_is_sensitive(key) else os.environ.get(key, "")
+        entries.append(f"{key}={value}")
     if not entries:
         return None
     return hashlib.sha256("\0".join(entries).encode("utf-8")).hexdigest()[:16]

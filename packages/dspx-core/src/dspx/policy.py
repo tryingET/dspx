@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional, Mapping, Any
+import logging
 import os
+from typing import Any, Mapping, Optional
+
+_AUDIT_LOG = logging.getLogger("dspx.policy")
 
 
 def _as_set(val: Optional[str]) -> set[str] | None:
@@ -16,6 +19,19 @@ def _as_set(val: Optional[str]) -> set[str] | None:
 def _env(name: str, default: Optional[str] = None) -> Optional[str]:
     v = os.getenv(name)
     return v if v is not None else default
+
+
+def _audit_policy_bypass(kind: str, target: str) -> None:
+    _AUDIT_LOG.warning(
+        "policy bypass active for %s '%s'",
+        kind,
+        target,
+        extra={
+            "dspx_policy_event": "policy_bypass",
+            "dspx_policy_kind": kind,
+            "dspx_policy_target": target,
+        },
+    )
 
 
 def bypass() -> bool:
@@ -93,6 +109,7 @@ def check_capability(cap: str) -> None:
     Known caps used by dspx: 'network.read', 'network.mutate'.
     """
     if bypass():
+        _audit_policy_bypass("capability", cap)
         return
     cap = cap.strip().lower()
     allow = allowed_capabilities()
@@ -105,6 +122,7 @@ def check_capability(cap: str) -> None:
 
 def check_tool_allowed(name: str) -> None:
     if bypass():
+        _audit_policy_bypass("tool", name)
         return
     allow = allowed_tools()
     deny = disallowed_tools()
@@ -140,6 +158,7 @@ def apply_timeout_policy(kwargs: Mapping[str, Any] | None) -> dict[str, Any]:
 
 def check_provider_allowed(name: str) -> None:
     if bypass():
+        _audit_policy_bypass("provider", name)
         return
     allow = allowed_providers()
     deny = disallowed_providers()

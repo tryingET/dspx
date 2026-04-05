@@ -1105,14 +1105,15 @@
         {
           "id": "AK-TASK-0835",
           "title": "security(TG25): close atomic hardening cleanup across config, runtime, policy, and task-scope guards",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "security(TG25): close atomic hardening cleanup across config, runtime, policy, and task-scope guards (task #835)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-05"
         }
       ]
     }

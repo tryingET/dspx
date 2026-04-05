@@ -92,15 +92,28 @@ def _git_output_nul(cmd: list[str], *, cwd: Path) -> list[str]:
     ]
 
 
-def claimed_task_ids_for_repo(repo_root: Path) -> list[int]:
-    proc = _run(
-        [*_ak_cmd(repo_root), "task", "list", "-s", "claimed", "-F", "json"],
-        cwd=repo_root,
+def _ak_claim_lookup_unavailable(message: str) -> bool:
+    lowered = message.lower()
+    return (
+        "registered repo scope" in lowered
+        or "run from a registered repo" in lowered
+        or "use --all for the global task list" in lowered
     )
-    if proc.returncode != 0:
-        raise RuntimeError(
-            (proc.stderr or proc.stdout or "ak task list failed").strip()
+
+
+def claimed_task_ids_for_repo(repo_root: Path) -> list[int]:
+    try:
+        proc = _run(
+            [*_ak_cmd(repo_root), "task", "list", "-s", "claimed", "-F", "json"],
+            cwd=repo_root,
         )
+    except FileNotFoundError:
+        return []
+    if proc.returncode != 0:
+        message = (proc.stderr or proc.stdout or "ak task list failed").strip()
+        if _ak_claim_lookup_unavailable(message):
+            return []
+        raise RuntimeError(message)
     payload = json.loads(proc.stdout)
     if not isinstance(payload, list):
         raise RuntimeError("claimed task payload was not a list")
