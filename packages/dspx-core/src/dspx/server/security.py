@@ -413,7 +413,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return rules, grules
 
     async def dispatch(self, request: Request, call_next):
-        stats.requests_total += 1
         start = time.monotonic()
         ident, ident_kind = self._identity(request)
         method = request.method.upper()
@@ -430,14 +429,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     or path in self.config.global_per_path
                     else "GLOBAL"
                 )
-                gb = self._global.get(key_g)
-                if gb is None:
-                    gb = [_TokenBucket(r.capacity, r.period_seconds) for r in grules]
-                    with self._lock:
+                with self._lock:
+                    gb = self._global.get(key_g)
+                    if gb is None:
+                        gb = [
+                            _TokenBucket(r.capacity, r.period_seconds) for r in grules
+                        ]
                         self._global[key_g] = gb
                 now = time.monotonic()
                 if not all(b.would_allow(now) for b in gb):
-                    stats.status_429 += 1
                     self._log.info(
                         "rate_limit",
                         extra={"event": "ratelimit", **ctx, "scope": "global"},
@@ -470,7 +470,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         ]
                         buckmap[key] = buckets
                 if not all(b.would_allow(now) for b in buckets):
-                    stats.status_429 += 1
                     self._log.info(
                         "rate_limit",
                         extra={"event": "ratelimit", **ctx, "scope": "identity"},
@@ -487,10 +486,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     bucket.consume(now)
         # Proceed
         resp = await call_next(request)
-        if resp.status_code == 401:
-            stats.status_401 += 1
-        elif resp.status_code == 429:
-            stats.status_429 += 1
         # Structured access log (redact auth header)
         took = time.monotonic() - start
         self._log.info(
@@ -642,3 +637,24 @@ class _Stats:
 
 
 stats = _Stats()
+
+
+class RequestStatsMiddleware(BaseHTTPMiddleware):
+    """Outermost middleware that tracks request/response statistics.
+
+    Added last (runs outermost) so every request is counted regardless of which
+    inner middleware short-circuits. This ensures /metrics reflects body-size
+    rejections (413), rate-limit rejections (429), auth failures (401), etc.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        stats.requests_total += 1
+        response = await call_next(request)
+        code = response.status_code
+        if code == 401:
+            stats.status_401 += 1
+        elif code == 429:
+            stats.status_429 += 1
+        elif code == 413:
+            stats.status_413 += 1
+        return response

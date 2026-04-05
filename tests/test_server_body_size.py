@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterator
+from typing import Callable, Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,22 +26,25 @@ def _clear_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         "DSPX_AUTH_SKIP_FOR_DEV",
         "DSPX_BODY_SIZE_LIMIT_ENABLED",
         "DSPX_MAX_BODY_SIZE",
+        "DSPX_METRICS_ENABLED",
     ]:
         monkeypatch.delenv(k, raising=False)
     yield
 
 
-def _client(**overrides: str) -> TestClient:
-    """Create a TestClient with auth skipped for dev."""
-    import os
+@pytest.fixture()
+def make_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Callable[..., TestClient]:
+    """Create a TestClient factory with auth skipped and configurable overrides."""
 
-    for k, v in {
-        "DSPX_AUTH_SKIP_FOR_DEV": "1",
-        **overrides,
-    }.items():
-        os.environ[k] = v
-    app = create_app()
-    return TestClient(app)
+    def _factory(**overrides: str) -> TestClient:
+        monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+        for k, v in overrides.items():
+            monkeypatch.setenv(k, v)
+        return TestClient(create_app())
+
+    return _factory
 
 
 # ---------------------------------------------------------------------------
@@ -113,18 +116,18 @@ class TestBodySizeLimitConfig:
 
 
 class TestBodySizeMiddleware:
-    def test_small_body_passes(self) -> None:
-        client = _client(DSPX_MAX_BODY_SIZE="1024")
+    def test_small_body_passes(self, make_client: Callable[..., TestClient]) -> None:
+        client = make_client(DSPX_MAX_BODY_SIZE="1024")
         r = client.post(
             "/signature",
             json={"prompt": "echo", "template_version": "simple-v1"},
         )
         assert r.status_code == 200
 
-    def test_oversized_content_length_rejected(self) -> None:
-        client = _client(DSPX_MAX_BODY_SIZE="100")
-        # Send a Content-Length header larger than the limit
-        # even though the actual body is small
+    def test_oversized_content_length_rejected(
+        self, make_client: Callable[..., TestClient]
+    ) -> None:
+        client = make_client(DSPX_MAX_BODY_SIZE="100")
         r = client.post(
             "/signature",
             content=b'{"prompt":"x"}',
@@ -139,8 +142,10 @@ class TestBodySizeMiddleware:
         assert body["status"] == 413
         assert "200 bytes exceeds" in body["detail"]
 
-    def test_invalid_content_length_rejected(self) -> None:
-        client = _client(DSPX_MAX_BODY_SIZE="1024")
+    def test_invalid_content_length_rejected(
+        self, make_client: Callable[..., TestClient]
+    ) -> None:
+        client = make_client(DSPX_MAX_BODY_SIZE="1024")
         r = client.post(
             "/signature",
             content=b'{"prompt":"x"}',
@@ -154,16 +159,20 @@ class TestBodySizeMiddleware:
         assert body["error"] == "invalid_request"
         assert "Content-Length" in body["detail"]
 
-    def test_zero_max_bytes_rejects_all_bodies(self) -> None:
-        client = _client(DSPX_MAX_BODY_SIZE="0")
+    def test_zero_max_bytes_rejects_all_bodies(
+        self, make_client: Callable[..., TestClient]
+    ) -> None:
+        client = make_client(DSPX_MAX_BODY_SIZE="0")
         r = client.post(
             "/signature",
             json={"prompt": "echo"},
         )
         assert r.status_code == 413
 
-    def test_disabled_allows_oversized(self) -> None:
-        client = _client(
+    def test_disabled_allows_oversized(
+        self, make_client: Callable[..., TestClient]
+    ) -> None:
+        client = make_client(
             DSPX_MAX_BODY_SIZE="1",
             DSPX_BODY_SIZE_LIMIT_ENABLED="0",
         )
@@ -173,17 +182,18 @@ class TestBodySizeMiddleware:
         )
         assert r.status_code == 200
 
-    def test_exact_limit_passes(self) -> None:
-        # The JSON body for {"prompt":"x"} should be well under 1024 bytes
-        client = _client(DSPX_MAX_BODY_SIZE="1024")
+    def test_exact_limit_passes(self, make_client: Callable[..., TestClient]) -> None:
+        client = make_client(DSPX_MAX_BODY_SIZE="1024")
         r = client.post(
             "/signature",
             json={"prompt": "x", "template_version": "simple-v1"},
         )
         assert r.status_code == 200
 
-    def test_body_too_large_applies_to_all_endpoints(self) -> None:
-        client = _client(DSPX_MAX_BODY_SIZE="10")
+    def test_body_too_large_applies_to_all_endpoints(
+        self, make_client: Callable[..., TestClient]
+    ) -> None:
+        client = make_client(DSPX_MAX_BODY_SIZE="10")
         # /module
         r1 = client.post(
             "/module",
@@ -205,16 +215,41 @@ class TestBodySizeMiddleware:
         )
         assert r2.status_code == 413
 
-    def test_get_request_not_blocked_by_content_length(self) -> None:
+    def test_get_request_not_blocked_by_content_length(
+        self, make_client: Callable[..., TestClient]
+    ) -> None:
         """Non-POST endpoints shouldn't be blocked even if Content-Length is set."""
-        import os
-
-        os.environ["DSPX_AUTH_SKIP_FOR_DEV"] = "1"
-        os.environ["DSPX_METRICS_ENABLED"] = "1"
-        os.environ["DSPX_MAX_BODY_SIZE"] = "10"
-        app = create_app()
-        client = TestClient(app)
-        # GET /metrics has no body, Content-Length header shouldn't cause 413
-        # (TestClient may or may not set Content-Length on GET)
+        client = make_client(
+            DSPX_METRICS_ENABLED="1",
+            DSPX_MAX_BODY_SIZE="10",
+        )
         r = client.get("/metrics")
         assert r.status_code == 200
+
+    def test_body_size_rejection_counted_in_metrics(
+        self, make_client: Callable[..., TestClient]
+    ) -> None:
+        """413 rejections must appear in /metrics (nexus regression)."""
+        client = make_client(
+            DSPX_METRICS_ENABLED="1",
+            DSPX_MAX_BODY_SIZE="100",
+        )
+        # Trigger a 413
+        r = client.post(
+            "/signature",
+            content=b'{"prompt":"x"}',
+            headers={
+                "Content-Type": "application/json",
+                "Content-Length": "200",
+            },
+        )
+        assert r.status_code == 413
+
+        # Verify metrics captured it
+        metrics = client.get("/metrics").json()
+        assert metrics["status_413"] >= 1, (
+            f"expected status_413 >= 1 but got {metrics['status_413']}; "
+            f"full metrics: {metrics}"
+        )
+        # The 413 request must also be counted in requests_total
+        assert metrics["requests_total"] >= 2

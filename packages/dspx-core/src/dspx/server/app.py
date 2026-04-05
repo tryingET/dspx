@@ -29,6 +29,7 @@ from dspx.server.security import (
     BodySizeLimitMiddleware,
     RateLimitConfig,
     RateLimitMiddleware,
+    RequestStatsMiddleware,
     UnauthorizedError,
     stats as _stats,
 )
@@ -310,6 +311,7 @@ def create_app() -> FastAPI:
     app.add_middleware(cast(Any, RateLimitMiddleware), config=rl_cfg)
     body_cfg = BodySizeLimitConfig.from_env()
     app.add_middleware(cast(Any, BodySizeLimitMiddleware), config=body_cfg)
+    app.add_middleware(cast(Any, RequestStatsMiddleware))
 
     @app.exception_handler(UnauthorizedError)
     async def _unauth_handler(request: Request, exc: UnauthorizedError):
