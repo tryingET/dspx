@@ -1079,14 +1079,15 @@
         {
           "id": "AK-TASK-0800",
           "title": "security(TG25): add request body size limits middleware to dspx server",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "security(TG25): add request body size limits middleware to dspx server (task #800)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-05"
         }
       ]
     }

@@ -13,11 +13,11 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-- `AK-800` — add request body size limits middleware to the DSPx server.
+- No active operating slice. Confirm the repo-scoped ready queue for the next `TG25` slice.
 
 ## Recently completed in this wave
 
-- `AK-799` — flipped DSPx server auth to required-by-default startup semantics, added the explicit local-only `DSPX_AUTH_SKIP_FOR_DEV=1` bypass, updated server docs plus server-facing tests to opt into the bypass only when intended, exported `governance/task-scopes/AK-799.snapshot.json`, and refreshed the checked-in AK projection after completion.
+- `AK-800` — added request body size limits middleware to the DSPx server that rejects requests whose `Content-Length` exceeds a configurable limit (default 10 MiB) before the body is read, with human-friendly size parsing (`DSPX_MAX_BODY_SIZE`), enabled-by-default fail-closed semantics, extended the stats counter with `status_413`, and added 21 new regression tests.
 - `AK-798` — replaced contract-expression `eval()` with a tiny AST interpreter over a narrowed helper namespace plus a read-only embedding view, rejected arbitrary method calls / non-allowlisted helpers / arbitrary attribute traversal, added regressions in `tests/test_coordinates_phase_b.py`, exported `governance/task-scopes/AK-798.snapshot.json`, and refreshed the checked-in AK projection after completion.
 - `AK-797` — confined `optimize_service._import_program_module()` to trusted program roots (`cwd`, the system temp root, plus `DSPX_TRUSTED_PROGRAM_ROOTS` overrides), added rejection/allowlist regressions in `tests/test_optimize_gepa_stub.py`, exported `governance/task-scopes/AK-797.snapshot.json`, and refreshed the checked-in AK projection after completion.
 - `AK-734` — surfaced `mlflow_tag_contract_violation` for contradictory MLflow correlation tags during explain candidate filtering, reconfirmed the existing assignment-style `just task-scope-check task_id=<AK-ID> mode=working-tree` contract without unnecessary doc churn, recorded the completed slice in `governance/task-scopes/AK-734.snapshot.json` + diary/handoff artifacts, and then closed the task after repairing the live AK task-mutation foreign-key blocker.
@@ -34,7 +34,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Notes
 
 - `TG24` is complete; `TG25` is now an active repo-scoped security hardening queue rather than an empty waiting state.
-- `AK-799` is closed; the truthful ready queue now starts at `AK-800`.
+- `AK-800` is closed; confirm the repo-scoped ready queue for the next `TG25` slice.
+- Keep the `AK-800` request body size limit boundary closed unless a smaller follow-up explicitly widens it.
 - Keep the `AK-799` required-by-default server auth boundary closed unless a smaller follow-up explicitly widens it.
 - Keep the `AK-797` trusted-program-root boundary closed unless a smaller follow-up explicitly widens it.
 - Keep the `AK-798` narrowed contract-expression boundary closed unless a smaller follow-up explicitly widens the helper/attribute contract.

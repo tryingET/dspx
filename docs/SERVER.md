@@ -120,3 +120,23 @@ Notes
 -----
 - Limits are in-memory per-process. For multi-worker or multi-node deployments, add a distributed backend (e.g., Redis) in a future iteration.
 - Logging is structured via the `dspx.server` logger with redacted Authorization.
+
+Request body size limits
+------------------------
+The server rejects request bodies that exceed a configurable size limit.
+
+- Enabled by default. Disable entirely: `DSPX_BODY_SIZE_LIMIT_ENABLED=0`
+- Default cap: 10 MiB (`10485760` bytes)
+- Override: `DSPX_MAX_BODY_SIZE=<value>`
+  - Plain integer bytes: `DSPX_MAX_BODY_SIZE=5242880`
+  - Human-friendly suffix: `DSPX_MAX_BODY_SIZE=5MB`, `DSPX_MAX_BODY_SIZE=1GB`, `DSPX_MAX_BODY_SIZE=512k`
+  - Supported suffixes: `b`, `k`/`kb`, `m`/`mb`, `g`/`gb` (case-insensitive)
+
+Fail-closed behavior:
+- If `Content-Length` exceeds the limit, the server rejects with `413 Payload Too Large` before the request body is read
+- Invalid `Content-Length` headers are rejected with `400 Bad Request`
+
+Error response:
+```json
+{"error": "body_too_large", "detail": "request body of N bytes exceeds the M byte limit", "status": 413}
+```

@@ -5,6 +5,7 @@ from typing import Optional, Set, Dict, List, Tuple
 import hashlib
 import hmac
 import os
+import threading
 import time
 import logging
 import ipaddress
@@ -316,6 +317,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._bucket_last_seen: Dict[str, float] = {}
         # Global buckets (identity-agnostic)
         self._global: Dict[str, List[_TokenBucket]] = {}
+        self._lock = threading.RLock()
         self._log = logging.getLogger("dspx.server")
 
     def _client_host(self, request: Request) -> str:
@@ -335,39 +337,45 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _cleanup_identities(self, now: float) -> None:
         ttl = max(0.0, float(self.config.identity_ttl_seconds))
-        if ttl > 0.0:
-            expired = [
-                ident
-                for ident, seen in self._bucket_last_seen.items()
-                if (now - seen) > ttl
+        with self._lock:
+            if ttl > 0.0:
+                expired = [
+                    ident
+                    for ident, seen in self._bucket_last_seen.items()
+                    if (now - seen) > ttl
+                ]
+                for ident in expired:
+                    self._bucket_last_seen.pop(ident, None)
+                    self._buckets.pop(ident, None)
+            max_entries = max(1, int(self.config.max_identity_entries))
+            if len(self._buckets) <= max_entries:
+                return
+            overflow = len(self._buckets) - max_entries
+            victims = sorted(self._bucket_last_seen.items(), key=lambda item: item[1])[
+                0:overflow
             ]
-            for ident in expired:
+            for ident, _ in victims:
                 self._bucket_last_seen.pop(ident, None)
                 self._buckets.pop(ident, None)
-        max_entries = max(1, int(self.config.max_identity_entries))
-        if len(self._buckets) <= max_entries:
-            return
-        overflow = len(self._buckets) - max_entries
-        victims = sorted(self._bucket_last_seen.items(), key=lambda item: item[1])[
-            0:overflow
-        ]
-        for ident, _ in victims:
-            self._bucket_last_seen.pop(ident, None)
-            self._buckets.pop(ident, None)
 
     def _remember_identity(self, ident: str, now: float) -> None:
-        self._bucket_last_seen[ident] = now
-        self._cleanup_identities(now)
+        with self._lock:
+            self._bucket_last_seen[ident] = now
+            self._cleanup_identities(now)
 
     def _identity(self, request: Request) -> Tuple[str, str]:
+        host = self._client_host(request)
         # Prefer validated token identity when configured and a known token is present.
+        # For unauthenticated or invalid-token traffic, fall back to the immediate peer
+        # instead of trusting X-Forwarded-For; otherwise clients can spray buckets by
+        # spoofing forwarded IPs behind a trusted proxy.
         if self.config.identity == "token":
             token = _extract_bearer_token(request.headers.get("authorization"))
             if token and token in self.config.valid_tokens:
                 return (self._token_identity(token), "token")
+            return ("ip:" + host, "ip")
         # Fallback to IP
         # Only trust X-Forwarded-For when the immediate peer is a trusted proxy.
-        host = self._client_host(request)
         xff = request.headers.get("x-forwarded-for")
         if xff and self.config.trusted_proxies and self._is_trusted_proxy(host):
             chain = [ip.strip() for ip in xff.split(",") if ip.strip()]
@@ -425,7 +433,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 gb = self._global.get(key_g)
                 if gb is None:
                     gb = [_TokenBucket(r.capacity, r.period_seconds) for r in grules]
-                    self._global[key_g] = gb
+                    with self._lock:
+                        self._global[key_g] = gb
                 now = time.monotonic()
                 if not all(b.would_allow(now) for b in gb):
                     stats.status_429 += 1
@@ -452,13 +461,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
                 now = time.monotonic()
                 self._remember_identity(ident, now)
-                buckmap = self._buckets.setdefault(ident, {})
-                buckets = buckmap.get(key)
-                if buckets is None:
-                    buckets = [
-                        _TokenBucket(r.capacity, r.period_seconds) for r in rules
-                    ]
-                    buckmap[key] = buckets
+                with self._lock:
+                    buckmap = self._buckets.setdefault(ident, {})
+                    buckets = buckmap.get(key)
+                    if buckets is None:
+                        buckets = [
+                            _TokenBucket(r.capacity, r.period_seconds) for r in rules
+                        ]
+                        buckmap[key] = buckets
                 if not all(b.would_allow(now) for b in buckets):
                     stats.status_429 += 1
                     self._log.info(
@@ -498,6 +508,120 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # ---- Lightweight counters (in-memory) ----
 
 
+# ---- Body size limit ----
+
+
+@dataclass(frozen=True)
+class BodySizeLimitConfig:
+    """Configuration for request body size limiting."""
+
+    max_bytes: int
+    enabled: bool
+
+    _DEFAULT_MAX_BYTES = 10 * 1024 * 1024  # 10 MiB
+
+    @staticmethod
+    def from_env(env: Optional[dict[str, str]] = None) -> "BodySizeLimitConfig":
+        e = os.environ if env is None else env
+        enabled = _parse_bool_env(e.get("DSPX_BODY_SIZE_LIMIT_ENABLED"), True)
+        raw = (e.get("DSPX_MAX_BODY_SIZE") or "").strip()
+        if raw:
+            max_bytes = _parse_size(raw)
+        else:
+            max_bytes = BodySizeLimitConfig._DEFAULT_MAX_BYTES
+        if max_bytes < 0:
+            raise ValueError(
+                f"DSPX_MAX_BODY_SIZE must be non-negative, got {max_bytes}"
+            )
+        return BodySizeLimitConfig(max_bytes=max_bytes, enabled=enabled)
+
+
+_SIZE_SUFFIXES: dict[str, int] = {
+    "b": 1,
+    "k": 1024,
+    "kb": 1024,
+    "m": 1024 * 1024,
+    "mb": 1024 * 1024,
+    "g": 1024 * 1024 * 1024,
+    "gb": 1024 * 1024 * 1024,
+}
+
+
+def _parse_size(raw: str) -> int:
+    """Parse a human-friendly size string like '10MB', '1m', '512k', '1048576'."""
+    s = raw.strip().lower()
+    if not s:
+        return BodySizeLimitConfig._DEFAULT_MAX_BYTES
+    # Try plain integer first
+    try:
+        return int(s)
+    except ValueError:
+        pass
+    # Try <number><suffix>
+    for suffix, multiplier in sorted(
+        _SIZE_SUFFIXES.items(), key=lambda kv: -len(kv[0])
+    ):
+        if s.endswith(suffix):
+            num_part = s[: -len(suffix)].strip()
+            try:
+                return int(float(num_part) * multiplier)
+            except (ValueError, OverflowError):
+                raise ValueError(
+                    f"invalid size value '{raw}': cannot parse '{num_part}' as number"
+                )
+    raise ValueError(
+        f"invalid size value '{raw}': expected integer or <number><suffix> "
+        f"(suffixes: {', '.join(sorted(_SIZE_SUFFIXES))})"
+    )
+
+
+class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+    """Rejects requests whose Content-Length exceeds the configured limit."""
+
+    def __init__(self, app, config: BodySizeLimitConfig):
+        super().__init__(app)
+        self.config = config
+        self._log = logging.getLogger("dspx.server")
+
+    async def dispatch(self, request: Request, call_next):
+        if self.config.enabled:
+            content_length = request.headers.get("content-length")
+            if content_length is not None:
+                try:
+                    length = int(content_length)
+                except (ValueError, TypeError):
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "error": "invalid_request",
+                            "detail": "invalid Content-Length header",
+                            "status": 400,
+                        },
+                    )
+                if length > self.config.max_bytes:
+                    self._log.info(
+                        "body_too_large",
+                        extra={
+                            "event": "body_too_large",
+                            "content_length": length,
+                            "max_bytes": self.config.max_bytes,
+                            "path": request.url.path,
+                        },
+                    )
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "error": "body_too_large",
+                            "detail": (
+                                f"request body of {length} bytes exceeds "
+                                f"the {self.config.max_bytes} byte limit"
+                            ),
+                            "status": 413,
+                        },
+                    )
+        return await call_next(request)
+
+
 class _Stats:
     def __init__(self) -> None:
         self.reset()
@@ -506,12 +630,14 @@ class _Stats:
         self.requests_total = 0
         self.status_401 = 0
         self.status_429 = 0
+        self.status_413 = 0
 
     def snapshot(self) -> Dict[str, int]:
         return {
             "requests_total": self.requests_total,
             "status_401": self.status_401,
             "status_429": self.status_429,
+            "status_413": self.status_413,
         }
 
 

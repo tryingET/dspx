@@ -32,6 +32,7 @@ def test_metrics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
         "requests_total": 2,
         "status_401": 0,
         "status_429": 0,
+        "status_413": 0,
     }
 
 
@@ -52,4 +53,5 @@ def test_metrics_count_rate_limited_requests(monkeypatch: pytest.MonkeyPatch) ->
         "requests_total": 3,
         "status_401": 0,
         "status_429": 1,
+        "status_413": 0,
     }

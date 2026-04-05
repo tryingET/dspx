@@ -25,6 +25,8 @@ from dspx.services.module_service import run_generate as module_run_generate
 from dspx.services.mermaid_workflow_service import generate_programs
 from dspx.server.security import (
     AuthGuard,
+    BodySizeLimitConfig,
+    BodySizeLimitMiddleware,
     RateLimitConfig,
     RateLimitMiddleware,
     UnauthorizedError,
@@ -306,6 +308,8 @@ def create_app() -> FastAPI:
     # even when rate limiting itself is disabled.
     rl_cfg = RateLimitConfig.from_env(valid_tokens=guard.config.tokens)
     app.add_middleware(cast(Any, RateLimitMiddleware), config=rl_cfg)
+    body_cfg = BodySizeLimitConfig.from_env()
+    app.add_middleware(cast(Any, BodySizeLimitMiddleware), config=body_cfg)
 
     @app.exception_handler(UnauthorizedError)
     async def _unauth_handler(request: Request, exc: UnauthorizedError):
