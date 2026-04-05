@@ -24,6 +24,26 @@ from dspx_forge.models import (
 from dspx_forge.sanitize import sanitize_text
 from dspx_forge.system_definition import render_system_definition_card
 
+try:
+    from dspx.security import confine_path, PathEscapeError
+except Exception:
+    # Fallback when dspx-core is not installed.
+    class PathEscapeError(ValueError):  # type: ignore[no-redef]
+        def __init__(self, root: Path, resolved: Path, detail: str = "") -> None:
+            msg = f"Path escapes confinement root: {resolved} is not under {root}"
+            if detail:
+                msg = f"{msg} ({detail})"
+            super().__init__(msg)
+
+    def confine_path(root, user_path, **kw):  # type: ignore[misc]
+        root_resolved = Path(root).resolve()
+        resolved = (root_resolved / user_path).resolve()
+        try:
+            resolved.relative_to(root_resolved)
+        except ValueError as exc:
+            raise PathEscapeError(root_resolved, resolved) from exc
+        return resolved
+
 
 @dataclass(frozen=True)
 class WorkOrderPaths:
@@ -102,7 +122,7 @@ def build_workorder(
         id=wo_id,
         run_id=_now_run_id(),
         title=resolved_title,
-        raw_input=raw_input,
+        raw_input="",  # Never persist raw_input to prevent secret leakage
         sanitized_input=sanitized,
         redaction_report=RedactionReport(
             detected=bool(sres.detected),
@@ -121,7 +141,13 @@ def build_workorder(
 
 def write_workorder(out_root: Path, doc: WorkOrderDoc) -> WorkOrderPaths:
     wo = doc.work_order
-    root = (out_root / wo.id).resolve()
+    # Confine wo.id under out_root to prevent path traversal
+    try:
+        root = confine_path(out_root, wo.id)
+    except PathEscapeError:
+        raise ValueError(
+            f"WorkOrder id {wo.id!r} escapes output root {out_root}"
+        ) from None
     root.mkdir(parents=True, exist_ok=True)
     workorder_yaml = root / "workorder.yaml"
     system_definition_card = root / "system_definition_card.md"

@@ -1088,6 +1088,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-05"
+        },
+        {
+          "id": "AK-TASK-0834",
+          "title": "security(TG25): land adversarial NEXUS fixes across Forge, replay, provider racing, and Oracle boundaries",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "security(TG25): land adversarial NEXUS fixes across Forge, replay, provider racing, and Oracle boundaries (task #834)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-05"
+        },
+        {
+          "id": "AK-TASK-0835",
+          "title": "security(TG25): close atomic hardening cleanup across config, runtime, policy, and task-scope guards",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "security(TG25): close atomic hardening cleanup across config, runtime, policy, and task-scope guards (task #835)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

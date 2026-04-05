@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-05T10:53:21.406218237+00:00",
+  "task_id": 834,
+  "entity_version": 1,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "apps/forge/src/dspx_forge/sanitize.py",
+      "apps/forge/src/dspx_forge/workorder.py",
+      "diary/*.md",
+      "docs/project/operational_goals.md",
+      "governance/task-scopes/*.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/coordinates/frontiers.py",
+      "packages/dspx-core/src/dspx/coordinates/territory.py",
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "packages/dspx-core/src/dspx/multi_provider_lm.py",
+      "packages/dspx-core/src/dspx/security.py",
+      "packages/dspx-core/src/dspx/services/run_replay_service.py",
+      "tests/test_multi_provider_parallel_semantics.py",
+      "tests/test_tg25_nexus_fixes.py"
+    ],
+    "required_paths": [],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

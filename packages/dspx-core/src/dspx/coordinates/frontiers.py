@@ -244,10 +244,11 @@ def find_frontiers(
         sample = embeddings
 
     # For each embedding in sample, find distance to nearest neighbor in ALL embeddings
-    neighbor_distances: list[tuple[int, float]] = []
+    neighbor_distances: list[tuple[int, float, str | None]] = []
 
     for i, emb in enumerate(sample):
         min_dist = float("inf")
+        nearest_other_id: str | None = None
         for j, other in enumerate(
             embeddings
         ):  # Check against ALL embeddings, not just sample
@@ -259,14 +260,18 @@ def find_frontiers(
                 semantic_distance(emb.vector, other.vector)
                 / SEMANTIC_DISTANCE_NORMALIZER
             )
-            min_dist = min(min_dist, dist)
-        neighbor_distances.append((i, min_dist))
+            if dist < min_dist:
+                min_dist = dist
+                nearest_other_id = other.run_id
+        neighbor_distances.append((i, min_dist, nearest_other_id))
 
     # Sort by distance (descending) - highest distances are frontiers
     neighbor_distances.sort(key=lambda x: x[1], reverse=True)
 
     # Take top frontiers
-    for rank, (idx, dist) in enumerate(neighbor_distances[:max_frontiers]):
+    for rank, (idx, dist, nearest_other_id) in enumerate(
+        neighbor_distances[:max_frontiers]
+    ):
         if dist < min_distance:
             break
 
@@ -290,7 +295,8 @@ def find_frontiers(
         frontier = Frontier(
             frontier_id=f"F{rank:03d}",
             point=emb.vector,
-            nearest_run_id=emb.run_id,
+            nearest_run_id=nearest_other_id
+            or emb.run_id,  # Actual nearest neighbor, not self
             distance_to_known=dist,
             suggested_input=_suggest_exploration_input(emb),
             exploration_priority=priority,
@@ -301,7 +307,7 @@ def find_frontiers(
 
     # Compute statistics
     if neighbor_distances:
-        avg_dist = sum(d for _, d in neighbor_distances) / len(neighbor_distances)
+        avg_dist = sum(d for _, d, _ in neighbor_distances) / len(neighbor_distances)
         coverage = max(0.0, 1.0 - avg_dist * COVERAGE_DISTANCE_MULTIPLIER)  # Heuristic
     else:
         avg_dist = 0.0

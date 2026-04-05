@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,6 +48,10 @@ class DspyLmAuthCall:
     error: str | None = None
 
 
+class DspyLMAuthResponseError(RuntimeError):
+    """Raised when a non-strict auth-backed provider returned an error payload."""
+
+
 class DspyLMAuthLM(DSPyBaseLM, LMBase):
     """DSPx provider wrapper around dspy-lm-auth.LM.
 
@@ -83,6 +88,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         self.strict = strict
         self.kwargs = dict(kwargs or {})
         self.history: List[DspyLmAuthCall] = []
+        self._inner_lock = threading.RLock()
         self._inner: Any | None = None
         self._resolved_model: str | None = None
         self._resolved_model_type: str | None = None
@@ -103,32 +109,52 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
     def _build_inner(self) -> Any:
         if self._inner is not None:
             return self._inner
-        mod = self._import_module()
-        init_kwargs = dict(self.kwargs)
-        if self.timeout is not None and "timeout" not in init_kwargs:
-            init_kwargs["timeout"] = self.timeout
-        inner = mod.LM(
-            self.requested_model,
-            auth_provider=self.auth_provider,
-            auth_storage=self.auth_storage,
-            **init_kwargs,
-        )
-        self._inner = inner
-        self._resolved_model = str(getattr(inner, "resolved_model_string", "") or "")
-        self._resolved_model_type = str(getattr(inner, "model_type", "") or "")
-        raw_headers = getattr(inner, "kwargs", {}).get("headers")
-        if isinstance(raw_headers, dict):
-            self._resolved_headers = {str(k): str(v) for k, v in raw_headers.items()}
-        self._uses_codex_route = bool(getattr(inner, "_uses_codex_route", False))
-        try:
-            self.model = str(getattr(inner, "model", self.model))
-            self.model_type = str(getattr(inner, "model_type", self.model_type))
-        except Exception:
-            pass
-        return inner
+        with self._inner_lock:
+            if self._inner is not None:
+                return self._inner
+            mod = self._import_module()
+            init_kwargs = dict(self.kwargs)
+            if self.timeout is not None and "timeout" not in init_kwargs:
+                init_kwargs["timeout"] = self.timeout
+            inner = mod.LM(
+                self.requested_model,
+                auth_provider=self.auth_provider,
+                auth_storage=self.auth_storage,
+                **init_kwargs,
+            )
+            self._inner = inner
+            self._resolved_model = str(
+                getattr(inner, "resolved_model_string", "") or ""
+            )
+            self._resolved_model_type = str(getattr(inner, "model_type", "") or "")
+            raw_headers = getattr(inner, "kwargs", {}).get("headers")
+            if isinstance(raw_headers, dict):
+                self._resolved_headers = {
+                    str(k): str(v) for k, v in raw_headers.items()
+                }
+            self._uses_codex_route = bool(getattr(inner, "_uses_codex_route", False))
+            try:
+                self.model = str(getattr(inner, "model", self.model))
+                self.model_type = str(getattr(inner, "model_type", self.model_type))
+            except Exception:
+                pass
+            return inner
+
+    @staticmethod
+    def _raise_on_error_payload(resp: Any) -> None:
+        if not isinstance(resp, dict) or not resp.get("_dspx_error"):
+            return
+        error_text = str(
+            resp.get("error") or "dspy-lm-auth provider execution failed"
+        ).strip()
+        error_type = str(resp.get("_dspx_error_type") or "").strip()
+        if error_type:
+            raise DspyLMAuthResponseError(f"{error_type}: {error_text}")
+        raise DspyLMAuthResponseError(error_text)
 
     @staticmethod
     def _extract_text(resp: Any) -> str:
+        DspyLMAuthLM._raise_on_error_payload(resp)
         try:
             if hasattr(resp, "output_text") and getattr(resp, "output_text"):
                 return str(getattr(resp, "output_text") or "").strip()
@@ -171,6 +197,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
 
     @staticmethod
     def _extract_usage(resp: Any) -> dict[str, Any] | None:
+        DspyLMAuthLM._raise_on_error_payload(resp)
         try:
             usage = getattr(resp, "usage", None)
             if usage is None and isinstance(resp, dict):
@@ -316,7 +343,15 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             usage = None
             if self.strict:
                 raise
-            return {"choices": [{"text": text}], "usage": usage or {}}
+            # Return a structured error response instead of hiding the error
+            # inside a normal-looking completion object.
+            return {
+                "choices": [{"text": text}],
+                "usage": usage or {},
+                "error": err,
+                "_dspx_error": True,
+                "_dspx_error_type": type(e).__name__,
+            }
         finally:
             self.history.append(
                 DspyLmAuthCall(

@@ -77,6 +77,22 @@ class ProviderPolicyState:
     append_system_prompt: Any = None
 
 
+@dataclass
+class PendingAsyncRun:
+    run: Any
+    lock: threading.RLock
+    prev_cwd: ProviderCwdState
+    policy_state: ProviderPolicyState
+    started_at: float
+    ready_deadline: float
+    readiness_error: str | None = None
+    released: bool = False
+
+
+_PROVIDER_LOCKS: Dict[int, threading.RLock] = {}
+_PROVIDER_LOCKS_GUARD = threading.Lock()
+
+
 def _materialize_messages(
     messages: Optional[Iterable[Dict[str, Any]]],
 ) -> Optional[List[Dict[str, Any]]]:
@@ -247,6 +263,8 @@ class MultiProviderLM(DSPyBaseLM):
 
     Notes
     - Parallel-first cannot cancel already-spawned external CLI processes; use with care.
+    - Async providers may expose subprocess-backed runs via `run.popen`, or implement
+      `ready(run)` / `is_ready(run)` for non-subprocess handles before `collect(run)`.
     - If underlying providers may mutate the workspace (e.g., code-editing agents), avoid
       parallel strategies or isolate them via separate working directories.
     """
@@ -308,6 +326,7 @@ class MultiProviderLM(DSPyBaseLM):
         self._async_cleanup_grace_s = 1.0
         self._async_cleanup_poll_s = 0.05
         self._async_cleanup_kill_wait_s = 0.2
+        self._parallel_ready_timeout_s = 30.0
 
         # capabilities
         caps = _combine_caps(self.providers)
@@ -329,6 +348,16 @@ class MultiProviderLM(DSPyBaseLM):
     ):
         results = self._run_all(prompt=prompt, messages=messages)
         self.last_results = list(results)
+
+        # If every provider failed, raise an aggregated error instead of
+        # returning an empty-string completion that masquerades as success.
+        all_failed = results and all(r.error is not None for r in results)
+        if all_failed:
+            summary = "; ".join(
+                f"{r.name}: {r.error}" for r in results if r.error is not None
+            )
+            raise RuntimeError(f"All providers failed: {summary}")
+
         text = self._reduce_text(results)
         return _MinimalResponse(
             model=self.model,
@@ -372,43 +401,38 @@ class MultiProviderLM(DSPyBaseLM):
     ) -> List[ProviderResult]:
         materialized_messages = _materialize_messages(messages)
         self._refresh_capabilities()
-        policy_states = self._apply_alignment_policies()
-        try:
-            strat = self.strategy
-            if strat == "parallel_first":
-                return self._run_parallel_first(
-                    prompt=prompt,
-                    messages=materialized_messages,
-                )
-            elif strat in {"collect_concat", "collect_longest"}:
-                # sequential collection to avoid simultaneous side-effects
-                outs: List[ProviderResult] = []
-                for idx, p in enumerate(self.providers):
-                    outs.append(
-                        self._run_one(
-                            idx,
-                            p,
-                            prompt=prompt,
-                            messages=materialized_messages,
-                        )
-                    )
-                return outs
-            # default: sequential_first
-            outs2: List[ProviderResult] = []
+        strat = self.strategy
+        if strat == "parallel_first":
+            return self._run_parallel_first(
+                prompt=prompt,
+                messages=materialized_messages,
+            )
+        if strat in {"collect_concat", "collect_longest"}:
+            # sequential collection to avoid simultaneous side-effects
+            outs: List[ProviderResult] = []
             for idx, p in enumerate(self.providers):
-                res = self._run_one(
-                    idx,
-                    p,
-                    prompt=prompt,
-                    messages=materialized_messages,
+                outs.append(
+                    self._run_one(
+                        idx,
+                        p,
+                        prompt=prompt,
+                        messages=materialized_messages,
+                    )
                 )
-                outs2.append(res)
-                if (res.error is None) and res.text.strip():
-                    return [res]
-            return outs2
-        finally:
-            self._restore_alignment_policies(policy_states)
-            self._refresh_capabilities()
+            return outs
+        # default: sequential_first
+        outs2: List[ProviderResult] = []
+        for idx, p in enumerate(self.providers):
+            res = self._run_one(
+                idx,
+                p,
+                prompt=prompt,
+                messages=materialized_messages,
+            )
+            outs2.append(res)
+            if (res.error is None) and res.text.strip():
+                return [res]
+        return outs2
 
     def _run_one(
         self,
@@ -417,11 +441,15 @@ class MultiProviderLM(DSPyBaseLM):
         *,
         prompt: Optional[str],
         messages: Optional[Iterable[Dict[str, Any]]],
+        cwd_override: Optional[str] = None,
     ) -> ProviderResult:
         name = (
             self.names[idx]
             if idx < len(self.names)
             else getattr(provider, "model", f"prov{idx}")
+        )
+        lock, prev_cwd, policy_state = self._enter_provider_overrides(
+            provider, cwd_override
         )
         t0 = time.time()
         try:
@@ -459,6 +487,8 @@ class MultiProviderLM(DSPyBaseLM):
                 ended_at=t1,
                 error=e,
             )
+        finally:
+            self._exit_provider_overrides(provider, lock, prev_cwd, policy_state)
 
     def _run_parallel_first(
         self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
@@ -466,15 +496,14 @@ class MultiProviderLM(DSPyBaseLM):
         # Prefer async-capable providers (our wrappers) to allow termination,
         # but still race sync-only providers in background threads so mixed stacks
         # preserve true first-completion semantics.
-        async_runs: List[Optional[Any]] = [None] * len(self.providers)
+        async_runs: List[Optional[PendingAsyncRun]] = [None] * len(self.providers)
+        async_cleanup_runs: List[Any] = []
         finished: List[Optional[ProviderResult]] = [None] * len(self.providers)
         completion_order: List[ProviderResult] = []
         sync_results: queue.Queue[tuple[int, ProviderResult]] = queue.Queue()
         sync_threads: List[threading.Thread] = []
         pending_sync: set[int] = set()
 
-        # Prepare per-provider working dirs if isolated
-        prev_cwds: List[ProviderCwdState] = [ProviderCwdState()] * len(self.providers)
         prepared_cwds: List[Optional[str]] = [None] * len(self.providers)
         cleanup_info: Optional[Dict[str, Any]] = None
         if self.parallel_isolated and self.base_cwd:
@@ -482,16 +511,55 @@ class MultiProviderLM(DSPyBaseLM):
                 len(self.providers)
             )
 
-        def _terminate_pending_async(*, skip: Optional[int] = None) -> None:
-            for j, run in enumerate(async_runs):
-                if j == skip or run is None:
-                    continue
-                provj = self.providers[j]
+        def _cwd_override_for(i: int) -> Optional[str]:
+            return (
+                prepared_cwds[i]
+                if (self.parallel_isolated and self.base_cwd)
+                else self.base_cwdsafe()
+            )
+
+        def _release_async_run(i: int, pending: PendingAsyncRun) -> None:
+            if pending.released:
+                return
+            pending.released = True
+            self._exit_provider_overrides(
+                self.providers[i],
+                pending.lock,
+                pending.prev_cwd,
+                pending.policy_state,
+            )
+
+        def _terminate_async_run(i: int, pending: PendingAsyncRun) -> None:
+            prov = self.providers[i]
+            try:
+                if hasattr(prov, "terminate"):
+                    prov.terminate(pending.run)
+                    return
+            except Exception:
+                pass
+            popen = getattr(pending.run, "popen", None)
+            if popen is None:
+                return
+            for method_name in ("terminate", "kill"):
                 try:
-                    if hasattr(provj, "terminate"):
-                        provj.terminate(run)
+                    method = getattr(popen, method_name)
                 except Exception:
-                    pass
+                    method = None
+                if callable(method):
+                    try:
+                        method()
+                    except Exception:
+                        pass
+
+        def _terminate_pending_async(*, skip: Optional[int] = None) -> None:
+            for j, pending in enumerate(async_runs):
+                if j == skip or pending is None:
+                    continue
+                try:
+                    _terminate_async_run(j, pending)
+                finally:
+                    _release_async_run(j, pending)
+                    async_runs[j] = None
 
         def _handle_finished(
             i: int, result: ProviderResult
@@ -514,40 +582,107 @@ class MultiProviderLM(DSPyBaseLM):
                     _terminate_pending_async(skip=i)
                     return result
             if self.validator is None and self.reducer is None:
-                _terminate_pending_async(skip=i)
-                return result
+                # Only select the first finished result if it actually succeeded.
+                # A fast-failing provider must not suppress slower successful ones.
+                if result.error is None:
+                    _terminate_pending_async(skip=i)
+                    return result
+                # Errored result: record it but keep waiting for a successful one.
+                return None
             return None
 
         def _start_sync_worker(i: int, prov: Any, cwd_override: Optional[str]) -> None:
             pending_sync.add(i)
 
             def worker() -> None:
-                prev = self._apply_cwd(prov, cwd_override)
-                try:
-                    res = self._run_one(i, prov, prompt=prompt, messages=messages)
-                finally:
-                    self._restore_cwd(prov, prev)
+                res = self._run_one(
+                    i,
+                    prov,
+                    prompt=prompt,
+                    messages=messages,
+                    cwd_override=cwd_override,
+                )
                 sync_results.put((i, res))
 
             th = threading.Thread(target=worker, daemon=True)
             sync_threads.append(th)
             th.start()
 
-        # Start all providers under their temporary cwd/workspace settings.
-        for i, prov in enumerate(self.providers):
-            cwd_override = (
-                prepared_cwds[i]
-                if (self.parallel_isolated and self.base_cwd)
-                else self.base_cwdsafe()
-            )
-            if hasattr(prov, "start"):
-                prev_cwds[i] = self._apply_cwd(prov, cwd_override)
+        def _async_run_ready(i: int, pending: PendingAsyncRun) -> bool:
+            run = pending.run
+            prov = self.providers[i]
+            ready_fn = getattr(prov, "ready", None)
+            if callable(ready_fn):
                 try:
-                    async_runs[i] = prov.start(prompt=prompt, messages=messages)
-                    continue
-                except Exception:
-                    self._restore_cwd(prov, prev_cwds[i])
-                    prev_cwds[i] = ProviderCwdState()
+                    pending.readiness_error = None
+                    return bool(ready_fn(run))
+                except Exception as exc:
+                    pending.readiness_error = f"{type(exc).__name__}: {exc}"
+                    return False
+            is_ready_fn = getattr(prov, "is_ready", None)
+            if callable(is_ready_fn):
+                try:
+                    pending.readiness_error = None
+                    return bool(is_ready_fn(run))
+                except Exception as exc:
+                    pending.readiness_error = f"{type(exc).__name__}: {exc}"
+                    return False
+            popen = getattr(run, "popen", None)
+            if popen is None:
+                pending.readiness_error = None
+                return True
+            try:
+                pending.readiness_error = None
+                return popen.poll() is not None
+            except Exception as exc:
+                pending.readiness_error = f"{type(exc).__name__}: {exc}"
+                return False
+
+        for i, prov in enumerate(self.providers):
+            cwd_override = _cwd_override_for(i)
+            if hasattr(prov, "start"):
+                lock, prev_cwd, policy_state = self._enter_provider_overrides(
+                    prov, cwd_override
+                )
+                try:
+                    run = prov.start(prompt=prompt, messages=messages)
+                except Exception as _start_exc:
+                    self._exit_provider_overrides(prov, lock, prev_cwd, policy_state)
+                    # Record startup failure so it surfaces in results instead of
+                    # silently degrading to sync execution.
+                    ended_at = time.time()
+                    sync_results.put(
+                        (
+                            i,
+                            ProviderResult(
+                                name=self.names[i]
+                                if i < len(self.names)
+                                else f"prov{i}",
+                                model=getattr(prov, "model", None),
+                                text="",
+                                raw=None,
+                                started_at=ended_at,
+                                ended_at=ended_at,
+                                error=_start_exc,
+                            ),
+                        )
+                    )
+                else:
+                    if run is not None:
+                        run_started_at = getattr(run, "started_at", time.time())
+                        async_runs[i] = PendingAsyncRun(
+                            run=run,
+                            lock=lock,
+                            prev_cwd=prev_cwd,
+                            policy_state=policy_state,
+                            started_at=run_started_at,
+                            ready_deadline=(
+                                run_started_at + self._provider_ready_timeout_s(prov)
+                            ),
+                        )
+                        async_cleanup_runs.append(run)
+                        continue
+                    self._exit_provider_overrides(prov, lock, prev_cwd, policy_state)
             _start_sync_worker(i, prov, cwd_override)
 
         remaining_async = set(i for i, run in enumerate(async_runs) if run is not None)
@@ -570,21 +705,42 @@ class MultiProviderLM(DSPyBaseLM):
                         return [selected]
 
                 for i in list(remaining_async):
-                    run = async_runs[i]
-                    if run is None:
+                    pending = async_runs[i]
+                    if pending is None:
                         remaining_async.remove(i)
-                        continue
-                    popen = getattr(run, "popen", None)
-                    if popen is None:
-                        remaining_async.remove(i)
-                        continue
-                    if popen.poll() is None:
                         continue
 
                     prov = self.providers[i]
+                    if not _async_run_ready(i, pending):
+                        if time.time() < pending.ready_deadline:
+                            continue
+                        _terminate_async_run(i, pending)
+                        detail = (
+                            pending.readiness_error
+                            or "provider did not become ready before timeout"
+                        )
+                        ended_at = time.time()
+                        res = ProviderResult(
+                            name=self.names[i],
+                            model=getattr(prov, "model", None),
+                            text="",
+                            raw=None,
+                            started_at=pending.started_at,
+                            ended_at=ended_at,
+                            error=TimeoutError(detail),
+                        )
+                        _release_async_run(i, pending)
+                        async_runs[i] = None
+                        remaining_async.remove(i)
+                        made_progress = True
+                        selected = _handle_finished(i, res)
+                        if selected is not None:
+                            return [selected]
+                        continue
+
                     try:
                         if hasattr(prov, "collect"):
-                            cres = prov.collect(run)
+                            cres = prov.collect(pending.run)
                             text = getattr(cres, "text", "")
                             t1 = getattr(cres, "ended_at", time.time())
                             t0 = getattr(cres, "started_at", t1)
@@ -615,6 +771,8 @@ class MultiProviderLM(DSPyBaseLM):
                             ended_at=time.time(),
                             error=e,
                         )
+                    _release_async_run(i, pending)
+                    async_runs[i] = None
                     remaining_async.remove(i)
                     made_progress = True
                     selected = _handle_finished(i, res)
@@ -624,13 +782,16 @@ class MultiProviderLM(DSPyBaseLM):
                 if not made_progress:
                     time.sleep(0.05)
         finally:
-            for j, pr in enumerate(self.providers):
-                self._restore_cwd(pr, prev_cwds[j])
+            for j, pending in enumerate(async_runs):
+                if pending is None:
+                    continue
+                _release_async_run(j, pending)
+                async_runs[j] = None
             if cleanup_info and self.cleanup_isolated:
                 self._schedule_isolated_cleanup(
                     cleanup_info,
                     sync_threads=tuple(sync_threads),
-                    async_runs=tuple(run for run in async_runs if run is not None),
+                    async_runs=tuple(async_cleanup_runs),
                 )
 
         candidates = completion_order
@@ -673,96 +834,138 @@ class MultiProviderLM(DSPyBaseLM):
             append_system_prompt=getattr(provider, "append_system_prompt", None),
         )
 
-    def _apply_alignment_policies(self) -> List[ProviderPolicyState]:
-        states: List[ProviderPolicyState] = []
-        for provider in self.providers:
-            states.append(self._capture_policy_state(provider))
-            try:
-                if self.policy_bypass_permissions is True:
-                    if hasattr(provider, "dangerously_bypass"):
-                        try:
-                            setattr(provider, "dangerously_bypass", True)
-                            if hasattr(provider, "auto_mode"):
-                                setattr(provider, "auto_mode", False)
-                        except Exception:
-                            pass
-                    if hasattr(provider, "permission_mode"):
-                        try:
-                            if getattr(provider, "permission_mode", None) in (None, ""):
-                                setattr(provider, "permission_mode", "acceptEdits")
-                        except Exception:
-                            pass
-                if self.policy_allowed_tools is not None and hasattr(
-                    provider, "allowed_tools"
-                ):
-                    try:
-                        setattr(provider, "allowed_tools", self.policy_allowed_tools)
-                    except Exception:
-                        pass
-                if self.policy_disallowed_tools is not None and hasattr(
-                    provider, "disallowed_tools"
-                ):
-                    try:
-                        setattr(
-                            provider,
-                            "disallowed_tools",
-                            self.policy_disallowed_tools,
-                        )
-                    except Exception:
-                        pass
-                if self.policy_append_system_prompt is not None and hasattr(
-                    provider, "append_system_prompt"
-                ):
-                    try:
-                        setattr(
-                            provider,
-                            "append_system_prompt",
-                            self.policy_append_system_prompt,
-                        )
-                    except Exception:
-                        pass
-            except Exception:
-                continue
-        return states
+    def _provider_lock(self, provider: Any) -> threading.RLock:
+        key = id(provider)
+        with _PROVIDER_LOCKS_GUARD:
+            lock = _PROVIDER_LOCKS.get(key)
+            if lock is None:
+                lock = threading.RLock()
+                _PROVIDER_LOCKS[key] = lock
+            return lock
 
-    def _restore_alignment_policies(
-        self, states: Sequence[ProviderPolicyState]
-    ) -> None:
-        for provider, state in zip(self.providers, states):
-            try:
-                if state.has_dangerously_bypass:
-                    setattr(provider, "dangerously_bypass", state.dangerously_bypass)
-            except Exception:
-                pass
-            try:
-                if state.has_auto_mode:
-                    setattr(provider, "auto_mode", state.auto_mode)
-            except Exception:
-                pass
-            try:
-                if state.has_permission_mode:
-                    setattr(provider, "permission_mode", state.permission_mode)
-            except Exception:
-                pass
-            try:
-                if state.has_allowed_tools:
-                    setattr(provider, "allowed_tools", state.allowed_tools)
-            except Exception:
-                pass
-            try:
-                if state.has_disallowed_tools:
-                    setattr(provider, "disallowed_tools", state.disallowed_tools)
-            except Exception:
-                pass
-            try:
-                if state.has_append_system_prompt:
+    def _apply_alignment_policy(self, provider: Any) -> ProviderPolicyState:
+        state = self._capture_policy_state(provider)
+        try:
+            if self.policy_bypass_permissions is True:
+                if hasattr(provider, "dangerously_bypass"):
+                    try:
+                        setattr(provider, "dangerously_bypass", True)
+                        if hasattr(provider, "auto_mode"):
+                            setattr(provider, "auto_mode", False)
+                    except Exception:
+                        pass
+                if hasattr(provider, "permission_mode"):
+                    try:
+                        if getattr(provider, "permission_mode", None) in (None, ""):
+                            setattr(provider, "permission_mode", "acceptEdits")
+                    except Exception:
+                        pass
+            if self.policy_allowed_tools is not None and hasattr(
+                provider, "allowed_tools"
+            ):
+                try:
+                    setattr(provider, "allowed_tools", self.policy_allowed_tools)
+                except Exception:
+                    pass
+            if self.policy_disallowed_tools is not None and hasattr(
+                provider, "disallowed_tools"
+            ):
+                try:
+                    setattr(
+                        provider,
+                        "disallowed_tools",
+                        self.policy_disallowed_tools,
+                    )
+                except Exception:
+                    pass
+            if self.policy_append_system_prompt is not None and hasattr(
+                provider, "append_system_prompt"
+            ):
+                try:
                     setattr(
                         provider,
                         "append_system_prompt",
-                        state.append_system_prompt,
+                        self.policy_append_system_prompt,
                     )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return state
+
+    def _restore_alignment_policy(
+        self, provider: Any, state: ProviderPolicyState
+    ) -> None:
+        try:
+            if state.has_dangerously_bypass:
+                setattr(provider, "dangerously_bypass", state.dangerously_bypass)
+        except Exception:
+            pass
+        try:
+            if state.has_auto_mode:
+                setattr(provider, "auto_mode", state.auto_mode)
+        except Exception:
+            pass
+        try:
+            if state.has_permission_mode:
+                setattr(provider, "permission_mode", state.permission_mode)
+        except Exception:
+            pass
+        try:
+            if state.has_allowed_tools:
+                setattr(provider, "allowed_tools", state.allowed_tools)
+        except Exception:
+            pass
+        try:
+            if state.has_disallowed_tools:
+                setattr(provider, "disallowed_tools", state.disallowed_tools)
+        except Exception:
+            pass
+        try:
+            if state.has_append_system_prompt:
+                setattr(
+                    provider,
+                    "append_system_prompt",
+                    state.append_system_prompt,
+                )
+        except Exception:
+            pass
+
+    def _enter_provider_overrides(
+        self, provider: Any, cwd: Optional[str]
+    ) -> tuple[threading.RLock, ProviderCwdState, ProviderPolicyState]:
+        lock = self._provider_lock(provider)
+        lock.acquire()
+        policy_state = self._apply_alignment_policy(provider)
+        prev_cwd = self._apply_cwd(provider, cwd)
+        return lock, prev_cwd, policy_state
+
+    def _exit_provider_overrides(
+        self,
+        provider: Any,
+        lock: threading.RLock,
+        prev_cwd: ProviderCwdState,
+        policy_state: ProviderPolicyState,
+    ) -> None:
+        self._restore_cwd(provider, prev_cwd)
+        self._restore_alignment_policy(provider, policy_state)
+        lock.release()
+
+    def _provider_ready_timeout_s(self, provider: Any) -> float:
+        for attr in ("ready_timeout_s", "ready_timeout", "timeout"):
+            try:
+                value = getattr(provider, attr)
             except Exception:
-                pass
+                continue
+            if isinstance(value, (int, float)):
+                timeout_s = float(value)
+                if (
+                    timeout_s > 0.0
+                    and timeout_s == timeout_s
+                    and timeout_s < float("inf")
+                ):
+                    return timeout_s
+        return self._parallel_ready_timeout_s
 
     def _apply_cwd(self, provider: Any, cwd: Optional[str]) -> ProviderCwdState:
         state = ProviderCwdState(
@@ -1011,15 +1214,6 @@ class MultiProviderLM(DSPyBaseLM):
                 return False
 
         def _force_kill_popen(popen: Any) -> None:
-            pid = getattr(popen, "pid", None)
-            if pid is not None:
-                try:
-                    import os
-                    import signal
-
-                    os.killpg(pid, signal.SIGKILL)
-                except Exception:
-                    pass
             for method_name in ("terminate", "kill"):
                 try:
                     method = getattr(popen, method_name)
@@ -1071,21 +1265,27 @@ class MultiProviderLM(DSPyBaseLM):
     def _reduce_text(self, results: List[ProviderResult]) -> str:
         if not results:
             return ""
+        # Filter out errored results before reduction.
+        successful = [r for r in results if r.error is None]
+        # If all results errored, fall through with original list so callers
+        # still get *something* (forward() will raise before reaching here
+        # when *all* failed, but internal callers may not).
+        pool = successful if successful else results
         strat = self.strategy
         # If we got a single result (sequential_first or parallel_first), return it
-        if len(results) == 1:
-            return results[0].text
+        if len(pool) == 1:
+            return pool[0].text
         if strat == "collect_concat":
             parts = []
-            for r in results:
+            for r in pool:
                 label = r.name or (r.model or "provider")
                 parts.append(f"[{label}]\n{r.text.strip()}")
             return self.concat_sep.join(parts).strip()
         if strat == "collect_longest":
-            best = max(results, key=lambda r: len(r.text or ""))
+            best = max(pool, key=lambda r: len(r.text or ""))
             return best.text
         # default fallback
-        return results[0].text
+        return pool[0].text
 
 
 class _MinimalResponse:

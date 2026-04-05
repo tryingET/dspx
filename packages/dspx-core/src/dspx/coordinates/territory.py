@@ -47,7 +47,10 @@ class Region:
     confidence: float  # 0-1, how confident in classification
     dominant_run_kind: str | None
     dominant_provider: str | None
-    sample_run_ids: list[str]
+    sample_run_ids: list[str]  # First N for display
+    all_member_ids: list[str] = field(
+        default_factory=list
+    )  # Full membership for lookup
     neighbors: list[str] = field(default_factory=list)  # Adjacent region IDs
     dimension: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -65,6 +68,7 @@ class Region:
             "dominant_run_kind": self.dominant_run_kind,
             "dominant_provider": self.dominant_provider,
             "sample_run_ids": self.sample_run_ids[:5],
+            "all_member_ids": self.all_member_ids,  # Persist full membership for accurate lookup
             "neighbors": self.neighbors,
             "dimension": self.dimension,
             "metadata": self.metadata,
@@ -125,7 +129,13 @@ class TerritoryMap:
             The Region containing this run_id, or None if not found
         """
         for region in self.regions:
-            if run_id in region.sample_run_ids:
+            # Prefer full membership list for accurate lookup.
+            pool = (
+                region.all_member_ids
+                if region.all_member_ids
+                else region.sample_run_ids
+            )
+            if run_id in pool:
                 return region
         return None
 
@@ -358,6 +368,9 @@ def build_territory_map(
             dominant_run_kind=cluster.dominant_run_kind,
             dominant_provider=cluster.dominant_provider,
             sample_run_ids=cluster.member_ids[:10],
+            all_member_ids=list(
+                cluster.member_ids
+            ),  # Full membership for accurate lookup
             dimension=cluster.dimension,
         )
         regions.append(region)

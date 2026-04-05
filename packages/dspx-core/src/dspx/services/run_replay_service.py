@@ -100,27 +100,36 @@ def _infer_output_path_from_meta(meta_path: Path) -> Path | None:
     return None
 
 
-def _resolve_path(raw_path: str, *, meta_path: Path, output_hint: bool = False) -> Path:
-    p = Path(raw_path).expanduser()
-    if p.is_absolute():
-        return p
+def _resolve_path(
+    raw_path: str,
+    *,
+    meta_path: Path,
+    output_hint: bool = False,
+    allow_external_absolute: bool = False,
+) -> Path:
+    """Resolve a receipt-supplied path, confining it under the meta_path root."""
+    from dspx.security import confine_path
 
-    candidates: list[Path] = []
-    meta_relative = meta_path.parent / p
-    candidates.append(meta_relative)
+    root = meta_path.parent.resolve()
+    p = Path(raw_path).expanduser()
+    if p.is_absolute() and allow_external_absolute:
+        return p.resolve()
+
+    candidates: list[Path] = [confine_path(root, p)]
+
     if output_hint:
         inferred = _infer_output_path_from_meta(meta_path)
-        if inferred is not None and inferred not in candidates:
-            candidates.append(inferred)
-    if p not in candidates:
-        candidates.append(p)
+        if inferred is not None:
+            confined_inferred = confine_path(root, inferred)
+            if confined_inferred not in candidates:
+                candidates.append(confined_inferred)
 
     for cand in candidates:
         if cand.exists():
             return cand
 
     # Stable fallback for diagnostics: prefer the receipt-relative interpretation.
-    return candidates[0] if candidates else p
+    return candidates[0]
 
 
 def _sha256_file(path: Path) -> str:
@@ -286,6 +295,7 @@ def _expected_cache_payload(receipt: Mapping[str, Any]) -> dict[str, Any] | None
             "backend": str(receipt.get("backend") or "native"),
             "attempts": int(replay_inputs.get("attempts") or 1),
             "non_interactive": bool(replay_inputs.get("non_interactive")),
+            "wrap_script": bool(replay_inputs.get("wrap_script")),
             "feedback": _as_list(replay_inputs.get("feedback")),
             "constraints": _as_list(replay_inputs.get("constraints")),
         }
@@ -354,9 +364,20 @@ def check_run_receipt(meta_path: Path) -> dict[str, Any]:
         return report
 
     receipt_hash = str(receipt.get("hash") or "")
-    output_path = _resolve_path(
-        str(receipt.get("output_path") or ""), meta_path=meta_path, output_hint=True
-    )
+    try:
+        output_path = _resolve_path(
+            str(receipt.get("output_path") or ""),
+            meta_path=meta_path,
+            output_hint=True,
+        )
+    except ValueError as exc:
+        report["status"] = "invalid"
+        _add_error(
+            report,
+            code=_ISSUE_RECEIPT_INVALID_OUTPUT_PATH,
+            message=str(exc),
+        )
+        return report
     report["output_path"] = str(output_path)
     report["receipt_hash"] = receipt_hash
 
@@ -384,9 +405,20 @@ def check_run_receipt(meta_path: Path) -> dict[str, Any]:
             )
 
     cache_key = str(receipt.get("cache_key") or "")
-    cache_file = _resolve_path(
-        str(receipt.get("cache_file") or ""), meta_path=meta_path
-    )
+    try:
+        cache_file = _resolve_path(
+            str(receipt.get("cache_file") or ""),
+            meta_path=meta_path,
+            allow_external_absolute=True,
+        )
+    except ValueError as exc:
+        report["status"] = "invalid"
+        _add_error(
+            report,
+            code=_ISSUE_RECEIPT_INVALID_CACHE_FILE,
+            message=str(exc),
+        )
+        return report
     cache_enabled = bool(receipt.get("cache_enabled"))
     run_kind = str(receipt.get("run_kind") or "")
     cache_kind = _RUN_KIND_TO_CACHE_KIND.get(run_kind) or ""

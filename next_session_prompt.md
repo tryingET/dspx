@@ -25,15 +25,17 @@ Do not ask for permission to start.
 - Strategic/tactical direction: `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`
 - Active operating slices: `docs/project/operational_goals.md`
 - Durable architecture decisions: `docs/adr/`
-- Live execution truth: `ak task list -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`
-- Planned active/deferred work map: `governance/work-items.json` (legacy checked-in projection/mirror; do not treat as live execution truth)
-- Raw session capture: `diary/`
+- Live execution truth: `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`
+- Planned active/deferred work map: `governance/work-items.json` (checked-in projection/mirror; do not treat as live execution truth)
+- Latest completed-slice diary: `diary/2026-04-05--land-ak834-tg25-nexus-fixes.md`
+- Latest direction refresh diary: `diary/2026-04-05--materialize-next-tg25-hardening-wave.md`
+- Latest repo-local learning: `docs/learnings/tg25-adversarial-review-nexus.md`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Close `AK-800` in AK, then claim and execute the next `TG25` ready slice unless the operator explicitly redirects the queue.
-- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve the `AK-797` trusted-program-root boundary; preserve the `AK-798` narrowed contract-expression boundary; preserve the `AK-799` required-by-default server-auth boundary; preserve the `AK-800` request body size limit boundary; preserve fail-closed SG2 boundary semantics.
-- Assumptions (max 3): `AK-800` is in progress and the implementation is complete; the truthful repo-scoped ready queue will show the next `TG25` slice after `AK-800` is closed; `governance/work-items.json` remains a checked-in mirror rather than the live scheduler.
-- Blockers (none or list): working-tree scope validation (`just task-scope-check`) is expected to fail in this shared worktree because many pre-existing unrelated tracked/untracked files fall outside the active slice scope; isolate or clean the worktree before expecting working-tree scope validation to pass cleanly.
+- Objective (one sentence): Claim `AK-835` and execute the remaining repo-scoped ready `TG25` hardening slice unless AK truth changes first.
+- Constraints (hard limits): Keep the completed `AK-797`, `AK-798`, `AK-799`, `AK-800`, and `AK-834` boundaries closed; do not promote `TG26` or widen live policy authority while `AK-835` remains open.
+- Assumptions (max 3): the truthful repo-scoped ready queue now contains only `AK-835`; `governance/work-items.json` remains a checked-in mirror; the current branch should carry a clean `AK-834` completion commit before the next slice starts.
+- Blockers (none or list): `just verify-full` still fails on repo-wide task-scope resolution tests that align with the remaining `AK-835` slice; isolate any unrelated dirty files before trusting working-tree scope validation.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -43,27 +45,29 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/project/developer_workflow.md`
 7. `Justfile`
-8. `diary/2026-04-05--add-request-body-size-limit-middleware.md`
-9. `governance/work-items.json`
+8. `diary/2026-04-05--land-ak834-tg25-nexus-fixes.md`
+9. `diary/2026-04-05--materialize-next-tg25-hardening-wave.md`
+10. `docs/learnings/tg25-adversarial-review-nexus.md`
+11. `governance/work-items.json`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
-2. Confirm the ready queue with `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the repo-scoped ready queue is empty, stay in the truthful idle `TG25` waiting state unless the operator explicitly redirects the session.
-4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
-5. Implement at most one operating slice end-to-end.
-6. Validate the slice with:
+2. Confirm the repo-scoped ready queue with `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
+3. Claim the highest-priority ready task before editing.
+4. Execute at most one operating slice end-to-end.
+5. Validate truthfully with:
    - `./scripts/ci/smoke.sh`
+   - `just task-scope-check task_id=<AK-ID> mode=working-tree`
    - `just verify-full`
-7. Update source-of-truth docs/diary/ADR references before commit.
+6. Refresh source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-800` — added request body size limits middleware to the DSPx server that rejects requests whose `Content-Length` exceeds a configurable limit (default 10 MiB) before the body is read, with human-friendly size parsing (`DSPX_MAX_BODY_SIZE`), enabled-by-default fail-closed semantics, and 21 new regression tests.
-- Outcome: DSPx server now rejects oversized request bodies with `413 Payload Too Large` and invalid `Content-Length` headers with `400 Bad Request`, matching the existing standardized JSON error contract; the stats counter now tracks `status_413`; server docs describe the new body size limit configuration; the checked-in AK projection reflects `AK-800` as in-progress.
-- Files changed: `packages/dspx-core/src/dspx/server/security.py`, `packages/dspx-core/src/dspx/server/app.py`, `tests/test_server_body_size.py`, `tests/test_server_metrics.py`, `docs/SERVER.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-800.snapshot.json`, `governance/work-items.json`, `diary/2026-04-05--add-request-body-size-limit-middleware.md`, `next_session_prompt.md`.
-- Validation commands + results: `uvx ruff format` ✅; `uvx ruff check` ✅; `uvx ty check packages/dspx-core/src/dspx/server/security.py` ✅; `uv run --no-sync -m pytest -q tests/test_server_auth.py tests/test_server_api.py tests/test_server_confirm_mutations.py tests/test_server_global_app.py tests/test_server_metrics.py tests/test_server_metrics_negotiation.py tests/test_server_rate_limit.py tests/test_server_body_size.py` ✅ (55 passed); `./scripts/ci/smoke.sh` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅.
-- Source-of-truth updates: recorded the `AK-800` implementation in `diary/2026-04-05--add-request-body-size-limit-middleware.md`, refreshed `docs/SERVER.md`, `docs/project/operational_goals.md`, and this handoff to point at the remaining truthful `TG25` queue, exported `governance/task-scopes/AK-800.snapshot.json`, and refreshed `governance/work-items.json`.
-- Next-session starting point: close `AK-800` in AK and confirm the repo-scoped ready queue for the next `TG25` slice.
+- Slice executed: `AK-834` — landed the adversarial NEXUS hardening slice across Forge sanitize/workorder handling, shared path confinement, replay path resolution, multi-provider `parallel_first` success/readiness semantics, auth-provider structured error signaling, and Oracle frontier/territory correctness.
+- Outcome: `AK-834` is complete in AK, the repo-scoped ready queue now contains only `AK-835`, and the checked-in operating-plan/handoff artifacts point at the remaining truthful `TG25` slice instead of the old dual-ready checkpoint.
+- Files changed: `apps/forge/src/dspx_forge/sanitize.py`, `apps/forge/src/dspx_forge/workorder.py`, `packages/dspx-core/src/dspx/security.py`, `packages/dspx-core/src/dspx/services/run_replay_service.py`, `packages/dspx-core/src/dspx/multi_provider_lm.py`, `packages/dspx-core/src/dspx/dspy_lm_auth_lm.py`, `packages/dspx-core/src/dspx/coordinates/frontiers.py`, `packages/dspx-core/src/dspx/coordinates/territory.py`, `tests/test_tg25_nexus_fixes.py`, `tests/test_multi_provider_parallel_semantics.py`, `governance/task-scopes/AK-834.snapshot.json`, `docs/project/operational_goals.md`, `governance/work-items.json`, `diary/2026-04-05--materialize-next-tg25-hardening-wave.md`, `diary/2026-04-05--land-ak834-tg25-nexus-fixes.md`, `next_session_prompt.md`.
+- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_tg25_nexus_fixes.py tests/test_multi_provider_parallel_semantics.py` ✅; `uv run --no-sync -m pytest -q tests/test_provider_v4.py` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check 834 working-tree` ✅; `just verify-full` ❌ (`tests/test_task_scope.py` still fails because repo-wide task-scope resolution expects the remaining `AK-835` hardening to land).
+- Source-of-truth updates: completed `AK-834` in AK with result evidence, exported `governance/task-scopes/AK-834.snapshot.json`, refreshed `docs/project/operational_goals.md`, re-exported `governance/work-items.json`, and replaced the handoff with the post-`AK-834` starting point.
+- Next-session starting point: confirm the repo-scoped ready queue still shows only `AK-835`, claim it, and use the remaining `just verify-full` task-scope failures as the first validation target while executing only that one slice unless AK truth changes first.
 
 ## END-OF-SESSION
-Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
+Run `/commit` only if the repo is validation-clean and the handoff reflects the real checkpoint; otherwise preserve the truthful handoff and leave commit/closeout for the isolated slice.

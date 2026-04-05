@@ -43,6 +43,23 @@ class _SyncProvider:
         return SimpleNamespace(choices=[{"text": self.model}])
 
 
+class _AsyncProviderNoPopen:
+    def __init__(self, model: str) -> None:
+        self.model = model
+        self.collect_calls = 0
+
+    def start(self, prompt=None, messages=None):
+        return SimpleNamespace(started_at=time.time())
+
+    def collect(self, run):
+        self.collect_calls += 1
+        return SimpleNamespace(
+            text=self.model,
+            started_at=run.started_at,
+            ended_at=time.time(),
+        )
+
+
 class _CwdProvider:
     def __init__(self) -> None:
         self.cwd = None
@@ -264,6 +281,154 @@ def test_parallel_first_mixed_async_and_sync_preserves_true_first_completion() -
     assert [r.text for r in result] == ["sync-immediate"]
     assert [r.name for r in result] == ["sync-immediate"]
     assert elapsed < 0.10
+
+
+def test_parallel_first_collects_async_provider_without_popen_handle() -> None:
+    provider = _AsyncProviderNoPopen("async-no-popen")
+    lm = MultiProviderLM(
+        [provider],
+        names=["async-no-popen"],
+        strategy="parallel_first",
+    )
+
+    result = lm._run_parallel_first(prompt="p", messages=None)
+
+    assert [r.text for r in result] == ["async-no-popen"]
+    assert provider.collect_calls == 1
+
+
+def test_parallel_first_shared_provider_instances_do_not_bleed_cwd() -> None:
+    from threading import Barrier, BrokenBarrierError, Thread
+
+    barrier = Barrier(2)
+
+    class _SharedProvider(_SyncProvider):
+        def __init__(self) -> None:
+            super().__init__("shared")
+            self.seen_cwds: list[str | None] = []
+
+        def forward(self, prompt=None, messages=None):
+            try:
+                barrier.wait(timeout=0.1)
+            except BrokenBarrierError:
+                pass
+            self.seen_cwds.append(self.cwd)
+            time.sleep(0.05)
+            return SimpleNamespace(choices=[{"text": self.cwd}])
+
+    provider = _SharedProvider()
+    base = Path(tempfile.mkdtemp(prefix="dspx-shared-cwd-"))
+    left_cwd = base / "left"
+    right_cwd = base / "right"
+    left_cwd.mkdir()
+    right_cwd.mkdir()
+
+    left = MultiProviderLM(
+        [provider],
+        names=["shared"],
+        strategy="parallel_first",
+        base_cwd=str(left_cwd),
+    )
+    right = MultiProviderLM(
+        [provider],
+        names=["shared"],
+        strategy="parallel_first",
+        base_cwd=str(right_cwd),
+    )
+
+    out: dict[str, str] = {}
+
+    def _run(name: str, lm: MultiProviderLM) -> None:
+        out[name] = lm._run_parallel_first(prompt="p", messages=None)[0].text
+
+    threads = [
+        Thread(target=_run, args=("left", left)),
+        Thread(target=_run, args=("right", right)),
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert out == {
+        "left": str(left_cwd),
+        "right": str(right_cwd),
+    }
+    assert provider.seen_cwds == [
+        str(left_cwd),
+        str(right_cwd),
+    ] or provider.seen_cwds == [
+        str(right_cwd),
+        str(left_cwd),
+    ]
+
+
+def test_parallel_first_times_out_never_ready_async_provider() -> None:
+    class _NeverReadyProvider:
+        def __init__(self) -> None:
+            self.model = "never-ready"
+            self.terminated = 0
+
+        def start(self, prompt=None, messages=None):
+            return SimpleNamespace(started_at=time.time())
+
+        def ready(self, run):
+            return False
+
+        def terminate(self, run) -> None:
+            self.terminated += 1
+
+    provider = _NeverReadyProvider()
+    lm = MultiProviderLM(
+        [provider],
+        names=["never-ready"],
+        strategy="parallel_first",
+    )
+    lm._parallel_ready_timeout_s = 0.1
+
+    result = lm._run_parallel_first(prompt="p", messages=None)[0]
+
+    assert isinstance(result.error, TimeoutError)
+    assert provider.terminated == 1
+    assert result.ended_at >= result.started_at + 0.08
+
+
+def test_parallel_first_readiness_exceptions_fail_closed_until_collect_is_safe() -> (
+    None
+):
+    class _FlakyReadyProvider:
+        def __init__(self) -> None:
+            self.model = "flaky-ready"
+
+        def start(self, prompt=None, messages=None):
+            return SimpleNamespace(ready_at=time.time() + 0.1, first=True)
+
+        def ready(self, run):
+            if run.first:
+                run.first = False
+                raise RuntimeError("transient readiness failure")
+            return time.time() >= run.ready_at
+
+        def collect(self, run):
+            if time.time() < run.ready_at:
+                raise RuntimeError("collected too early")
+            return SimpleNamespace(
+                text="done",
+                started_at=run.ready_at - 0.1,
+                ended_at=time.time(),
+            )
+
+    lm = MultiProviderLM(
+        [_FlakyReadyProvider()],
+        names=["flaky-ready"],
+        strategy="parallel_first",
+    )
+    lm._parallel_ready_timeout_s = 0.5
+
+    result = lm._run_parallel_first(prompt="p", messages=None)[0]
+
+    assert result.text == "done"
+    assert result.error is None
 
 
 def test_parallel_first_sync_isolated_cleanup_runs_on_fast_return(
