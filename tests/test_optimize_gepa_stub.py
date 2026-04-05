@@ -2,11 +2,39 @@ from __future__ import annotations
 
 import csv
 import os
+import tempfile
 from pathlib import Path
 
 import dspy
+import pytest
 
-from dspx.services.optimize_service import run_gepa_optimize
+from dspx.services.optimize_service import _import_program_module, run_gepa_optimize
+
+
+def test_import_program_module_rejects_untrusted_program_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DSPX_TRUSTED_PROGRAM_ROOTS", raising=False)
+
+    with tempfile.TemporaryDirectory(dir=Path.home()) as outside_root:
+        program = Path(outside_root) / "prog.py"
+        program.write_text("X = 1\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="trusted root"):
+            _import_program_module(program)
+
+
+def test_import_program_module_allows_env_trusted_program_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with tempfile.TemporaryDirectory(dir=Path.home()) as allowed_root:
+        program = Path(allowed_root) / "prog.py"
+        program.write_text("VALUE = 7\n", encoding="utf-8")
+
+        monkeypatch.setenv("DSPX_TRUSTED_PROGRAM_ROOTS", allowed_root)
+
+        mod = _import_program_module(program)
+        assert getattr(mod, "VALUE") == 7
 
 
 def test_gepa_optimize_saves_loadable_program(tmp_path: Path) -> None:

@@ -17,11 +17,53 @@ class GEPAResult:
     reflection_provider: str
 
 
+def _trusted_program_roots() -> List[Path]:
+    import os
+    import tempfile
+
+    roots: List[Path] = [
+        Path.cwd().resolve(),
+        Path("/tmp").resolve(),
+        Path("/var/tmp").resolve(),
+        Path("/private/tmp").resolve(),
+        Path(tempfile.gettempdir()).resolve(),
+    ]
+    extra_roots = os.getenv("DSPX_TRUSTED_PROGRAM_ROOTS", "")
+    for raw_root in extra_roots.split(os.pathsep):
+        if raw_root.strip():
+            roots.append(Path(raw_root).expanduser().resolve())
+
+    deduped: List[Path] = []
+    seen: set[Path] = set()
+    for root in roots:
+        if root not in seen:
+            deduped.append(root)
+            seen.add(root)
+    return deduped
+
+
+def _require_trusted_program_path(program_path: Path) -> Path:
+    resolved = program_path.resolve()
+    for root in _trusted_program_roots():
+        try:
+            resolved.relative_to(root)
+            return resolved
+        except ValueError:
+            continue
+
+    allowed = ", ".join(str(root) for root in _trusted_program_roots())
+    raise ValueError(
+        "Program path must stay under a trusted root. "
+        f"Got {resolved}; trusted roots: {allowed}. "
+        "Use DSPX_TRUSTED_PROGRAM_ROOTS to allow additional roots."
+    )
+
+
 def _import_program_module(program_path: Path) -> object:
     import importlib.util
     import sys
 
-    program_path = program_path.resolve()
+    program_path = _require_trusted_program_path(program_path)
     spec = importlib.util.spec_from_file_location(program_path.stem, program_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Failed to import program module from {program_path}")

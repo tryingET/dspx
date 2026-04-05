@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-04",
+  "updated_at": "2026-04-05",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -1036,6 +1036,55 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-04"
+        },
+        {
+          "id": "AK-TASK-0797",
+          "title": "security(TG25): confine optimize_service._import_program_module to trusted program roots",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "security(TG25): confine optimize_service._import_program_module to trusted program roots (task #797)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-05"
+        },
+        {
+          "id": "AK-TASK-0798",
+          "title": "security(TG25): replace contract expression eval with sandboxed interpreter or tighter AST allowlist",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "security(TG25): replace contract expression eval with sandboxed interpreter or tighter AST allowlist (task #798)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0799",
+          "title": "security(TG25): flip server auth default to required; add DSPX_AUTH_SKIP_FOR_DEV opt-in for local development",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "security(TG25): flip server auth default to required; add DSPX_AUTH_SKIP_FOR_DEV opt-in for local development (task #799)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-0800",
+          "title": "security(TG25): add request body size limits middleware to dspx server",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "security(TG25): add request body size limits middleware to dspx server (task #800)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

@@ -30,10 +30,10 @@ Do not ask for permission to start.
 - Raw session capture: `diary/`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Confirm the repo-scoped ready queue, then either wait in the truthful empty-ready-queue `TG25` state or execute the one highest-leverage ready slice the operator names.
-- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve fail-closed SG2 boundary semantics; do not invent a `TG25` slice just to keep the queue non-empty.
-- Assumptions (max 3): `AK-734` is closed in AK and reflected in the checked-in projection; no repo-scoped task is currently ready; `governance/work-items.json` remains a checked-in mirror rather than the live scheduler.
-- Blockers (none or list): none.
+- Objective (one sentence): Claim `AK-798`, then execute one remaining `TG25` security slice unless the operator explicitly redirects the queue.
+- Constraints (hard limits): Keep the completed `TG24` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam; preserve the new `AK-797` trusted-program-root boundary; preserve fail-closed SG2 boundary semantics.
+- Assumptions (max 3): `AK-797` is closed in AK and reflected in the checked-in projection; the truthful repo-scoped ready queue now begins with `AK-798`/`AK-799`/`AK-800`; `governance/work-items.json` remains a checked-in mirror rather than the live scheduler.
+- Blockers (none or list): `just verify-full` is currently blocked by an unrelated `tests/test_task_scope.py` baseline where the global `ak` CLI rejects unregistered temp repos during claimed-task discovery.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
 1. `AGENTS.md`
@@ -43,7 +43,7 @@ Do not ask for permission to start.
 5. `docs/project/operational_goals.md`
 6. `docs/project/developer_workflow.md`
 7. `Justfile`
-8. `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`
+8. `diary/2026-04-05--confine-optimize-service-imports-to-trusted-program-roots.md`
 9. `governance/work-items.json`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
@@ -58,12 +58,12 @@ Do not ask for permission to start.
 7. Update source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-734` — surface MLflow tag-contract drift reason codes, reconfirm the assignment-style task-scope invocation contract, and then close the slice after repairing the live AK authority blocker.
-- Outcome: DSPx now emits `mlflow_tag_contract_violation` whenever contradictory MLflow correlation tags are dropped during local or remote explain candidate selection, keeps partial/nested historical MLflow matches accepted without false positives, preserved the existing task-scope invocation contract without unnecessary doc churn, and is back to the truthful empty-ready-queue `TG25` waiting state after AK repair + task completion.
-- Files changed: `docs/project/operational_goals.md`, `governance/task-scopes/AK-734.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/run_explain_service.py`, `tests/test_run_receipts.py`, and `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`.
-- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_run_receipts.py` ✅; `uvx ruff check packages/dspx-core/src/dspx/services/run_explain_service.py tests/test_run_receipts.py` ✅; `uvx ty check packages/dspx-core/src/dspx/services/run_explain_service.py` ✅; `just task-scope-check task_id=734 mode=working-tree` ✅ (repo-default snapshot skip, assignment-style contract reconfirmed); `./scripts/ci/smoke.sh` ✅; `just verify-full` ✅; `./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx")) | map({id,title})'` ✅ after implementation (`[]`); post-repair reconfirmation: `./scripts/ak.sh task show 734 -F json` ✅ (`status=done`), `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json` ✅ (`[]`).
-- Source-of-truth updates: recorded the `AK-734` implementation + closure in `diary/2026-04-04--surface-mlflow-tag-contract-drift-and-revalidate-task-scope-contract.md`, refreshed `docs/project/operational_goals.md` and this handoff back to the idle `TG25` checkpoint, kept `governance/task-scopes/AK-734.snapshot.json` as the frozen slice export, and refreshed `governance/work-items.json` after AK completion.
-- Next-session starting point: confirm the repo-scoped ready queue; if it is still empty, stay in the truthful idle `TG25` waiting state until the operator or AK names the next slice.
+- Slice executed: `AK-797` — confine `optimize_service._import_program_module()` to trusted program roots.
+- Outcome: DSPx now rejects optimize program imports that escape the current working directory, system temp root, and any explicit `DSPX_TRUSTED_PROGRAM_ROOTS` allowlist; direct import regressions cover both rejection and env-based allowlisting; the checked-in AK projection now truthfully shows `AK-798`/`AK-799`/`AK-800` as the remaining ready queue.
+- Files changed: `docs/project/operational_goals.md`, `governance/task-scopes/AK-797.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/optimize_service.py`, `tests/test_optimize_gepa_stub.py`, and `diary/2026-04-05--confine-optimize-service-imports-to-trusted-program-roots.md`.
+- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_optimize_gepa_stub.py` ✅; `uv run --no-sync -m pytest -q tests/test_provider_v4.py -k optimize_manifest_includes_provider_runtime_metadata` ✅; `uvx ruff check packages/dspx-core/src/dspx/services/optimize_service.py tests/test_optimize_gepa_stub.py` ✅; `uvx ty check packages/dspx-core/src/dspx/services/optimize_service.py` ✅; `just task-scope-check task_id=797 mode=working-tree` ✅; `./scripts/ci/smoke.sh` ✅; `just verify-full` ⚠️ fails in the pre-existing `tests/test_task_scope.py` baseline because the global `ak` CLI now rejects unregistered temp repos during claimed-task discovery (unrelated to `AK-797`); `./scripts/ak.sh work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ak.sh task show 797 -F json` ✅ (`status=done`); `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json` ✅ (`[798,799,800]`).
+- Source-of-truth updates: recorded the `AK-797` implementation + closure in `diary/2026-04-05--confine-optimize-service-imports-to-trusted-program-roots.md`, refreshed `docs/project/operational_goals.md` and this handoff to point at the remaining truthful `TG25` queue, kept `governance/task-scopes/AK-797.snapshot.json` as the frozen slice export, and refreshed `governance/work-items.json` after AK completion.
+- Next-session starting point: confirm the repo-scoped ready queue and, absent operator override, claim `AK-798` next.
 
 ## END-OF-SESSION
 Run `/commit` and ensure this file reflects the real checkpoint for the next operator/agent.
