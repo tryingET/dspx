@@ -573,13 +573,81 @@ class TestSafeExpressionEvaluation:
         result = evaluate_contract(contract, emb)
         assert result.status == ContractStatus.PASS
 
-    def test_unsafe_expression_import(self, engine: EmbeddingEngine) -> None:
-        """Import statements should be rejected.
+    def test_safe_expression_embedding_view_attr(self, engine: EmbeddingEngine) -> None:
+        """The narrowed embedding view should still expose safe fields."""
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="hello world",
+            run_kind="test",
+            provider="test",
+        )
 
-        Note: __import__ is not in the safe namespace, so calling it
-        results in a NameError, which is correctly reported as an evaluation error.
-        The expression is safely rejected either way.
-        """
+        contract = Contract(
+            name="test-embedding-field",
+            description="Test safe embedding field access",
+            invariant="embedding.output_text == 'hello world'",
+            validator_type="python_expr",
+            validator_config={"expression": "embedding.output_text == 'hello world'"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.PASS
+
+    def test_unsafe_expression_method_call(self, engine: EmbeddingEngine) -> None:
+        """Method calls should be rejected to avoid object capability escapes."""
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text=" hello world ",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-method-call",
+            description="Test method call rejection",
+            invariant="Should fail",
+            validator_type="python_expr",
+            validator_config={"expression": "output_text.strip() == 'hello world'"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.ERROR
+        assert (
+            "method calls" in result.message.lower()
+            or "unsafe" in result.message.lower()
+        )
+
+    def test_unsafe_expression_non_allowlisted_function(
+        self, engine: EmbeddingEngine
+    ) -> None:
+        """Only explicit helper functions should be callable."""
+        emb = engine.embed_execution(
+            run_id="test",
+            input_text="test",
+            output_text="hello world",
+            run_kind="test",
+            provider="test",
+        )
+
+        contract = Contract(
+            name="test-type-call",
+            description="Test non-allowlisted function rejection",
+            invariant="Should fail",
+            validator_type="python_expr",
+            validator_config={"expression": "type(output_text) is str"},
+        )
+
+        result = evaluate_contract(contract, emb)
+        assert result.status == ContractStatus.ERROR
+        assert (
+            "not allowed" in result.message.lower()
+            or "unsafe" in result.message.lower()
+        )
+
+    def test_unsafe_expression_import(self, engine: EmbeddingEngine) -> None:
+        """Import-style code execution attempts should be rejected."""
         emb = engine.embed_execution(
             run_id="test",
             input_text="test",
@@ -598,8 +666,10 @@ class TestSafeExpressionEvaluation:
 
         result = evaluate_contract(contract, emb)
         assert result.status == ContractStatus.ERROR
-        # Rejected either because __import__ is not defined or due to AST validation
-        assert "error" in result.message.lower()
+        assert (
+            "unsafe" in result.message.lower()
+            or "not allowed" in result.message.lower()
+        )
 
     def test_unsafe_expression_function_def(self, engine: EmbeddingEngine) -> None:
         """Function definitions should be rejected."""

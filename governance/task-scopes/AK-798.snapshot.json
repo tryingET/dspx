@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-05T05:31:00.600570128+00:00",
+  "task_id": 798,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/2026-04-05--replace-contract-expression-eval-with-ast-interpreter.md",
+      "docs/project/operational_goals.md",
+      "governance/task-scopes/AK-798.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/coordinates/contracts.py",
+      "tests/test_coordinates_phase_b.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/coordinates/contracts.py",
+      "tests/test_coordinates_phase_b.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

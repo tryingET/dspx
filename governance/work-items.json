@@ -1053,14 +1053,15 @@
         {
           "id": "AK-TASK-0798",
           "title": "security(TG25): replace contract expression eval with sandboxed interpreter or tighter AST allowlist",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "security(TG25): replace contract expression eval with sandboxed interpreter or tighter AST allowlist (task #798)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-05"
         },
         {
           "id": "AK-TASK-0799",

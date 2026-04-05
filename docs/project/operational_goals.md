@@ -13,12 +13,12 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-- `AK-798` — replace contract expression `eval` with a sandboxed interpreter or tighter AST allowlist.
 - `AK-799` — flip server auth default to required and add `DSPX_AUTH_SKIP_FOR_DEV` as the explicit local opt-in.
 - `AK-800` — add request body size limits middleware to the DSPx server.
 
 ## Recently completed in this wave
 
+- `AK-798` — replaced contract-expression `eval()` with a tiny AST interpreter over a narrowed helper namespace plus a read-only embedding view, rejected arbitrary method calls / non-allowlisted helpers / arbitrary attribute traversal, added regressions in `tests/test_coordinates_phase_b.py`, exported `governance/task-scopes/AK-798.snapshot.json`, and refreshed the checked-in AK projection after completion.
 - `AK-797` — confined `optimize_service._import_program_module()` to trusted program roots (`cwd`, the system temp root, plus `DSPX_TRUSTED_PROGRAM_ROOTS` overrides), added rejection/allowlist regressions in `tests/test_optimize_gepa_stub.py`, exported `governance/task-scopes/AK-797.snapshot.json`, and refreshed the checked-in AK projection after completion.
 - `AK-734` — surfaced `mlflow_tag_contract_violation` for contradictory MLflow correlation tags during explain candidate filtering, reconfirmed the existing assignment-style `just task-scope-check task_id=<AK-ID> mode=working-tree` contract without unnecessary doc churn, recorded the completed slice in `governance/task-scopes/AK-734.snapshot.json` + diary/handoff artifacts, and then closed the task after repairing the live AK task-mutation foreign-key blocker.
 - `AK-729` — landed the operator-directed adversarial TG24 follow-on by making exact-match SG2 receipt validation type-strict, allowing compatible partial/nested local MLflow artifact linkage, moving sync-provider `cwd` isolation into worker-local scope, centralizing OpenAPI numeric `multipleOf` enforcement across params/body/items, preferring PATH `ak` over the broken workspace-core cargo launcher in `./scripts/ak.sh`, exporting `governance/task-scopes/AK-729.snapshot.json`, and extending regressions.
@@ -34,8 +34,9 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Notes
 
 - `TG24` is complete; `TG25` is now an active repo-scoped security hardening queue rather than an empty waiting state.
-- `AK-797` is closed; the truthful ready queue now starts at `AK-798`, `AK-799`, and `AK-800`.
+- `AK-798` is closed; the truthful ready queue now starts at `AK-799` and `AK-800`.
 - Keep the `AK-797` trusted-program-root boundary closed unless a smaller follow-up explicitly widens it.
+- Keep the `AK-798` narrowed contract-expression boundary closed unless a smaller follow-up explicitly widens the helper/attribute contract.
 - `AK-729` was an operator-directed adversarial follow-on that repaired hidden TG24 regressions without reopening the broader tactical-wave selection.
 - Keep the `AK-707`/`AK-708`/`AK-709` runtime-boundary hardening wave closed unless a surfaced regression or a smaller `TG25` prerequisite explicitly reopens one seam.
 - Do not start live predictive ranking, candidate pruning, promotion blocking, or strategy/policy mutation now that `TG24` has closed; wait until a later tactical wave explicitly widens authority beyond governance-only receipts.

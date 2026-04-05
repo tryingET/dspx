@@ -707,66 +707,95 @@ class ContractRegistry:
         }
 
 
+@dataclass(frozen=True)
+class _SafeEmbeddingView:
+    """Narrow, read-only view exposed to contract expressions."""
+
+    input_text: Any
+    output_text: Any
+    run_id: str
+    provider: Any
+    run_kind: Any
+
+
+_SAFE_CALLABLES: dict[str, Callable[..., Any]] = {
+    "len": len,
+    "str": str,
+    "int": int,
+    "float": float,
+    "bool": bool,
+    "list": list,
+    "dict": dict,
+    "set": set,
+    "tuple": tuple,
+    "min": min,
+    "max": max,
+    "abs": abs,
+    "sum": sum,
+    "any": any,
+    "all": all,
+    "sorted": sorted,
+    "reversed": reversed,
+    "enumerate": enumerate,
+    "zip": zip,
+    "range": range,
+}
+
+_ALLOWED_EMBEDDING_FIELDS = frozenset(
+    {
+        "input_text",
+        "output_text",
+        "run_id",
+        "provider",
+        "run_kind",
+    }
+)
+
+
+def _build_safe_contract_namespace(
+    embedding: "ExecutionEmbedding",
+) -> dict[str, Any]:
+    """Build the read-only namespace exposed to contract expressions."""
+    safe_embedding = _SafeEmbeddingView(
+        input_text=embedding.input_text,
+        output_text=embedding.output_text,
+        run_id=embedding.run_id,
+        provider=embedding.provider,
+        run_kind=embedding.run_kind,
+    )
+    return {
+        "embedding": safe_embedding,
+        "input_text": safe_embedding.input_text,
+        "output_text": safe_embedding.output_text,
+        "run_id": safe_embedding.run_id,
+        "provider": safe_embedding.provider,
+        "run_kind": safe_embedding.run_kind,
+        **_SAFE_CALLABLES,
+    }
+
+
 def _evaluate_python_expr_contract(
     contract: Contract, embedding: "ExecutionEmbedding"
 ) -> ContractResult:
-    """Evaluate a Python expression contract safely.
+    """Evaluate a Python expression contract with a tiny AST interpreter.
 
     The expression can reference: embedding, input_text, output_text.
     Should return True/False or raise an exception.
 
-    Uses AST-based evaluation to prevent code injection attacks.
-    Only simple expressions (comparisons, arithmetic, attribute access, calls)
-    are allowed - no imports, function definitions, or arbitrary code execution.
+    Expressions are parsed to AST, validated against a narrow allowlist, then
+    interpreted directly without calling Python's eval().
     """
-    import ast
     import time
 
     start = time.perf_counter()
 
     expr = contract.validator_config.get("expression", "True")
-
-    # Define safe namespace with only data access (no functions that could be abused)
-    safe_namespace = {
-        "embedding": embedding,
-        "input_text": embedding.input_text,
-        "output_text": embedding.output_text,
-        "run_id": embedding.run_id,
-        "provider": embedding.provider,
-        "run_kind": embedding.run_kind,
-        "len": len,
-        "str": str,
-        "int": int,
-        "float": float,
-        "bool": bool,
-        "list": list,
-        "dict": dict,
-        "set": set,
-        "tuple": tuple,
-        # Safe operators
-        "min": min,
-        "max": max,
-        "abs": abs,
-        "sum": sum,
-        "any": any,
-        "all": all,
-        "sorted": sorted,
-        "reversed": reversed,
-        "enumerate": enumerate,
-        "zip": zip,
-        "range": range,
-    }
+    safe_namespace = _build_safe_contract_namespace(embedding)
 
     try:
-        # Parse expression to AST first
         tree = ast.parse(expr, mode="eval")
-
-        # Validate that only safe nodes are present
         _validate_safe_ast(tree)
-
-        # Compile and evaluate with restricted globals
-        code = compile(tree, "<contract>", "eval")
-        result = eval(code, {"__builtins__": {}}, safe_namespace)
+        result = _evaluate_safe_expression(tree.body, safe_namespace)
 
         elapsed = (time.perf_counter() - start) * 1000
 
@@ -778,14 +807,13 @@ def _evaluate_python_expr_contract(
                 message="Expression evaluated to True",
                 evaluation_time_ms=elapsed,
             )
-        else:
-            return ContractResult(
-                contract_name=contract.name,
-                run_id=embedding.run_id,
-                status=ContractStatus.FAIL,
-                message="Expression evaluated to False",
-                evaluation_time_ms=elapsed,
-            )
+        return ContractResult(
+            contract_name=contract.name,
+            run_id=embedding.run_id,
+            status=ContractStatus.FAIL,
+            message="Expression evaluated to False",
+            evaluation_time_ms=elapsed,
+        )
     except SyntaxError as e:
         elapsed = (time.perf_counter() - start) * 1000
         return ContractResult(
@@ -796,7 +824,6 @@ def _evaluate_python_expr_contract(
             evaluation_time_ms=elapsed,
         )
     except ValueError as e:
-        # Raised by _validate_safe_ast for unsafe expressions
         elapsed = (time.perf_counter() - start) * 1000
         return ContractResult(
             contract_name=contract.name,
@@ -816,33 +843,27 @@ def _evaluate_python_expr_contract(
         )
 
 
-# Allowed AST node types for safe expression evaluation
+# Allowed AST node types for safe expression evaluation.
 # Note: ast.Num, ast.Str, ast.Bytes, ast.NameConstant, ast.Ellipsis were
 # deprecated in Python 3.8+ and replaced by ast.Constant. Removed for Python 3.13+.
 # ast.Index was deprecated in Python 3.9 and removed - subscripts use the value directly.
 _SAFE_AST_NODES = frozenset(
     [
-        # Literals and expressions
         ast.Expression,
         ast.Constant,
-        # Names and attributes
         ast.Name,
         ast.Attribute,
-        ast.Load,  # Context for reading variables
-        ast.Store,  # Context for storing (in comprehensions)
+        ast.Load,
         ast.Subscript,
         ast.Slice,
-        # Containers
         ast.List,
         ast.Tuple,
         ast.Set,
         ast.Dict,
-        # Operators (comparisons, arithmetic, boolean)
         ast.UnaryOp,
         ast.UAdd,
         ast.USub,
         ast.Not,
-        ast.Invert,
         ast.BinOp,
         ast.Add,
         ast.Sub,
@@ -850,13 +871,6 @@ _SAFE_AST_NODES = frozenset(
         ast.Div,
         ast.FloorDiv,
         ast.Mod,
-        ast.Pow,
-        ast.LShift,
-        ast.RShift,
-        ast.BitOr,
-        ast.BitXor,
-        ast.BitAnd,
-        ast.MatMult,
         ast.BoolOp,
         ast.And,
         ast.Or,
@@ -871,30 +885,173 @@ _SAFE_AST_NODES = frozenset(
         ast.IsNot,
         ast.In,
         ast.NotIn,
-        # If expression
         ast.IfExp,
-        # Function calls (to allowed functions in namespace)
         ast.Call,
         ast.keyword,
-        # Comprehensions (limited)
-        ast.GeneratorExp,
-        ast.ListComp,
-        ast.SetComp,
-        ast.DictComp,
-        ast.comprehension,
     ]
 )
+
+
+def _evaluate_safe_expression(node: ast.AST, safe_namespace: dict[str, Any]) -> Any:
+    """Interpret a validated expression AST without delegating to eval()."""
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Name):
+        if node.id not in safe_namespace:
+            raise ValueError(f"Unknown name '{node.id}'")
+        return safe_namespace[node.id]
+    if isinstance(node, ast.Attribute):
+        base_value = _evaluate_safe_expression(node.value, safe_namespace)
+        if not isinstance(base_value, _SafeEmbeddingView):
+            raise ValueError("Only safe embedding fields are accessible")
+        if node.attr not in _ALLOWED_EMBEDDING_FIELDS:
+            raise ValueError(f"Access to embedding.{node.attr} is not allowed")
+        return getattr(base_value, node.attr)
+    if isinstance(node, ast.Subscript):
+        value = _evaluate_safe_expression(node.value, safe_namespace)
+        index = _evaluate_safe_expression(node.slice, safe_namespace)
+        return value[index]
+    if isinstance(node, ast.Slice):
+        return slice(
+            _evaluate_safe_expression(node.lower, safe_namespace)
+            if node.lower is not None
+            else None,
+            _evaluate_safe_expression(node.upper, safe_namespace)
+            if node.upper is not None
+            else None,
+            _evaluate_safe_expression(node.step, safe_namespace)
+            if node.step is not None
+            else None,
+        )
+    if isinstance(node, ast.List):
+        return [
+            _evaluate_safe_expression(element, safe_namespace) for element in node.elts
+        ]
+    if isinstance(node, ast.Tuple):
+        return tuple(
+            _evaluate_safe_expression(element, safe_namespace) for element in node.elts
+        )
+    if isinstance(node, ast.Set):
+        return {
+            _evaluate_safe_expression(element, safe_namespace) for element in node.elts
+        }
+    if isinstance(node, ast.Dict):
+        result: dict[Any, Any] = {}
+        for key_node, value_node in zip(node.keys, node.values, strict=True):
+            if key_node is None:
+                raise ValueError("Dict unpacking is not allowed")
+            key = _evaluate_safe_expression(key_node, safe_namespace)
+            value = _evaluate_safe_expression(value_node, safe_namespace)
+            result[key] = value
+        return result
+    if isinstance(node, ast.UnaryOp):
+        operand = _evaluate_safe_expression(node.operand, safe_namespace)
+        if isinstance(node.op, ast.UAdd):
+            return +operand
+        if isinstance(node.op, ast.USub):
+            return -operand
+        if isinstance(node.op, ast.Not):
+            return not operand
+        raise ValueError(f"Unary operator {type(node.op).__name__} is not allowed")
+    if isinstance(node, ast.BinOp):
+        left = _evaluate_safe_expression(node.left, safe_namespace)
+        right = _evaluate_safe_expression(node.right, safe_namespace)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Div):
+            return left / right
+        if isinstance(node.op, ast.FloorDiv):
+            return left // right
+        if isinstance(node.op, ast.Mod):
+            return left % right
+        raise ValueError(f"Binary operator {type(node.op).__name__} is not allowed")
+    if isinstance(node, ast.BoolOp):
+        if isinstance(node.op, ast.And):
+            result: Any = True
+            for value in node.values:
+                result = _evaluate_safe_expression(value, safe_namespace)
+                if not result:
+                    return result
+            return result
+        if isinstance(node.op, ast.Or):
+            result: Any = False
+            for value in node.values:
+                result = _evaluate_safe_expression(value, safe_namespace)
+                if result:
+                    return result
+            return result
+        raise ValueError(f"Boolean operator {type(node.op).__name__} is not allowed")
+    if isinstance(node, ast.Compare):
+        left = _evaluate_safe_expression(node.left, safe_namespace)
+        for operator, comparator in zip(node.ops, node.comparators, strict=True):
+            right = _evaluate_safe_expression(comparator, safe_namespace)
+            if isinstance(operator, ast.Eq):
+                ok = left == right
+            elif isinstance(operator, ast.NotEq):
+                ok = left != right
+            elif isinstance(operator, ast.Lt):
+                ok = left < right
+            elif isinstance(operator, ast.LtE):
+                ok = left <= right
+            elif isinstance(operator, ast.Gt):
+                ok = left > right
+            elif isinstance(operator, ast.GtE):
+                ok = left >= right
+            elif isinstance(operator, ast.Is):
+                ok = left is right
+            elif isinstance(operator, ast.IsNot):
+                ok = left is not right
+            elif isinstance(operator, ast.In):
+                ok = left in right
+            elif isinstance(operator, ast.NotIn):
+                ok = left not in right
+            else:
+                raise ValueError(
+                    f"Comparison operator {type(operator).__name__} is not allowed"
+                )
+            if not ok:
+                return False
+            left = right
+        return True
+    if isinstance(node, ast.IfExp):
+        branch = (
+            node.body
+            if _evaluate_safe_expression(node.test, safe_namespace)
+            else node.orelse
+        )
+        return _evaluate_safe_expression(branch, safe_namespace)
+    if isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name):
+            raise ValueError("Only direct calls to allowlisted helpers are allowed")
+        func_name = node.func.id
+        func = _SAFE_CALLABLES.get(func_name)
+        if func is None:
+            raise ValueError(f"Calls to '{func_name}' are not allowed")
+        if any(keyword.arg is None for keyword in node.keywords):
+            raise ValueError("Argument unpacking is not allowed")
+        args = [_evaluate_safe_expression(arg, safe_namespace) for arg in node.args]
+        kwargs = {
+            keyword.arg: _evaluate_safe_expression(keyword.value, safe_namespace)
+            for keyword in node.keywords
+            if keyword.arg is not None
+        }
+        return func(*args, **kwargs)
+    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
 
 def _validate_safe_ast(tree: ast.AST) -> None:
     """Validate that AST contains only safe node types.
 
     Raises ValueError if unsafe nodes (imports, function defs, etc.) are found.
-    Also blocks access to dunder attributes (__class__, __bases__, etc.) for security.
+    Also rejects method calls and arbitrary attribute traversal so expressions stay
+    inside the narrow helper/field contract.
     """
     for node in ast.walk(tree):
         if type(node) not in _SAFE_AST_NODES:
-            # Provide helpful error message about what's not allowed
             node_name = type(node).__name__
             unsafe_patterns = {
                 "Import": "import statements",
@@ -917,12 +1074,25 @@ def _validate_safe_ast(tree: ast.AST) -> None:
             reason = unsafe_patterns.get(node_name, f"{node_name} nodes")
             raise ValueError(f"Expression contains forbidden {reason}")
 
-        # Block dunder attribute access for security (e.g., __class__, __bases__)
         if isinstance(node, ast.Attribute):
             if node.attr.startswith("__") and node.attr.endswith("__"):
                 raise ValueError(
                     f"Access to dunder attributes ({node.attr}) is not allowed"
                 )
+            if not isinstance(node.value, ast.Name) or node.value.id != "embedding":
+                raise ValueError("Only embedding.<field> attribute access is allowed")
+            if node.attr not in _ALLOWED_EMBEDDING_FIELDS:
+                raise ValueError(f"Access to embedding.{node.attr} is not allowed")
+
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute):
+                raise ValueError("Method calls are not allowed in contract expressions")
+            if not isinstance(node.func, ast.Name):
+                raise ValueError("Only direct calls to allowlisted helpers are allowed")
+            if node.func.id not in _SAFE_CALLABLES:
+                raise ValueError(f"Calls to '{node.func.id}' are not allowed")
+            if any(keyword.arg is None for keyword in node.keywords):
+                raise ValueError("Argument unpacking is not allowed")
 
 
 def _count_by_severity(violations: list[ContractViolation]) -> dict[str, int]:
