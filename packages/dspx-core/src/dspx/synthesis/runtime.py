@@ -12,17 +12,23 @@ from dspx.dtos import ModuleSpec
 from dspx.generated_code_guard import smoke_module_code
 
 from .contracts import (
+    CandidateAssembly,
     CandidateRecord,
     CandidateWorkspace,
     EvaluationRecord,
+    ExecutionEpisode,
     PromotionDecision,
+    ReceiptBundle,
     StrategyRecord,
     SynthesisBundle,
     SynthesisRequest,
+    build_module_candidate_assembly,
     build_module_candidate_record,
     build_module_evaluation_record,
+    build_module_execution_episode,
     build_module_promotion_decision,
     build_module_promotion_shell,
+    build_module_receipt_bundle,
     build_module_selection_policy,
     build_module_strategy_record,
     build_module_synthesis_request,
@@ -169,6 +175,147 @@ def _attach_workspace_metadata(
     )
 
 
+def _attach_runtime_spine_metadata(
+    candidate: CandidateRecord,
+    assembly: CandidateAssembly,
+    execution_episode: ExecutionEpisode,
+    receipt_bundle: ReceiptBundle,
+) -> CandidateRecord:
+    artifact_metadata = dict(candidate.artifact.metadata)
+    artifact_metadata.update(
+        {
+            "assembly_id": assembly.assembly_id,
+            "receipt_bundle_id": receipt_bundle.receipt_bundle_id,
+        }
+    )
+    candidate_metadata = dict(candidate.metadata)
+    candidate_metadata.update(
+        {
+            "assembly_id": assembly.assembly_id,
+            "execution_episode_id": execution_episode.episode_id,
+            "receipt_bundle_id": receipt_bundle.receipt_bundle_id,
+        }
+    )
+    lineage = dict(candidate.lineage)
+    lineage.update(
+        {
+            "assembly_id": assembly.assembly_id,
+            "execution_episode_id": execution_episode.episode_id,
+        }
+    )
+    return candidate.model_copy(
+        update={
+            "artifact": candidate.artifact.model_copy(
+                update={"metadata": artifact_metadata}
+            ),
+            "metadata": candidate_metadata,
+            "lineage": lineage,
+        }
+    )
+
+
+def _maybe_assembly_for_candidate(
+    bundle: SynthesisBundle,
+    candidate_id: str,
+) -> Optional[CandidateAssembly]:
+    return next(
+        (
+            assembly
+            for assembly in bundle.candidate_assemblies
+            if assembly.candidate_id == candidate_id
+        ),
+        None,
+    )
+
+
+def _maybe_episode_for_candidate(
+    bundle: SynthesisBundle,
+    candidate_id: str,
+) -> Optional[ExecutionEpisode]:
+    return next(
+        (
+            episode
+            for episode in bundle.execution_episodes
+            if episode.candidate_id == candidate_id
+        ),
+        None,
+    )
+
+
+def _maybe_receipt_bundle_for_candidate(
+    bundle: SynthesisBundle,
+    candidate_id: str,
+) -> Optional[ReceiptBundle]:
+    return next(
+        (
+            receipt_bundle
+            for receipt_bundle in bundle.receipt_bundles
+            if receipt_bundle.candidate_id == candidate_id
+        ),
+        None,
+    )
+
+
+def _write_workspace_manifest(
+    request: SynthesisRequest,
+    strategy: Optional[StrategyRecord],
+    candidate: CandidateRecord,
+    workspace: CandidateWorkspace,
+    *,
+    candidate_assembly: Optional[CandidateAssembly] = None,
+    execution_episode: Optional[ExecutionEpisode] = None,
+    receipt_bundle: Optional[ReceiptBundle] = None,
+    evaluation: Optional[EvaluationRecord] = None,
+) -> None:
+    manifest = {
+        "request": request.model_dump(mode="json"),
+        "candidate": candidate.model_dump(mode="json"),
+        "workspace": workspace.model_dump(mode="json"),
+    }
+    if strategy is not None:
+        manifest["strategy"] = strategy.model_dump(mode="json")
+    if candidate_assembly is not None:
+        manifest["candidate_assembly"] = candidate_assembly.model_dump(mode="json")
+    if execution_episode is not None:
+        manifest["execution_episode"] = execution_episode.model_dump(mode="json")
+    if receipt_bundle is not None:
+        manifest["receipt_bundle"] = receipt_bundle.model_dump(mode="json")
+    if evaluation is not None:
+        manifest["evaluation"] = evaluation.model_dump(mode="json")
+    Path(workspace.manifest_path).write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+
+def _persist_runtime_spine(bundle: SynthesisBundle) -> None:
+    for candidate in bundle.candidates:
+        workspace = _workspace_for_candidate(bundle, candidate.candidate_id)
+        _write_workspace_manifest(
+            bundle.request,
+            bundle.strategy,
+            candidate,
+            workspace,
+            candidate_assembly=_maybe_assembly_for_candidate(
+                bundle, candidate.candidate_id
+            ),
+            execution_episode=_maybe_episode_for_candidate(
+                bundle, candidate.candidate_id
+            ),
+            receipt_bundle=_maybe_receipt_bundle_for_candidate(
+                bundle, candidate.candidate_id
+            ),
+            evaluation=next(
+                (
+                    evaluation
+                    for evaluation in bundle.evaluations
+                    if evaluation.candidate_id == candidate.candidate_id
+                ),
+                None,
+            ),
+        )
+
+
 def _normalize_candidate_sources(
     *,
     code: Optional[str],
@@ -253,9 +400,14 @@ def materialize_module_synthesis_bundle(
         if workspace_root is not None
         else (synthesis_workspace_dir() / request.request_id).resolve()
     )
+    policy = build_module_selection_policy(candidate_limit=len(sources))
+    phase = "AK-256" if len(sources) > 1 else "AK-251"
 
     candidates: list[CandidateRecord] = []
     workspaces: list[CandidateWorkspace] = []
+    candidate_assemblies: list[CandidateAssembly] = []
+    execution_episodes: list[ExecutionEpisode] = []
+    receipt_bundles: list[ReceiptBundle] = []
     evaluations: list[EvaluationRecord] = []
     for ordinal, source in enumerate(sources):
         candidate = build_module_candidate_record(
@@ -273,17 +425,50 @@ def materialize_module_synthesis_bundle(
             strategy=strategy,
             workspace_root=workspace_base,
         )
+        assembly = build_module_candidate_assembly(
+            request,
+            candidate,
+            workspace=workspace,
+            strategy=strategy,
+        )
+        execution_episode = build_module_execution_episode(
+            request,
+            candidate,
+            assembly,
+            phase=phase,
+            workspace=workspace,
+            selection_policy=policy,
+        )
+        receipt_bundle = build_module_receipt_bundle(
+            request,
+            candidate,
+            assembly,
+            execution_episode,
+            workspace=workspace,
+            strategy=strategy,
+        )
         candidate = _attach_workspace_metadata(candidate, workspace, strategy)
+        candidate = _attach_runtime_spine_metadata(
+            candidate,
+            assembly,
+            execution_episode,
+            receipt_bundle,
+        )
         evaluation = build_module_evaluation_record(
             candidate,
-            phase="AK-256" if len(sources) > 1 else "AK-251",
+            phase=phase,
             workspace=workspace,
+            assembly=assembly,
+            execution_episode=execution_episode,
+            receipt_bundle=receipt_bundle,
         )
         candidates.append(candidate)
         workspaces.append(workspace)
+        candidate_assemblies.append(assembly)
+        execution_episodes.append(execution_episode)
+        receipt_bundles.append(receipt_bundle)
         evaluations.append(evaluation)
 
-    policy = build_module_selection_policy(candidate_limit=len(sources))
     shell_target = _promoted_target_path(
         request,
         workspace_base,
@@ -299,16 +484,21 @@ def materialize_module_synthesis_bundle(
         evaluations=evaluations,
         promotion_shell=promotion_shell,
     )
-    return SynthesisBundle(
+    bundle = SynthesisBundle(
         request=request,
         strategy=strategy,
         candidates=candidates,
         candidate_workspaces=workspaces,
+        candidate_assemblies=candidate_assemblies,
+        execution_episodes=execution_episodes,
+        receipt_bundles=receipt_bundles,
         evaluations=evaluations,
         selection_policy=policy,
         promotion_shell=promotion_shell,
         promotion_decision=promotion_decision,
     )
+    _persist_runtime_spine(bundle)
+    return bundle
 
 
 def _workspace_for_candidate(
@@ -319,6 +509,36 @@ def _workspace_for_candidate(
         if workspace.candidate_id == candidate_id:
             return workspace
     raise ValueError(f"No workspace found for candidate {candidate_id}")
+
+
+def _assembly_for_candidate(
+    bundle: SynthesisBundle,
+    candidate_id: str,
+) -> CandidateAssembly:
+    assembly = _maybe_assembly_for_candidate(bundle, candidate_id)
+    if assembly is None:
+        raise ValueError(f"No candidate assembly found for candidate {candidate_id}")
+    return assembly
+
+
+def _execution_episode_for_candidate(
+    bundle: SynthesisBundle,
+    candidate_id: str,
+) -> ExecutionEpisode:
+    episode = _maybe_episode_for_candidate(bundle, candidate_id)
+    if episode is None:
+        raise ValueError(f"No execution episode found for candidate {candidate_id}")
+    return episode
+
+
+def _receipt_bundle_for_candidate(
+    bundle: SynthesisBundle,
+    candidate_id: str,
+) -> ReceiptBundle:
+    receipt_bundle = _maybe_receipt_bundle_for_candidate(bundle, candidate_id)
+    if receipt_bundle is None:
+        raise ValueError(f"No receipt bundle found for candidate {candidate_id}")
+    return receipt_bundle
 
 
 def _candidate_by_id(bundle: SynthesisBundle, candidate_id: str) -> CandidateRecord:
@@ -450,6 +670,9 @@ def _ranking_entry(
 ) -> dict[str, Any]:
     return {
         "candidate_id": candidate.candidate_id,
+        "assembly_id": candidate.metadata.get("assembly_id"),
+        "execution_episode_id": candidate.metadata.get("execution_episode_id"),
+        "receipt_bundle_id": candidate.metadata.get("receipt_bundle_id"),
         "ordinal": candidate.ordinal,
         "status": evaluation.status,
         "score": evaluation.score,
@@ -491,10 +714,19 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
         raise ValueError("Module synthesis bundle is missing candidates")
     if not bundle.candidate_workspaces:
         raise ValueError("Module synthesis bundle is missing candidate workspaces")
+    if not bundle.candidate_assemblies:
+        raise ValueError("Module synthesis bundle is missing candidate assemblies")
+    if not bundle.execution_episodes:
+        raise ValueError("Module synthesis bundle is missing execution episodes")
+    if not bundle.receipt_bundles:
+        raise ValueError("Module synthesis bundle is missing receipt bundles")
     if not bundle.evaluations:
         raise ValueError("Module synthesis bundle is missing evaluations")
 
     updated_candidates: list[CandidateRecord] = []
+    updated_assemblies: list[CandidateAssembly] = []
+    updated_execution_episodes: list[ExecutionEpisode] = []
+    updated_receipt_bundles: list[ReceiptBundle] = []
     updated_evaluations: list[EvaluationRecord] = []
     ranking_inputs: list[dict[str, Any]] = []
 
@@ -503,6 +735,11 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
 
     for candidate in bundle.candidates:
         workspace = _workspace_for_candidate(bundle, candidate.candidate_id)
+        assembly = _assembly_for_candidate(bundle, candidate.candidate_id)
+        execution_episode = _execution_episode_for_candidate(
+            bundle, candidate.candidate_id
+        )
+        receipt_bundle = _receipt_bundle_for_candidate(bundle, candidate.candidate_id)
         code = Path(workspace.artifact_path).read_text(encoding="utf-8")
 
         static_ok, static_checks, static_errors = _module_static_checks(
@@ -521,6 +758,9 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
         evaluation_evidence.update(
             {
                 "phase": phase,
+                "assembly_id": assembly.assembly_id,
+                "execution_episode_id": execution_episode.episode_id,
+                "receipt_bundle_id": receipt_bundle.receipt_bundle_id,
                 "static": static_checks,
                 "smoke": smoke_checks,
                 "errors": errors,
@@ -578,11 +818,85 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
             }
         )
 
+        assembly_metadata = dict(assembly.metadata)
+        assembly_metadata.update(
+            {
+                "evaluation_id": updated_evaluation.evaluation_id,
+                "execution_episode_id": execution_episode.episode_id,
+                "receipt_bundle_id": receipt_bundle.receipt_bundle_id,
+                "evaluation_status": updated_evaluation.status,
+                "runtime_phase": phase,
+            }
+        )
+        updated_assembly = assembly.model_copy(
+            update={
+                "status": "materialized" if passed else "rejected",
+                "metadata": assembly_metadata,
+            }
+        )
+
+        episode_metadata = dict(execution_episode.metadata)
+        episode_metadata.update(
+            {
+                "evaluation_id": updated_evaluation.evaluation_id,
+                "receipt_bundle_id": receipt_bundle.receipt_bundle_id,
+                "selection_bonus": bonus,
+                "ranking_score": total_score,
+            }
+        )
+        updated_execution_episode = execution_episode.model_copy(
+            update={
+                "status": "passed" if passed else "failed",
+                "score": total_score,
+                "summary": _evaluation_summary(
+                    passed=passed,
+                    errors=errors,
+                    ranked=multi_candidate,
+                ),
+                "metadata": episode_metadata,
+            }
+        )
+
+        receipt_evidence = dict(receipt_bundle.evidence)
+        receipt_evidence.update(
+            {
+                "static": static_checks,
+                "smoke": smoke_checks,
+                "errors": errors,
+                "total_score": total_score,
+                "evaluation_id": updated_evaluation.evaluation_id,
+            }
+        )
+        receipt_metadata = dict(receipt_bundle.metadata)
+        receipt_metadata.update(
+            {
+                "evaluation_id": updated_evaluation.evaluation_id,
+                "evaluation_status": updated_evaluation.status,
+                "selection_bonus": bonus,
+                "selection_basis": candidate.metadata.get("selection_basis"),
+                "variant_id": candidate.metadata.get("variant_id"),
+                "variant_label": candidate.metadata.get("variant_label"),
+            }
+        )
+        updated_receipt_bundle = receipt_bundle.model_copy(
+            update={
+                "status": "captured" if passed else "rejected",
+                "evidence": receipt_evidence,
+                "metadata": receipt_metadata,
+            }
+        )
+
         updated_candidates.append(updated_candidate)
+        updated_assemblies.append(updated_assembly)
+        updated_execution_episodes.append(updated_execution_episode)
+        updated_receipt_bundles.append(updated_receipt_bundle)
         updated_evaluations.append(updated_evaluation)
         ranking_inputs.append(
             {
                 "candidate": updated_candidate,
+                "assembly": updated_assembly,
+                "execution_episode": updated_execution_episode,
+                "receipt_bundle": updated_receipt_bundle,
                 "evaluation": updated_evaluation,
                 "passed": passed,
                 "score": total_score,
@@ -616,20 +930,91 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
         payload["rank"] = index
         ranked_payload.append(payload)
 
+    assembly_map = {assembly.candidate_id: assembly for assembly in updated_assemblies}
+    execution_episode_map = {
+        execution_episode.candidate_id: execution_episode
+        for execution_episode in updated_execution_episodes
+    }
+    receipt_bundle_map = {
+        receipt_bundle.candidate_id: receipt_bundle
+        for receipt_bundle in updated_receipt_bundles
+    }
+
     final_candidates: list[CandidateRecord] = []
+    final_assemblies: list[CandidateAssembly] = []
+    final_execution_episodes: list[ExecutionEpisode] = []
+    final_receipt_bundles: list[ReceiptBundle] = []
     for candidate in updated_candidates:
-        metadata = dict(candidate.metadata)
-        metadata.update(
+        rank = rank_map[candidate.candidate_id]
+        selected_for_promotion = candidate.candidate_id == selected_candidate_id
+
+        candidate_metadata = dict(candidate.metadata)
+        candidate_metadata.update(
             {
-                "rank": rank_map[candidate.candidate_id],
+                "rank": rank,
                 "winning_candidate_id": selected_candidate_id,
             }
         )
-        status = candidate.status
-        if candidate.candidate_id == selected_candidate_id:
-            status = "selected"
+        candidate_status = candidate.status
+        if selected_for_promotion:
+            candidate_status = "selected"
         final_candidates.append(
-            candidate.model_copy(update={"status": status, "metadata": metadata})
+            candidate.model_copy(
+                update={"status": candidate_status, "metadata": candidate_metadata}
+            )
+        )
+
+        assembly = assembly_map[candidate.candidate_id]
+        assembly_metadata = dict(assembly.metadata)
+        assembly_metadata.update(
+            {
+                "rank": rank,
+                "winning_candidate_id": selected_candidate_id,
+                "selected_for_promotion": selected_for_promotion,
+            }
+        )
+        assembly_status = assembly.status
+        if selected_for_promotion and assembly_status != "rejected":
+            assembly_status = "selected"
+        final_assemblies.append(
+            assembly.model_copy(
+                update={"status": assembly_status, "metadata": assembly_metadata}
+            )
+        )
+
+        execution_episode = execution_episode_map[candidate.candidate_id]
+        episode_metadata = dict(execution_episode.metadata)
+        episode_metadata.update(
+            {
+                "rank": rank,
+                "winning_candidate_id": selected_candidate_id,
+                "selected_for_promotion": selected_for_promotion,
+            }
+        )
+        final_execution_episodes.append(
+            execution_episode.model_copy(update={"metadata": episode_metadata})
+        )
+
+        receipt_bundle = receipt_bundle_map[candidate.candidate_id]
+        receipt_metadata = dict(receipt_bundle.metadata)
+        receipt_metadata.update(
+            {
+                "rank": rank,
+                "winning_candidate_id": selected_candidate_id,
+                "selected_for_promotion": selected_for_promotion,
+            }
+        )
+        receipt_evidence = dict(receipt_bundle.evidence)
+        receipt_evidence.update(
+            {
+                "rank": rank,
+                "winning_candidate_id": selected_candidate_id,
+            }
+        )
+        final_receipt_bundles.append(
+            receipt_bundle.model_copy(
+                update={"metadata": receipt_metadata, "evidence": receipt_evidence}
+            )
         )
 
     updated_shell = bundle.promotion_shell
@@ -650,12 +1035,30 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
                 for item in ranked_candidates
                 if item["candidate"].candidate_id == selected_candidate_id
             )
+            selected_assembly = next(
+                assembly
+                for assembly in final_assemblies
+                if assembly.candidate_id == selected_candidate_id
+            )
+            selected_execution_episode = next(
+                execution_episode
+                for execution_episode in final_execution_episodes
+                if execution_episode.candidate_id == selected_candidate_id
+            )
+            selected_receipt_bundle = next(
+                receipt_bundle
+                for receipt_bundle in final_receipt_bundles
+                if receipt_bundle.candidate_id == selected_candidate_id
+            )
             shell_metadata.update(
                 {
                     "evaluation_id": selected_evaluation.evaluation_id,
                     "evaluation_status": selected_evaluation.status,
                     "source_artifact_path": selected_workspace.artifact_path,
                     "workspace_id": selected_workspace.workspace_id,
+                    "selected_assembly_id": selected_assembly.assembly_id,
+                    "selected_execution_episode_id": selected_execution_episode.episode_id,
+                    "selected_receipt_bundle_id": selected_receipt_bundle.receipt_bundle_id,
                     "selected_rank": 1,
                     "selection_score": selected_evaluation.score,
                 }
@@ -682,6 +1085,30 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
     selected_score = (
         selected_entry["evaluation"].score if selected_entry is not None else None
     )
+    selected_assembly_id = next(
+        (
+            assembly.assembly_id
+            for assembly in final_assemblies
+            if assembly.candidate_id == selected_candidate_id
+        ),
+        None,
+    )
+    selected_execution_episode_id = next(
+        (
+            execution_episode.episode_id
+            for execution_episode in final_execution_episodes
+            if execution_episode.candidate_id == selected_candidate_id
+        ),
+        None,
+    )
+    selected_receipt_bundle_id = next(
+        (
+            receipt_bundle.receipt_bundle_id
+            for receipt_bundle in final_receipt_bundles
+            if receipt_bundle.candidate_id == selected_candidate_id
+        ),
+        None,
+    )
     decision_metadata = dict(bundle.promotion_decision.metadata)
     decision_metadata.update(
         {
@@ -691,6 +1118,9 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
             "validation_pass_count": pass_count,
             "validation_total": len(updated_evaluations),
             "selected_candidate_id": selected_candidate_id,
+            "selected_assembly_id": selected_assembly_id,
+            "selected_execution_episode_id": selected_execution_episode_id,
+            "selected_receipt_bundle_id": selected_receipt_bundle_id,
             "selected_rank": 1 if selected_candidate_id is not None else None,
             "selected_score": selected_score,
             "ranked_candidates": ranked_payload,
@@ -716,14 +1146,19 @@ def evaluate_module_synthesis_bundle(bundle: SynthesisBundle) -> SynthesisBundle
         }
     )
 
-    return bundle.model_copy(
+    updated_bundle = bundle.model_copy(
         update={
             "candidates": final_candidates,
+            "candidate_assemblies": final_assemblies,
+            "execution_episodes": final_execution_episodes,
+            "receipt_bundles": final_receipt_bundles,
             "evaluations": updated_evaluations,
             "promotion_shell": updated_shell,
             "promotion_decision": updated_decision,
         }
     )
+    _persist_runtime_spine(updated_bundle)
+    return updated_bundle
 
 
 def module_synthesis_run_summary(bundle: SynthesisBundle) -> dict[str, Any]:
@@ -735,6 +1170,9 @@ def module_synthesis_run_summary(bundle: SynthesisBundle) -> dict[str, Any]:
         else bundle.promotion_decision.candidate_id
     )
     selected_evaluation = None
+    selected_assembly = None
+    selected_execution_episode = None
+    selected_receipt_bundle = None
     if selected_candidate_id is not None:
         selected_evaluation = next(
             (
@@ -743,6 +1181,13 @@ def module_synthesis_run_summary(bundle: SynthesisBundle) -> dict[str, Any]:
                 if item.candidate_id == selected_candidate_id
             ),
             None,
+        )
+        selected_assembly = _maybe_assembly_for_candidate(bundle, selected_candidate_id)
+        selected_execution_episode = _maybe_episode_for_candidate(
+            bundle, selected_candidate_id
+        )
+        selected_receipt_bundle = _maybe_receipt_bundle_for_candidate(
+            bundle, selected_candidate_id
         )
     validation_pass_count = sum(
         1 for item in bundle.evaluations if item.status == "passed"
@@ -776,11 +1221,28 @@ def module_synthesis_run_summary(bundle: SynthesisBundle) -> dict[str, Any]:
     return {
         "run_kind": "module-gen",
         "backend": "synthesis_runtime",
+        "runtime_spine_version": "v1",
         "strategy_id": bundle.request.strategy_id,
         "strategy_version": bundle.request.strategy_version,
         "candidate_count": len(bundle.candidates),
+        "assembly_count": len(bundle.candidate_assemblies),
+        "execution_episode_count": len(bundle.execution_episodes),
+        "receipt_bundle_count": len(bundle.receipt_bundles),
         "selected_candidate_id": selected_candidate_id,
         "selected_candidate_rank": selected_rank,
+        "selected_assembly_id": (
+            selected_assembly.assembly_id if selected_assembly is not None else None
+        ),
+        "selected_execution_episode_id": (
+            selected_execution_episode.episode_id
+            if selected_execution_episode is not None
+            else None
+        ),
+        "selected_receipt_bundle_id": (
+            selected_receipt_bundle.receipt_bundle_id
+            if selected_receipt_bundle is not None
+            else None
+        ),
         "ranked_candidate_ids": ranked_candidate_ids,
         "ranking_policy_id": bundle.selection_policy.policy_id,
         "ranking_policy_version": bundle.selection_policy.policy_version,
@@ -870,18 +1332,26 @@ def execute_module_synthesis_bundle(
         else evaluation
         for evaluation in promoted.evaluations
     ]
-    return promoted.model_copy(update={"evaluations": updated_evaluations})
+    final_bundle = promoted.model_copy(update={"evaluations": updated_evaluations})
+    _persist_runtime_spine(final_bundle)
+    return final_bundle
 
 
 def _updated_decision(
     decision: PromotionDecision,
     *,
     candidate_id: str,
+    assembly_id: Optional[str],
+    execution_episode_id: Optional[str],
+    receipt_bundle_id: Optional[str],
     promoted_path: Path,
 ) -> PromotionDecision:
     metadata = dict(decision.metadata)
     metadata["promoted_path"] = str(promoted_path)
     metadata["selected_candidate_id"] = candidate_id
+    metadata["selected_assembly_id"] = assembly_id
+    metadata["selected_execution_episode_id"] = execution_episode_id
+    metadata["selected_receipt_bundle_id"] = receipt_bundle_id
     return decision.model_copy(
         update={
             "candidate_id": candidate_id,
@@ -918,6 +1388,9 @@ def promote_selected_module_candidate(
         raise ValueError("Selected candidate has not passed evaluation")
 
     workspace = _workspace_for_candidate(bundle, chosen_candidate_id)
+    assembly = _maybe_assembly_for_candidate(bundle, chosen_candidate_id)
+    execution_episode = _maybe_episode_for_candidate(bundle, chosen_candidate_id)
+    receipt_bundle = _maybe_receipt_bundle_for_candidate(bundle, chosen_candidate_id)
     source_path = Path(workspace.artifact_path)
     if not source_path.exists():
         raise FileNotFoundError(source_path)
@@ -956,10 +1429,63 @@ def promote_selected_module_candidate(
         }
     )
 
+    updated_assembly = None
+    if assembly is not None:
+        assembly_metadata = dict(assembly.metadata)
+        assembly_metadata["promoted_path"] = str(destination)
+        updated_assembly = assembly.model_copy(
+            update={
+                "status": "promoted",
+                "artifact_path": str(destination),
+                "metadata": assembly_metadata,
+            }
+        )
+
+    updated_execution_episode = None
+    if execution_episode is not None:
+        episode_metadata = dict(execution_episode.metadata)
+        episode_metadata["promoted_path"] = str(destination)
+        updated_execution_episode = execution_episode.model_copy(
+            update={
+                "status": "promoted",
+                "summary": _evaluation_summary(
+                    passed=True,
+                    errors=[],
+                    promoted=True,
+                    ranked=len(bundle.candidates) > 1,
+                ),
+                "metadata": episode_metadata,
+            }
+        )
+
+    updated_receipt_bundle = None
+    if receipt_bundle is not None:
+        receipt_metadata = dict(receipt_bundle.metadata)
+        receipt_metadata["promoted_path"] = str(destination)
+        receipt_evidence = dict(receipt_bundle.evidence)
+        receipt_evidence["promoted_path"] = str(destination)
+        updated_receipt_bundle = receipt_bundle.model_copy(
+            update={
+                "status": "promoted",
+                "metadata": receipt_metadata,
+                "evidence": receipt_evidence,
+            }
+        )
+
     updated_shell = None
     if shell is not None:
         shell_metadata = dict(shell.metadata)
         shell_metadata["promoted_from"] = str(source_path)
+        if updated_assembly is not None:
+            shell_metadata["selected_assembly_id"] = updated_assembly.assembly_id
+        if updated_execution_episode is not None:
+            shell_metadata["selected_execution_episode_id"] = (
+                updated_execution_episode.episode_id
+            )
+        if updated_receipt_bundle is not None:
+            shell_metadata["selected_receipt_bundle_id"] = (
+                updated_receipt_bundle.receipt_bundle_id
+            )
         updated_shell = shell.model_copy(
             update={
                 "selected_candidate_id": chosen_candidate_id,
@@ -970,7 +1496,7 @@ def promote_selected_module_candidate(
             }
         )
 
-    return bundle.model_copy(
+    updated_bundle = bundle.model_copy(
         update={
             "candidates": [
                 updated_candidate if item.candidate_id == chosen_candidate_id else item
@@ -980,11 +1506,49 @@ def promote_selected_module_candidate(
                 updated_workspace if item.candidate_id == chosen_candidate_id else item
                 for item in bundle.candidate_workspaces
             ],
+            "candidate_assemblies": [
+                updated_assembly
+                if updated_assembly is not None
+                and item.candidate_id == chosen_candidate_id
+                else item
+                for item in bundle.candidate_assemblies
+            ],
+            "execution_episodes": [
+                updated_execution_episode
+                if updated_execution_episode is not None
+                and item.candidate_id == chosen_candidate_id
+                else item
+                for item in bundle.execution_episodes
+            ],
+            "receipt_bundles": [
+                updated_receipt_bundle
+                if updated_receipt_bundle is not None
+                and item.candidate_id == chosen_candidate_id
+                else item
+                for item in bundle.receipt_bundles
+            ],
             "promotion_shell": updated_shell,
             "promotion_decision": _updated_decision(
                 bundle.promotion_decision,
                 candidate_id=chosen_candidate_id,
+                assembly_id=(
+                    updated_assembly.assembly_id
+                    if updated_assembly is not None
+                    else None
+                ),
+                execution_episode_id=(
+                    updated_execution_episode.episode_id
+                    if updated_execution_episode is not None
+                    else None
+                ),
+                receipt_bundle_id=(
+                    updated_receipt_bundle.receipt_bundle_id
+                    if updated_receipt_bundle is not None
+                    else None
+                ),
                 promoted_path=destination,
             ),
         }
     )
+    _persist_runtime_spine(updated_bundle)
+    return updated_bundle

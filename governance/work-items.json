@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-05",
+  "updated_at": "2026-04-10",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -27,18 +27,15 @@
         {
           "id": "AK-TASK-0235",
           "title": "V4: add opt-in live provider acceptance tests for vllm-local, codex/gpt-5.4, and expected-fail codex/gpt-5.4-nano",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "V4: add opt-in live provider acceptance tests for vllm-local, codex/gpt-5.4, and expected-fail codex/gpt-5.4-nano (task #235)",
-              "done": false
+              "done": true
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
-          "labels": [
-            "deferred"
-          ],
-          "note": "Deferred:\n- reason: Deferred while the repo's active tactical goal shifts from provider-runtime follow-ons to the V9-compatible module synthesis runtime MVP; revisit after the synthesis runtime operating wave.\n- kind: manual"
+          "completed_at": "2026-04-09"
         },
         {
           "id": "AK-TASK-0236",
@@ -50,7 +47,11 @@
               "done": false
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "labels": [
+            "deferred"
+          ],
+          "note": "Deferred:\n- reason: Deferred after operator-directed AK-235 completion because the remaining older provider-runtime follow-ons stay outside the active SG2/TG25->TG26 wave unless the operator explicitly pulls them back in.\n- kind: manual"
         },
         {
           "id": "AK-TASK-0237",
@@ -1114,6 +1115,48 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-05"
+        },
+        {
+          "id": "AK-TASK-1046",
+          "title": "Direction-to-execution: close TG25 hardening, promote TG26, and materialize the first promotion-eligibility contract slice",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Direction-to-execution: close TG25 hardening, promote TG26, and materialize the first promotion-eligibility contract slice (task #1046)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-09"
+        },
+        {
+          "id": "AK-TASK-1047",
+          "title": "Synthesis evidence substrate: freeze the first human-governed promotion-eligibility contract for governance-only policy variants",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: freeze the first human-governed promotion-eligibility contract for governance-only policy variants (task #1047)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "labels": [
+            "deferred"
+          ],
+          "note": "Deferred:\n- reason: Created prematurely during mistaken workflow while drafting the TG26 ADR; keep non-active until the operator explicitly decides to materialize a repo task from the proposed ADR.\n- kind: manual"
+        },
+        {
+          "id": "AK-TASK-1085",
+          "title": "runtime spine: bridge existing synthesis contracts to candidate assembly and execution episode semantics",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "runtime spine: bridge existing synthesis contracts to candidate assembly and execution episode semantics (task #1085)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-10"
         }
       ]
     }

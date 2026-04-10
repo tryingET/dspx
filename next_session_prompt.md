@@ -32,9 +32,9 @@ Do not ask for permission to start.
 - Latest repo-local learning: `docs/learnings/2026-02-28-receipt-v2-phase-c.md`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Confirm the repo-scoped ready queue is still empty after `AK-835` and only materialize/promote the next truthful `TG26` slice if AK truth names it.
-- Constraints (hard limits): Keep the completed `AK-797`, `AK-798`, `AK-799`, `AK-800`, `AK-834`, and `AK-835` boundaries closed; do not reopen the closed `TG25` hardening wave as a generic cleanup queue.
-- Assumptions (max 3): the repo is back to a validation-clean baseline; `governance/work-items.json` remains a checked-in mirror; the next truthful move is a bounded `TG26` promotion/materialization step rather than another implicit `TG25` patch.
+- Objective (one sentence): Confirm the repo-scoped ready queue is still empty after the first runtime-spine slice and only materialize the next bounded governance slice when AK truth explicitly names it.
+- Constraints (hard limits): Keep the completed `AK-797`, `AK-798`, `AK-799`, `AK-800`, `AK-834`, `AK-835`, and `AK-1085` boundaries closed; do not widen governance authority or reopen the runtime-spine slice as a generic cleanup queue.
+- Assumptions (max 3): the first runtime spine now exists inside `dspx.synthesis`; `governance/work-items.json` remains a checked-in mirror; the later human-governed review-eligibility / promotion-eligibility contract should stay deferred until AK explicitly materializes it.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -44,15 +44,15 @@ Do not ask for permission to start.
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
 6. `docs/project/developer_workflow.md`
-7. `Justfile`
-8. `diary/2026-04-05--land-ak835-tg25-atomic-hardening-cleanup.md`
-9. `diary/2026-04-05--materialize-next-tg25-hardening-wave.md`
-10. `governance/work-items.json`
+7. `governance/work-items.json`
+8. `packages/dspx-core/src/dspx/synthesis/contracts.py`
+9. `packages/dspx-core/src/dspx/synthesis/runtime.py`
+10. `tests/test_synthesis_contracts.py`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
-2. Confirm the repo-scoped ready queue with `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the ready queue is empty, do not guess a hidden cleanup backlog; only materialize/promote the next slice when AK truth and the direction stack justify it.
+2. Confirm the repo-scoped ready queue with `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
+3. If the ready queue is empty, do not guess a hidden governance backlog; only materialize the next slice when AK truth and the direction stack justify it.
 4. Execute at most one operating slice end-to-end.
 5. Validate truthfully with:
    - `./scripts/ci/smoke.sh`
@@ -61,12 +61,12 @@ Do not ask for permission to start.
 6. Refresh source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-835` — closed the remaining atomic hardening cleanup across config-managed env refresh, config TOML secret rejection, provider/runtime sanitization, policy bypass audit logging, registry locking, Pi retry boundaries, refine TTY gating, receipt env-hash redaction, bounded previews, generated-code worker fail-closed handling, and task-scope claim fallback.
-- Outcome: `AK-835` is complete in AK, the repo-scoped ready queue is empty again, and the repo returns to a truthful validation-clean baseline without reopening the closed `TG25` hardening wave.
-- Files changed: `packages/dspx-core/src/dspx/config_loader.py`, `packages/dspx-core/src/dspx/generated_code_guard.py`, `packages/dspx-core/src/dspx/pi_rpc_lm.py`, `packages/dspx-core/src/dspx/policy.py`, `packages/dspx-core/src/dspx/provider_registry.py`, `packages/dspx-core/src/dspx/provider_runtime.py`, `packages/dspx-core/src/dspx/run_receipts.py`, `packages/dspx-core/src/dspx/services/refine_service.py`, `packages/dspx-core/src/dspx/task_scope.py`, `packages/dspx-core/src/dspx/tools/registry.py`, `tests/test_config_loader.py`, `tests/test_provider_runtime.py`, `tests/test_refine_service_memory.py`, `tests/test_run_receipts.py`, `tests/test_tg25_atomic_completion.py`, `governance/task-scopes/AK-835.snapshot.json`, `docs/project/operational_goals.md`, `governance/work-items.json`, `diary/2026-04-05--land-ak835-tg25-atomic-hardening-cleanup.md`, `next_session_prompt.md`.
-- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_task_scope.py tests/test_config_loader.py tests/test_provider_runtime.py tests/test_provider_v4.py tests/test_provider_registry.py tests/test_policy_tools_and_providers.py tests/test_refine_service_memory.py tests/test_run_receipts.py tests/test_pi_rpc_provider_unit.py tests/test_policy_capabilities.py tests/test_policy_capabilities_fs.py tests/test_openapi_dry_run_cli.py tests/test_tg25_atomic_completion.py` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=835 mode=working-tree` ✅; `just verify-full` ✅.
-- Source-of-truth updates: completed `AK-835` in AK with result evidence, exported `governance/task-scopes/AK-835.snapshot.json`, re-exported `governance/work-items.json`, refreshed `docs/project/operational_goals.md`, and replaced the handoff with the post-`AK-835` clean-baseline starting point.
-- Next-session starting point: confirm the repo-scoped ready queue is still empty, then materialize/promote the next bounded `TG26` slice only when AK truth explicitly names it.
+- Slice executed: `AK-1085` — bridged `dspx.synthesis` from synthesis-local records to the first explicit runtime spine for candidate assemblies, execution episodes, and receipt bundles without widening governance authority.
+- Outcome: `AK-1085` is complete in AK, the repo-scoped ready queue is empty again, and the later human-governed governance contract remains deferred until AK truth explicitly names it.
+- Files changed: `packages/dspx-core/src/dspx/synthesis/contracts.py`, `packages/dspx-core/src/dspx/synthesis/runtime.py`, `tests/test_synthesis_contracts.py`, `tests/test_synthesis_runtime_smoke.py`, `governance/task-scopes/AK-1085.snapshot.json`, `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python -m pytest -q tests/test_synthesis_contracts.py tests/test_synthesis_runtime_smoke.py` ✅; `/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python -m pytest -q tests/test_module_service.py tests/test_run_receipts.py tests/test_module_synthesis_quality_runtime.py` ✅; `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ (`[]`); `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=1085 mode=working-tree` ✅; `just verify-full` ✅.
+- Source-of-truth updates: completed `AK-1085` in AK with result evidence, exported `governance/task-scopes/AK-1085.snapshot.json`, re-exported `governance/work-items.json`, refreshed `docs/project/operational_goals.md`, and replaced the handoff with the post-runtime-spine idle starting point.
+- Next-session starting point: confirm the repo-scoped ready queue is still empty, and only materialize the deferred governance contract when AK truth explicitly materializes the next bounded slice.
 
 ## END-OF-SESSION
 Run `/commit` only if the repo is validation-clean and the handoff reflects the real checkpoint; otherwise preserve the truthful handoff and leave commit/closeout for the isolated slice.

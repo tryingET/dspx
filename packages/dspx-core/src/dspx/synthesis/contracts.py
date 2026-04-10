@@ -111,6 +111,56 @@ class CandidateWorkspace(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class CandidateAssembly(BaseModel):
+    """Concrete runtime assembly for a candidate that can be executed or replayed."""
+
+    model_config = ConfigDict(frozen=True)
+
+    assembly_id: str
+    request_id: str
+    candidate_id: str
+    artifact_kind: Literal["module"] = "module"
+    surface_kinds: List[str] = Field(default_factory=lambda: ["module"])
+    workspace_id: Optional[str] = None
+    artifact_path: Optional[str] = None
+    content_hash: str
+    status: Literal["materialized", "selected", "promoted", "rejected"] = "materialized"
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ExecutionEpisode(BaseModel):
+    """Bounded runtime episode for executing a candidate assembly."""
+
+    model_config = ConfigDict(frozen=True)
+
+    episode_id: str
+    request_id: str
+    candidate_id: str
+    assembly_id: str
+    evaluator: str
+    phase: str
+    status: Literal["pending", "passed", "failed", "promoted", "rejected"] = "pending"
+    score: Optional[float] = None
+    summary: Optional[str] = None
+    runtime_conditions: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ReceiptBundle(BaseModel):
+    """Replay-oriented evidence bundle emitted for an execution episode."""
+
+    model_config = ConfigDict(frozen=True)
+
+    receipt_bundle_id: str
+    request_id: str
+    candidate_id: str
+    assembly_id: str
+    episode_id: str
+    status: Literal["pending", "captured", "promoted", "rejected"] = "pending"
+    evidence: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class EvaluationRecord(BaseModel):
     """Evaluation outcome shell for a synthesis candidate."""
 
@@ -180,6 +230,9 @@ class SynthesisBundle(BaseModel):
     strategy: Optional[StrategyRecord] = None
     candidates: List[CandidateRecord] = Field(default_factory=list)
     candidate_workspaces: List[CandidateWorkspace] = Field(default_factory=list)
+    candidate_assemblies: List[CandidateAssembly] = Field(default_factory=list)
+    execution_episodes: List[ExecutionEpisode] = Field(default_factory=list)
+    receipt_bundles: List[ReceiptBundle] = Field(default_factory=list)
     evaluations: List[EvaluationRecord] = Field(default_factory=list)
     selection_policy: SelectionPolicy
     promotion_shell: Optional[PromotionShell] = None
@@ -274,6 +327,7 @@ def build_module_strategy_record(
         "use_signature": request.spec.use_signature,
         "render_backend": "template",
         "workspace_mode": "scratch",
+        "runtime_spine_version": "v1",
         "fan_out_mode": (
             "ranked_candidates"
             if int(request.constraints.get("candidate_budget") or 1) > 1
@@ -307,6 +361,7 @@ def build_module_candidate_record(
         "render_backend": "template",
         "template_version": request.spec.template_version,
         "uses_signature": request.spec.use_signature,
+        "runtime_spine_version": "v1",
     }
     if artifact_metadata:
         merged_artifact_metadata.update(artifact_metadata)
@@ -323,7 +378,10 @@ def build_module_candidate_record(
     merged_lineage = {"request_id": request.request_id}
     if lineage:
         merged_lineage.update(lineage)
-    merged_candidate_metadata = {"selection_ready": False}
+    merged_candidate_metadata = {
+        "selection_ready": False,
+        "runtime_spine_version": "v1",
+    }
     if candidate_metadata:
         merged_candidate_metadata.update(candidate_metadata)
 
@@ -340,11 +398,142 @@ def build_module_candidate_record(
     )
 
 
+def build_module_candidate_assembly(
+    request: SynthesisRequest,
+    candidate: CandidateRecord,
+    *,
+    workspace: Optional[CandidateWorkspace] = None,
+    strategy: Optional[StrategyRecord] = None,
+) -> CandidateAssembly:
+    """Build the first explicit runtime assembly for a module candidate."""
+
+    assembly_payload = {
+        "request_id": request.request_id,
+        "candidate_id": candidate.candidate_id,
+        "workspace_id": workspace.workspace_id if workspace is not None else None,
+        "content_hash": candidate.artifact.content_hash,
+    }
+    metadata: Dict[str, Any] = {
+        "source_command": request.source_command,
+        "strategy_id": candidate.strategy_id,
+        "strategy_version": candidate.strategy_version,
+        "module_name": request.spec.name,
+        "use_signature": request.spec.use_signature,
+        "runtime_spine_version": "v1",
+    }
+    if strategy is not None:
+        metadata["workspace_mode"] = strategy.metadata.get("workspace_mode")
+    if workspace is not None:
+        metadata["manifest_path"] = workspace.manifest_path
+    return CandidateAssembly(
+        assembly_id=_stable_id("assembly", assembly_payload),
+        request_id=request.request_id,
+        candidate_id=candidate.candidate_id,
+        workspace_id=workspace.workspace_id if workspace is not None else None,
+        artifact_path=workspace.artifact_path if workspace is not None else None,
+        content_hash=candidate.artifact.content_hash,
+        metadata=metadata,
+    )
+
+
+def build_module_execution_episode(
+    request: SynthesisRequest,
+    candidate: CandidateRecord,
+    assembly: CandidateAssembly,
+    *,
+    phase: str = "AK-251",
+    workspace: Optional[CandidateWorkspace] = None,
+    selection_policy: Optional[SelectionPolicy] = None,
+) -> ExecutionEpisode:
+    """Build the first bounded execution episode shell for a candidate assembly."""
+
+    episode_payload = {
+        "assembly_id": assembly.assembly_id,
+        "phase": phase,
+        "evaluator": "module.runtime.validation",
+    }
+    runtime_conditions: Dict[str, Any] = {
+        "source_command": request.source_command,
+        "strategy_id": request.strategy_id,
+        "strategy_version": request.strategy_version,
+        "candidate_budget": request.constraints.get("candidate_budget"),
+        "use_signature": request.spec.use_signature,
+        "inputs": [field.name for field in request.spec.inputs],
+        "outputs": [field.name for field in request.spec.outputs],
+        "runtime_spine_version": "v1",
+    }
+    if workspace is not None:
+        runtime_conditions["workspace_id"] = workspace.workspace_id
+        runtime_conditions["artifact_path"] = workspace.artifact_path
+    if selection_policy is not None:
+        runtime_conditions["selection_policy_id"] = selection_policy.policy_id
+        runtime_conditions["selection_policy_version"] = selection_policy.policy_version
+    return ExecutionEpisode(
+        episode_id=_stable_id("episode", episode_payload),
+        request_id=request.request_id,
+        candidate_id=candidate.candidate_id,
+        assembly_id=assembly.assembly_id,
+        evaluator="module.runtime.validation",
+        phase=phase,
+        summary="Pending runtime validation for the candidate assembly.",
+        runtime_conditions=runtime_conditions,
+        metadata={
+            "module_name": request.spec.name,
+            "runtime_spine_version": "v1",
+        },
+    )
+
+
+def build_module_receipt_bundle(
+    request: SynthesisRequest,
+    candidate: CandidateRecord,
+    assembly: CandidateAssembly,
+    execution_episode: ExecutionEpisode,
+    *,
+    workspace: Optional[CandidateWorkspace] = None,
+    strategy: Optional[StrategyRecord] = None,
+) -> ReceiptBundle:
+    """Build the replay-oriented receipt bundle shell for an execution episode."""
+
+    receipt_payload = {
+        "episode_id": execution_episode.episode_id,
+        "candidate_id": candidate.candidate_id,
+        "content_hash": candidate.artifact.content_hash,
+    }
+    evidence: Dict[str, Any] = {
+        "phase": execution_episode.phase,
+        "content_hash": candidate.artifact.content_hash,
+    }
+    metadata: Dict[str, Any] = {
+        "strategy_id": candidate.strategy_id,
+        "strategy_version": candidate.strategy_version,
+        "runtime_spine_version": "v1",
+    }
+    if workspace is not None:
+        evidence["artifact_path"] = workspace.artifact_path
+        metadata["workspace_id"] = workspace.workspace_id
+        metadata["manifest_path"] = workspace.manifest_path
+    if strategy is not None:
+        metadata["workspace_mode"] = strategy.metadata.get("workspace_mode")
+    return ReceiptBundle(
+        receipt_bundle_id=_stable_id("receipt", receipt_payload),
+        request_id=request.request_id,
+        candidate_id=candidate.candidate_id,
+        assembly_id=assembly.assembly_id,
+        episode_id=execution_episode.episode_id,
+        evidence=evidence,
+        metadata=metadata,
+    )
+
+
 def build_module_evaluation_record(
     candidate: CandidateRecord,
     *,
     phase: str = "AK-251",
     workspace: Optional[CandidateWorkspace] = None,
+    assembly: Optional[CandidateAssembly] = None,
+    execution_episode: Optional[ExecutionEpisode] = None,
+    receipt_bundle: Optional[ReceiptBundle] = None,
 ) -> EvaluationRecord:
     """Build the evaluation contract shell for a module candidate."""
 
@@ -352,10 +541,19 @@ def build_module_evaluation_record(
         "candidate_id": candidate.candidate_id,
         "evaluator": "module.runtime.validation",
     }
-    evidence: Dict[str, Any] = {"phase": phase}
+    evidence: Dict[str, Any] = {
+        "phase": phase,
+        "runtime_spine_version": "v1",
+    }
     if workspace is not None:
         evidence["workspace_id"] = workspace.workspace_id
         evidence["artifact_path"] = workspace.artifact_path
+    if assembly is not None:
+        evidence["assembly_id"] = assembly.assembly_id
+    if execution_episode is not None:
+        evidence["execution_episode_id"] = execution_episode.episode_id
+    if receipt_bundle is not None:
+        evidence["receipt_bundle_id"] = receipt_bundle.receipt_bundle_id
     return EvaluationRecord(
         evaluation_id=_stable_id("eval", evaluation_payload),
         candidate_id=candidate.candidate_id,
@@ -403,6 +601,7 @@ def build_module_selection_policy(*, candidate_limit: int = 1) -> SelectionPolic
             "candidate_limit": candidate_limit,
             "promote_without_evaluations": False,
             "promotion_boundary": "explicit_shell",
+            "runtime_spine_version": "v1",
             "ranking_dimensions": [
                 "runtime_validation_gate",
                 "selection_bonus",
@@ -431,6 +630,7 @@ def build_module_promotion_shell(
     metadata: Dict[str, Any] = {
         "requires_selected_candidate": True,
         "selection_pending": selected_candidate_id is None,
+        "runtime_spine_version": "v1",
     }
     if source_artifact_path is not None:
         metadata["source_artifact_path"] = source_artifact_path
@@ -467,6 +667,7 @@ def build_module_promotion_decision(
     metadata: Dict[str, Any] = {
         "selected_candidate_id": candidate_id,
         "target": "module artifact",
+        "runtime_spine_version": "v1",
     }
     if promotion_shell is not None:
         metadata.update(

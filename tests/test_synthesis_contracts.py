@@ -12,6 +12,7 @@ from dspx.synthesis import (
     execute_module_synthesis_bundle,
     materialize_module_synthesis_bundle,
     module_spec_to_ir,
+    module_synthesis_run_summary,
     promote_selected_module_candidate,
 )
 
@@ -90,6 +91,9 @@ def test_build_module_synthesis_bundle_exposes_candidate_evaluation_policy_and_p
     assert bundle.candidates[0].request_id == bundle.request.request_id
     assert bundle.evaluations[0].candidate_id == bundle.candidates[0].candidate_id
     assert bundle.evaluations[0].status == "pending"
+    assert bundle.candidate_assemblies == []
+    assert bundle.execution_episodes == []
+    assert bundle.receipt_bundles == []
     assert bundle.selection_policy.mode == "single_best"
     assert bundle.promotion_decision.outcome == "withheld"
     assert bundle.promotion_decision.candidate_id == bundle.candidates[0].candidate_id
@@ -123,13 +127,34 @@ def test_materialize_module_synthesis_bundle_persists_strategy_and_workspace(
     assert bundle.strategy is not None
     assert bundle.strategy.metadata["workspace_mode"] == "scratch"
     assert len(bundle.candidate_workspaces) == 1
+    assert len(bundle.candidate_assemblies) == 1
+    assert len(bundle.execution_episodes) == 1
+    assert len(bundle.receipt_bundles) == 1
     workspace = bundle.candidate_workspaces[0]
+    assembly = bundle.candidate_assemblies[0]
+    execution_episode = bundle.execution_episodes[0]
+    receipt_bundle = bundle.receipt_bundles[0]
     assert Path(workspace.artifact_path).exists()
     assert Path(workspace.manifest_path).exists()
     manifest = json.loads(Path(workspace.manifest_path).read_text(encoding="utf-8"))
     assert manifest["strategy"]["strategy_id"] == bundle.request.strategy_id
     assert manifest["candidate"]["candidate_id"] == bundle.candidates[0].candidate_id
+    assert manifest["candidate_assembly"]["assembly_id"] == assembly.assembly_id
+    assert manifest["execution_episode"]["episode_id"] == execution_episode.episode_id
+    assert (
+        manifest["receipt_bundle"]["receipt_bundle_id"]
+        == receipt_bundle.receipt_bundle_id
+    )
     assert bundle.candidates[0].metadata["workspace_id"] == workspace.workspace_id
+    assert bundle.candidates[0].metadata["assembly_id"] == assembly.assembly_id
+    assert (
+        bundle.candidates[0].metadata["execution_episode_id"]
+        == execution_episode.episode_id
+    )
+    assert (
+        bundle.candidates[0].metadata["receipt_bundle_id"]
+        == receipt_bundle.receipt_bundle_id
+    )
     assert bundle.promotion_shell is not None
     assert bundle.promotion_shell.target_path is not None
     assert bundle.promotion_shell.target_path.endswith("Planner.py")
@@ -228,7 +253,32 @@ def test_execute_module_synthesis_bundle_validates_and_promotes_runtime_path(
     assert len(ranked) == 2
     assert ranked[0]["rank"] == 1
     assert ranked[0]["candidate_id"] == bundle.promotion_decision.candidate_id
+    assert ranked[0]["assembly_id"] is not None
+    assert ranked[0]["execution_episode_id"] is not None
+    assert ranked[0]["receipt_bundle_id"] is not None
     assert bundle.promotion_decision.metadata["promoted_path"] == str(out.resolve())
+
+    summary = module_synthesis_run_summary(bundle)
+    assert summary["runtime_spine_version"] == "v1"
+    assert summary["assembly_count"] == 2
+    assert summary["execution_episode_count"] == 2
+    assert summary["receipt_bundle_count"] == 2
+    assert summary["selected_assembly_id"] is not None
+    assert summary["selected_execution_episode_id"] is not None
+    assert summary["selected_receipt_bundle_id"] is not None
+
+    promoted_workspace = next(
+        workspace
+        for workspace in bundle.candidate_workspaces
+        if workspace.candidate_id == bundle.promotion_decision.candidate_id
+    )
+    manifest = json.loads(
+        Path(promoted_workspace.manifest_path).read_text(encoding="utf-8")
+    )
+    assert manifest["candidate"]["status"] == "promoted"
+    assert manifest["candidate_assembly"]["status"] == "promoted"
+    assert manifest["execution_episode"]["status"] == "promoted"
+    assert manifest["receipt_bundle"]["status"] == "promoted"
 
 
 def test_promote_selected_module_candidate_copies_only_selected_output(
@@ -275,6 +325,9 @@ def test_promote_selected_module_candidate_copies_only_selected_output(
     assert out.read_text(encoding="utf-8") == "class Judge: ...\n"
     assert promoted.candidates[0].status == "promoted"
     assert promoted.candidate_workspaces[0].status == "promoted"
+    assert promoted.candidate_assemblies[0].status == "promoted"
+    assert promoted.execution_episodes[0].status == "promoted"
+    assert promoted.receipt_bundles[0].status == "promoted"
     assert promoted.promotion_shell is not None
     assert promoted.promotion_shell.status == "promoted"
     assert promoted.promotion_decision.outcome == "promoted"
