@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-10T13:00:33.527005211+00:00",
+  "task_id": 1102,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/2026-04-10--emit-promotion-eligibility-nomination-receipts.md",
+      "docs/project/operational_goals.md",
+      "docs/project/tactical_goals.md",
+      "governance/task-scopes/AK-1102.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/services/module_service.py",
+      "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+      "tests/test_module_service.py",
+      "tests/test_module_synthesis_evidence.py",
+      "tests/test_run_receipts.py"
+    ],
+    "required_paths": [
+      "diary/2026-04-10--emit-promotion-eligibility-nomination-receipts.md",
+      "docs/project/operational_goals.md",
+      "governance/task-scopes/AK-1102.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/services/module_service.py",
+      "packages/dspx-core/src/dspx/services/module_synthesis_evidence.py",
+      "tests/test_module_service.py",
+      "tests/test_module_synthesis_evidence.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

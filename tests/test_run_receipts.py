@@ -371,6 +371,11 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
         "ranking_evaluation",
         "promotion_evaluation",
     }
+    nominations = diagnostics["promotion_eligibility_nominations"]
+    assert len(nominations) == 2
+    assert {item["eligibility_outcome"] for item in nominations} == {
+        "promotion_eligibility_not_nominated"
+    }
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
@@ -435,6 +440,11 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     assert len(followup_governed) == 2
     assert {item["outcome"] for item in followup_governed} == {
         "policy_evaluation_affirms_live_policy"
+    }
+    followup_nominations = followup_diagnostics["promotion_eligibility_nominations"]
+    assert len(followup_nominations) == 2
+    assert {item["eligibility_outcome"] for item in followup_nominations} == {
+        "promotion_eligibility_not_nominated"
     }
     prior_receipt = followup_diagnostics["evidence_bundle"]["exact_match_receipts"][0]
     assert Path(prior_receipt["receipt"]["receipt_path"]).name == "mod.py.meta.json"

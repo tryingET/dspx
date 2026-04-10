@@ -1197,14 +1197,15 @@
         {
           "id": "AK-TASK-1102",
           "title": "Synthesis evidence substrate: emit first promotion-eligibility nomination receipts for governance-only policy variants from governed policy-evaluation receipts and runtime-spine provenance",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: emit first promotion-eligibility nomination receipts for governance-only policy variants from governed policy-evaluation receipts and runtime-spine provenance (task #1102)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-10"
         }
       ]
     }

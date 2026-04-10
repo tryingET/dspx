@@ -83,6 +83,7 @@ class ModuleSynthesisHistoricalDiagnostics:
     candidate_prior_counterfactual_advisory: dict[str, Any] | None = None
     shadow_predictive_ranking_advisory: dict[str, Any] | None = None
     governed_policy_evaluations: list[dict[str, Any]] | None = None
+    promotion_eligibility_nominations: list[dict[str, Any]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -95,6 +96,9 @@ class ModuleSynthesisHistoricalDiagnostics:
             "candidate_prior_counterfactual_advisory": self.candidate_prior_counterfactual_advisory,
             "shadow_predictive_ranking_advisory": self.shadow_predictive_ranking_advisory,
             "governed_policy_evaluations": list(self.governed_policy_evaluations or []),
+            "promotion_eligibility_nominations": list(
+                self.promotion_eligibility_nominations or []
+            ),
         }
 
 
@@ -727,6 +731,9 @@ def _extract_historical_diagnostics(
         return None
     diagnostics = _as_dict(raw)
     raw_governed_policy_evaluations = diagnostics.get("governed_policy_evaluations")
+    raw_promotion_eligibility_nominations = diagnostics.get(
+        "promotion_eligibility_nominations"
+    )
     return ModuleSynthesisHistoricalDiagnostics(
         evidence_bundle_version=_optional_str(
             diagnostics.get("evidence_bundle_version")
@@ -781,6 +788,15 @@ def _extract_historical_diagnostics(
                 if isinstance(item, Mapping)
             ]
             if isinstance(raw_governed_policy_evaluations, list)
+            else None
+        ),
+        promotion_eligibility_nominations=(
+            [
+                _as_dict(item)
+                for item in raw_promotion_eligibility_nominations
+                if isinstance(item, Mapping)
+            ]
+            if isinstance(raw_promotion_eligibility_nominations, list)
             else None
         ),
     )
@@ -3366,6 +3382,55 @@ _GOVERNED_PROMOTION_DECISION_RULE_SUMMARY = (
     "current shadow advisory status without reopening ranking."
 )
 
+_PROMOTION_ELIGIBILITY_RECEIPT_VERSION = "v1"
+_PROMOTION_ELIGIBILITY_CONTRACT_VERSION = "20260409.v1"
+_PROMOTION_ELIGIBILITY_REVIEW_SCOPE_BY_VARIANT = {
+    "ranking_evaluation": "bounded_current_run_comparison",
+    "promotion_evaluation": "selected_candidate_only",
+}
+_PROMOTION_ELIGIBILITY_RULE_SUMMARY_BY_VARIANT = {
+    "ranking_evaluation": (
+        "Nominate the named governance-only ranking variant for human review "
+        "only when the governed receipt surfaces a bounded already-passing "
+        "governance candidate with complete runtime-spine provenance."
+    ),
+    "promotion_evaluation": (
+        "Nominate the named governance-only promotion variant for human review "
+        "only when the governed receipt requires human review of the live "
+        "selected candidate and the runtime-spine review packet is complete."
+    ),
+}
+_PROMOTION_ELIGIBILITY_REQUIRED_ARTIFACTS_BY_VARIANT = {
+    "ranking_evaluation": [
+        "governed_policy_evaluation_receipt",
+        "live_policy_context",
+        "request_context",
+        "selected_candidate.runtime_spine",
+        "selected_candidate.artifact_identity",
+        "selected_candidate.execution_summary",
+        "selected_candidate.receipt_bundle_reference",
+        "governance_candidate.runtime_spine",
+        "governance_candidate.pass_proof",
+        "governed_comparison_scope_summary",
+        "human_review_required_notice",
+    ],
+    "promotion_evaluation": [
+        "governed_policy_evaluation_receipt",
+        "live_policy_context",
+        "request_context",
+        "selected_candidate.runtime_spine",
+        "selected_candidate.artifact_identity",
+        "selected_candidate.execution_summary",
+        "selected_candidate.receipt_bundle_reference",
+        "governed_comparison_scope_summary",
+        "human_review_required_notice",
+    ],
+}
+_PROMOTION_ELIGIBILITY_AUTHORITY_LIMIT = (
+    "governance-only nomination receipt; cannot change live V7 ranking, "
+    "tie-breaking, pruning, promotion, or activate policy in-run"
+)
+
 
 def _request_tuple_identity(synthesis: Mapping[str, Any] | None) -> dict[str, Any]:
     request = _as_dict(_as_dict(synthesis).get("request"))
@@ -3851,6 +3916,604 @@ def build_module_synthesis_governed_policy_evaluations(
         },
     )
     return [ranking_receipt, promotion_receipt]
+
+
+def _module_synthesis_candidate_identity_by_id(
+    synthesis: Mapping[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    return {
+        candidate_id: dict(candidate)
+        for candidate in extract_module_synthesis_candidate_prior_inputs(synthesis)
+        if (candidate_id := _optional_str(candidate.get("candidate_id"))) is not None
+    }
+
+
+def _module_synthesis_runtime_spine_maps(
+    synthesis: Mapping[str, Any] | None,
+) -> tuple[
+    dict[str, dict[str, Any]], dict[str, dict[str, Any]], dict[str, dict[str, Any]]
+]:
+    synthesis_view = _as_dict(synthesis)
+    assemblies: dict[str, dict[str, Any]] = {}
+    episodes: dict[str, dict[str, Any]] = {}
+    receipt_bundles: dict[str, dict[str, Any]] = {}
+
+    for raw_assembly in synthesis_view.get("candidate_assemblies") or []:
+        if not isinstance(raw_assembly, Mapping):
+            continue
+        assembly = _as_dict(raw_assembly)
+        candidate_id = _optional_str(assembly.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        assemblies[candidate_id] = assembly
+
+    for raw_episode in synthesis_view.get("execution_episodes") or []:
+        if not isinstance(raw_episode, Mapping):
+            continue
+        episode = _as_dict(raw_episode)
+        candidate_id = _optional_str(episode.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        episodes[candidate_id] = episode
+
+    for raw_receipt_bundle in synthesis_view.get("receipt_bundles") or []:
+        if not isinstance(raw_receipt_bundle, Mapping):
+            continue
+        receipt_bundle = _as_dict(raw_receipt_bundle)
+        candidate_id = _optional_str(receipt_bundle.get("candidate_id"))
+        if candidate_id is None:
+            continue
+        receipt_bundles[candidate_id] = receipt_bundle
+
+    return assemblies, episodes, receipt_bundles
+
+
+def _runtime_spine_details_for_candidate(
+    *,
+    candidate_id: str | None,
+    assemblies_by_candidate: dict[str, dict[str, Any]],
+    episodes_by_candidate: dict[str, dict[str, Any]],
+    receipt_bundles_by_candidate: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    assembly = (
+        _as_dict(assemblies_by_candidate.get(candidate_id))
+        if candidate_id is not None
+        else {}
+    )
+    episode = (
+        _as_dict(episodes_by_candidate.get(candidate_id))
+        if candidate_id is not None
+        else {}
+    )
+    receipt_bundle = (
+        _as_dict(receipt_bundles_by_candidate.get(candidate_id))
+        if candidate_id is not None
+        else {}
+    )
+    missing: list[str] = []
+    if not assembly or _optional_str(assembly.get("assembly_id")) is None:
+        missing.append("candidate_assembly")
+    if not episode or _optional_str(episode.get("episode_id")) is None:
+        missing.append("execution_episode")
+    if (
+        not receipt_bundle
+        or _optional_str(receipt_bundle.get("receipt_bundle_id")) is None
+    ):
+        missing.append("receipt_bundle")
+    return {
+        "ref": {
+            "candidate_id": candidate_id,
+            "assembly_id": _optional_str(assembly.get("assembly_id")),
+            "episode_id": _optional_str(episode.get("episode_id")),
+            "receipt_bundle_id": _optional_str(receipt_bundle.get("receipt_bundle_id")),
+        },
+        "artifact_path": _optional_str(assembly.get("artifact_path")),
+        "content_hash": _optional_str(assembly.get("content_hash")),
+        "execution_status": _optional_str(episode.get("status")),
+        "execution_score": _optional_float(episode.get("score")),
+        "execution_summary": _optional_str(episode.get("summary")),
+        "missing": missing,
+    }
+
+
+def _candidate_passed_current_boundary(
+    *,
+    candidate_id: str | None,
+    comparison_by_id: dict[str, dict[str, Any]] | None,
+    runtime_spine: Mapping[str, Any] | None,
+) -> bool | None:
+    if candidate_id is not None and comparison_by_id is not None:
+        comparison = _as_dict(comparison_by_id.get(candidate_id))
+        passed = comparison.get("passed")
+        if isinstance(passed, bool):
+            return passed
+    status = _optional_str(_as_dict(runtime_spine).get("execution_status"))
+    if status in {"passed", "promoted"}:
+        return True
+    if status in {"failed", "rejected"}:
+        return False
+    return None
+
+
+def _promotion_eligibility_base_receipt(
+    *,
+    variant_class: str,
+    variant_policy_id: str,
+    variant_policy_version: str,
+    variant_policy_mode: str,
+    governed_policy_evaluation_receipt_version: str,
+    governed_policy_evaluation_contract_version: str,
+    review_scope: str,
+    eligibility_outcome: str,
+    eligibility_reason: str,
+    governed_receipt_ref: str,
+    live_policy_context: dict[str, Any],
+    request_context: dict[str, Any],
+    runtime_spine_refs: dict[str, Any],
+    review_artifacts: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "promotion_eligibility_receipt_version": _PROMOTION_ELIGIBILITY_RECEIPT_VERSION,
+        "promotion_eligibility_contract_version": _PROMOTION_ELIGIBILITY_CONTRACT_VERSION,
+        "governed_policy_evaluation_receipt_version": (
+            governed_policy_evaluation_receipt_version
+        ),
+        "governed_policy_evaluation_contract_version": (
+            governed_policy_evaluation_contract_version
+        ),
+        "variant_class": variant_class,
+        "variant_policy_id": variant_policy_id,
+        "variant_policy_version": variant_policy_version,
+        "variant_policy_mode": variant_policy_mode,
+        "review_scope": review_scope,
+        "eligibility_rule_summary": _PROMOTION_ELIGIBILITY_RULE_SUMMARY_BY_VARIANT[
+            variant_class
+        ],
+        "eligibility_outcome": eligibility_outcome,
+        "eligibility_reason": eligibility_reason,
+        "authority_limit": _PROMOTION_ELIGIBILITY_AUTHORITY_LIMIT,
+        "governed_receipt_ref": governed_receipt_ref,
+        "required_review_artifacts": list(
+            _PROMOTION_ELIGIBILITY_REQUIRED_ARTIFACTS_BY_VARIANT[variant_class]
+        ),
+        "live_policy_context": live_policy_context,
+        "request_context": request_context,
+        "runtime_spine_refs": runtime_spine_refs,
+        "review_artifacts": review_artifacts,
+        "human_governance": {
+            "requires_explicit_human_review": True,
+            "can_change_live_policy_in_run": False,
+            "can_change_live_ranking": False,
+            "can_change_live_tie_breaking": False,
+            "can_change_live_pruning": False,
+            "can_change_live_promotion": False,
+        },
+        "provenance": {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "source_references": [
+                governed_receipt_ref,
+                "current_run.synthesis.candidate_assemblies",
+                "current_run.synthesis.execution_episodes",
+                "current_run.synthesis.receipt_bundles",
+            ],
+        },
+    }
+
+
+def _unavailable_promotion_eligibility_receipt(
+    *,
+    variant_class: str,
+    reason: str,
+    governed_receipt: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    receipt = _as_dict(governed_receipt)
+    variant_policy_id = _optional_str(receipt.get("variant_policy_id")) or (
+        _GOVERNED_RANKING_VARIANT_POLICY_ID
+        if variant_class == "ranking_evaluation"
+        else _GOVERNED_PROMOTION_VARIANT_POLICY_ID
+    )
+    variant_policy_version = (
+        _optional_str(receipt.get("variant_policy_version")) or "v1"
+    )
+    return _promotion_eligibility_base_receipt(
+        variant_class=variant_class,
+        variant_policy_id=variant_policy_id,
+        variant_policy_version=variant_policy_version,
+        variant_policy_mode=(
+            _optional_str(receipt.get("variant_policy_mode"))
+            or _GOVERNED_POLICY_VARIANT_MODE
+        ),
+        governed_policy_evaluation_receipt_version=(
+            _optional_str(receipt.get("policy_evaluation_receipt_version"))
+            or _GOVERNED_POLICY_EVALUATION_RECEIPT_VERSION
+        ),
+        governed_policy_evaluation_contract_version=(
+            _optional_str(receipt.get("evaluation_contract_version"))
+            or _GOVERNED_POLICY_EVALUATION_CONTRACT_VERSION
+        ),
+        review_scope=_PROMOTION_ELIGIBILITY_REVIEW_SCOPE_BY_VARIANT[variant_class],
+        eligibility_outcome="promotion_eligibility_unavailable",
+        eligibility_reason=reason,
+        governed_receipt_ref=(
+            f"synthesis_diagnostics.governed_policy_evaluations:{variant_class}:missing"
+        ),
+        live_policy_context=(
+            _as_dict(receipt.get("live_policy_context"))
+            if isinstance(receipt.get("live_policy_context"), Mapping)
+            else {}
+        ),
+        request_context=(
+            _as_dict(receipt.get("request_context"))
+            if isinstance(receipt.get("request_context"), Mapping)
+            else {}
+        ),
+        runtime_spine_refs={"selected_candidate": {}, "governance_candidate": None},
+        review_artifacts={
+            "required_artifacts_present": False,
+            "selected_candidate_passed_current_boundary": None,
+            "governance_candidate_passed_current_boundary": None,
+            "shadow_predictive_ranking_status": None,
+            "consumed_surface_versions": {},
+        },
+    )
+
+
+def build_module_synthesis_promotion_eligibility_nominations(
+    *,
+    synthesis: Mapping[str, Any] | None,
+    governed_policy_evaluations: list[dict[str, Any]] | None,
+    ranked_candidate_comparison_inputs: tuple[dict[str, Any], ...],
+) -> list[dict[str, Any]]:
+    comparison_by_id = _governed_policy_comparison_by_id(
+        ranked_candidate_comparison_inputs
+    )
+    current_candidates_by_id = _module_synthesis_candidate_identity_by_id(synthesis)
+    (
+        assemblies_by_candidate,
+        episodes_by_candidate,
+        receipt_bundles_by_candidate,
+    ) = _module_synthesis_runtime_spine_maps(synthesis)
+    governed_by_variant = {
+        _optional_str(item.get("variant_class")): _as_dict(item)
+        for item in (governed_policy_evaluations or [])
+        if isinstance(item, Mapping) and _optional_str(item.get("variant_class"))
+    }
+    nominations: list[dict[str, Any]] = []
+
+    for variant_class in ("ranking_evaluation", "promotion_evaluation"):
+        governed_receipt = _as_dict(governed_by_variant.get(variant_class))
+        if not governed_receipt:
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    reason="governed policy-evaluation receipt is missing",
+                )
+            )
+            continue
+
+        request_context = _as_dict(governed_receipt.get("request_context"))
+        live_policy_context = _as_dict(governed_receipt.get("live_policy_context"))
+        bounded_inputs = _as_dict(governed_receipt.get("bounded_inputs"))
+        evaluation_result = _as_dict(governed_receipt.get("evaluation_result"))
+        selected_candidate_id = _optional_str(
+            request_context.get("selected_candidate_id")
+        )
+        selected_candidate_identity = (
+            current_candidates_by_id.get(selected_candidate_id, {})
+            if selected_candidate_id is not None
+            else {}
+        )
+        selected_runtime_spine = _runtime_spine_details_for_candidate(
+            candidate_id=selected_candidate_id,
+            assemblies_by_candidate=assemblies_by_candidate,
+            episodes_by_candidate=episodes_by_candidate,
+            receipt_bundles_by_candidate=receipt_bundles_by_candidate,
+        )
+        selected_passed = _candidate_passed_current_boundary(
+            candidate_id=selected_candidate_id,
+            comparison_by_id=comparison_by_id,
+            runtime_spine=selected_runtime_spine,
+        )
+        outcome = _optional_str(governed_receipt.get("outcome"))
+        variant_policy_mode = _optional_str(governed_receipt.get("variant_policy_mode"))
+        variant_policy_id = _optional_str(governed_receipt.get("variant_policy_id"))
+        variant_policy_version = _optional_str(
+            governed_receipt.get("variant_policy_version")
+        )
+        governed_receipt_ref = (
+            "synthesis_diagnostics.governed_policy_evaluations:"
+            f"{variant_class}:{variant_policy_id or 'unknown'}:{variant_policy_version or 'unknown'}"
+        )
+
+        if variant_policy_mode != _GOVERNED_POLICY_VARIANT_MODE:
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    governed_receipt=governed_receipt,
+                    reason="variant_policy_mode is not governance_only",
+                )
+            )
+            continue
+        if comparison_by_id is None:
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    governed_receipt=governed_receipt,
+                    reason="trusted current comparison metadata is malformed or missing",
+                )
+            )
+            continue
+        if selected_candidate_id is None:
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    governed_receipt=governed_receipt,
+                    reason="selected candidate identity is missing from the governed receipt",
+                )
+            )
+            continue
+        if _candidate_prior_identity_conflicts(
+            expected=request_context,
+            observed=selected_candidate_identity,
+        ):
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    governed_receipt=governed_receipt,
+                    reason=(
+                        "selected candidate identity disagrees with trusted current "
+                        "runtime metadata"
+                    ),
+                )
+            )
+            continue
+        if any(
+            _optional_str(live_policy_context.get(field)) is None
+            for field in (
+                "ranking_policy_id",
+                "ranking_policy_version",
+                "promotion_policy_id",
+                "promotion_policy_version",
+            )
+        ):
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    governed_receipt=governed_receipt,
+                    reason="live_policy_context is incomplete",
+                )
+            )
+            continue
+        if selected_runtime_spine["missing"]:
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    governed_receipt=governed_receipt,
+                    reason=(
+                        "selected candidate runtime-spine provenance is incomplete: "
+                        + ", ".join(selected_runtime_spine["missing"])
+                    ),
+                )
+            )
+            continue
+
+        governance_candidate_id = _optional_str(
+            evaluation_result.get("governance_candidate_id")
+        )
+        governance_candidate_reason = _optional_str(
+            evaluation_result.get("governance_candidate_reason")
+        )
+        promotion_posture = _optional_str(evaluation_result.get("promotion_posture"))
+        governance_candidate_runtime_spine = _runtime_spine_details_for_candidate(
+            candidate_id=governance_candidate_id,
+            assemblies_by_candidate=assemblies_by_candidate,
+            episodes_by_candidate=episodes_by_candidate,
+            receipt_bundles_by_candidate=receipt_bundles_by_candidate,
+        )
+        governance_candidate_passed = _candidate_passed_current_boundary(
+            candidate_id=governance_candidate_id,
+            comparison_by_id=comparison_by_id,
+            runtime_spine=governance_candidate_runtime_spine,
+        )
+        comparison_scope = bounded_inputs.get("comparison_scope")
+        if isinstance(comparison_scope, list):
+            comparison_scope_ids = [
+                str(item) for item in comparison_scope if item not in {None, ""}
+            ]
+        elif isinstance(comparison_scope, str) and comparison_scope:
+            comparison_scope_ids = [comparison_scope]
+        else:
+            comparison_scope_ids = []
+
+        eligibility_outcome = "promotion_eligibility_requires_more_evidence"
+        eligibility_reason = (
+            "bounded evidence remains mixed or incomplete for a narrower nomination"
+        )
+
+        if outcome in {
+            "policy_evaluation_no_signal",
+            "policy_evaluation_affirms_live_policy",
+        }:
+            eligibility_outcome = "promotion_eligibility_not_nominated"
+            eligibility_reason = (
+                "bounded governed evidence does not nominate this policy variant "
+                "for explicit human review"
+            )
+        elif outcome == "policy_evaluation_mixed_or_inconclusive":
+            eligibility_outcome = "promotion_eligibility_requires_more_evidence"
+            eligibility_reason = (
+                "bounded governed evidence remains mixed or inconclusive and "
+                "does not yet justify nomination"
+            )
+        elif outcome == "policy_evaluation_surfaces_governance_candidate":
+            if variant_class == "ranking_evaluation":
+                if governance_candidate_id is None:
+                    nominations.append(
+                        _unavailable_promotion_eligibility_receipt(
+                            variant_class=variant_class,
+                            governed_receipt=governed_receipt,
+                            reason="ranking nomination is missing governance_candidate_id",
+                        )
+                    )
+                    continue
+                if governance_candidate_id not in comparison_scope_ids:
+                    nominations.append(
+                        _unavailable_promotion_eligibility_receipt(
+                            variant_class=variant_class,
+                            governed_receipt=governed_receipt,
+                            reason=(
+                                "governance candidate is absent from the bounded "
+                                "comparison scope"
+                            ),
+                        )
+                    )
+                    continue
+                if governance_candidate_runtime_spine["missing"]:
+                    nominations.append(
+                        _unavailable_promotion_eligibility_receipt(
+                            variant_class=variant_class,
+                            governed_receipt=governed_receipt,
+                            reason=(
+                                "governance candidate runtime-spine provenance is "
+                                "incomplete: "
+                                + ", ".join(
+                                    governance_candidate_runtime_spine["missing"]
+                                )
+                            ),
+                        )
+                    )
+                    continue
+                if governance_candidate_passed is not True:
+                    nominations.append(
+                        _unavailable_promotion_eligibility_receipt(
+                            variant_class=variant_class,
+                            governed_receipt=governed_receipt,
+                            reason=(
+                                "governance candidate does not have proof of passing "
+                                "the current execution boundary"
+                            ),
+                        )
+                    )
+                    continue
+                eligibility_outcome = "promotion_eligibility_nominated_for_human_review"
+                eligibility_reason = (
+                    "bounded governed ranking evidence plus runtime-spine provenance "
+                    "justify explicit human review of the named policy variant"
+                )
+            else:
+                if promotion_posture != "promotion_posture_requires_human_review":
+                    nominations.append(
+                        _unavailable_promotion_eligibility_receipt(
+                            variant_class=variant_class,
+                            governed_receipt=governed_receipt,
+                            reason=(
+                                "promotion nomination requires "
+                                "promotion_posture_requires_human_review"
+                            ),
+                        )
+                    )
+                    continue
+                eligibility_outcome = "promotion_eligibility_nominated_for_human_review"
+                eligibility_reason = (
+                    "bounded governed promotion evidence plus runtime-spine provenance "
+                    "justify explicit human review of the named policy variant"
+                )
+        elif outcome == "policy_evaluation_unavailable":
+            nominations.append(
+                _unavailable_promotion_eligibility_receipt(
+                    variant_class=variant_class,
+                    governed_receipt=governed_receipt,
+                    reason="governed policy-evaluation receipt is unavailable",
+                )
+            )
+            continue
+
+        required_artifacts_present = not selected_runtime_spine["missing"] and (
+            variant_class != "ranking_evaluation"
+            or not governance_candidate_runtime_spine["missing"]
+        )
+        nominations.append(
+            _promotion_eligibility_base_receipt(
+                variant_class=variant_class,
+                variant_policy_id=(
+                    variant_policy_id
+                    or (
+                        _GOVERNED_RANKING_VARIANT_POLICY_ID
+                        if variant_class == "ranking_evaluation"
+                        else _GOVERNED_PROMOTION_VARIANT_POLICY_ID
+                    )
+                ),
+                variant_policy_version=variant_policy_version or "v1",
+                variant_policy_mode=variant_policy_mode
+                or _GOVERNED_POLICY_VARIANT_MODE,
+                governed_policy_evaluation_receipt_version=(
+                    _optional_str(
+                        governed_receipt.get("policy_evaluation_receipt_version")
+                    )
+                    or _GOVERNED_POLICY_EVALUATION_RECEIPT_VERSION
+                ),
+                governed_policy_evaluation_contract_version=(
+                    _optional_str(governed_receipt.get("evaluation_contract_version"))
+                    or _GOVERNED_POLICY_EVALUATION_CONTRACT_VERSION
+                ),
+                review_scope=_PROMOTION_ELIGIBILITY_REVIEW_SCOPE_BY_VARIANT[
+                    variant_class
+                ],
+                eligibility_outcome=eligibility_outcome,
+                eligibility_reason=eligibility_reason,
+                governed_receipt_ref=governed_receipt_ref,
+                live_policy_context=dict(live_policy_context),
+                request_context=dict(request_context),
+                runtime_spine_refs={
+                    "selected_candidate": dict(selected_runtime_spine["ref"]),
+                    "governance_candidate": (
+                        dict(governance_candidate_runtime_spine["ref"])
+                        if governance_candidate_id is not None
+                        else None
+                    ),
+                },
+                review_artifacts={
+                    "required_artifacts_present": required_artifacts_present,
+                    "selected_candidate_passed_current_boundary": selected_passed,
+                    "governance_candidate_passed_current_boundary": (
+                        governance_candidate_passed
+                        if governance_candidate_id is not None
+                        else None
+                    ),
+                    "shadow_predictive_ranking_status": _optional_str(
+                        bounded_inputs.get("shadow_predictive_ranking_status")
+                    ),
+                    "consumed_surface_versions": dict(
+                        _as_dict(bounded_inputs.get("surface_versions"))
+                    ),
+                    "selected_artifact_path": selected_runtime_spine["artifact_path"],
+                    "selected_content_hash": selected_runtime_spine["content_hash"],
+                    "selected_execution_status": selected_runtime_spine[
+                        "execution_status"
+                    ],
+                    "selected_execution_score": selected_runtime_spine[
+                        "execution_score"
+                    ],
+                    "selected_execution_summary": selected_runtime_spine[
+                        "execution_summary"
+                    ],
+                    "governance_candidate_artifact_path": (
+                        governance_candidate_runtime_spine["artifact_path"]
+                        if governance_candidate_id is not None
+                        else None
+                    ),
+                    "governance_candidate_content_hash": (
+                        governance_candidate_runtime_spine["content_hash"]
+                        if governance_candidate_id is not None
+                        else None
+                    ),
+                    "governance_candidate_reason": governance_candidate_reason,
+                    "comparison_scope": comparison_scope_ids,
+                },
+            )
+        )
+
+    return nominations
 
 
 def build_unavailable_module_synthesis_shadow_predictive_ranking_advisory(

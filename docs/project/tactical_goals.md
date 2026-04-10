@@ -35,12 +35,11 @@ Done when:
 - the contract defines allowed evidence inputs, required review/audit artifacts, and explicit non-authority defaults,
 - and the repo can materialize the first bounded follow-on slice without silently widening live ranking or promotion power.
 
-## Active operating decomposition for `TG27`
+## Current execution status for `TG27`
 
-- `AK-1102` — emit the first promotion-eligibility nomination receipts for governance-only policy variants from governed policy-evaluation receipts plus runtime-spine provenance.
-- Keep the slice bounded to the nomination receipt payload / attachment surface, the supporting tactical/operational/handoff/projection refresh, and the frozen task-scope snapshot.
-- Ground the receipts in the governed policy-evaluation surfaces from `AK-593`, the nomination contract from `AK-1047`, and the runtime-spine objects emitted by `AK-1085`.
-- Keep the implementation governance-only; do not widen live ranking, pruning, promotion blocking, or policy mutation authority.
+- `AK-1102` landed the first bounded `promotion_eligibility_nominations` receipt wave on live `module-gen` metadata and persisted receipt metadata.
+- No next repo-scoped implementation slice is pinned yet.
+- Keep the post-`TG27` governance step unmaterialized until a later direction-to-execution pass selects it; do not invent the next queue just to avoid an empty ready list.
 
 ## Recently completed tactical goals for `SG2`
 
@@ -80,7 +79,7 @@ The following remain intentionally out of the active tactical wave until the lif
 - live predictive ranking from Oracle priors,
 - live candidate pruning or promotion blocking from prior-backed signals,
 - strategy/policy mutation without explicit governed evaluation and promotion-eligibility receipts,
-- widening authority beyond governance-only evidence before `TG27` lands the first nomination receipts and a later contract or human-governed decision explicitly promotes a named variant into live policy,
+- widening authority beyond governance-only evidence before a later contract or human-governed decision explicitly promotes a named variant into live policy,
 - guessing the post-`TG27` tactical wave just to keep the queue non-empty,
 - reopening the completed `TG26` promotion-eligibility contract wave without a new contract, surfaced regression, or operator pull,
 - reopening the completed `TG25` runtime-spine wave without a new contract, surfaced regression, or operator pull,

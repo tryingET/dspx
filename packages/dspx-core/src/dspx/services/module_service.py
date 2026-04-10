@@ -24,6 +24,7 @@ from dspx.services.module_synthesis_evidence import (
     build_module_synthesis_candidate_winner_priors,
     build_module_synthesis_governed_policy_evaluations,
     build_module_synthesis_history_advisory,
+    build_module_synthesis_promotion_eligibility_nominations,
     build_module_synthesis_shadow_predictive_ranking_advisory,
     build_unavailable_module_synthesis_candidate_prior_audit,
     build_unavailable_module_synthesis_candidate_prior_counterfactual_advisory,
@@ -412,6 +413,13 @@ def _build_unavailable_synthesis_diagnostics(
         shadow_predictive_ranking_advisory=shadow_predictive_ranking_advisory,
         ranked_candidate_comparison_inputs=(),
     )
+    promotion_eligibility_nominations = (
+        build_module_synthesis_promotion_eligibility_nominations(
+            synthesis=synthesis_payload,
+            governed_policy_evaluations=governed_policy_evaluations,
+            ranked_candidate_comparison_inputs=(),
+        )
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": "unavailable",
@@ -458,6 +466,7 @@ def _build_unavailable_synthesis_diagnostics(
         ),
         "shadow_predictive_ranking_advisory": shadow_predictive_ranking_advisory,
         "governed_policy_evaluations": governed_policy_evaluations,
+        "promotion_eligibility_nominations": promotion_eligibility_nominations,
     }
 
 
@@ -563,6 +572,13 @@ def _build_synthesis_diagnostics(
         shadow_predictive_ranking_advisory=shadow_predictive_ranking_advisory,
         ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
     )
+    promotion_eligibility_nominations = (
+        build_module_synthesis_promotion_eligibility_nominations(
+            synthesis=synthesis_payload,
+            governed_policy_evaluations=governed_policy_evaluations,
+            ranked_candidate_comparison_inputs=ranked_candidate_comparison_inputs,
+        )
+    )
     return {
         "evidence_bundle_version": "v1",
         "retrieval_status": retrieval_status,
@@ -592,6 +608,7 @@ def _build_synthesis_diagnostics(
         ),
         "shadow_predictive_ranking_advisory": shadow_predictive_ranking_advisory,
         "governed_policy_evaluations": governed_policy_evaluations,
+        "promotion_eligibility_nominations": promotion_eligibility_nominations,
     }
 
 

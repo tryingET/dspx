@@ -135,6 +135,15 @@ def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None
     )
     assert ranking["comparison_scope"] == [art.metadata["selected_candidate_id"]]
     assert promotion["comparison_scope"] == "selected_candidate_only"
+    nominations = diagnostics["promotion_eligibility_nominations"]
+    assert len(nominations) == 2
+    assert {item["variant_class"] for item in nominations} == {
+        "ranking_evaluation",
+        "promotion_evaluation",
+    }
+    assert {item["eligibility_outcome"] for item in nominations} == {
+        "promotion_eligibility_not_nominated"
+    }
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
@@ -277,6 +286,13 @@ def test_module_service_simple_with_signature(tmp_path: Path, monkeypatch) -> No
     assert {item["variant_class"] for item in governed} == {
         "ranking_evaluation",
         "promotion_evaluation",
+    }
+    nominations = art.metadata["synthesis_diagnostics"][
+        "promotion_eligibility_nominations"
+    ]
+    assert len(nominations) == 2
+    assert {item["eligibility_outcome"] for item in nominations} == {
+        "promotion_eligibility_not_nominated"
     }
 
 
@@ -512,6 +528,11 @@ def test_module_service_preserves_diagnostics_shape_when_evidence_retrieval_is_u
     governed = diagnostics["governed_policy_evaluations"]
     assert len(governed) == 2
     assert {item["outcome"] for item in governed} == {"policy_evaluation_unavailable"}
+    nominations = diagnostics["promotion_eligibility_nominations"]
+    assert len(nominations) == 2
+    assert {item["eligibility_outcome"] for item in nominations} == {
+        "promotion_eligibility_unavailable"
+    }
     assert (
         diagnostics["candidate_winner_priors"]["history_summary"]["candidate_count"]
         >= 2
