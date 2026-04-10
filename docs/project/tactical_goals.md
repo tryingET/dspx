@@ -9,14 +9,14 @@ read_when:
 
 Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the direct runtime and governance surface for empirical development of DSPy systems.
 
-Active tactical goal: `TG28`
+Active tactical goal: `unmaterialized`
 Next tactical goal: `unmaterialized`
 
 ## Tactical ranking for `SG2` (Eisenhower-3D)
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TG28` | active | Freeze the first human-governed review-decision contract for nominated governance-only policy variants. | 5 | 5 | 3 | `AK-1102` now emits the first bounded `promotion_eligibility_nominations` receipts, so SG2's next leverage is to freeze the explicit human review-decision contract that decides how nominated policy variants may be resolved toward future live authority without widening in-run behavior. |
+| `TG28` | complete | Freeze the first human-governed review-decision contract for nominated governance-only policy variants. | 5 | 5 | 3 | Completed via `AK-1106`, which froze `docs/adr/20260410-human-governed-review-decision-contract-v1.md` and defined how nominated governance-only policy variants may be explicitly resolved by humans toward later off-run policy/version change without widening live authority. |
 | `TG27` | complete | Materialize the first promotion-eligibility nomination receipts for governance-only policy variants. | 5 | 5 | 3 | Completed via `AK-1102`, which emitted bounded `promotion_eligibility_nominations` receipts from governed policy-evaluation receipts plus candidate-assembly / execution-episode / receipt-bundle provenance without widening live authority. |
 
 ## Tactical definitions of done
@@ -35,15 +35,15 @@ Done when:
 - the receipts attach to bounded `module-gen` runtime metadata / persisted receipt metadata without widening live ranking, pruning, tie-breaking, or promotion behavior,
 - and the repo closes the first post-contract implementation slice without inventing a larger governance workflow surface.
 
-## Active operating decomposition for `TG28`
+## Follow-on shape after `TG28`
 
-- `AK-1106` — freeze the first human-governed review-decision contract for nominated governance-only policy variants.
-- Keep the slice bounded to the ADR/doc contract surface, the supporting tactical/operational/handoff/projection refresh, and the frozen task-scope snapshot.
-- Ground the contract in the governed policy-evaluation receipts from `AK-593`, the promotion-eligibility nomination receipts from `AK-1102`, and the runtime-spine objects emitted by `AK-1085`.
-- Keep the contract governance-only; do not widen live ranking, pruning, promotion blocking, or policy mutation authority.
+- `AK-1106` froze `docs/adr/20260410-human-governed-review-decision-contract-v1.md` as the bounded human-governed review-decision contract for nominated governance-only policy variants.
+- The first truthful post-contract implementation step is a bounded receipt wave that emits `human_review_decisions` from `promotion_eligibility_nominations`, governed policy-evaluation receipts, runtime-spine provenance, and explicit human decision metadata.
+- Keep that implementation step unmaterialized until a later direction-to-execution pass pins it in AK; do not invent the post-contract queue just to avoid an empty ready list.
 
 ## Recently completed tactical goals for `SG2`
 
+- `TG28` — froze the first human-governed review-decision contract for nominated governance-only policy variants as `docs/adr/20260410-human-governed-review-decision-contract-v1.md`, defining how explicit humans resolve a nominated named policy variant toward later off-run policy/version change without changing live V7 behavior.
 - `TG27` — materialized the first promotion-eligibility nomination receipts on `synthesis_diagnostics.promotion_eligibility_nominations`, deriving bounded nomination receipts from governed policy-evaluation receipts plus runtime-spine provenance without changing live V7 ranking, tie-breaking, pruning, or promotion behavior.
 - `TG26` — froze the first human-governed promotion-eligibility contract for governance-only policy variants as `docs/adr/20260409-human-governed-promotion-eligibility-contract-v1.md`, defining how governed policy-evaluation receipts plus runtime-spine provenance may nominate a named variant for explicit human review toward future live authority without changing live V7 behavior.
 - `TG25` — established the first explicit runtime spine for candidate assembly, execution episode, and receipt bundle semantics via `AK-1085`, giving later governance work a truthful bounded runtime backbone.
@@ -81,8 +81,9 @@ The following remain intentionally out of the active tactical wave until the lif
 - live predictive ranking from Oracle priors,
 - live candidate pruning or promotion blocking from prior-backed signals,
 - strategy/policy mutation without explicit governed evaluation, promotion-eligibility, and review-decision receipts,
-- widening authority beyond governance-only evidence before `TG28` freezes the first explicit human review-decision contract and a later contract or human-governed decision explicitly promotes a named variant into live policy,
+- widening authority beyond governance-only evidence after `TG28` without a later contract or human-governed process that explicitly promotes a named variant into live policy,
 - guessing the post-`TG28` tactical wave just to keep the queue non-empty,
+- reopening the completed `TG28` review-decision contract wave without a new contract, surfaced regression, or operator pull,
 - reopening the completed `TG27` nomination-receipt wave without a new contract, surfaced regression, or operator pull,
 - reopening the completed `TG26` promotion-eligibility contract wave without a new contract, surfaced regression, or operator pull,
 - reopening the completed `TG25` runtime-spine wave without a new contract, surfaced regression, or operator pull,

@@ -1223,14 +1223,15 @@
         {
           "id": "AK-TASK-1106",
           "title": "Synthesis evidence substrate: freeze the first human-governed review-decision contract for nominated governance-only policy variants",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Synthesis evidence substrate: freeze the first human-governed review-decision contract for nominated governance-only policy variants (task #1106)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-10"
         }
       ]
     }

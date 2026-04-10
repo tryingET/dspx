@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-10T13:51:27.099464948+00:00",
+  "task_id": 1106,
+  "entity_version": 5,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/2026-04-10--freeze-human-review-decision-contract.md",
+      "docs/adr/20260410-human-governed-review-decision-contract-v1.md",
+      "docs/adr/README.md",
+      "docs/project/operational_goals.md",
+      "docs/project/tactical_goals.md",
+      "governance/task-scopes/AK-1106.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md"
+    ],
+    "required_paths": [
+      "diary/2026-04-10--freeze-human-review-decision-contract.md",
+      "docs/adr/20260410-human-governed-review-decision-contract-v1.md",
+      "docs/adr/README.md",
+      "docs/project/operational_goals.md",
+      "docs/project/tactical_goals.md",
+      "governance/task-scopes/AK-1106.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
