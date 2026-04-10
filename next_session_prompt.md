@@ -27,14 +27,14 @@ Do not ask for permission to start.
 - Durable architecture decisions: `docs/adr/`
 - Live execution truth: `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`
 - Planned active/deferred work map: `governance/work-items.json` (checked-in projection/mirror; do not treat as live execution truth)
-- Latest completed-slice diary: `diary/2026-04-10--emit-promotion-eligibility-nomination-receipts.md`
+- Latest completed-slice diary: `diary/2026-04-10--materialize-human-review-decision-wave.md`
 - Latest contract artifact: `docs/adr/20260409-human-governed-promotion-eligibility-contract-v1.md`
 - Latest repo-local learning: `docs/learnings/2026-02-28-receipt-v2-phase-c.md`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Re-run the repo-scoped AK ready queue after `AK-1102`; if it is empty, wait for the next operator-directed or direction-to-execution materialization step before starting new implementation work.
-- Constraints (hard limits): Keep the completed `AK-593`, `AK-797`, `AK-798`, `AK-799`, `AK-800`, `AK-834`, `AK-835`, `AK-1047`, `AK-1085`, `AK-1093`, `AK-1094`, `AK-1101`, and `AK-1102` boundaries closed; keep any follow-on bounded to the governance-only nomination/evidence surfaces already landed; do not widen live ranking, pruning, or promotion authority.
-- Assumptions (max 3): `AK-1102` is complete and committed; no next repo-scoped implementation slice is pinned yet; the repo-scoped ready queue may truthfully be empty.
+- Objective (one sentence): Claim `AK-1106` and freeze the first human-governed review-decision contract for nominated governance-only policy variants without widening live authority.
+- Constraints (hard limits): Keep the completed `AK-593`, `AK-797`, `AK-798`, `AK-799`, `AK-800`, `AK-834`, `AK-835`, `AK-1047`, `AK-1085`, `AK-1093`, `AK-1094`, `AK-1101`, `AK-1102`, and `AK-1105` boundaries closed; keep `AK-1106` bounded to the ADR/doc contract surface, the supporting tactical/operational/handoff/projection refresh, and the frozen task-scope snapshot.
+- Assumptions (max 3): the governed policy-evaluation receipts from `AK-593` already provide the review-decision input surface; the promotion-eligibility nomination receipts from `AK-1102` already provide the nomination boundary; `AK-1106` is the single ready repo-scoped slice.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -52,8 +52,8 @@ Do not ask for permission to start.
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the repo-scoped ready queue with `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the ready queue is empty, do not guess a hidden governance backlog; wait for operator direction or the next explicit direction-to-execution materialization step.
-4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
+3. If the ready queue is empty, do not guess a hidden governance backlog; only materialize the next slice when AK truth and the direction stack justify it. In the current state, AK truth already names `AK-1106` as the active bounded review-decision contract slice.
+4. Claim the current active task before editing docs or code.
 5. Execute at most one operating slice end-to-end.
 6. Validate truthfully with:
    - `./scripts/ci/smoke.sh`
@@ -62,12 +62,12 @@ Do not ask for permission to start.
 7. Refresh source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-1102` — emitted the first bounded `promotion_eligibility_nominations` receipts from governed policy-evaluation receipts plus current-run runtime-spine provenance, and refreshed the bounded handoff/projection stack without guessing the post-`TG27` governance step.
-- Outcome: `synthesis_diagnostics.promotion_eligibility_nominations` now exists on live `module-gen` metadata and persisted receipt metadata, `AK-1102` is complete in AK, and the repo-scoped ready queue is now empty instead of being backfilled with a speculative follow-on task.
-- Files changed: `diary/2026-04-10--emit-promotion-eligibility-nomination-receipts.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-1102.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`, `packages/dspx-core/src/dspx/services/module_service.py`, `packages/dspx-core/src/dspx/services/module_synthesis_evidence.py`, `tests/test_module_service.py`, `tests/test_module_synthesis_evidence.py`, `tests/test_run_receipts.py`.
-- Validation commands + results: `uv run --no-sync -m pytest -q tests/test_module_synthesis_evidence.py tests/test_module_service.py tests/test_run_receipts.py` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=1102 mode=working-tree` ✅; `just verify-full` ✅; `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task scope export 1102 > governance/task-scopes/AK-1102.snapshot.json` ✅; `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after completion (`[]`).
-- Source-of-truth updates: completed `AK-1102` in AK with result evidence, added the new diary entry, refreshed `docs/project/tactical_goals.md` and `docs/project/operational_goals.md`, re-exported `governance/work-items.json`, exported `governance/task-scopes/AK-1102.snapshot.json`, and replaced the handoff with the post-implementation idle-state checkpoint.
-- Next-session starting point: re-run the repo-scoped ready queue; if it is still empty, do not guess the post-`TG27` governance step.
+- Slice executed: `AK-1105` — promoted `TG28` into the active tactical slot after `TG27` landed, created `AK-1106` as the next ready repo-scoped contract slice, and refreshed the strategic/tactical/operational/handoff stack around the review-decision wave.
+- Outcome: `AK-1105` is complete in AK, `AK-1106` is now the single ready repo-scoped task, and the direction stack now truthfully points at the first bounded human-governed review-decision contract wave.
+- Files changed: `diary/2026-04-10--materialize-human-review-decision-wave.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `governance/task-scopes/AK-1105.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after completion (`AK-1106` only); `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=1105 mode=working-tree` ✅; `just verify-full` ✅.
+- Source-of-truth updates: completed `AK-1105` in AK with result evidence, created `AK-1106`, exported `governance/task-scopes/AK-1105.snapshot.json`, re-exported `governance/work-items.json`, refreshed `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, and `docs/project/operational_goals.md`, and replaced the handoff with the `AK-1106` starting point.
+- Next-session starting point: claim `AK-1106`, author the first human-governed review-decision contract, and keep the slice governance-only.
 
 ## END-OF-SESSION
 Run `/commit` only if the repo is validation-clean and the handoff reflects the real checkpoint; otherwise preserve the truthful handoff and leave commit/closeout for the isolated slice.

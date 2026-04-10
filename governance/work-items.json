@@ -1206,6 +1206,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-10"
+        },
+        {
+          "id": "AK-TASK-1105",
+          "title": "direction-to-execution: promote TG28 and materialize the first human-review decision contract slice",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "direction-to-execution: promote TG28 and materialize the first human-review decision contract slice (task #1105)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-10"
+        },
+        {
+          "id": "AK-TASK-1106",
+          "title": "Synthesis evidence substrate: freeze the first human-governed review-decision contract for nominated governance-only policy variants",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: freeze the first human-governed review-decision contract for nominated governance-only policy variants (task #1106)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
