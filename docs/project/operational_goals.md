@@ -7,23 +7,24 @@ read_when:
 
 # Operational Goals
 
-Active tactical goal: `TG25`
+Active tactical goal: `TG26`
 
 Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-society/softwareco/owned/dspx`
 
 ## Active operating slices
 
-1. **No repo-scoped implementation slice is pinned right now**
-   - the first `dspx.synthesis` runtime spine now lands candidate assembly, execution episode, and receipt bundle semantics end-to-end, and the repo-scoped ready queue is empty again
-   - keep the completed runtime-spine slice closed instead of turning it into an open-ended cleanup bucket
-   - status: closed / waiting for the next explicitly materialized slice
-2. **Later governance contract — keep deferred until AK truth names it**
-   - the later human-governed review-eligibility / promotion-eligibility contract still needs an explicit repo task before implementation work resumes
-   - do not guess or pre-write that governance slice as active authority while the ready queue is empty
-   - status: deferred / no ready repo task
+1. **`AK-1047` — freeze the first human-governed promotion-eligibility contract for governance-only policy variants**
+   - ground the next governance contract in the runtime-spine objects emitted by `AK-1085` rather than older synthesis-local ambiguity
+   - keep the slice bounded to the ADR/doc contract surface, the supporting tactical/operational/handoff/projection refresh, and the frozen task-scope snapshot
+   - status: ready / unclaimed
+2. **Later follow-on implementation slice — keep deferred until the contract lands**
+   - after the contract is frozen, materialize only the next bounded implementation slice that the contract explicitly justifies
+   - do not widen authority or invent the post-contract implementation step early just to keep the queue non-empty
+   - status: deferred / blocked on `AK-1047`
 
 ## Recently completed in this wave
 
+- `AK-1094` — activated the next bounded governance-contract wave after the runtime-spine direction refresh, released `AK-1047` from deferral under explicit operator direction, refreshed the tactical/operational/handoff stack around the active governance slice, re-exported the checked-in AK projection, and left `AK-1047` as the single ready repo-scoped task.
 - `AK-1093` — refreshed the vision/strategic/tactical/architecture direction stack into the runtime-spine language now backed by `AK-1085`, salvaged the boundary doc that explains the candidate-surface / candidate-assembly / execution-episode / receipt-bundle ontology, re-exported the checked-in AK projection, and kept the next governance slice deferred while the ready queue stayed empty.
 - `AK-1085` — bridged `dspx.synthesis` to explicit runtime-spine semantics by emitting candidate assemblies, execution episodes, and receipt bundles alongside the existing synthesis records, threading those objects through workspace manifests, promotion metadata, and run summaries, exporting `governance/task-scopes/AK-1085.snapshot.json`, re-exporting the checked-in AK projection, and covering the bounded path with direct regressions.
 - `AK-835` — closed the remaining atomic hardening cleanup across config-managed env refresh, config TOML secret rejection, provider/runtime health+result sanitization, policy bypass audit logging, provider/tool registry locking, Pi RPC retry boundaries, refine TTY gating, receipt env-hash redaction, bounded data previews, generated-code worker fail-closed handling, and task-scope claim fallback; exported `governance/task-scopes/AK-835.snapshot.json`, re-exported the checked-in AK projection, and restored the full validation baseline.
@@ -35,8 +36,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `AK-1093` refreshed the direction stack into runtime-spine truth without materializing a new ready implementation slice.
-- `AK-1085` closed the first bounded runtime-spine slice for `TG25` and left no new repo-scoped ready task in AK.
+- `AK-1094` promoted the next bounded governance-contract wave into active repo truth and left `AK-1047` as the single ready repo-scoped slice.
+- `AK-1047` is now the pinned `TG26` operating slice.
 - Keep the `AK-1085` candidate-assembly / execution-episode / receipt-bundle runtime semantics closed unless a smaller follow-up proves a regression or explicitly widens the contract.
 - Keep the `AK-835` config/runtime/policy/registry/refine/receipt/task-scope hardening boundaries closed unless a smaller follow-up explicitly proves a regression.
 - Keep the `AK-834` sanitize/workorder, shared path-confinement, replay-path, provider-racing, auth-provider, and frontier/territory correctness boundaries closed unless a smaller follow-up explicitly proves a regression.
@@ -44,7 +45,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 - Keep the `AK-799` required-by-default server auth boundary closed unless a smaller follow-up explicitly widens it.
 - Keep the `AK-797` trusted-program-root boundary closed unless a smaller follow-up explicitly widens it.
 - Keep the `AK-798` narrowed contract-expression boundary closed unless a smaller follow-up explicitly widens the helper/attribute contract.
-- Do not start live predictive ranking, candidate pruning, promotion blocking, strategy/policy mutation, or the deferred governance contract while the repo-scoped ready queue is empty; wait for AK truth to materialize the next bounded slice.
+- Do not start live predictive ranking, candidate pruning, promotion blocking, strategy/policy mutation, or the post-contract implementation follow-on while `AK-1047` remains open.
 - Older deferred/provider/runtime follow-ons (`AK-224`, `AK-235`–`AK-239`) remain non-active backlog and were intentionally not resumed in this wave.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
-- Task-scope validation is now snapshot-backed for `AK-1093`, `AK-1085`, `AK-834`, and `AK-835`; keep isolating each slice so working-tree validation stays truthful.
+- Task-scope validation is now snapshot-backed for `AK-1094`, `AK-1093`, `AK-1085`, `AK-834`, and `AK-835`; keep isolating each slice so working-tree validation stays truthful.

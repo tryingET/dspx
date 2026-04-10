@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-10T11:48:56.359938192+00:00",
+  "task_id": 1094,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/operational_goals.md",
+      "docs/project/strategic_goals.md",
+      "docs/project/tactical_goals.md",
+      "governance/task-scopes/AK-1094.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md"
+    ],
+    "required_paths": [
+      "docs/project/operational_goals.md",
+      "docs/project/tactical_goals.md",
+      "governance/work-items.json",
+      "next_session_prompt.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -1139,11 +1139,7 @@
               "done": false
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded.",
-          "labels": [
-            "deferred"
-          ],
-          "note": "Deferred:\n- reason: Created prematurely during mistaken workflow while drafting the TG26 ADR; keep non-active until the operator explicitly decides to materialize a repo task from the proposed ADR.\n- kind: manual"
+          "dod": "Task reaches done in society.db with evidence recorded."
         },
         {
           "id": "AK-TASK-1085",
@@ -1165,6 +1161,19 @@
           "tasks": [
             {
               "text": "direction-to-execution: refresh SG2/TG25 docs truth around the runtime spine and keep the next governance slice deferred (task #1093)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-10"
+        },
+        {
+          "id": "AK-TASK-1094",
+          "title": "direction-to-execution: activate the next bounded governance-contract slice and release AK-1047 from deferral",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "direction-to-execution: activate the next bounded governance-contract slice and release AK-1047 from deferral (task #1094)",
               "done": true
             }
           ],
