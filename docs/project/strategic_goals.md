@@ -14,16 +14,16 @@ Next strategic goal: `unmaterialized`
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `SG2` | active | Turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9. | 5 | 5 | 4 | DSPx now emits bounded governance-only ranking/promotion evaluation receipts and has closed the runtime-boundary hardening wave via `AK-707`/`AK-708`/`AK-709`, so the remaining SG2 leverage is to freeze the explicit human-governed contract for how any named variant could ever move from governance-only evaluation into future live-authorized policy. |
+| `SG2` | active | Turn receipts, replay, and Oracle evidence into the direct runtime and governance surface for empirical development of DSPy systems. | 5 | 5 | 4 | DSPx now emits bounded governance-only ranking/promotion evaluation receipts and has closed the prerequisite runtime/trust hardening work, so the remaining SG2 leverage is to freeze the explicit human-governed contract for how evidence may justify review without silently becoming live authority. |
 | `SG3` | complete | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Cross-repo fixture work `AK-548` plus repo-local validation, workflow/handoff cleanup, and regression slices `AK-549`–`AK-551` have all landed, so DSPx now validates task scope from AK-native snapshots, keeps legacy scope files as brownfield fallback only, and covers the cleaned-up authority story with broader regressions. |
 
 ## Strategic definitions of done
 
-### `SG2` — Evidence substrate for V8/V9
+### `SG2` — Evidence, runtime, and governance surface
 Done when:
-- DSPx can retrieve and consume structured receipt/replay/Oracle evidence through bounded shadow predictive-ranking or equivalent evidence-aware comparisons without mutating live V7 behavior by accident,
-- evidence-backed candidate priors and named governance-only ranking/promotion variants can be evaluated under explicit contracts before any live pre-ranking/pruning is authorized,
-- future movement from governance-only evaluation into live-authorized policy requires an explicit human-governed contract rather than silent prompt or policy drift.
+- DSPx can assemble, execute, replay, and compare candidate systems through explicit runtime objects and replayable evidence,
+- Oracle can interpret observed behavior from bounded evidence without silently becoming governance authority,
+- governance-only policy variants can be evaluated and reviewed under explicit contracts before any live-authority widening is considered.
 
 ### `SG3` — AK-native scope snapshots for repo validation/handoff
 Done when:

@@ -1157,6 +1157,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-10"
+        },
+        {
+          "id": "AK-TASK-1093",
+          "title": "direction-to-execution: refresh SG2/TG25 docs truth around the runtime spine and keep the next governance slice deferred",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "direction-to-execution: refresh SG2/TG25 docs truth around the runtime spine and keep the next governance slice deferred (task #1093)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-10"
         }
       ]
     }

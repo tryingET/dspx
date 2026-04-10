@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-10T11:20:08.721225690+00:00",
+  "task_id": 1093,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "README.md",
+      "docs/ARCHITECTURE.md",
+      "docs/project/operational_goals.md",
+      "docs/project/program-synthesis-boundary.md",
+      "docs/project/strategic_goals.md",
+      "docs/project/tactical_goals.md",
+      "docs/project/vision.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "next_session_prompt.md"
+    ],
+    "required_paths": [
+      "docs/project/operational_goals.md",
+      "docs/project/strategic_goals.md",
+      "docs/project/tactical_goals.md",
+      "docs/project/vision.md",
+      "governance/work-items.json",
+      "next_session_prompt.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

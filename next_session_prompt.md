@@ -28,11 +28,11 @@ Do not ask for permission to start.
 - Live execution truth: `./scripts/ak.sh task ready -F json | jq 'map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`
 - Planned active/deferred work map: `governance/work-items.json` (checked-in projection/mirror; do not treat as live execution truth)
 - Latest completed-slice diary: `diary/2026-04-05--land-ak835-tg25-atomic-hardening-cleanup.md`
-- Latest direction refresh diary: `diary/2026-04-05--materialize-next-tg25-hardening-wave.md`
+- Latest direction refresh artifact: `docs/project/program-synthesis-boundary.md`
 - Latest repo-local learning: `docs/learnings/2026-02-28-receipt-v2-phase-c.md`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Confirm the repo-scoped ready queue is still empty after the first runtime-spine slice and only materialize the next bounded governance slice when AK truth explicitly names it.
+- Objective (one sentence): Confirm the repo-scoped ready queue is still empty after the runtime-spine direction refresh and only materialize the next bounded governance slice when AK truth explicitly names it.
 - Constraints (hard limits): Keep the completed `AK-797`, `AK-798`, `AK-799`, `AK-800`, `AK-834`, `AK-835`, and `AK-1085` boundaries closed; do not widen governance authority or reopen the runtime-spine slice as a generic cleanup queue.
 - Assumptions (max 3): the first runtime spine now exists inside `dspx.synthesis`; `governance/work-items.json` remains a checked-in mirror; the later human-governed review-eligibility / promotion-eligibility contract should stay deferred until AK explicitly materializes it.
 - Blockers (none or list): none.
@@ -43,11 +43,11 @@ Do not ask for permission to start.
 3. `docs/project/strategic_goals.md`
 4. `docs/project/tactical_goals.md`
 5. `docs/project/operational_goals.md`
-6. `docs/project/developer_workflow.md`
-7. `governance/work-items.json`
-8. `packages/dspx-core/src/dspx/synthesis/contracts.py`
-9. `packages/dspx-core/src/dspx/synthesis/runtime.py`
-10. `tests/test_synthesis_contracts.py`
+6. `docs/ARCHITECTURE.md`
+7. `docs/project/program-synthesis-boundary.md`
+8. `docs/project/developer_workflow.md`
+9. `governance/work-items.json`
+10. `governance/task-scopes/AK-1093.snapshot.json`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
@@ -61,12 +61,12 @@ Do not ask for permission to start.
 6. Refresh source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-1085` — bridged `dspx.synthesis` from synthesis-local records to the first explicit runtime spine for candidate assemblies, execution episodes, and receipt bundles without widening governance authority.
-- Outcome: `AK-1085` is complete in AK, the repo-scoped ready queue is empty again, and the later human-governed governance contract remains deferred until AK truth explicitly names it.
-- Files changed: `packages/dspx-core/src/dspx/synthesis/contracts.py`, `packages/dspx-core/src/dspx/synthesis/runtime.py`, `tests/test_synthesis_contracts.py`, `tests/test_synthesis_runtime_smoke.py`, `governance/task-scopes/AK-1085.snapshot.json`, `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: `/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python -m pytest -q tests/test_synthesis_contracts.py tests/test_synthesis_runtime_smoke.py` ✅; `/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python -m pytest -q tests/test_module_service.py tests/test_run_receipts.py tests/test_module_synthesis_quality_runtime.py` ✅; `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ (`[]`); `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=1085 mode=working-tree` ✅; `just verify-full` ✅.
-- Source-of-truth updates: completed `AK-1085` in AK with result evidence, exported `governance/task-scopes/AK-1085.snapshot.json`, re-exported `governance/work-items.json`, refreshed `docs/project/operational_goals.md`, and replaced the handoff with the post-runtime-spine idle starting point.
-- Next-session starting point: confirm the repo-scoped ready queue is still empty, and only materialize the deferred governance contract when AK truth explicitly materializes the next bounded slice.
+- Slice executed: `AK-1093` — refreshed the SG2/TG25 direction stack from the stash into runtime-spine language, added the behavior-first boundary doc, and kept the later governance slice deferred while the ready queue stayed empty.
+- Outcome: `AK-1093` is complete in AK, the direction stack now matches the runtime-spine wave backed by `AK-1085`, the repo-scoped ready queue is empty again, and the later human-governed governance contract remains deferred until AK truth explicitly names it.
+- Files changed: `docs/project/vision.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, `docs/ARCHITECTURE.md`, `docs/project/program-synthesis-boundary.md`, `governance/task-scopes/AK-1093.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `./scripts/ak.sh task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ (`[]`); `./scripts/ak.sh work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=1093 mode=working-tree` ✅; `just verify-full` ✅.
+- Source-of-truth updates: completed `AK-1093` in AK with result evidence, exported `governance/task-scopes/AK-1093.snapshot.json`, re-exported `governance/work-items.json`, refreshed `docs/project/vision.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`, and `docs/ARCHITECTURE.md`, materialized `docs/project/program-synthesis-boundary.md`, and replaced the handoff with the post-direction-refresh idle starting point.
+- Next-session starting point: confirm the repo-scoped ready queue is still empty, and only materialize the deferred governance contract when AK truth or explicit operator direction names the next bounded slice.
 
 ## END-OF-SESSION
 Run `/commit` only if the repo is validation-clean and the handoff reflects the real checkpoint; otherwise preserve the truthful handoff and leave commit/closeout for the isolated slice.

@@ -100,6 +100,8 @@ Core vs App Boundary (current)
 ------------------------------
 
 - Core package (`packages/dspx-core`) owns provider/runtime contracts, policy, replay/explain receipts, and generation/optimization services.
+- Service boundaries must stay truthful: `module_service` owns module artifact generation, while richer multi-artifact program synthesis should land behind a distinct `program_service` boundary instead of being folded into module generation.
+- Longer-range architecture should be read as a behavior-first runtime for empirical evolution of DSPy systems: candidate assemblies run through bounded execution episodes, emit replayable receipt bundles, and later feed Oracle-derived behavioral phenotype and territory/frontier interpretation back into bounded search shaping, while preserving the authority split between DSPx runtime contracts, Oracle empirical analysis, and downstream governance/promotion surfaces.
 - Apps (`apps/*`) are optional product surfaces (Forge first) that consume core APIs.
 - Dependency direction is strict: `apps/* -> packages/dspx-core`; never reverse.
 - Data rule: receipts/manifests are canonical for replay; MLflow is an optional observability sink for explainability.
@@ -307,7 +309,7 @@ Principle:
 
 | Path | Role | Must depend on | Must not depend on |
 | --- | --- | --- | --- |
-| `packages/dspx-core` | Canonical toolkit kernel (providers, tools, policy, signatures/modules/optimize, receipts) | Third-party libs only | `apps/*` |
+| `packages/dspx-core` | Canonical toolkit kernel for candidate surfaces/assemblies, execution episodes, receipts, providers, tools, policy, program synthesis, and optimization | Third-party libs only | `apps/*` |
 | `packages/dspx-server` (optional split) | HTTP/API delivery surface over core services | `packages/dspx-core` | `apps/*` |
 | `apps/forge` | Product workflow (backlog compiler / issue automation) | `packages/dspx-core` (+ forge-specific deps) | Any core-internal private module API |
 | `apps/*` (future) | Additional products (run explorer, eval studio, etc.) | `packages/dspx-core` | Other app internals by default |

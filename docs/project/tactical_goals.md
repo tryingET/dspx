@@ -7,7 +7,7 @@ read_when:
 
 # Tactical Goals
 
-Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the predictive/governance substrate for V8 and V9.
+Active strategic goal: `SG2` — turn receipts, replay, and Oracle evidence into the direct runtime and governance surface for empirical development of DSPy systems.
 
 Active tactical goal: `TG25`
 Next tactical goal: `unmaterialized`
@@ -16,16 +16,16 @@ Next tactical goal: `unmaterialized`
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TG25` | active | Freeze the first explicit human-governed promotion-eligibility contract for moving named governance-only policy variants toward future live-authorized policy. | 5 | 4 | 4 | `AK-707`/`AK-708`/`AK-709` closed the receipt/runtime boundary hardening wave, so SG2's next leverage is to freeze the bounded human-governed contract that decides how governance-only receipts may ever nominate a variant for review toward live authority. |
+| `TG25` | active | Establish the first explicit runtime spine for candidate assembly, execution episode, and receipt bundle semantics. | 5 | 5 | 3 | The new direct runtime vision needs a first-class runtime backbone before later governance layers such as review eligibility can be grounded cleanly in runtime objects and replayable evidence. |
 | `TG24` | complete | Harden receipt-bearing runtime boundaries so server, multi-provider, replay/explain, and SG2 evidence surfaces persist trustworthy artifacts and fail closed under drift. | 5 | 5 | 3 | Completed via `AK-707`/`AK-708`/`AK-709`, which landed server artifact persistence/confirmation hardening, multi-provider isolation/capability hardening, and final parser/strictness tightening without widening live policy authority. |
 
 ## Tactical definitions of done
 
-### `TG25` — Governed promotion-eligibility contract
+### `TG25` — Runtime spine for empirical development
 Done when:
-- DSPx names the first bounded contract that decides when governance-only policy-evaluation receipts may nominate a variant for human review toward live authority,
-- the contract defines allowed evidence inputs, required review/audit artifacts, and explicit non-authority defaults,
-- the repo can materialize the first bounded follow-on slice without silently widening live ranking/promotion power.
+- DSPx names and emits the first explicit runtime objects for candidate assembly, execution episode, and receipt bundle semantics,
+- at least one bounded path emits those objects end-to-end without changing the visible CLI contract,
+- and replay, explain, Oracle, and later governance work have a truthful runtime spine to consume instead of service-local ambiguity.
 
 ### `TG24` — Receipt-bearing runtime boundary hardening
 Done when:
@@ -35,9 +35,10 @@ Done when:
 
 ## Active operating decomposition for `TG25`
 
-- No repo-local `TG25` operating slice is pinned yet.
-- Materialize the first `TG25` contract-freezing or contract-grounding slice only when AK truthfully names it.
-- Do not guess the first `TG25` slice just to keep the queue non-empty.
+- No repo-local `TG25` implementation slice is pinned right now.
+- `AK-1085` completed the first bounded runtime-spine slice for candidate assembly, execution episode, and receipt bundle semantics inside `dspx.synthesis`.
+- Keep the later human-governed review-eligibility / promotion-eligibility contract deferred until AK truth explicitly materializes the next bounded governance slice.
+- Do not guess the next post-runtime-spine governance slice just to keep the queue non-empty.
 
 ## Recently completed tactical goals for `SG2`
 
@@ -75,8 +76,8 @@ The following remain intentionally out of the active tactical wave until the lif
 - live predictive ranking from Oracle priors,
 - live candidate pruning or promotion blocking from prior-backed signals,
 - strategy/policy mutation without explicit governed evaluation receipts,
-- widening authority beyond governance-only receipt emission before `TG25` freezes the explicit human-governed promotion-eligibility contract,
-- guessing the first `TG25` operating slice just to keep the queue non-empty,
+- widening authority beyond governance-only evidence before the runtime spine exists and later review-eligibility contracts are grounded in it,
+- guessing the post-runtime-spine governance slice just to keep the queue non-empty,
 - reopening the completed `TG24` runtime-boundary hardening wave without a new contract, surfaced regression, or operator pull,
 - reopening the completed SG3 AK-native scope-snapshot chain without a new contract, surfaced regression, or operator pull,
 - older provider/runtime and Oracle follow-ons (`AK-224`, `AK-235`–`AK-239`) that remain non-active backlog.
