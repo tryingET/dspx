@@ -1180,6 +1180,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-10"
+        },
+        {
+          "id": "AK-TASK-1101",
+          "title": "direction-to-execution: promote TG27 and materialize the first promotion-eligibility nomination receipt slice",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "direction-to-execution: promote TG27 and materialize the first promotion-eligibility nomination receipt slice (task #1101)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-10"
+        },
+        {
+          "id": "AK-TASK-1102",
+          "title": "Synthesis evidence substrate: emit first promotion-eligibility nomination receipts for governance-only policy variants from governed policy-evaluation receipts and runtime-spine provenance",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Synthesis evidence substrate: emit first promotion-eligibility nomination receipts for governance-only policy variants from governed policy-evaluation receipts and runtime-spine provenance (task #1102)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

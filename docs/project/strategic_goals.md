@@ -14,7 +14,7 @@ Next strategic goal: `unmaterialized`
 
 | ID | Status | Goal | Importance | Urgency | Difficulty | Why this is the right wave now |
 | --- | --- | --- | --- | --- | --- | --- |
-| `SG2` | active | Turn receipts, replay, and Oracle evidence into the direct runtime and governance surface for empirical development of DSPy systems. | 5 | 5 | 4 | DSPx now emits bounded governance-only ranking/promotion evaluation receipts and has closed the prerequisite runtime/trust hardening work, so the remaining SG2 leverage is to freeze the explicit human-governed contract for how evidence may justify review without silently becoming live authority. |
+| `SG2` | active | Turn receipts, replay, and Oracle evidence into the direct runtime and governance surface for empirical development of DSPy systems. | 5 | 5 | 4 | DSPx now has governance-only policy-evaluation receipts, the bounded human-governed promotion-eligibility contract, and explicit candidate-assembly / execution-episode / receipt-bundle provenance, so the remaining SG2 leverage is to materialize the first nomination receipts that assemble human-review packets without widening live authority. |
 | `SG3` | complete | Replace hand-authored task-scope manifests with AK-native scope snapshots across validation and handoff. | 4 | 4 | 3 | Cross-repo fixture work `AK-548` plus repo-local validation, workflow/handoff cleanup, and regression slices `AK-549`–`AK-551` have all landed, so DSPx now validates task scope from AK-native snapshots, keeps legacy scope files as brownfield fallback only, and covers the cleaned-up authority story with broader regressions. |
 
 ## Strategic definitions of done
@@ -23,7 +23,7 @@ Next strategic goal: `unmaterialized`
 Done when:
 - DSPx can assemble, execute, replay, and compare candidate systems through explicit runtime objects and replayable evidence,
 - Oracle can interpret observed behavior from bounded evidence without silently becoming governance authority,
-- governance-only policy variants can be evaluated and reviewed under explicit contracts before any live-authority widening is considered.
+- governance-only policy variants can be evaluated, nominated for explicit human review, and reviewed under explicit contracts before any live-authority widening is considered.
 
 ### `SG3` — AK-native scope snapshots for repo validation/handoff
 Done when:
@@ -53,7 +53,7 @@ Done when:
 ## Explicit exclusions for the active wave
 
 These remain important but are not the active strategic wave:
-- live predictive ranking, candidate pruning, or promotion blocking until a later contract explicitly widens authority beyond governance-only evaluation receipts,
-- treating repeated governance-only receipt outcomes as de facto live policy authority before an explicit human-governed promotion step exists,
+- live predictive ranking, candidate pruning, or promotion blocking until a later contract explicitly widens authority beyond governance-only evaluation and nomination receipts,
+- treating repeated governance-only receipt outcomes or repeated nomination receipts as de facto live policy authority before an explicit human-governed approval step exists,
 - reopening the completed SG3 scope-snapshot chain without a new contract, surfaced regression, or operator-directed follow-on,
 - older provider/runtime and Oracle follow-ons (`AK-224`, `AK-235`–`AK-239`) that are not selected by the current strategic ranking.
