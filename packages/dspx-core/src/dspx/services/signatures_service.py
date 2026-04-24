@@ -690,6 +690,8 @@ def run_generate_dto(
         run_kind = str(req.options.get("run_kind") or "signature-gen")
         input_names = req.options.get("inputs")
         output_names = req.options.get("outputs")
+        input_fields = req.options.get("input_fields")
+        output_fields = req.options.get("output_fields")
         inputs = (
             [str(item) for item in input_names]
             if isinstance(input_names, list)
@@ -700,6 +702,8 @@ def run_generate_dto(
             if isinstance(output_names, list)
             else None
         )
+        structured_inputs = input_fields if isinstance(input_fields, list) else None
+        structured_outputs = output_fields if isinstance(output_fields, list) else None
         simple_metadata: dict[str, Any] = {
             "run_kind": run_kind,
             "provider": "template",
@@ -739,9 +743,17 @@ def run_generate_dto(
                     task_description=cached.get("task_description") or req.prompt,
                     metadata=simple_metadata,
                 )
-        code = render_simple_signature(
-            cls_name, req.prompt, inputs=inputs, outputs=outputs
-        )
+        if structured_inputs is not None or structured_outputs is not None:
+            code = render_signature_from_spec(
+                cls_name,
+                req.prompt,
+                inputs=structured_inputs,
+                outputs=structured_outputs,
+            )
+        else:
+            code = render_simple_signature(
+                cls_name, req.prompt, inputs=inputs, outputs=outputs
+            )
         if cache_enabled():
             cache_write(
                 "signature",

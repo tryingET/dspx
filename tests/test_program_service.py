@@ -186,6 +186,40 @@ def test_program_service_handles_docstring_hostile_objective(
     assert smoke.returncode == 0, smoke.stderr
 
 
+def test_program_service_uses_structured_field_specs_in_signature(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="TypedClassifier",
+        objective="Classify a support ticket.",
+        input_fields=[
+            {"name": "ticket_text", "type": "str", "desc": "Raw support ticket"},
+        ],
+        output_fields=[
+            {
+                "name": "priority",
+                "type": "Literal['low', 'high']",
+                "desc": "Priority label",
+            },
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "typed")
+
+    root = Path(artifact.root_path)
+    signature_code = (root / "signature.py").read_text(encoding="utf-8")
+    assert "from typing import Literal" in signature_code
+    assert (
+        "ticket_text: str = dspy.InputField(desc='Raw support ticket')"
+        in signature_code
+    )
+    assert "priority: Literal['low', 'high'] = dspy.OutputField" in signature_code
+    assert artifact.manifest["intent"]["inputs"] == ["ticket_text"]
+    assert artifact.manifest["intent"]["outputs"] == ["priority"]
+
+
 def test_program_gen_cli_binds_examples_path_relative_to_intent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

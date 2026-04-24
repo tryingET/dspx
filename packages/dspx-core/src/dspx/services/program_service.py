@@ -32,6 +32,8 @@ class ProgramIntent(BaseModel):
     objective: str
     inputs: list[str] = Field(default_factory=lambda: ["context"])
     outputs: list[str] = Field(default_factory=lambda: ["output"])
+    input_fields: list[dict[str, Any]] = Field(default_factory=list)
+    output_fields: list[dict[str, Any]] = Field(default_factory=list)
     constraints: list[str] = Field(default_factory=list)
     examples: list[dict[str, Any]] = Field(default_factory=list)
     examples_path: Optional[str] = None
@@ -75,8 +77,46 @@ class ProgramIntent(BaseModel):
             raise ValueError("program intent fields must be unique")
         return fields
 
+    @field_validator("input_fields", "output_fields")
+    @classmethod
+    def _field_specs_must_be_valid(
+        cls, value: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        fields: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        invalid: list[str] = []
+        for index, raw in enumerate(value or []):
+            if not isinstance(raw, Mapping):
+                invalid.append(f"{index}:<not-object>")
+                continue
+            item = dict(raw)
+            name = str(item.get("name") or item.get("field") or "").strip()
+            if not name or not _IDENTIFIER_RE.match(name) or keyword.iskeyword(name):
+                invalid.append(f"{index}:{name or '<missing-name>'}")
+                continue
+            if name in seen:
+                invalid.append(f"duplicate:{name}")
+                continue
+            seen.add(name)
+            item["name"] = name
+            if item.get("type") is not None:
+                item["type"] = str(item.get("type") or "str")
+            if item.get("desc") is None and item.get("description") is not None:
+                item["desc"] = str(item.get("description"))
+            fields.append(item)
+        if invalid:
+            raise ValueError(
+                "program intent field specs must be objects with unique Python identifier names; "
+                f"invalid entries: {invalid}"
+            )
+        return fields
+
     @model_validator(mode="after")
     def _io_roles_must_not_overlap(self) -> "ProgramIntent":
+        if self.input_fields:
+            self.inputs = [str(item["name"]) for item in self.input_fields]
+        if self.output_fields:
+            self.outputs = [str(item["name"]) for item in self.output_fields]
         overlap = sorted(set(self.inputs) & set(self.outputs))
         if overlap:
             raise ValueError(
@@ -203,6 +243,21 @@ def _intent_surface_names(intent: ProgramIntent) -> dict[str, str]:
     }
 
 
+def _intent_field_specs(intent: ProgramIntent, *, role: str) -> list[dict[str, Any]]:
+    fields = intent.input_fields if role == "input" else intent.output_fields
+    names = intent.inputs if role == "input" else intent.outputs
+    if fields:
+        return [dict(item) for item in fields]
+    return [
+        {
+            "name": name,
+            "type": "str",
+            "desc": f"{name.replace('_', ' ')} ({role})",
+        }
+        for name in names
+    ]
+
+
 def render_signature_surface(intent: ProgramIntent) -> tuple[str, dict[str, Any]]:
     """Render the signature surface through the signature generation service."""
 
@@ -219,6 +274,8 @@ def render_signature_surface(intent: ProgramIntent) -> tuple[str, dict[str, Any]
                 "class_name": names["signature_class"],
                 "inputs": list(intent.inputs or ["context"]),
                 "outputs": list(intent.outputs or ["output"]),
+                "input_fields": _intent_field_specs(intent, role="input"),
+                "output_fields": _intent_field_specs(intent, role="output"),
                 "run_kind": "program-signature-surface",
             },
         )

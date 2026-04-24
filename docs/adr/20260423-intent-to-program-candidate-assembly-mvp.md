@@ -33,6 +33,7 @@ The V1 intent contract includes:
 - `objective`
 - `inputs`
 - `outputs`
+- `input_fields` / `output_fields` for optional typed/described field specs
 - `constraints`
 - `examples`
 - `metric`
@@ -41,7 +42,7 @@ The V1 intent contract includes:
 
 The first materialized bundle writes:
 
-- `signature.py` — deterministic DSPy `Signature` surface generated through the signature service
+- `signature.py` — deterministic DSPy `Signature` surface generated through the signature service, including typed/described field specs when provided
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
 - `eval_smoke.py` — deterministic local smoke harness scaffold

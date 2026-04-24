@@ -167,6 +167,15 @@ outputs:
 metric: exact_match
 constraints:
   - cite only supplied context
+# Optional richer field specs:
+# input_fields:
+#   - name: context
+#     type: str
+#     desc: Supplied evidence
+# output_fields:
+#   - name: confidence
+#     type: Literal['low', 'high']
+#     desc: Confidence label
 # Optional: inline examples or examples_path: examples.yaml
 ```
 
