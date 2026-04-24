@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "3c0aacfef8d86d97c7e045b2db18a43d232358dc"
+created_at: "2026-04-24T14:57:26Z"
+intent: "Infrastructure cleanup: migrate from repo-local ak.sh/cargo-operator.sh to installed ak CLI, add direction workflow to AGENTS.md, pin uv lockfile exclude-newer"
+files:
+  - "AGENTS.md"
+  - "next_session_prompt.md"
+  - "scripts/ak.sh"
+  - "scripts/cargo-operator.sh"
+  - "uv.lock"
+validation:
+  fast_gate:
+    command: "uv run -q ruff check + ty check"
+    status: "pass"
+  full_gate:
+    command: "just direction-contract-check && ak work-items check"
+    status: "pending"
+group:
+  index: 1
+  total: 3
+  rationale: "Pre-existing infrastructure changes separate from program-gen feature"
