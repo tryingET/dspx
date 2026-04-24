@@ -98,6 +98,8 @@ def _ak_claim_lookup_unavailable(message: str) -> bool:
         "registered repo scope" in lowered
         or "run from a registered repo" in lowered
         or "use --all for the global task list" in lowered
+        or "could not compile `ak-cli`" in lowered
+        or "unresolved import `ak_core::" in lowered
     )
 
 

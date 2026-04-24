@@ -20,11 +20,14 @@ def render_module_skeleton(
     *,
     signature_code: Optional[str] = None,
     signature_class_name: Optional[str] = None,
+    signature_import: Optional[str] = None,
 ) -> str:
     """Render a minimal deterministic dspy.Module skeleton.
 
-    - If `signature_class_name` and `signature_code` are provided, embeds the signature and
-      uses `dspy.Predict(Signature)` in the module.
+    - If `signature_class_name` and `signature_import` are provided, imports the
+      signature and uses `dspy.Predict(Signature)` in the module.
+    - If `signature_class_name` and `signature_code` are provided, embeds the signature
+      and uses `dspy.Predict(Signature)` in the module.
     - Otherwise, uses a prompt string like "a, b -> x, y".
     """
     cls = _sanitize_ident(name or "Module")
@@ -36,10 +39,14 @@ def render_module_skeleton(
 
     header: List[str] = []
     header.append("import dspy")
-    header.append("")
-    if signature_code and signature_class_name:
-        header.append(signature_code.strip())
+    if signature_import and signature_class_name:
+        header.append(signature_import)
         header.append("")
+    else:
+        header.append("")
+        if signature_code and signature_class_name:
+            header.append(signature_code.strip())
+            header.append("")
 
     body: List[str] = []
     doc = (description or f"Auto-generated module {cls}").replace("\n", " ")

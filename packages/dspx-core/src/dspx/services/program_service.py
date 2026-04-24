@@ -12,6 +12,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from dspx.cache import cache_dir, cache_enabled, make_key, sha256_text
+from dspx.dtos import ModuleSpec, SignatureGenRequest
 from dspx.run_receipts import (
     build_mlflow_hints,
     build_run_receipt,
@@ -137,27 +138,30 @@ def _safe_doc_literal(text: str) -> str:
     return repr(compact or "Auto-generated DSPy program")
 
 
+def _surface_description(text: str) -> str:
+    """Return text safe for existing triple-quoted signature/module renderers."""
+
+    compact = str(text or "").replace("\r", " ").replace("\n", " ").strip()
+    return (compact or "Auto-generated DSPy program").replace('"""', "'''")
+
+
 def _program_cache_file(cache_key: str) -> Path:
     path = cache_dir() / "program" / f"{cache_key}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def _build_ids(intent: ProgramIntent, program_code: str) -> dict[str, str]:
+def _build_ids(intent: ProgramIntent, surface_bundle_text: str) -> dict[str, str]:
     payload = _intent_payload(intent)
     request_id = f"prog-req-{make_key({'intent': payload})[:12]}"
-    candidate_id = (
-        f"prog-cand-{make_key({'request_id': request_id, 'code': program_code})[:12]}"
-    )
+    candidate_id = f"prog-cand-{make_key({'request_id': request_id, 'code': surface_bundle_text})[:12]}"
     assembly_id = (
         f"prog-asm-{make_key({'candidate_id': candidate_id, 'intent': payload})[:12]}"
     )
     episode_id = (
         f"prog-ep-{make_key({'assembly_id': assembly_id, 'phase': 'materialize'})[:12]}"
     )
-    receipt_bundle_id = (
-        f"prog-rb-{make_key({'episode_id': episode_id, 'code': program_code})[:12]}"
-    )
+    receipt_bundle_id = f"prog-rb-{make_key({'episode_id': episode_id, 'code': surface_bundle_text})[:12]}"
     return {
         "request_id": request_id,
         "candidate_id": candidate_id,
@@ -167,90 +171,106 @@ def _build_ids(intent: ProgramIntent, program_code: str) -> dict[str, str]:
     }
 
 
-def render_program_code(intent: ProgramIntent) -> str:
-    """Render the deterministic first program-shaped DSPy assembly."""
-
+def _intent_surface_names(intent: ProgramIntent) -> dict[str, str]:
     program_class = _sanitize_ident(intent.name)
-    signature_class = f"{program_class}Signature"
-    module_class = f"{program_class}Module"
-    inputs = list(intent.inputs or ["context"])
-    outputs = list(intent.outputs or ["output"])
-    objective_doc = _safe_doc_literal(intent.objective)
+    return {
+        "program_class": program_class,
+        "signature_class": f"{program_class}Signature",
+        "module_class": f"{program_class}Module",
+    }
+
+
+def render_signature_surface(intent: ProgramIntent) -> tuple[str, dict[str, Any]]:
+    """Render the signature surface through the signature generation service."""
+
+    from dspx.services.signatures_service import run_generate_dto
+
+    names = _intent_surface_names(intent)
+    result = run_generate_dto(
+        SignatureGenRequest(
+            prompt=_surface_description(intent.objective),
+            template_version=str(
+                intent.options.get("signature_template_version") or "simple-v1"
+            ),
+            options={
+                "class_name": names["signature_class"],
+                "inputs": list(intent.inputs or ["context"]),
+                "outputs": list(intent.outputs or ["output"]),
+                "run_kind": "program-signature-surface",
+            },
+        )
+    )
+    return result.code, dict(result.metadata or {})
+
+
+def render_module_surface(intent: ProgramIntent) -> tuple[str, dict[str, Any]]:
+    """Render the module surface through the module generation service."""
+
+    from dspx.services.module_service import run_generate as run_module_generate
+
+    names = _intent_surface_names(intent)
+    artifact = run_module_generate(
+        ModuleSpec(
+            name=names["module_class"],
+            description=_surface_description(intent.objective),
+            inputs=list(intent.inputs or ["context"]),
+            outputs=list(intent.outputs or ["output"]),
+            options={
+                "template_version": str(
+                    intent.options.get("module_template_version") or "simple-v1"
+                ),
+                "signature_class_name": names["signature_class"],
+            },
+        ),
+        use_signature=True,
+    )
+    return artifact.code, dict(artifact.metadata or {})
+
+
+def render_program_code(intent: ProgramIntent) -> str:
+    """Render the program assembly surface that composes generated surfaces."""
+
+    names = _intent_surface_names(intent)
     constraints = list(intent.constraints)
     metric = intent.metric or "unspecified"
-    weights = {name: 1.0 for name in outputs}
 
     lines: list[str] = [
         "from __future__ import annotations",
         "",
         "import dspy",
         "",
+        "from module import (",
+        "    build_student as build_module_student,",
+        "    io_spec,",
+        "    normalize_output,",
+        "    output_weights,",
+        ")",
+        "",
         f"OBJECTIVE = {intent.objective!r}",
         f"CONSTRAINTS = {constraints!r}",
         f"METRIC = {metric!r}",
         "",
-        f"class {signature_class}(dspy.Signature):",
-        f"    {objective_doc}",
+        "",
+        "def build_program() -> dspy.Module:",
+        "    return build_module_student()",
+        "",
+        "",
+        "def build_student(*, use_cot: bool = False) -> dspy.Module:",
+        "    return build_module_student(use_cot=use_cot)",
+        "",
+        "",
+        "def intent_summary() -> dict[str, object]:",
+        "    return {",
+        f"        'name': {intent.name!r},",
+        "        'objective': OBJECTIVE,",
+        "        'constraints': list(CONSTRAINTS),",
+        "        'metric': METRIC,",
+        "        'io': io_spec(),",
+        f"        'signature_class': {names['signature_class']!r},",
+        f"        'module_class': {names['module_class']!r},",
+        "    }",
+        "",
     ]
-    for field in inputs:
-        desc = f"{field.replace('_', ' ')} (input)"
-        lines.append(f"    {field}: str = dspy.InputField(desc={desc!r})")
-    for field in outputs:
-        desc = f"{field.replace('_', ' ')} (output)"
-        lines.append(f"    {field}: str = dspy.OutputField(desc={desc!r})")
-
-    forward_args = ", ".join(f"{field}: str" for field in inputs)
-    call_args = ", ".join(f"{field}={field}" for field in inputs)
-    lines.extend(
-        [
-            "",
-            f"class {module_class}(dspy.Module):",
-            f"    {_safe_doc_literal('Program module for intent: ' + intent.objective)}",
-            "",
-            "    def __init__(self) -> None:",
-            "        super().__init__()",
-            f"        self.predict = dspy.Predict({signature_class})",
-            "",
-            f"    def forward(self, {forward_args}) -> dspy.Prediction:",
-            f"        return self.predict({call_args})",
-            "",
-            "",
-            "def build_program() -> dspy.Module:",
-            f"    return {module_class}()",
-            "",
-            "",
-            "def build_student(*, use_cot: bool = False) -> dspy.Module:",
-            "    return build_program()",
-            "",
-            "",
-            "def io_spec() -> dict[str, list[str]]:",
-            f"    return {{'inputs': {inputs!r}, 'outputs': {outputs!r}}}",
-            "",
-            "",
-            "def output_weights() -> dict[str, float]:",
-            f"    return {weights!r}",
-            "",
-            "",
-            "def intent_summary() -> dict[str, object]:",
-            "    return {",
-            "        'objective': OBJECTIVE,",
-            "        'constraints': list(CONSTRAINTS),",
-            "        'metric': METRIC,",
-            "        'io': io_spec(),",
-            "    }",
-            "",
-            "",
-            "def normalize_output(",
-            "    key: str,",
-            "    gold: str,",
-            "    pred: str,",
-            "    pred_name: str | None = None,",
-            "    pred_trace: object | None = None,",
-            ") -> tuple[str, str]:",
-            "    return gold, pred",
-            "",
-        ]
-    )
     return "\n".join(lines)
 
 
@@ -326,15 +346,30 @@ def materialize_program_from_intent(
     )
     root.mkdir(parents=True, exist_ok=True)
 
+    signature_code, signature_metadata = render_signature_surface(intent)
+    module_code, module_metadata = render_module_surface(intent)
     program_code = render_program_code(intent)
-    ids = _build_ids(intent, program_code)
+    eval_smoke_code = render_eval_smoke(intent)
+    surface_bundle_text = "\n\n".join(
+        [signature_code, module_code, program_code, eval_smoke_code]
+    )
+    ids = _build_ids(intent, surface_bundle_text)
     intent_payload = _intent_payload(intent)
     intent_hash = sha256_text(json.dumps(intent_payload, sort_keys=True))
-    program_hash = sha256_text(program_code)
+    surface_hashes = {
+        "signature.py": sha256_text(signature_code),
+        "module.py": sha256_text(module_code),
+        "program.py": sha256_text(program_code),
+        "eval_smoke.py": sha256_text(eval_smoke_code),
+    }
+    program_hash = surface_hashes["program.py"]
+    assembly_hash = sha256_text(surface_bundle_text)
 
     generated_files = {
+        "signature.py": signature_code,
+        "module.py": module_code,
         "program.py": program_code,
-        "eval_smoke.py": render_eval_smoke(intent),
+        "eval_smoke.py": eval_smoke_code,
     }
     for relative, content in generated_files.items():
         compile(content, str(root / relative), "exec")
@@ -354,8 +389,36 @@ def materialize_program_from_intent(
         "surface_kinds": ["intent", "signature", "module", "program", "eval_harness"],
         "root_path": str(root),
         "entrypoint": "program.py",
-        "content_hash": program_hash,
+        "content_hash": assembly_hash,
         "status": "materialized",
+        "surfaces": [
+            {
+                "kind": "signature",
+                "path": "signature.py",
+                "generator": "signature-gen",
+                "content_hash": surface_hashes["signature.py"],
+                "metadata": signature_metadata,
+            },
+            {
+                "kind": "module",
+                "path": "module.py",
+                "generator": "module-gen",
+                "content_hash": surface_hashes["module.py"],
+                "metadata": module_metadata,
+            },
+            {
+                "kind": "program",
+                "path": "program.py",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["program.py"],
+            },
+            {
+                "kind": "eval_harness",
+                "path": "eval_smoke.py",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["eval_smoke.py"],
+            },
+        ],
     }
     execution_episode = {
         "episode_id": ids["episode_id"],
@@ -378,6 +441,14 @@ def materialize_program_from_intent(
         "evidence": {
             "intent_hash": intent_hash,
             "program_hash": program_hash,
+            "assembly_hash": assembly_hash,
+            "surface_hashes": surface_hashes,
+            "surface_generation": {
+                "signature": "signature-gen",
+                "module": "module-gen",
+                "program": "program-gen",
+                "eval_harness": "program-gen",
+            },
             "generated_files": generated_file_names,
             "smoke": smoke_result,
         },
@@ -468,6 +539,7 @@ def materialize_program_from_intent(
             "receipt_bundle_id": ids["receipt_bundle_id"],
             "intent_hash": intent_hash,
             "program_hash": program_hash,
+            "assembly_hash": assembly_hash,
         },
     )
 

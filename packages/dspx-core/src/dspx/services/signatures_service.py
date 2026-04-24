@@ -688,6 +688,18 @@ def run_generate_dto(
     if (req.template_version or "").startswith("simple"):
         cls_name = str(req.options.get("class_name") or "GeneratedSignature")
         run_kind = str(req.options.get("run_kind") or "signature-gen")
+        input_names = req.options.get("inputs")
+        output_names = req.options.get("outputs")
+        inputs = (
+            [str(item) for item in input_names]
+            if isinstance(input_names, list)
+            else None
+        )
+        outputs = (
+            [str(item) for item in output_names]
+            if isinstance(output_names, list)
+            else None
+        )
         simple_metadata: dict[str, Any] = {
             "run_kind": run_kind,
             "provider": "template",
@@ -727,7 +739,9 @@ def run_generate_dto(
                     task_description=cached.get("task_description") or req.prompt,
                     metadata=simple_metadata,
                 )
-        code = render_simple_signature(cls_name, req.prompt)
+        code = render_simple_signature(
+            cls_name, req.prompt, inputs=inputs, outputs=outputs
+        )
         if cache_enabled():
             cache_write(
                 "signature",

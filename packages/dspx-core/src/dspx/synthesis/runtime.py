@@ -62,6 +62,9 @@ def _module_class_name(request: SynthesisRequest) -> str:
 
 
 def _signature_class_name(request: SynthesisRequest) -> str:
+    configured = request.spec.options.get("signature_class_name")
+    if configured:
+        return str(configured)
     return f"Sig_{_module_class_name(request)}"
 
 

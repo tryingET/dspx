@@ -150,6 +150,45 @@ just dspx module-gen \
 
 ---
 
+## Program generation
+
+Generate a deterministic program-shaped candidate assembly from one structured intent:
+
+```yaml
+# intent.yaml
+name: AnswerQuestion
+objective: Answer a question from the supplied context.
+inputs:
+  - context
+  - question
+outputs:
+  - answer
+  - confidence
+metric: exact_match
+constraints:
+  - cite only supplied context
+```
+
+```bash
+just dspx program-gen \
+  --intent intent.yaml \
+  --outdir generated/programs/answer_question
+```
+
+The generated candidate assembly contains separate surfaces plus replayable metadata:
+
+- `signature.py` — signature surface generated through the signature service
+- `module.py` — module surface generated through the module service
+- `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
+- `eval_smoke.py` — deterministic smoke harness
+- `intent.json` — normalized structured intent
+- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata
+- `manifest.json.meta.json` — standard `program-gen` run receipt
+
+This path is intentionally deterministic and scaffold-first. It materializes evidence; it does not promote, rank, prune, or grant Oracle/governance authority.
+
+---
+
 ## GEPA optimization
 
 Optimize a program exporting `build_student()` against train/val data:

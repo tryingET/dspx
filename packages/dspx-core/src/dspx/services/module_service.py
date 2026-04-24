@@ -136,17 +136,21 @@ def _module_cache_key(
     use_signature: bool,
     template_version: Optional[str],
 ) -> str:
-    return make_key(
-        {
-            "kind": "module",
-            "name": spec.name,
-            "description": spec.description or "",
-            "inputs": list(spec.inputs or []),
-            "outputs": list(spec.outputs or []),
-            "use_signature": bool(use_signature),
-            "template_version": template_version or "v1",
-        }
-    )
+    payload: dict[str, Any] = {
+        "kind": "module",
+        "name": spec.name,
+        "description": spec.description or "",
+        "inputs": list(spec.inputs or []),
+        "outputs": list(spec.outputs or []),
+        "use_signature": bool(use_signature),
+        "template_version": template_version or "v1",
+    }
+    options = spec.options or {}
+    if options.get("signature_class_name"):
+        payload["signature_class_name"] = options["signature_class_name"]
+    if options.get("signature_import"):
+        payload["signature_import"] = options["signature_import"]
+    return make_key(payload)
 
 
 def _insert_after_first_blank_line(code: str, block: str) -> str:
@@ -214,14 +218,21 @@ def _seed_code(
     outputs = list(spec.outputs or [])
     sig_code = None
     sig_name = None
+    sig_import = None
+    options = spec.options or {}
     if use_signature:
-        sig_name = _sig_class_name(spec.name)
-        sig_code = render_simple_signature(
-            sig_name,
-            desc or f"Signature for {spec.name}",
-            inputs=inputs,
-            outputs=outputs,
+        sig_name = str(
+            options.get("signature_class_name") or _sig_class_name(spec.name)
         )
+        sig_import_raw = options.get("signature_import")
+        sig_import = str(sig_import_raw) if sig_import_raw else None
+        if not sig_import:
+            sig_code = render_simple_signature(
+                sig_name,
+                desc or f"Signature for {spec.name}",
+                inputs=inputs,
+                outputs=outputs,
+            )
     return render_module_skeleton(
         spec.name,
         inputs,
@@ -229,6 +240,7 @@ def _seed_code(
         desc,
         signature_code=sig_code,
         signature_class_name=sig_name,
+        signature_import=sig_import,
     )
 
 
@@ -725,16 +737,10 @@ def run_generate(
     _validate_module_spec_identifiers(spec)
 
     if simple:
-        key = make_key(
-            {
-                "kind": "module",
-                "name": spec.name,
-                "description": desc,
-                "inputs": inputs,
-                "outputs": outputs,
-                "use_signature": use_signature,
-                "template_version": tv,
-            }
+        key = _module_cache_key(
+            spec,
+            use_signature=use_signature,
+            template_version=tv,
         )
         if cache_enabled():
             cached = cache_read("module", key)
@@ -758,14 +764,21 @@ def run_generate(
                 )
         sig_code = None
         sig_name = None
+        sig_import = None
+        options = spec.options or {}
         if use_signature:
-            sig_name = _sig_class_name(spec.name)
-            sig_code = render_simple_signature(
-                sig_name,
-                desc or f"Signature for {spec.name}",
-                inputs=inputs,
-                outputs=outputs,
+            sig_name = str(
+                options.get("signature_class_name") or _sig_class_name(spec.name)
             )
+            sig_import_raw = options.get("signature_import")
+            sig_import = str(sig_import_raw) if sig_import_raw else None
+            if not sig_import:
+                sig_code = render_simple_signature(
+                    sig_name,
+                    desc or f"Signature for {spec.name}",
+                    inputs=inputs,
+                    outputs=outputs,
+                )
         code = render_module_skeleton(
             spec.name,
             inputs,
@@ -773,6 +786,7 @@ def run_generate(
             desc,
             signature_code=sig_code,
             signature_class_name=sig_name,
+            signature_import=sig_import,
         )
         selected_code, meta = _build_metadata(
             spec,
@@ -792,14 +806,21 @@ def run_generate(
 
     sig_code = None
     sig_name = None
+    sig_import = None
+    options = spec.options or {}
     if use_signature:
-        sig_name = _sig_class_name(spec.name)
-        sig_code = render_simple_signature(
-            sig_name,
-            desc or f"Signature for {spec.name}",
-            inputs=inputs,
-            outputs=outputs,
+        sig_name = str(
+            options.get("signature_class_name") or _sig_class_name(spec.name)
         )
+        sig_import_raw = options.get("signature_import")
+        sig_import = str(sig_import_raw) if sig_import_raw else None
+        if not sig_import:
+            sig_code = render_simple_signature(
+                sig_name,
+                desc or f"Signature for {spec.name}",
+                inputs=inputs,
+                outputs=outputs,
+            )
 
     code = render_module_skeleton(
         spec.name,
@@ -808,6 +829,7 @@ def run_generate(
         desc,
         signature_code=sig_code,
         signature_class_name=sig_name,
+        signature_import=sig_import,
     )
     selected_code, metadata = _build_metadata(
         spec,
@@ -819,16 +841,10 @@ def run_generate(
     )
     art = ModuleArtifact(name=spec.name, code=selected_code, metadata=metadata)
     if cache_enabled():
-        key = make_key(
-            {
-                "kind": "module",
-                "name": spec.name,
-                "description": desc,
-                "inputs": inputs,
-                "outputs": outputs,
-                "use_signature": use_signature,
-                "template_version": tv or "v1",
-            }
+        key = _module_cache_key(
+            spec,
+            use_signature=use_signature,
+            template_version=tv or "v1",
         )
         cache_write("module", key, {"code": art.code, "metadata": art.metadata})
     try:

@@ -20,6 +20,7 @@ def test_program_service_materializes_candidate_assembly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     intent = ProgramIntent(
         name="AnswerQuestion",
         objective="Answer a question from the supplied context.",
@@ -32,15 +33,21 @@ def test_program_service_materializes_candidate_assembly(
     artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
 
     root = Path(artifact.root_path)
+    assert (root / "signature.py").exists()
+    assert (root / "module.py").exists()
     assert (root / "program.py").exists()
     assert (root / "eval_smoke.py").exists()
     assert (root / "intent.json").exists()
     assert (root / "manifest.json").exists()
     assert (root / "manifest.json.meta.json").exists()
 
+    signature_code = (root / "signature.py").read_text(encoding="utf-8")
+    module_code = (root / "module.py").read_text(encoding="utf-8")
     program_code = (root / "program.py").read_text(encoding="utf-8")
-    assert "class AnswerQuestionSignature(dspy.Signature):" in program_code
-    assert "class AnswerQuestionModule(dspy.Module):" in program_code
+    assert "class AnswerQuestionSignature(dspy.Signature):" in signature_code
+    assert "class AnswerQuestionSignature(dspy.Signature):" in module_code
+    assert "class AnswerQuestionModule(dspy.Module):" in module_code
+    assert "from module import (" in program_code
     assert "def build_program() -> dspy.Module:" in program_code
     compile(program_code, str(root / "program.py"), "exec")
 
@@ -54,6 +61,8 @@ def test_program_service_materializes_candidate_assembly(
         "program",
         "eval_harness",
     ]
+    assert manifest["candidate_assembly"]["surfaces"][0]["generator"] == "signature-gen"
+    assert manifest["candidate_assembly"]["surfaces"][1]["generator"] == "module-gen"
     assert manifest["execution_episode"]["status"] == "passed"
     assert manifest["receipt_bundle"]["status"] == "captured"
 
@@ -79,7 +88,11 @@ def test_program_service_materializes_candidate_assembly(
         receipt["program_candidate_assembly"]["assembly_id"]
         == artifact.metadata["assembly_id"]
     )
-    assert receipt["program_receipt_bundle"]["evidence"]["smoke"]["returncode"] == 0
+    evidence = receipt["program_receipt_bundle"]["evidence"]
+    assert evidence["smoke"]["returncode"] == 0
+    assert evidence["surface_generation"]["signature"] == "signature-gen"
+    assert evidence["surface_generation"]["module"] == "module-gen"
+    assert "signature.py" in evidence["surface_hashes"]
 
     replay = check_run_receipt(root / "manifest.json.meta.json")
     assert replay["status"] == "ok"
@@ -92,6 +105,7 @@ def test_program_gen_cli_materializes_from_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     intent_path = tmp_path / "intent.yaml"
     intent_path.write_text(
         "\n".join(
@@ -125,6 +139,9 @@ def test_program_gen_cli_materializes_from_yaml(
     payload = json.loads(result.stdout)
     assert payload["intent"]["name"] == "ClassifierProgram"
     assert payload["candidate_assembly"]["entrypoint"] == "program.py"
+    assert payload["candidate_assembly"]["surfaces"][0]["path"] == "signature.py"
+    assert (outdir / "signature.py").exists()
+    assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
     assert (outdir / "manifest.json.meta.json").exists()
 
@@ -146,6 +163,7 @@ def test_program_service_handles_docstring_hostile_objective(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     intent = ProgramIntent(
         name="QuoteHeavy",
         objective='Handle triple quotes """ and newlines\nwithout breaking code.',
@@ -172,6 +190,7 @@ def test_program_gen_cli_rejects_invalid_intent_field(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     intent_path = tmp_path / "intent.yaml"
     intent_path.write_text(
         "\n".join(

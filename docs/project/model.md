@@ -8,6 +8,7 @@ read_when:
 
 This project captures:
 - Purpose / mission / vision
+- Product posture as the current-vs-target maturity bridge
 - Strategic + tactical + operational goals
 - Constraints + resources
 - System4D (Container/Compass/Engine/Fog)
