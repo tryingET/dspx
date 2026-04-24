@@ -27,28 +27,33 @@ It must not widen live ranking, pruning, promotion, governance-policy activation
 
 Introduce a bounded deterministic `program-gen` MVP that materializes a program-shaped candidate assembly from a structured JSON/YAML intent.
 
-The V1 intent contract includes:
+The structured intent contract is now backward-compatible with the original V1 fields while normalizing as `program-intent-v2` for plan-aware materialization. It includes:
 
+- `schema_version`
 - `name`
 - `objective`
 - `inputs`
 - `outputs`
 - `input_fields` / `output_fields` for optional typed/described field specs
+- `task_type`, defaulting to `single_module`
+- `topology`, defaulting through the plan to one module
 - `constraints`
 - `examples`
+- `examples_path`
 - `metric`
 - `runtime`
-- `options`
+- `options`, including optional future jury-selection hints
 
 The first materialized bundle writes:
 
+- `plan.json` — deterministic `program-plan-v1` intermediate contract generated from the intent, including normalized field specs, task type, default topology, surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and planned multi-model `jury` evaluation shape
 - `signature.py` — deterministic DSPy `Signature` surface generated through the signature service, including typed/described field specs when provided
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
 - `eval_smoke.py` — deterministic local smoke harness scaffold
 - `examples.json` / `eval_examples.py` — emitted when inline `examples` or `examples_path` examples are present, validating example binding without calling an LM
 - `intent.json` — normalized intent payload
-- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, surface-provenance, example-binding, and per-surface hash metadata
+- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan-provenance, surface-provenance, example-binding, and per-surface hash metadata
 - `manifest.json.meta.json` — standard DSPx run receipt with `run_kind=program-gen`
 
 Before marking the materialization episode as `passed`, DSPx compiles the generated files and runs `eval_smoke.py` in the candidate assembly directory. The receipt hash is computed from the exact written `manifest.json` bytes, and replay validation can recompute the `program-gen` cache key from `replay_inputs.intent`.
@@ -68,13 +73,13 @@ Positive:
 - DSPx now has a concrete foothold for one-intent program synthesis.
 - Program synthesis begins at the candidate-assembly boundary instead of being squeezed into module generation.
 - `program-gen` now composes signature and module generation as candidate-surface providers instead of permanently duplicating them inline.
-- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, surface provenance, optional example-binding evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
+- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan provenance, surface provenance, optional example-binding evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
 - The first path is deterministic and testable, so it can compound before model-backed synthesis or GEPA-backed search is introduced.
 
 Tradeoffs:
 
 - V1 is scaffold-first and does not yet infer complex multi-step control flow from natural language alone.
-- V1 does not yet run model-backed program evaluation or optimization.
+- V1 does not yet run model-backed program evaluation, multi-model jury evaluation, or optimization.
 - V1 does not promote generated programs to live authority.
 
 Non-authority defaults:
@@ -88,7 +93,7 @@ Non-authority defaults:
 
 The first implementation is covered by:
 
-- service-level materialization tests for generated files, manifest shape, receipt fields, exact manifest hash, and replay validation
+- service-level materialization tests for generated files, `plan.json` shape, manifest plan provenance, receipt fields, exact manifest hash, and replay validation
 - CLI tests for YAML intent input and invalid-field rejection
 - validation tests for empty IO, input/output overlap, and docstring-hostile objectives
 - targeted compile / lint / pytest checks
@@ -97,7 +102,7 @@ The first implementation is covered by:
 
 The next truthful follow-ons are:
 
-1. richer intent schema and examples/dataset binding,
+1. richer intent normalization, selected jury/perspective contracts, and examples/dataset binding,
 2. real execution episodes that run the generated program under declared runtime conditions,
 3. Oracle-readable behavioral phenotype extraction from program receipts,
 4. later search/reflection engines that propose candidate assemblies without owning promotion authority.

@@ -33,6 +33,7 @@ def test_program_service_materializes_candidate_assembly(
     artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
 
     root = Path(artifact.root_path)
+    assert (root / "plan.json").exists()
     assert (root / "signature.py").exists()
     assert (root / "module.py").exists()
     assert (root / "program.py").exists()
@@ -54,15 +55,23 @@ def test_program_service_materializes_candidate_assembly(
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["schema_version"] == "program-candidate-assembly-v1"
     assert manifest["candidate_assembly"]["artifact_kind"] == "program"
+    assert manifest["program_plan"]["schema_version"] == "program-plan-v1"
+    assert manifest["program_plan"]["task_type"] == "single_module"
+    assert manifest["program_plan"]["evaluation_strategy"]["mode"] == "jury"
+    assert (
+        manifest["program_plan"]["non_authority"]["ranking_pruning_promotion"] is False
+    )
     assert manifest["candidate_assembly"]["surface_kinds"] == [
+        "plan",
         "intent",
         "signature",
         "module",
         "program",
         "eval_harness",
     ]
-    assert manifest["candidate_assembly"]["surfaces"][0]["generator"] == "signature-gen"
-    assert manifest["candidate_assembly"]["surfaces"][1]["generator"] == "module-gen"
+    assert manifest["candidate_assembly"]["surfaces"][0]["generator"] == "program-gen"
+    assert manifest["candidate_assembly"]["surfaces"][1]["generator"] == "signature-gen"
+    assert manifest["candidate_assembly"]["surfaces"][2]["generator"] == "module-gen"
     assert manifest["execution_episode"]["status"] == "passed"
     assert manifest["receipt_bundle"]["status"] == "captured"
 
@@ -90,8 +99,14 @@ def test_program_service_materializes_candidate_assembly(
     )
     evidence = receipt["program_receipt_bundle"]["evidence"]
     assert evidence["smoke"]["returncode"] == 0
+    plan_hash = hashlib.sha256((root / "plan.json").read_bytes()).hexdigest()
+    assert evidence["plan_hash"] == plan_hash
+    assert receipt["run_summary"]["plan_hash"] == plan_hash
+    assert receipt["program_plan"]["schema_version"] == "program-plan-v1"
+    assert evidence["surface_generation"]["plan"] == "program-gen"
     assert evidence["surface_generation"]["signature"] == "signature-gen"
     assert evidence["surface_generation"]["module"] == "module-gen"
+    assert "plan.json" in evidence["surface_hashes"]
     assert "signature.py" in evidence["surface_hashes"]
 
     replay = check_run_receipt(root / "manifest.json.meta.json")
@@ -139,7 +154,10 @@ def test_program_gen_cli_materializes_from_yaml(
     payload = json.loads(result.stdout)
     assert payload["intent"]["name"] == "ClassifierProgram"
     assert payload["candidate_assembly"]["entrypoint"] == "program.py"
-    assert payload["candidate_assembly"]["surfaces"][0]["path"] == "signature.py"
+    assert payload["program_plan"]["schema_version"] == "program-plan-v1"
+    assert payload["candidate_assembly"]["surfaces"][0]["path"] == "plan.json"
+    assert payload["candidate_assembly"]["surfaces"][1]["path"] == "signature.py"
+    assert (outdir / "plan.json").exists()
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
@@ -218,6 +236,19 @@ def test_program_service_uses_structured_field_specs_in_signature(
     assert "priority: Literal['low', 'high'] = dspy.OutputField" in signature_code
     assert artifact.manifest["intent"]["inputs"] == ["ticket_text"]
     assert artifact.manifest["intent"]["outputs"] == ["priority"]
+    plan = json.loads((root / "plan.json").read_text(encoding="utf-8"))
+    assert plan["schema_version"] == "program-plan-v1"
+    assert plan["fields"]["inputs"] == [
+        {"name": "ticket_text", "type": "str", "desc": "Raw support ticket"}
+    ]
+    assert plan["fields"]["outputs"] == [
+        {
+            "name": "priority",
+            "type": "Literal['low', 'high']",
+            "desc": "Priority label",
+        }
+    ]
+    assert plan["topology"]["kind"] == "single_module"
 
 
 def test_program_gen_cli_binds_examples_path_relative_to_intent(
@@ -264,6 +295,13 @@ def test_program_gen_cli_binds_examples_path_relative_to_intent(
     assert (outdir / "eval_examples.py").exists()
     manifest = json.loads((outdir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["intent"]["examples_path"] == str(examples_path.resolve())
+    assert manifest["program_plan"]["examples"]["source"] == "examples_path"
+    assert manifest["program_plan"]["examples"]["path"] == str(examples_path.resolve())
+    assert manifest["program_plan"]["examples"]["count"] == 1
+    assert (
+        manifest["request"]["plan_hash"]
+        == hashlib.sha256((outdir / "plan.json").read_bytes()).hexdigest()
+    )
     assert manifest["receipt_bundle"]["evidence"]["examples"]["returncode"] == 0
 
 

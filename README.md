@@ -185,18 +185,19 @@ just dspx program-gen \
   --outdir generated/programs/answer_question
 ```
 
-The generated candidate assembly contains separate surfaces plus replayable metadata:
+The generated candidate assembly contains a structured plan, separate surfaces, and replayable metadata:
 
+- `plan.json` — deterministic `program-plan-v1` contract derived from the intent; records normalized field specs, task type, default single-module topology, materialized surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and a planned multi-model `jury` evaluation shape
 - `signature.py` — signature surface generated through the signature service
 - `module.py` — module surface generated through the module service
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
 - `eval_smoke.py` — deterministic smoke harness
 - `examples.json` / `eval_examples.py` — emitted when the intent includes inline `examples` or `examples_path`, validating example binding without calling an LM
 - `intent.json` — normalized structured intent
-- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata
-- `manifest.json.meta.json` — standard `program-gen` run receipt
+- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan hash/provenance
+- `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan evidence
 
-This path is intentionally deterministic and scaffold-first. It materializes evidence; it does not promote, rank, prune, or grant Oracle/governance authority.
+This path is intentionally deterministic and scaffold-first. The `jury` entry is a future evaluation contract shape only: no juror models are called during materialization. It materializes evidence; it does not promote, rank, prune, or grant Oracle/governance authority.
 
 ---
 

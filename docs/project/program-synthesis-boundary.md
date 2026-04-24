@@ -205,7 +205,7 @@ It should not become the semantic owner of:
 - multi-artifact candidate assembly,
 - execution-episode orchestration at program scope,
 - Oracle-coupled empirical search shaping,
-- judge/program optimization entrypoints when the assembly under evaluation is larger than a module.
+- jury/program optimization entrypoints when the assembly under evaluation is larger than a module.
 
 ## `program_service`
 
@@ -379,13 +379,13 @@ After this doc lands, the repo has a stronger and less misleading contract for s
 
 ## First implementation foothold
 
-`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, typed/described signature fields when provided, optional `examples.json` / `eval_examples.py` from inline `examples` or `examples_path`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
+`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `plan.json`, `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, typed/described signature fields when provided, optional `examples.json` / `eval_examples.py` from inline `examples` or `examples_path`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
 
 The current implementation keeps that foothold narrow while making the surface boundary more truthful:
 - it proves the intent -> candidate assembly -> execution episode -> receipt bundle spine at program shape,
 - it keeps orchestration in `dspx.services.program_service` rather than overloading `module_service`,
 - it composes the existing signature/module generation services as candidate-surface providers,
-- it records generator provenance, optional example-binding evidence, and per-surface hashes in the manifest/receipt evidence,
+- it records plan provenance, generator provenance, optional example-binding evidence, and per-surface hashes in the manifest/receipt evidence,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, or governance-policy authority.
 
@@ -394,7 +394,7 @@ The current implementation keeps that foothold narrow while making the surface b
 When the repo is ready to materialize this concern, the best first slice should remain small but ontology-preserving.
 
 Prefer a contract-grounding implementation step such as:
-- define the first minimal contract for candidate assembly,
+- deepen the deterministic ProgramPlan contract into richer candidate-assembly planning,
 - define the first minimal contract for execution episode + receipt bundle,
 - define the first Oracle-readability requirements for those receipt bundles,
 - define the first explicit local promotion-state shell for program-shaped candidate assembly.

@@ -28,12 +28,15 @@ class ProgramIntent(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+    schema_version: str = "program-intent-v2"
     name: str = "IntentProgram"
     objective: str
     inputs: list[str] = Field(default_factory=lambda: ["context"])
     outputs: list[str] = Field(default_factory=lambda: ["output"])
     input_fields: list[dict[str, Any]] = Field(default_factory=list)
     output_fields: list[dict[str, Any]] = Field(default_factory=list)
+    task_type: str = "single_module"
+    topology: dict[str, Any] = Field(default_factory=dict)
     constraints: list[str] = Field(default_factory=list)
     examples: list[dict[str, Any]] = Field(default_factory=list)
     examples_path: Optional[str] = None
@@ -55,6 +58,14 @@ class ProgramIntent(BaseModel):
         text = str(value or "").strip()
         if not text:
             raise ValueError("program intent objective must not be blank")
+        return text
+
+    @field_validator("task_type")
+    @classmethod
+    def _task_type_must_not_be_blank(cls, value: str) -> str:
+        text = str(value or "single_module").strip()
+        if not text:
+            raise ValueError("program intent task_type must not be blank")
         return text
 
     @field_validator("inputs", "outputs")
@@ -256,6 +267,118 @@ def _intent_field_specs(intent: ProgramIntent, *, role: str) -> list[dict[str, A
         }
         for name in names
     ]
+
+
+def _examples_plan_metadata(
+    intent: ProgramIntent, *, examples_hash: Optional[str]
+) -> dict[str, Any]:
+    if intent.examples_path:
+        source = "examples_path"
+    elif intent.examples:
+        source = "inline"
+    else:
+        source = "none"
+    return {
+        "source": source,
+        "count": len(intent.examples or []),
+        "path": intent.examples_path,
+        "hash": examples_hash,
+    }
+
+
+def _jury_plan_defaults(intent: ProgramIntent) -> dict[str, Any]:
+    raw_jury = (
+        intent.options.get("jury") if isinstance(intent.options, Mapping) else None
+    )
+    jury_options = dict(raw_jury) if isinstance(raw_jury, Mapping) else {}
+    return {
+        "mode": "jury",
+        "status": "planned_not_executed",
+        "selection_model": jury_options.get(
+            "selection_model", "explicit_future_multi_model_jury_selection"
+        ),
+        "jurors": list(jury_options.get("jurors") or []),
+        "perspectives": list(jury_options.get("perspectives") or []),
+        "authority": "advisory_evidence_only",
+        "notes": [
+            "ProgramPlan records the intended evaluation shape only.",
+            "No juror model is called during deterministic materialization.",
+            "Jury evidence cannot rank, prune, promote, or grant Oracle authority.",
+        ],
+    }
+
+
+def build_program_plan(
+    intent: ProgramIntent, *, examples_hash: Optional[str] = None
+) -> dict[str, Any]:
+    """Build the deterministic ProgramPlan v1 contract from a ProgramIntent."""
+
+    names = _intent_surface_names(intent)
+    topology = dict(intent.topology or {})
+    if not topology:
+        topology = {
+            "kind": "single_module",
+            "modules": [
+                {
+                    "name": names["module_class"],
+                    "signature": names["signature_class"],
+                    "inputs": list(intent.inputs),
+                    "outputs": list(intent.outputs),
+                }
+            ],
+            "edges": [],
+        }
+    has_examples = bool(intent.examples)
+    surfaces: list[dict[str, Any]] = [
+        {"kind": "plan", "path": "plan.json", "generator": "program-gen"},
+        {"kind": "intent", "path": "intent.json", "generator": "program-gen"},
+        {"kind": "signature", "path": "signature.py", "generator": "signature-gen"},
+        {"kind": "module", "path": "module.py", "generator": "module-gen"},
+        {"kind": "program", "path": "program.py", "generator": "program-gen"},
+        {"kind": "smoke_harness", "path": "eval_smoke.py", "generator": "program-gen"},
+    ]
+    if has_examples:
+        surfaces.extend(
+            [
+                {
+                    "kind": "examples",
+                    "path": "examples.json",
+                    "generator": "program-gen",
+                },
+                {
+                    "kind": "examples_harness",
+                    "path": "eval_examples.py",
+                    "generator": "program-gen",
+                },
+            ]
+        )
+    return {
+        "schema_version": "program-plan-v1",
+        "intent": {
+            "schema_version": intent.schema_version,
+            "name": intent.name,
+            "objective": intent.objective,
+        },
+        "task_type": intent.task_type or "single_module",
+        "fields": {
+            "inputs": _intent_field_specs(intent, role="input"),
+            "outputs": _intent_field_specs(intent, role="output"),
+        },
+        "topology": topology,
+        "surfaces": surfaces,
+        "metric": intent.metric or "unspecified",
+        "runtime": dict(intent.runtime),
+        "constraints": list(intent.constraints),
+        "examples": _examples_plan_metadata(intent, examples_hash=examples_hash),
+        "evaluation_strategy": _jury_plan_defaults(intent),
+        "non_authority": {
+            "candidate_assembly": "materialized_not_promoted",
+            "program_gen_evidence": "non_authoritative",
+            "oracle_role": "behavioral_interpreter_only",
+            "ranking_pruning_promotion": False,
+            "governance_authority": False,
+        },
+    }
 
 
 def render_signature_surface(intent: ProgramIntent) -> tuple[str, dict[str, Any]]:
@@ -483,8 +606,19 @@ def materialize_program_from_intent(
     program_code = render_program_code(intent)
     eval_smoke_code = render_eval_smoke(intent)
     examples_payload = list(intent.examples or [])
+    examples_text = _json_text(examples_payload) if examples_payload else None
+    examples_hash = sha256_text(examples_text) if examples_text is not None else None
+    program_plan = build_program_plan(intent, examples_hash=examples_hash)
+    plan_text = _json_text(program_plan)
+    plan_hash = sha256_text(plan_text)
     eval_examples_code = render_eval_examples(intent) if examples_payload else None
-    bundle_parts = [signature_code, module_code, program_code, eval_smoke_code]
+    bundle_parts = [
+        plan_text,
+        signature_code,
+        module_code,
+        program_code,
+        eval_smoke_code,
+    ]
     if eval_examples_code is not None:
         bundle_parts.append(eval_examples_code)
     surface_bundle_text = "\n\n".join(bundle_parts)
@@ -492,6 +626,7 @@ def materialize_program_from_intent(
     intent_payload = _intent_payload(intent)
     intent_hash = sha256_text(json.dumps(intent_payload, sort_keys=True))
     surface_hashes = {
+        "plan.json": plan_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -514,16 +649,16 @@ def materialize_program_from_intent(
         compile(content, str(root / relative), "exec")
         (root / relative).write_text(content, encoding="utf-8")
 
+    (root / "plan.json").write_text(plan_text, encoding="utf-8")
     _write_json(root / "intent.json", intent_payload)
-    examples_hash = None
-    if examples_payload:
-        examples_text = _write_json(root / "examples.json", examples_payload)
-        examples_hash = sha256_text(examples_text)
+    if examples_text is not None:
+        (root / "examples.json").write_text(examples_text, encoding="utf-8")
     smoke_result = _run_eval_smoke(root)
     examples_result = _run_eval_examples(root) if examples_payload else None
     generated_file_names = sorted(
         [
             *generated_files.keys(),
+            "plan.json",
             "intent.json",
             *(["examples.json"] if examples_payload else []),
             "manifest.json",
@@ -536,6 +671,7 @@ def materialize_program_from_intent(
         "candidate_id": ids["candidate_id"],
         "artifact_kind": "program",
         "surface_kinds": [
+            "plan",
             "intent",
             *(["examples"] if examples_payload else []),
             "signature",
@@ -548,6 +684,13 @@ def materialize_program_from_intent(
         "content_hash": assembly_hash,
         "status": "materialized",
         "surfaces": [
+            {
+                "kind": "plan",
+                "path": "plan.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["plan.json"],
+                "schema_version": program_plan["schema_version"],
+            },
             {
                 "kind": "signature",
                 "path": "signature.py",
@@ -611,11 +754,13 @@ def materialize_program_from_intent(
         "status": "captured",
         "evidence": {
             "intent_hash": intent_hash,
+            "plan_hash": plan_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
             **({"examples_hash": examples_hash} if examples_hash is not None else {}),
             "surface_generation": {
+                "plan": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
@@ -642,8 +787,10 @@ def materialize_program_from_intent(
             if intent_source is not None
             else None,
             "intent_hash": intent_hash,
+            "plan_hash": plan_hash,
         },
         "intent": intent_payload,
+        "program_plan": program_plan,
         "candidate_assembly": candidate_assembly,
         "execution_episode": execution_episode,
         "receipt_bundle": receipt_bundle,
@@ -680,10 +827,12 @@ def materialize_program_from_intent(
             "assembly_id": ids["assembly_id"],
             "episode_id": ids["episode_id"],
             "receipt_bundle_id": ids["receipt_bundle_id"],
+            "plan_hash": plan_hash,
             "generated_files": generated_file_names,
         },
         extra={
             "program_intent": intent_payload,
+            "program_plan": program_plan,
             "program_candidate_assembly": candidate_assembly,
             "program_execution_episode": execution_episode,
             "program_receipt_bundle": receipt_bundle,
@@ -716,6 +865,7 @@ def materialize_program_from_intent(
             "episode_id": ids["episode_id"],
             "receipt_bundle_id": ids["receipt_bundle_id"],
             "intent_hash": intent_hash,
+            "plan_hash": plan_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },
