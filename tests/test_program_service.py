@@ -348,6 +348,75 @@ def test_program_service_binds_examples_when_present(
     assert "examples.json" in evidence["generated_files"]
 
 
+def test_program_gen_cli_carries_explicit_jury_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent_path = tmp_path / "intent.yaml"
+    intent_path.write_text(
+        "\n".join(
+            [
+                "name: JuryProgram",
+                "objective: Answer with evidence.",
+                "inputs:",
+                "  - question",
+                "outputs:",
+                "  - answer",
+                "jury:",
+                "  selection_model: perspective_balanced_explicit_pool",
+                "  minimum_jurors: 3",
+                "  perspectives:",
+                "    - correctness",
+                "    - robustness",
+                "    - clarity",
+                "  jurors:",
+                "    - id: correctness_local",
+                "      model: local-small",
+                "      perspective: correctness",
+                "    - id: robustness_remote",
+                "      model: remote-large",
+                "      provider: pi-rpc",
+                "      perspective: robustness",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "candidate"
+
+    result = runner.invoke(
+        app,
+        ["program-gen", "--intent", str(intent_path), "--outdir", str(outdir)],
+    )
+
+    assert result.exit_code == 0, result.output
+    plan = json.loads((outdir / "plan.json").read_text(encoding="utf-8"))
+    jury = plan["evaluation_strategy"]
+    assert jury["schema_version"] == "program-jury-v1"
+    assert jury["mode"] == "jury"
+    assert jury["minimum_jurors"] == 3
+    assert jury["perspectives"] == ["correctness", "robustness", "clarity"]
+    assert jury["jurors"][0] == {
+        "id": "correctness_local",
+        "model": "local-small",
+        "perspective": "correctness",
+    }
+    assert jury["jurors"][1] == {
+        "id": "robustness_remote",
+        "model": "remote-large",
+        "perspective": "robustness",
+        "provider": "pi-rpc",
+    }
+    assert jury["status"] == "planned_not_executed"
+    assert jury["authority"] == "advisory_evidence_only"
+    manifest = json.loads((outdir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["intent"]["jury"]["minimum_jurors"] == 3
+    receipt = json.loads(
+        (outdir / "manifest.json.meta.json").read_text(encoding="utf-8")
+    )
+    assert receipt["program_plan"]["evaluation_strategy"] == jury
+
+
 def test_program_gen_cli_rejects_invalid_intent_field(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -42,11 +42,12 @@ The structured intent contract is now backward-compatible with the original V1 f
 - `examples_path`
 - `metric`
 - `runtime`
-- `options`, including optional future jury-selection hints
+- `jury`, including optional future multi-model/perspective jury-selection hints
+- `options`, retained for service/template options and backward-compatible jury hints
 
 The first materialized bundle writes:
 
-- `plan.json` — deterministic `program-plan-v1` intermediate contract generated from the intent, including normalized field specs, task type, default topology, surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and planned multi-model `jury` evaluation shape
+- `plan.json` — deterministic `program-plan-v1` intermediate contract generated from the intent, including normalized field specs, task type, default topology, surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and explicit planned `program-jury-v1` multi-model/perspective evaluation shape
 - `signature.py` — deterministic DSPy `Signature` surface generated through the signature service, including typed/described field specs when provided
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
@@ -79,7 +80,7 @@ Positive:
 Tradeoffs:
 
 - V1 is scaffold-first and does not yet infer complex multi-step control flow from natural language alone.
-- V1 does not yet run model-backed program evaluation, multi-model jury evaluation, or optimization.
+- V1 can carry a planned jury contract but does not yet run model-backed program evaluation, multi-model jury evaluation, or optimization.
 - V1 does not promote generated programs to live authority.
 
 Non-authority defaults:
@@ -102,7 +103,7 @@ The first implementation is covered by:
 
 The next truthful follow-ons are:
 
-1. richer intent normalization, selected jury/perspective contracts, and examples/dataset binding,
-2. real execution episodes that run the generated program under declared runtime conditions,
+1. richer intent normalization and examples/dataset binding,
+2. real execution episodes that run the generated program and selected jury under declared runtime conditions,
 3. Oracle-readable behavioral phenotype extraction from program receipts,
 4. later search/reflection engines that propose candidate assemblies without owning promotion authority.

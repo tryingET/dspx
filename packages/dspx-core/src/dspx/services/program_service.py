@@ -42,6 +42,7 @@ class ProgramIntent(BaseModel):
     examples_path: Optional[str] = None
     metric: Optional[str] = None
     runtime: dict[str, Any] = Field(default_factory=dict)
+    jury: dict[str, Any] = Field(default_factory=dict)
     options: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("name")
@@ -87,6 +88,15 @@ class ProgramIntent(BaseModel):
         if len(set(fields)) != len(fields):
             raise ValueError("program intent fields must be unique")
         return fields
+
+    @field_validator("jury", "options", "runtime", "topology")
+    @classmethod
+    def _mapping_fields_must_be_objects(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if value is None:
+            return {}
+        if not isinstance(value, Mapping):
+            raise ValueError("program intent mapping fields must be objects")
+        return dict(value)
 
     @field_validator("input_fields", "output_fields")
     @classmethod
@@ -286,19 +296,94 @@ def _examples_plan_metadata(
     }
 
 
-def _jury_plan_defaults(intent: ProgramIntent) -> dict[str, Any]:
-    raw_jury = (
+def _string_list(value: Any) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [str(value).strip()] if str(value).strip() else []
+
+
+def _jury_options(intent: ProgramIntent) -> dict[str, Any]:
+    if intent.jury:
+        return dict(intent.jury)
+    raw_options_jury = (
         intent.options.get("jury") if isinstance(intent.options, Mapping) else None
     )
-    jury_options = dict(raw_jury) if isinstance(raw_jury, Mapping) else {}
+    return dict(raw_options_jury) if isinstance(raw_options_jury, Mapping) else {}
+
+
+def _normalize_jurors(raw_jurors: Any) -> list[dict[str, Any]]:
+    jurors: list[dict[str, Any]] = []
+    if not isinstance(raw_jurors, list):
+        return jurors
+    for index, raw in enumerate(raw_jurors):
+        if isinstance(raw, str):
+            model = raw.strip()
+            if not model:
+                continue
+            jurors.append(
+                {
+                    "id": _sanitize_ident(model, fallback=f"juror_{index + 1}"),
+                    "model": model,
+                    "perspective": "unspecified",
+                }
+            )
+            continue
+        if not isinstance(raw, Mapping):
+            continue
+        item = dict(raw)
+        model = str(item.get("model") or item.get("name") or "").strip()
+        perspective = str(
+            item.get("perspective") or item.get("role") or "unspecified"
+        ).strip()
+        juror_id = str(
+            item.get("id")
+            or _sanitize_ident(model or perspective, fallback=f"juror_{index + 1}")
+        ).strip()
+        juror = {
+            "id": juror_id,
+            "model": model or None,
+            "perspective": perspective or "unspecified",
+        }
+        if item.get("provider") is not None:
+            juror["provider"] = str(item["provider"])
+        if item.get("weight") is not None:
+            juror["weight"] = item["weight"]
+        jurors.append(juror)
+    return jurors
+
+
+def _jury_plan_defaults(intent: ProgramIntent) -> dict[str, Any]:
+    jury_options = _jury_options(intent)
+    jurors = _normalize_jurors(jury_options.get("jurors"))
+    explicit_perspectives = _string_list(jury_options.get("perspectives"))
+    juror_perspectives = [
+        str(juror["perspective"])
+        for juror in jurors
+        if juror.get("perspective") and juror.get("perspective") != "unspecified"
+    ]
+    perspectives = explicit_perspectives or sorted(set(juror_perspectives))
+    selection_constraints = jury_options.get("selection_constraints")
+    if not isinstance(selection_constraints, Mapping):
+        selection_constraints = {
+            "prefer_diverse_models": True,
+            "prefer_diverse_perspectives": True,
+        }
     return {
+        "schema_version": "program-jury-v1",
         "mode": "jury",
         "status": "planned_not_executed",
-        "selection_model": jury_options.get(
-            "selection_model", "explicit_future_multi_model_jury_selection"
+        "selection_model": str(
+            jury_options.get("selection_model") or "perspective_balanced_explicit_pool"
         ),
-        "jurors": list(jury_options.get("jurors") or []),
-        "perspectives": list(jury_options.get("perspectives") or []),
+        "minimum_jurors": int(jury_options.get("minimum_jurors") or 3),
+        "jurors": jurors,
+        "perspectives": perspectives,
+        "selection_constraints": dict(selection_constraints),
+        "aggregation": str(jury_options.get("aggregation") or "deliberation_summary"),
         "authority": "advisory_evidence_only",
         "notes": [
             "ProgramPlan records the intended evaluation shape only.",

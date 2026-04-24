@@ -176,6 +176,15 @@ constraints:
 #   - name: confidence
 #     type: Literal['low', 'high']
 #     desc: Confidence label
+# Optional: explicit future jury contract (planned only; no juror model calls here)
+# jury:
+#   selection_model: perspective_balanced_explicit_pool
+#   minimum_jurors: 3
+#   perspectives: [correctness, robustness, clarity]
+#   jurors:
+#     - id: correctness_local
+#       model: local-small
+#       perspective: correctness
 # Optional: inline examples or examples_path: examples.yaml
 ```
 
@@ -187,7 +196,7 @@ just dspx program-gen \
 
 The generated candidate assembly contains a structured plan, separate surfaces, and replayable metadata:
 
-- `plan.json` — deterministic `program-plan-v1` contract derived from the intent; records normalized field specs, task type, default single-module topology, materialized surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and a planned multi-model `jury` evaluation shape
+- `plan.json` — deterministic `program-plan-v1` contract derived from the intent; records normalized field specs, task type, default single-module topology, materialized surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and an explicit planned `program-jury-v1` multi-model evaluation shape when provided
 - `signature.py` — signature surface generated through the signature service
 - `module.py` — module surface generated through the module service
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
