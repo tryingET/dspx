@@ -45,7 +45,7 @@ The first materialized bundle writes:
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
 - `eval_smoke.py` — deterministic local smoke harness scaffold
-- `examples.json` / `eval_examples.py` — emitted when examples are present, validating example binding without calling an LM
+- `examples.json` / `eval_examples.py` — emitted when inline `examples` or `examples_path` examples are present, validating example binding without calling an LM
 - `intent.json` — normalized intent payload
 - `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, surface-provenance, example-binding, and per-surface hash metadata
 - `manifest.json.meta.json` — standard DSPx run receipt with `run_kind=program-gen`

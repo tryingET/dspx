@@ -167,6 +167,7 @@ outputs:
 metric: exact_match
 constraints:
   - cite only supplied context
+# Optional: inline examples or examples_path: examples.yaml
 ```
 
 ```bash
@@ -181,7 +182,7 @@ The generated candidate assembly contains separate surfaces plus replayable meta
 - `module.py` — module surface generated through the module service
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
 - `eval_smoke.py` — deterministic smoke harness
-- `examples.json` / `eval_examples.py` — emitted when the intent includes examples, validating example binding without calling an LM
+- `examples.json` / `eval_examples.py` — emitted when the intent includes inline `examples` or `examples_path`, validating example binding without calling an LM
 - `intent.json` — normalized structured intent
 - `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata
 - `manifest.json.meta.json` — standard `program-gen` run receipt

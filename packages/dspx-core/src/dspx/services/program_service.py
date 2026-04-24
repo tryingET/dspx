@@ -34,6 +34,7 @@ class ProgramIntent(BaseModel):
     outputs: list[str] = Field(default_factory=lambda: ["output"])
     constraints: list[str] = Field(default_factory=list)
     examples: list[dict[str, Any]] = Field(default_factory=list)
+    examples_path: Optional[str] = None
     metric: Optional[str] = None
     runtime: dict[str, Any] = Field(default_factory=dict)
     options: dict[str, Any] = Field(default_factory=dict)
@@ -111,18 +112,40 @@ def _default_outdir(intent: ProgramIntent) -> Path:
     return cache_dir() / "programs" / slug
 
 
+def _load_json_or_yaml(path: Path) -> Any:
+    source = path.expanduser().resolve()
+    text = source.read_text(encoding="utf-8")
+    if source.suffix.lower() == ".json":
+        return json.loads(text)
+    return yaml.safe_load(text)
+
+
+def _resolve_program_intent_examples(payload: dict[str, Any], *, source: Path) -> None:
+    examples_path_raw = payload.get("examples_path")
+    if not examples_path_raw:
+        return
+    examples_path = Path(str(examples_path_raw)).expanduser()
+    if not examples_path.is_absolute():
+        examples_path = source.parent / examples_path
+    examples_payload = _load_json_or_yaml(examples_path)
+    if not isinstance(examples_payload, list) or not all(
+        isinstance(item, Mapping) for item in examples_payload
+    ):
+        raise ValueError("program intent examples_path must contain a list of objects")
+    payload["examples"] = [dict(item) for item in examples_payload]
+    payload["examples_path"] = str(examples_path.resolve())
+
+
 def load_program_intent(path: Path) -> ProgramIntent:
     """Load a program intent from JSON or YAML."""
 
     source = path.expanduser().resolve()
-    text = source.read_text(encoding="utf-8")
-    if source.suffix.lower() == ".json":
-        payload = json.loads(text)
-    else:
-        payload = yaml.safe_load(text)
+    payload = _load_json_or_yaml(source)
     if not isinstance(payload, Mapping):
         raise ValueError("program intent file must contain a mapping/object")
-    return ProgramIntent.model_validate(dict(payload))
+    resolved_payload = dict(payload)
+    _resolve_program_intent_examples(resolved_payload, source=source)
+    return ProgramIntent.model_validate(resolved_payload)
 
 
 def _intent_payload(intent: ProgramIntent) -> dict[str, Any]:

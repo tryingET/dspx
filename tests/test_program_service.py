@@ -186,6 +186,53 @@ def test_program_service_handles_docstring_hostile_objective(
     assert smoke.returncode == 0, smoke.stderr
 
 
+def test_program_gen_cli_binds_examples_path_relative_to_intent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    examples_path = tmp_path / "examples.yaml"
+    examples_path.write_text(
+        "\n".join(
+            [
+                "- inputs:",
+                "    text: hello",
+                "  outputs:",
+                "    summary: greeting",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    intent_path = tmp_path / "intent.yaml"
+    intent_path.write_text(
+        "\n".join(
+            [
+                "name: SummarizerProgram",
+                "objective: Summarize text.",
+                "inputs:",
+                "  - text",
+                "outputs:",
+                "  - summary",
+                "examples_path: examples.yaml",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "candidate"
+
+    result = runner.invoke(
+        app,
+        ["program-gen", "--intent", str(intent_path), "--outdir", str(outdir)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (outdir / "examples.json").exists()
+    assert (outdir / "eval_examples.py").exists()
+    manifest = json.loads((outdir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["intent"]["examples_path"] == str(examples_path.resolve())
+    assert manifest["receipt_bundle"]["evidence"]["examples"]["returncode"] == 0
+
+
 def test_program_service_binds_examples_when_present(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
