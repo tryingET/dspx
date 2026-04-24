@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-04-10",
+  "updated_at": "2026-04-23",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -1232,6 +1232,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-04-10"
+        },
+        {
+          "id": "AK-TASK-1827",
+          "title": "Program synthesis: intent-to-program candidate assembly MVP",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Program synthesis: intent-to-program candidate assembly MVP (task #1827)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-04-23"
         }
       ]
     }

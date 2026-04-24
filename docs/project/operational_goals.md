@@ -14,11 +14,13 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Active operating slices
 
 - No repo-scoped implementation slice is currently pinned in AK.
+- The operator-pulled `program-gen` foothold is complete: DSPx now has a bounded deterministic path from structured intent to program-shaped candidate assembly.
 - `TG28` is closed by `docs/adr/20260410-human-governed-review-decision-contract-v1.md`, which freezes the bounded human-governed decision contract for nominated governance-only policy variants.
 - The first truthful follow-on is a bounded `human_review_decisions` receipt wave grounded in promotion-eligibility nominations, governed policy-evaluation receipts, runtime-spine provenance, and explicit human decision metadata, but it remains unmaterialized until a later direction-to-execution pass selects it.
 
 ## Recently completed in this wave
 
+- `AK-1827` — materialized the first bounded one-intent `program-gen` MVP from structured JSON/YAML intent to deterministic program-shaped candidate assembly, emitting `program.py`, `eval_smoke.py`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt while keeping live ranking, pruning, promotion, Oracle, and governance-policy authority unchanged; exported `governance/task-scopes/AK-1827.snapshot.json` and refreshed the checked-in AK projection.
 - `AK-1106` — froze `docs/adr/20260410-human-governed-review-decision-contract-v1.md`, refreshed the tactical / operational / handoff stack to close `TG28` truthfully, exported `governance/task-scopes/AK-1106.snapshot.json`, re-exported the checked-in AK projection, and left the repo with no next pinned slice instead of guessing the post-contract implementation task.
 - `AK-1105` — promoted `TG28` into the active tactical slot after `TG27` landed, created `AK-1106` as the next ready repo-scoped contract slice, refreshed the strategic/tactical/operational/handoff stack around the review-decision wave, exported `governance/task-scopes/AK-1105.snapshot.json`, and re-exported the checked-in AK projection.
 - `AK-1102` — emitted the first bounded `promotion_eligibility_nominations` receipts from governed policy-evaluation receipts plus current-run runtime-spine provenance, extended receipt-side historical diagnostics extraction for the new nomination surface, refreshed the tactical/operational/handoff stack around the completed `TG27` implementation slice, exported `governance/task-scopes/AK-1102.snapshot.json`, and re-exported the checked-in AK projection.
@@ -36,7 +38,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `AK-1106` is complete, `TG28` is complete, and no next repo-scoped implementation slice is pinned yet.
+- `AK-1827` is complete, `AK-1106` is complete, `TG28` is complete, and no next repo-scoped implementation slice is pinned yet.
 - Do not invent the post-`TG28` implementation slice just to avoid an empty ready queue; let a later direction-to-execution pass or explicit operator pull pin the next bounded receipt wave.
 - Do not treat repeated governed policy-evaluation receipts, repeated promotion-eligibility nominations, or repeated human review decisions as de facto live policy authority.
 - Keep the `AK-1085` candidate-assembly / execution-episode / receipt-bundle runtime semantics closed unless a smaller follow-up proves a regression or explicitly widens the contract.
@@ -49,4 +51,4 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 - Do not start live predictive ranking, candidate pruning, promotion blocking, strategy/policy mutation, or the post-contract implementation follow-on while the repo-scoped queue is still unmaterialized.
 - Older deferred/provider/runtime follow-ons (`AK-224`, `AK-235`–`AK-239`) remain non-active backlog and were intentionally not resumed in this wave.
 - After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
-- Task-scope validation is now snapshot-backed for `AK-1106`, `AK-1105`, `AK-1102`, `AK-1101`, `AK-1094`, `AK-1093`, `AK-1085`, `AK-834`, and `AK-835`; keep isolating each slice so working-tree validation stays truthful.
+- Task-scope validation is now snapshot-backed for `AK-1827`, `AK-1106`, `AK-1105`, `AK-1102`, `AK-1101`, `AK-1094`, `AK-1093`, `AK-1085`, `AK-834`, and `AK-835`; keep isolating each slice so working-tree validation stays truthful.

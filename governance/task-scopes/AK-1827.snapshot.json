@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-04-23T19:05:20.293755185+00:00",
+  "task_id": 1827,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/**",
+      "docs/adr/**",
+      "docs/project/**",
+      "governance/**",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/**",
+      "tests/**"
+    ],
+    "required_paths": [
+      "docs/project/program-synthesis-boundary.md",
+      "packages/dspx-core/src/dspx/cli/commands/__init__.py",
+      "packages/dspx-core/src/dspx/cli/dspx.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

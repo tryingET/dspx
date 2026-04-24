@@ -377,6 +377,16 @@ After this doc lands, the repo has a stronger and less misleading contract for s
 - GEPA is one engine inside the runtime rather than the architecture itself,
 - future implementation slices should bind to runtime objects and authority boundaries that can compound cleanly.
 
+## First implementation foothold
+
+`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `program.py`, `eval_smoke.py`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
+
+This foothold is intentionally narrow:
+- it proves the intent -> candidate assembly -> execution episode -> receipt bundle spine at program shape,
+- it keeps the implementation in `dspx.services.program_service` rather than overloading `module_service`,
+- it remains scaffold-first and deterministic,
+- and it does not widen live ranking, pruning, promotion, Oracle, or governance-policy authority.
+
 ## Recommended next execution shape
 
 When the repo is ready to materialize this concern, the best first slice should remain small but ontology-preserving.
