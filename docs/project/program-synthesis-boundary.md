@@ -379,13 +379,13 @@ After this doc lands, the repo has a stronger and less misleading contract for s
 
 ## First implementation foothold
 
-`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
+`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, optional `examples.json` / `eval_examples.py`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
 
 The current implementation keeps that foothold narrow while making the surface boundary more truthful:
 - it proves the intent -> candidate assembly -> execution episode -> receipt bundle spine at program shape,
 - it keeps orchestration in `dspx.services.program_service` rather than overloading `module_service`,
 - it composes the existing signature/module generation services as candidate-surface providers,
-- it records generator provenance and per-surface hashes in the manifest/receipt evidence,
+- it records generator provenance, optional example-binding evidence, and per-surface hashes in the manifest/receipt evidence,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, or governance-policy authority.
 

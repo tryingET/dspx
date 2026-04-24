@@ -186,6 +186,49 @@ def test_program_service_handles_docstring_hostile_objective(
     assert smoke.returncode == 0, smoke.stderr
 
 
+def test_program_service_binds_examples_when_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ExampleBoundProgram",
+        objective="Answer from context with a confidence score.",
+        inputs=["context", "question"],
+        outputs=["answer", "confidence"],
+        examples=[
+            {
+                "inputs": {"context": "Sky is blue.", "question": "What color?"},
+                "outputs": {"answer": "blue", "confidence": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "examples")
+
+    root = Path(artifact.root_path)
+    assert (root / "examples.json").exists()
+    assert (root / "eval_examples.py").exists()
+
+    examples = subprocess.run(
+        [sys.executable, "eval_examples.py"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert examples.returncode == 0, examples.stderr
+    assert "program examples ok: 1 example(s)" in examples.stdout
+
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert "examples" in manifest["candidate_assembly"]["surface_kinds"]
+    evidence = manifest["receipt_bundle"]["evidence"]
+    assert "examples_hash" in evidence
+    assert evidence["examples"]["returncode"] == 0
+    assert "examples.json" in evidence["generated_files"]
+
+
 def test_program_gen_cli_rejects_invalid_intent_field(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

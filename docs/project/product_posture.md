@@ -27,13 +27,13 @@ Use this file only when a product-wide maturity snapshot helps strategy. Do not 
 
 ## Posture in one sentence
 
-> DSPx already has mature local-first signature/module generation, receipts, replay, Oracle behavioral primitives, and a first `program-gen` composition path over signature/module surfaces; it is converging toward one-intent generation of full runnable DSPy program assemblies, but the main maturity gap is that `program-gen` still performs only deterministic scaffold materialization and smoke validation rather than rich intent normalization, real evaluation episodes, optimization, and Oracle feedback in one complete product loop.
+> DSPx already has mature local-first signature/module generation, receipts, replay, Oracle behavioral primitives, and a first `program-gen` composition path over signature/module surfaces plus deterministic example binding; it is converging toward one-intent generation of full runnable DSPy program assemblies, but the main maturity gap is that `program-gen` still performs scaffold materialization and validation rather than rich intent normalization, behavioral evaluation episodes, optimization, and Oracle feedback in one complete product loop.
 
 ## Product maturity map
 
 | Area | Current posture | Target posture | Main gap | Proof of closure |
 |---|---|---|---|---|
-| One-intent program generation | `program-gen` can materialize a deterministic program-shaped candidate assembly from structured JSON/YAML intent with separate `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, `intent.json`, `manifest.json`, and a run receipt. | A user can state one intent and receive a full-featured DSPy program assembly with explicit signatures, modules, topology, examples/datasets, metrics, runtime constraints, evaluation harness, receipts, and replay path. | `program-gen` is still scaffold-first: it composes signature/module surfaces but does not yet infer rich topology, bind datasets/examples, or run behavioral evaluations. | Program receipts include real evaluation episodes over examples/datasets with result summaries, failures, traces, and replayable inputs. |
+| One-intent program generation | `program-gen` can materialize a deterministic program-shaped candidate assembly from structured JSON/YAML intent with separate `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, optional `examples.json` / `eval_examples.py`, `intent.json`, `manifest.json`, and a run receipt. | A user can state one intent and receive a full-featured DSPy program assembly with explicit signatures, modules, topology, examples/datasets, metrics, runtime constraints, evaluation harness, receipts, and replay path. | `program-gen` is still scaffold-first: it composes signature/module surfaces and validates example binding, but does not yet infer rich topology or run behavioral evaluations. | Program receipts include real evaluation episodes over examples/datasets with result summaries, failures, traces, and replayable inputs. |
 | Signature and module surfaces | Native signature generation/refinement and `module-gen` are now service-level building blocks for `program-gen`; the program assembly records separate signature/module/program/eval surfaces plus per-surface hashes and generator provenance. | Signature and module generation are reusable candidate-surface providers inside larger program assemblies. | Module-scoped governance/ranking semantics must remain bounded when module generation is called as a program-surface provider. | Program assembly code calls service-level signature/module surface APIs, records nested provenance, and keeps module-specific ranking/promotion semantics bounded. |
 | Execution episodes | Program generation currently runs compile/smoke validation and records a materialization episode. | Generated programs run declared evaluations under explicit provider/runtime/dataset/metric conditions. | Smoke validation proves bundle shape, not behavioral performance. | Program receipts include real evaluation episodes over examples/datasets with result summaries, failures, traces, and replayable inputs. |
 | Oracle behavioral intelligence | Oracle CLI and coordinate/territory/frontier/attractor/contract surfaces exist; module synthesis evidence can use constrained Oracle neighbors as contextual hints. | Oracle interprets program execution evidence as behavioral phenotypes, drift, recurrence, attractors, and frontiers that shape later bounded exploration. | Program-gen receipt bundles are not yet first-class Oracle behavioral evidence for phenotype/territory loops. | Oracle indexing and interpretation can consume program receipt bundles and report behavioral patterns without ranking, pruning, or promoting by itself. |
@@ -53,8 +53,8 @@ Use this file only when a product-wide maturity snapshot helps strategy. Do not 
 
 ## Current gaps
 
-- `program-gen` composes deterministic signature/module surfaces, but the current one-intent contract is not yet rich enough for full program topology, task type, typed fields, dataset binding, judge behavior, routing, or multi-step orchestration.
-- The current program execution episode is a compile/smoke materialization check, not a behavioral evaluation episode.
+- `program-gen` composes deterministic signature/module surfaces and can validate inline examples, but the current one-intent contract is not yet rich enough for full program topology, task type, typed fields, dataset-file binding, judge behavior, routing, or multi-step orchestration.
+- The current program execution episode is a compile/smoke/example-binding materialization check, not a behavioral evaluation episode.
 - Program receipts are not yet first-class Oracle inputs for phenotype, territory, frontier, or attractor analysis.
 - GEPA/search is not yet part of a bounded one-intent refinement loop over program candidate assemblies.
 - The operator experience still requires knowing multiple CLI surfaces rather than following one coherent intent-to-behavior workflow.
@@ -76,8 +76,8 @@ A DSPx user should be able to:
 
 ## Near-term convergence path
 
-1. **Define a richer structured intent contract.** Include task type, field descriptions/types, examples or dataset references, metrics, runtime conditions, desired DSPy strategy, constraints, and expected artifact surfaces.
-2. **Upgrade materialization into real execution episodes.** Generate evaluation harnesses that run over declared examples/datasets and record results, not only smoke success.
+1. **Define a richer structured intent contract.** Include task type, field descriptions/types, dataset references, metrics, runtime conditions, desired DSPy strategy, constraints, and expected artifact surfaces.
+2. **Upgrade materialization into real execution episodes.** Generate evaluation harnesses that execute the generated program over declared examples/datasets and record behavioral results, not only smoke/example-binding success.
 3. **Make program receipt bundles Oracle-readable.** Ensure Oracle can index and interpret program execution evidence as behavioral phenotypes and territory/frontier signals without authority widening.
 4. **Add bounded refinement/search.** Let GEPA or other engines propose candidate improvements as explicit episodes whose results remain evidence until reviewed.
 5. **Document one end-to-end walkthrough.** Prove the product posture changed by showing one intent move through assembly, execution, receipt, replay, Oracle interpretation, and bounded next-step selection.

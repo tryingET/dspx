@@ -129,8 +129,8 @@ def _intent_payload(intent: ProgramIntent) -> dict[str, Any]:
     return intent.model_dump(mode="json", exclude_none=True)
 
 
-def _json_text(payload: Mapping[str, Any]) -> str:
-    return json.dumps(dict(payload), indent=2, sort_keys=True) + "\n"
+def _json_text(payload: Mapping[str, Any] | list[Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
 def _safe_doc_literal(text: str) -> str:
@@ -301,15 +301,59 @@ def render_eval_smoke(intent: ProgramIntent) -> str:
     )
 
 
-def _write_json(path: Path, payload: Mapping[str, Any]) -> str:
+def render_eval_examples(intent: ProgramIntent) -> str:
+    """Render a deterministic examples-binding validation harness."""
+
+    return "\n".join(
+        [
+            "from __future__ import annotations",
+            "",
+            "import json",
+            "from pathlib import Path",
+            "",
+            "from program import io_spec",
+            "",
+            "",
+            "def _mapping_for(example: dict[str, object], role: str) -> dict[str, object]:",
+            "    nested = example.get(role)",
+            "    if isinstance(nested, dict):",
+            "        return dict(nested)",
+            "    return example",
+            "",
+            "",
+            "def main() -> None:",
+            "    examples = json.loads(Path('examples.json').read_text(encoding='utf-8'))",
+            "    assert isinstance(examples, list)",
+            "    spec = io_spec()",
+            "    inputs = list(spec['inputs'])",
+            "    outputs = list(spec['outputs'])",
+            "    for index, example in enumerate(examples):",
+            "        assert isinstance(example, dict), f'example {index} must be an object'",
+            "        input_values = _mapping_for(example, 'inputs')",
+            "        output_values = _mapping_for(example, 'outputs')",
+            "        missing_inputs = [name for name in inputs if name not in input_values]",
+            "        missing_outputs = [name for name in outputs if name not in output_values]",
+            "        assert not missing_inputs, f'example {index} missing inputs: {missing_inputs}'",
+            "        assert not missing_outputs, f'example {index} missing outputs: {missing_outputs}'",
+            "    print(f'program examples ok: {len(examples)} example(s)')",
+            "",
+            "",
+            "if __name__ == '__main__':",
+            "    main()",
+            "",
+        ]
+    )
+
+
+def _write_json(path: Path, payload: Mapping[str, Any] | list[Any]) -> str:
     text = _json_text(payload)
     path.write_text(text, encoding="utf-8")
     return text
 
 
-def _run_eval_smoke(root: Path) -> dict[str, Any]:
+def _run_python_harness(root: Path, filename: str, *, label: str) -> dict[str, Any]:
     proc = subprocess.run(
-        [sys.executable, "eval_smoke.py"],
+        [sys.executable, filename],
         cwd=root,
         capture_output=True,
         text=True,
@@ -319,16 +363,24 @@ def _run_eval_smoke(root: Path) -> dict[str, Any]:
     stdout = (proc.stdout or "").strip()
     stderr = (proc.stderr or "").strip()
     result: dict[str, Any] = {
-        "command": [sys.executable, "eval_smoke.py"],
+        "command": [sys.executable, filename],
         "returncode": proc.returncode,
         "stdout": stdout[-500:],
         "stderr": stderr[-500:],
     }
     if proc.returncode != 0:
         raise ValueError(
-            f"program eval smoke failed: rc={proc.returncode} stderr={stderr[-240:]}"
+            f"program {label} failed: rc={proc.returncode} stderr={stderr[-240:]}"
         )
     return result
+
+
+def _run_eval_smoke(root: Path) -> dict[str, Any]:
+    return _run_python_harness(root, "eval_smoke.py", label="eval smoke")
+
+
+def _run_eval_examples(root: Path) -> dict[str, Any]:
+    return _run_python_harness(root, "eval_examples.py", label="examples validation")
 
 
 def materialize_program_from_intent(
@@ -350,9 +402,12 @@ def materialize_program_from_intent(
     module_code, module_metadata = render_module_surface(intent)
     program_code = render_program_code(intent)
     eval_smoke_code = render_eval_smoke(intent)
-    surface_bundle_text = "\n\n".join(
-        [signature_code, module_code, program_code, eval_smoke_code]
-    )
+    examples_payload = list(intent.examples or [])
+    eval_examples_code = render_eval_examples(intent) if examples_payload else None
+    bundle_parts = [signature_code, module_code, program_code, eval_smoke_code]
+    if eval_examples_code is not None:
+        bundle_parts.append(eval_examples_code)
+    surface_bundle_text = "\n\n".join(bundle_parts)
     ids = _build_ids(intent, surface_bundle_text)
     intent_payload = _intent_payload(intent)
     intent_hash = sha256_text(json.dumps(intent_payload, sort_keys=True))
@@ -362,6 +417,8 @@ def materialize_program_from_intent(
         "program.py": sha256_text(program_code),
         "eval_smoke.py": sha256_text(eval_smoke_code),
     }
+    if eval_examples_code is not None:
+        surface_hashes["eval_examples.py"] = sha256_text(eval_examples_code)
     program_hash = surface_hashes["program.py"]
     assembly_hash = sha256_text(surface_bundle_text)
 
@@ -371,14 +428,26 @@ def materialize_program_from_intent(
         "program.py": program_code,
         "eval_smoke.py": eval_smoke_code,
     }
+    if eval_examples_code is not None:
+        generated_files["eval_examples.py"] = eval_examples_code
     for relative, content in generated_files.items():
         compile(content, str(root / relative), "exec")
         (root / relative).write_text(content, encoding="utf-8")
 
     _write_json(root / "intent.json", intent_payload)
+    examples_hash = None
+    if examples_payload:
+        examples_text = _write_json(root / "examples.json", examples_payload)
+        examples_hash = sha256_text(examples_text)
     smoke_result = _run_eval_smoke(root)
+    examples_result = _run_eval_examples(root) if examples_payload else None
     generated_file_names = sorted(
-        [*generated_files.keys(), "intent.json", "manifest.json"]
+        [
+            *generated_files.keys(),
+            "intent.json",
+            *(["examples.json"] if examples_payload else []),
+            "manifest.json",
+        ]
     )
 
     candidate_assembly = {
@@ -386,7 +455,14 @@ def materialize_program_from_intent(
         "request_id": ids["request_id"],
         "candidate_id": ids["candidate_id"],
         "artifact_kind": "program",
-        "surface_kinds": ["intent", "signature", "module", "program", "eval_harness"],
+        "surface_kinds": [
+            "intent",
+            *(["examples"] if examples_payload else []),
+            "signature",
+            "module",
+            "program",
+            "eval_harness",
+        ],
         "root_path": str(root),
         "entrypoint": "program.py",
         "content_hash": assembly_hash,
@@ -418,6 +494,18 @@ def materialize_program_from_intent(
                 "generator": "program-gen",
                 "content_hash": surface_hashes["eval_smoke.py"],
             },
+            *(
+                [
+                    {
+                        "kind": "examples_harness",
+                        "path": "eval_examples.py",
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes["eval_examples.py"],
+                    }
+                ]
+                if eval_examples_code is not None
+                else []
+            ),
         ],
     }
     execution_episode = {
@@ -429,7 +517,10 @@ def materialize_program_from_intent(
         "evaluator": "deterministic_program_bundle_smoke",
         "status": "passed",
         "runtime_conditions": dict(intent.runtime),
-        "metadata": {"smoke": smoke_result},
+        "metadata": {
+            "smoke": smoke_result,
+            **({"examples": examples_result} if examples_result is not None else {}),
+        },
     }
     receipt_bundle = {
         "receipt_bundle_id": ids["receipt_bundle_id"],
@@ -443,14 +534,21 @@ def materialize_program_from_intent(
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
+            **({"examples_hash": examples_hash} if examples_hash is not None else {}),
             "surface_generation": {
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
                 "eval_harness": "program-gen",
+                **(
+                    {"examples_harness": "program-gen"}
+                    if examples_result is not None
+                    else {}
+                ),
             },
             "generated_files": generated_file_names,
             "smoke": smoke_result,
+            **({"examples": examples_result} if examples_result is not None else {}),
         },
     }
 

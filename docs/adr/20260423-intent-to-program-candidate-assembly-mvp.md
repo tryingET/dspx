@@ -45,8 +45,9 @@ The first materialized bundle writes:
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
 - `eval_smoke.py` — deterministic local smoke harness scaffold
+- `examples.json` / `eval_examples.py` — emitted when examples are present, validating example binding without calling an LM
 - `intent.json` — normalized intent payload
-- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, surface-provenance, and per-surface hash metadata
+- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, surface-provenance, example-binding, and per-surface hash metadata
 - `manifest.json.meta.json` — standard DSPx run receipt with `run_kind=program-gen`
 
 Before marking the materialization episode as `passed`, DSPx compiles the generated files and runs `eval_smoke.py` in the candidate assembly directory. The receipt hash is computed from the exact written `manifest.json` bytes, and replay validation can recompute the `program-gen` cache key from `replay_inputs.intent`.
@@ -66,7 +67,7 @@ Positive:
 - DSPx now has a concrete foothold for one-intent program synthesis.
 - Program synthesis begins at the candidate-assembly boundary instead of being squeezed into module generation.
 - `program-gen` now composes signature and module generation as candidate-surface providers instead of permanently duplicating them inline.
-- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, surface provenance, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
+- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, surface provenance, optional example-binding evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
 - The first path is deterministic and testable, so it can compound before model-backed synthesis or GEPA-backed search is introduced.
 
 Tradeoffs:
