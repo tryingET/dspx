@@ -54,6 +54,7 @@ def _service_from_run_kind(run_kind: str) -> str | None:
         "signature-gen": "signature",
         "signature-refine": "signature",
         "module-gen": "module",
+        "program-gen": "program",
         "codegen": "codegen",
         "mermaid": "mermaid",
     }.get((run_kind or "").strip().lower())

@@ -287,6 +287,7 @@ def _service_from_run_kind(run_kind: str) -> str | None:
         "module-gen": "module",
         "codegen": "codegen",
         "mermaid": "mermaid",
+        "program-gen": "program",
     }.get((run_kind or "").strip().lower())
 
 

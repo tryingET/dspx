@@ -27,6 +27,7 @@ _RUN_KIND_TO_CACHE_KIND: dict[str, str] = {
     "signature-gen": "signature",
     "signature-refine": "signature",
     "module-gen": "module",
+    "program-gen": "program",
     "codegen": "codegen",
 }
 
@@ -49,6 +50,7 @@ _REQUIRED_REPLAY_INPUTS: dict[str, tuple[str, ...]] = {
         "use_signature",
         "template_version",
     ),
+    "program-gen": ("intent",),
     "codegen": ("spec", "language", "template_version", "options"),
 }
 
@@ -309,6 +311,12 @@ def _expected_cache_payload(receipt: Mapping[str, Any]) -> dict[str, Any] | None
             "outputs": _as_list(replay_inputs.get("outputs")),
             "use_signature": bool(replay_inputs.get("use_signature")),
             "template_version": replay_inputs.get("template_version"),
+        }
+
+    if run_kind == "program-gen":
+        return {
+            "kind": "program",
+            "intent": _as_dict(replay_inputs.get("intent")),
         }
 
     if run_kind == "codegen":

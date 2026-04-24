@@ -10,6 +10,7 @@ Note: codegen and module-gen are kept inline as single commands.
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import shutil
 import subprocess
@@ -167,6 +168,45 @@ def module_gen(
             _print_module_cache_info(
                 name, description, input, output, use_signature, template_version
             )
+
+
+@app.command("program-gen")
+def program_gen(
+    intent: Path = typer.Option(
+        ...,
+        "--intent",
+        "-i",
+        help="Path to a JSON/YAML one-intent program specification",
+    ),
+    outdir: Optional[Path] = typer.Option(
+        None,
+        "--outdir",
+        "-o",
+        help="Directory where the program candidate assembly is materialized",
+    ),
+    print_manifest: bool = typer.Option(
+        False,
+        "--print-manifest",
+        help="Print the generated manifest JSON instead of only the output directory",
+    ),
+) -> None:
+    """Generate a program-shaped DSPy candidate assembly from one intent."""
+    from dspx.services.program_service import run_generate_from_intent_path
+
+    if not intent.exists():
+        typer.echo(f"Error: intent file not found: {intent}", err=True)
+        raise typer.Exit(code=2)
+
+    try:
+        artifact = run_generate_from_intent_path(intent, outdir=outdir)
+    except Exception as exc:
+        typer.echo(f"Error: program intent generation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if print_manifest:
+        typer.echo(json.dumps(artifact.manifest, indent=2, sort_keys=True))
+    else:
+        typer.echo(artifact.root_path)
 
 
 @app.command("codegen")

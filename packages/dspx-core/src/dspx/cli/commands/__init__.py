@@ -16,6 +16,7 @@ Extraction status:
   ✅ adapters   - dspx.cli.commands.adapters
   ✅ codegen    - dspx.cli.commands.codegen (helper functions)
   ✅ module     - dspx.cli.commands.module (helper functions)
+  ✅ program    - root-level program-gen command uses dspx.services.program_service
 """
 
 from dspx.cli.commands.adapters import (
