@@ -1,0 +1,28 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "25eb4a28e0b58bba9fb3b10b90ea5f3843d4ebb9"
+created_at: "2026-04-24T15:00:49Z"
+intent: "Freeze program-gen ADR, update boundary doc and operational goals, export AK-1827 task-scope snapshot and work-items projection"
+files:
+  - "docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md"
+  - "docs/adr/README.md"
+  - "docs/project/program-synthesis-boundary.md"
+  - "docs/project/operational_goals.md"
+  - "governance/work-items.json"
+  - "governance/task-scopes/AK-1827.snapshot.json"
+validation:
+  fast_gate:
+    command: "ruff check"
+    status: "pass"
+  full_gate:
+    command: "just direction-contract-check && ak work-items check"
+    status: "pending"
+group:
+  index: 3
+  total: 3
+  rationale: "Docs and governance projection refresh for AK-1827 program-gen MVP"
+links:
+  task_ids:
+    - 1827
