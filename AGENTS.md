@@ -81,3 +81,7 @@ DSPx bridges two crystallization systems:
 
 - **Diary**: `~/ai-society/AGENTS.md` (workspace-level)
 - **Learnings**: `docs/learnings/` (this repo)
+
+## Direction workflow
+- When this repo's direction docs under `docs/project/` change, or when current posture needs verification, use `ak direction import|check|export` from the repo root.
+- Treat `ak direction check` as the authority-reconciliation gate between repo direction docs and AK's structured direction substrate.

@@ -2,6 +2,10 @@ version = 1
 revision = 3
 requires-python = ">=3.13"
 
+[options]
+exclude-newer = "2026-04-03T14:48:33.841276758Z"
+exclude-newer-span = "P7D"
+
 [manifest]
 members = [
     "dspx-core",
