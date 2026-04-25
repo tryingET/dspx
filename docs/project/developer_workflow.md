@@ -52,6 +52,14 @@ just doctor
 just run              # falls back to DSPx CLI help when called without args
 ```
 
+First local product loop smoke, useful after setup or before demonstrating the base layer:
+
+```bash
+just smoke-base       # offline temp-dir signature -> module -> program -> eval -> authority-plan loop
+```
+
+This uses the stub provider, disables MLflow, writes to a temp directory by default, and does not call AK or mutate external authority. See `docs/project/first-local-loop.md`.
+
 ```bash
 ./scripts/ci/smoke.sh
 just task-scope-check task_id=<AK-ID> mode=working-tree   # before commit, for the current slice
