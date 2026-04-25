@@ -118,7 +118,7 @@ def run_generate(
         use_signature=use_signature,
         template_version=tv,
     )
-    base_metadata = {
+    base_metadata: dict[str, object] = {
         "uses_signature": bool(use_signature),
         "inputs": inputs,
         "outputs": outputs,
