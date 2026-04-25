@@ -1,0 +1,127 @@
+---
+summary: "First clean-repo local smoke loop for trying DSPx base-layer generation without live providers or authority mutation."
+read_when:
+  - "You want to try DSPx locally from a clean checkout."
+  - "You need the shortest safe walkthrough for signature, module, program-gen, eval harnesses, and authority export planning."
+type: "guide"
+---
+
+# First Local Loop
+
+This is the smallest safe loop for trying the current DSPx base layer from a clean repo state.
+
+It demonstrates the current shipped path:
+
+```text
+signature surface -> module surface -> program-shaped candidate assembly -> generated eval harnesses -> receipt bundle -> authority export plan sidecar
+```
+
+The loop is intentionally offline and non-authoritative:
+
+- uses `DSPX_PROVIDER=stub`
+- sets `MLFLOW_ENABLE=0`
+- writes to a temp directory by default
+- does not call `ak`
+- does not mutate Agent Kernel or any other external authority
+- does not promote, rank, prune, or grant Oracle/governance authority
+
+## One command
+
+From the repo root:
+
+```bash
+just install          # once, if the uv environment is not already synced
+just smoke-base
+```
+
+The target prints the generated directory and key artifacts at the end. By default the directory is a fresh temp path such as `/tmp/dspx-smoke-base.xxxxxx`, so the repo working tree stays clean.
+
+To write to a chosen local directory instead:
+
+```bash
+just smoke-base generated/playground/smoke-base
+```
+
+Use a generated directory only when you explicitly want the artifacts under the repo; those artifacts are playground output, not source truth.
+
+## What the command does
+
+`just smoke-base` runs `scripts/smoke_base_loop.sh`, which:
+
+1. Generates a deterministic signature:
+
+   ```bash
+   uv run --package dspx-core -q python -m dspx.cli.dspx signature gen \
+     "Classify support tickets" \
+     --template-version simple-v1 \
+     --class-name TicketSig \
+     --outfile "$OUT_DIR/ticket_sig.py"
+   ```
+
+2. Generates a deterministic module with an embedded signature:
+
+   ```bash
+   uv run --package dspx-core -q python -m dspx.cli.dspx module-gen \
+     --name TicketClassifier \
+     --description "Classify support ticket urgency" \
+     --input ticket_text \
+     --output urgency \
+     --template-version simple-v1 \
+     --use-signature \
+     --outfile "$OUT_DIR/ticket_module.py"
+   ```
+
+3. Writes a tiny structured intent with one inline example and an opaque optional external-authority ref.
+
+4. Materializes a program-shaped candidate assembly:
+
+   ```bash
+   uv run --package dspx-core -q python -m dspx.cli.dspx program-gen \
+     --intent "$OUT_DIR/intent.yaml" \
+     --outdir "$OUT_DIR/program"
+   ```
+
+5. Runs the generated deterministic harnesses from the generated program directory:
+
+   ```bash
+   cd "$OUT_DIR/program"
+   uv run --project "$REPO_ROOT" --package dspx-core -q python eval_smoke.py
+   uv run --project "$REPO_ROOT" --package dspx-core -q python eval_jury.py
+   uv run --project "$REPO_ROOT" --package dspx-core -q python eval_promotion.py
+   uv run --project "$REPO_ROOT" --package dspx-core -q python eval_examples.py
+   ```
+
+6. Produces a sidecar Agent Kernel export plan from the generated evidence:
+
+   ```bash
+   uv run --package dspx-core -q python -m dspx.cli.dspx adapters authority agent-kernel-plan \
+     --manifest "$OUT_DIR/program/manifest.json" \
+     --external-ref AK-EXAMPLE \
+     --out "$OUT_DIR/program/ak-export-plan.json"
+   ```
+
+The adapter step emits `ak-export-plan.json` plus `ak-export-plan.json.meta.json`. The plan status is `planned_not_exported`; it is a local sidecar plan and receipt, not an AK write and not a promotion decision.
+
+## Key artifacts to inspect
+
+After a successful run, start with:
+
+- `ticket_sig.py` — generated signature surface
+- `ticket_module.py` — generated module surface
+- `program/plan.json` — deterministic program plan
+- `program/jury.json`, `program/jury_selection.json`, `program/jury_rubric.json` — planned non-authoritative jury artifacts
+- `program/promotion_review.json` — local pending promotion-review shell
+- `program/promotion_adjudication_request.json` — pending decision packet
+- `program/promotion_decision_template.json` — unfilled decision template
+- `program/manifest.json` — candidate assembly / execution episode / receipt-bundle metadata
+- `program/manifest.json.meta.json` — `program-gen` receipt
+- `program/ak-export-plan.json` — sidecar authority export plan, `planned_not_exported`
+- `program/ak-export-plan.json.meta.json` — receipt for the sidecar plan
+
+## Boundary reminder
+
+This loop proves local materialization and evidence plumbing only.
+
+DSPx core emits portable local evidence and opaque external authority refs. The authority adapter consumes those evidence artifacts to produce a planned sidecar export packet. It must not call Agent Kernel, mutate task state, invoke an adjudicator, or turn evidence into authority.
+
+Oracle may later interpret receipt evidence, but Oracle does not rank, prune, promote, block, or own governance authority in this loop.

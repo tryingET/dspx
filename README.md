@@ -59,6 +59,14 @@ export DSPX_PROVIDER=stub
 export MLFLOW_ENABLE=0
 ```
 
+First local base-layer loop (offline, temp-dir by default, no AK calls):
+
+```bash
+just smoke-base
+```
+
+This runs signature generation, module generation, `program-gen`, generated eval harnesses, and the non-mutating authority export-plan adapter. See `docs/project/first-local-loop.md`.
+
 ---
 
 ## Native signature workflow (core)

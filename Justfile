@@ -198,6 +198,11 @@ forge-core-compat-matrix:
 clean-clone-smoke:
   bash scripts/clean_clone_smoke.sh
 
+# First local DSPx base loop: signature -> module -> program -> eval harnesses -> authority plan.
+# Uses the stub provider, disables MLflow, writes to a temp dir by default, and never calls AK.
+smoke-base out="":
+  bash scripts/smoke_base_loop.sh "{{out}}"
+
 # Monorepo boundary guardrail check
 monorepo-check:
   uv run --no-sync -q python scripts/check_monorepo_boundaries.py
