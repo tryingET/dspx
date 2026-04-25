@@ -236,7 +236,7 @@ just dspx adapters authority agent-kernel-plan \
   --out generated/programs/answer_question/ak-export-plan.json
 ```
 
-That adapter output is a sidecar export plan (`planned_not_exported`), not a promotion decision and not an AK write. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
+That adapter output is a sidecar export plan (`planned_not_exported`) plus a local `*.meta.json` receipt for the plan, not a promotion decision and not an AK write. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
 
 ---
 

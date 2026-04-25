@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -146,10 +147,42 @@ def write_export_plan(plan: Mapping[str, Any], out: Path) -> Path:
 
     target = out.expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(
-        json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    target.write_text(_stable_json(plan), encoding="utf-8")
     return target
+
+
+def write_export_plan_receipt(plan_path: Path, plan: Mapping[str, Any]) -> Path:
+    """Write a local receipt for an authority export plan without external mutation."""
+
+    target = plan_path.expanduser().resolve()
+    plan_bytes = target.read_bytes()
+    receipt = {
+        "schema_version": "dspx-authority-export-plan-receipt-v1",
+        "adapter": plan.get("adapter"),
+        "status": "captured",
+        "plan_status": plan.get("status"),
+        "plan_path": str(target),
+        "plan_hash": hashlib.sha256(plan_bytes).hexdigest(),
+        "mutation": "none",
+        "source": plan.get("source"),
+        "non_authority": {
+            "external_mutation": False,
+            "ak_command_invoked": False,
+            "program_promoted": False,
+            "oracle_authority": False,
+        },
+        "notes": [
+            "This receipt captures a local export plan only.",
+            "It is not proof of external authority mutation or promotion.",
+        ],
+    }
+    receipt_path = target.with_name(f"{target.name}.meta.json")
+    receipt_path.write_text(_stable_json(receipt), encoding="utf-8")
+    return receipt_path
+
+
+def _stable_json(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:

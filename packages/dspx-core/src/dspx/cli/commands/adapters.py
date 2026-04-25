@@ -14,7 +14,11 @@ from typing import Any, Optional, cast
 import typer
 
 from dspx.adapters import datasets as _datasets
-from dspx.adapters.authority import build_agent_kernel_export_plan, write_export_plan
+from dspx.adapters.authority import (
+    build_agent_kernel_export_plan,
+    write_export_plan,
+    write_export_plan_receipt,
+)
 
 app = typer.Typer(no_args_is_help=True)
 dataset_app = typer.Typer(no_args_is_help=True)
@@ -98,7 +102,8 @@ def adapters_authority_agent_kernel_plan(
             external_ref=external_ref,
         )
         if out is not None:
-            write_export_plan(plan, out)
+            plan_path = write_export_plan(plan, out)
+            write_export_plan_receipt(plan_path, plan)
     except Exception as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=2) from exc

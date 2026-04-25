@@ -96,7 +96,7 @@ Non-authority defaults:
 - `program-gen` receipts are evidence, not approval.
 - Candidate assemblies are materialized, not promoted.
 - Optional external authority refs are opaque and start as `not_exported`; DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization.
-- DSPy's native adapters remain LM protocol/format adapters; the Agent Kernel authority adapter lives outside deterministic `program-gen` core and consumes DSPx manifests/receipts as evidence to produce a `planned_not_exported` sidecar export plan.
+- DSPy's native adapters remain LM protocol/format adapters; the Agent Kernel authority adapter lives outside deterministic `program-gen` core and consumes DSPx manifests/receipts as evidence to produce a `planned_not_exported` sidecar export plan plus a local receipt for that plan.
 - Oracle may later interpret receipt evidence, but this ADR does not grant Oracle promotion or governance authority.
 - The existing module governance chain remains closed unless a later task explicitly widens it.
 

@@ -386,7 +386,7 @@ The current implementation keeps that foothold narrow while making the surface b
 - it keeps orchestration in `dspx.services.program_service` rather than overloading `module_service`,
 - it composes the existing signature/module generation services as candidate-surface providers,
 - it records plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template provenance, generator provenance, optional example-binding evidence, and per-surface hashes in the manifest/receipt evidence,
-- a separately invoked Agent Kernel authority adapter can consume those manifests/receipts and produce a sidecar export plan without mutating external authority,
+- a separately invoked Agent Kernel authority adapter can consume those manifests/receipts and produce a receipted sidecar export plan without mutating external authority,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, external adapter apply/export mutation, or governance-policy authority.
 

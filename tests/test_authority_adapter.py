@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -107,6 +108,15 @@ def test_agent_kernel_authority_adapter_cli_writes_plan(
     assert file_payload["external_refs"][0]["ref"] == "AK-9999"
     assert file_payload["external_refs"][0]["source"] == "adapter.argument.external_ref"
     assert file_payload["non_authority"]["ak_command_invoked"] is False
+    receipt_path = tmp_path / "ak-export-plan.json.meta.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["schema_version"] == "dspx-authority-export-plan-receipt-v1"
+    assert receipt["adapter"] == "agent_kernel"
+    assert receipt["plan_status"] == "planned_not_exported"
+    assert receipt["mutation"] == "none"
+    assert receipt["plan_hash"] == hashlib.sha256(out.read_bytes()).hexdigest()
+    assert receipt["non_authority"]["external_mutation"] is False
+    assert receipt["non_authority"]["ak_command_invoked"] is False
 
 
 def test_agent_kernel_authority_adapter_rejects_non_program_manifest(
