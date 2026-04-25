@@ -86,7 +86,7 @@ Key modules:
 Config knobs and CLI controls:
 - `DSPX_SIGNATURE_MAX_ATTEMPTS` (default 1; bounded)
 - `dspx signature gen --max-attempts N` for a per-run native retry budget
-- `dspx signature gen --input FIELD --output FIELD` for explicit repeatable IO field names; these render directly on deterministic `simple-*` runs and are passed as native-generation constraints on LM-backed runs
+- `dspx signature gen --input FIELD --output FIELD` for explicit repeatable IO field names; these are validated as non-overlapping Python identifiers, render directly on deterministic `simple-*` runs, and are passed as native-generation constraints on LM-backed runs
 - `dspx signature gen --constraint TEXT --feedback TEXT` for explicit native-generation guidance without changing prompt text
 - `DSPX_BUDGET_SIGNATURE_MS` (budget + provider timeout propagation)
 - `DSPX_SIGNATURE_QUALITY_ENABLE` (default `1`; set `0` to disable JSONL event logging)

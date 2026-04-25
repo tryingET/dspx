@@ -49,6 +49,15 @@ def _validate_signature_identifiers_or_exit(
         details.append(f"inputs={invalid_inputs}")
     if invalid_outputs:
         details.append(f"outputs={invalid_outputs}")
+    duplicate_inputs = sorted({name for name in inputs if inputs.count(name) > 1})
+    duplicate_outputs = sorted({name for name in outputs if outputs.count(name) > 1})
+    overlap = sorted(set(inputs).intersection(outputs))
+    if duplicate_inputs:
+        details.append(f"duplicate_inputs={duplicate_inputs}")
+    if duplicate_outputs:
+        details.append(f"duplicate_outputs={duplicate_outputs}")
+    if overlap:
+        details.append(f"input_output_overlap={overlap}")
     if details:
         typer.echo(
             "Error: signature class and fields must be valid Python identifiers; "

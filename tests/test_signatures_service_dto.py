@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from dspx.dtos import SignatureGenRequest
 from dspx.services.signature_quality import read_quality_events
 from dspx.services.signatures_service import run_generate_dto
@@ -18,6 +20,49 @@ def test_signatures_service_dto_template_only() -> None:
     assert "summarizes text" in res.code
     assert res.metadata.get("strategy") == "simple"
     assert res.metadata.get("validation_pass_rate") == 1.0
+    assert res.metadata.get("inputs") == ["context"]
+    assert res.metadata.get("outputs") == ["output"]
+
+
+def test_signatures_service_dto_template_only_validates_explicit_io() -> None:
+    req = SignatureGenRequest(
+        prompt="Classify support tickets",
+        template_version="simple-v1",
+        options={
+            "class_name": "TicketSig",
+            "inputs": ["ticket_text"],
+            "outputs": ["urgency"],
+        },
+    )
+    res = run_generate_dto(req)
+    assert "ticket_text: str = dspy.InputField" in res.code
+    assert "urgency: str = dspy.OutputField" in res.code
+    assert res.metadata.get("inputs") == ["ticket_text"]
+    assert res.metadata.get("outputs") == ["urgency"]
+
+
+@pytest.mark.parametrize(
+    "options,error",
+    [
+        ({"class_name": "not-valid"}, "invalid_class_name_identifier"),
+        ({"class_name": "Sig", "inputs": ["first-name"]}, "invalid_input_identifier"),
+        ({"class_name": "Sig", "inputs": ["text", "text"]}, "duplicate_input_fields"),
+        (
+            {"class_name": "Sig", "inputs": ["answer"], "outputs": ["answer"]},
+            "input_output_field_overlap",
+        ),
+    ],
+)
+def test_signatures_service_dto_template_only_rejects_invalid_io(
+    options: dict[str, object], error: str
+) -> None:
+    req = SignatureGenRequest(
+        prompt="Classify support tickets",
+        template_version="simple-v1",
+        options=options,
+    )
+    with pytest.raises(ValueError, match=error):
+        run_generate_dto(req)
 
 
 def test_signatures_service_dto_native_generation_with_stub_provider(

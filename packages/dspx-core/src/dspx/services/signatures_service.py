@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import json
+import keyword
 import os as _os
 import re
 from dataclasses import dataclass
@@ -26,6 +27,40 @@ from dspx.templates import (
 from dspx.tracing import enable_mlflow_from_env
 from dspx.generated_code_guard import smoke_signature_code
 from dspx.services.signature_quality import append_quality_event
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_python_identifier(name: str, *, role: str) -> None:
+    value = str(name or "").strip()
+    if not value or not _IDENTIFIER_RE.match(value) or keyword.iskeyword(value):
+        raise ValueError(f"invalid_{role}_identifier:{name}")
+
+
+def _validate_simple_signature_contract(
+    *, class_name: str, inputs: list[str] | None, outputs: list[str] | None
+) -> None:
+    _validate_python_identifier(class_name, role="class_name")
+    input_names = [str(item) for item in (inputs or []) if str(item).strip()]
+    output_names = [str(item) for item in (outputs or []) if str(item).strip()]
+    for name in input_names:
+        _validate_python_identifier(name, role="input")
+    for name in output_names:
+        _validate_python_identifier(name, role="output")
+
+    duplicate_inputs = sorted(
+        {name for name in input_names if input_names.count(name) > 1}
+    )
+    duplicate_outputs = sorted(
+        {name for name in output_names if output_names.count(name) > 1}
+    )
+    overlap = sorted(set(input_names).intersection(output_names))
+    if duplicate_inputs:
+        raise ValueError(f"duplicate_input_fields:{','.join(duplicate_inputs)}")
+    if duplicate_outputs:
+        raise ValueError(f"duplicate_output_fields:{','.join(duplicate_outputs)}")
+    if overlap:
+        raise ValueError(f"input_output_field_overlap:{','.join(overlap)}")
 
 
 @dataclass
@@ -702,8 +737,15 @@ def run_generate_dto(
             if isinstance(output_names, list)
             else None
         )
+        _validate_simple_signature_contract(
+            class_name=cls_name,
+            inputs=inputs,
+            outputs=outputs,
+        )
         structured_inputs = input_fields if isinstance(input_fields, list) else None
         structured_outputs = output_fields if isinstance(output_fields, list) else None
+        rendered_input_names = inputs or ["context"]
+        rendered_output_names = outputs or ["output"]
         simple_metadata: dict[str, Any] = {
             "run_kind": run_kind,
             "provider": "template",
@@ -723,6 +765,10 @@ def run_generate_dto(
             "smoke_total": 1,
             "smoke_pass_rate": 1.0,
             "json_mode": False,
+            "inputs": list(rendered_input_names),
+            "outputs": list(rendered_output_names),
+            "input_count": len(rendered_input_names),
+            "output_count": len(rendered_output_names),
         }
 
         key = make_key(
