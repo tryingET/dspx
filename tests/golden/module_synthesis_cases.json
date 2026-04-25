@@ -63,7 +63,7 @@
     "expected_candidate_count": 3,
     "expected_promotion_status": "ready",
     "expected_promotion_outcome": "withheld",
-    "sha256": "d0c3d2751c08fb18748211eda8a631edeff9203dabeadba650631fca2582021f"
+    "sha256": "ac2c1ff47bddec1a035735f01dbd48b3979235c33065ae5af1013d9ad05bc55e"
   },
   {
     "name": "router_multi_io_promoted",

@@ -30,17 +30,42 @@ def _invalid_field_names(values: List[str]) -> list[str]:
     return invalid
 
 
-def validate_module_fields_or_exit(inputs: List[str], outputs: List[str]) -> None:
+def validate_module_fields_or_exit(
+    inputs: List[str], outputs: List[str], module_name: str | None = None
+) -> None:
     invalid_inputs = _invalid_field_names(inputs)
     invalid_outputs = _invalid_field_names(outputs)
-    if invalid_inputs or invalid_outputs:
+    invalid_module = []
+    if module_name is not None:
+        invalid_module = _invalid_field_names([module_name])
+
+    duplicate_inputs = sorted({value for value in inputs if inputs.count(value) > 1})
+    duplicate_outputs = sorted({value for value in outputs if outputs.count(value) > 1})
+    overlap = sorted(set(inputs) & set(outputs))
+
+    if (
+        invalid_module
+        or invalid_inputs
+        or invalid_outputs
+        or duplicate_inputs
+        or duplicate_outputs
+        or overlap
+    ):
         details: list[str] = []
+        if invalid_module:
+            details.append(f"module={invalid_module}")
         if invalid_inputs:
             details.append(f"inputs={invalid_inputs}")
         if invalid_outputs:
             details.append(f"outputs={invalid_outputs}")
+        if duplicate_inputs:
+            details.append(f"duplicate_inputs={duplicate_inputs}")
+        if duplicate_outputs:
+            details.append(f"duplicate_outputs={duplicate_outputs}")
+        if overlap:
+            details.append(f"input_output_overlap={overlap}")
         typer.echo(
-            "Error: module fields must be valid Python identifiers; "
+            "Error: module name and fields must be valid Python identifiers and unique; "
             + "; ".join(details),
             err=True,
         )
@@ -98,7 +123,7 @@ def module_gen(
     if budget_ms is not None:
         os.environ["DSPX_BUDGET_MODULE_MS"] = str(int(budget_ms))
 
-    validate_module_fields_or_exit(input, output)
+    validate_module_fields_or_exit(input, output, name)
 
     spec = ModuleSpec(
         name=name,

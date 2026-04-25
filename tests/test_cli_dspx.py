@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import os
+import py_compile
 
 from typer.testing import CliRunner
 
@@ -123,6 +124,72 @@ def test_cli_module_gen_rejects_invalid_field_names(monkeypatch) -> None:
     )
     assert result.exit_code == 2
     assert "valid python identifiers" in (result.stdout.lower() + result.stderr.lower())
+
+
+def test_cli_module_gen_local_smoke_preserves_controls_and_receipt(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_RECEIPTS_PATH", str(tmp_path / "receipts")
+    )
+    monkeypatch.setenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH",
+        str(tmp_path / "oracle" / "coordinates.db"),
+    )
+    out = tmp_path / "ticket_module.py"
+
+    result = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "--name",
+            "TicketClassifier",
+            "--description",
+            "Classify support ticket urgency",
+            "--input",
+            "ticket_text",
+            "--output",
+            "urgency",
+            "--template-version",
+            "simple-v1",
+            "--use-signature",
+            "--outfile",
+            str(out),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    py_compile.compile(str(out), doraise=True)
+    code = out.read_text(encoding="utf-8")
+    assert "class Sig_TicketClassifier(dspy.Signature):" in code
+    assert "ticket_text: str = dspy.InputField" in code
+    assert "urgency: str = dspy.OutputField" in code
+    assert "self.predict = dspy.Predict(Sig_TicketClassifier)" in code
+
+    receipt = json.loads((tmp_path / "ticket_module.py.meta.json").read_text())
+    assert receipt["run_kind"] == "module-gen"
+    assert receipt["replay_inputs"] == {
+        "name": "TicketClassifier",
+        "description": "Classify support ticket urgency",
+        "inputs": ["ticket_text"],
+        "outputs": ["urgency"],
+        "use_signature": True,
+        "template_version": "simple-v1",
+    }
+    assert receipt["use_signature"] is True
+    assert receipt["inputs"] == ["ticket_text"]
+    assert receipt["outputs"] == ["urgency"]
+    assert receipt["template_version"] == "simple-v1"
+    assert receipt["run_summary"]["evaluation_status"] == "passed"
+    assert (
+        receipt["synthesis_diagnostics"]["evidence_bundle"]["request"]["use_signature"]
+        is True
+    )
 
 
 def test_cli_codegen_prints_python(monkeypatch) -> None:

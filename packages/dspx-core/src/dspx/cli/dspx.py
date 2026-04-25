@@ -134,7 +134,7 @@ def module_gen(
     if budget_ms is not None:
         os.environ["DSPX_BUDGET_MODULE_MS"] = str(int(budget_ms))
 
-    validate_module_fields_or_exit(input, output)
+    validate_module_fields_or_exit(input, output, name)
 
     spec = ModuleSpec(
         name=name,

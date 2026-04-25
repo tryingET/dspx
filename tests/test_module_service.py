@@ -344,19 +344,27 @@ def test_module_service_signature_mode_preserves_requested_io_contract(
     assert io_spec == {"inputs": ["question", "context"], "outputs": ["answer"]}
 
 
-def test_module_service_rejects_invalid_field_names(
-    tmp_path: Path, monkeypatch
+@pytest.mark.parametrize(
+    "spec_kwargs",
+    [
+        {"name": "123Weird", "inputs": ["text"], "outputs": ["answer"]},
+        {"name": "Weird", "inputs": ["first-name"], "outputs": ["answer"]},
+        {"name": "Weird", "inputs": ["text", "text"], "outputs": ["answer"]},
+        {"name": "Weird", "inputs": ["text"], "outputs": ["answer", "answer"]},
+        {"name": "Weird", "inputs": ["text"], "outputs": ["text"]},
+    ],
+)
+def test_module_service_rejects_invalid_or_ambiguous_identifiers(
+    spec_kwargs: dict[str, object], tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
 
     spec = ModuleSpec(
-        name="Weird",
         description="Reject invalid identifiers",
-        inputs=["first-name"],
-        outputs=["answer"],
         options={"template_version": "simple-v1"},
+        **spec_kwargs,
     )
 
     with pytest.raises(ValueError, match="Python identifiers"):
