@@ -512,6 +512,35 @@ def test_program_service_binds_examples_when_present(
     root = Path(artifact.root_path)
     assert (root / "examples.json").exists()
     assert (root / "eval_examples.py").exists()
+    assert (root / "behavior_results.json").exists()
+
+    behavior_results = json.loads(
+        (root / "behavior_results.json").read_text(encoding="utf-8")
+    )
+    assert behavior_results["schema_version"] == "program-behavior-results-v1"
+    assert behavior_results["intent_name"] == "ExampleBoundProgram"
+    assert behavior_results["input_fields"] == ["context", "question"]
+    assert behavior_results["output_fields"] == ["answer", "confidence"]
+    assert behavior_results["authority"] == "behavior_evidence_only_non_authoritative"
+    assert behavior_results["summary"]["total"] == 1
+    assert behavior_results["summary"]["status"] in {
+        "passed",
+        "failed",
+        "error",
+        "degraded",
+        "executed",
+    }
+    record = behavior_results["examples"][0]
+    assert record["inputs"] == {"context": "Sky is blue.", "question": "What color?"}
+    assert record["expected_outputs"] == {"answer": "blue", "confidence": "high"}
+    assert "observed_outputs" in record
+    assert record["status"] in {
+        "passed",
+        "failed",
+        "error",
+        "degraded_no_comparable_output",
+        "executed",
+    }
 
     examples = subprocess.run(
         [sys.executable, "eval_examples.py"],
@@ -526,10 +555,52 @@ def test_program_service_binds_examples_when_present(
 
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     assert "examples" in manifest["candidate_assembly"]["surface_kinds"]
+    assert "behavior_results" in manifest["candidate_assembly"]["surface_kinds"]
+    behavior_hash = hashlib.sha256(
+        (root / "behavior_results.json").read_bytes()
+    ).hexdigest()
+    assert manifest["request"]["behavior_results_hash"] == behavior_hash
+    assert manifest["execution_episode"]["behavior_results"] == {
+        "path": "behavior_results.json",
+        "content_hash": behavior_hash,
+        "summary": behavior_results["summary"],
+    }
+    assert (
+        manifest["execution_episode"]["behavior_status"]
+        == behavior_results["summary"]["status"]
+    )
+    assert manifest["program_promotion_review"]["promotion_state"] == "not_promoted"
+    assert (
+        "no_model_jury_execution_episode"
+        in manifest["program_promotion_review"]["blocking_conditions"]
+    )
+    assert (
+        "no_promotion_adjudicator_decision"
+        in manifest["program_promotion_review"]["blocking_conditions"]
+    )
+    assert (
+        "no_behavioral_evaluation_episode"
+        not in manifest["program_promotion_review"]["blocking_conditions"]
+    )
+    assert (
+        manifest["program_promotion_review"]["non_authority"][
+            "ranking_pruning_promotion"
+        ]
+        is False
+    )
     evidence = manifest["receipt_bundle"]["evidence"]
     assert "examples_hash" in evidence
+    assert evidence["behavior_results_hash"] == behavior_hash
+    assert evidence["behavior_summary"] == behavior_results["summary"]
+    assert evidence["behavior_results"] == behavior_results
     assert evidence["examples"]["returncode"] == 0
     assert "examples.json" in evidence["generated_files"]
+    assert "behavior_results.json" in evidence["generated_files"]
+
+    receipt = json.loads((root / "manifest.json.meta.json").read_text(encoding="utf-8"))
+    assert receipt["run_summary"]["behavior_results_hash"] == behavior_hash
+    assert receipt["run_summary"]["behavior_summary"] == behavior_results["summary"]
+    assert receipt["program_behavior_results"] == behavior_results
 
 
 def test_program_gen_cli_carries_explicit_jury_contract(

@@ -168,6 +168,11 @@ def build_program_plan(
                     "path": "eval_examples.py",
                     "generator": "program-gen",
                 },
+                {
+                    "kind": "behavior_results",
+                    "path": "behavior_results.json",
+                    "generator": "program-gen",
+                },
             ]
         )
     return {
@@ -278,6 +283,7 @@ def materialize_program_from_intent(
         has_examples=bool(examples_payload),
         jury_selection=jury_selection,
         jury_rubric=jury_rubric,
+        has_behavior_results=bool(examples_payload),
     )
     promotion_adjudication_request = build_promotion_adjudication_request(
         promotion_review
@@ -375,6 +381,24 @@ def materialize_program_from_intent(
     jury_result = _run_eval_jury(root)
     promotion_result = _run_eval_promotion(root)
     examples_result = _run_eval_examples(root) if examples_payload else None
+    behavior_results_payload: dict[str, Any] | None = None
+    behavior_results_hash: str | None = None
+    behavior_summary: dict[str, Any] | None = None
+    if examples_payload:
+        behavior_results_path = root / "behavior_results.json"
+        if not behavior_results_path.exists():
+            raise ValueError(
+                "program examples harness did not write behavior_results.json"
+            )
+        behavior_results_text = behavior_results_path.read_text(encoding="utf-8")
+        behavior_results_hash = sha256_text(behavior_results_text)
+        surface_hashes["behavior_results.json"] = behavior_results_hash
+        raw_behavior_payload = json.loads(behavior_results_text)
+        if isinstance(raw_behavior_payload, dict):
+            behavior_results_payload = raw_behavior_payload
+            raw_summary = behavior_results_payload.get("summary")
+            if isinstance(raw_summary, dict):
+                behavior_summary = dict(raw_summary)
     generated_file_names = sorted(
         [
             *generated_files.keys(),
@@ -386,7 +410,7 @@ def materialize_program_from_intent(
             "promotion_adjudication_request.json",
             "promotion_decision_template.json",
             "intent.json",
-            *(["examples.json"] if examples_payload else []),
+            *(["examples.json", "behavior_results.json"] if examples_payload else []),
             "manifest.json",
         ]
     )
@@ -405,7 +429,7 @@ def materialize_program_from_intent(
             "promotion_adjudication_request",
             "promotion_decision_template",
             "intent",
-            *(["examples"] if examples_payload else []),
+            *(["examples", "behavior_results"] if examples_payload else []),
             "signature",
             "module",
             "program",
@@ -516,7 +540,15 @@ def materialize_program_from_intent(
                         "path": "eval_examples.py",
                         "generator": "program-gen",
                         "content_hash": surface_hashes["eval_examples.py"],
-                    }
+                    },
+                    {
+                        "kind": "behavior_results",
+                        "path": "behavior_results.json",
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes["behavior_results.json"],
+                        "schema_version": "program-behavior-results-v1",
+                        "summary": behavior_summary or {},
+                    },
                 ]
                 if eval_examples_code is not None
                 else []
@@ -531,12 +563,27 @@ def materialize_program_from_intent(
         "phase": "materialize",
         "evaluator": "deterministic_program_bundle_smoke",
         "status": "passed",
+        "behavior_status": (behavior_summary or {}).get("status")
+        if behavior_summary is not None
+        else None,
+        "behavior_results": {
+            "path": "behavior_results.json",
+            "content_hash": behavior_results_hash,
+            "summary": behavior_summary or {},
+        }
+        if behavior_results_hash is not None
+        else None,
         "runtime_conditions": dict(intent.runtime),
         "metadata": {
             "smoke": smoke_result,
             "jury": jury_result,
             "promotion": promotion_result,
             **({"examples": examples_result} if examples_result is not None else {}),
+            **(
+                {"behavior_results": behavior_results_payload}
+                if behavior_results_payload is not None
+                else {}
+            ),
         },
     }
     receipt_bundle = {
@@ -559,6 +606,11 @@ def materialize_program_from_intent(
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
             **({"examples_hash": examples_hash} if examples_hash is not None else {}),
+            **(
+                {"behavior_results_hash": behavior_results_hash}
+                if behavior_results_hash is not None
+                else {}
+            ),
             "surface_generation": {
                 "plan": "program-gen",
                 "jury": "program-gen",
@@ -574,7 +626,10 @@ def materialize_program_from_intent(
                 "jury_harness": "program-gen",
                 "promotion_harness": "program-gen",
                 **(
-                    {"examples_harness": "program-gen"}
+                    {
+                        "examples_harness": "program-gen",
+                        "behavior_results": "program-gen",
+                    }
                     if examples_result is not None
                     else {}
                 ),
@@ -584,6 +639,16 @@ def materialize_program_from_intent(
             "jury": jury_result,
             "promotion": promotion_result,
             **({"examples": examples_result} if examples_result is not None else {}),
+            **(
+                {"behavior_results": behavior_results_payload}
+                if behavior_results_payload is not None
+                else {}
+            ),
+            **(
+                {"behavior_summary": behavior_summary}
+                if behavior_summary is not None
+                else {}
+            ),
         },
     }
 
@@ -604,6 +669,7 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "behavior_results_hash": behavior_results_hash,
         },
         "intent": intent_payload,
         "program_plan": program_plan,
@@ -655,6 +721,8 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "behavior_results_hash": behavior_results_hash,
+            "behavior_summary": behavior_summary,
             "generated_files": generated_file_names,
         },
         extra={
@@ -665,6 +733,11 @@ def materialize_program_from_intent(
             "program_promotion_review": promotion_review,
             "program_promotion_adjudication_request": promotion_adjudication_request,
             "program_promotion_decision_template": promotion_decision_template,
+            **(
+                {"program_behavior_results": behavior_results_payload}
+                if behavior_results_payload is not None
+                else {}
+            ),
             "program_candidate_assembly": candidate_assembly,
             "program_execution_episode": execution_episode,
             "program_receipt_bundle": receipt_bundle,
@@ -704,6 +777,8 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "behavior_results_hash": behavior_results_hash,
+            "behavior_summary": behavior_summary,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },

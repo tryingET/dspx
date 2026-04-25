@@ -115,12 +115,20 @@ def build_promotion_review(
     has_examples: bool,
     jury_selection: Mapping[str, Any],
     jury_rubric: Mapping[str, Any],
+    has_behavior_results: bool = False,
 ) -> dict[str, Any]:
     """Build a local non-authoritative promotion/review shell."""
 
     adjudicator = promotion_adjudicator(intent)
     policy = promotion_policy(intent)
     external_authority = promotion_external_authority(intent)
+    behavior_status = (
+        "satisfied_by_current_behavior_episode"
+        if has_behavior_results
+        else "pending"
+        if policy["requires_behavioral_evaluation"]
+        else "not_required_by_policy"
+    )
     evidence_requirements = [
         {
             "name": "candidate_materialized",
@@ -148,10 +156,8 @@ def build_promotion_review(
         },
         {
             "name": "behavioral_evaluation_episode",
-            "status": "pending"
-            if policy["requires_behavioral_evaluation"]
-            else "not_required_by_policy",
-            "artifact_refs": [],
+            "status": behavior_status,
+            "artifact_refs": ["behavior_results.json"] if has_behavior_results else [],
         },
         {
             "name": "model_jury_execution_episode",
@@ -170,7 +176,7 @@ def build_promotion_review(
         },
     ]
     blocking_conditions = []
-    if policy["requires_behavioral_evaluation"]:
+    if policy["requires_behavioral_evaluation"] and not has_behavior_results:
         blocking_conditions.append("no_behavioral_evaluation_episode")
     if policy["requires_jury_execution"]:
         blocking_conditions.append("no_model_jury_execution_episode")
@@ -206,6 +212,9 @@ def build_promotion_review(
             "smoke_harness": "eval_smoke.py",
             "jury_harness": "eval_jury.py",
             "examples_binding": has_examples,
+            "behavior_results": "behavior_results.json"
+            if has_behavior_results
+            else None,
         },
         "non_authority": {
             "program_gen_materialization": "evidence_only",

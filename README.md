@@ -234,12 +234,13 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `eval_smoke.py` — deterministic smoke harness
 - `eval_jury.py` — deterministic jury artifact binding harness that validates `jury.json`, `jury_selection.json`, and `jury_rubric.json` without calling models
 - `eval_promotion.py` — deterministic promotion artifact binding harness that validates `promotion_review.json`, `promotion_adjudication_request.json`, and `promotion_decision_template.json` without invoking an adjudicator
-- `examples.json` / `eval_examples.py` — emitted when the intent includes inline `examples` or `examples_path`, validating example binding without calling an LM
+- `examples.json` / `eval_examples.py` — emitted when the intent includes inline `examples` or `examples_path`; validates example binding, invokes the generated program locally, and writes replayable behavior evidence without calling juror models
+- `behavior_results.json` — emitted when examples are present; records `program-behavior-results-v1` evidence with intent/IO identifiers, per-example inputs, expected outputs, observed outputs when available, status/error/degraded notes, summary counts, and non-authoritative evidence-only authority
 - `intent.json` — normalized structured intent
-- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template hash provenance
-- `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template evidence
+- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template hash provenance plus behavior result hash/summary when examples are present
+- `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template evidence plus behavior result hash/summary when examples are present
 
-This path is intentionally deterministic and scaffold-first. The `jury` entry is a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
+This path is intentionally deterministic and scaffold-first. Example-backed runs now capture a minimal local behavior episode, but the `jury` entry remains a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
 
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
