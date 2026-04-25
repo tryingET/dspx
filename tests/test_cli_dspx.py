@@ -30,6 +30,7 @@ def test_cli_signature_gen_accepts_explicit_io_fields(
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
     out = tmp_path / "ticket_sig.py"
+    summary = tmp_path / "ticket_sig.summary.json"
 
     result = runner.invoke(
         app,
@@ -47,6 +48,8 @@ def test_cli_signature_gen_accepts_explicit_io_fields(
             "urgency",
             "--outfile",
             str(out),
+            "--summary-json-out",
+            str(summary),
         ],
     )
 
@@ -55,6 +58,12 @@ def test_cli_signature_gen_accepts_explicit_io_fields(
     assert "class TicketSig(dspy.Signature):" in code
     assert "ticket_text: str = dspy.InputField" in code
     assert "urgency: str = dspy.OutputField" in code
+
+    summary_payload = json.loads(summary.read_text(encoding="utf-8"))
+    assert summary_payload["inputs"] == ["ticket_text"]
+    assert summary_payload["outputs"] == ["urgency"]
+    assert summary_payload["requested_inputs"] == ["ticket_text"]
+    assert summary_payload["requested_outputs"] == ["urgency"]
 
     receipt = json.loads((tmp_path / "ticket_sig.py.meta.json").read_text())
     assert receipt["replay_inputs"]["options"] == {

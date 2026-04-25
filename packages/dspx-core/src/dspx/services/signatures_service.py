@@ -744,6 +744,8 @@ def run_generate_dto(
         )
         structured_inputs = input_fields if isinstance(input_fields, list) else None
         structured_outputs = output_fields if isinstance(output_fields, list) else None
+        requested_input_names = inputs or []
+        requested_output_names = outputs or []
         rendered_input_names = inputs or ["context"]
         rendered_output_names = outputs or ["output"]
         simple_metadata: dict[str, Any] = {
@@ -767,6 +769,8 @@ def run_generate_dto(
             "json_mode": False,
             "inputs": list(rendered_input_names),
             "outputs": list(rendered_output_names),
+            "requested_inputs": list(requested_input_names),
+            "requested_outputs": list(requested_output_names),
             "input_count": len(rendered_input_names),
             "output_count": len(rendered_output_names),
         }
@@ -869,16 +873,24 @@ def run_generate_dto(
     else:
         constraints = [str(item) for item in constraints]
     explicit_inputs = req.options.get("inputs")
-    if isinstance(explicit_inputs, list) and explicit_inputs:
+    requested_inputs = (
+        [str(item) for item in explicit_inputs]
+        if isinstance(explicit_inputs, list)
+        else []
+    )
+    if requested_inputs:
         constraints.append(
-            "Use exactly these input fields: "
-            + ", ".join(str(item) for item in explicit_inputs)
+            "Use exactly these input fields: " + ", ".join(requested_inputs)
         )
     explicit_outputs = req.options.get("outputs")
-    if isinstance(explicit_outputs, list) and explicit_outputs:
+    requested_outputs = (
+        [str(item) for item in explicit_outputs]
+        if isinstance(explicit_outputs, list)
+        else []
+    )
+    if requested_outputs:
         constraints.append(
-            "Use exactly these output fields: "
-            + ", ".join(str(item) for item in explicit_outputs)
+            "Use exactly these output fields: " + ", ".join(requested_outputs)
         )
     feedback = req.options.get("feedback")
     if not isinstance(feedback, list):
@@ -930,6 +942,10 @@ def run_generate_dto(
         "template_version": req.template_version or "v1",
         "prompt_len": len(req.prompt),
         "signature_name": str(payload.get("signature_name") or class_name_hint),
+        "requested_inputs": list(requested_inputs),
+        "requested_outputs": list(requested_outputs),
+        "requested_input_count": len(requested_inputs),
+        "requested_output_count": len(requested_outputs),
     }
 
     res = SignatureGenResult(

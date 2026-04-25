@@ -22,6 +22,8 @@ def test_signatures_service_dto_template_only() -> None:
     assert res.metadata.get("validation_pass_rate") == 1.0
     assert res.metadata.get("inputs") == ["context"]
     assert res.metadata.get("outputs") == ["output"]
+    assert res.metadata.get("requested_inputs") == []
+    assert res.metadata.get("requested_outputs") == []
 
 
 def test_signatures_service_dto_template_only_validates_explicit_io() -> None:
@@ -39,6 +41,8 @@ def test_signatures_service_dto_template_only_validates_explicit_io() -> None:
     assert "urgency: str = dspy.OutputField" in res.code
     assert res.metadata.get("inputs") == ["ticket_text"]
     assert res.metadata.get("outputs") == ["urgency"]
+    assert res.metadata.get("requested_inputs") == ["ticket_text"]
+    assert res.metadata.get("requested_outputs") == ["urgency"]
 
 
 @pytest.mark.parametrize(

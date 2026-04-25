@@ -199,6 +199,10 @@ def test_run_generate_dto_injects_explicit_io_fields_as_native_constraints(
     assert "Use exactly these output fields: urgency" in prompt
     assert captured["max_attempts"] == 2
     assert res.metadata["max_attempts"] == 2
+    assert res.metadata["requested_inputs"] == ["ticket_text"]
+    assert res.metadata["requested_outputs"] == ["urgency"]
+    assert res.metadata["requested_input_count"] == 1
+    assert res.metadata["requested_output_count"] == 1
 
 
 def test_run_generate_dto_prefers_active_lm_capabilities_for_json_mode(
