@@ -561,6 +561,128 @@ def build_jury_selection(jury_payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+_PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
+    "correctness": {
+        "criteria": ["answer_correctness", "objective_satisfaction"],
+        "adversarial_questions": [
+            "Where could the produced answer be simply wrong?",
+            "Does the output satisfy every declared output field?",
+        ],
+    },
+    "robustness": {
+        "criteria": ["edge_case_resilience", "failure_mode_visibility"],
+        "adversarial_questions": [
+            "Which edge case would break this program first?",
+            "Are failure modes explicit enough to debug?",
+        ],
+    },
+    "instruction_following": {
+        "criteria": ["objective_adherence", "format_and_field_adherence"],
+        "adversarial_questions": [
+            "Does the output drift from the stated objective?",
+            "Does the output honor the requested field contract?",
+        ],
+    },
+    "answer_equivalence": {
+        "criteria": ["strict_equivalence", "acceptable_variant_handling"],
+        "adversarial_questions": [
+            "Would semantically equivalent answers be scored incorrectly?",
+            "Would near-miss answers pass when they should not?",
+        ],
+    },
+    "label_boundary": {
+        "criteria": ["class_boundary_clarity", "ambiguous_case_handling"],
+        "adversarial_questions": [
+            "Which inputs sit on the boundary between labels?",
+            "Are ambiguous cases handled consistently?",
+        ],
+    },
+    "example_generalization": {
+        "criteria": ["overfit_resistance", "held_out_behavior"],
+        "adversarial_questions": [
+            "Does the program merely mimic examples?",
+            "What held-out example would expose weak generalization?",
+        ],
+    },
+    "calibration": {
+        "criteria": ["confidence_alignment", "uncertainty_expression"],
+        "adversarial_questions": [
+            "Is confidence overstated for uncertain answers?",
+            "Does the program know when evidence is insufficient?",
+        ],
+    },
+    "grounding": {
+        "criteria": ["source_faithfulness", "citation_discipline"],
+        "adversarial_questions": [
+            "Which claim is unsupported by the supplied context?",
+            "Are citations or source references faithful?",
+        ],
+    },
+    "constraint_adherence": {
+        "criteria": ["constraint_satisfaction", "forbidden_behavior_detection"],
+        "adversarial_questions": [
+            "Which declared constraint is easiest to violate?",
+            "Does the program expose or hide constraint failures?",
+        ],
+    },
+    "clarity": {
+        "criteria": ["readability", "user_actionability"],
+        "adversarial_questions": [
+            "Would a user understand the answer without extra context?",
+            "Is the response concise enough for the use case?",
+        ],
+    },
+}
+
+
+def _rubric_for_perspective(perspective: str) -> dict[str, list[str]]:
+    return _PERSPECTIVE_RUBRICS.get(
+        perspective,
+        {
+            "criteria": [f"{perspective}_review"],
+            "adversarial_questions": [
+                f"What would a {perspective} reviewer challenge first?"
+            ],
+        },
+    )
+
+
+def build_jury_rubric(
+    intent: ProgramIntent, jury_selection: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Build deterministic perspective rubrics for selected jurors without model calls."""
+
+    juror_rubrics: list[dict[str, Any]] = []
+    for juror in jury_selection.get("selected_jurors", []):
+        if not isinstance(juror, Mapping):
+            continue
+        perspective = str(juror.get("perspective") or "unspecified")
+        rubric = _rubric_for_perspective(perspective)
+        juror_rubrics.append(
+            {
+                "juror_id": juror.get("id"),
+                "perspective": perspective,
+                "criteria": list(rubric["criteria"]),
+                "adversarial_questions": list(rubric["adversarial_questions"]),
+            }
+        )
+    return {
+        "schema_version": "program-jury-rubric-v1",
+        "intent_name": intent.name,
+        "objective": intent.objective,
+        "selection_status": jury_selection.get("status"),
+        "selected_juror_count": jury_selection.get("selected_juror_count", 0),
+        "juror_rubrics": juror_rubrics,
+        "constraints_under_review": list(intent.constraints),
+        "authority": "rubric_contract_only_non_authoritative",
+        "notes": [
+            "Rubrics are deterministic prompts for future jury execution binding.",
+            "No juror model is called during deterministic materialization.",
+            "Rubric results cannot rank, prune, promote, or grant Oracle authority.",
+        ],
+    }
+
+
 def build_program_plan(
     intent: ProgramIntent, *, examples_hash: Optional[str] = None
 ) -> dict[str, Any]:
@@ -588,6 +710,11 @@ def build_program_plan(
         {
             "kind": "jury_selection",
             "path": "jury_selection.json",
+            "generator": "program-gen",
+        },
+        {
+            "kind": "jury_rubric",
+            "path": "jury_rubric.json",
             "generator": "program-gen",
         },
         {"kind": "intent", "path": "intent.json", "generator": "program-gen"},
@@ -870,17 +997,21 @@ def materialize_program_from_intent(
     program_plan = build_program_plan(intent, examples_hash=examples_hash)
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
+    jury_rubric = build_jury_rubric(intent, jury_selection)
     plan_text = _json_text(program_plan)
     jury_text = _json_text(jury_payload)
     jury_selection_text = _json_text(jury_selection)
+    jury_rubric_text = _json_text(jury_rubric)
     plan_hash = sha256_text(plan_text)
     jury_hash = sha256_text(jury_text)
     jury_selection_hash = sha256_text(jury_selection_text)
+    jury_rubric_hash = sha256_text(jury_rubric_text)
     eval_examples_code = render_eval_examples(intent) if examples_payload else None
     bundle_parts = [
         plan_text,
         jury_text,
         jury_selection_text,
+        jury_rubric_text,
         signature_code,
         module_code,
         program_code,
@@ -896,6 +1027,7 @@ def materialize_program_from_intent(
         "plan.json": plan_hash,
         "jury.json": jury_hash,
         "jury_selection.json": jury_selection_hash,
+        "jury_rubric.json": jury_rubric_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -921,6 +1053,7 @@ def materialize_program_from_intent(
     (root / "plan.json").write_text(plan_text, encoding="utf-8")
     (root / "jury.json").write_text(jury_text, encoding="utf-8")
     (root / "jury_selection.json").write_text(jury_selection_text, encoding="utf-8")
+    (root / "jury_rubric.json").write_text(jury_rubric_text, encoding="utf-8")
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
@@ -932,6 +1065,7 @@ def materialize_program_from_intent(
             "plan.json",
             "jury.json",
             "jury_selection.json",
+            "jury_rubric.json",
             "intent.json",
             *(["examples.json"] if examples_payload else []),
             "manifest.json",
@@ -947,6 +1081,7 @@ def materialize_program_from_intent(
             "plan",
             "jury",
             "jury_selection",
+            "jury_rubric",
             "intent",
             *(["examples"] if examples_payload else []),
             "signature",
@@ -980,6 +1115,13 @@ def materialize_program_from_intent(
                 "content_hash": surface_hashes["jury_selection.json"],
                 "schema_version": jury_selection["schema_version"],
                 "status": jury_selection["status"],
+            },
+            {
+                "kind": "jury_rubric",
+                "path": "jury_rubric.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["jury_rubric.json"],
+                "schema_version": jury_rubric["schema_version"],
             },
             {
                 "kind": "signature",
@@ -1047,6 +1189,7 @@ def materialize_program_from_intent(
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
+            "jury_rubric_hash": jury_rubric_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
@@ -1055,6 +1198,7 @@ def materialize_program_from_intent(
                 "plan": "program-gen",
                 "jury": "program-gen",
                 "jury_selection": "program-gen",
+                "jury_rubric": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
@@ -1084,10 +1228,12 @@ def materialize_program_from_intent(
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
+            "jury_rubric_hash": jury_rubric_hash,
         },
         "intent": intent_payload,
         "program_plan": program_plan,
         "program_jury_selection": jury_selection,
+        "program_jury_rubric": jury_rubric,
         "candidate_assembly": candidate_assembly,
         "execution_episode": execution_episode,
         "receipt_bundle": receipt_bundle,
@@ -1127,12 +1273,14 @@ def materialize_program_from_intent(
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
+            "jury_rubric_hash": jury_rubric_hash,
             "generated_files": generated_file_names,
         },
         extra={
             "program_intent": intent_payload,
             "program_plan": program_plan,
             "program_jury_selection": jury_selection,
+            "program_jury_rubric": jury_rubric,
             "program_candidate_assembly": candidate_assembly,
             "program_execution_episode": execution_episode,
             "program_receipt_bundle": receipt_bundle,
@@ -1168,6 +1316,7 @@ def materialize_program_from_intent(
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
+            "jury_rubric_hash": jury_rubric_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },
