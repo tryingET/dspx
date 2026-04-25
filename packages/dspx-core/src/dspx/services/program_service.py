@@ -947,6 +947,11 @@ def build_program_plan(
         {"kind": "program", "path": "program.py", "generator": "program-gen"},
         {"kind": "smoke_harness", "path": "eval_smoke.py", "generator": "program-gen"},
         {"kind": "jury_harness", "path": "eval_jury.py", "generator": "program-gen"},
+        {
+            "kind": "promotion_harness",
+            "path": "eval_promotion.py",
+            "generator": "program-gen",
+        },
     ]
     if has_examples:
         surfaces.extend(
@@ -1203,6 +1208,52 @@ def render_eval_jury() -> str:
     )
 
 
+def render_eval_promotion() -> str:
+    """Render a deterministic promotion artifact binding validation harness."""
+
+    return "\n".join(
+        [
+            "from __future__ import annotations",
+            "",
+            "import json",
+            "from pathlib import Path",
+            "",
+            "",
+            "def _load(name: str) -> dict[str, object]:",
+            "    payload = json.loads(Path(name).read_text(encoding='utf-8'))",
+            "    assert isinstance(payload, dict), f'{name} must contain an object'",
+            "    return payload",
+            "",
+            "",
+            "def main() -> None:",
+            "    review = _load('promotion_review.json')",
+            "    request = _load('promotion_adjudication_request.json')",
+            "    assert review['schema_version'] == 'program-promotion-review-v1'",
+            "    assert request['schema_version'] == 'program-promotion-adjudication-request-v1'",
+            "    assert review['promotion_state'] == 'not_promoted'",
+            "    assert review['decision']['status'] == 'pending'",
+            "    assert request['adjudicator'] == review['adjudicator']",
+            "    assert request['decision_record_template']['status'] == 'pending'",
+            "    assert request['authority'] == 'adjudication_request_only_non_authoritative'",
+            "    blockers = review.get('blocking_conditions')",
+            "    missing = request.get('missing_required_evidence')",
+            "    assert isinstance(blockers, list)",
+            "    assert isinstance(missing, list)",
+            "    assert missing == blockers",
+            "    if blockers:",
+            "        assert request['status'] == 'not_ready_blocked'",
+            "    assert review['non_authority']['automatic_promotion'] is False",
+            "    assert review['non_authority']['ranking_pruning_promotion'] is False",
+            "    print(f'program promotion artifacts ok: {request[\"status\"]}')",
+            "",
+            "",
+            "if __name__ == '__main__':",
+            "    main()",
+            "",
+        ]
+    )
+
+
 def _write_json(path: Path, payload: Mapping[str, Any] | list[Any]) -> str:
     text = _json_text(payload)
     path.write_text(text, encoding="utf-8")
@@ -1245,6 +1296,10 @@ def _run_eval_jury(root: Path) -> dict[str, Any]:
     return _run_python_harness(root, "eval_jury.py", label="jury validation")
 
 
+def _run_eval_promotion(root: Path) -> dict[str, Any]:
+    return _run_python_harness(root, "eval_promotion.py", label="promotion validation")
+
+
 def materialize_program_from_intent(
     intent: ProgramIntent,
     *,
@@ -1265,6 +1320,7 @@ def materialize_program_from_intent(
     program_code = render_program_code(intent)
     eval_smoke_code = render_eval_smoke(intent)
     eval_jury_code = render_eval_jury()
+    eval_promotion_code = render_eval_promotion()
     examples_payload = list(intent.examples or [])
     examples_text = _json_text(examples_payload) if examples_payload else None
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
@@ -1308,6 +1364,7 @@ def materialize_program_from_intent(
         program_code,
         eval_smoke_code,
         eval_jury_code,
+        eval_promotion_code,
     ]
     if eval_examples_code is not None:
         bundle_parts.append(eval_examples_code)
@@ -1327,6 +1384,7 @@ def materialize_program_from_intent(
         "program.py": sha256_text(program_code),
         "eval_smoke.py": sha256_text(eval_smoke_code),
         "eval_jury.py": sha256_text(eval_jury_code),
+        "eval_promotion.py": sha256_text(eval_promotion_code),
     }
     if eval_examples_code is not None:
         surface_hashes["eval_examples.py"] = sha256_text(eval_examples_code)
@@ -1339,6 +1397,7 @@ def materialize_program_from_intent(
         "program.py": program_code,
         "eval_smoke.py": eval_smoke_code,
         "eval_jury.py": eval_jury_code,
+        "eval_promotion.py": eval_promotion_code,
     }
     if eval_examples_code is not None:
         generated_files["eval_examples.py"] = eval_examples_code
@@ -1359,6 +1418,7 @@ def materialize_program_from_intent(
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
     smoke_result = _run_eval_smoke(root)
     jury_result = _run_eval_jury(root)
+    promotion_result = _run_eval_promotion(root)
     examples_result = _run_eval_examples(root) if examples_payload else None
     generated_file_names = sorted(
         [
@@ -1394,6 +1454,7 @@ def materialize_program_from_intent(
             "program",
             "eval_harness",
             "jury_harness",
+            "promotion_harness",
         ],
         "root_path": str(root),
         "entrypoint": "program.py",
@@ -1477,6 +1538,12 @@ def materialize_program_from_intent(
                 "generator": "program-gen",
                 "content_hash": surface_hashes["eval_jury.py"],
             },
+            {
+                "kind": "promotion_harness",
+                "path": "eval_promotion.py",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["eval_promotion.py"],
+            },
             *(
                 [
                     {
@@ -1503,6 +1570,7 @@ def materialize_program_from_intent(
         "metadata": {
             "smoke": smoke_result,
             "jury": jury_result,
+            "promotion": promotion_result,
             **({"examples": examples_result} if examples_result is not None else {}),
         },
     }
@@ -1537,6 +1605,7 @@ def materialize_program_from_intent(
                 "program": "program-gen",
                 "eval_harness": "program-gen",
                 "jury_harness": "program-gen",
+                "promotion_harness": "program-gen",
                 **(
                     {"examples_harness": "program-gen"}
                     if examples_result is not None
@@ -1546,6 +1615,7 @@ def materialize_program_from_intent(
             "generated_files": generated_file_names,
             "smoke": smoke_result,
             "jury": jury_result,
+            "promotion": promotion_result,
             **({"examples": examples_result} if examples_result is not None else {}),
         },
     }

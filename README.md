@@ -212,6 +212,7 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
 - `eval_smoke.py` — deterministic smoke harness
 - `eval_jury.py` — deterministic jury artifact binding harness that validates `jury.json`, `jury_selection.json`, and `jury_rubric.json` without calling models
+- `eval_promotion.py` — deterministic promotion artifact binding harness that validates `promotion_review.json` and `promotion_adjudication_request.json` without invoking an adjudicator
 - `examples.json` / `eval_examples.py` — emitted when the intent includes inline `examples` or `examples_path`, validating example binding without calling an LM
 - `intent.json` — normalized structured intent
 - `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request hash provenance
