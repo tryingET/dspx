@@ -683,6 +683,96 @@ def build_jury_rubric(
     }
 
 
+def build_promotion_review(
+    intent: ProgramIntent,
+    *,
+    has_examples: bool,
+    jury_selection: Mapping[str, Any],
+    jury_rubric: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build a local non-authoritative promotion/review shell."""
+
+    evidence_requirements = [
+        {
+            "name": "candidate_materialized",
+            "status": "satisfied_by_current_materialization",
+            "artifact_refs": ["program.py", "manifest.json"],
+        },
+        {
+            "name": "smoke_validation",
+            "status": "satisfied_by_current_materialization",
+            "artifact_refs": ["eval_smoke.py"],
+        },
+        {
+            "name": "jury_artifact_binding",
+            "status": "satisfied_by_current_materialization",
+            "artifact_refs": ["jury.json", "jury_selection.json", "jury_rubric.json"],
+        },
+        {
+            "name": "examples_binding",
+            "status": "satisfied_by_current_materialization"
+            if has_examples
+            else "not_applicable",
+            "artifact_refs": ["examples.json", "eval_examples.py"]
+            if has_examples
+            else [],
+        },
+        {
+            "name": "behavioral_evaluation_episode",
+            "status": "pending",
+            "artifact_refs": [],
+        },
+        {
+            "name": "model_jury_execution_episode",
+            "status": "pending",
+            "artifact_refs": [],
+        },
+        {
+            "name": "human_review_decision",
+            "status": "pending",
+            "artifact_refs": [],
+        },
+    ]
+    return {
+        "schema_version": "program-promotion-review-v1",
+        "intent_name": intent.name,
+        "objective": intent.objective,
+        "promotion_state": "not_promoted",
+        "candidate_status": "exploratory",
+        "review_required": True,
+        "decision_authority": "human_local_review_required",
+        "evidence_requirements": evidence_requirements,
+        "blocking_conditions": [
+            "no_behavioral_evaluation_episode",
+            "no_model_jury_execution_episode",
+            "no_human_review_decision",
+        ],
+        "available_local_evidence": {
+            "plan": "plan.json",
+            "jury": "jury.json",
+            "jury_selection_status": jury_selection.get("status"),
+            "jury_rubric_status": "available"
+            if jury_rubric.get("juror_rubrics")
+            else "unavailable",
+            "smoke_harness": "eval_smoke.py",
+            "jury_harness": "eval_jury.py",
+            "examples_binding": has_examples,
+        },
+        "non_authority": {
+            "program_gen_materialization": "evidence_only",
+            "jury_artifacts": "planned_contracts_only",
+            "oracle_role": "behavioral_interpreter_only",
+            "automatic_promotion": False,
+            "ranking_pruning_promotion": False,
+        },
+        "notes": [
+            "This shell records what would be needed before local promotion review.",
+            "It does not promote the generated program or activate any policy.",
+            "Jury artifacts are planning/binding evidence until a later model jury episode runs.",
+        ],
+    }
+
+
 def build_program_plan(
     intent: ProgramIntent, *, examples_hash: Optional[str] = None
 ) -> dict[str, Any]:
@@ -715,6 +805,11 @@ def build_program_plan(
         {
             "kind": "jury_rubric",
             "path": "jury_rubric.json",
+            "generator": "program-gen",
+        },
+        {
+            "kind": "promotion_review",
+            "path": "promotion_review.json",
             "generator": "program-gen",
         },
         {"kind": "intent", "path": "intent.json", "generator": "program-gen"},
@@ -1048,20 +1143,29 @@ def materialize_program_from_intent(
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
     jury_rubric = build_jury_rubric(intent, jury_selection)
+    promotion_review = build_promotion_review(
+        intent,
+        has_examples=bool(examples_payload),
+        jury_selection=jury_selection,
+        jury_rubric=jury_rubric,
+    )
     plan_text = _json_text(program_plan)
     jury_text = _json_text(jury_payload)
     jury_selection_text = _json_text(jury_selection)
     jury_rubric_text = _json_text(jury_rubric)
+    promotion_review_text = _json_text(promotion_review)
     plan_hash = sha256_text(plan_text)
     jury_hash = sha256_text(jury_text)
     jury_selection_hash = sha256_text(jury_selection_text)
     jury_rubric_hash = sha256_text(jury_rubric_text)
+    promotion_review_hash = sha256_text(promotion_review_text)
     eval_examples_code = render_eval_examples(intent) if examples_payload else None
     bundle_parts = [
         plan_text,
         jury_text,
         jury_selection_text,
         jury_rubric_text,
+        promotion_review_text,
         signature_code,
         module_code,
         program_code,
@@ -1079,6 +1183,7 @@ def materialize_program_from_intent(
         "jury.json": jury_hash,
         "jury_selection.json": jury_selection_hash,
         "jury_rubric.json": jury_rubric_hash,
+        "promotion_review.json": promotion_review_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -1107,6 +1212,7 @@ def materialize_program_from_intent(
     (root / "jury.json").write_text(jury_text, encoding="utf-8")
     (root / "jury_selection.json").write_text(jury_selection_text, encoding="utf-8")
     (root / "jury_rubric.json").write_text(jury_rubric_text, encoding="utf-8")
+    (root / "promotion_review.json").write_text(promotion_review_text, encoding="utf-8")
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
@@ -1120,6 +1226,7 @@ def materialize_program_from_intent(
             "jury.json",
             "jury_selection.json",
             "jury_rubric.json",
+            "promotion_review.json",
             "intent.json",
             *(["examples.json"] if examples_payload else []),
             "manifest.json",
@@ -1136,6 +1243,7 @@ def materialize_program_from_intent(
             "jury",
             "jury_selection",
             "jury_rubric",
+            "promotion_review",
             "intent",
             *(["examples"] if examples_payload else []),
             "signature",
@@ -1177,6 +1285,14 @@ def materialize_program_from_intent(
                 "generator": "program-gen",
                 "content_hash": surface_hashes["jury_rubric.json"],
                 "schema_version": jury_rubric["schema_version"],
+            },
+            {
+                "kind": "promotion_review",
+                "path": "promotion_review.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["promotion_review.json"],
+                "schema_version": promotion_review["schema_version"],
+                "promotion_state": promotion_review["promotion_state"],
             },
             {
                 "kind": "signature",
@@ -1252,6 +1368,7 @@ def materialize_program_from_intent(
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
             "jury_rubric_hash": jury_rubric_hash,
+            "promotion_review_hash": promotion_review_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
@@ -1261,6 +1378,7 @@ def materialize_program_from_intent(
                 "jury": "program-gen",
                 "jury_selection": "program-gen",
                 "jury_rubric": "program-gen",
+                "promotion_review": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
@@ -1293,11 +1411,13 @@ def materialize_program_from_intent(
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
             "jury_rubric_hash": jury_rubric_hash,
+            "promotion_review_hash": promotion_review_hash,
         },
         "intent": intent_payload,
         "program_plan": program_plan,
         "program_jury_selection": jury_selection,
         "program_jury_rubric": jury_rubric,
+        "program_promotion_review": promotion_review,
         "candidate_assembly": candidate_assembly,
         "execution_episode": execution_episode,
         "receipt_bundle": receipt_bundle,
@@ -1338,6 +1458,7 @@ def materialize_program_from_intent(
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
             "jury_rubric_hash": jury_rubric_hash,
+            "promotion_review_hash": promotion_review_hash,
             "generated_files": generated_file_names,
         },
         extra={
@@ -1345,6 +1466,7 @@ def materialize_program_from_intent(
             "program_plan": program_plan,
             "program_jury_selection": jury_selection,
             "program_jury_rubric": jury_rubric,
+            "program_promotion_review": promotion_review,
             "program_candidate_assembly": candidate_assembly,
             "program_execution_episode": execution_episode,
             "program_receipt_bundle": receipt_bundle,
@@ -1381,6 +1503,7 @@ def materialize_program_from_intent(
             "jury_hash": jury_hash,
             "jury_selection_hash": jury_selection_hash,
             "jury_rubric_hash": jury_rubric_hash,
+            "promotion_review_hash": promotion_review_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },

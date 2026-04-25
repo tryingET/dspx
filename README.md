@@ -200,6 +200,7 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `jury.json` — standalone planned jury contract copied out of the plan so future jury execution can bind to an exact per-program juror/perspective pool artifact; when no explicit pool is supplied, DSPx infers one from intent features such as task type, metric, examples, fields, and constraints
 - `jury_selection.json` — deterministic non-authoritative juror selection artifact; prefers diverse perspectives from the per-program pool, records selected jurors, and still calls no models
 - `jury_rubric.json` — deterministic non-authoritative per-juror rubric artifact; binds selected perspectives to criteria and adversarial questions for a later jury execution episode
+- `promotion_review.json` — deterministic non-authoritative local promotion-review shell; records pending behavioral evaluation, model-jury execution, and human review requirements while keeping the candidate unpromoted
 - `signature.py` — signature surface generated through the signature service
 - `module.py` — module surface generated through the module service
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
@@ -207,8 +208,8 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `eval_jury.py` — deterministic jury artifact binding harness that validates `jury.json`, `jury_selection.json`, and `jury_rubric.json` without calling models
 - `examples.json` / `eval_examples.py` — emitted when the intent includes inline `examples` or `examples_path`, validating example binding without calling an LM
 - `intent.json` — normalized structured intent
-- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric hash provenance
-- `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric evidence
+- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review hash provenance
+- `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review evidence
 
 This path is intentionally deterministic and scaffold-first. The `jury` entry is a future evaluation contract shape only: no juror models are called during materialization. It materializes evidence; it does not promote, rank, prune, or grant Oracle/governance authority.
 
