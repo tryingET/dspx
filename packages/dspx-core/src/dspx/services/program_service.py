@@ -43,6 +43,7 @@ class ProgramIntent(BaseModel):
     metric: Optional[str] = None
     runtime: dict[str, Any] = Field(default_factory=dict)
     jury: dict[str, Any] = Field(default_factory=dict)
+    promotion: dict[str, Any] = Field(default_factory=dict)
     options: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("name")
@@ -89,7 +90,7 @@ class ProgramIntent(BaseModel):
             raise ValueError("program intent fields must be unique")
         return fields
 
-    @field_validator("jury", "options", "runtime", "topology")
+    @field_validator("jury", "promotion", "options", "runtime", "topology")
     @classmethod
     def _mapping_fields_must_be_objects(cls, value: dict[str, Any]) -> dict[str, Any]:
         if value is None:
@@ -683,6 +684,50 @@ def build_jury_rubric(
     }
 
 
+def _promotion_adjudicator(intent: ProgramIntent) -> dict[str, Any]:
+    promotion = dict(intent.promotion or {})
+    raw_adjudicator = promotion.get("adjudicator")
+    adjudicator = dict(raw_adjudicator) if isinstance(raw_adjudicator, Mapping) else {}
+    kind = str(
+        adjudicator.get("kind") or promotion.get("adjudicator_kind") or "human_operator"
+    )
+    default_id_by_kind = {
+        "human_operator": "local_operator",
+        "ai_agent": "local_ai_agent",
+        "ai_council": "local_ai_council",
+        "hybrid": "ai_council_recommends_human_approves",
+        "policy_gate": "local_policy_gate",
+    }
+    payload: dict[str, Any] = {
+        "kind": kind,
+        "id": str(
+            adjudicator.get("id") or default_id_by_kind.get(kind, "local_operator")
+        ),
+        "authority": str(adjudicator.get("authority") or "required_for_promotion"),
+        "status": "pending",
+    }
+    for key in ("agent", "agents", "council", "members", "provider", "policy"):
+        if adjudicator.get(key) is not None:
+            payload[key] = adjudicator[key]
+    return payload
+
+
+def _promotion_policy(intent: ProgramIntent) -> dict[str, Any]:
+    promotion = dict(intent.promotion or {})
+    raw_policy = promotion.get("policy")
+    policy = dict(raw_policy) if isinstance(raw_policy, Mapping) else {}
+    return {
+        "requires_behavioral_evaluation": bool(
+            policy.get("requires_behavioral_evaluation", True)
+        ),
+        "requires_jury_execution": bool(policy.get("requires_jury_execution", True)),
+        "requires_adjudicator_decision": bool(
+            policy.get("requires_adjudicator_decision", True)
+        ),
+        "automatic_promotion": bool(policy.get("automatic_promotion", False)),
+    }
+
+
 def build_promotion_review(
     intent: ProgramIntent,
     *,
@@ -692,6 +737,8 @@ def build_promotion_review(
 ) -> dict[str, Any]:
     """Build a local non-authoritative promotion/review shell."""
 
+    adjudicator = _promotion_adjudicator(intent)
+    promotion_policy = _promotion_policy(intent)
     evidence_requirements = [
         {
             "name": "candidate_materialized",
@@ -719,20 +766,34 @@ def build_promotion_review(
         },
         {
             "name": "behavioral_evaluation_episode",
-            "status": "pending",
+            "status": "pending"
+            if promotion_policy["requires_behavioral_evaluation"]
+            else "not_required_by_policy",
             "artifact_refs": [],
         },
         {
             "name": "model_jury_execution_episode",
-            "status": "pending",
+            "status": "pending"
+            if promotion_policy["requires_jury_execution"]
+            else "not_required_by_policy",
             "artifact_refs": [],
         },
         {
-            "name": "human_review_decision",
-            "status": "pending",
+            "name": "promotion_adjudicator_decision",
+            "status": "pending"
+            if promotion_policy["requires_adjudicator_decision"]
+            else "not_required_by_policy",
             "artifact_refs": [],
+            "adjudicator_ref": adjudicator["id"],
         },
     ]
+    blocking_conditions = []
+    if promotion_policy["requires_behavioral_evaluation"]:
+        blocking_conditions.append("no_behavioral_evaluation_episode")
+    if promotion_policy["requires_jury_execution"]:
+        blocking_conditions.append("no_model_jury_execution_episode")
+    if promotion_policy["requires_adjudicator_decision"]:
+        blocking_conditions.append("no_promotion_adjudicator_decision")
     return {
         "schema_version": "program-promotion-review-v1",
         "intent_name": intent.name,
@@ -740,13 +801,18 @@ def build_promotion_review(
         "promotion_state": "not_promoted",
         "candidate_status": "exploratory",
         "review_required": True,
-        "decision_authority": "human_local_review_required",
+        "adjudicator": adjudicator,
+        "decision_authority": adjudicator["authority"],
+        "promotion_policy": promotion_policy,
+        "decision": {
+            "status": "pending",
+            "outcome": None,
+            "decided_by": None,
+            "decided_at": None,
+            "evidence_refs": [],
+        },
         "evidence_requirements": evidence_requirements,
-        "blocking_conditions": [
-            "no_behavioral_evaluation_episode",
-            "no_model_jury_execution_episode",
-            "no_human_review_decision",
-        ],
+        "blocking_conditions": blocking_conditions,
         "available_local_evidence": {
             "plan": "plan.json",
             "jury": "jury.json",
@@ -768,6 +834,7 @@ def build_promotion_review(
         "notes": [
             "This shell records what would be needed before local promotion review.",
             "It does not promote the generated program or activate any policy.",
+            "The promotion adjudicator may be human, one AI agent, an AI council, a hybrid, or a policy gate.",
             "Jury artifacts are planning/binding evidence until a later model jury episode runs.",
         ],
     }

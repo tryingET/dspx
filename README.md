@@ -185,6 +185,11 @@ constraints:
 #     - id: correctness_local
 #       model: local-small
 #       perspective: correctness
+# Optional: explicit promotion adjudicator (decision authority, still pending)
+# promotion:
+#   adjudicator:
+#     kind: human_operator  # or ai_agent, ai_council, hybrid, policy_gate
+#     id: local_operator
 # Optional: inline examples or examples_path: examples.yaml
 ```
 
@@ -200,7 +205,7 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `jury.json` — standalone planned jury contract copied out of the plan so future jury execution can bind to an exact per-program juror/perspective pool artifact; when no explicit pool is supplied, DSPx infers one from intent features such as task type, metric, examples, fields, and constraints
 - `jury_selection.json` — deterministic non-authoritative juror selection artifact; prefers diverse perspectives from the per-program pool, records selected jurors, and still calls no models
 - `jury_rubric.json` — deterministic non-authoritative per-juror rubric artifact; binds selected perspectives to criteria and adversarial questions for a later jury execution episode
-- `promotion_review.json` — deterministic non-authoritative local promotion-review shell; records pending behavioral evaluation, model-jury execution, and human review requirements while keeping the candidate unpromoted
+- `promotion_review.json` — deterministic non-authoritative local promotion-review shell; records the explicit pending adjudicator (`human_operator`, `ai_agent`, `ai_council`, `hybrid`, or `policy_gate`), pending behavioral evaluation, model-jury execution, and adjudicator-decision requirements while keeping the candidate unpromoted
 - `signature.py` — signature surface generated through the signature service
 - `module.py` — module surface generated through the module service
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`

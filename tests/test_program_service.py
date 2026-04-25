@@ -111,7 +111,23 @@ def test_program_service_materializes_candidate_assembly(
     assert promotion_review["schema_version"] == "program-promotion-review-v1"
     assert promotion_review["promotion_state"] == "not_promoted"
     assert promotion_review["review_required"] is True
+    assert promotion_review["adjudicator"] == {
+        "kind": "human_operator",
+        "id": "local_operator",
+        "authority": "required_for_promotion",
+        "status": "pending",
+    }
+    assert promotion_review["promotion_policy"] == {
+        "requires_behavioral_evaluation": True,
+        "requires_jury_execution": True,
+        "requires_adjudicator_decision": True,
+        "automatic_promotion": False,
+    }
     assert "no_behavioral_evaluation_episode" in promotion_review["blocking_conditions"]
+    assert (
+        "no_promotion_adjudicator_decision" in promotion_review["blocking_conditions"]
+    )
+    assert promotion_review["decision"]["status"] == "pending"
     assert promotion_review["non_authority"]["automatic_promotion"] is False
     assert manifest["execution_episode"]["status"] == "passed"
     assert manifest["execution_episode"]["metadata"]["jury"]["returncode"] == 0
@@ -463,6 +479,13 @@ def test_program_gen_cli_carries_explicit_jury_contract(
                 "    - id: clarity_local",
                 "      model: local-medium",
                 "      perspective: clarity",
+                "promotion:",
+                "  adjudicator:",
+                "    kind: ai_council",
+                "    id: safety_quality_council",
+                "    members:",
+                "      - safety_agent",
+                "      - quality_agent",
             ]
         ),
         encoding="utf-8",
@@ -536,9 +559,24 @@ def test_program_gen_cli_carries_explicit_jury_contract(
     receipt = json.loads(
         (outdir / "manifest.json.meta.json").read_text(encoding="utf-8")
     )
+    promotion_review = json.loads(
+        (outdir / "promotion_review.json").read_text(encoding="utf-8")
+    )
+    assert promotion_review["adjudicator"] == {
+        "kind": "ai_council",
+        "id": "safety_quality_council",
+        "authority": "required_for_promotion",
+        "status": "pending",
+        "members": ["safety_agent", "quality_agent"],
+    }
+    assert promotion_review["decision"]["status"] == "pending"
+    assert (
+        "no_promotion_adjudicator_decision" in promotion_review["blocking_conditions"]
+    )
     assert receipt["program_plan"]["evaluation_strategy"] == jury
     assert receipt["program_jury_selection"] == selection
     assert receipt["program_jury_rubric"] == rubric
+    assert receipt["program_promotion_review"] == promotion_review
 
 
 def test_program_gen_cli_rejects_invalid_intent_field(
