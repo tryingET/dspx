@@ -79,6 +79,8 @@ Deterministic template path (no LM):
 just dspx signature gen "Extract names from text" \
   --template-version simple-v1 \
   --class-name Sig_Names \
+  --input text \
+  --output names \
   --outfile generated/sig_names.py
 ```
 
@@ -88,6 +90,10 @@ Native LM-backed path (spec-first):
 just dspx signature gen "Extract names from text" \
   --template-version v1 \
   --provider pi-rpc \
+  --class-name Sig_Names \
+  --input text \
+  --output names \
+  --max-attempts 3 \
   --summary \
   --summary-json-out generated/sig_names.summary.json \
   --outfile generated/sig_names.py

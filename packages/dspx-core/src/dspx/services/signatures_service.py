@@ -820,6 +820,20 @@ def run_generate_dto(
     constraints = req.options.get("constraints")
     if not isinstance(constraints, list):
         constraints = []
+    else:
+        constraints = [str(item) for item in constraints]
+    explicit_inputs = req.options.get("inputs")
+    if isinstance(explicit_inputs, list) and explicit_inputs:
+        constraints.append(
+            "Use exactly these input fields: "
+            + ", ".join(str(item) for item in explicit_inputs)
+        )
+    explicit_outputs = req.options.get("outputs")
+    if isinstance(explicit_outputs, list) and explicit_outputs:
+        constraints.append(
+            "Use exactly these output fields: "
+            + ", ".join(str(item) for item in explicit_outputs)
+        )
     feedback = req.options.get("feedback")
     if not isinstance(feedback, list):
         feedback = []

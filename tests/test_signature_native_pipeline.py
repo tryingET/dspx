@@ -138,6 +138,69 @@ def test_generate_native_payload_marks_fallback_used(monkeypatch) -> None:
     assert payload["smoke_pass_rate"] == 1.0
 
 
+def test_run_generate_dto_injects_explicit_io_fields_as_native_constraints(
+    monkeypatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_generate_native_payload(**kwargs):
+        captured.update(kwargs)
+        return {
+            "code": render_simple_signature(
+                "SigTicket",
+                "Classify tickets",
+                inputs=["ticket_text"],
+                outputs=["urgency"],
+            ),
+            "signature_name": "SigTicket",
+            "task_description": "Classify tickets",
+            "backend": "native",
+            "strategy": "spec-first",
+            "candidate_source": "spec",
+            "candidate_score": 1.0,
+            "candidate_valid": True,
+            "candidate_errors": [],
+            "attempts_used": 1,
+            "max_attempts": 2,
+            "attempts_exhausted": False,
+            "fallback_used": False,
+            "validation_pass_count": 1,
+            "validation_total": 1,
+            "validation_pass_rate": 1.0,
+            "smoke_pass_count": 1,
+            "smoke_total": 1,
+            "smoke_pass_rate": 1.0,
+            "json_mode": False,
+        }
+
+    monkeypatch.setattr(
+        sigsvc, "_generate_native_payload", _fake_generate_native_payload
+    )
+    monkeypatch.setattr(sigsvc, "load_config_env", lambda *args, **kwargs: {})
+    monkeypatch.setattr(sigsvc, "enable_mlflow_from_env", lambda *args, **kwargs: None)
+    monkeypatch.setattr(sigsvc, "ensure_default_providers", lambda: None)
+    monkeypatch.setattr(sigsvc.dspy, "configure", lambda **kwargs: None)
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+
+    req = sigsvc.SignatureGenRequest(
+        prompt="Classify tickets",
+        template_version="v1",
+        options={
+            "class_name": "SigTicket",
+            "inputs": ["ticket_text"],
+            "outputs": ["urgency"],
+            "max_attempts": 2,
+        },
+    )
+    res = sigsvc.run_generate_dto(req, lm=cast(Any, object()))
+
+    prompt = str(captured["prompt_for_model"])
+    assert "Use exactly these input fields: ticket_text" in prompt
+    assert "Use exactly these output fields: urgency" in prompt
+    assert captured["max_attempts"] == 2
+    assert res.metadata["max_attempts"] == 2
+
+
 def test_run_generate_dto_prefers_active_lm_capabilities_for_json_mode(
     monkeypatch,
 ) -> None:

@@ -23,6 +23,57 @@ def test_cli_signature_gen_prints_code(monkeypatch) -> None:
     assert "class" in out and "dspy.Signature" in out
 
 
+def test_cli_signature_gen_accepts_explicit_io_fields(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    out = tmp_path / "ticket_sig.py"
+
+    result = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Classify support ticket urgency",
+            "--template-version",
+            "simple-v1",
+            "--class-name",
+            "TicketSig",
+            "--input",
+            "ticket_text",
+            "--output",
+            "urgency",
+            "--outfile",
+            str(out),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    code = out.read_text(encoding="utf-8")
+    assert "class TicketSig(dspy.Signature):" in code
+    assert "ticket_text: str = dspy.InputField" in code
+    assert "urgency: str = dspy.OutputField" in code
+
+    receipt = json.loads((tmp_path / "ticket_sig.py.meta.json").read_text())
+    assert receipt["replay_inputs"]["options"] == {
+        "class_name": "TicketSig",
+        "inputs": ["ticket_text"],
+        "outputs": ["urgency"],
+    }
+
+
+def test_cli_signature_gen_rejects_invalid_identifiers(monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    result = runner.invoke(
+        app,
+        ["signature", "gen", "Classify tickets", "--input", "first-name"],
+    )
+    assert result.exit_code == 2
+    assert "valid Python identifiers" in (result.stdout + result.stderr)
+
+
 def test_cli_module_gen_prints_module(monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     result = runner.invoke(

@@ -6,10 +6,12 @@ Commands for generating, refining, and analyzing DSPy signatures.
 from __future__ import annotations
 
 import json
+import keyword
 import os
+import re
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import typer
 
@@ -20,6 +22,65 @@ from dspx.cli.utils import (
 )
 
 app = typer.Typer(no_args_is_help=True)
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _invalid_identifier_values(values: list[str]) -> list[str]:
+    invalid: list[str] = []
+    for raw in values:
+        name = str(raw).strip()
+        if not name or not _IDENTIFIER_RE.match(name) or keyword.iskeyword(name):
+            invalid.append(str(raw))
+    return invalid
+
+
+def _validate_signature_identifiers_or_exit(
+    *, class_name: Optional[str], inputs: list[str], outputs: list[str]
+) -> None:
+    details: list[str] = []
+    if class_name:
+        invalid_class = _invalid_identifier_values([class_name])
+        if invalid_class:
+            details.append(f"class_name={invalid_class}")
+    invalid_inputs = _invalid_identifier_values(inputs)
+    invalid_outputs = _invalid_identifier_values(outputs)
+    if invalid_inputs:
+        details.append(f"inputs={invalid_inputs}")
+    if invalid_outputs:
+        details.append(f"outputs={invalid_outputs}")
+    if details:
+        typer.echo(
+            "Error: signature class and fields must be valid Python identifiers; "
+            + "; ".join(details),
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+
+def _signature_options(
+    *,
+    class_name: Optional[str],
+    inputs: list[str],
+    outputs: list[str],
+    constraints: list[str],
+    feedback: list[str],
+    max_attempts: Optional[int],
+) -> dict[str, Any]:
+    options: dict[str, Any] = {}
+    if class_name:
+        options["class_name"] = class_name
+    if inputs:
+        options["inputs"] = list(inputs)
+    if outputs:
+        options["outputs"] = list(outputs)
+    if constraints:
+        options["constraints"] = [str(item) for item in constraints]
+    if feedback:
+        options["feedback"] = [str(item) for item in feedback]
+    if max_attempts is not None:
+        options["max_attempts"] = int(max_attempts)
+    return options
 
 
 def _preview_template_messages(
@@ -155,6 +216,25 @@ def signature_gen(
         "simple-v1", help="Template version (use 'simple-*' for deterministic output)"
     ),
     class_name: Optional[str] = typer.Option(None, help="Optional class name override"),
+    input: List[str] = typer.Option(
+        [], "--input", "-i", help="Input field names (repeatable)"
+    ),
+    output: List[str] = typer.Option(
+        [], "--output", "-o", help="Output field names (repeatable)"
+    ),
+    constraint: List[str] = typer.Option(
+        [], "--constraint", help="Additional native-generation constraints (repeatable)"
+    ),
+    feedback: List[str] = typer.Option(
+        [],
+        "--feedback",
+        help="Prior feedback for native-generation retries (repeatable)",
+    ),
+    max_attempts: Optional[int] = typer.Option(
+        None,
+        "--max-attempts",
+        help="Native-generation retry budget (clamped by service)",
+    ),
     provider: Optional[str] = typer.Option(None, help="Provider (registry name)"),
     outfile: Optional[Path] = typer.Option(None, help="Write code to file"),
     no_cache: bool = typer.Option(False, help="Bypass on-disk cache for this run"),
@@ -207,16 +287,30 @@ def signature_gen(
     if template_config is not None:
         require_template_adapter("template-config")
 
+    _validate_signature_identifiers_or_exit(
+        class_name=class_name,
+        inputs=list(input),
+        outputs=list(output),
+    )
+
     ensure_env(provider)
     if no_cache:
         os.environ["DSPX_CACHE_ENABLE"] = "0"
     if budget_ms is not None:
         os.environ["DSPX_BUDGET_SIGNATURE_MS"] = str(int(budget_ms))
 
+    options = _signature_options(
+        class_name=class_name,
+        inputs=list(input),
+        outputs=list(output),
+        constraints=list(constraint),
+        feedback=list(feedback),
+        max_attempts=max_attempts,
+    )
     req = SignatureGenRequest(
         prompt=prompt,
         template_version=template_version,
-        options={"class_name": class_name} if class_name else {},
+        options=options,
     )
     res = run_generate_dto(req)
     summary_payload = dict(res.metadata or {})
@@ -248,12 +342,13 @@ def signature_gen(
             class_name=class_name,
             signature_name=res.signature_name,
             summary_payload=summary_payload,
+            options=options,
         )
         typer.echo(str(outfile))
     else:
         sys.stdout.write(res.code)
         if cache_info:
-            _print_cache_info(prompt, template_version, class_name)
+            _print_cache_info(prompt, template_version, class_name, options)
 
 
 def _write_signature_output(
@@ -264,6 +359,7 @@ def _write_signature_output(
     class_name: Optional[str],
     signature_name: Optional[str],
     summary_payload: dict[str, Any],
+    options: dict[str, Any],
 ) -> None:
     """Write signature output with receipt and MLflow logging."""
     outfile.parent.mkdir(parents=True, exist_ok=True)
@@ -286,7 +382,7 @@ def _write_signature_output(
                 "prompt": prompt,
                 "template_version": template_version,
                 "class_name": cls,
-                "options": {"class_name": class_name} if class_name else {},
+                "options": options,
             }
         )
         cfile = cache_dir() / "signature" / f"{cache_key}.json"
@@ -309,7 +405,7 @@ def _write_signature_output(
                 "prompt": prompt,
                 "template_version": template_version,
                 "class_name": class_name,
-                "options": {"class_name": class_name} if class_name else {},
+                "options": options,
             },
             run_summary=summary_payload,
             extra={
@@ -340,7 +436,7 @@ def _write_signature_output(
                 "prompt": prompt,
                 "template_version": template_version,
                 "class_name": cls,
-                "options": {"class_name": class_name} if class_name else {},
+                "options": options,
             }
         )
         output_hash_for_tags = sha256_text(code)
@@ -372,7 +468,10 @@ def _write_signature_output(
 
 
 def _print_cache_info(
-    prompt: str, template_version: str, class_name: Optional[str]
+    prompt: str,
+    template_version: str,
+    class_name: Optional[str],
+    options: dict[str, Any] | None = None,
 ) -> None:
     """Print cache key and file info for signature."""
     try:
@@ -385,7 +484,8 @@ def _print_cache_info(
                 "prompt": prompt,
                 "template_version": template_version,
                 "class_name": cls,
-                "options": {"class_name": class_name} if class_name else {},
+                "options": options
+                or ({"class_name": class_name} if class_name else {}),
             }
         )
         cfile = cache_dir() / "signature" / f"{cache_key}.json"
