@@ -10,6 +10,16 @@ def test_smoke_base_loop_materializes_non_authority_playground(tmp_path: Path) -
     repo_root = Path(__file__).resolve().parents[1]
     out_dir = tmp_path / "base-loop"
 
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    ak_marker = tmp_path / "ak-called"
+    fake_ak = fake_bin / "ak"
+    fake_ak.write_text(
+        f"#!/usr/bin/env bash\necho ak-called > {ak_marker}\nexit 97\n",
+        encoding="utf-8",
+    )
+    fake_ak.chmod(0o755)
+
     env = os.environ.copy()
     env.update(
         {
@@ -17,6 +27,7 @@ def test_smoke_base_loop_materializes_non_authority_playground(tmp_path: Path) -
             "MLFLOW_ENABLE": "0",
             "DSPX_CACHE_DIR": str(tmp_path / "cache"),
             "DSPX_CACHE_ENABLE": "1",
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
         }
     )
 
@@ -31,6 +42,7 @@ def test_smoke_base_loop_materializes_non_authority_playground(tmp_path: Path) -
     )
 
     assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert not ak_marker.exists(), "smoke-base must not invoke ak"
     assert "[smoke-base] ok" in proc.stdout
     assert "planned_not_exported" in proc.stdout
 
