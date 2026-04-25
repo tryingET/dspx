@@ -44,29 +44,7 @@ uv run --package dspx-core -q python -m dspx.cli.dspx module-gen \
   --use-signature \
   --outfile "$OUT_DIR/ticket_module.py"
 
-cat > "$OUT_DIR/intent.yaml" <<'YAML'
-name: TicketProgram
-objective: Classify support ticket urgency.
-inputs:
-  - ticket_text
-outputs:
-  - urgency
-metric: accuracy
-examples:
-  - inputs:
-      ticket_text: Production outage for all users
-    outputs:
-      urgency: high
-promotion:
-  adjudicator:
-    kind: human_operator
-    id: local_operator
-  external_authority:
-    refs:
-      - system: agent_kernel
-        ref: AK-EXAMPLE
-        role: optional_authority_export_target
-YAML
+cp examples/program_gen/ticket_intent.yaml "$OUT_DIR/intent.yaml"
 
 printf '[smoke-base] program-gen\n'
 uv run --package dspx-core -q python -m dspx.cli.dspx program-gen \

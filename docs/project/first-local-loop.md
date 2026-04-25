@@ -71,7 +71,7 @@ Use a generated directory only when you explicitly want the artifacts under the 
      --outfile "$OUT_DIR/ticket_module.py"
    ```
 
-3. Writes a tiny structured intent with one inline example and an opaque optional external-authority ref.
+3. Copies `examples/program_gen/ticket_intent.yaml` into the output directory. The example intent contains one inline example and an opaque optional external-authority ref.
 
 4. Materializes a program-shaped candidate assembly:
 
@@ -106,6 +106,7 @@ The adapter step emits `ak-export-plan.json` plus `ak-export-plan.json.meta.json
 
 After a successful run, start with:
 
+- `intent.yaml` — copied starter intent from `examples/program_gen/ticket_intent.yaml`
 - `ticket_sig.py` — generated signature surface
 - `ticket_module.py` — generated module surface
 - `program/plan.json` — deterministic program plan

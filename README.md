@@ -65,7 +65,7 @@ First local base-layer loop (offline, temp-dir by default, no AK calls):
 just smoke-base
 ```
 
-This runs signature generation, module generation, `program-gen`, generated eval harnesses, and the non-mutating authority export-plan adapter. See `docs/project/first-local-loop.md`.
+This runs signature generation, module generation, `program-gen`, generated eval harnesses, and the non-mutating authority export-plan adapter using `examples/program_gen/ticket_intent.yaml`. See `docs/project/first-local-loop.md`.
 
 ---
 
