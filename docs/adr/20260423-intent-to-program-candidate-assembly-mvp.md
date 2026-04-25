@@ -55,6 +55,7 @@ The first materialized bundle writes:
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
 - `eval_smoke.py` — deterministic local smoke harness scaffold
+- `eval_jury.py` — deterministic jury artifact binding harness that validates `jury.json`, `jury_selection.json`, and `jury_rubric.json` without calling models
 - `examples.json` / `eval_examples.py` — emitted when inline `examples` or `examples_path` examples are present, validating example binding without calling an LM
 - `intent.json` — normalized intent payload
 - `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan/jury/selection/rubric-provenance, surface-provenance, example-binding, and per-surface hash metadata

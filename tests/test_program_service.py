@@ -41,6 +41,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (root / "module.py").exists()
     assert (root / "program.py").exists()
     assert (root / "eval_smoke.py").exists()
+    assert (root / "eval_jury.py").exists()
     assert (root / "intent.json").exists()
     assert (root / "manifest.json").exists()
     assert (root / "manifest.json.meta.json").exists()
@@ -87,6 +88,7 @@ def test_program_service_materializes_candidate_assembly(
         "module",
         "program",
         "eval_harness",
+        "jury_harness",
     ]
     assert manifest["candidate_assembly"]["surfaces"][0]["generator"] == "program-gen"
     assert manifest["candidate_assembly"]["surfaces"][1]["path"] == "jury.json"
@@ -100,6 +102,7 @@ def test_program_service_materializes_candidate_assembly(
     assert manifest["candidate_assembly"]["surfaces"][4]["generator"] == "signature-gen"
     assert manifest["candidate_assembly"]["surfaces"][5]["generator"] == "module-gen"
     assert manifest["execution_episode"]["status"] == "passed"
+    assert manifest["execution_episode"]["metadata"]["jury"]["returncode"] == 0
     assert manifest["receipt_bundle"]["status"] == "captured"
 
     smoke = subprocess.run(
@@ -126,6 +129,7 @@ def test_program_service_materializes_candidate_assembly(
     )
     evidence = receipt["program_receipt_bundle"]["evidence"]
     assert evidence["smoke"]["returncode"] == 0
+    assert evidence["jury"]["returncode"] == 0
     plan_hash = hashlib.sha256((root / "plan.json").read_bytes()).hexdigest()
     jury_hash = hashlib.sha256((root / "jury.json").read_bytes()).hexdigest()
     jury_selection_hash = hashlib.sha256(
@@ -147,12 +151,14 @@ def test_program_service_materializes_candidate_assembly(
     assert evidence["surface_generation"]["jury"] == "program-gen"
     assert evidence["surface_generation"]["jury_selection"] == "program-gen"
     assert evidence["surface_generation"]["jury_rubric"] == "program-gen"
+    assert evidence["surface_generation"]["jury_harness"] == "program-gen"
     assert evidence["surface_generation"]["signature"] == "signature-gen"
     assert evidence["surface_generation"]["module"] == "module-gen"
     assert "plan.json" in evidence["surface_hashes"]
     assert "jury.json" in evidence["surface_hashes"]
     assert "jury_selection.json" in evidence["surface_hashes"]
     assert "jury_rubric.json" in evidence["surface_hashes"]
+    assert "eval_jury.py" in evidence["surface_hashes"]
     assert "signature.py" in evidence["surface_hashes"]
 
     replay = check_run_receipt(root / "manifest.json.meta.json")
@@ -213,6 +219,7 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
+    assert (outdir / "eval_jury.py").exists()
     assert (outdir / "manifest.json.meta.json").exists()
 
 

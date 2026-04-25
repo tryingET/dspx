@@ -722,6 +722,7 @@ def build_program_plan(
         {"kind": "module", "path": "module.py", "generator": "module-gen"},
         {"kind": "program", "path": "program.py", "generator": "program-gen"},
         {"kind": "smoke_harness", "path": "eval_smoke.py", "generator": "program-gen"},
+        {"kind": "jury_harness", "path": "eval_jury.py", "generator": "program-gen"},
     ]
     if has_examples:
         surfaces.extend(
@@ -934,6 +935,50 @@ def render_eval_examples(intent: ProgramIntent) -> str:
     )
 
 
+def render_eval_jury() -> str:
+    """Render a deterministic jury artifact binding validation harness."""
+
+    return "\n".join(
+        [
+            "from __future__ import annotations",
+            "",
+            "import json",
+            "from pathlib import Path",
+            "",
+            "",
+            "def _load(name: str) -> dict[str, object]:",
+            "    payload = json.loads(Path(name).read_text(encoding='utf-8'))",
+            "    assert isinstance(payload, dict), f'{name} must contain an object'",
+            "    return payload",
+            "",
+            "",
+            "def main() -> None:",
+            "    jury = _load('jury.json')",
+            "    selection = _load('jury_selection.json')",
+            "    rubric = _load('jury_rubric.json')",
+            "    assert jury['schema_version'] == 'program-jury-v1'",
+            "    assert selection['schema_version'] == 'program-jury-selection-v1'",
+            "    assert rubric['schema_version'] == 'program-jury-rubric-v1'",
+            "    selected = selection.get('selected_jurors')",
+            "    rubrics = rubric.get('juror_rubrics')",
+            "    assert isinstance(selected, list)",
+            "    assert isinstance(rubrics, list)",
+            "    assert len(selected) == len(rubrics)",
+            "    selected_ids = {item.get('id') for item in selected if isinstance(item, dict)}",
+            "    rubric_ids = {item.get('juror_id') for item in rubrics if isinstance(item, dict)}",
+            "    assert selected_ids == rubric_ids",
+            "    assert selection['authority'] == 'selection_contract_only_non_authoritative'",
+            "    assert rubric['authority'] == 'rubric_contract_only_non_authoritative'",
+            "    print(f'program jury artifacts ok: {len(selected_ids)} selected juror(s)')",
+            "",
+            "",
+            "if __name__ == '__main__':",
+            "    main()",
+            "",
+        ]
+    )
+
+
 def _write_json(path: Path, payload: Mapping[str, Any] | list[Any]) -> str:
     text = _json_text(payload)
     path.write_text(text, encoding="utf-8")
@@ -972,6 +1017,10 @@ def _run_eval_examples(root: Path) -> dict[str, Any]:
     return _run_python_harness(root, "eval_examples.py", label="examples validation")
 
 
+def _run_eval_jury(root: Path) -> dict[str, Any]:
+    return _run_python_harness(root, "eval_jury.py", label="jury validation")
+
+
 def materialize_program_from_intent(
     intent: ProgramIntent,
     *,
@@ -991,6 +1040,7 @@ def materialize_program_from_intent(
     module_code, module_metadata = render_module_surface(intent)
     program_code = render_program_code(intent)
     eval_smoke_code = render_eval_smoke(intent)
+    eval_jury_code = render_eval_jury()
     examples_payload = list(intent.examples or [])
     examples_text = _json_text(examples_payload) if examples_payload else None
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
@@ -1016,6 +1066,7 @@ def materialize_program_from_intent(
         module_code,
         program_code,
         eval_smoke_code,
+        eval_jury_code,
     ]
     if eval_examples_code is not None:
         bundle_parts.append(eval_examples_code)
@@ -1032,6 +1083,7 @@ def materialize_program_from_intent(
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
         "eval_smoke.py": sha256_text(eval_smoke_code),
+        "eval_jury.py": sha256_text(eval_jury_code),
     }
     if eval_examples_code is not None:
         surface_hashes["eval_examples.py"] = sha256_text(eval_examples_code)
@@ -1043,6 +1095,7 @@ def materialize_program_from_intent(
         "module.py": module_code,
         "program.py": program_code,
         "eval_smoke.py": eval_smoke_code,
+        "eval_jury.py": eval_jury_code,
     }
     if eval_examples_code is not None:
         generated_files["eval_examples.py"] = eval_examples_code
@@ -1058,6 +1111,7 @@ def materialize_program_from_intent(
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
     smoke_result = _run_eval_smoke(root)
+    jury_result = _run_eval_jury(root)
     examples_result = _run_eval_examples(root) if examples_payload else None
     generated_file_names = sorted(
         [
@@ -1088,6 +1142,7 @@ def materialize_program_from_intent(
             "module",
             "program",
             "eval_harness",
+            "jury_harness",
         ],
         "root_path": str(root),
         "entrypoint": "program.py",
@@ -1149,6 +1204,12 @@ def materialize_program_from_intent(
                 "generator": "program-gen",
                 "content_hash": surface_hashes["eval_smoke.py"],
             },
+            {
+                "kind": "jury_harness",
+                "path": "eval_jury.py",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["eval_jury.py"],
+            },
             *(
                 [
                     {
@@ -1174,6 +1235,7 @@ def materialize_program_from_intent(
         "runtime_conditions": dict(intent.runtime),
         "metadata": {
             "smoke": smoke_result,
+            "jury": jury_result,
             **({"examples": examples_result} if examples_result is not None else {}),
         },
     }
@@ -1203,6 +1265,7 @@ def materialize_program_from_intent(
                 "module": "module-gen",
                 "program": "program-gen",
                 "eval_harness": "program-gen",
+                "jury_harness": "program-gen",
                 **(
                     {"examples_harness": "program-gen"}
                     if examples_result is not None
@@ -1211,6 +1274,7 @@ def materialize_program_from_intent(
             },
             "generated_files": generated_file_names,
             "smoke": smoke_result,
+            "jury": jury_result,
             **({"examples": examples_result} if examples_result is not None else {}),
         },
     }
