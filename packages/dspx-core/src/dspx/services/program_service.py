@@ -941,6 +941,11 @@ def build_program_plan(
             "path": "promotion_adjudication_request.json",
             "generator": "program-gen",
         },
+        {
+            "kind": "promotion_decision_template",
+            "path": "promotion_decision_template.json",
+            "generator": "program-gen",
+        },
         {"kind": "intent", "path": "intent.json", "generator": "program-gen"},
         {"kind": "signature", "path": "signature.py", "generator": "signature-gen"},
         {"kind": "module", "path": "module.py", "generator": "module-gen"},
@@ -1228,12 +1233,15 @@ def render_eval_promotion() -> str:
             "def main() -> None:",
             "    review = _load('promotion_review.json')",
             "    request = _load('promotion_adjudication_request.json')",
+            "    decision_template = _load('promotion_decision_template.json')",
             "    assert review['schema_version'] == 'program-promotion-review-v1'",
             "    assert request['schema_version'] == 'program-promotion-adjudication-request-v1'",
+            "    assert decision_template['schema_version'] == 'program-promotion-decision-v1'",
             "    assert review['promotion_state'] == 'not_promoted'",
             "    assert review['decision']['status'] == 'pending'",
             "    assert request['adjudicator'] == review['adjudicator']",
-            "    assert request['decision_record_template']['status'] == 'pending'",
+            "    assert request['decision_record_template'] == decision_template",
+            "    assert decision_template['status'] == 'pending'",
             "    assert request['authority'] == 'adjudication_request_only_non_authoritative'",
             "    blockers = review.get('blocking_conditions')",
             "    missing = request.get('missing_required_evidence')",
@@ -1337,12 +1345,16 @@ def materialize_program_from_intent(
     promotion_adjudication_request = build_promotion_adjudication_request(
         promotion_review
     )
+    promotion_decision_template = dict(
+        promotion_adjudication_request["decision_record_template"]
+    )
     plan_text = _json_text(program_plan)
     jury_text = _json_text(jury_payload)
     jury_selection_text = _json_text(jury_selection)
     jury_rubric_text = _json_text(jury_rubric)
     promotion_review_text = _json_text(promotion_review)
     promotion_adjudication_request_text = _json_text(promotion_adjudication_request)
+    promotion_decision_template_text = _json_text(promotion_decision_template)
     plan_hash = sha256_text(plan_text)
     jury_hash = sha256_text(jury_text)
     jury_selection_hash = sha256_text(jury_selection_text)
@@ -1351,6 +1363,7 @@ def materialize_program_from_intent(
     promotion_adjudication_request_hash = sha256_text(
         promotion_adjudication_request_text
     )
+    promotion_decision_template_hash = sha256_text(promotion_decision_template_text)
     eval_examples_code = render_eval_examples(intent) if examples_payload else None
     bundle_parts = [
         plan_text,
@@ -1359,6 +1372,7 @@ def materialize_program_from_intent(
         jury_rubric_text,
         promotion_review_text,
         promotion_adjudication_request_text,
+        promotion_decision_template_text,
         signature_code,
         module_code,
         program_code,
@@ -1379,6 +1393,7 @@ def materialize_program_from_intent(
         "jury_rubric.json": jury_rubric_hash,
         "promotion_review.json": promotion_review_hash,
         "promotion_adjudication_request.json": promotion_adjudication_request_hash,
+        "promotion_decision_template.json": promotion_decision_template_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -1413,6 +1428,9 @@ def materialize_program_from_intent(
     (root / "promotion_adjudication_request.json").write_text(
         promotion_adjudication_request_text, encoding="utf-8"
     )
+    (root / "promotion_decision_template.json").write_text(
+        promotion_decision_template_text, encoding="utf-8"
+    )
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
@@ -1429,6 +1447,7 @@ def materialize_program_from_intent(
             "jury_rubric.json",
             "promotion_review.json",
             "promotion_adjudication_request.json",
+            "promotion_decision_template.json",
             "intent.json",
             *(["examples.json"] if examples_payload else []),
             "manifest.json",
@@ -1447,6 +1466,7 @@ def materialize_program_from_intent(
             "jury_rubric",
             "promotion_review",
             "promotion_adjudication_request",
+            "promotion_decision_template",
             "intent",
             *(["examples"] if examples_payload else []),
             "signature",
@@ -1505,6 +1525,14 @@ def materialize_program_from_intent(
                 "content_hash": surface_hashes["promotion_adjudication_request.json"],
                 "schema_version": promotion_adjudication_request["schema_version"],
                 "status": promotion_adjudication_request["status"],
+            },
+            {
+                "kind": "promotion_decision_template",
+                "path": "promotion_decision_template.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["promotion_decision_template.json"],
+                "schema_version": promotion_decision_template["schema_version"],
+                "status": promotion_decision_template["status"],
             },
             {
                 "kind": "signature",
@@ -1589,6 +1617,7 @@ def materialize_program_from_intent(
             "jury_rubric_hash": jury_rubric_hash,
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
+            "promotion_decision_template_hash": promotion_decision_template_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
@@ -1600,6 +1629,7 @@ def materialize_program_from_intent(
                 "jury_rubric": "program-gen",
                 "promotion_review": "program-gen",
                 "promotion_adjudication_request": "program-gen",
+                "promotion_decision_template": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
@@ -1636,6 +1666,7 @@ def materialize_program_from_intent(
             "jury_rubric_hash": jury_rubric_hash,
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
+            "promotion_decision_template_hash": promotion_decision_template_hash,
         },
         "intent": intent_payload,
         "program_plan": program_plan,
@@ -1643,6 +1674,7 @@ def materialize_program_from_intent(
         "program_jury_rubric": jury_rubric,
         "program_promotion_review": promotion_review,
         "program_promotion_adjudication_request": promotion_adjudication_request,
+        "program_promotion_decision_template": promotion_decision_template,
         "candidate_assembly": candidate_assembly,
         "execution_episode": execution_episode,
         "receipt_bundle": receipt_bundle,
@@ -1685,6 +1717,7 @@ def materialize_program_from_intent(
             "jury_rubric_hash": jury_rubric_hash,
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
+            "promotion_decision_template_hash": promotion_decision_template_hash,
             "generated_files": generated_file_names,
         },
         extra={
@@ -1694,6 +1727,7 @@ def materialize_program_from_intent(
             "program_jury_rubric": jury_rubric,
             "program_promotion_review": promotion_review,
             "program_promotion_adjudication_request": promotion_adjudication_request,
+            "program_promotion_decision_template": promotion_decision_template,
             "program_candidate_assembly": candidate_assembly,
             "program_execution_episode": execution_episode,
             "program_receipt_bundle": receipt_bundle,
@@ -1732,6 +1766,7 @@ def materialize_program_from_intent(
             "jury_rubric_hash": jury_rubric_hash,
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
+            "promotion_decision_template_hash": promotion_decision_template_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },
