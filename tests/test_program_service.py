@@ -38,6 +38,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (root / "jury_selection.json").exists()
     assert (root / "jury_rubric.json").exists()
     assert (root / "promotion_review.json").exists()
+    assert (root / "promotion_adjudication_request.json").exists()
     assert (root / "signature.py").exists()
     assert (root / "module.py").exists()
     assert (root / "program.py").exists()
@@ -85,6 +86,7 @@ def test_program_service_materializes_candidate_assembly(
         "jury_selection",
         "jury_rubric",
         "promotion_review",
+        "promotion_adjudication_request",
         "intent",
         "signature",
         "module",
@@ -105,8 +107,13 @@ def test_program_service_materializes_candidate_assembly(
         manifest["candidate_assembly"]["surfaces"][4]["path"] == "promotion_review.json"
     )
     assert manifest["candidate_assembly"]["surfaces"][4]["generator"] == "program-gen"
-    assert manifest["candidate_assembly"]["surfaces"][5]["generator"] == "signature-gen"
-    assert manifest["candidate_assembly"]["surfaces"][6]["generator"] == "module-gen"
+    assert (
+        manifest["candidate_assembly"]["surfaces"][5]["path"]
+        == "promotion_adjudication_request.json"
+    )
+    assert manifest["candidate_assembly"]["surfaces"][5]["generator"] == "program-gen"
+    assert manifest["candidate_assembly"]["surfaces"][6]["generator"] == "signature-gen"
+    assert manifest["candidate_assembly"]["surfaces"][7]["generator"] == "module-gen"
     promotion_review = manifest["program_promotion_review"]
     assert promotion_review["schema_version"] == "program-promotion-review-v1"
     assert promotion_review["promotion_state"] == "not_promoted"
@@ -128,6 +135,18 @@ def test_program_service_materializes_candidate_assembly(
         "no_promotion_adjudicator_decision" in promotion_review["blocking_conditions"]
     )
     assert promotion_review["decision"]["status"] == "pending"
+    adjudication_request = manifest["program_promotion_adjudication_request"]
+    assert (
+        adjudication_request["schema_version"]
+        == "program-promotion-adjudication-request-v1"
+    )
+    assert adjudication_request["status"] == "not_ready_blocked"
+    assert adjudication_request["adjudicator"] == promotion_review["adjudicator"]
+    assert "request_more_evidence" in adjudication_request["allowed_outcomes"]
+    assert (
+        "no_promotion_adjudicator_decision"
+        in adjudication_request["missing_required_evidence"]
+    )
     assert promotion_review["non_authority"]["automatic_promotion"] is False
     assert manifest["execution_episode"]["status"] == "passed"
     assert manifest["execution_episode"]["metadata"]["jury"]["returncode"] == 0
@@ -169,22 +188,37 @@ def test_program_service_materializes_candidate_assembly(
     promotion_review_hash = hashlib.sha256(
         (root / "promotion_review.json").read_bytes()
     ).hexdigest()
+    promotion_adjudication_request_hash = hashlib.sha256(
+        (root / "promotion_adjudication_request.json").read_bytes()
+    ).hexdigest()
     assert evidence["plan_hash"] == plan_hash
     assert evidence["jury_hash"] == jury_hash
     assert evidence["jury_selection_hash"] == jury_selection_hash
     assert evidence["jury_rubric_hash"] == jury_rubric_hash
     assert evidence["promotion_review_hash"] == promotion_review_hash
+    assert (
+        evidence["promotion_adjudication_request_hash"]
+        == promotion_adjudication_request_hash
+    )
     assert receipt["run_summary"]["plan_hash"] == plan_hash
     assert receipt["run_summary"]["jury_hash"] == jury_hash
     assert receipt["run_summary"]["jury_selection_hash"] == jury_selection_hash
     assert receipt["run_summary"]["jury_rubric_hash"] == jury_rubric_hash
     assert receipt["run_summary"]["promotion_review_hash"] == promotion_review_hash
+    assert (
+        receipt["run_summary"]["promotion_adjudication_request_hash"]
+        == promotion_adjudication_request_hash
+    )
     assert receipt["program_plan"]["schema_version"] == "program-plan-v1"
     assert evidence["surface_generation"]["plan"] == "program-gen"
     assert evidence["surface_generation"]["jury"] == "program-gen"
     assert evidence["surface_generation"]["jury_selection"] == "program-gen"
     assert evidence["surface_generation"]["jury_rubric"] == "program-gen"
     assert evidence["surface_generation"]["promotion_review"] == "program-gen"
+    assert (
+        evidence["surface_generation"]["promotion_adjudication_request"]
+        == "program-gen"
+    )
     assert evidence["surface_generation"]["jury_harness"] == "program-gen"
     assert evidence["surface_generation"]["signature"] == "signature-gen"
     assert evidence["surface_generation"]["module"] == "module-gen"
@@ -193,6 +227,7 @@ def test_program_service_materializes_candidate_assembly(
     assert "jury_selection.json" in evidence["surface_hashes"]
     assert "jury_rubric.json" in evidence["surface_hashes"]
     assert "promotion_review.json" in evidence["surface_hashes"]
+    assert "promotion_adjudication_request.json" in evidence["surface_hashes"]
     assert "eval_jury.py" in evidence["surface_hashes"]
     assert "signature.py" in evidence["surface_hashes"]
 
@@ -249,12 +284,17 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (
         payload["candidate_assembly"]["surfaces"][4]["path"] == "promotion_review.json"
     )
-    assert payload["candidate_assembly"]["surfaces"][5]["path"] == "signature.py"
+    assert (
+        payload["candidate_assembly"]["surfaces"][5]["path"]
+        == "promotion_adjudication_request.json"
+    )
+    assert payload["candidate_assembly"]["surfaces"][6]["path"] == "signature.py"
     assert (outdir / "plan.json").exists()
     assert (outdir / "jury.json").exists()
     assert (outdir / "jury_selection.json").exists()
     assert (outdir / "jury_rubric.json").exists()
     assert (outdir / "promotion_review.json").exists()
+    assert (outdir / "promotion_adjudication_request.json").exists()
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
@@ -573,10 +613,24 @@ def test_program_gen_cli_carries_explicit_jury_contract(
     assert (
         "no_promotion_adjudicator_decision" in promotion_review["blocking_conditions"]
     )
+    adjudication_request = json.loads(
+        (outdir / "promotion_adjudication_request.json").read_text(encoding="utf-8")
+    )
+    assert adjudication_request["adjudicator"] == promotion_review["adjudicator"]
+    assert adjudication_request["decision_record_template"] == {
+        "schema_version": "program-promotion-decision-v1",
+        "status": "pending",
+        "outcome": None,
+        "decided_by": "safety_quality_council",
+        "adjudicator_kind": "ai_council",
+        "rationale": None,
+        "evidence_refs": [],
+    }
     assert receipt["program_plan"]["evaluation_strategy"] == jury
     assert receipt["program_jury_selection"] == selection
     assert receipt["program_jury_rubric"] == rubric
     assert receipt["program_promotion_review"] == promotion_review
+    assert receipt["program_promotion_adjudication_request"] == adjudication_request
 
 
 def test_program_gen_cli_rejects_invalid_intent_field(

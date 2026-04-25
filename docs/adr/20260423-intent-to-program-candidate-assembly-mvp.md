@@ -52,6 +52,7 @@ The first materialized bundle writes:
 - `jury_selection.json` — deterministic `program-jury-selection-v1` artifact that selects jurors from the per-program pool by preferring diverse perspectives, remains non-authoritative, and does not call any model
 - `jury_rubric.json` — deterministic `program-jury-rubric-v1` artifact that binds selected jurors/perspectives to criteria and adversarial questions for a later jury execution episode, remains non-authoritative, and does not call any model
 - `promotion_review.json` — deterministic `program-promotion-review-v1` local review shell that keeps the candidate `not_promoted` and records the explicit pending promotion adjudicator (`human_operator`, `ai_agent`, `ai_council`, `hybrid`, or `policy_gate`) plus pending behavioral evaluation, model-jury execution, and adjudicator-decision requirements
+- `promotion_adjudication_request.json` — deterministic `program-promotion-adjudication-request-v1` decision packet for the configured adjudicator, including evidence refs, missing evidence, allowed outcomes, and a pending decision-record template
 - `signature.py` — deterministic DSPy `Signature` surface generated through the signature service, including typed/described field specs when provided
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
@@ -59,7 +60,7 @@ The first materialized bundle writes:
 - `eval_jury.py` — deterministic jury artifact binding harness that validates `jury.json`, `jury_selection.json`, and `jury_rubric.json` without calling models
 - `examples.json` / `eval_examples.py` — emitted when inline `examples` or `examples_path` examples are present, validating example binding without calling an LM
 - `intent.json` — normalized intent payload
-- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan/jury/selection/rubric/promotion-review-provenance, surface-provenance, example-binding, and per-surface hash metadata
+- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan/jury/selection/rubric/promotion-review/adjudication-request-provenance, surface-provenance, example-binding, and per-surface hash metadata
 - `manifest.json.meta.json` — standard DSPx run receipt with `run_kind=program-gen`
 
 Before marking the materialization episode as `passed`, DSPx compiles the generated files and runs `eval_smoke.py` in the candidate assembly directory. The receipt hash is computed from the exact written `manifest.json` bytes, and replay validation can recompute the `program-gen` cache key from `replay_inputs.intent`.
@@ -79,7 +80,7 @@ Positive:
 - DSPx now has a concrete foothold for one-intent program synthesis.
 - Program synthesis begins at the candidate-assembly boundary instead of being squeezed into module generation.
 - `program-gen` now composes signature and module generation as candidate-surface providers instead of permanently duplicating them inline.
-- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review provenance, surface provenance, optional example-binding evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
+- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review/adjudication-request provenance, surface provenance, optional example-binding evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
 - The first path is deterministic and testable, so it can compound before model-backed synthesis or GEPA-backed search is introduced.
 
 Tradeoffs:
@@ -99,7 +100,7 @@ Non-authority defaults:
 
 The first implementation is covered by:
 
-- service-level materialization tests for generated files, `plan.json` / `jury.json` / `jury_selection.json` / `jury_rubric.json` / `promotion_review.json` shape, manifest plan/jury/selection/rubric/promotion-review provenance, receipt fields, exact manifest hash, and replay validation
+- service-level materialization tests for generated files, `plan.json` / `jury.json` / `jury_selection.json` / `jury_rubric.json` / `promotion_review.json` / `promotion_adjudication_request.json` shape, manifest plan/jury/selection/rubric/promotion-review/adjudication-request provenance, receipt fields, exact manifest hash, and replay validation
 - CLI tests for YAML intent input and invalid-field rejection
 - validation tests for empty IO, input/output overlap, and docstring-hostile objectives
 - targeted compile / lint / pytest checks
