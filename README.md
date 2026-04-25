@@ -188,8 +188,10 @@ constraints:
 # Optional: explicit promotion adjudicator (decision authority, still pending)
 # promotion:
 #   adjudicator:
-#     kind: human_operator  # or ai_agent, ai_council, hybrid, policy_gate
+#     kind: human_operator  # or ai_agent, ai_council, hybrid, policy_gate, external_adapter
 #     id: local_operator
+#     # For future external authority export only; DSPx core does not call adapters here.
+#     # adapter: agent_kernel
 # Optional: inline examples or examples_path: examples.yaml
 ```
 
@@ -205,8 +207,8 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `jury.json` — standalone planned jury contract copied out of the plan so future jury execution can bind to an exact per-program juror/perspective pool artifact; when no explicit pool is supplied, DSPx infers one from intent features such as task type, metric, examples, fields, and constraints
 - `jury_selection.json` — deterministic non-authoritative juror selection artifact; prefers diverse perspectives from the per-program pool, records selected jurors, and still calls no models
 - `jury_rubric.json` — deterministic non-authoritative per-juror rubric artifact; binds selected perspectives to criteria and adversarial questions for a later jury execution episode
-- `promotion_review.json` — deterministic non-authoritative local promotion-review shell; records the explicit pending adjudicator (`human_operator`, `ai_agent`, `ai_council`, `hybrid`, or `policy_gate`), pending behavioral evaluation, model-jury execution, and adjudicator-decision requirements while keeping the candidate unpromoted
-- `promotion_adjudication_request.json` — deterministic non-authoritative decision packet for the configured adjudicator, including evidence refs, missing evidence, allowed outcomes, and a pending decision-record template
+- `promotion_review.json` — deterministic non-authoritative local promotion-review shell; records the explicit pending adjudicator (`human_operator`, `ai_agent`, `ai_council`, `hybrid`, `policy_gate`, or `external_adapter`), an `authority_bridge` for optional future export (currently `not_exported`), pending behavioral evaluation, model-jury execution, and adjudicator-decision requirements while keeping the candidate unpromoted
+- `promotion_adjudication_request.json` — deterministic non-authoritative decision packet for the configured adjudicator, including evidence refs, missing evidence, allowed outcomes, the optional external authority bridge, and a pending decision-record template
 - `promotion_decision_template.json` — standalone pending `program-promotion-decision-v1` template that an explicit adjudicator may later fill; it is not a decision
 - `signature.py` — signature surface generated through the signature service
 - `module.py` — module surface generated through the module service
@@ -219,7 +221,7 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template hash provenance
 - `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template evidence
 
-This path is intentionally deterministic and scaffold-first. The `jury` entry is a future evaluation contract shape only: no juror models are called during materialization. It materializes evidence; it does not promote, rank, prune, or grant Oracle/governance authority.
+This path is intentionally deterministic and scaffold-first. The `jury` entry is a future evaluation contract shape only: no juror models are called during materialization. The promotion authority bridge is also declarative only: DSPx core does not call Agent Kernel or any external adapter during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
 
 ---
 

@@ -697,6 +697,7 @@ def _promotion_adjudicator(intent: ProgramIntent) -> dict[str, Any]:
         "ai_council": "local_ai_council",
         "hybrid": "ai_council_recommends_human_approves",
         "policy_gate": "local_policy_gate",
+        "external_adapter": "external_authority",
     }
     payload: dict[str, Any] = {
         "kind": kind,
@@ -706,10 +707,38 @@ def _promotion_adjudicator(intent: ProgramIntent) -> dict[str, Any]:
         "authority": str(adjudicator.get("authority") or "required_for_promotion"),
         "status": "pending",
     }
-    for key in ("agent", "agents", "council", "members", "provider", "policy"):
-        if adjudicator.get(key) is not None:
-            payload[key] = adjudicator[key]
+    for key, value in adjudicator.items():
+        if key not in {"kind", "id", "authority", "status"} and value is not None:
+            payload[key] = value
     return payload
+
+
+_SUPPORTED_EXTERNAL_AUTHORITY_ADAPTERS = ["agent_kernel"]
+
+
+def _promotion_authority_bridge(adjudicator: Mapping[str, Any]) -> dict[str, Any]:
+    """Describe optional external authority handoff without invoking an adapter."""
+
+    external_refs: list[dict[str, Any]] = []
+    adapter = adjudicator.get("adapter")
+    if adjudicator.get("kind") == "external_adapter" and adapter:
+        external_refs.append(
+            {
+                "adapter": str(adapter),
+                "id": str(adjudicator.get("id") or "external_authority"),
+                "status": "not_exported",
+                "source": "promotion.adjudicator",
+            }
+        )
+    return {
+        "status": "not_exported",
+        "supported_adapters": list(_SUPPORTED_EXTERNAL_AUTHORITY_ADAPTERS),
+        "external_refs": external_refs,
+        "notes": [
+            "DSPx core does not call external authority adapters during materialization.",
+            "Agent Kernel integration is optional and must be invoked explicitly.",
+        ],
+    }
 
 
 def _promotion_policy(intent: ProgramIntent) -> dict[str, Any]:
@@ -739,6 +768,7 @@ def build_promotion_review(
 
     adjudicator = _promotion_adjudicator(intent)
     promotion_policy = _promotion_policy(intent)
+    authority_bridge = _promotion_authority_bridge(adjudicator)
     evidence_requirements = [
         {
             "name": "candidate_materialized",
@@ -804,6 +834,7 @@ def build_promotion_review(
         "adjudicator": adjudicator,
         "decision_authority": adjudicator["authority"],
         "promotion_policy": promotion_policy,
+        "authority_bridge": authority_bridge,
         "decision": {
             "status": "pending",
             "outcome": None,
@@ -830,11 +861,12 @@ def build_promotion_review(
             "oracle_role": "behavioral_interpreter_only",
             "automatic_promotion": False,
             "ranking_pruning_promotion": False,
+            "external_authority_export": False,
         },
         "notes": [
             "This shell records what would be needed before local promotion review.",
             "It does not promote the generated program or activate any policy.",
-            "The promotion adjudicator may be human, one AI agent, an AI council, a hybrid, or a policy gate.",
+            "The promotion adjudicator may be human, one AI agent, an AI council, a hybrid, a policy gate, or an explicitly invoked external adapter.",
             "Jury artifacts are planning/binding evidence until a later model jury episode runs.",
         ],
     }
@@ -846,13 +878,30 @@ def build_promotion_adjudication_request(
     """Build a deterministic decision packet for the configured adjudicator."""
 
     adjudicator = dict(promotion_review.get("adjudicator") or {})
+    authority_bridge = dict(promotion_review.get("authority_bridge") or {})
     blocking_conditions = list(promotion_review.get("blocking_conditions") or [])
+    decision_record_template = {
+        "schema_version": "program-promotion-decision-v1",
+        "status": "pending",
+        "outcome": None,
+        "decided_by": adjudicator.get("id"),
+        "adjudicator_kind": adjudicator.get("kind"),
+        "rationale": None,
+        "evidence_refs": [],
+    }
+    if adjudicator.get("kind") == "external_adapter":
+        decision_record_template["external_authority"] = {
+            "adapter": adjudicator.get("adapter"),
+            "id": adjudicator.get("id"),
+            "status": authority_bridge.get("status", "not_exported"),
+        }
     return {
         "schema_version": "program-promotion-adjudication-request-v1",
         "status": "not_ready_blocked"
         if blocking_conditions
         else "ready_for_adjudicator",
         "adjudicator": adjudicator,
+        "authority_bridge": authority_bridge,
         "decision_question": (
             "Should this exact program candidate be promoted, withheld, rejected, "
             "or returned for more evidence?"
@@ -879,15 +928,7 @@ def build_promotion_adjudication_request(
             {"kind": "jury_binding_harness", "path": "eval_jury.py"},
         ],
         "missing_required_evidence": blocking_conditions,
-        "decision_record_template": {
-            "schema_version": "program-promotion-decision-v1",
-            "status": "pending",
-            "outcome": None,
-            "decided_by": adjudicator.get("id"),
-            "adjudicator_kind": adjudicator.get("kind"),
-            "rationale": None,
-            "evidence_refs": [],
-        },
+        "decision_record_template": decision_record_template,
         "authority": "adjudication_request_only_non_authoritative",
         "notes": [
             "This packet prepares an explicit adjudicator decision; it is not a decision.",
@@ -1240,6 +1281,7 @@ def render_eval_promotion() -> str:
             "    assert review['promotion_state'] == 'not_promoted'",
             "    assert review['decision']['status'] == 'pending'",
             "    assert request['adjudicator'] == review['adjudicator']",
+            "    assert request['authority_bridge'] == review['authority_bridge']",
             "    assert request['decision_record_template'] == decision_template",
             "    assert decision_template['status'] == 'pending'",
             "    assert request['authority'] == 'adjudication_request_only_non_authoritative'",
@@ -1252,6 +1294,7 @@ def render_eval_promotion() -> str:
             "        assert request['status'] == 'not_ready_blocked'",
             "    assert review['non_authority']['automatic_promotion'] is False",
             "    assert review['non_authority']['ranking_pruning_promotion'] is False",
+            "    assert review['non_authority']['external_authority_export'] is False",
             "    print(f'program promotion artifacts ok: {request[\"status\"]}')",
             "",
             "",

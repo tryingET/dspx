@@ -10,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
+from dspx.services import program_service
 from dspx.services.program_service import ProgramIntent, materialize_program_from_intent
 from dspx.services.run_replay_service import check_run_receipt
 
@@ -139,6 +140,11 @@ def test_program_service_materializes_candidate_assembly(
         "requires_adjudicator_decision": True,
         "automatic_promotion": False,
     }
+    assert promotion_review["authority_bridge"]["status"] == "not_exported"
+    assert promotion_review["authority_bridge"]["supported_adapters"] == [
+        "agent_kernel"
+    ]
+    assert promotion_review["authority_bridge"]["external_refs"] == []
     assert "no_behavioral_evaluation_episode" in promotion_review["blocking_conditions"]
     assert (
         "no_promotion_adjudicator_decision" in promotion_review["blocking_conditions"]
@@ -151,6 +157,9 @@ def test_program_service_materializes_candidate_assembly(
     )
     assert adjudication_request["status"] == "not_ready_blocked"
     assert adjudication_request["adjudicator"] == promotion_review["adjudicator"]
+    assert (
+        adjudication_request["authority_bridge"] == promotion_review["authority_bridge"]
+    )
     assert "request_more_evidence" in adjudication_request["allowed_outcomes"]
     assert (
         "no_promotion_adjudicator_decision"
@@ -160,6 +169,8 @@ def test_program_service_materializes_candidate_assembly(
     assert decision_template == adjudication_request["decision_record_template"]
     assert decision_template["status"] == "pending"
     assert promotion_review["non_authority"]["automatic_promotion"] is False
+    assert promotion_review["non_authority"]["ranking_pruning_promotion"] is False
+    assert promotion_review["non_authority"]["external_authority_export"] is False
     assert manifest["execution_episode"]["status"] == "passed"
     assert manifest["execution_episode"]["metadata"]["jury"]["returncode"] == 0
     assert manifest["execution_episode"]["metadata"]["promotion"]["returncode"] == 0
@@ -669,6 +680,117 @@ def test_program_gen_cli_carries_explicit_jury_contract(
     assert receipt["program_plan"]["evaluation_strategy"] == jury
     assert receipt["program_jury_selection"] == selection
     assert receipt["program_jury_rubric"] == rubric
+    assert receipt["program_promotion_review"] == promotion_review
+    assert receipt["program_promotion_adjudication_request"] == adjudication_request
+    assert receipt["program_promotion_decision_template"] == decision_template
+
+
+def test_program_gen_cli_carries_external_adapter_authority_bridge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    real_run = program_service.subprocess.run
+    subprocess_calls: list[list[str]] = []
+
+    def spy_run(
+        command: list[str], *args: object, **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        command_text = [str(part) for part in command]
+        command_names = [Path(part).name for part in command_text]
+        assert "ak" not in command_names
+        subprocess_calls.append(command_text)
+        return real_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(program_service.subprocess, "run", spy_run)
+    intent_path = tmp_path / "intent.yaml"
+    intent_path.write_text(
+        "\n".join(
+            [
+                "name: ExternalAuthorityProgram",
+                "objective: Answer with portable local evidence only.",
+                "inputs:",
+                "  - question",
+                "outputs:",
+                "  - answer",
+                "promotion:",
+                "  adjudicator:",
+                "    kind: external_adapter",
+                "    adapter: agent_kernel",
+                "    id: AK-1234",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "candidate"
+
+    result = runner.invoke(
+        app,
+        ["program-gen", "--intent", str(intent_path), "--outdir", str(outdir)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert subprocess_calls
+    assert all(
+        "ak" not in [Path(part).name for part in command]
+        for command in subprocess_calls
+    )
+    promotion_review = json.loads(
+        (outdir / "promotion_review.json").read_text(encoding="utf-8")
+    )
+    assert promotion_review["adjudicator"] == {
+        "kind": "external_adapter",
+        "id": "AK-1234",
+        "authority": "required_for_promotion",
+        "status": "pending",
+        "adapter": "agent_kernel",
+    }
+    assert promotion_review["authority_bridge"] == {
+        "status": "not_exported",
+        "supported_adapters": ["agent_kernel"],
+        "external_refs": [
+            {
+                "adapter": "agent_kernel",
+                "id": "AK-1234",
+                "status": "not_exported",
+                "source": "promotion.adjudicator",
+            }
+        ],
+        "notes": [
+            "DSPx core does not call external authority adapters during materialization.",
+            "Agent Kernel integration is optional and must be invoked explicitly.",
+        ],
+    }
+    assert promotion_review["promotion_state"] == "not_promoted"
+    assert promotion_review["non_authority"]["automatic_promotion"] is False
+    assert promotion_review["non_authority"]["ranking_pruning_promotion"] is False
+    assert promotion_review["non_authority"]["external_authority_export"] is False
+    adjudication_request = json.loads(
+        (outdir / "promotion_adjudication_request.json").read_text(encoding="utf-8")
+    )
+    assert adjudication_request["adjudicator"] == promotion_review["adjudicator"]
+    assert (
+        adjudication_request["authority_bridge"] == promotion_review["authority_bridge"]
+    )
+    decision_template = json.loads(
+        (outdir / "promotion_decision_template.json").read_text(encoding="utf-8")
+    )
+    assert decision_template == adjudication_request["decision_record_template"]
+    assert decision_template["adjudicator_kind"] == "external_adapter"
+    assert decision_template["decided_by"] == "AK-1234"
+    assert decision_template["external_authority"] == {
+        "adapter": "agent_kernel",
+        "id": "AK-1234",
+        "status": "not_exported",
+    }
+    manifest = json.loads((outdir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["intent"]["promotion"]["adjudicator"]["kind"] == "external_adapter"
+    assert manifest["program_promotion_review"] == promotion_review
+    assert manifest["program_promotion_adjudication_request"] == adjudication_request
+    assert manifest["program_promotion_decision_template"] == decision_template
+    receipt = json.loads(
+        (outdir / "manifest.json.meta.json").read_text(encoding="utf-8")
+    )
     assert receipt["program_promotion_review"] == promotion_review
     assert receipt["program_promotion_adjudication_request"] == adjudication_request
     assert receipt["program_promotion_decision_template"] == decision_template
