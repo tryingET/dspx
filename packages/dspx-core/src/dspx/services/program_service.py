@@ -694,11 +694,15 @@ def materialize_program_from_intent(
     examples_text = _json_text(examples_payload) if examples_payload else None
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
     program_plan = build_program_plan(intent, examples_hash=examples_hash)
+    jury_payload = dict(program_plan["evaluation_strategy"])
     plan_text = _json_text(program_plan)
+    jury_text = _json_text(jury_payload)
     plan_hash = sha256_text(plan_text)
+    jury_hash = sha256_text(jury_text)
     eval_examples_code = render_eval_examples(intent) if examples_payload else None
     bundle_parts = [
         plan_text,
+        jury_text,
         signature_code,
         module_code,
         program_code,
@@ -712,6 +716,7 @@ def materialize_program_from_intent(
     intent_hash = sha256_text(json.dumps(intent_payload, sort_keys=True))
     surface_hashes = {
         "plan.json": plan_hash,
+        "jury.json": jury_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -735,6 +740,7 @@ def materialize_program_from_intent(
         (root / relative).write_text(content, encoding="utf-8")
 
     (root / "plan.json").write_text(plan_text, encoding="utf-8")
+    (root / "jury.json").write_text(jury_text, encoding="utf-8")
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
@@ -744,6 +750,7 @@ def materialize_program_from_intent(
         [
             *generated_files.keys(),
             "plan.json",
+            "jury.json",
             "intent.json",
             *(["examples.json"] if examples_payload else []),
             "manifest.json",
@@ -757,6 +764,7 @@ def materialize_program_from_intent(
         "artifact_kind": "program",
         "surface_kinds": [
             "plan",
+            "jury",
             "intent",
             *(["examples"] if examples_payload else []),
             "signature",
@@ -775,6 +783,13 @@ def materialize_program_from_intent(
                 "generator": "program-gen",
                 "content_hash": surface_hashes["plan.json"],
                 "schema_version": program_plan["schema_version"],
+            },
+            {
+                "kind": "jury",
+                "path": "jury.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["jury.json"],
+                "schema_version": jury_payload["schema_version"],
             },
             {
                 "kind": "signature",
@@ -840,12 +855,14 @@ def materialize_program_from_intent(
         "evidence": {
             "intent_hash": intent_hash,
             "plan_hash": plan_hash,
+            "jury_hash": jury_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
             **({"examples_hash": examples_hash} if examples_hash is not None else {}),
             "surface_generation": {
                 "plan": "program-gen",
+                "jury": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
@@ -873,6 +890,7 @@ def materialize_program_from_intent(
             else None,
             "intent_hash": intent_hash,
             "plan_hash": plan_hash,
+            "jury_hash": jury_hash,
         },
         "intent": intent_payload,
         "program_plan": program_plan,
@@ -913,6 +931,7 @@ def materialize_program_from_intent(
             "episode_id": ids["episode_id"],
             "receipt_bundle_id": ids["receipt_bundle_id"],
             "plan_hash": plan_hash,
+            "jury_hash": jury_hash,
             "generated_files": generated_file_names,
         },
         extra={
@@ -951,6 +970,7 @@ def materialize_program_from_intent(
             "receipt_bundle_id": ids["receipt_bundle_id"],
             "intent_hash": intent_hash,
             "plan_hash": plan_hash,
+            "jury_hash": jury_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },

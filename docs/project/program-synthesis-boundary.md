@@ -379,7 +379,7 @@ After this doc lands, the repo has a stronger and less misleading contract for s
 
 ## First implementation foothold
 
-`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `plan.json`, explicit planned `program-jury-v1` contracts, `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, typed/described signature fields when provided, optional `examples.json` / `eval_examples.py` from inline `examples` or `examples_path`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
+`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `plan.json`, standalone `jury.json`, explicit planned `program-jury-v1` contracts, `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, typed/described signature fields when provided, optional `examples.json` / `eval_examples.py` from inline `examples` or `examples_path`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
 
 The current implementation keeps that foothold narrow while making the surface boundary more truthful:
 - it proves the intent -> candidate assembly -> execution episode -> receipt bundle spine at program shape,
