@@ -329,6 +329,7 @@ def _normalize_jurors(raw_jurors: Any) -> list[dict[str, Any]]:
                     "id": _sanitize_ident(model, fallback=f"juror_{index + 1}"),
                     "model": model,
                     "perspective": "unspecified",
+                    "source": "explicit_user",
                 }
             )
             continue
@@ -347,18 +348,112 @@ def _normalize_jurors(raw_jurors: Any) -> list[dict[str, Any]]:
             "id": juror_id,
             "model": model or None,
             "perspective": perspective or "unspecified",
+            "source": str(item.get("source") or "explicit_user"),
         }
         if item.get("provider") is not None:
             juror["provider"] = str(item["provider"])
         if item.get("weight") is not None:
             juror["weight"] = item["weight"]
+        if item.get("reason") is not None:
+            juror["reason"] = str(item["reason"])
         jurors.append(juror)
     return jurors
 
 
+def _intent_text_for_jury(intent: ProgramIntent) -> str:
+    parts = [intent.name, intent.objective, intent.task_type, intent.metric or ""]
+    parts.extend(intent.constraints or [])
+    parts.extend(intent.inputs or [])
+    parts.extend(intent.outputs or [])
+    return " ".join(str(part) for part in parts).lower()
+
+
+def _inferred_juror(perspective: str, reason: str) -> dict[str, Any]:
+    return {
+        "id": f"inferred_{_sanitize_ident(perspective).lower()}",
+        "model": None,
+        "perspective": perspective,
+        "source": "inferred_from_intent",
+        "reason": reason,
+    }
+
+
+def _infer_program_jury_pool(intent: ProgramIntent) -> list[dict[str, Any]]:
+    """Infer a program-specific jury pool from deterministic intent features."""
+
+    text = _intent_text_for_jury(intent)
+    jurors = [
+        _inferred_juror("correctness", "baseline behavior correctness coverage"),
+        _inferred_juror("robustness", "baseline edge-case and failure-mode coverage"),
+        _inferred_juror(
+            "instruction_following",
+            "baseline objective and instruction adherence coverage",
+        ),
+    ]
+    if intent.examples:
+        jurors.append(
+            _inferred_juror(
+                "example_generalization",
+                "examples are present, so held-out/generalization behavior matters",
+            )
+        )
+    if intent.metric:
+        metric = intent.metric.lower()
+        if "exact" in metric:
+            jurors.append(
+                _inferred_juror(
+                    "answer_equivalence",
+                    "exact-match metrics need strict answer-equivalence critique",
+                )
+            )
+        if "accuracy" in metric or "class" in metric:
+            jurors.append(
+                _inferred_juror(
+                    "label_boundary",
+                    "classification/accuracy metrics need boundary-case critique",
+                )
+            )
+    if any(name in intent.outputs for name in ("confidence", "score", "probability")):
+        jurors.append(
+            _inferred_juror(
+                "calibration", "confidence-like outputs require calibration critique"
+            )
+        )
+    if any(token in text for token in ("context", "cite", "citation", "source", "rag")):
+        jurors.append(
+            _inferred_juror(
+                "grounding", "context/source/citation cues require grounding critique"
+            )
+        )
+    if intent.constraints:
+        jurors.append(
+            _inferred_juror(
+                "constraint_adherence",
+                "declared constraints require adversarial checking",
+            )
+        )
+    return jurors
+
+
+def _merge_jury_pool(
+    explicit_jurors: list[dict[str, Any]], inferred_jurors: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen_perspectives: set[str] = set()
+    for juror in [*explicit_jurors, *inferred_jurors]:
+        perspective = str(juror.get("perspective") or "unspecified")
+        if perspective in seen_perspectives:
+            continue
+        merged.append(dict(juror))
+        seen_perspectives.add(perspective)
+    return merged
+
+
 def _jury_plan_defaults(intent: ProgramIntent) -> dict[str, Any]:
     jury_options = _jury_options(intent)
-    jurors = _normalize_jurors(jury_options.get("jurors"))
+    explicit_jurors = _normalize_jurors(jury_options.get("jurors"))
+    inferred_jurors = _infer_program_jury_pool(intent)
+    jurors = _merge_jury_pool(explicit_jurors, inferred_jurors)
     explicit_perspectives = _string_list(jury_options.get("perspectives"))
     juror_perspectives = [
         str(juror["perspective"])
@@ -381,6 +476,22 @@ def _jury_plan_defaults(intent: ProgramIntent) -> dict[str, Any]:
         ),
         "minimum_jurors": int(jury_options.get("minimum_jurors") or 3),
         "jurors": jurors,
+        "pool": {
+            "scope": "program",
+            "explicit_juror_count": len(explicit_jurors),
+            "inferred_juror_count": len(inferred_jurors),
+            "merged_juror_count": len(jurors),
+            "inference_basis": [
+                "intent.name",
+                "intent.objective",
+                "intent.task_type",
+                "intent.metric",
+                "intent.inputs",
+                "intent.outputs",
+                "intent.constraints",
+                "intent.examples",
+            ],
+        },
         "perspectives": perspectives,
         "selection_constraints": dict(selection_constraints),
         "aggregation": str(jury_options.get("aggregation") or "deliberation_summary"),

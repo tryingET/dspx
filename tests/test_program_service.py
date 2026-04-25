@@ -59,7 +59,20 @@ def test_program_service_materializes_candidate_assembly(
     assert manifest["candidate_assembly"]["artifact_kind"] == "program"
     assert manifest["program_plan"]["schema_version"] == "program-plan-v1"
     assert manifest["program_plan"]["task_type"] == "single_module"
-    assert manifest["program_plan"]["evaluation_strategy"]["mode"] == "jury"
+    inferred_jury = manifest["program_plan"]["evaluation_strategy"]
+    assert inferred_jury["mode"] == "jury"
+    assert inferred_jury["pool"]["scope"] == "program"
+    assert inferred_jury["pool"]["explicit_juror_count"] == 0
+    inferred_perspectives = {item["perspective"] for item in inferred_jury["jurors"]}
+    assert {
+        "correctness",
+        "robustness",
+        "instruction_following",
+        "answer_equivalence",
+        "calibration",
+        "grounding",
+        "constraint_adherence",
+    }.issubset(inferred_perspectives)
     assert (
         manifest["program_plan"]["non_authority"]["ranking_pruning_promotion"] is False
     )
@@ -430,17 +443,20 @@ def test_program_gen_cli_carries_explicit_jury_contract(
         "id": "correctness_local",
         "model": "local-small",
         "perspective": "correctness",
+        "source": "explicit_user",
     }
     assert jury["jurors"][1] == {
         "id": "robustness_remote",
         "model": "remote-large",
         "perspective": "robustness",
         "provider": "pi-rpc",
+        "source": "explicit_user",
     }
     assert jury["jurors"][2] == {
         "id": "clarity_local",
         "model": "local-medium",
         "perspective": "clarity",
+        "source": "explicit_user",
     }
     selection = json.loads((outdir / "jury_selection.json").read_text(encoding="utf-8"))
     assert selection["schema_version"] == "program-jury-selection-v1"

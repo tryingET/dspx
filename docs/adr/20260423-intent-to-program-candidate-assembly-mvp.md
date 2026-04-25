@@ -48,8 +48,8 @@ The structured intent contract is now backward-compatible with the original V1 f
 The first materialized bundle writes:
 
 - `plan.json` — deterministic `program-plan-v1` intermediate contract generated from the intent, including normalized field specs, task type, default topology, surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and explicit planned `program-jury-v1` multi-model/perspective evaluation shape
-- `jury.json` — standalone planned `program-jury-v1` contract copied from the plan so later jury execution can bind to an exact juror/perspective pool artifact
-- `jury_selection.json` — deterministic `program-jury-selection-v1` artifact that selects jurors from the pool by preferring diverse perspectives, remains non-authoritative, and does not call any model
+- `jury.json` — standalone planned `program-jury-v1` contract copied from the plan so later jury execution can bind to an exact per-program juror/perspective pool artifact; when the intent does not supply an explicit pool, DSPx infers one deterministically from task type, objective, metric, examples, fields, and constraints
+- `jury_selection.json` — deterministic `program-jury-selection-v1` artifact that selects jurors from the per-program pool by preferring diverse perspectives, remains non-authoritative, and does not call any model
 - `signature.py` — deterministic DSPy `Signature` surface generated through the signature service, including typed/described field specs when provided
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
 - `program.py` — deterministic program assembly wrapper with `build_program()`, `build_student()`, intent summary, and IO helper re-exports
