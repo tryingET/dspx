@@ -393,6 +393,63 @@ def _jury_plan_defaults(intent: ProgramIntent) -> dict[str, Any]:
     }
 
 
+def build_jury_selection(jury_payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Build deterministic juror selection metadata without calling any model."""
+
+    jurors = [
+        dict(item)
+        for item in jury_payload.get("jurors", [])
+        if isinstance(item, Mapping)
+    ]
+    minimum_jurors = int(jury_payload.get("minimum_jurors") or 3)
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[str] = set()
+    seen_perspectives: set[str] = set()
+    for juror in jurors:
+        perspective = str(juror.get("perspective") or "unspecified")
+        juror_id = str(juror.get("id") or "")
+        if juror_id in selected_ids or perspective in seen_perspectives:
+            continue
+        selected.append(dict(juror))
+        selected_ids.add(juror_id)
+        seen_perspectives.add(perspective)
+        if len(selected) >= minimum_jurors:
+            break
+    if len(selected) < minimum_jurors:
+        for juror in jurors:
+            juror_id = str(juror.get("id") or "")
+            if juror_id in selected_ids:
+                continue
+            selected.append(dict(juror))
+            selected_ids.add(juror_id)
+            if len(selected) >= minimum_jurors:
+                break
+    status = "selected" if len(selected) >= minimum_jurors else "selection_incomplete"
+    selection_constraints = jury_payload.get("selection_constraints")
+    if not isinstance(selection_constraints, Mapping):
+        selection_constraints = {}
+    return {
+        "schema_version": "program-jury-selection-v1",
+        "jury_schema_version": jury_payload.get("schema_version", "program-jury-v1"),
+        "selection_model": jury_payload.get("selection_model"),
+        "selection_constraints": dict(selection_constraints),
+        "minimum_jurors": minimum_jurors,
+        "eligible_juror_count": len(jurors),
+        "selected_juror_count": len(selected),
+        "selected_jurors": selected,
+        "selected_perspectives": [
+            str(juror.get("perspective") or "unspecified") for juror in selected
+        ],
+        "status": status,
+        "authority": "selection_contract_only_non_authoritative",
+        "notes": [
+            "Selection is deterministic metadata for future jury execution binding.",
+            "No juror model is called during deterministic materialization.",
+            "Selected jurors cannot rank, prune, promote, or grant Oracle authority.",
+        ],
+    }
+
+
 def build_program_plan(
     intent: ProgramIntent, *, examples_hash: Optional[str] = None
 ) -> dict[str, Any]:
@@ -416,6 +473,12 @@ def build_program_plan(
     has_examples = bool(intent.examples)
     surfaces: list[dict[str, Any]] = [
         {"kind": "plan", "path": "plan.json", "generator": "program-gen"},
+        {"kind": "jury", "path": "jury.json", "generator": "program-gen"},
+        {
+            "kind": "jury_selection",
+            "path": "jury_selection.json",
+            "generator": "program-gen",
+        },
         {"kind": "intent", "path": "intent.json", "generator": "program-gen"},
         {"kind": "signature", "path": "signature.py", "generator": "signature-gen"},
         {"kind": "module", "path": "module.py", "generator": "module-gen"},
@@ -695,14 +758,18 @@ def materialize_program_from_intent(
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
     program_plan = build_program_plan(intent, examples_hash=examples_hash)
     jury_payload = dict(program_plan["evaluation_strategy"])
+    jury_selection = build_jury_selection(jury_payload)
     plan_text = _json_text(program_plan)
     jury_text = _json_text(jury_payload)
+    jury_selection_text = _json_text(jury_selection)
     plan_hash = sha256_text(plan_text)
     jury_hash = sha256_text(jury_text)
+    jury_selection_hash = sha256_text(jury_selection_text)
     eval_examples_code = render_eval_examples(intent) if examples_payload else None
     bundle_parts = [
         plan_text,
         jury_text,
+        jury_selection_text,
         signature_code,
         module_code,
         program_code,
@@ -717,6 +784,7 @@ def materialize_program_from_intent(
     surface_hashes = {
         "plan.json": plan_hash,
         "jury.json": jury_hash,
+        "jury_selection.json": jury_selection_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -741,6 +809,7 @@ def materialize_program_from_intent(
 
     (root / "plan.json").write_text(plan_text, encoding="utf-8")
     (root / "jury.json").write_text(jury_text, encoding="utf-8")
+    (root / "jury_selection.json").write_text(jury_selection_text, encoding="utf-8")
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
@@ -751,6 +820,7 @@ def materialize_program_from_intent(
             *generated_files.keys(),
             "plan.json",
             "jury.json",
+            "jury_selection.json",
             "intent.json",
             *(["examples.json"] if examples_payload else []),
             "manifest.json",
@@ -765,6 +835,7 @@ def materialize_program_from_intent(
         "surface_kinds": [
             "plan",
             "jury",
+            "jury_selection",
             "intent",
             *(["examples"] if examples_payload else []),
             "signature",
@@ -790,6 +861,14 @@ def materialize_program_from_intent(
                 "generator": "program-gen",
                 "content_hash": surface_hashes["jury.json"],
                 "schema_version": jury_payload["schema_version"],
+            },
+            {
+                "kind": "jury_selection",
+                "path": "jury_selection.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["jury_selection.json"],
+                "schema_version": jury_selection["schema_version"],
+                "status": jury_selection["status"],
             },
             {
                 "kind": "signature",
@@ -856,6 +935,7 @@ def materialize_program_from_intent(
             "intent_hash": intent_hash,
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
+            "jury_selection_hash": jury_selection_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
@@ -863,6 +943,7 @@ def materialize_program_from_intent(
             "surface_generation": {
                 "plan": "program-gen",
                 "jury": "program-gen",
+                "jury_selection": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
@@ -891,9 +972,11 @@ def materialize_program_from_intent(
             "intent_hash": intent_hash,
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
+            "jury_selection_hash": jury_selection_hash,
         },
         "intent": intent_payload,
         "program_plan": program_plan,
+        "program_jury_selection": jury_selection,
         "candidate_assembly": candidate_assembly,
         "execution_episode": execution_episode,
         "receipt_bundle": receipt_bundle,
@@ -932,11 +1015,13 @@ def materialize_program_from_intent(
             "receipt_bundle_id": ids["receipt_bundle_id"],
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
+            "jury_selection_hash": jury_selection_hash,
             "generated_files": generated_file_names,
         },
         extra={
             "program_intent": intent_payload,
             "program_plan": program_plan,
+            "program_jury_selection": jury_selection,
             "program_candidate_assembly": candidate_assembly,
             "program_execution_episode": execution_episode,
             "program_receipt_bundle": receipt_bundle,
@@ -971,6 +1056,7 @@ def materialize_program_from_intent(
             "intent_hash": intent_hash,
             "plan_hash": plan_hash,
             "jury_hash": jury_hash,
+            "jury_selection_hash": jury_selection_hash,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },

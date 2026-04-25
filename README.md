@@ -197,15 +197,16 @@ just dspx program-gen \
 The generated candidate assembly contains a structured plan, separate surfaces, and replayable metadata:
 
 - `plan.json` — deterministic `program-plan-v1` contract derived from the intent; records normalized field specs, task type, default single-module topology, materialized surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and an explicit planned `program-jury-v1` multi-model evaluation shape when provided
-- `jury.json` — standalone planned jury contract copied out of the plan so future jury execution can bind to an exact juror/perspective selection artifact
+- `jury.json` — standalone planned jury contract copied out of the plan so future jury execution can bind to an exact juror/perspective pool artifact
+- `jury_selection.json` — deterministic non-authoritative juror selection artifact; prefers diverse perspectives, records selected jurors, and still calls no models
 - `signature.py` — signature surface generated through the signature service
 - `module.py` — module surface generated through the module service
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
 - `eval_smoke.py` — deterministic smoke harness
 - `examples.json` / `eval_examples.py` — emitted when the intent includes inline `examples` or `examples_path`, validating example binding without calling an LM
 - `intent.json` — normalized structured intent
-- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury hash provenance
-- `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury evidence
+- `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection hash provenance
+- `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection evidence
 
 This path is intentionally deterministic and scaffold-first. The `jury` entry is a future evaluation contract shape only: no juror models are called during materialization. It materializes evidence; it does not promote, rank, prune, or grant Oracle/governance authority.
 

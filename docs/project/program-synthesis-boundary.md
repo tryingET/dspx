@@ -379,13 +379,13 @@ After this doc lands, the repo has a stronger and less misleading contract for s
 
 ## First implementation foothold
 
-`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `plan.json`, standalone `jury.json`, explicit planned `program-jury-v1` contracts, `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, typed/described signature fields when provided, optional `examples.json` / `eval_examples.py` from inline `examples` or `examples_path`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
+`AK-1827` / `docs/adr/20260423-intent-to-program-candidate-assembly-mvp.md` materialized the first bounded foothold for this boundary: `program-gen` can now read one structured JSON/YAML intent and write a deterministic program-shaped candidate assembly with `plan.json`, standalone `jury.json`, deterministic `jury_selection.json`, explicit planned `program-jury-v1` contracts, `signature.py`, `module.py`, `program.py`, `eval_smoke.py`, typed/described signature fields when provided, optional `examples.json` / `eval_examples.py` from inline `examples` or `examples_path`, normalized `intent.json`, `manifest.json`, and a standard `program-gen` run receipt.
 
 The current implementation keeps that foothold narrow while making the surface boundary more truthful:
 - it proves the intent -> candidate assembly -> execution episode -> receipt bundle spine at program shape,
 - it keeps orchestration in `dspx.services.program_service` rather than overloading `module_service`,
 - it composes the existing signature/module generation services as candidate-surface providers,
-- it records plan/jury provenance, generator provenance, optional example-binding evidence, and per-surface hashes in the manifest/receipt evidence,
+- it records plan/jury/selection provenance, generator provenance, optional example-binding evidence, and per-surface hashes in the manifest/receipt evidence,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, or governance-policy authority.
 

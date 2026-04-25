@@ -35,6 +35,7 @@ def test_program_service_materializes_candidate_assembly(
     root = Path(artifact.root_path)
     assert (root / "plan.json").exists()
     assert (root / "jury.json").exists()
+    assert (root / "jury_selection.json").exists()
     assert (root / "signature.py").exists()
     assert (root / "module.py").exists()
     assert (root / "program.py").exists()
@@ -65,6 +66,7 @@ def test_program_service_materializes_candidate_assembly(
     assert manifest["candidate_assembly"]["surface_kinds"] == [
         "plan",
         "jury",
+        "jury_selection",
         "intent",
         "signature",
         "module",
@@ -74,8 +76,12 @@ def test_program_service_materializes_candidate_assembly(
     assert manifest["candidate_assembly"]["surfaces"][0]["generator"] == "program-gen"
     assert manifest["candidate_assembly"]["surfaces"][1]["path"] == "jury.json"
     assert manifest["candidate_assembly"]["surfaces"][1]["generator"] == "program-gen"
-    assert manifest["candidate_assembly"]["surfaces"][2]["generator"] == "signature-gen"
-    assert manifest["candidate_assembly"]["surfaces"][3]["generator"] == "module-gen"
+    assert (
+        manifest["candidate_assembly"]["surfaces"][2]["path"] == "jury_selection.json"
+    )
+    assert manifest["candidate_assembly"]["surfaces"][2]["generator"] == "program-gen"
+    assert manifest["candidate_assembly"]["surfaces"][3]["generator"] == "signature-gen"
+    assert manifest["candidate_assembly"]["surfaces"][4]["generator"] == "module-gen"
     assert manifest["execution_episode"]["status"] == "passed"
     assert manifest["receipt_bundle"]["status"] == "captured"
 
@@ -105,17 +111,24 @@ def test_program_service_materializes_candidate_assembly(
     assert evidence["smoke"]["returncode"] == 0
     plan_hash = hashlib.sha256((root / "plan.json").read_bytes()).hexdigest()
     jury_hash = hashlib.sha256((root / "jury.json").read_bytes()).hexdigest()
+    jury_selection_hash = hashlib.sha256(
+        (root / "jury_selection.json").read_bytes()
+    ).hexdigest()
     assert evidence["plan_hash"] == plan_hash
     assert evidence["jury_hash"] == jury_hash
+    assert evidence["jury_selection_hash"] == jury_selection_hash
     assert receipt["run_summary"]["plan_hash"] == plan_hash
     assert receipt["run_summary"]["jury_hash"] == jury_hash
+    assert receipt["run_summary"]["jury_selection_hash"] == jury_selection_hash
     assert receipt["program_plan"]["schema_version"] == "program-plan-v1"
     assert evidence["surface_generation"]["plan"] == "program-gen"
     assert evidence["surface_generation"]["jury"] == "program-gen"
+    assert evidence["surface_generation"]["jury_selection"] == "program-gen"
     assert evidence["surface_generation"]["signature"] == "signature-gen"
     assert evidence["surface_generation"]["module"] == "module-gen"
     assert "plan.json" in evidence["surface_hashes"]
     assert "jury.json" in evidence["surface_hashes"]
+    assert "jury_selection.json" in evidence["surface_hashes"]
     assert "signature.py" in evidence["surface_hashes"]
 
     replay = check_run_receipt(root / "manifest.json.meta.json")
@@ -166,9 +179,11 @@ def test_program_gen_cli_materializes_from_yaml(
     assert payload["program_plan"]["schema_version"] == "program-plan-v1"
     assert payload["candidate_assembly"]["surfaces"][0]["path"] == "plan.json"
     assert payload["candidate_assembly"]["surfaces"][1]["path"] == "jury.json"
-    assert payload["candidate_assembly"]["surfaces"][2]["path"] == "signature.py"
+    assert payload["candidate_assembly"]["surfaces"][2]["path"] == "jury_selection.json"
+    assert payload["candidate_assembly"]["surfaces"][3]["path"] == "signature.py"
     assert (outdir / "plan.json").exists()
     assert (outdir / "jury.json").exists()
+    assert (outdir / "jury_selection.json").exists()
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
@@ -389,6 +404,9 @@ def test_program_gen_cli_carries_explicit_jury_contract(
                 "      model: remote-large",
                 "      provider: pi-rpc",
                 "      perspective: robustness",
+                "    - id: clarity_local",
+                "      model: local-medium",
+                "      perspective: clarity",
             ]
         ),
         encoding="utf-8",
@@ -419,6 +437,26 @@ def test_program_gen_cli_carries_explicit_jury_contract(
         "perspective": "robustness",
         "provider": "pi-rpc",
     }
+    assert jury["jurors"][2] == {
+        "id": "clarity_local",
+        "model": "local-medium",
+        "perspective": "clarity",
+    }
+    selection = json.loads((outdir / "jury_selection.json").read_text(encoding="utf-8"))
+    assert selection["schema_version"] == "program-jury-selection-v1"
+    assert selection["status"] == "selected"
+    assert selection["selected_juror_count"] == 3
+    assert selection["selected_perspectives"] == [
+        "correctness",
+        "robustness",
+        "clarity",
+    ]
+    assert [item["id"] for item in selection["selected_jurors"]] == [
+        "correctness_local",
+        "robustness_remote",
+        "clarity_local",
+    ]
+    assert selection["authority"] == "selection_contract_only_non_authoritative"
     assert jury["status"] == "planned_not_executed"
     assert jury["authority"] == "advisory_evidence_only"
     manifest = json.loads((outdir / "manifest.json").read_text(encoding="utf-8"))
@@ -427,6 +465,7 @@ def test_program_gen_cli_carries_explicit_jury_contract(
         (outdir / "manifest.json.meta.json").read_text(encoding="utf-8")
     )
     assert receipt["program_plan"]["evaluation_strategy"] == jury
+    assert receipt["program_jury_selection"] == selection
 
 
 def test_program_gen_cli_rejects_invalid_intent_field(
