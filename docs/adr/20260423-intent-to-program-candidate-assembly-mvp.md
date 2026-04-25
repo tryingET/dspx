@@ -51,8 +51,8 @@ The first materialized bundle writes:
 - `jury.json` — standalone planned `program-jury-v1` contract copied from the plan so later jury execution can bind to an exact per-program juror/perspective pool artifact; when the intent does not supply an explicit pool, DSPx infers one deterministically from task type, objective, metric, examples, fields, and constraints
 - `jury_selection.json` — deterministic `program-jury-selection-v1` artifact that selects jurors from the per-program pool by preferring diverse perspectives, remains non-authoritative, and does not call any model
 - `jury_rubric.json` — deterministic `program-jury-rubric-v1` artifact that binds selected jurors/perspectives to criteria and adversarial questions for a later jury execution episode, remains non-authoritative, and does not call any model
-- `promotion_review.json` — deterministic `program-promotion-review-v1` local review shell that keeps the candidate `not_promoted` and records the explicit pending promotion adjudicator (`human_operator`, `ai_agent`, `ai_council`, `hybrid`, `policy_gate`, or declarative `external_adapter`) plus a non-exporting `authority_bridge`, pending behavioral evaluation, model-jury execution, and adjudicator-decision requirements
-- `promotion_adjudication_request.json` — deterministic `program-promotion-adjudication-request-v1` decision packet for the configured adjudicator, including evidence refs, missing evidence, allowed outcomes, optional external authority bridge metadata, and a pending decision-record template
+- `promotion_review.json` — deterministic `program-promotion-review-v1` local review shell that keeps the candidate `not_promoted` and records the explicit pending promotion adjudicator (`human_operator`, `ai_agent`, `ai_council`, `hybrid`, or `policy_gate`) plus optional opaque non-exporting `external_authority` refs, pending behavioral evaluation, model-jury execution, and adjudicator-decision requirements
+- `promotion_adjudication_request.json` — deterministic `program-promotion-adjudication-request-v1` decision packet for the configured adjudicator, including evidence refs, missing evidence, allowed outcomes, optional opaque external authority refs, and a pending decision-record template
 - `promotion_decision_template.json` — standalone pending `program-promotion-decision-v1` template that an explicit adjudicator may later fill; it is not a decision
 - `signature.py` — deterministic DSPy `Signature` surface generated through the signature service, including typed/described field specs when provided
 - `module.py` — deterministic DSPy `Module` surface generated through the module service and wired to the signature surface
@@ -82,7 +82,7 @@ Positive:
 - DSPx now has a concrete foothold for one-intent program synthesis.
 - Program synthesis begins at the candidate-assembly boundary instead of being squeezed into module generation.
 - `program-gen` now composes signature and module generation as candidate-surface providers instead of permanently duplicating them inline.
-- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review/authority-bridge/adjudication-request/decision-template provenance, surface provenance, optional example-binding evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
+- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template provenance, surface provenance, optional example-binding evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
 - The first path is deterministic and testable, so it can compound before model-backed synthesis or GEPA-backed search is introduced.
 
 Tradeoffs:
@@ -95,7 +95,8 @@ Non-authority defaults:
 
 - `program-gen` receipts are evidence, not approval.
 - Candidate assemblies are materialized, not promoted.
-- The optional external authority bridge is declarative and starts as `not_exported`; DSPx core does not call Agent Kernel or any other adapter during materialization.
+- Optional external authority refs are opaque and start as `not_exported`; DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization.
+- DSPy's native adapters remain LM protocol/format adapters; an Agent Kernel export adapter, if built, belongs outside deterministic `program-gen` core and should consume DSPx manifests/receipts as evidence.
 - Oracle may later interpret receipt evidence, but this ADR does not grant Oracle promotion or governance authority.
 - The existing module governance chain remains closed unless a later task explicitly widens it.
 
@@ -103,7 +104,7 @@ Non-authority defaults:
 
 The first implementation is covered by:
 
-- service-level materialization tests for generated files, `plan.json` / `jury.json` / `jury_selection.json` / `jury_rubric.json` / `promotion_review.json` / `promotion_adjudication_request.json` / `promotion_decision_template.json` shape, manifest plan/jury/selection/rubric/promotion-review/authority-bridge/adjudication-request/decision-template provenance, receipt fields, exact manifest hash, and replay validation
+- service-level materialization tests for generated files, `plan.json` / `jury.json` / `jury_selection.json` / `jury_rubric.json` / `promotion_review.json` / `promotion_adjudication_request.json` / `promotion_decision_template.json` shape, manifest plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template provenance, receipt fields, exact manifest hash, and replay validation
 - CLI tests for YAML intent input and invalid-field rejection
 - validation tests for empty IO, input/output overlap, and docstring-hostile objectives
 - targeted compile / lint / pytest checks

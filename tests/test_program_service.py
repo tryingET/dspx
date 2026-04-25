@@ -140,11 +140,9 @@ def test_program_service_materializes_candidate_assembly(
         "requires_adjudicator_decision": True,
         "automatic_promotion": False,
     }
-    assert promotion_review["authority_bridge"]["status"] == "not_exported"
-    assert promotion_review["authority_bridge"]["supported_adapters"] == [
-        "agent_kernel"
-    ]
-    assert promotion_review["authority_bridge"]["external_refs"] == []
+    assert promotion_review["external_authority"]["status"] == "not_exported"
+    assert promotion_review["external_authority"]["refs"] == []
+    assert "supported_adapters" not in promotion_review["external_authority"]
     assert "no_behavioral_evaluation_episode" in promotion_review["blocking_conditions"]
     assert (
         "no_promotion_adjudicator_decision" in promotion_review["blocking_conditions"]
@@ -158,7 +156,8 @@ def test_program_service_materializes_candidate_assembly(
     assert adjudication_request["status"] == "not_ready_blocked"
     assert adjudication_request["adjudicator"] == promotion_review["adjudicator"]
     assert (
-        adjudication_request["authority_bridge"] == promotion_review["authority_bridge"]
+        adjudication_request["external_authority"]
+        == promotion_review["external_authority"]
     )
     assert "request_more_evidence" in adjudication_request["allowed_outcomes"]
     assert (
@@ -671,7 +670,8 @@ def test_program_gen_cli_carries_explicit_jury_contract(
         "schema_version": "program-promotion-decision-v1",
         "status": "pending",
         "outcome": None,
-        "decided_by": "safety_quality_council",
+        "decided_by": None,
+        "adjudicator_ref": "safety_quality_council",
         "adjudicator_kind": "ai_council",
         "rationale": None,
         "evidence_refs": [],
@@ -685,7 +685,7 @@ def test_program_gen_cli_carries_explicit_jury_contract(
     assert receipt["program_promotion_decision_template"] == decision_template
 
 
-def test_program_gen_cli_carries_external_adapter_authority_bridge(
+def test_program_gen_cli_preserves_external_authority_refs_without_adapter_coupling(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
@@ -715,9 +715,13 @@ def test_program_gen_cli_carries_external_adapter_authority_bridge(
                 "  - answer",
                 "promotion:",
                 "  adjudicator:",
-                "    kind: external_adapter",
-                "    adapter: agent_kernel",
-                "    id: AK-1234",
+                "    kind: human_operator",
+                "    id: local_operator",
+                "  external_authority:",
+                "    refs:",
+                "      - system: agent_kernel",
+                "        ref: AK-1234",
+                "        role: optional_authority_export_target",
             ]
         ),
         encoding="utf-8",
@@ -739,28 +743,28 @@ def test_program_gen_cli_carries_external_adapter_authority_bridge(
         (outdir / "promotion_review.json").read_text(encoding="utf-8")
     )
     assert promotion_review["adjudicator"] == {
-        "kind": "external_adapter",
-        "id": "AK-1234",
+        "kind": "human_operator",
+        "id": "local_operator",
         "authority": "required_for_promotion",
         "status": "pending",
-        "adapter": "agent_kernel",
     }
-    assert promotion_review["authority_bridge"] == {
+    assert promotion_review["external_authority"] == {
         "status": "not_exported",
-        "supported_adapters": ["agent_kernel"],
-        "external_refs": [
+        "refs": [
             {
-                "adapter": "agent_kernel",
-                "id": "AK-1234",
+                "system": "agent_kernel",
+                "ref": "AK-1234",
+                "role": "optional_authority_export_target",
                 "status": "not_exported",
-                "source": "promotion.adjudicator",
+                "source": "promotion.external_authority.refs",
             }
         ],
         "notes": [
-            "DSPx core does not call external authority adapters during materialization.",
-            "Agent Kernel integration is optional and must be invoked explicitly.",
+            "External authority references are preserved as opaque metadata.",
+            "DSPx core does not validate, call, or mutate external authority systems.",
         ],
     }
+    assert "supported_adapters" not in promotion_review["external_authority"]
     assert promotion_review["promotion_state"] == "not_promoted"
     assert promotion_review["non_authority"]["automatic_promotion"] is False
     assert promotion_review["non_authority"]["ranking_pruning_promotion"] is False
@@ -770,21 +774,22 @@ def test_program_gen_cli_carries_external_adapter_authority_bridge(
     )
     assert adjudication_request["adjudicator"] == promotion_review["adjudicator"]
     assert (
-        adjudication_request["authority_bridge"] == promotion_review["authority_bridge"]
+        adjudication_request["external_authority"]
+        == promotion_review["external_authority"]
     )
     decision_template = json.loads(
         (outdir / "promotion_decision_template.json").read_text(encoding="utf-8")
     )
     assert decision_template == adjudication_request["decision_record_template"]
-    assert decision_template["adjudicator_kind"] == "external_adapter"
-    assert decision_template["decided_by"] == "AK-1234"
-    assert decision_template["external_authority"] == {
-        "adapter": "agent_kernel",
-        "id": "AK-1234",
-        "status": "not_exported",
-    }
+    assert decision_template["adjudicator_kind"] == "human_operator"
+    assert decision_template["adjudicator_ref"] == "local_operator"
+    assert decision_template["decided_by"] is None
+    assert "external_authority" not in decision_template
     manifest = json.loads((outdir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["intent"]["promotion"]["adjudicator"]["kind"] == "external_adapter"
+    assert (
+        manifest["intent"]["promotion"]["external_authority"]["refs"][0]["ref"]
+        == "AK-1234"
+    )
     assert manifest["program_promotion_review"] == promotion_review
     assert manifest["program_promotion_adjudication_request"] == adjudication_request
     assert manifest["program_promotion_decision_template"] == decision_template
@@ -794,6 +799,23 @@ def test_program_gen_cli_carries_external_adapter_authority_bridge(
     assert receipt["program_promotion_review"] == promotion_review
     assert receipt["program_promotion_adjudication_request"] == adjudication_request
     assert receipt["program_promotion_decision_template"] == decision_template
+
+
+def test_program_service_rejects_external_adapter_as_adjudicator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="WrongLayerProgram",
+        objective="Preserve the adjudicator versus adapter boundary.",
+        inputs=["question"],
+        outputs=["answer"],
+        promotion={"adjudicator": {"kind": "external_adapter", "id": "AK-1234"}},
+    )
+
+    with pytest.raises(ValueError, match="decision actor/process"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "wrong-layer")
 
 
 def test_program_gen_cli_rejects_invalid_intent_field(

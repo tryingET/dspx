@@ -684,6 +684,15 @@ def build_jury_rubric(
     }
 
 
+_PROMOTION_ADJUDICATOR_DEFAULT_IDS = {
+    "human_operator": "local_operator",
+    "ai_agent": "local_ai_agent",
+    "ai_council": "local_ai_council",
+    "hybrid": "ai_council_recommends_human_approves",
+    "policy_gate": "local_policy_gate",
+}
+
+
 def _promotion_adjudicator(intent: ProgramIntent) -> dict[str, Any]:
     promotion = dict(intent.promotion or {})
     raw_adjudicator = promotion.get("adjudicator")
@@ -691,52 +700,73 @@ def _promotion_adjudicator(intent: ProgramIntent) -> dict[str, Any]:
     kind = str(
         adjudicator.get("kind") or promotion.get("adjudicator_kind") or "human_operator"
     )
-    default_id_by_kind = {
-        "human_operator": "local_operator",
-        "ai_agent": "local_ai_agent",
-        "ai_council": "local_ai_council",
-        "hybrid": "ai_council_recommends_human_approves",
-        "policy_gate": "local_policy_gate",
-        "external_adapter": "external_authority",
-    }
+    if kind not in _PROMOTION_ADJUDICATOR_DEFAULT_IDS:
+        allowed = sorted(_PROMOTION_ADJUDICATOR_DEFAULT_IDS)
+        raise ValueError(
+            "program promotion adjudicator.kind must name a decision actor/process; "
+            f"allowed values: {allowed}"
+        )
+    adjudicator_id = _PROMOTION_ADJUDICATOR_DEFAULT_IDS[kind]
+    if adjudicator.get("id"):
+        adjudicator_id = str(adjudicator["id"])
     payload: dict[str, Any] = {
         "kind": kind,
-        "id": str(
-            adjudicator.get("id") or default_id_by_kind.get(kind, "local_operator")
-        ),
+        "id": adjudicator_id,
         "authority": str(adjudicator.get("authority") or "required_for_promotion"),
         "status": "pending",
     }
     for key, value in adjudicator.items():
-        if key not in {"kind", "id", "authority", "status"} and value is not None:
+        if (
+            key not in {"kind", "id", "authority", "status", "adapter"}
+            and value is not None
+        ):
             payload[key] = value
     return payload
 
 
-_SUPPORTED_EXTERNAL_AUTHORITY_ADAPTERS = ["agent_kernel"]
+def _external_authority_ref(raw: Any, *, source: str) -> dict[str, Any] | None:
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return None
+        return {"ref": text, "status": "not_exported", "source": source}
+    if not isinstance(raw, Mapping):
+        return None
+    ref = {str(key): value for key, value in raw.items() if value is not None}
+    if not ref:
+        return None
+    ref.setdefault("status", "not_exported")
+    ref.setdefault("source", source)
+    return ref
 
 
-def _promotion_authority_bridge(adjudicator: Mapping[str, Any]) -> dict[str, Any]:
-    """Describe optional external authority handoff without invoking an adapter."""
+def _promotion_external_authority(intent: ProgramIntent) -> dict[str, Any]:
+    """Preserve opaque external authority refs without owning adapter semantics."""
 
-    external_refs: list[dict[str, Any]] = []
-    adapter = adjudicator.get("adapter")
-    if adjudicator.get("kind") == "external_adapter" and adapter:
-        external_refs.append(
-            {
-                "adapter": str(adapter),
-                "id": str(adjudicator.get("id") or "external_authority"),
-                "status": "not_exported",
-                "source": "promotion.adjudicator",
-            }
-        )
+    promotion = dict(intent.promotion or {})
+    refs: list[dict[str, Any]] = []
+    raw_external_authority = promotion.get("external_authority")
+    if isinstance(raw_external_authority, Mapping):
+        raw_refs = raw_external_authority.get("refs") or []
+        if isinstance(raw_refs, list):
+            for raw_ref in raw_refs:
+                ref = _external_authority_ref(
+                    raw_ref, source="promotion.external_authority.refs"
+                )
+                if ref is not None:
+                    refs.append(ref)
+    raw_external_refs = promotion.get("external_refs")
+    if isinstance(raw_external_refs, list):
+        for raw_ref in raw_external_refs:
+            ref = _external_authority_ref(raw_ref, source="promotion.external_refs")
+            if ref is not None:
+                refs.append(ref)
     return {
         "status": "not_exported",
-        "supported_adapters": list(_SUPPORTED_EXTERNAL_AUTHORITY_ADAPTERS),
-        "external_refs": external_refs,
+        "refs": refs,
         "notes": [
-            "DSPx core does not call external authority adapters during materialization.",
-            "Agent Kernel integration is optional and must be invoked explicitly.",
+            "External authority references are preserved as opaque metadata.",
+            "DSPx core does not validate, call, or mutate external authority systems.",
         ],
     }
 
@@ -745,6 +775,10 @@ def _promotion_policy(intent: ProgramIntent) -> dict[str, Any]:
     promotion = dict(intent.promotion or {})
     raw_policy = promotion.get("policy")
     policy = dict(raw_policy) if isinstance(raw_policy, Mapping) else {}
+    if bool(policy.get("automatic_promotion", False)):
+        raise ValueError(
+            "program-gen promotion policy cannot enable automatic_promotion"
+        )
     return {
         "requires_behavioral_evaluation": bool(
             policy.get("requires_behavioral_evaluation", True)
@@ -753,7 +787,7 @@ def _promotion_policy(intent: ProgramIntent) -> dict[str, Any]:
         "requires_adjudicator_decision": bool(
             policy.get("requires_adjudicator_decision", True)
         ),
-        "automatic_promotion": bool(policy.get("automatic_promotion", False)),
+        "automatic_promotion": False,
     }
 
 
@@ -768,7 +802,7 @@ def build_promotion_review(
 
     adjudicator = _promotion_adjudicator(intent)
     promotion_policy = _promotion_policy(intent)
-    authority_bridge = _promotion_authority_bridge(adjudicator)
+    external_authority = _promotion_external_authority(intent)
     evidence_requirements = [
         {
             "name": "candidate_materialized",
@@ -834,7 +868,7 @@ def build_promotion_review(
         "adjudicator": adjudicator,
         "decision_authority": adjudicator["authority"],
         "promotion_policy": promotion_policy,
-        "authority_bridge": authority_bridge,
+        "external_authority": external_authority,
         "decision": {
             "status": "pending",
             "outcome": None,
@@ -866,7 +900,7 @@ def build_promotion_review(
         "notes": [
             "This shell records what would be needed before local promotion review.",
             "It does not promote the generated program or activate any policy.",
-            "The promotion adjudicator may be human, one AI agent, an AI council, a hybrid, a policy gate, or an explicitly invoked external adapter.",
+            "The promotion adjudicator may be human, one AI agent, an AI council, a hybrid, or a policy gate.",
             "Jury artifacts are planning/binding evidence until a later model jury episode runs.",
         ],
     }
@@ -878,30 +912,25 @@ def build_promotion_adjudication_request(
     """Build a deterministic decision packet for the configured adjudicator."""
 
     adjudicator = dict(promotion_review.get("adjudicator") or {})
-    authority_bridge = dict(promotion_review.get("authority_bridge") or {})
+    external_authority = dict(promotion_review.get("external_authority") or {})
     blocking_conditions = list(promotion_review.get("blocking_conditions") or [])
     decision_record_template = {
         "schema_version": "program-promotion-decision-v1",
         "status": "pending",
         "outcome": None,
-        "decided_by": adjudicator.get("id"),
+        "decided_by": None,
+        "adjudicator_ref": adjudicator.get("id"),
         "adjudicator_kind": adjudicator.get("kind"),
         "rationale": None,
         "evidence_refs": [],
     }
-    if adjudicator.get("kind") == "external_adapter":
-        decision_record_template["external_authority"] = {
-            "adapter": adjudicator.get("adapter"),
-            "id": adjudicator.get("id"),
-            "status": authority_bridge.get("status", "not_exported"),
-        }
     return {
         "schema_version": "program-promotion-adjudication-request-v1",
         "status": "not_ready_blocked"
         if blocking_conditions
         else "ready_for_adjudicator",
         "adjudicator": adjudicator,
-        "authority_bridge": authority_bridge,
+        "external_authority": external_authority,
         "decision_question": (
             "Should this exact program candidate be promoted, withheld, rejected, "
             "or returned for more evidence?"
@@ -1281,9 +1310,10 @@ def render_eval_promotion() -> str:
             "    assert review['promotion_state'] == 'not_promoted'",
             "    assert review['decision']['status'] == 'pending'",
             "    assert request['adjudicator'] == review['adjudicator']",
-            "    assert request['authority_bridge'] == review['authority_bridge']",
+            "    assert request['external_authority'] == review['external_authority']",
             "    assert request['decision_record_template'] == decision_template",
             "    assert decision_template['status'] == 'pending'",
+            "    assert decision_template['decided_by'] is None",
             "    assert request['authority'] == 'adjudication_request_only_non_authoritative'",
             "    blockers = review.get('blocking_conditions')",
             "    missing = request.get('missing_required_evidence')",
