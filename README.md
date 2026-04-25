@@ -227,6 +227,17 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 
 This path is intentionally deterministic and scaffold-first. The `jury` entry is a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
 
+A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
+
+```bash
+just dspx adapters authority agent-kernel-plan \
+  --manifest generated/programs/answer_question/manifest.json \
+  --external-ref AK-1234 \
+  --out generated/programs/answer_question/ak-export-plan.json
+```
+
+That adapter output is a sidecar export plan (`planned_not_exported`), not a promotion decision and not an AK write. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
+
 ---
 
 ## GEPA optimization

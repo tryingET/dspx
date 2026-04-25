@@ -14,13 +14,18 @@ from typing import Any, Optional, cast
 import typer
 
 from dspx.adapters import datasets as _datasets
+from dspx.adapters.authority import build_agent_kernel_export_plan, write_export_plan
 
 app = typer.Typer(no_args_is_help=True)
 dataset_app = typer.Typer(no_args_is_help=True)
 eval_app = typer.Typer(no_args_is_help=True)
+authority_app = typer.Typer(no_args_is_help=True)
 
 app.add_typer(dataset_app, name="dataset", help="Dataset adapters")
 app.add_typer(eval_app, name="eval", help="Evaluation helpers")
+app.add_typer(
+    authority_app, name="authority", help="External authority export planning"
+)
 
 
 @app.command("list")
@@ -36,6 +41,7 @@ def adapters_list(
         "eval.accuracy",
         "eval.f1_binary",
         "store.local_object",
+        "authority.agent_kernel.plan",
     ]
     descs = {
         "dataset.csv": "CSV dataset loader",
@@ -44,6 +50,7 @@ def adapters_list(
         "eval.accuracy": "Accuracy metric",
         "eval.f1_binary": "F1 (binary) metric",
         "store.local_object": "Local object store",
+        "authority.agent_kernel.plan": "Agent Kernel export plan from DSPx evidence (no mutation)",
     }
     if json_out:
         typer.echo(json.dumps(items, ensure_ascii=False, indent=2))
@@ -54,6 +61,48 @@ def adapters_list(
                 typer.echo(f"{line} - {d}")
             else:
                 typer.echo(line)
+
+
+@authority_app.command("agent-kernel-plan")
+def adapters_authority_agent_kernel_plan(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        "-m",
+        help="Path to a program-gen manifest.json file",
+    ),
+    receipt: Optional[Path] = typer.Option(
+        None,
+        "--receipt",
+        "-r",
+        help="Optional path to manifest.json.meta.json receipt",
+    ),
+    external_ref: Optional[str] = typer.Option(
+        None,
+        "--external-ref",
+        help="Optional Agent Kernel ref supplied by the operator, e.g. AK-1234",
+    ),
+    out: Optional[Path] = typer.Option(
+        None,
+        "--out",
+        "-o",
+        help="Optional path to write the export plan JSON",
+    ),
+) -> None:
+    """Plan an Agent Kernel export from DSPx evidence without mutating AK."""
+
+    try:
+        plan = build_agent_kernel_export_plan(
+            manifest,
+            receipt_path=receipt,
+            external_ref=external_ref,
+        )
+        if out is not None:
+            write_export_plan(plan, out)
+    except Exception as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    typer.echo(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
 
 
 @dataset_app.command("describe")
