@@ -48,6 +48,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (root / "eval_jury.py").exists()
     assert (root / "eval_promotion.py").exists()
     assert (root / "intent.json").exists()
+    assert (root / "execution_episode.json").exists()
     assert (root / "manifest.json").exists()
     assert (root / "manifest.json.meta.json").exists()
 
@@ -92,6 +93,7 @@ def test_program_service_materializes_candidate_assembly(
         "promotion_adjudication_request",
         "promotion_decision_template",
         "intent",
+        "execution_episode",
         "signature",
         "module",
         "program",
@@ -122,8 +124,13 @@ def test_program_service_materializes_candidate_assembly(
         == "promotion_decision_template.json"
     )
     assert manifest["candidate_assembly"]["surfaces"][6]["generator"] == "program-gen"
-    assert manifest["candidate_assembly"]["surfaces"][7]["generator"] == "signature-gen"
-    assert manifest["candidate_assembly"]["surfaces"][8]["generator"] == "module-gen"
+    assert (
+        manifest["candidate_assembly"]["surfaces"][7]["path"]
+        == "execution_episode.json"
+    )
+    assert manifest["candidate_assembly"]["surfaces"][7]["generator"] == "program-gen"
+    assert manifest["candidate_assembly"]["surfaces"][8]["generator"] == "signature-gen"
+    assert manifest["candidate_assembly"]["surfaces"][9]["generator"] == "module-gen"
     promotion_review = manifest["program_promotion_review"]
     assert promotion_review["schema_version"] == "program-promotion-review-v1"
     assert promotion_review["promotion_state"] == "not_promoted"
@@ -170,7 +177,27 @@ def test_program_service_materializes_candidate_assembly(
     assert promotion_review["non_authority"]["automatic_promotion"] is False
     assert promotion_review["non_authority"]["ranking_pruning_promotion"] is False
     assert promotion_review["non_authority"]["external_authority_export"] is False
-    assert manifest["execution_episode"]["status"] == "passed"
+    execution_episode = json.loads(
+        (root / "execution_episode.json").read_text(encoding="utf-8")
+    )
+    assert execution_episode["schema_version"] == "program-execution-episode-v1"
+    assert execution_episode == manifest["execution_episode"]
+    assert execution_episode["status"] == "passed"
+    assert execution_episode["materialization"]["status"] == "passed"
+    assert execution_episode["checks"]["compile"]["status"] == "passed"
+    assert execution_episode["checks"]["smoke"]["status"] == "passed"
+    assert execution_episode["checks"]["examples_binding"]["status"] == "not_applicable"
+    assert execution_episode["checks"]["jury_binding"]["status"] == "passed"
+    assert execution_episode["checks"]["promotion_binding"]["status"] == "passed"
+    assert execution_episode["behavioral_evaluation"]["status"] == "not_applicable"
+    assert execution_episode["behavioral_evaluation"]["result_artifact"] is None
+    assert execution_episode["oracle_readability"]["status"] == "not_applicable"
+    assert execution_episode["oracle_readability"]["oracle_invoked"] is False
+    assert execution_episode["non_authority"]["evidence_only"] is True
+    assert execution_episode["non_authority"]["oracle_ranking"] is False
+    assert execution_episode["non_authority"]["oracle_pruning"] is False
+    assert execution_episode["non_authority"]["oracle_promotion"] is False
+    assert execution_episode["non_authority"]["external_mutation"] is False
     assert manifest["execution_episode"]["metadata"]["jury"]["returncode"] == 0
     assert manifest["execution_episode"]["metadata"]["promotion"]["returncode"] == 0
     assert manifest["receipt_bundle"]["status"] == "captured"
@@ -218,6 +245,9 @@ def test_program_service_materializes_candidate_assembly(
     promotion_decision_template_hash = hashlib.sha256(
         (root / "promotion_decision_template.json").read_bytes()
     ).hexdigest()
+    execution_episode_hash = hashlib.sha256(
+        (root / "execution_episode.json").read_bytes()
+    ).hexdigest()
     assert evidence["plan_hash"] == plan_hash
     assert evidence["jury_hash"] == jury_hash
     assert evidence["jury_selection_hash"] == jury_selection_hash
@@ -230,6 +260,17 @@ def test_program_service_materializes_candidate_assembly(
     assert (
         evidence["promotion_decision_template_hash"] == promotion_decision_template_hash
     )
+    assert evidence["execution_episode_hash"] == execution_episode_hash
+    assert evidence["execution_episode_path"] == "execution_episode.json"
+    assert (
+        evidence["surface_hashes"]["execution_episode.json"] == execution_episode_hash
+    )
+    assert manifest["request"]["execution_episode_hash"] == execution_episode_hash
+    assert manifest["execution_episode_artifact"] == {
+        "path": "execution_episode.json",
+        "content_hash": execution_episode_hash,
+        "schema_version": "program-execution-episode-v1",
+    }
     assert receipt["run_summary"]["plan_hash"] == plan_hash
     assert receipt["run_summary"]["jury_hash"] == jury_hash
     assert receipt["run_summary"]["jury_selection_hash"] == jury_selection_hash
@@ -242,6 +283,12 @@ def test_program_service_materializes_candidate_assembly(
     assert (
         receipt["run_summary"]["promotion_decision_template_hash"]
         == promotion_decision_template_hash
+    )
+    assert receipt["run_summary"]["execution_episode_hash"] == execution_episode_hash
+    assert receipt["run_summary"]["execution_episode_path"] == "execution_episode.json"
+    assert (
+        receipt["program_execution_episode_artifact"]
+        == manifest["execution_episode_artifact"]
     )
     assert receipt["program_plan"]["schema_version"] == "program-plan-v1"
     assert evidence["surface_generation"]["plan"] == "program-gen"
@@ -256,6 +303,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (
         evidence["surface_generation"]["promotion_decision_template"] == "program-gen"
     )
+    assert evidence["surface_generation"]["execution_episode"] == "program-gen"
     assert evidence["surface_generation"]["jury_harness"] == "program-gen"
     assert evidence["surface_generation"]["promotion_harness"] == "program-gen"
     assert evidence["surface_generation"]["signature"] == "signature-gen"
@@ -267,6 +315,7 @@ def test_program_service_materializes_candidate_assembly(
     assert "promotion_review.json" in evidence["surface_hashes"]
     assert "promotion_adjudication_request.json" in evidence["surface_hashes"]
     assert "promotion_decision_template.json" in evidence["surface_hashes"]
+    assert "execution_episode.json" in evidence["surface_hashes"]
     assert "eval_jury.py" in evidence["surface_hashes"]
     assert "eval_promotion.py" in evidence["surface_hashes"]
     assert "signature.py" in evidence["surface_hashes"]
@@ -332,7 +381,10 @@ def test_program_gen_cli_materializes_from_yaml(
         payload["candidate_assembly"]["surfaces"][6]["path"]
         == "promotion_decision_template.json"
     )
-    assert payload["candidate_assembly"]["surfaces"][7]["path"] == "signature.py"
+    assert (
+        payload["candidate_assembly"]["surfaces"][7]["path"] == "execution_episode.json"
+    )
+    assert payload["candidate_assembly"]["surfaces"][8]["path"] == "signature.py"
     assert (outdir / "plan.json").exists()
     assert (outdir / "jury.json").exists()
     assert (outdir / "jury_selection.json").exists()
@@ -340,6 +392,7 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "promotion_review.json").exists()
     assert (outdir / "promotion_adjudication_request.json").exists()
     assert (outdir / "promotion_decision_template.json").exists()
+    assert (outdir / "execution_episode.json").exists()
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
@@ -528,6 +581,7 @@ def test_program_service_binds_examples_when_present(
     assert (root / "eval_examples.py").exists()
     assert (root / "behavior_results.json").exists()
     assert (root / "oracle_evidence.json").exists()
+    assert (root / "execution_episode.json").exists()
 
     behavior_results = json.loads(
         (root / "behavior_results.json").read_text(encoding="utf-8")
@@ -649,6 +703,48 @@ def test_program_service_binds_examples_when_present(
         "summary": manifest["oracle_readability"]["summary"],
         "facets": manifest["oracle_readability"]["facets"],
     }
+    execution_episode = json.loads(
+        (root / "execution_episode.json").read_text(encoding="utf-8")
+    )
+    execution_episode_hash = hashlib.sha256(
+        (root / "execution_episode.json").read_bytes()
+    ).hexdigest()
+    assert execution_episode == manifest["execution_episode"]
+    assert execution_episode["schema_version"] == "program-execution-episode-v1"
+    assert execution_episode["checks"]["examples_binding"] == {
+        "status": "passed",
+        "examples_count": 1,
+        "artifact_refs": ["examples.json", "eval_examples.py"],
+    }
+    assert (
+        execution_episode["behavioral_evaluation"]["status"]
+        == behavior_results["summary"]["status"]
+    )
+    assert execution_episode["behavioral_evaluation"]["result_artifact"] == (
+        "behavior_results.json"
+    )
+    assert execution_episode["behavioral_evaluation"]["result_hash"] == behavior_hash
+    assert (
+        execution_episode["behavioral_evaluation"]["summary"]
+        == behavior_results["summary"]
+    )
+    assert execution_episode["oracle_readability"]["status"] == "captured"
+    assert execution_episode["oracle_readability"]["oracle_invoked"] is False
+    assert execution_episode["oracle_readability"]["result_artifact"] == (
+        "oracle_evidence.json"
+    )
+    assert execution_episode["oracle_readability"]["result_hash"] == oracle_hash
+    assert execution_episode["non_authority"] == {
+        "evidence_only": True,
+        "oracle_role": "not_invoked",
+        "oracle_ranking": False,
+        "oracle_pruning": False,
+        "oracle_promotion": False,
+        "ranking_pruning_promotion": False,
+        "promotion_authority": False,
+        "governance_authority": False,
+        "external_mutation": False,
+    }
     assert manifest["oracle_readability"]["path"] == "oracle_evidence.json"
     assert manifest["oracle_readability"]["content_hash"] == oracle_hash
     assert manifest["oracle_readability"]["summary"]["content_hash"] == oracle_hash
@@ -681,6 +777,8 @@ def test_program_service_binds_examples_when_present(
     assert evidence["behavior_results_hash"] == behavior_hash
     assert evidence["behavior_summary"] == behavior_results["summary"]
     assert evidence["behavior_results"] == behavior_results
+    assert evidence["execution_episode_hash"] == execution_episode_hash
+    assert evidence["execution_episode_path"] == "execution_episode.json"
     assert evidence["oracle_evidence_hash"] == oracle_hash
     assert evidence["oracle_evidence_path"] == "oracle_evidence.json"
     assert (
@@ -694,16 +792,23 @@ def test_program_service_binds_examples_when_present(
         "summary": manifest["oracle_readability"]["summary"],
         "facets": oracle_evidence["oracle_facets"],
     }
+    assert evidence["surface_generation"]["execution_episode"] == "program-gen"
     assert evidence["surface_generation"]["oracle_evidence"] == "program-gen"
+    assert (
+        evidence["surface_hashes"]["execution_episode.json"] == execution_episode_hash
+    )
     assert evidence["surface_hashes"]["oracle_evidence.json"] == oracle_hash
     assert evidence["examples"]["returncode"] == 0
     assert "examples.json" in evidence["generated_files"]
     assert "behavior_results.json" in evidence["generated_files"]
     assert "oracle_evidence.json" in evidence["generated_files"]
+    assert "execution_episode.json" in evidence["generated_files"]
 
     receipt = json.loads((root / "manifest.json.meta.json").read_text(encoding="utf-8"))
     assert receipt["run_summary"]["behavior_results_hash"] == behavior_hash
     assert receipt["run_summary"]["behavior_summary"] == behavior_results["summary"]
+    assert receipt["run_summary"]["execution_episode_hash"] == execution_episode_hash
+    assert receipt["run_summary"]["execution_episode_path"] == "execution_episode.json"
     assert receipt["run_summary"]["oracle_evidence_hash"] == oracle_hash
     assert (
         receipt["run_summary"]["oracle_readability_summary"]
@@ -713,6 +818,10 @@ def test_program_service_binds_examples_when_present(
         receipt["run_summary"]["oracle_readability_facets"]
         == oracle_evidence["oracle_facets"]
     )
+    assert (
+        receipt["program_execution_episode_artifact"]
+        == manifest["execution_episode_artifact"]
+    )
     assert receipt["program_behavior_results"] == behavior_results
     assert receipt["program_oracle_evidence"] == oracle_evidence
     assert receipt["program_oracle_readability"] == manifest["oracle_readability"]
@@ -721,10 +830,13 @@ def test_program_service_binds_examples_when_present(
     assert replay["status"] == "ok"
     assert replay["checks"]["program_manifest_json_object"] is True
     assert replay["checks"]["program_evidence_artifacts_declared"] is True
+    assert replay["checks"]["program_execution_episode_exists"] is True
+    assert replay["checks"]["program_execution_episode_hash_match"] is True
     assert replay["checks"]["program_behavior_results_exists"] is True
     assert replay["checks"]["program_behavior_results_hash_match"] is True
     assert replay["checks"]["program_oracle_evidence_exists"] is True
     assert replay["checks"]["program_oracle_evidence_hash_match"] is True
+    assert replay["program_execution_episode_hash"] == execution_episode_hash
     assert replay["program_behavior_results_hash"] == behavior_hash
     assert replay["program_oracle_evidence_hash"] == oracle_hash
     assert replay["error_codes"] == []
@@ -827,6 +939,130 @@ def test_program_replay_detects_oracle_evidence_artifact_drift(
         detail.get("code") == "program_evidence_hash_mismatch"
         and detail.get("check") == "program_oracle_evidence_hash_match"
         for detail in drift["error_details"]
+    )
+
+
+def test_program_replay_detects_execution_episode_artifact_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ReplayExecutionEpisodeProgram",
+        objective="Classify a short support ticket.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    episode_path = root / "execution_episode.json"
+    episode_payload = json.loads(episode_path.read_text(encoding="utf-8"))
+    episode_payload["status"] = "drifted"
+    episode_path.write_text(
+        json.dumps(episode_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    drift = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert drift["status"] == "failed"
+    assert drift["checks"]["output_hash_match"] is True
+    assert drift["checks"]["program_execution_episode_exists"] is True
+    assert drift["checks"]["program_execution_episode_hash_match"] is False
+    assert drift["checks"]["program_behavior_results_hash_match"] is True
+    assert drift["checks"]["program_oracle_evidence_hash_match"] is True
+    assert "program_evidence_hash_mismatch" in drift["error_codes"]
+    assert any(
+        detail.get("code") == "program_evidence_hash_mismatch"
+        and detail.get("check") == "program_execution_episode_hash_match"
+        for detail in drift["error_details"]
+    )
+
+
+def test_program_replay_detects_missing_execution_episode_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ReplayMissingExecutionEpisodeProgram",
+        objective="Classify a short support ticket.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    (root / "execution_episode.json").unlink()
+
+    missing = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert missing["status"] == "failed"
+    assert missing["checks"]["output_hash_match"] is True
+    assert missing["checks"]["program_execution_episode_exists"] is False
+    assert missing["checks"]["program_behavior_results_exists"] is True
+    assert "program_evidence_artifact_missing" in missing["error_codes"]
+    assert any(
+        detail.get("code") == "program_evidence_artifact_missing"
+        and detail.get("check") == "program_execution_episode_exists"
+        for detail in missing["error_details"]
+    )
+
+
+def test_program_replay_detects_execution_episode_declaration_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ReplayExecutionDeclarationMismatchProgram",
+        objective="Classify a short support ticket.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["execution_episode_artifact"]["content_hash"] = "0" * 64
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    mismatch = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert mismatch["status"] == "failed"
+    assert mismatch["checks"]["output_hash_match"] is False
+    assert mismatch["checks"]["program_execution_episode_exists"] is True
+    assert (
+        mismatch["checks"]["program_execution_episode_declaration_consistent"] is False
+    )
+    assert "program_evidence_declaration_mismatch" in mismatch["error_codes"]
+    assert any(
+        detail.get("code") == "program_evidence_declaration_mismatch"
+        and detail.get("check") == "program_execution_episode_declaration_consistent"
+        for detail in mismatch["error_details"]
     )
 
 

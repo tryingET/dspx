@@ -78,10 +78,11 @@ Current writers using this contract:
   required `replay_inputs` keys)
 - output artifact existence + output hash verification
 - for `program-gen`, execution-episode evidence artifact verification for declared
-  behavior/Oracle-readability artifacts such as `behavior_results.json` and
-  `oracle_evidence.json`; replay compares declarations from the manifest execution
-  episode, candidate surfaces, receipt-bundle evidence, surface hashes, and receipt
-  run summary before hashing local artifacts
+  standalone episode, behavior, and Oracle-readability artifacts such as
+  `execution_episode.json`, `behavior_results.json`, and `oracle_evidence.json`;
+  replay compares declarations from the manifest execution episode/artifact fields,
+  candidate surfaces, receipt-bundle evidence, surface hashes, and receipt run
+  summary before hashing local artifacts
 - cache linkage verification (`cache_key`, `cache_file`, run-kind cache folder)
 - cache provenance verification (recomputed `cache_key`, cached `code` hash)
 - stable machine-readable diagnostics in JSON mode:

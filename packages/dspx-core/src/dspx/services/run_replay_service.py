@@ -316,6 +316,14 @@ def _program_evidence_declarations(
             }
         )
 
+    execution_episode_artifact = _nested_dict(manifest, "execution_episode_artifact")
+    add(
+        "execution_episode",
+        path=execution_episode_artifact.get("path"),
+        content_hash=execution_episode_artifact.get("content_hash"),
+        source="manifest.execution_episode_artifact",
+    )
+
     execution_episode = _nested_dict(manifest, "execution_episode")
     behavior_results = _nested_dict(execution_episode, "behavior_results")
     add(
@@ -338,7 +346,7 @@ def _program_evidence_declarations(
             continue
         surface = dict(raw_surface)
         kind = str(surface.get("kind") or "")
-        if kind not in {"behavior_results", "oracle_evidence"}:
+        if kind not in {"execution_episode", "behavior_results", "oracle_evidence"}:
             continue
         add(
             kind,
@@ -348,6 +356,12 @@ def _program_evidence_declarations(
         )
 
     evidence = _nested_dict(manifest, "receipt_bundle", "evidence")
+    add(
+        "execution_episode",
+        path=evidence.get("execution_episode_path") or "execution_episode.json",
+        content_hash=evidence.get("execution_episode_hash"),
+        source="manifest.receipt_bundle.evidence.execution_episode_hash",
+    )
     add(
         "behavior_results",
         path="behavior_results.json",
@@ -365,6 +379,12 @@ def _program_evidence_declarations(
         manifest, "receipt_bundle", "evidence", "surface_hashes"
     )
     add(
+        "execution_episode",
+        path="execution_episode.json",
+        content_hash=surface_hashes.get("execution_episode.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.execution_episode.json",
+    )
+    add(
         "behavior_results",
         path="behavior_results.json",
         content_hash=surface_hashes.get("behavior_results.json"),
@@ -378,6 +398,12 @@ def _program_evidence_declarations(
     )
 
     run_summary = _as_dict(receipt.get("run_summary"))
+    add(
+        "execution_episode",
+        path=run_summary.get("execution_episode_path") or "execution_episode.json",
+        content_hash=run_summary.get("execution_episode_hash"),
+        source="receipt.run_summary.execution_episode_hash",
+    )
     add(
         "behavior_results",
         path="behavior_results.json",

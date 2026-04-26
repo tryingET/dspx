@@ -63,8 +63,9 @@ The first materialized bundle writes:
 - `examples.json` / `eval_examples.py` — emitted when inline `examples` or `examples_path` examples are present, validating example binding, invoking the generated program locally, and writing behavior evidence without calling juror models
 - `behavior_results.json` — emitted when examples are present, recording `program-behavior-results-v1` per-example inputs, expected outputs, observed outputs when available, status/error/degraded notes, summary counts, and evidence-only authority
 - `oracle_evidence.json` — emitted when behavior results exist, recording `program-oracle-evidence-v1` readability-only evidence with candidate/assembly/episode/receipt IDs, intent/task/metric/IO facets, behavior result hash/summary/status counts, deterministic failure/degraded/error signals, compact `oracle_text`, source artifact hashes, and explicit non-authority flags
+- `execution_episode.json` — standalone `program-execution-episode-v1` evidence-only episode contract separating materialization, compile/smoke checks, examples binding, jury binding, promotion binding, behavioral evaluation, Oracle readability, and non-authority flags
 - `intent.json` — normalized intent payload
-- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template-provenance, surface-provenance, example-binding, behavior evidence, Oracle-readability evidence, and per-surface hash metadata
+- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode provenance, surface-provenance, example-binding, behavior evidence, Oracle-readability evidence, and per-surface hash metadata
 - `manifest.json.meta.json` — standard DSPx run receipt with `run_kind=program-gen`
 
 Before marking the materialization episode as `passed`, DSPx compiles the generated files, runs `eval_smoke.py`, validates jury/promotion artifact binding, and, when examples exist, runs `eval_examples.py` in the candidate assembly directory to capture `behavior_results.json`. The receipt hash is computed from the exact written `manifest.json` bytes, and replay validation can recompute the `program-gen` cache key from `replay_inputs.intent`.
@@ -84,7 +85,7 @@ Positive:
 - DSPx now has a concrete foothold for one-intent program synthesis.
 - Program synthesis begins at the candidate-assembly boundary instead of being squeezed into module generation.
 - `program-gen` now composes signature and module generation as candidate-surface providers instead of permanently duplicating them inline.
-- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template provenance, surface provenance, optional example-binding evidence, behavior-result evidence over examples, Oracle-readability evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
+- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template/execution-episode provenance, surface provenance, optional example-binding evidence, behavior-result evidence over examples, Oracle-readability evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
 - The first path is deterministic and testable, so it can compound before model-backed synthesis or GEPA-backed search is introduced.
 
 Tradeoffs:

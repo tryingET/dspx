@@ -144,6 +144,11 @@ def build_program_plan(
             "generator": "program-gen",
         },
         {"kind": "intent", "path": "intent.json", "generator": "program-gen"},
+        {
+            "kind": "execution_episode",
+            "path": "execution_episode.json",
+            "generator": "program-gen",
+        },
         {"kind": "signature", "path": "signature.py", "generator": "signature-gen"},
         {"kind": "module", "path": "module.py", "generator": "module-gen"},
         {"kind": "program", "path": "program.py", "generator": "program-gen"},
@@ -534,6 +539,161 @@ def _oracle_readability_summary(
     }
 
 
+def _harness_status(result: Mapping[str, Any] | None) -> str:
+    if result is None:
+        return "not_applicable"
+    return "passed" if result.get("returncode") == 0 else "failed"
+
+
+def _build_execution_episode_contract(
+    *,
+    ids: Mapping[str, str],
+    intent: ProgramIntent,
+    generated_file_names: list[str],
+    smoke_result: Mapping[str, Any],
+    jury_result: Mapping[str, Any],
+    promotion_result: Mapping[str, Any],
+    examples_result: Mapping[str, Any] | None,
+    behavior_results_hash: str | None,
+    behavior_summary: Mapping[str, Any] | None,
+    behavior_results_payload: Mapping[str, Any] | None,
+    oracle_evidence_hash: str | None,
+    oracle_readability_summary: Mapping[str, Any] | None,
+    oracle_readability_facets: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    examples_count = len(intent.examples or [])
+    behavior_status = None
+    if behavior_summary is not None:
+        behavior_status = str(behavior_summary.get("status") or "executed")
+    behavioral_evaluation = {
+        "status": behavior_status if behavior_status is not None else "not_applicable",
+        "examples_count": examples_count,
+        "result_artifact": "behavior_results.json"
+        if behavior_results_hash is not None
+        else None,
+        "result_hash": behavior_results_hash,
+        "summary": dict(behavior_summary or {}),
+    }
+    oracle_readability = {
+        "status": "captured" if oracle_evidence_hash is not None else "not_applicable",
+        "oracle_invoked": False,
+        "result_artifact": "oracle_evidence.json"
+        if oracle_evidence_hash is not None
+        else None,
+        "result_hash": oracle_evidence_hash,
+        "summary": dict(oracle_readability_summary or {}),
+        "facets": dict(oracle_readability_facets or {}),
+    }
+    return {
+        "schema_version": "program-execution-episode-v1",
+        "episode_id": ids["episode_id"],
+        "request_id": ids["request_id"],
+        "candidate_id": ids["candidate_id"],
+        "assembly_id": ids["assembly_id"],
+        "phase": "materialize",
+        "evaluator": "deterministic_program_bundle_smoke",
+        "status": "passed",
+        "status_scope": "materialization_and_binding_checks",
+        "authority": "execution_episode_evidence_only_non_authoritative",
+        "runtime_conditions": dict(intent.runtime),
+        "materialization": {
+            "status": "passed",
+            "generated_file_count": len(generated_file_names),
+            "generated_files": list(generated_file_names),
+        },
+        "checks": {
+            "compile": {
+                "status": "passed",
+                "files": [
+                    name for name in generated_file_names if name.endswith(".py")
+                ],
+            },
+            "smoke": {
+                "status": _harness_status(smoke_result),
+                "returncode": smoke_result.get("returncode"),
+                "command": smoke_result.get("command"),
+            },
+            "examples_binding": {
+                "status": _harness_status(examples_result),
+                "examples_count": examples_count,
+                "artifact_refs": ["examples.json", "eval_examples.py"]
+                if examples_result is not None
+                else [],
+            },
+            "jury_binding": {
+                "status": _harness_status(jury_result),
+                "returncode": jury_result.get("returncode"),
+                "artifact_refs": [
+                    "jury.json",
+                    "jury_selection.json",
+                    "jury_rubric.json",
+                    "eval_jury.py",
+                ],
+            },
+            "promotion_binding": {
+                "status": _harness_status(promotion_result),
+                "returncode": promotion_result.get("returncode"),
+                "artifact_refs": [
+                    "promotion_review.json",
+                    "promotion_adjudication_request.json",
+                    "promotion_decision_template.json",
+                    "eval_promotion.py",
+                ],
+            },
+        },
+        "behavior_status": behavior_status,
+        "behavioral_evaluation": behavioral_evaluation,
+        "behavior_results": {
+            "path": "behavior_results.json",
+            "content_hash": behavior_results_hash,
+            "summary": dict(behavior_summary or {}),
+        }
+        if behavior_results_hash is not None
+        else None,
+        "oracle_readability": oracle_readability,
+        "oracle_evidence": {
+            "path": "oracle_evidence.json",
+            "content_hash": oracle_evidence_hash,
+            "summary": dict(oracle_readability_summary or {}),
+            "facets": dict(oracle_readability_facets or {}),
+        }
+        if oracle_evidence_hash is not None
+        else None,
+        "non_authority": {
+            "evidence_only": True,
+            "oracle_role": "not_invoked",
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "ranking_pruning_promotion": False,
+            "promotion_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "metadata": {
+            "smoke": dict(smoke_result),
+            "jury": dict(jury_result),
+            "promotion": dict(promotion_result),
+            **(
+                {"examples": dict(examples_result)}
+                if examples_result is not None
+                else {}
+            ),
+            **(
+                {"behavior_results": dict(behavior_results_payload)}
+                if behavior_results_payload is not None
+                else {}
+            ),
+        },
+        "notes": [
+            "Materialization, binding checks, behavioral evaluation, and Oracle readability are separate episode sections.",
+            "eval_examples.py is the example-backed behavior harness when examples exist.",
+            "Oracle readability is captured without invoking Oracle or mutating an index.",
+            "This artifact is evidence only and cannot rank, prune, promote, export, or mutate governance authority.",
+        ],
+    }
+
+
 def materialize_program_from_intent(
     intent: ProgramIntent,
     *,
@@ -727,9 +887,30 @@ def materialize_program_from_intent(
                 if examples_payload
                 else []
             ),
+            "execution_episode.json",
             "manifest.json",
         ]
     )
+    execution_episode = _build_execution_episode_contract(
+        ids=ids,
+        intent=intent,
+        generated_file_names=generated_file_names,
+        smoke_result=smoke_result,
+        jury_result=jury_result,
+        promotion_result=promotion_result,
+        examples_result=examples_result,
+        behavior_results_hash=behavior_results_hash,
+        behavior_summary=behavior_summary,
+        behavior_results_payload=behavior_results_payload,
+        oracle_evidence_hash=oracle_evidence_hash,
+        oracle_readability_summary=oracle_readability_summary,
+        oracle_readability_facets=oracle_readability_facets,
+    )
+    execution_episode_text = _write_json(
+        root / "execution_episode.json", execution_episode
+    )
+    execution_episode_hash = sha256_text(execution_episode_text)
+    surface_hashes["execution_episode.json"] = execution_episode_hash
 
     candidate_assembly = {
         "assembly_id": ids["assembly_id"],
@@ -745,6 +926,7 @@ def materialize_program_from_intent(
             "promotion_adjudication_request",
             "promotion_decision_template",
             "intent",
+            "execution_episode",
             *(
                 ["examples", "behavior_results", "oracle_evidence"]
                 if examples_payload
@@ -816,6 +998,14 @@ def materialize_program_from_intent(
                 "status": promotion_decision_template["status"],
             },
             {
+                "kind": "execution_episode",
+                "path": "execution_episode.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["execution_episode.json"],
+                "schema_version": execution_episode["schema_version"],
+                "status": execution_episode["status"],
+            },
+            {
                 "kind": "signature",
                 "path": "signature.py",
                 "generator": "signature-gen",
@@ -884,45 +1074,6 @@ def materialize_program_from_intent(
             ),
         ],
     }
-    execution_episode = {
-        "episode_id": ids["episode_id"],
-        "request_id": ids["request_id"],
-        "candidate_id": ids["candidate_id"],
-        "assembly_id": ids["assembly_id"],
-        "phase": "materialize",
-        "evaluator": "deterministic_program_bundle_smoke",
-        "status": "passed",
-        "behavior_status": (behavior_summary or {}).get("status")
-        if behavior_summary is not None
-        else None,
-        "behavior_results": {
-            "path": "behavior_results.json",
-            "content_hash": behavior_results_hash,
-            "summary": behavior_summary or {},
-        }
-        if behavior_results_hash is not None
-        else None,
-        "oracle_evidence": {
-            "path": "oracle_evidence.json",
-            "content_hash": oracle_evidence_hash,
-            "summary": oracle_readability_summary or {},
-            "facets": oracle_readability_facets or {},
-        }
-        if oracle_evidence_hash is not None
-        else None,
-        "runtime_conditions": dict(intent.runtime),
-        "metadata": {
-            "smoke": smoke_result,
-            "jury": jury_result,
-            "promotion": promotion_result,
-            **({"examples": examples_result} if examples_result is not None else {}),
-            **(
-                {"behavior_results": behavior_results_payload}
-                if behavior_results_payload is not None
-                else {}
-            ),
-        },
-    }
     receipt_bundle = {
         "receipt_bundle_id": ids["receipt_bundle_id"],
         "request_id": ids["request_id"],
@@ -939,6 +1090,8 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "execution_episode_hash": execution_episode_hash,
+            "execution_episode_path": "execution_episode.json",
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
@@ -966,6 +1119,7 @@ def materialize_program_from_intent(
                 "promotion_review": "program-gen",
                 "promotion_adjudication_request": "program-gen",
                 "promotion_decision_template": "program-gen",
+                "execution_episode": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
@@ -1029,6 +1183,7 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "execution_episode_hash": execution_episode_hash,
             "behavior_results_hash": behavior_results_hash,
             "oracle_evidence_hash": oracle_evidence_hash,
         },
@@ -1039,6 +1194,11 @@ def materialize_program_from_intent(
         "program_promotion_review": promotion_review,
         "program_promotion_adjudication_request": promotion_adjudication_request,
         "program_promotion_decision_template": promotion_decision_template,
+        "execution_episode_artifact": {
+            "path": "execution_episode.json",
+            "content_hash": execution_episode_hash,
+            "schema_version": execution_episode["schema_version"],
+        },
         "oracle_readability": {
             "path": "oracle_evidence.json",
             "content_hash": oracle_evidence_hash,
@@ -1090,6 +1250,8 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "execution_episode_hash": execution_episode_hash,
+            "execution_episode_path": "execution_episode.json",
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
             "oracle_evidence_hash": oracle_evidence_hash,
@@ -1105,6 +1267,11 @@ def materialize_program_from_intent(
             "program_promotion_review": promotion_review,
             "program_promotion_adjudication_request": promotion_adjudication_request,
             "program_promotion_decision_template": promotion_decision_template,
+            "program_execution_episode_artifact": {
+                "path": "execution_episode.json",
+                "content_hash": execution_episode_hash,
+                "schema_version": execution_episode["schema_version"],
+            },
             **(
                 {"program_behavior_results": behavior_results_payload}
                 if behavior_results_payload is not None
@@ -1166,6 +1333,7 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "execution_episode_hash": execution_episode_hash,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
             "oracle_evidence_hash": oracle_evidence_hash,
