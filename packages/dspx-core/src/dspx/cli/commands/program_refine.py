@@ -113,6 +113,73 @@ def compare_candidates(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("generate-and-compare")
+def generate_and_compare(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to source program-gen manifest.json",
+    ),
+    refinement_proposal: Path = typer.Option(
+        ...,
+        "--refinement-proposal",
+        help="Path to program-refinement-proposal-v1 JSON",
+    ),
+    decision_record: Path = typer.Option(
+        ...,
+        "--decision-record",
+        help="Path to local request-more-evidence decision record JSON",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        help="Directory where the second candidate assembly is materialized",
+    ),
+    comparison_out: Path = typer.Option(
+        ...,
+        "--comparison-out",
+        help="Path where the local candidate comparison sidecar should be written",
+    ),
+    workflow_out: Path | None = typer.Option(
+        None,
+        "--workflow-out",
+        help="Optional path for a local generate-and-compare workflow result sidecar",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print workflow result JSON"),
+) -> None:
+    """Generate one local second candidate, then compare it without promotion."""
+    from dspx.services.program_refinement_workflow import (
+        ProgramRefinementWorkflowError,
+        materialize_and_compare_refinement_candidate,
+        write_program_refinement_workflow_result,
+    )
+
+    try:
+        payload = materialize_and_compare_refinement_candidate(
+            manifest_path=manifest,
+            refinement_proposal_path=refinement_proposal,
+            decision_record_path=decision_record,
+            outdir=outdir,
+            comparison_out_path=comparison_out,
+        )
+        if workflow_out is not None:
+            payload = write_program_refinement_workflow_result(payload, workflow_out)
+    except ProgramRefinementWorkflowError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program refinement generate-and-compare failed: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(comparison_out.expanduser().resolve()))
+
+
 @app.command("generate-candidate")
 def generate_candidate(
     manifest: Path = typer.Option(

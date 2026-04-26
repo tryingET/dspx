@@ -1,0 +1,135 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Mapping
+
+from dspx.services.program_refinement_candidate import materialize_refinement_candidate
+from dspx.services.program_refinement_comparison import (
+    build_program_refinement_candidate_comparison,
+    write_program_refinement_candidate_comparison,
+)
+
+PROGRAM_REFINEMENT_GENERATE_COMPARE_SCHEMA = (
+    "program-refinement-generate-and-compare-result-v1"
+)
+
+
+_WORKFLOW_NON_AUTHORITY = {
+    "local_generation_and_comparison_only": True,
+    "program_gen_automation": False,
+    "automatic_promotion": False,
+    "oracle_ranking": False,
+    "oracle_pruning": False,
+    "oracle_promotion": False,
+    "winner_selection": False,
+    "external_authority_export": False,
+    "governance_authority": False,
+    "external_mutation": False,
+}
+
+
+_WORKFLOW_EFFECT = {
+    "local_second_candidate_generated": True,
+    "local_comparison_written": True,
+    "source_program_files_mutated": False,
+    "comparison_mutated_source_candidate": False,
+    "comparison_mutated_refinement_candidate": False,
+    "third_candidate_generated": False,
+    "external_authority_mutated": False,
+    "governance_mutated": False,
+}
+
+
+class ProgramRefinementWorkflowError(ValueError):
+    """Raised when an explicit local refinement workflow fails."""
+
+
+def _json_text(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def materialize_and_compare_refinement_candidate(
+    *,
+    manifest_path: Path,
+    refinement_proposal_path: Path,
+    decision_record_path: Path,
+    outdir: Path,
+    comparison_out_path: Path,
+) -> dict[str, Any]:
+    """Explicitly generate one second candidate, then compare local behavior evidence."""
+
+    manifest_path = manifest_path.expanduser().resolve()
+    refinement_proposal_path = refinement_proposal_path.expanduser().resolve()
+    decision_record_path = decision_record_path.expanduser().resolve()
+    outdir = outdir.expanduser().resolve()
+    comparison_out_path = comparison_out_path.expanduser().resolve()
+    try:
+        generation = materialize_refinement_candidate(
+            manifest_path=manifest_path,
+            refinement_proposal_path=refinement_proposal_path,
+            decision_record_path=decision_record_path,
+            outdir=outdir,
+        )
+        candidate_manifest_path = (
+            Path(str(generation["candidate"]["manifest_path"])).expanduser().resolve()
+        )
+        comparison = build_program_refinement_candidate_comparison(
+            source_manifest_path=manifest_path,
+            candidate_manifest_path=candidate_manifest_path,
+            refinement_proposal_path=refinement_proposal_path,
+            decision_record_path=decision_record_path,
+        )
+        comparison_payload = write_program_refinement_candidate_comparison(
+            comparison,
+            comparison_out_path,
+        )
+    except Exception as exc:
+        raise ProgramRefinementWorkflowError(str(exc)) from exc
+
+    status = (
+        "materialized_and_compared"
+        if comparison_payload.get("status") == "compared"
+        else "materialized_with_insufficient_behavior_evidence"
+    )
+    return {
+        "schema_version": PROGRAM_REFINEMENT_GENERATE_COMPARE_SCHEMA,
+        "status": status,
+        "created_from": {
+            "manifest_path": str(manifest_path),
+            "refinement_proposal_path": str(refinement_proposal_path),
+            "decision_record_path": str(decision_record_path),
+        },
+        "generation": generation,
+        "comparison_sidecar": {
+            "path": str(comparison_out_path),
+            "schema_version": comparison_payload.get("schema_version"),
+            "status": comparison_payload.get("status"),
+            "source_identity": comparison_payload.get("source_identity"),
+            "candidate_identity": comparison_payload.get("candidate_identity"),
+            "behavior_delta": comparison_payload.get("behavior_comparison", {}).get(
+                "delta"
+            ),
+            "interpretation": comparison_payload.get("interpretation"),
+        },
+        "effect": dict(_WORKFLOW_EFFECT),
+        "non_authority": dict(_WORKFLOW_NON_AUTHORITY),
+        "notes": [
+            "This explicit workflow materializes one local second candidate and writes one local comparison sidecar.",
+            "It is not program-gen automation and does not rank, select a winner, promote, export authority, or mutate governance.",
+            "Comparison uses current eval_examples.py / behavior_results.json evidence only.",
+        ],
+    }
+
+
+def write_program_refinement_workflow_result(
+    result: Mapping[str, Any],
+    out_path: Path,
+) -> dict[str, Any]:
+    """Optionally write a local workflow receipt sidecar."""
+
+    out_path = out_path.expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(result)
+    out_path.write_text(_json_text(payload), encoding="utf-8")
+    return payload

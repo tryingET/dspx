@@ -328,7 +328,21 @@ just dspx program-refine compare-candidates \
   --json
 ```
 
-The comparison sidecar has `schema_version: program-refinement-candidate-comparison-v1`. It consumes the two existing `program-candidate-assembly-v1` manifests, reads their current example-backed `behavior_results.json` evidence from `eval_examples.py`, records identity/lineage facts when available, and reports behavior-status/count deltas plus failure signals added, removed, and persisted. It is local comparison only: it does not mutate either candidate, generate another candidate, rank, select a winner, promote, export authority, make Oracle authoritative, mutate AK/governance, or introduce `eval_behavior.py`. `program-gen` still does not automatically index, report, interpret, refine, review, decide, generate follow-up candidates, or compare candidates.
+The comparison sidecar has `schema_version: program-refinement-candidate-comparison-v1`. It consumes the two existing `program-candidate-assembly-v1` manifests, reads their current example-backed `behavior_results.json` evidence from `eval_examples.py`, records identity/lineage facts when available, and reports behavior-status/count deltas plus failure signals added, removed, and persisted. It is local comparison only: it does not mutate either candidate, generate another candidate, rank, select a winner, promote, export authority, make Oracle authoritative, mutate AK/governance, or introduce `eval_behavior.py`.
+
+For operator ergonomics, the same local generation-plus-comparison path can be invoked explicitly in one command:
+
+```bash
+just dspx program-refine generate-and-compare \
+  --manifest generated/programs/answer_question/manifest.json \
+  --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json \
+  --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --outdir /tmp/dspx-program-refine/answer_question_v2 \
+  --comparison-out /tmp/dspx-program-refine/candidate_comparison.json \
+  --json
+```
+
+This explicit workflow returns `schema_version: program-refinement-generate-and-compare-result-v1`, materializes exactly one local second candidate, then writes the same comparison sidecar. It is not `program-gen` automation, does not generate a third candidate, and still does not rank, select a winner, promote, export authority, mutate Oracle authority, AK, or governance. `program-gen` still does not automatically index, report, interpret, refine, review, decide, generate follow-up candidates, or compare candidates.
 
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
@@ -495,6 +509,9 @@ just dspx program-refine generate-candidate --manifest generated/programs/answer
 
 # Explicitly compare already-materialized source and second-candidate behavior evidence
 just dspx program-refine compare-candidates --source-manifest generated/programs/answer_question/manifest.json --candidate-manifest /tmp/dspx-program-refine/answer_question_v2/manifest.json --out /tmp/dspx-program-refine/candidate_comparison.json --json
+
+# Or explicitly generate one second candidate and immediately write the local comparison sidecar
+just dspx program-refine generate-and-compare --manifest generated/programs/answer_question/manifest.json --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json --decision-record /tmp/dspx-program-promote/promotion_decision_record.json --outdir /tmp/dspx-program-refine/answer_question_v2 --comparison-out /tmp/dspx-program-refine/candidate_comparison.json --json
 
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json

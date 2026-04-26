@@ -373,3 +373,163 @@ def test_program_refine_compare_candidates_detects_lineage_source_mismatch(
     assert payload["lineage"]["source_identity_matches_candidate_lineage"] is False
     assert _file_hashes(program_root) == before_source
     assert _file_hashes(candidate_root) == before_candidate
+
+
+def _materialize_refinement_inputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, Path]:
+    _setup_env(tmp_path, monkeypatch)
+    intent = ProgramIntent(
+        name="TicketProgram",
+        objective="Classify support ticket urgency.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        metric="exact_match",
+        constraints=["use only the supplied ticket text"],
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    program_root = Path(artifact.root_path)
+
+    index_path = tmp_path / "oracle" / "coordinates.db"
+    index_result = index_program_oracle_evidence_path(
+        program_root,
+        index_path=index_path,
+    )
+    assert index_result["indexed"] == 1
+    assert index_result["errors"] == 0
+
+    report = build_program_oracle_evidence_report(index_path=index_path)
+    report_path = tmp_path / "oracle" / "program-evidence-report.json"
+    _write_json(report_path, report)
+
+    proposal = build_program_refinement_proposal(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+    )
+    assert proposal["status"] == "proposed"
+    proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
+    _write_json(proposal_path, proposal)
+
+    refined_review = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    review_path = tmp_path / "promotion" / "promotion_review_refined.json"
+    _write_json(review_path, refined_review)
+
+    decision = build_program_promotion_decision_record(
+        refined_review_path=review_path,
+        outcome="request_more_evidence",
+        decided_by="local_operator",
+        rationale="Generate one bounded second candidate for observed mismatch.",
+    )
+    decision_path = tmp_path / "promotion" / "promotion_decision_record.json"
+    write_program_promotion_decision_record(decision, decision_path)
+    return program_root, proposal_path, decision_path
+
+
+def test_program_refine_generate_and_compare_cli_is_explicit_local_workflow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, proposal_path, decision_path = _materialize_refinement_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    before_source_hashes = _file_hashes(program_root)
+    before_proposal_hash = hashlib.sha256(proposal_path.read_bytes()).hexdigest()
+    before_decision_hash = hashlib.sha256(decision_path.read_bytes()).hexdigest()
+    outdir = tmp_path / "program-v2"
+    comparison_out = tmp_path / "refinement" / "candidate_comparison.json"
+    workflow_out = tmp_path / "refinement" / "generate_and_compare_result.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "generate-and-compare",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--decision-record",
+            str(decision_path),
+            "--outdir",
+            str(outdir),
+            "--comparison-out",
+            str(comparison_out),
+            "--workflow-out",
+            str(workflow_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert workflow_out.exists()
+    assert json.loads(workflow_out.read_text(encoding="utf-8")) == payload
+    assert payload["schema_version"] == (
+        "program-refinement-generate-and-compare-result-v1"
+    )
+    assert payload["status"] == "materialized_and_compared"
+    assert payload["generation"]["schema_version"] == (
+        "program-refinement-candidate-result-v1"
+    )
+    assert payload["generation"]["status"] == "materialized"
+    assert payload["generation"]["candidate"]["root_path"] == str(outdir.resolve())
+    assert payload["comparison_sidecar"]["path"] == str(comparison_out.resolve())
+    assert payload["comparison_sidecar"]["schema_version"] == (
+        "program-refinement-candidate-comparison-v1"
+    )
+    assert payload["comparison_sidecar"]["status"] == "compared"
+    assert payload["comparison_sidecar"]["behavior_delta"]
+    assert payload["effect"] == {
+        "local_second_candidate_generated": True,
+        "local_comparison_written": True,
+        "source_program_files_mutated": False,
+        "comparison_mutated_source_candidate": False,
+        "comparison_mutated_refinement_candidate": False,
+        "third_candidate_generated": False,
+        "external_authority_mutated": False,
+        "governance_mutated": False,
+    }
+    assert payload["non_authority"] == {
+        "local_generation_and_comparison_only": True,
+        "program_gen_automation": False,
+        "automatic_promotion": False,
+        "oracle_ranking": False,
+        "oracle_pruning": False,
+        "oracle_promotion": False,
+        "winner_selection": False,
+        "external_authority_export": False,
+        "governance_authority": False,
+        "external_mutation": False,
+    }
+
+    comparison = json.loads(comparison_out.read_text(encoding="utf-8"))
+    assert comparison["schema_version"] == "program-refinement-candidate-comparison-v1"
+    assert comparison["lineage"]["proposal_input_present"] is True
+    assert comparison["lineage"]["decision_record_input_present"] is True
+    assert comparison["lineage"]["source_identity_matches_candidate_lineage"] is True
+    assert comparison["effect"]["new_candidate_generated"] is False
+    assert comparison["non_authority"]["winner_selection"] is False
+    assert (outdir / "manifest.json").exists()
+    assert (outdir / "eval_examples.py").exists()
+    assert not (outdir / "eval_behavior.py").exists()
+    assert not (program_root / "eval_behavior.py").exists()
+    assert _file_hashes(program_root) == before_source_hashes
+    assert (
+        hashlib.sha256(proposal_path.read_bytes()).hexdigest() == before_proposal_hash
+    )
+    assert (
+        hashlib.sha256(decision_path.read_bytes()).hexdigest() == before_decision_hash
+    )
+    assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
