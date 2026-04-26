@@ -93,9 +93,35 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
     return normalized
 
 
+def _normalize_topology_when(
+    value: object, *, source: str, target: str
+) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(
+            "topology edge when clauses must be objects with field/equals; "
+            f"invalid edge: {source!r} -> {target!r}"
+        )
+    when = dict(value)
+    field = _validate_identifier(
+        when.get("field"), label=f"topology edge {source!r}->{target!r} when.field"
+    )
+    if "equals" not in when:
+        raise ValueError(
+            "topology edge when clauses must include equals; "
+            f"invalid edge: {source!r} -> {target!r}"
+        )
+    equals = when.get("equals")
+    if isinstance(equals, (Mapping, list)):
+        raise ValueError(
+            "topology edge when.equals must be a scalar value; "
+            f"invalid edge: {source!r} -> {target!r}"
+        )
+    return {"field": field, "equals": equals}
+
+
 def _normalize_topology_edge(
     value: object, *, allowed_refs: set[str]
-) -> dict[str, str]:
+) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError("topology edges must contain objects")
     edge = dict(value)
@@ -108,7 +134,12 @@ def _normalize_topology_edge(
             "topology edges must reference input, output, or declared module ids; "
             f"invalid refs: {invalid}; allowed refs: {allowed}"
         )
-    return {"from": source, "to": target}
+    normalized: dict[str, Any] = {"from": source, "to": target}
+    if "when" in edge:
+        normalized["when"] = _normalize_topology_when(
+            edge.get("when"), source=source, target=target
+        )
+    return normalized
 
 
 def normalize_program_topology(value: object) -> dict[str, Any]:

@@ -16,6 +16,8 @@ It demonstrates the current shipped path:
 signature surface -> module surface -> program-shaped candidate assembly -> execution episode -> receipt bundle -> authority export plan sidecar
 ```
 
+The default starter intent still exercises the single-module path. `program-gen` also supports explicit user-declared `pipeline` topology for the narrow `Predict` / `ChainOfThought` subset with `signature.name` / `signature.inputs` / `signature.outputs` and simple `when.field` / `when.equals` routing. That topology is rendered from structured intent only; DSPx does not infer topology or run arbitrary expressions.
+
 The loop is intentionally offline and non-authoritative:
 
 - uses `DSPX_PROVIDER=stub`

@@ -41,6 +41,11 @@ from dspx.services.program_surfaces import (
     render_program_code,
     render_signature_surface,
 )
+from dspx.services.program_topology import (
+    PIPELINE_MATERIALIZED_STATUS,
+    materialized_pipeline_topology,
+    validate_materializable_pipeline_topology,
+)
 
 
 def _intent_payload(intent: ProgramIntent) -> dict[str, Any]:
@@ -125,19 +130,33 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
     materialized_topology = _default_materialized_topology(intent)
     if declared_topology:
         topology = declared_topology
-        status = str(
-            declared_topology.get("execution_status") or "declared_not_materialized"
-        )
-        topology_materialized = False
-        notes = [
-            "Explicit topology is preserved as a planning contract.",
-            "This slice does not render or execute multi-module topology yet.",
-            "The generated Python remains the current single-module scaffold.",
-        ]
+        if declared_topology.get("kind") == "pipeline":
+            validate_materializable_pipeline_topology(intent)
+            materialized_topology = materialized_pipeline_topology(intent)
+            status = PIPELINE_MATERIALIZED_STATUS
+            topology_materialized = True
+            current_renderer = "pipeline_topology_renderer"
+            notes = [
+                "Explicit pipeline topology is preserved as declared input and rendered as a composed program.",
+                "Only Predict and ChainOfThought module primitives plus simple when.field/equals routing are supported in this slice.",
+                "No topology inference, broad graph engine, tools, retrievers, ReAct, or ProgramOfThought execution is performed.",
+            ]
+        else:
+            status = str(
+                declared_topology.get("execution_status") or "declared_not_materialized"
+            )
+            topology_materialized = False
+            current_renderer = "single_module_scaffold"
+            notes = [
+                "Explicit topology is preserved as a planning contract.",
+                "This slice only renders explicit pipeline topology; unsupported kinds remain declared-only.",
+                "The generated Python remains the current single-module scaffold for this topology kind.",
+            ]
     else:
         topology = materialized_topology
         status = str(materialized_topology["execution_status"])
         topology_materialized = True
+        current_renderer = "single_module_scaffold"
         notes = [
             "No explicit topology was declared; program-gen used the existing single-module scaffold.",
         ]
@@ -149,7 +168,7 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
         "materialization_scope": {
             "topology_declared": bool(declared_topology),
             "topology_materialized": topology_materialized,
-            "current_renderer": "single_module_scaffold",
+            "current_renderer": current_renderer,
             "notes": notes,
         },
     }
@@ -636,21 +655,35 @@ def _build_execution_episode_contract(
         "facets": dict(oracle_readability_facets or {}),
     }
     declared_topology = dict(intent.topology or {})
-    topology_execution = {
-        "declared_topology_present": bool(declared_topology),
-        "declared_topology_kind": declared_topology.get("kind"),
-        "materialized": not bool(declared_topology),
-        "status": str(
-            declared_topology.get("execution_status")
-            or "single_module_scaffold_materialized"
-        ),
-        "current_renderer": "single_module_scaffold",
-        "materialized_topology_kind": "single_module",
-        "notes": [
-            "Explicit topology is declared-only unless materialized is true.",
-            "program.py currently delegates to the generated single module scaffold.",
-        ],
-    }
+    if declared_topology.get("kind") == "pipeline":
+        topology_execution = {
+            "declared_topology_present": True,
+            "declared_topology_kind": "pipeline",
+            "materialized": True,
+            "status": PIPELINE_MATERIALIZED_STATUS,
+            "current_renderer": "pipeline_topology_renderer",
+            "materialized_topology_kind": "pipeline",
+            "notes": [
+                "Explicit pipeline topology was rendered into signature.py, module.py, and program.py.",
+                "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated.",
+            ],
+        }
+    else:
+        topology_execution = {
+            "declared_topology_present": bool(declared_topology),
+            "declared_topology_kind": declared_topology.get("kind"),
+            "materialized": not bool(declared_topology),
+            "status": str(
+                declared_topology.get("execution_status")
+                or "single_module_scaffold_materialized"
+            ),
+            "current_renderer": "single_module_scaffold",
+            "materialized_topology_kind": "single_module",
+            "notes": [
+                "Explicit topology is declared-only unless materialized is true.",
+                "program.py delegates to the generated single module scaffold for non-pipeline topology kinds.",
+            ],
+        }
     return {
         "schema_version": "program-execution-episode-v1",
         "episode_id": ids["episode_id"],

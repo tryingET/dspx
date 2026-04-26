@@ -29,7 +29,7 @@ The current `program-gen` loop proves:
 
 1. A structured intent can materialize a deterministic program-shaped candidate assembly.
 2. Signature, module, program, jury, promotion, and eval harness surfaces are generated as separate artifacts.
-3. Explicit user/Pi-declared topology can be validated and preserved in artifacts as `declared_not_materialized`; it is not inferred and not executed as a multi-module graph by the current renderer.
+3. Explicit user/Pi-declared topology can be validated and preserved in artifacts; the narrow supported `pipeline` subset is rendered into multiple signatures/modules and a composed program, while topology is never inferred.
 4. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact.
 5. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`.
 6. `oracle_evidence.json` is Oracle-readable evidence derived from behavior results without invoking Oracle.
@@ -48,7 +48,7 @@ The current `program-gen` loop proves:
 It does **not** prove:
 
 - rich topology inference,
-- materialization/execution of declared multi-module topology,
+- broad graph execution beyond the supported explicit `pipeline` subset,
 - dataset splits,
 - model-backed jury execution,
 - model-jury adjudication, external approval, or activation,
@@ -77,8 +77,8 @@ outputs:
 metric: exact_match
 constraints:
   - use only the supplied ticket text
-# Optional explicit topology is accepted and preserved as declared-only when
-# the renderer remains the current single-module scaffold:
+# Optional explicit topology is rendered for the narrow supported pipeline subset
+# and otherwise preserved as a declared-only planning contract:
 # topology:
 #   kind: pipeline
 #   execution_status: declared_not_materialized
@@ -560,7 +560,7 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic topology inference, multi-module topology execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if explicit topology is present, `topology_execution.status` remains `declared_not_materialized`, if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, and if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative.
+- no automatic topology inference, broad graph execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, and if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative.
 
 ## Where this points next
 

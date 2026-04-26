@@ -9,10 +9,19 @@ from dspx.services.program_contracts import (
     sanitize_ident,
     surface_description,
 )
+from dspx.services.program_topology import (
+    has_declared_pipeline_topology,
+    render_pipeline_module_surface,
+    render_pipeline_program_code,
+    render_pipeline_signature_surface,
+)
 
 
 def render_signature_surface(intent: Any) -> tuple[str, dict[str, Any]]:
     """Render the signature surface through the signature generation service."""
+
+    if has_declared_pipeline_topology(intent):
+        return render_pipeline_signature_surface(intent)
 
     from dspx.services.signatures_service import run_generate_dto
 
@@ -39,6 +48,9 @@ def render_signature_surface(intent: Any) -> tuple[str, dict[str, Any]]:
 def render_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
     """Render the module surface through the module generation service."""
 
+    if has_declared_pipeline_topology(intent):
+        return render_pipeline_module_surface(intent)
+
     from dspx.services.module_service import run_generate as run_module_generate
 
     names = intent_surface_names(intent)
@@ -62,6 +74,9 @@ def render_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
 
 def render_program_code(intent: Any) -> str:
     """Render the program assembly surface that composes generated surfaces."""
+
+    if has_declared_pipeline_topology(intent):
+        return render_pipeline_program_code(intent)
 
     names = intent_surface_names(intent)
     constraints = list(intent.constraints)

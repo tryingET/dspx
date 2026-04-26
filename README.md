@@ -220,7 +220,8 @@ constraints:
 #       - system: agent_kernel
 #         ref: AK-1234
 #         role: optional_authority_export_target
-# Optional: explicit topology contract (preserved, not inferred)
+# Optional: explicit topology contract (rendered for the narrow pipeline subset;
+# preserved as declared input and never inferred)
 # topology:
 #   kind: pipeline
 #   execution_status: declared_not_materialized
@@ -231,10 +232,21 @@ constraints:
 #         name: ClassifyTicket
 #         inputs: [ticket_text]
 #         outputs: [route]
+#     - id: draft_response
+#       primitive: ChainOfThought
+#       signature:
+#         name: DraftResponse
+#         inputs: [ticket_text, route]
+#         outputs: [response]
 #   edges:
 #     - from: input
 #       to: classify_ticket
 #     - from: classify_ticket
+#       to: draft_response
+#       when:
+#         field: route
+#         equals: billing
+#     - from: draft_response
 #       to: output
 # Optional: inline examples or examples_path: examples.yaml
 ```
@@ -268,7 +280,7 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode hash provenance plus behavior result and Oracle-readability hashes/summaries when examples are present
 - `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode evidence plus behavior result and Oracle-readability hashes/summaries when examples are present
 
-This path is intentionally deterministic and scaffold-first. `program-intent-v2` may carry an explicit user/Pi-declared topology (`single_module`, `pipeline`, `router`, `retrieve_then_answer`, `extract_transform_validate`, `generate_critique_revise`, or `custom`) with module IDs, primitive names, signature inputs/outputs, and edges. DSPx validates and preserves that topology in `intent.json`, `plan.json`, `manifest.json`, `execution_episode.json`, and the receipt, but the current renderer remains the single-module scaffold unless a later renderer slice materializes the topology. DSPx does not infer topology from natural language or provider output. Example-backed runs now capture a minimal local behavior episode and a compact Oracle-readable evidence view for explicit later ingestion, but no Oracle indexing runs during materialization. The `jury` entry remains a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
+This path is intentionally deterministic and scaffold-first for ordinary no-topology intents, while also rendering the current narrow explicit `pipeline` topology subset. `program-intent-v2` may carry an explicit user/Pi-declared topology (`single_module`, `pipeline`, `router`, `retrieve_then_answer`, `extract_transform_validate`, `generate_critique_revise`, or `custom`) with module IDs, `primitive` names, `signature.name` / `signature.inputs` / `signature.outputs`, and edges. For `pipeline`, DSPx now materializes supported modules (`Predict` and `ChainOfThought`) into multiple signature/module classes and a composed `program.py`; `when` supports only simple field equality (`field` + `equals`) and no executable expressions. Unsupported topology kinds remain accepted/preserved as declared-only planning contracts when valid. DSPx does not infer topology from natural language or provider output. Example-backed runs capture a minimal local behavior episode via `eval_examples.py` / `behavior_results.json` and a compact Oracle-readable evidence view for explicit later ingestion; there is no `eval_behavior.py`, and no Oracle indexing runs during materialization. The `jury` entry remains a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not automatically index, report, refine, review, decide, generate follow-up candidates, compare candidates, promote, rank, prune, export authority, or grant Oracle/governance authority.
 
 Oracle ingestion is a separate local command that writes only to a chosen CoordinateIndex:
 
