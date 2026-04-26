@@ -22,6 +22,43 @@ if TYPE_CHECKING:
     )
 
 app = typer.Typer(no_args_is_help=True)
+program_evidence_app = typer.Typer(no_args_is_help=True)
+app.add_typer(
+    program_evidence_app,
+    name="program-evidence",
+    help="Program Oracle evidence reports",
+)
+
+
+@program_evidence_app.command("report")
+def oracle_program_evidence_report(
+    index_path: Optional[Path] = typer.Option(
+        None,
+        "--index-path",
+        help="Path to coordinate index database",
+    ),
+    limit: int = typer.Option(
+        1000,
+        "--limit",
+        help="Maximum number of program Oracle evidence records to read",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    """Report on indexed program Oracle evidence without authority effects."""
+    from dspx.services.program_oracle_report import (
+        build_program_oracle_evidence_report,
+    )
+
+    report = build_program_oracle_evidence_report(index_path=index_path, limit=limit)
+    if json_out:
+        typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+        return
+
+    typer.echo("=== Program Oracle Evidence Report ===\n")
+    typer.echo(f"Status: {report['status']}")
+    typer.echo(f"Index: {report['index_path']}")
+    typer.echo(f"Records: {report['total_records']}")
+    typer.echo(report["interpretation"]["summary"])
 
 
 @app.command("branch")

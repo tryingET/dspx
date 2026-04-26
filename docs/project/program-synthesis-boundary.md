@@ -388,6 +388,8 @@ The current implementation keeps that foothold narrow while making the surface b
 - it records plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template/execution-episode provenance, generator provenance, optional example-binding evidence, minimal behavior-result evidence over examples, compact Oracle-readable evidence, and per-surface hashes in the manifest/receipt evidence,
 - a separately invoked Agent Kernel authority adapter can consume those manifests/receipts and produce a receipted sidecar export plan without mutating external authority,
 - a separately invoked Oracle indexing command can consume `program-oracle-evidence-v1` artifacts into a local CoordinateIndex as searchable evidence,
+- a separately invoked Oracle program-evidence report command can read those indexed records and summarize example-backed behavior evidence without ranking, pruning, promotion, governance, external mutation, or program-gen automation,
+- the current behavior harness remains `eval_examples.py` / `behavior_results.json`; `eval_behavior.py` is not introduced until there are multiple behavior sources to orchestrate,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, external adapter apply/export mutation, or governance-policy authority.
 
@@ -398,7 +400,7 @@ When the repo is ready to materialize this concern, the best first slice should 
 Prefer a contract-grounding implementation step such as:
 - deepen the deterministic ProgramPlan contract into richer candidate-assembly planning,
 - deepen the first minimal local behavior-results contract into richer execution episode + receipt bundle semantics,
-- add non-mutating Oracle interpretation/reporting over indexed program evidence,
+- add bounded refinement proposals over the non-mutating Oracle program-evidence report,
 - integrate territory/frontier views over the indexed program-evidence run kind,
 - define the first explicit local promotion-state shell for program-shaped candidate assembly.
 

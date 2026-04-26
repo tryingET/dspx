@@ -256,6 +256,16 @@ DSPX_ORACLE_EMBEDDING_BACKEND=mock just dspx oracle index \
 
 That command indexes `program-oracle-evidence-v1` records for later Oracle interpretation/search. It does not rank, prune, promote, block, approve, export authority, or mutate governance state.
 
+Oracle interpretation/reporting is also explicit and separate. It reads indexed `program-oracle-evidence` records from the supplied local CoordinateIndex and summarizes example-backed behavior evidence from `eval_examples.py` / `behavior_results.json` without mutating program artifacts, governance, or external authority:
+
+```bash
+DSPX_ORACLE_EMBEDDING_BACKEND=mock just dspx oracle program-evidence report \
+  --index-path /tmp/dspx-program-oracle/coordinates.db \
+  --json
+```
+
+The report is evidence-grounded and non-authoritative: it summarizes behavior statuses, task/metric/IO facets, source artifacts, and failure signals such as output mismatches. It does not rank, prune, promote, block, approve, export authority, or activate policy. `program-gen` still does not automatically index or interpret Oracle evidence, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
+
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
 ```bash
@@ -403,6 +413,9 @@ Receipt v2 metadata now supports a first local CLI slice for behavioral history:
 ```bash
 # Ingest program-gen Oracle-readable evidence into a local CoordinateIndex
 just dspx oracle index --from-program-evidence --path generated/programs --index-path /tmp/dspx-program-oracle/coordinates.db --json
+
+# Report on indexed program Oracle evidence without authority effects
+just dspx oracle program-evidence report --index-path /tmp/dspx-program-oracle/coordinates.db --json
 
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json

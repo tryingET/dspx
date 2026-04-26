@@ -1,8 +1,8 @@
 ---
-summary: "Hands-on walkthrough for program-gen candidate assemblies, execution episodes, replay checks, Oracle-readable evidence, and authority boundaries."
+summary: "Hands-on walkthrough for program-gen candidate assemblies, execution episodes, replay checks, Oracle-readable evidence, explicit Oracle reporting, and authority boundaries."
 read_when:
   - "You want to understand one-intent program generation end to end."
-  - "You need to inspect execution_episode.json, behavior_results.json, oracle_evidence.json, manifest, receipt, and replay without invoking Oracle or AK."
+  - "You need to inspect execution_episode.json, behavior_results.json, oracle_evidence.json, manifest, receipt, replay, and optional temp-dir Oracle reporting without invoking AK."
   - "You are explaining the current shipped program-gen product loop to an operator."
 type: "guide"
 ---
@@ -17,7 +17,7 @@ It is deliberately local-first and non-authoritative:
 - sets `MLFLOW_ENABLE=0`
 - writes to a temp directory
 - does not call `ak`
-- does not invoke Oracle indexing during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run
+- does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run
 - does not run a model jury or promotion adjudicator
 - does not rank, prune, promote, export authority, or mutate governance state
 
@@ -33,9 +33,10 @@ The current `program-gen` loop proves:
 4. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`.
 5. `oracle_evidence.json` is Oracle-readable evidence derived from behavior results without invoking Oracle.
 6. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
-7. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-8. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-9. Promotion and authority remain explicitly pending / non-authoritative.
+7. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
+8. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+9. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+10. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -43,7 +44,8 @@ It does **not** prove:
 - dataset splits,
 - model-backed jury execution,
 - promotion adjudication,
-- Oracle indexing/interpretation,
+- automatic Oracle indexing/interpretation during `program-gen`,
+- richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search refinement,
 - AK export or task mutation.
 
@@ -249,6 +251,25 @@ uv run -q python -m dspx.cli.dspx oracle search \
 
 This is local evidence ingestion only. It writes to a local CoordinateIndex and does not rank, prune, promote, block, approve, export authority, or mutate governance state.
 
+You can then ask for an explicit interpretation/report over the indexed evidence:
+
+```bash
+uv run -q python -m dspx.cli.dspx oracle program-evidence report \
+  --index-path "$TD/oracle/coordinates.db" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-oracle-evidence-report-v1`
+- `status: ok`
+- `total_records: 1`
+- behavior status, task type, metric, input/output field, failure signal, and source artifact counts are summarized from indexed evidence
+- `interpretation.summary` describes example-backed behavior evidence and its limits
+- `non_authority` confirms interpretation-only posture and no ranking, pruning, promotion, governance, or external mutation authority
+
+This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still example-backed through `eval_examples.py` / `behavior_results.json`; there is no `eval_behavior.py` orchestration layer yet.
+
 ## 8. Inspect manifest and receipt declarations
 
 ```bash
@@ -366,10 +387,10 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic Oracle indexing, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`.
+- no automatic Oracle indexing or interpretation, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, and if the optional report step was run, it only read that temp CoordinateIndex.
 
 ## Where this points next
 
-The best next implementation wave after this walkthrough is separate Oracle interpretation/reporting over indexed `program-oracle-evidence` records, or a bounded territory/frontier integration that remains non-authoritative.
+The best next implementation wave after this walkthrough is bounded refinement over behavior evidence plus the Oracle program-evidence report, or a bounded territory/frontier integration for the same indexed run kind that remains non-authoritative.
 
-A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, or selected model-jury execution. Promotion/adjudication should remain separate until an explicit authority contract exists.
+A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, selected model-jury execution, or enough distinct behavior sources to justify a future `eval_behavior.py` orchestration layer. Promotion/adjudication should remain separate until an explicit authority contract exists.
