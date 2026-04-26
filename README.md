@@ -65,7 +65,7 @@ First local base-layer loop (offline, temp-dir by default, no AK calls):
 just smoke-base
 ```
 
-This runs signature generation, module generation, `program-gen`, generated eval harnesses, and the non-mutating authority export-plan adapter using `examples/program_gen/ticket_intent.yaml`. See `docs/project/first-local-loop.md`.
+This runs signature generation, module generation, `program-gen`, generated eval harnesses, and the non-mutating authority export-plan adapter using `examples/program_gen/ticket_intent.yaml`. See `docs/project/first-local-loop.md`; for a step-by-step inspection of `execution_episode.json`, behavior evidence, Oracle-readable evidence, replay, and authority boundaries, see `docs/project/program-gen-walkthrough.md`.
 
 ---
 
@@ -578,6 +578,7 @@ Read-only verification and sanity commands keep `uv.lock` clean by using `uv run
 - native signatures: `docs/SIGNATURE_NATIVE_PIPELINE.md`
 - status: `PROJECT_STATUS.md`
 - direction stack: `docs/project/vision.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`
+- program-gen walkthrough: `docs/project/program-gen-walkthrough.md`
 - monorepo boundaries: `docs/MONOREPO_TRANSITION.md`
 - GEPA quick path: `docs/GEPA_FROM_MODULE_GEN.md`
 - observability/MLflow: `docs/MLFLOW_OBSERVABILITY_PLAN.md`

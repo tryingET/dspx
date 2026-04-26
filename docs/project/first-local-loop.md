@@ -13,7 +13,7 @@ This is the smallest safe loop for trying the current DSPx base layer from a cle
 It demonstrates the current shipped path:
 
 ```text
-signature surface -> module surface -> program-shaped candidate assembly -> generated eval harnesses -> receipt bundle -> authority export plan sidecar
+signature surface -> module surface -> program-shaped candidate assembly -> execution episode -> receipt bundle -> authority export plan sidecar
 ```
 
 The loop is intentionally offline and non-authoritative:
@@ -114,10 +114,17 @@ After a successful run, start with:
 - `program/promotion_review.json` — local pending promotion-review shell
 - `program/promotion_adjudication_request.json` — pending decision packet
 - `program/promotion_decision_template.json` — unfilled decision template
+- `program/execution_episode.json` — standalone `program-execution-episode-v1` contract separating materialization, binding checks, behavioral evaluation, Oracle readability, and non-authority flags
+- `program/behavior_results.json` — example-backed behavior evidence when examples exist
+- `program/oracle_evidence.json` — Oracle-readable evidence when behavior results exist; Oracle is not invoked
 - `program/manifest.json` — candidate assembly / execution episode / receipt-bundle metadata
 - `program/manifest.json.meta.json` — `program-gen` receipt
 - `program/ak-export-plan.json` — sidecar authority export plan, `planned_not_exported`
 - `program/ak-export-plan.json.meta.json` — receipt for the sidecar plan
+
+## Guided walkthrough
+
+For a command-by-command inspection of the generated assembly, including `execution_episode.json`, `behavior_results.json`, `oracle_evidence.json`, clean replay, replay drift detection, and the optional sidecar authority export plan, see `docs/project/program-gen-walkthrough.md`.
 
 ## Boundary reminder
 

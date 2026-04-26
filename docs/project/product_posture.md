@@ -80,7 +80,7 @@ A DSPx user should be able to:
 2. **Upgrade materialization into real execution episodes.** Generate evaluation harnesses that execute the generated program over declared examples/datasets and record behavioral results, not only smoke/example-binding success.
 3. **Use program receipt bundles as Oracle inputs.** `program-gen` now emits the first readability-only evidence contract; the next step is separate Oracle indexing/interpretation over those receipts as behavioral phenotypes and territory/frontier signals without authority widening.
 4. **Add bounded refinement/search.** Let GEPA or other engines propose candidate improvements as explicit episodes whose results remain evidence until reviewed.
-5. **Document one end-to-end walkthrough.** Prove the product posture changed by showing one intent move through assembly, execution, receipt, replay, Oracle interpretation, and bounded next-step selection.
+5. **Document one end-to-end walkthrough.** `docs/project/program-gen-walkthrough.md` now shows one intent moving through assembly, execution-episode evidence, receipt/replay, Oracle-readable evidence (without indexing), and bounded next-step interpretation; a later walkthrough can extend this once Oracle interpretation and refinement episodes are implemented.
 
 ## Oracle posture
 
