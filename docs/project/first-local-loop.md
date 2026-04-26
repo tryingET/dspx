@@ -13,10 +13,10 @@ This is the smallest safe loop for trying the current DSPx base layer from a cle
 It demonstrates the current shipped path:
 
 ```text
-signature surface -> module surface -> program-shaped candidate assembly -> execution episode -> receipt bundle -> authority export plan sidecar
+signature surface -> module surface -> module-surface contracts -> program-shaped candidate assembly -> execution episode -> receipt bundle -> authority export plan sidecar
 ```
 
-The default starter intent still exercises the single-module path. `program-gen` also supports explicit user-declared `pipeline` topology for the narrow `Predict` / `ChainOfThought` subset with `signature.name` / `signature.inputs` / `signature.outputs` and simple `when.field` / `when.equals` routing. That topology is rendered from structured intent only; DSPx does not infer topology or run arbitrary expressions.
+The default starter intent still exercises the single-module path. `program-gen` also supports explicit user-declared `pipeline` topology for the narrow `Predict` / `ChainOfThought` subset with `signature.name` / `signature.inputs` / `signature.outputs` and simple `when.field` / `when.equals` routing. In both paths it emits `module_surfaces.json` (`program-module-surfaces-v1`) so generated module surfaces are replayable, hashable, and IO-declared. That topology is rendered from structured intent only; DSPx does not infer topology, run arbitrary expressions, or import/execute custom Python modules.
 
 The loop is intentionally offline and non-authoritative:
 
@@ -116,6 +116,7 @@ After a successful run, start with:
 - `program/promotion_review.json` — local pending promotion-review shell
 - `program/promotion_adjudication_request.json` — pending decision packet
 - `program/promotion_decision_template.json` — unfilled decision template
+- `program/module_surfaces.json` — standalone `program-module-surfaces-v1` contract containing one `program-module-surface-v1` per generated module surface; this prepares for future local custom module refs without executing them now
 - `program/execution_episode.json` — standalone `program-execution-episode-v1` contract separating materialization, binding checks, behavioral evaluation, Oracle readability, and non-authority flags
 - `program/behavior_results.json` — example-backed behavior evidence when examples exist
 - `program/oracle_evidence.json` — Oracle-readable evidence when behavior results exist; Oracle is not invoked

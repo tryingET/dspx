@@ -346,7 +346,12 @@ def _program_evidence_declarations(
             continue
         surface = dict(raw_surface)
         kind = str(surface.get("kind") or "")
-        if kind not in {"execution_episode", "behavior_results", "oracle_evidence"}:
+        if kind not in {
+            "module_surfaces",
+            "execution_episode",
+            "behavior_results",
+            "oracle_evidence",
+        }:
             continue
         add(
             kind,
@@ -356,6 +361,12 @@ def _program_evidence_declarations(
         )
 
     evidence = _nested_dict(manifest, "receipt_bundle", "evidence")
+    add(
+        "module_surfaces",
+        path=evidence.get("module_surfaces_path") or "module_surfaces.json",
+        content_hash=evidence.get("module_surfaces_hash"),
+        source="manifest.receipt_bundle.evidence.module_surfaces_hash",
+    )
     add(
         "execution_episode",
         path=evidence.get("execution_episode_path") or "execution_episode.json",
@@ -379,6 +390,12 @@ def _program_evidence_declarations(
         manifest, "receipt_bundle", "evidence", "surface_hashes"
     )
     add(
+        "module_surfaces",
+        path="module_surfaces.json",
+        content_hash=surface_hashes.get("module_surfaces.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.module_surfaces.json",
+    )
+    add(
         "execution_episode",
         path="execution_episode.json",
         content_hash=surface_hashes.get("execution_episode.json"),
@@ -398,6 +415,12 @@ def _program_evidence_declarations(
     )
 
     run_summary = _as_dict(receipt.get("run_summary"))
+    add(
+        "module_surfaces",
+        path=run_summary.get("module_surfaces_path") or "module_surfaces.json",
+        content_hash=run_summary.get("module_surfaces_hash"),
+        source="receipt.run_summary.module_surfaces_hash",
+    )
     add(
         "execution_episode",
         path=run_summary.get("execution_episode_path") or "execution_episode.json",

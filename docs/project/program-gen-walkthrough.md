@@ -30,8 +30,9 @@ The current `program-gen` loop proves:
 1. A structured intent can materialize a deterministic program-shaped candidate assembly.
 2. Signature, module, program, jury, promotion, and eval harness surfaces are generated as separate artifacts.
 3. Explicit user/Pi-declared topology can be validated and preserved in artifacts; the narrow supported `pipeline` subset is rendered into multiple signatures/modules and a composed program, while topology is never inferred.
-4. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact.
-5. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`.
+4. `module_surfaces.json` is a standalone `program-module-surfaces-v1` artifact containing one or more `program-module-surface-v1` contracts for the generated module surfaces that `program-gen` composed.
+5. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact.
+6. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`.
 6. `oracle_evidence.json` is Oracle-readable evidence derived from behavior results without invoking Oracle.
 7. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
 8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
@@ -141,6 +142,7 @@ Expected high-signal artifacts include:
 - `promotion_review.json`
 - `promotion_adjudication_request.json`
 - `promotion_decision_template.json`
+- `module_surfaces.json`
 - `signature.py`
 - `module.py`
 - `program.py`
@@ -168,7 +170,33 @@ python -m py_compile \
 
 `program-gen` already ran the generated harnesses during materialization; this command is just a visible operator check.
 
-## 4. Inspect the execution episode contract
+## 4. Inspect module-surface contracts
+
+```bash
+python - <<'PY'
+import json, os
+root = os.environ["TD"] + "/program"
+payload = json.load(open(f"{root}/module_surfaces.json"))
+print(json.dumps({
+    "schema_version": payload["schema_version"],
+    "status": payload["status"],
+    "module_surface_count": payload["module_surface_count"],
+    "module_ids": [s["module_id"] for s in payload["module_surfaces"]],
+    "source_kinds": [s["source_kind"] for s in payload["module_surfaces"]],
+    "authority": payload["authority"],
+    "non_authority": payload["non_authority"],
+}, indent=2, sort_keys=True))
+PY
+```
+
+How to read it:
+
+- a no-topology intent emits one `generated_single_module_scaffold` surface with `module_id: generated_module`;
+- a supported explicit `pipeline` emits one `generated_topology_module` surface per rendered module;
+- each surface declares primitive, signature IO, generated signature/module class names, artifact paths, false effect flags, and non-authority flags;
+- this is the bridge toward future local custom module refs, but the current slice does not import or execute arbitrary custom Python modules.
+
+## 5. Inspect the execution episode contract
 
 ```bash
 python - <<'PY'
@@ -200,7 +228,7 @@ How to read it:
 - `oracle_readability` points to `oracle_evidence.json` only when behavior evidence existed; `oracle_invoked` remains `false`.
 - `non_authority` keeps evidence separate from ranking, pruning, promotion, governance, Oracle, and external mutation authority.
 
-## 5. Inspect actual behavior over examples
+## 6. Inspect actual behavior over examples
 
 ```bash
 python - <<'PY'
@@ -222,7 +250,7 @@ With the stub provider, the example may fail exact-match comparison. That is sti
 
 Do not reinterpret this as promotion or ranking. It is evidence only.
 
-## 6. Inspect Oracle-readable evidence without invoking Oracle
+## 7. Inspect Oracle-readable evidence without invoking Oracle
 
 ```bash
 python - <<'PY'
@@ -244,7 +272,7 @@ PY
 
 This artifact is shaped for later Oracle consumption, but `program-gen` itself has not run `dspx oracle ...`, has not indexed anything, and has not mutated an Oracle DB.
 
-## 7. Optional explicit Oracle evidence indexing into a temp CoordinateIndex
+## 8. Optional explicit Oracle evidence indexing into a temp CoordinateIndex
 
 If you want to exercise the consumer-side seam, run Oracle indexing explicitly and keep the index in the temp workspace:
 
@@ -299,7 +327,7 @@ Expected JSON facts:
 
 This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still example-backed through `eval_examples.py` / `behavior_results.json`; there is no `eval_behavior.py` orchestration layer yet.
 
-## 8. Optional explicit bounded refinement proposal
+## 9. Optional explicit bounded refinement proposal
 
 If you want to exercise the next consumer-side seam, propose a bounded refinement from the generated manifest and the saved Oracle report:
 
@@ -323,7 +351,7 @@ Expected JSON facts:
 
 This command writes only the proposal artifact at `--out`. It does not mutate generated program files, does not create a second candidate assembly, does not index/report Oracle evidence automatically, and does not rank, prune, promote, block, export authority, or mutate governance.
 
-## 9. Optional explicit promotion-review refinement packet
+## 10. Optional explicit promotion-review refinement packet
 
 If you want to bring the generated promotion shell, behavior evidence, Oracle report, and refinement proposal into one local adjudication packet, run the promotion-review consumer explicitly:
 
@@ -349,7 +377,7 @@ Expected JSON facts:
 
 This command writes only the requested sidecar artifact. It does not overwrite generated `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`; it does not mutate `manifest.json`, behavior evidence, Oracle evidence, generated Python files, AK, governance, or external authority; it does not generate a new candidate assembly; it does not invoke an adjudicator or approve promotion. Top-level `status: review_packet_ready` means the packet was assembled from available evidence; it does not mean promotion is allowed. Promotion gating uses `review_readiness.ready_for_adjudicator_review`.
 
-## 10. Optional explicit local adjudicator decision record
+## 11. Optional explicit local adjudicator decision record
 
 If you want to record an explicit local operator/adjudicator decision against the refined packet, write a separate decision sidecar:
 
@@ -375,7 +403,7 @@ Expected JSON facts:
 
 The command writes only the requested decision sidecar. It does not mutate generated program artifacts, `promotion_review_refined.json`, Oracle indexes, AK, governance, external authority, or candidate code. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; there is no override flag in this wave, and top-level `status: review_packet_ready` is not sufficient.
 
-## 11. Optional explicit second candidate from request-more-evidence
+## 12. Optional explicit second candidate from request-more-evidence
 
 If the local decision outcome is `request_more_evidence`, you can materialize one bounded local second candidate from the proposal patch:
 
@@ -402,7 +430,7 @@ Expected JSON facts:
 
 This command is explicit follow-up candidate generation, not automatic program-gen behavior. It requires a `program-refinement-proposal-v1` with `status: proposed` and a local decision record with `outcome: request_more_evidence`. This first slice applies only bounded `constraints` intent patches. It does not mutate the source candidate, proposal, decision record, Oracle indexes, AK, governance, or external authority, and it does not promote either candidate.
 
-## 11a. Optional explicit comparison of source and second candidate
+## 12a. Optional explicit comparison of source and second candidate
 
 After the second candidate exists, compare the source and candidate behavior evidence without generating or promoting anything:
 
@@ -443,7 +471,7 @@ uv run -q python -m dspx.cli.dspx program-refine generate-and-compare \
 
 This workflow returns `schema_version: program-refinement-generate-and-compare-result-v1`, materializes exactly one second candidate, writes the same comparison sidecar, and still does not rank, select a winner, promote, mutate governance, export authority, or automate `program-gen`.
 
-## 12. Inspect manifest and receipt declarations
+## 13. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
@@ -457,6 +485,8 @@ print("## receipt run summary")
 print(json.dumps({
     "run_kind": receipt["run_kind"],
     "hash": receipt["hash"],
+    "module_surfaces_path": receipt["run_summary"].get("module_surfaces_path"),
+    "module_surfaces_hash": receipt["run_summary"].get("module_surfaces_hash"),
     "execution_episode_path": receipt["run_summary"].get("execution_episode_path"),
     "execution_episode_hash": receipt["run_summary"].get("execution_episode_hash"),
     "behavior_results_hash": receipt["run_summary"].get("behavior_results_hash"),
@@ -469,7 +499,7 @@ PY
 
 Replay is declaration-driven: the receipt points at `manifest.json`, and the manifest/receipt bundle declare which evidence artifacts and hashes must match.
 
-## 13. Run clean replay
+## 14. Run clean replay
 
 ```bash
 uv run -q python -m dspx.cli.dspx run replay \
@@ -483,13 +513,14 @@ Expected result:
 - exit code `0`
 - `status: ok`
 - `checks.output_hash_match: true`
+- `checks.program_module_surfaces_hash_match: true`
 - `checks.program_execution_episode_hash_match: true`
 - `checks.program_behavior_results_hash_match: true`
 - `checks.program_oracle_evidence_hash_match: true`
 
 Replay is local/offline. It should not require MLflow, a provider, Oracle, or AK.
 
-## 14. Prove replay detects execution-episode drift
+## 15. Prove replay detects execution-episode drift
 
 ```bash
 cp "$TD/program/execution_episode.json" "$TD/execution_episode.original.json"
@@ -524,7 +555,7 @@ cp "$TD/execution_episode.original.json" "$TD/program/execution_episode.json"
 
 This proves `execution_episode.json` is a replay-checked evidence artifact, not just duplicated metadata.
 
-## 15. Optional sidecar authority export plan
+## 16. Optional sidecar authority export plan
 
 The local base smoke includes an optional authority adapter planning step:
 
@@ -542,7 +573,7 @@ This writes:
 
 The plan status is `planned_not_exported`. It is not an AK mutation, not a promotion decision, and not an authority export.
 
-## 16. Cleanup
+## 17. Cleanup
 
 ```bash
 rm -rf "$TD"
@@ -553,6 +584,8 @@ rm -rf "$TD"
 Use this checklist when reviewing a generated program assembly:
 
 - `manifest.json` exists and has `schema_version: program-candidate-assembly-v1`.
+- `module_surfaces.json` exists and has `schema_version: program-module-surfaces-v1`.
+- each module surface has `schema_version: program-module-surface-v1`, declared IO, false effects, and no authority to rank/prune/promote/govern/mutate externally.
 - `execution_episode.json` exists and has `schema_version: program-execution-episode-v1`.
 - `execution_episode.json` separates materialization, topology execution status, binding checks, behavioral evaluation, and Oracle readability.
 - If examples exist, `behavioral_evaluation.result_artifact` is `behavior_results.json` and its hash matches manifest/receipt declarations.
@@ -560,7 +593,7 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic topology inference, broad graph execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, and if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative.
+- no automatic topology inference, broad graph execution, custom Python module import/execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, and if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative.
 
 ## Where this points next
 

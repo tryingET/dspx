@@ -28,6 +28,7 @@ from dspx.services.program_jury import (
     build_jury_selection,
     jury_plan_defaults as _jury_plan_defaults,
 )
+from dspx.services.program_module_surface import build_program_module_surfaces
 from dspx.services.program_promotion import (
     build_promotion_adjudication_request,
     build_promotion_review,
@@ -210,6 +211,11 @@ def build_program_plan(
             "generator": "program-gen",
         },
         {"kind": "intent", "path": "intent.json", "generator": "program-gen"},
+        {
+            "kind": "module_surfaces",
+            "path": "module_surfaces.json",
+            "generator": "program-gen",
+        },
         {
             "kind": "execution_episode",
             "path": "execution_episode.json",
@@ -538,12 +544,17 @@ def _build_oracle_evidence(
         source_artifacts.append(
             {"kind": "examples", "path": "examples.json", "content_hash": examples_hash}
         )
-    for path in ("signature.py", "module.py", "program.py"):
+    for kind, path in (
+        ("module_surfaces", "module_surfaces.json"),
+        ("signature", "signature.py"),
+        ("module", "module.py"),
+        ("program", "program.py"),
+    ):
         content_hash = surface_hashes.get(path)
         if content_hash:
             source_artifacts.append(
                 {
-                    "kind": path.removesuffix(".py"),
+                    "kind": kind,
                     "path": path,
                     "content_hash": content_hash,
                 }
@@ -819,6 +830,8 @@ def materialize_program_from_intent(
     examples_payload = list(intent.examples or [])
     examples_text = _json_text(examples_payload) if examples_payload else None
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
+    module_surfaces_payload = build_program_module_surfaces(intent)
+    module_surfaces_text = _json_text(module_surfaces_payload)
     program_plan = build_program_plan(intent, examples_hash=examples_hash)
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
@@ -844,6 +857,7 @@ def materialize_program_from_intent(
     promotion_adjudication_request_text = _json_text(promotion_adjudication_request)
     promotion_decision_template_text = _json_text(promotion_decision_template)
     plan_hash = sha256_text(plan_text)
+    module_surfaces_hash = sha256_text(module_surfaces_text)
     jury_hash = sha256_text(jury_text)
     jury_selection_hash = sha256_text(jury_selection_text)
     jury_rubric_hash = sha256_text(jury_rubric_text)
@@ -861,6 +875,7 @@ def materialize_program_from_intent(
         promotion_review_text,
         promotion_adjudication_request_text,
         promotion_decision_template_text,
+        module_surfaces_text,
         signature_code,
         module_code,
         program_code,
@@ -882,6 +897,7 @@ def materialize_program_from_intent(
         "promotion_review.json": promotion_review_hash,
         "promotion_adjudication_request.json": promotion_adjudication_request_hash,
         "promotion_decision_template.json": promotion_decision_template_hash,
+        "module_surfaces.json": module_surfaces_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -919,6 +935,7 @@ def materialize_program_from_intent(
     (root / "promotion_decision_template.json").write_text(
         promotion_decision_template_text, encoding="utf-8"
     )
+    (root / "module_surfaces.json").write_text(module_surfaces_text, encoding="utf-8")
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
@@ -982,6 +999,7 @@ def materialize_program_from_intent(
             "promotion_review.json",
             "promotion_adjudication_request.json",
             "promotion_decision_template.json",
+            "module_surfaces.json",
             "intent.json",
             *(
                 ["examples.json", "behavior_results.json", "oracle_evidence.json"]
@@ -1028,6 +1046,7 @@ def materialize_program_from_intent(
             "promotion_adjudication_request",
             "promotion_decision_template",
             "intent",
+            "module_surfaces",
             "execution_episode",
             *(
                 ["examples", "behavior_results", "oracle_evidence"]
@@ -1098,6 +1117,15 @@ def materialize_program_from_intent(
                 "content_hash": surface_hashes["promotion_decision_template.json"],
                 "schema_version": promotion_decision_template["schema_version"],
                 "status": promotion_decision_template["status"],
+            },
+            {
+                "kind": "module_surfaces",
+                "path": "module_surfaces.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["module_surfaces.json"],
+                "schema_version": module_surfaces_payload["schema_version"],
+                "status": module_surfaces_payload["status"],
+                "module_surface_count": module_surfaces_payload["module_surface_count"],
             },
             {
                 "kind": "execution_episode",
@@ -1192,6 +1220,8 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "module_surfaces_hash": module_surfaces_hash,
+            "module_surfaces_path": "module_surfaces.json",
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
             "topology_execution": topology_execution,
@@ -1222,6 +1252,7 @@ def materialize_program_from_intent(
                 "promotion_review": "program-gen",
                 "promotion_adjudication_request": "program-gen",
                 "promotion_decision_template": "program-gen",
+                "module_surfaces": "program-gen",
                 "execution_episode": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
@@ -1286,6 +1317,7 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "module_surfaces_hash": module_surfaces_hash,
             "execution_episode_hash": execution_episode_hash,
             "behavior_results_hash": behavior_results_hash,
             "oracle_evidence_hash": oracle_evidence_hash,
@@ -1297,6 +1329,12 @@ def materialize_program_from_intent(
         "program_promotion_review": promotion_review,
         "program_promotion_adjudication_request": promotion_adjudication_request,
         "program_promotion_decision_template": promotion_decision_template,
+        "program_module_surfaces": module_surfaces_payload,
+        "module_surfaces_artifact": {
+            "path": "module_surfaces.json",
+            "content_hash": module_surfaces_hash,
+            "schema_version": module_surfaces_payload["schema_version"],
+        },
         "execution_episode_artifact": {
             "path": "execution_episode.json",
             "content_hash": execution_episode_hash,
@@ -1354,6 +1392,8 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "module_surfaces_hash": module_surfaces_hash,
+            "module_surfaces_path": "module_surfaces.json",
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
             "topology_execution": topology_execution,
@@ -1372,6 +1412,12 @@ def materialize_program_from_intent(
             "program_promotion_review": promotion_review,
             "program_promotion_adjudication_request": promotion_adjudication_request,
             "program_promotion_decision_template": promotion_decision_template,
+            "program_module_surfaces": module_surfaces_payload,
+            "program_module_surfaces_artifact": {
+                "path": "module_surfaces.json",
+                "content_hash": module_surfaces_hash,
+                "schema_version": module_surfaces_payload["schema_version"],
+            },
             "program_execution_episode_artifact": {
                 "path": "execution_episode.json",
                 "content_hash": execution_episode_hash,
@@ -1439,6 +1485,7 @@ def materialize_program_from_intent(
             "promotion_review_hash": promotion_review_hash,
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
+            "module_surfaces_hash": module_surfaces_hash,
             "execution_episode_hash": execution_episode_hash,
             "topology_execution": topology_execution,
             "behavior_results_hash": behavior_results_hash,
