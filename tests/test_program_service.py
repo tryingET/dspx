@@ -716,11 +716,73 @@ def test_program_service_binds_examples_when_present(
     assert receipt["program_behavior_results"] == behavior_results
     assert receipt["program_oracle_evidence"] == oracle_evidence
     assert receipt["program_oracle_readability"] == manifest["oracle_readability"]
+
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+    assert replay["status"] == "ok"
+    assert replay["checks"]["program_manifest_json_object"] is True
+    assert replay["checks"]["program_evidence_artifacts_declared"] is True
+    assert replay["checks"]["program_behavior_results_exists"] is True
+    assert replay["checks"]["program_behavior_results_hash_match"] is True
+    assert replay["checks"]["program_oracle_evidence_exists"] is True
+    assert replay["checks"]["program_oracle_evidence_hash_match"] is True
+    assert replay["program_behavior_results_hash"] == behavior_hash
+    assert replay["program_oracle_evidence_hash"] == oracle_hash
+    assert replay["error_codes"] == []
+
     assert subprocess_calls
     assert all(
         "ak" not in [Path(part).name for part in command]
         and "oracle" not in [Path(part).name for part in command]
         for command in subprocess_calls
+    )
+
+
+def test_program_replay_detects_behavior_result_artifact_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ReplayEvidenceProgram",
+        objective="Classify a short support ticket.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        metric="exact_match",
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+    assert replay["status"] == "ok"
+    assert replay["checks"]["program_behavior_results_hash_match"] is True
+    assert replay["checks"]["program_oracle_evidence_hash_match"] is True
+
+    behavior_path = root / "behavior_results.json"
+    behavior_payload = json.loads(behavior_path.read_text(encoding="utf-8"))
+    behavior_payload["summary"]["status"] = "drifted"
+    behavior_path.write_text(
+        json.dumps(behavior_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    drift = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert drift["status"] == "failed"
+    assert drift["checks"]["output_hash_match"] is True
+    assert drift["checks"]["program_behavior_results_exists"] is True
+    assert drift["checks"]["program_behavior_results_hash_match"] is False
+    assert drift["checks"]["program_oracle_evidence_hash_match"] is True
+    assert "program_evidence_hash_mismatch" in drift["error_codes"]
+    assert any(
+        detail.get("code") == "program_evidence_hash_mismatch"
+        and detail.get("check") == "program_behavior_results_hash_match"
+        for detail in drift["error_details"]
     )
 
 

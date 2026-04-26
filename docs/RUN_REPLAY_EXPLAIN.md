@@ -77,6 +77,9 @@ Current writers using this contract:
 - receipt parse + schema validation (`receipt_version: v1`, required fields,
   required `replay_inputs` keys)
 - output artifact existence + output hash verification
+- for `program-gen`, execution-episode evidence artifact verification for declared
+  behavior/Oracle-readability artifacts such as `behavior_results.json` and
+  `oracle_evidence.json`
 - cache linkage verification (`cache_key`, `cache_file`, run-kind cache folder)
 - cache provenance verification (recomputed `cache_key`, cached `code` hash)
 - stable machine-readable diagnostics in JSON mode:
@@ -96,6 +99,9 @@ Stable replay issue codes (current v1 taxonomy):
   `cache_key_mismatch`, `cache_file_missing`,
   `cache_file_invalid_json_object`, `cache_code_missing`,
   `cache_code_hash_mismatch`
+- program-gen evidence drift: `program_manifest_invalid_json_object`,
+  `program_evidence_artifact_missing`, `program_evidence_hash_mismatch`,
+  `program_evidence_declaration_mismatch`
 
 Operational guarantees:
 - replay command forces local/offline posture (`MLFLOW_ENABLE=0`)

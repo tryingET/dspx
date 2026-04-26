@@ -77,6 +77,10 @@ _ISSUE_CACHE_FILE_MISSING = "cache_file_missing"
 _ISSUE_CACHE_FILE_INVALID_JSON_OBJECT = "cache_file_invalid_json_object"
 _ISSUE_CACHE_CODE_MISSING = "cache_code_missing"
 _ISSUE_CACHE_CODE_HASH_MISMATCH = "cache_code_hash_mismatch"
+_ISSUE_PROGRAM_MANIFEST_INVALID_JSON_OBJECT = "program_manifest_invalid_json_object"
+_ISSUE_PROGRAM_EVIDENCE_ARTIFACT_MISSING = "program_evidence_artifact_missing"
+_ISSUE_PROGRAM_EVIDENCE_HASH_MISMATCH = "program_evidence_hash_mismatch"
+_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH = "program_evidence_declaration_mismatch"
 
 
 ValidationIssue = tuple[str, str]
@@ -143,6 +147,30 @@ def _sha256_file(path: Path) -> str:
                 break
             h.update(chunk)
     return h.hexdigest()
+
+
+def _load_json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return dict(payload) if isinstance(payload, Mapping) else None
+
+
+def _nested_dict(root: Mapping[str, Any], *keys: str) -> dict[str, Any]:
+    current: Any = root
+    for key in keys:
+        if not isinstance(current, Mapping):
+            return {}
+        current = current.get(key)
+    return dict(current) if isinstance(current, Mapping) else {}
+
+
+def _optional_str(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
 
 
 def _add_error(
@@ -268,6 +296,140 @@ def _validate_receipt(receipt: Mapping[str, Any]) -> list[ValidationIssue]:
             )
 
     return errors
+
+
+def _program_evidence_declarations(
+    *, manifest: Mapping[str, Any], receipt: Mapping[str, Any]
+) -> list[dict[str, str]]:
+    declarations_by_kind: dict[str, dict[str, str]] = {}
+
+    def add(kind: str, *, path: object, content_hash: object) -> None:
+        path_text = _optional_str(path)
+        hash_text = _optional_str(content_hash)
+        if path_text is None or hash_text is None:
+            return
+        declarations_by_kind[kind] = {
+            "kind": kind,
+            "path": path_text,
+            "content_hash": hash_text,
+        }
+
+    execution_episode = _nested_dict(manifest, "execution_episode")
+    behavior_results = _nested_dict(execution_episode, "behavior_results")
+    add(
+        "behavior_results",
+        path=behavior_results.get("path"),
+        content_hash=behavior_results.get("content_hash"),
+    )
+    oracle_evidence = _nested_dict(execution_episode, "oracle_evidence")
+    add(
+        "oracle_evidence",
+        path=oracle_evidence.get("path"),
+        content_hash=oracle_evidence.get("content_hash"),
+    )
+
+    evidence = _nested_dict(manifest, "receipt_bundle", "evidence")
+    add(
+        "behavior_results",
+        path="behavior_results.json",
+        content_hash=evidence.get("behavior_results_hash"),
+    )
+    add(
+        "oracle_evidence",
+        path=evidence.get("oracle_evidence_path") or "oracle_evidence.json",
+        content_hash=evidence.get("oracle_evidence_hash"),
+    )
+
+    run_summary = _as_dict(receipt.get("run_summary"))
+    add(
+        "behavior_results",
+        path="behavior_results.json",
+        content_hash=run_summary.get("behavior_results_hash"),
+    )
+    add(
+        "oracle_evidence",
+        path="oracle_evidence.json",
+        content_hash=run_summary.get("oracle_evidence_hash"),
+    )
+
+    return [declarations_by_kind[key] for key in sorted(declarations_by_kind)]
+
+
+def _check_program_evidence_artifacts(
+    *,
+    report: dict[str, Any],
+    meta_path: Path,
+    output_path: Path,
+    receipt: Mapping[str, Any],
+) -> None:
+    if str(receipt.get("run_kind") or "") != "program-gen":
+        return
+
+    checks: dict[str, bool] = report["checks"]
+    manifest = _load_json_object(output_path)
+    checks["program_manifest_json_object"] = manifest is not None
+    if manifest is None:
+        _add_error(
+            report,
+            code=_ISSUE_PROGRAM_MANIFEST_INVALID_JSON_OBJECT,
+            message=f"program manifest is not a JSON object: {output_path}",
+            check="program_manifest_json_object",
+        )
+        return
+
+    declarations = _program_evidence_declarations(manifest=manifest, receipt=receipt)
+    report["program_evidence_artifacts"] = declarations
+    if not declarations:
+        checks["program_evidence_artifacts_declared"] = False
+        return
+    checks["program_evidence_artifacts_declared"] = True
+
+    manifest_surface_hashes = _nested_dict(
+        manifest, "receipt_bundle", "evidence", "surface_hashes"
+    )
+    for declaration in declarations:
+        kind = declaration["kind"]
+        artifact_path = _resolve_path(declaration["path"], meta_path=meta_path)
+        expected_hash = declaration["content_hash"]
+        exists_check = f"program_{kind}_exists"
+        hash_check = f"program_{kind}_hash_match"
+        declaration_check = f"program_{kind}_declaration_consistent"
+        artifact_exists = artifact_path.exists() and artifact_path.is_file()
+        checks[exists_check] = artifact_exists
+        if not artifact_exists:
+            _add_error(
+                report,
+                code=_ISSUE_PROGRAM_EVIDENCE_ARTIFACT_MISSING,
+                message=f"program evidence artifact missing: {artifact_path}",
+                check=exists_check,
+            )
+            continue
+        actual_hash = _sha256_file(artifact_path)
+        report[f"program_{kind}_path"] = str(artifact_path)
+        report[f"program_{kind}_hash"] = actual_hash
+        checks[hash_check] = actual_hash == expected_hash
+        if actual_hash != expected_hash:
+            _add_error(
+                report,
+                code=_ISSUE_PROGRAM_EVIDENCE_HASH_MISMATCH,
+                message=(
+                    f"program evidence hash mismatch for {kind}: "
+                    f"expected={expected_hash} actual={actual_hash}"
+                ),
+                check=hash_check,
+            )
+        surface_hash = _optional_str(manifest_surface_hashes.get(declaration["path"]))
+        checks[declaration_check] = surface_hash in {None, expected_hash}
+        if surface_hash not in {None, expected_hash}:
+            _add_error(
+                report,
+                code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                message=(
+                    f"program evidence declaration mismatch for {kind}: "
+                    f"surface_hash={surface_hash} declared={expected_hash}"
+                ),
+                check=declaration_check,
+            )
 
 
 def _expected_cache_payload(receipt: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -411,6 +573,12 @@ def check_run_receipt(meta_path: Path) -> dict[str, Any]:
                 message=f"output hash mismatch: expected={receipt_hash} actual={actual_hash}",
                 check="output_hash_match",
             )
+        _check_program_evidence_artifacts(
+            report=report,
+            meta_path=meta_path,
+            output_path=output_path,
+            receipt=receipt,
+        )
 
     cache_key = str(receipt.get("cache_key") or "")
     try:
