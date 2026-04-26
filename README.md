@@ -174,7 +174,9 @@ just dspx module-gen \
 
 ## Program generation
 
-Generate a deterministic program-shaped candidate assembly from one structured intent:
+Generate a deterministic program-shaped candidate assembly from one structured intent.
+
+If you want Pi to turn a natural-language DSPy program request into this YAML first, use the repo-owned project skill at `.pi/skills/dspx-program-intent-authoring/SKILL.md` (see `docs/project/pi-dspx-intent-assistant.md`). The skill is a Pi-side authoring surface only; DSPx core still consumes structured intent and does not own natural-language interpretation.
 
 ```yaml
 # intent.yaml
