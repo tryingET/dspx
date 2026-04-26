@@ -45,10 +45,11 @@ The current `program-gen` loop proves:
 13. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
 14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over current example-backed behavior evidence.
 15. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
-16. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
-17. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-18. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-19. Promotion and authority remain explicitly pending / non-authoritative.
+16. `program-promote plan` can be run explicitly over an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan sidecar.
+17. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
+18. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+19. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+20. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -59,7 +60,7 @@ It does **not** prove:
 - model-jury adjudication, external approval, or activation,
 - automatic Oracle indexing/interpretation/refinement/promotion-review/decision recording/second-candidate generation/candidate comparison during `program-gen`,
 - automatic GEPA/search, ranking, winner selection, or authority export,
-- ranking, winner selection, promotion approval, or authority export from candidate comparison,
+- ranking, winner selection, promotion approval, authority export, or apply behavior from candidate comparison or local promotion/adjudication planning,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search materializing a new `program-candidate-assembly-v1` in the current slice,
 - broad accepted-proposal policy beyond the explicit request-more-evidence constraints-patch path,
@@ -522,6 +523,38 @@ uv run -q python -m dspx.cli.dspx program-refine generate-and-compare \
 
 This workflow returns `schema_version: program-refinement-generate-and-compare-result-v1`, materializes exactly one second candidate, writes the same comparison sidecar, and still does not rank, select a winner, promote, mutate governance, export authority, or automate `program-gen`.
 
+## 14b. Optional explicit local promotion/adjudication plan
+
+After a second candidate and comparison sidecar exist, you can capture a local-only plan over the available evidence:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote plan \
+  --manifest "$TD/program-v2/manifest.json" \
+  --decision-record "$TD/promotion/promotion_decision_record.json" \
+  --comparison "$TD/refinement/candidate_comparison.json" \
+  --target local_preferred_candidate \
+  --authority-owner local_operator \
+  --out "$TD/promotion/promotion_plan.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-promotion-plan-v1`
+- `status: planned_not_applied`
+- `promotion_state: not_promoted`
+- target kind and `authority_owner` are copied from explicit CLI input
+- `candidate_identity` matches the candidate manifest
+- `created_from` records candidate manifest, decision record, comparison sidecar, optional review/source paths, and schemas
+- `evidence_hashes` records candidate manifest, behavior results, execution episode, Oracle-readable evidence, decision record, and comparison sidecar hashes when present
+- `eligibility.status` can be `eligible_for_local_plan_only`, but `eligibility.allowed_for_apply` remains `false`
+- `missing_required_evidence` includes future authority/apply requirements such as `no_external_authority_contract` and `apply_not_supported`
+- `audit_trail` records evidence hashes plus `created_by`
+- `reversibility` says no rollback is required because no promotion was applied
+- `effect` and `non_authority` confirm local-only/no-mutation behavior
+
+This command writes only the requested `promotion_plan.json` sidecar. It does not mutate either candidate, the decision record, the comparison sidecar, Oracle indexes, AK, governance, or external authority. It does not rank, select a winner, approve, promote, deploy, export authority, make Oracle authoritative, or introduce `eval_behavior.py`. Unsupported targets such as `ak`, `deployment`, `production_route`, `current_symlink`, or `promoted_directory` fail closed.
+
 ## 15. Optional: run a local GEPA refinement attempt
 
 GEPA refinement is explicit and local. It consumes the existing manifest plus the current local evidence surfaces. If you do not pass explicit files, the command prefers manifest dataset splits when present, then falls back to inline examples with limitation notes.
@@ -659,7 +692,7 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic topology inference, broad graph execution, custom Python module import/execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional jury execution step was run, it wrote only the requested jury sidecar without mutating the candidate, promotion review, Oracle index, AK, governance, or external authority, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, and if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative.
+- no automatic topology inference, broad graph execution, custom Python module import/execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, promotion planning, AK mutation, ranking, winner selection, pruning, promotion, deployment, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional jury execution step was run, it wrote only the requested jury sidecar without mutating the candidate, promotion review, Oracle index, AK, governance, or external authority, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative, and if the optional promotion/adjudication plan step was run, it wrote only the requested plan sidecar with `allowed_for_apply: false` and no authority mutation.
 
 ## Where this points next
 

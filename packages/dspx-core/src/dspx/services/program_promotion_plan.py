@@ -1,0 +1,557 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Mapping
+
+from dspx.services.program_refinement import (
+    ProgramRefinementError,
+    load_program_behavior_results,
+    load_program_manifest,
+)
+
+PROGRAM_PROMOTION_PLAN_SCHEMA = "program-promotion-plan-v1"
+PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
+PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
+PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
+    "program-refinement-candidate-comparison-v1"
+)
+PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
+
+SUPPORTED_LOCAL_TARGETS = {
+    "local_preferred_candidate": "Local plan target for the named candidate manifest; no promotion is applied.",
+    "local_review_packet": "Local plan target for carrying review evidence forward; no promotion is applied.",
+    "local_adjudication_plan": "Local plan target for adjudication planning only; no promotion is applied.",
+}
+
+_REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS = (
+    "automatic_promotion",
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "program_mutation",
+    "refined_review_mutation",
+    "new_candidate_generation",
+    "governance_authority",
+    "external_mutation",
+)
+
+_REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS = (
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "winner_selection",
+    "automatic_promotion",
+    "program_mutation",
+    "new_candidate_generation",
+    "governance_authority",
+    "external_mutation",
+)
+
+_REQUIRED_FALSE_REVIEW_NON_AUTHORITY_FLAGS = (
+    "automatic_promotion",
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "program_mutation",
+    "new_candidate_generation",
+    "promotion_authority",
+    "governance_authority",
+    "external_mutation",
+)
+
+_PLAN_EFFECT = {
+    "local_plan_only": True,
+    "candidate_program_files_mutated": False,
+    "decision_record_mutated": False,
+    "comparison_mutated": False,
+    "external_authority_mutated": False,
+    "governance_mutated": False,
+    "oracle_index_mutated": False,
+}
+
+_PLAN_NON_AUTHORITY = {
+    "local_plan_only": True,
+    "automatic_promotion": False,
+    "apply_promotion": False,
+    "external_authority_export": False,
+    "oracle_ranking": False,
+    "oracle_pruning": False,
+    "oracle_promotion": False,
+    "winner_selection": False,
+    "governance_authority": False,
+    "external_mutation": False,
+}
+
+
+class ProgramPromotionPlanError(ValueError):
+    """Raised when local promotion/adjudication planning inputs are invalid."""
+
+
+def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
+    source = path.expanduser().resolve()
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ProgramPromotionPlanError(f"{label} not found: {source}") from exc
+    except json.JSONDecodeError as exc:
+        raise ProgramPromotionPlanError(
+            f"{label} must be valid JSON: {source}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ProgramPromotionPlanError(f"{label} must contain a JSON object: {source}")
+    return payload
+
+
+def _safe_mapping(value: object) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _safe_string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
+
+
+def _first_text(*values: object) -> str | None:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return None
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _manifest_root(manifest_path: Path) -> Path:
+    return manifest_path.expanduser().resolve().parent
+
+
+def _identity_from_manifest(manifest: Mapping[str, Any]) -> dict[str, str | None]:
+    request = _safe_mapping(manifest.get("request"))
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    return {
+        "request_id": _first_text(
+            request.get("request_id"),
+            candidate_assembly.get("request_id"),
+            execution_episode.get("request_id"),
+            receipt_bundle.get("request_id"),
+        ),
+        "candidate_id": _first_text(
+            candidate_assembly.get("candidate_id"),
+            execution_episode.get("candidate_id"),
+            receipt_bundle.get("candidate_id"),
+        ),
+        "assembly_id": _first_text(
+            candidate_assembly.get("assembly_id"),
+            execution_episode.get("assembly_id"),
+            receipt_bundle.get("assembly_id"),
+        ),
+        "episode_id": _first_text(
+            execution_episode.get("episode_id"),
+            receipt_bundle.get("episode_id"),
+        ),
+        "receipt_bundle_id": _first_text(receipt_bundle.get("receipt_bundle_id")),
+    }
+
+
+def _identity_matches_exact(
+    actual: Mapping[str, Any], expected: Mapping[str, str | None]
+) -> bool:
+    return all(
+        expected_value is None or actual.get(key) == expected_value
+        for key, expected_value in expected.items()
+    )
+
+
+def _assert_identity_matches_exact(
+    actual: Mapping[str, Any], expected: Mapping[str, str | None], *, label: str
+) -> None:
+    mismatches = [
+        key
+        for key, expected_value in expected.items()
+        if expected_value is not None and actual.get(key) != expected_value
+    ]
+    if mismatches:
+        raise ProgramPromotionPlanError(
+            f"{label} identity does not match expected identity: "
+            + ", ".join(sorted(mismatches))
+        )
+
+
+def _artifact_path_from_manifest(
+    manifest: Mapping[str, Any], manifest_path: Path, *, artifact_key: str, default: str
+) -> Path:
+    artifact = _safe_mapping(manifest.get(artifact_key))
+    raw_path = _first_text(artifact.get("path"), default)
+    path = Path(raw_path or default)
+    if not path.is_absolute():
+        path = _manifest_root(manifest_path) / path
+    return path
+
+
+def _optional_artifact_hash(path: Path) -> str | None:
+    return _sha256_file(path) if path.exists() else None
+
+
+def _load_decision_record(path: Path) -> dict[str, Any]:
+    decision = _load_json_object(path, label="program promotion decision record")
+    if decision.get("schema_version") != PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA:
+        raise ProgramPromotionPlanError(
+            "program promotion decision record schema_version must be "
+            + PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA
+        )
+    if decision.get("status") != "recorded":
+        raise ProgramPromotionPlanError(
+            "program promotion decision record must have status recorded"
+        )
+    non_authority = _safe_mapping(decision.get("non_authority"))
+    if non_authority.get("local_decision_record_only") is not True:
+        raise ProgramPromotionPlanError(
+            "program promotion decision record must be local-only"
+        )
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramPromotionPlanError(
+            "program promotion decision record widens non-authority flags: "
+            + ", ".join(invalid)
+        )
+    return decision
+
+
+def _load_comparison(path: Path) -> dict[str, Any]:
+    comparison = _load_json_object(path, label="program candidate comparison")
+    if (
+        comparison.get("schema_version")
+        != PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+    ):
+        raise ProgramPromotionPlanError(
+            "program candidate comparison schema_version must be "
+            + PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+        )
+    non_authority = _safe_mapping(comparison.get("non_authority"))
+    if non_authority.get("local_comparison_only") is not True:
+        raise ProgramPromotionPlanError(
+            "program candidate comparison must be local-only"
+        )
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramPromotionPlanError(
+            "program candidate comparison widens non-authority flags: "
+            + ", ".join(invalid)
+        )
+    return comparison
+
+
+def _load_optional_review(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    review = _load_json_object(path, label="refined promotion review")
+    if review.get("schema_version") != PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA:
+        raise ProgramPromotionPlanError(
+            "refined promotion review schema_version must be "
+            + PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA
+        )
+    if review.get("promotion_state") != "not_promoted":
+        raise ProgramPromotionPlanError(
+            "refined promotion review must keep promotion_state not_promoted"
+        )
+    non_authority = _safe_mapping(review.get("non_authority"))
+    if non_authority.get("local_review_packet_only") is not True:
+        raise ProgramPromotionPlanError(
+            "refined promotion review must be a local review packet only"
+        )
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_REVIEW_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramPromotionPlanError(
+            "refined promotion review widens non-authority flags: " + ", ".join(invalid)
+        )
+    return review
+
+
+def _target_payload(target: str) -> dict[str, Any]:
+    target_kind = str(target or "").strip()
+    if target_kind not in SUPPORTED_LOCAL_TARGETS:
+        allowed = ", ".join(sorted(SUPPORTED_LOCAL_TARGETS))
+        raise ProgramPromotionPlanError(
+            f"unsupported local promotion plan target {target_kind!r}; allowed targets: {allowed}"
+        )
+    return {
+        "kind": target_kind,
+        "description": SUPPORTED_LOCAL_TARGETS[target_kind],
+        "apply_supported": False,
+    }
+
+
+def _authority_owner_payload(authority_owner: str) -> dict[str, str]:
+    owner = str(authority_owner or "").strip()
+    if not owner:
+        raise ProgramPromotionPlanError("promotion plan requires authority-owner")
+    return {"kind": "human_operator", "id": owner, "source": "cli"}
+
+
+def _eligibility_payload(
+    *,
+    behavior_present: bool,
+    comparison: Mapping[str, Any],
+    decision: Mapping[str, Any],
+    authority_owner: str,
+    target_supported: bool,
+    review: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    comparison_status = str(comparison.get("status") or "unknown")
+    decision_outcome = str(decision.get("outcome") or "unknown")
+    decision_status = str(decision.get("status") or "unknown")
+    local_conditions = {
+        "behavior_evidence_present": behavior_present,
+        "comparison_present": True,
+        "comparison_status_compared": comparison_status == "compared",
+        "decision_record_present": True,
+        "decision_status_recorded": decision_status == "recorded",
+        "authority_owner_present": bool(str(authority_owner or "").strip()),
+        "target_supported": target_supported,
+    }
+    missing: list[str] = []
+    if not behavior_present:
+        missing.append("no_candidate_behavior_evidence")
+    if comparison_status != "compared":
+        missing.append("no_compared_candidate_comparison")
+    if decision_status != "recorded":
+        missing.append("no_recorded_decision_record")
+    if not local_conditions["authority_owner_present"]:
+        missing.append("no_authority_owner_declared")
+    if not target_supported:
+        missing.append("unsupported_local_target")
+    review_missing = []
+    if review is not None:
+        readiness = _safe_mapping(review.get("review_readiness"))
+        review_missing = _safe_string_list(readiness.get("missing_required_evidence"))
+    if "no_model_jury_execution_episode" in review_missing or review is None:
+        missing.append("no_model_jury_execution_episode")
+    missing.extend(["no_external_authority_contract", "apply_not_supported"])
+    unique_missing: list[str] = []
+    for item in missing:
+        if item not in unique_missing:
+            unique_missing.append(item)
+    eligible_for_local_plan = all(local_conditions.values())
+    return {
+        "status": "eligible_for_local_plan_only"
+        if eligible_for_local_plan
+        else "not_eligible",
+        "behavior_evidence_present": behavior_present,
+        "comparison_present": True,
+        "comparison_status": comparison_status,
+        "decision_record_present": True,
+        "decision_status": decision_status,
+        "decision_outcome": decision_outcome,
+        "authority_owner_present": local_conditions["authority_owner_present"],
+        "target_supported": target_supported,
+        "allowed_for_apply": False,
+        "missing_required_evidence": unique_missing,
+        "notes": [
+            "Local plan captures evidence needed for a later operator decision.",
+            "This plan is not promotion and cannot be applied by this command.",
+        ],
+    }
+
+
+def build_program_promotion_plan(
+    *,
+    manifest_path: Path,
+    decision_record_path: Path,
+    comparison_path: Path,
+    target: str,
+    authority_owner: str,
+    review_path: Path | None = None,
+    source_manifest_path: Path | None = None,
+) -> dict[str, Any]:
+    """Build a local non-authoritative adjudication/promotion plan sidecar."""
+
+    manifest_path = manifest_path.expanduser().resolve()
+    decision_record_path = decision_record_path.expanduser().resolve()
+    comparison_path = comparison_path.expanduser().resolve()
+    review_path = (
+        review_path.expanduser().resolve() if review_path is not None else None
+    )
+    source_manifest_path = (
+        source_manifest_path.expanduser().resolve()
+        if source_manifest_path is not None
+        else None
+    )
+    try:
+        manifest = load_program_manifest(manifest_path)
+        behavior, behavior_path, behavior_hash = load_program_behavior_results(
+            manifest,
+            manifest_path,
+        )
+    except ProgramRefinementError as exc:
+        raise ProgramPromotionPlanError(str(exc)) from exc
+    if manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
+        raise ProgramPromotionPlanError(
+            "program manifest schema_version must be " + PROGRAM_MANIFEST_SCHEMA
+        )
+
+    decision = _load_decision_record(decision_record_path)
+    comparison = _load_comparison(comparison_path)
+    review = _load_optional_review(review_path)
+    target_info = _target_payload(target)
+    authority_info = _authority_owner_payload(authority_owner)
+
+    candidate_identity = _identity_from_manifest(manifest)
+    _assert_identity_matches_exact(
+        _safe_mapping(comparison.get("candidate_identity")),
+        candidate_identity,
+        label="program candidate comparison candidate",
+    )
+    source_identity = _safe_mapping(comparison.get("source_identity"))
+    decision_identity = _safe_mapping(decision.get("identity"))
+    if source_identity:
+        _assert_identity_matches_exact(
+            decision_identity,
+            {key: str(value) for key, value in source_identity.items()},
+            label="program promotion decision record",
+        )
+    if source_manifest_path is not None:
+        source_manifest = load_program_manifest(source_manifest_path)
+        _assert_identity_matches_exact(
+            source_identity,
+            _identity_from_manifest(source_manifest),
+            label="program candidate comparison source",
+        )
+    if review is not None:
+        _assert_identity_matches_exact(
+            _safe_mapping(review.get("identity")),
+            {key: str(value) for key, value in source_identity.items()},
+            label="refined promotion review",
+        )
+
+    candidate_manifest_hash = _sha256_file(manifest_path)
+    decision_record_hash = _sha256_file(decision_record_path)
+    comparison_hash = _sha256_file(comparison_path)
+    execution_episode_hash = _optional_artifact_hash(
+        _artifact_path_from_manifest(
+            manifest,
+            manifest_path,
+            artifact_key="execution_episode_artifact",
+            default="execution_episode.json",
+        )
+    )
+    oracle_evidence_hash = _optional_artifact_hash(
+        _manifest_root(manifest_path) / "oracle_evidence.json"
+    )
+    comparison_created_from = _safe_mapping(comparison.get("created_from"))
+    source_behavior_hash = _first_text(
+        comparison_created_from.get("source_behavior_results_hash")
+    )
+    candidate_behavior_hash = _first_text(
+        behavior_hash,
+        comparison_created_from.get("candidate_behavior_results_hash"),
+    )
+    behavior_present = isinstance(behavior, Mapping) and behavior_hash is not None
+    created_at = _utc_now_iso()
+
+    return {
+        "schema_version": PROGRAM_PROMOTION_PLAN_SCHEMA,
+        "status": "planned_not_applied",
+        "promotion_state": "not_promoted",
+        "target": target_info,
+        "authority_owner": authority_info,
+        "candidate_identity": candidate_identity,
+        "created_from": {
+            "candidate_manifest_path": str(manifest_path),
+            "candidate_manifest_schema_version": manifest.get("schema_version"),
+            "decision_record_path": str(decision_record_path),
+            "decision_record_schema_version": decision.get("schema_version"),
+            "comparison_path": str(comparison_path),
+            "comparison_schema_version": comparison.get("schema_version"),
+            "review_path": str(review_path) if review_path is not None else None,
+            "review_schema_version": review.get("schema_version")
+            if review is not None
+            else None,
+            "source_manifest_path": str(source_manifest_path)
+            if source_manifest_path is not None
+            else None,
+        },
+        "evidence_hashes": {
+            "candidate_manifest_hash": candidate_manifest_hash,
+            "candidate_behavior_results_hash": candidate_behavior_hash,
+            "candidate_execution_episode_hash": execution_episode_hash,
+            "candidate_oracle_evidence_hash": oracle_evidence_hash,
+            "decision_record_hash": decision_record_hash,
+            "comparison_hash": comparison_hash,
+        },
+        "eligibility": _eligibility_payload(
+            behavior_present=behavior_present,
+            comparison=comparison,
+            decision=decision,
+            authority_owner=authority_owner,
+            target_supported=True,
+            review=review,
+        ),
+        "audit_trail": {
+            "candidate_manifest_hash": candidate_manifest_hash,
+            "decision_record_hash": decision_record_hash,
+            "comparison_hash": comparison_hash,
+            "source_behavior_results_hash": source_behavior_hash,
+            "candidate_behavior_results_hash": candidate_behavior_hash,
+            "created_at": created_at,
+            "created_by": authority_info["id"],
+        },
+        "reversibility": {
+            "apply_status": "not_applied",
+            "rollback_required": False,
+            "rollback_supported": False,
+            "supersession_supported": False,
+            "notes": [
+                "No rollback is required because no promotion was applied.",
+                "Future apply surfaces must record supersession/rollback semantics separately.",
+            ],
+        },
+        "effect": dict(_PLAN_EFFECT),
+        "non_authority": dict(_PLAN_NON_AUTHORITY),
+        "notes": [
+            "This artifact is a local plan only and records no promotion.",
+            "The command writes only the requested plan sidecar.",
+            "Future apply surface required before any external authority mutation can exist.",
+        ],
+    }
+
+
+def write_program_promotion_plan(
+    plan: Mapping[str, Any],
+    out_path: Path,
+) -> dict[str, Any]:
+    """Write the local promotion/adjudication plan sidecar."""
+
+    out_path = out_path.expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(plan)
+    out_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return payload

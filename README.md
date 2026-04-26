@@ -73,7 +73,7 @@ Program-refinement loop smoke (also offline/temp-dir by default, no AK calls):
 just smoke-program-refinement
 ```
 
-This runs the explicit local evidence/refinement path through temp-dir Oracle indexing/reporting, proposal, refined review packet, request-more-evidence decision record, one second-candidate generation, and local comparison sidecar. The GEPA program-refinement seam is separate: `program-refine optimize-gepa` must be invoked explicitly against an existing manifest. Both paths remain non-authoritative and do not rank, select a winner, promote, export authority, mutate governance, or introduce `eval_behavior.py`.
+This runs the explicit local evidence/refinement path through temp-dir Oracle indexing/reporting, proposal, refined review packet, request-more-evidence decision record, one second-candidate generation, and local comparison sidecar. A separate `program-promote plan` command can then consume an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan. The GEPA program-refinement seam is separate: `program-refine optimize-gepa` must be invoked explicitly against an existing manifest. These paths remain non-authoritative and do not rank, select a winner, promote, export authority, mutate governance, or introduce `eval_behavior.py`.
 
 ---
 
@@ -411,6 +411,21 @@ just dspx program-refine generate-and-compare \
 
 This explicit workflow returns `schema_version: program-refinement-generate-and-compare-result-v1`, materializes exactly one local second candidate, then writes the same comparison sidecar. It is not `program-gen` automation, does not generate a third candidate, and still does not rank, select a winner, promote, export authority, mutate Oracle authority, AK, or governance.
 
+Local promotion/adjudication planning is another explicit sidecar command:
+
+```bash
+just dspx program-promote plan \
+  --manifest /tmp/dspx-program-refine/answer_question_v2/manifest.json \
+  --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --comparison /tmp/dspx-program-refine/candidate_comparison.json \
+  --target local_preferred_candidate \
+  --authority-owner local_operator \
+  --out /tmp/dspx-program-promote/promotion_plan.json \
+  --json
+```
+
+The plan has `schema_version: program-promotion-plan-v1`, `status: planned_not_applied`, and `promotion_state: not_promoted`. It records the local target, declared authority owner, candidate identity, source artifact schemas, evidence hashes, eligibility for local planning only, audit trail, and reversibility posture. It writes only the requested `promotion_plan.json` sidecar. It does not mutate candidate artifacts, decision records, comparison sidecars, Oracle indexes, AK, governance, or external authority, and it does not rank, select a winner, approve, promote, deploy, export authority, or make Oracle authoritative. `allowed_for_apply` is always false; a future apply surface would need a separate authority contract.
+
 GEPA-backed program refinement is also explicit and local. It consumes an existing `program-candidate-assembly-v1` manifest, chooses input evidence from explicit `--train` / `--validation` JSONL files, manifest-declared `splits/train.jsonl` and `splits/validation.jsonl`, or limited inline `examples.json` fallback, and writes a `program-refinement-gepa-result-v1` sidecar:
 
 ```bash
@@ -597,6 +612,9 @@ just dspx program-refine compare-candidates --source-manifest generated/programs
 
 # Or explicitly generate one second candidate and immediately write the local comparison sidecar
 just dspx program-refine generate-and-compare --manifest generated/programs/answer_question/manifest.json --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json --decision-record /tmp/dspx-program-promote/promotion_decision_record.json --outdir /tmp/dspx-program-refine/answer_question_v2 --comparison-out /tmp/dspx-program-refine/candidate_comparison.json --json
+
+# Write a local planned_not_applied promotion/adjudication plan sidecar from existing evidence
+just dspx program-promote plan --manifest /tmp/dspx-program-refine/answer_question_v2/manifest.json --decision-record /tmp/dspx-program-promote/promotion_decision_record.json --comparison /tmp/dspx-program-refine/candidate_comparison.json --target local_preferred_candidate --authority-owner local_operator --out /tmp/dspx-program-promote/promotion_plan.json --json
 
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json

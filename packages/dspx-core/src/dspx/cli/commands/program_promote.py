@@ -98,6 +98,81 @@ def jury(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("plan")
+def plan(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to candidate program-candidate-assembly-v1 manifest.json",
+    ),
+    decision_record: Path = typer.Option(
+        ...,
+        "--decision-record",
+        help="Path to local program-promotion-decision-record-v1 JSON",
+    ),
+    comparison: Path = typer.Option(
+        ...,
+        "--comparison",
+        help="Path to program-refinement-candidate-comparison-v1 JSON",
+    ),
+    target: str = typer.Option(
+        ...,
+        "--target",
+        help="Local non-mutating target kind for the plan",
+    ),
+    authority_owner: str = typer.Option(
+        ...,
+        "--authority-owner",
+        help="Explicit local operator/adjudication authority owner identifier",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local promotion/adjudication plan should be written",
+    ),
+    review: Path | None = typer.Option(
+        None,
+        "--review",
+        help="Optional program-promotion-review-refined-v1 JSON",
+    ),
+    source_manifest: Path | None = typer.Option(
+        None,
+        "--source-manifest",
+        help="Optional source manifest used to verify comparison source identity",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print plan JSON"),
+) -> None:
+    """Build a local promotion/adjudication plan without applying promotion."""
+    from dspx.services.program_promotion_plan import (
+        ProgramPromotionPlanError,
+        build_program_promotion_plan,
+        write_program_promotion_plan,
+    )
+
+    try:
+        plan_payload = build_program_promotion_plan(
+            manifest_path=manifest,
+            decision_record_path=decision_record,
+            comparison_path=comparison,
+            target=target,
+            authority_owner=authority_owner,
+            review_path=review,
+            source_manifest_path=source_manifest,
+        )
+        payload = write_program_promotion_plan(plan_payload, out)
+    except ProgramPromotionPlanError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program promotion planning failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("decide")
 def decide(
     review: Path = typer.Option(
