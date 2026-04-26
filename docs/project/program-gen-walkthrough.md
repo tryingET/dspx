@@ -44,9 +44,10 @@ The current `program-gen` loop proves:
 12. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
 13. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over current example-backed behavior evidence.
 14. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
-15. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-16. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-17. Promotion and authority remain explicitly pending / non-authoritative.
+15. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
+16. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+17. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+18. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -59,7 +60,7 @@ It does **not** prove:
 - automatic GEPA/search, ranking, winner selection, or authority export,
 - ranking, winner selection, promotion approval, or authority export from candidate comparison,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
-- GEPA/search refinement,
+- GEPA/search materializing a new `program-candidate-assembly-v1` in the current slice,
 - broad accepted-proposal policy beyond the explicit request-more-evidence constraints-patch path,
 - AK export or task mutation.
 
@@ -496,7 +497,22 @@ uv run -q python -m dspx.cli.dspx program-refine generate-and-compare \
 
 This workflow returns `schema_version: program-refinement-generate-and-compare-result-v1`, materializes exactly one second candidate, writes the same comparison sidecar, and still does not rank, select a winner, promote, mutate governance, export authority, or automate `program-gen`.
 
-## 14. Inspect manifest and receipt declarations
+## 14. Optional: run a local GEPA refinement attempt
+
+GEPA refinement is explicit and local. It consumes the existing manifest plus the current local evidence surfaces. If you do not pass explicit files, the command prefers manifest dataset splits when present, then falls back to inline examples with limitation notes.
+
+```bash
+uv run -q python -m dspx.cli.dspx program-refine optimize-gepa \
+  --manifest "$TD/program/manifest.json" \
+  --outdir "$TD/program-gepa" \
+  --result-out "$TD/refinement/gepa_refinement_result.json" \
+  --max-metric-calls 2 \
+  --json
+```
+
+The sidecar has `schema_version: program-refinement-gepa-result-v1`. It records source identity, selected evidence source/counts, held-out-validation status, GEPA attempt status, any local optimizer output path, and non-authority flags. In this slice the GEPA optimizer output is not yet a normal `program-candidate-assembly-v1`, so `candidate` remains `null` and the top-level status can degrade truthfully even if GEPA was attempted. The command writes only to the requested `--outdir` and `--result-out`, does not mutate the source candidate or source dataset split artifacts/results, does not create a repo Oracle index, does not rank, select a winner, promote, mutate AK/governance/external authority, or introduce `eval_behavior.py`.
+
+## 15. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'

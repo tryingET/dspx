@@ -8,6 +8,75 @@ import typer
 app = typer.Typer(no_args_is_help=True)
 
 
+@app.command("optimize-gepa")
+def optimize_gepa(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to an existing program-candidate-assembly-v1 manifest.json",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        help="Directory where local GEPA optimizer output may be written",
+    ),
+    result_out: Path = typer.Option(
+        ...,
+        "--result-out",
+        help="Path where the local GEPA refinement result sidecar should be written",
+    ),
+    train: Path | None = typer.Option(
+        None,
+        "--train",
+        help="Optional explicit train JSONL file shaped like program examples",
+    ),
+    validation: Path | None = typer.Option(
+        None,
+        "--validation",
+        help="Optional explicit validation JSONL file shaped like program examples",
+    ),
+    metric: str | None = typer.Option(
+        None,
+        "--metric",
+        help="Optional metric override: exact_match/exact, contains, or f1",
+    ),
+    max_metric_calls: int = typer.Option(
+        2,
+        "--max-metric-calls",
+        help="Bounded GEPA metric-call budget",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print result JSON"),
+) -> None:
+    """Run a local GEPA-backed refinement attempt without promotion authority."""
+    from dspx.services.program_refinement_gepa import (
+        ProgramRefinementGepaError,
+        build_program_refinement_gepa_result,
+        write_program_refinement_gepa_result,
+    )
+
+    try:
+        result = build_program_refinement_gepa_result(
+            manifest_path=manifest,
+            outdir=outdir,
+            train_path=train,
+            validation_path=validation,
+            metric=metric,
+            max_metric_calls=max_metric_calls,
+        )
+        payload = write_program_refinement_gepa_result(result, result_out)
+    except ProgramRefinementGepaError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program GEPA refinement failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(result_out.expanduser().resolve()))
+
+
 @app.command("propose")
 def propose(
     manifest: Path = typer.Option(

@@ -69,9 +69,34 @@ def _import_program_module(program_path: Path) -> object:
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Failed to import program module from {program_path}")
     mod = importlib.util.module_from_spec(spec)
-    # Ensure relative imports inside the program can work if it expects cwd context.
+    # Ensure imports beside the program file work for generated program assemblies
+    # whose program.py imports sibling module.py/signature.py artifacts.
     sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
+    program_dir = str(program_path.parent)
+    inserted = False
+    if program_dir not in sys.path:
+        sys.path.insert(0, program_dir)
+        inserted = True
+    sibling_module_names = [
+        path.stem
+        for path in program_path.parent.glob("*.py")
+        if path.stem != program_path.stem
+    ]
+    previous_siblings = {name: sys.modules.get(name) for name in sibling_module_names}
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        if inserted:
+            try:
+                sys.path.remove(program_dir)
+            except ValueError:
+                pass
+        for name in sibling_module_names:
+            previous = previous_siblings.get(name)
+            if previous is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = previous
     return mod
 
 

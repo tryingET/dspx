@@ -140,7 +140,7 @@ just smoke-program-refinement
 
 That target runs `scripts/smoke_program_refinement_loop.sh` in a temp directory by default. It exercises the local evidence/refinement path through explicit temp-dir Oracle indexing/reporting, `program-refine propose`, `program-promote review`, `program-promote decide --outcome request_more_evidence`, and `program-refine generate-and-compare`.
 
-It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not export authority, and does not introduce `eval_behavior.py`.
+It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not export authority, and does not introduce `eval_behavior.py`. The GEPA seam is a separate explicit command, `program-refine optimize-gepa`, over an existing manifest; it writes a local `program-refinement-gepa-result-v1` sidecar and can degrade truthfully without materializing a candidate assembly.
 
 ## Boundary reminder
 
