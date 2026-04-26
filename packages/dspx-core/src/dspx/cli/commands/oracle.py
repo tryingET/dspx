@@ -158,6 +158,11 @@ def oracle_index(
         "--from-receipts",
         help="Index runs from .meta.json receipt files",
     ),
+    from_program_evidence: bool = typer.Option(
+        False,
+        "--from-program-evidence",
+        help="Index program-gen oracle_evidence.json files",
+    ),
     since: str = typer.Option(
         "30d",
         "--since",
@@ -199,17 +204,22 @@ def oracle_index(
         typer.echo(f"Error: Invalid --since value: {e}", err=True)
         raise typer.Exit(code=2)
 
-    # Initialize index
-    index = CoordinateIndex(db_path=index_path)
-    engine = get_embedding_engine()
-
+    scanned = 0
     indexed = 0
     errors = 0
     skipped = 0
+    error_details: list[dict[str, object]] = []
 
-    if not from_mlflow and not from_receipts:
-        typer.echo("Error: Specify --from-mlflow or --from-receipts", err=True)
+    if not from_mlflow and not from_receipts and not from_program_evidence:
+        typer.echo(
+            "Error: Specify --from-mlflow, --from-receipts, or --from-program-evidence",
+            err=True,
+        )
         raise typer.Exit(code=2)
+
+    # Initialize index only after validating that an explicit mode was selected.
+    index = CoordinateIndex(db_path=index_path)
+    engine = get_embedding_engine()
 
     if from_receipts:
         # Scan for .meta.json files
@@ -222,6 +232,7 @@ def oracle_index(
             typer.echo(f"Found {len(receipt_files)} receipt files", err=True)
 
         for receipt_file in receipt_files[:limit]:
+            scanned += 1
             try:
                 receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
 
@@ -258,8 +269,38 @@ def oracle_index(
 
             except Exception as e:
                 errors += 1
+                error_details.append(
+                    {
+                        "path": str(receipt_file),
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    }
+                )
                 if verbose:
                     typer.echo(f"Error processing {receipt_file}: {e}", err=True)
+
+    if from_program_evidence:
+        from dspx.services.program_oracle_index import (
+            index_program_oracle_evidence_path,
+        )
+
+        scan_path = path or Path.cwd() / "generated"
+        if verbose:
+            typer.echo(f"Scanning program Oracle evidence in {scan_path}", err=True)
+        program_result = index_program_oracle_evidence_path(
+            scan_path,
+            index_path=index_path,
+            limit=limit,
+        )
+        scanned += int(program_result.get("scanned") or 0)
+        indexed += int(program_result.get("indexed") or 0)
+        skipped += int(program_result.get("skipped") or 0)
+        errors += int(program_result.get("errors") or 0)
+        raw_error_details = program_result.get("error_details")
+        if isinstance(raw_error_details, list):
+            error_details.extend(
+                item for item in raw_error_details if isinstance(item, dict)
+            )
 
     if from_mlflow:
         # Import yaml once at the beginning
@@ -310,6 +351,7 @@ def oracle_index(
                         artifacts_dir = run_dir / "artifacts"
                         if artifacts_dir.exists():
                             for artifact in artifacts_dir.rglob("*.meta.json"):
+                                scanned += 1
                                 try:
                                     receipt_data = json.loads(
                                         artifact.read_text(encoding="utf-8")
@@ -323,14 +365,28 @@ def oracle_index(
                                             indexed += 1
                                         else:
                                             errors += 1
-                                except (json.JSONDecodeError, OSError, KeyError):
+                                except (json.JSONDecodeError, OSError, KeyError) as e:
                                     # Malformed JSON, file read error, or missing fields
                                     errors += 1
+                                    error_details.append(
+                                        {
+                                            "path": str(artifact),
+                                            "error": str(e),
+                                            "error_type": type(e).__name__,
+                                        }
+                                    )
 
                     except Exception as e:
                         if verbose:
                             typer.echo(f"Error processing MLflow run: {e}", err=True)
                         errors += 1
+                        error_details.append(
+                            {
+                                "path": str(run_dir),
+                                "error": str(e),
+                                "error_type": type(e).__name__,
+                            }
+                        )
 
                     if indexed >= limit:
                         break
@@ -340,12 +396,16 @@ def oracle_index(
     stats = index.stats()
 
     result = {
+        "scanned": scanned,
         "indexed": indexed,
         "errors": errors,
         "skipped": skipped,
+        "error_details": error_details,
+        "index_path": str(index.db_path),
         "index_stats": stats,
         "backend": engine.backend,
         "dimension": engine.dimension,
+        "non_authority_confirmed": errors == 0,
     }
 
     if json_out:

@@ -242,7 +242,19 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode hash provenance plus behavior result and Oracle-readability hashes/summaries when examples are present
 - `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode evidence plus behavior result and Oracle-readability hashes/summaries when examples are present
 
-This path is intentionally deterministic and scaffold-first. Example-backed runs now capture a minimal local behavior episode and a compact Oracle-readable evidence view for later indexing/interpretation, but no Oracle indexing runs during materialization. The `jury` entry remains a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
+This path is intentionally deterministic and scaffold-first. Example-backed runs now capture a minimal local behavior episode and a compact Oracle-readable evidence view for explicit later ingestion, but no Oracle indexing runs during materialization. The `jury` entry remains a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
+
+Oracle ingestion is a separate local command that writes only to a chosen CoordinateIndex:
+
+```bash
+DSPX_ORACLE_EMBEDDING_BACKEND=mock just dspx oracle index \
+  --from-program-evidence \
+  --path generated/programs/answer_question \
+  --index-path /tmp/dspx-program-oracle/coordinates.db \
+  --json
+```
+
+That command indexes `program-oracle-evidence-v1` records for later Oracle interpretation/search. It does not rank, prune, promote, block, approve, export authority, or mutate governance state.
 
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
@@ -389,6 +401,9 @@ MLflow behavior and constraints:
 Receipt v2 metadata now supports a first local CLI slice for behavioral history:
 
 ```bash
+# Ingest program-gen Oracle-readable evidence into a local CoordinateIndex
+just dspx oracle index --from-program-evidence --path generated/programs --index-path /tmp/dspx-program-oracle/coordinates.db --json
+
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json
 

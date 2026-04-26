@@ -17,7 +17,7 @@ It is deliberately local-first and non-authoritative:
 - sets `MLFLOW_ENABLE=0`
 - writes to a temp directory
 - does not call `ak`
-- does not invoke Oracle indexing or mutate Oracle DBs
+- does not invoke Oracle indexing during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run
 - does not run a model jury or promotion adjudicator
 - does not rank, prune, promote, export authority, or mutate governance state
 
@@ -32,9 +32,10 @@ The current `program-gen` loop proves:
 3. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact.
 4. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`.
 5. `oracle_evidence.json` is Oracle-readable evidence derived from behavior results without invoking Oracle.
-6. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-7. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-8. Promotion and authority remain explicitly pending / non-authoritative.
+6. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
+7. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+8. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+9. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -212,9 +213,43 @@ print(json.dumps({
 PY
 ```
 
-This artifact is shaped for later Oracle consumption, but the walkthrough does not run `dspx oracle ...`, does not index anything, and does not mutate an Oracle DB.
+This artifact is shaped for later Oracle consumption, but `program-gen` itself has not run `dspx oracle ...`, has not indexed anything, and has not mutated an Oracle DB.
 
-## 7. Inspect manifest and receipt declarations
+## 7. Optional explicit Oracle evidence indexing into a temp CoordinateIndex
+
+If you want to exercise the consumer-side seam, run Oracle indexing explicitly and keep the index in the temp workspace:
+
+```bash
+export DSPX_ORACLE_EMBEDDING_BACKEND=mock
+
+uv run -q python -m dspx.cli.dspx oracle index \
+  --from-program-evidence \
+  --path "$TD/program" \
+  --index-path "$TD/oracle/coordinates.db" \
+  --json
+```
+
+Expected JSON facts:
+
+- `scanned: 1`
+- `indexed: 1`
+- `errors: 0`
+- `non_authority_confirmed: true`
+- `index_stats.by_run_kind.program-oracle-evidence: 1`
+
+You can then search only that temp index:
+
+```bash
+uv run -q python -m dspx.cli.dspx oracle search \
+  "ticket urgency server down" \
+  --index-path "$TD/oracle/coordinates.db" \
+  --kind program-oracle-evidence \
+  --json
+```
+
+This is local evidence ingestion only. It writes to a local CoordinateIndex and does not rank, prune, promote, block, approve, export authority, or mutate governance state.
+
+## 8. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
@@ -240,7 +275,7 @@ PY
 
 Replay is declaration-driven: the receipt points at `manifest.json`, and the manifest/receipt bundle declare which evidence artifacts and hashes must match.
 
-## 8. Run clean replay
+## 9. Run clean replay
 
 ```bash
 uv run -q python -m dspx.cli.dspx run replay \
@@ -260,7 +295,7 @@ Expected result:
 
 Replay is local/offline. It should not require MLflow, a provider, Oracle, or AK.
 
-## 9. Prove replay detects execution-episode drift
+## 10. Prove replay detects execution-episode drift
 
 ```bash
 cp "$TD/program/execution_episode.json" "$TD/execution_episode.original.json"
@@ -295,7 +330,7 @@ cp "$TD/execution_episode.original.json" "$TD/program/execution_episode.json"
 
 This proves `execution_episode.json` is a replay-checked evidence artifact, not just duplicated metadata.
 
-## 10. Optional sidecar authority export plan
+## 11. Optional sidecar authority export plan
 
 The local base smoke includes an optional authority adapter planning step:
 
@@ -313,7 +348,7 @@ This writes:
 
 The plan status is `planned_not_exported`. It is not an AK mutation, not a promotion decision, and not an authority export.
 
-## 11. Cleanup
+## 12. Cleanup
 
 ```bash
 rm -rf "$TD"
@@ -331,10 +366,10 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no Oracle indexing, AK mutation, ranking, pruning, promotion, or governance mutation happened.
+- no automatic Oracle indexing, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`.
 
 ## Where this points next
 
-The best next implementation wave after this walkthrough is a separate, explicitly non-authoritative Oracle consumption/indexing slice over `oracle_evidence.json` and receipt bundles.
+The best next implementation wave after this walkthrough is separate Oracle interpretation/reporting over indexed `program-oracle-evidence` records, or a bounded territory/frontier integration that remains non-authoritative.
 
 A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, or selected model-jury execution. Promotion/adjudication should remain separate until an explicit authority contract exists.

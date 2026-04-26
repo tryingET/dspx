@@ -387,6 +387,7 @@ The current implementation keeps that foothold narrow while making the surface b
 - it composes the existing signature/module generation services as candidate-surface providers,
 - it records plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template/execution-episode provenance, generator provenance, optional example-binding evidence, minimal behavior-result evidence over examples, compact Oracle-readable evidence, and per-surface hashes in the manifest/receipt evidence,
 - a separately invoked Agent Kernel authority adapter can consume those manifests/receipts and produce a receipted sidecar export plan without mutating external authority,
+- a separately invoked Oracle indexing command can consume `program-oracle-evidence-v1` artifacts into a local CoordinateIndex as searchable evidence,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, external adapter apply/export mutation, or governance-policy authority.
 
@@ -397,7 +398,8 @@ When the repo is ready to materialize this concern, the best first slice should 
 Prefer a contract-grounding implementation step such as:
 - deepen the deterministic ProgramPlan contract into richer candidate-assembly planning,
 - deepen the first minimal local behavior-results contract into richer execution episode + receipt bundle semantics,
-- consume the first Oracle-readability contract from program receipt bundles in a separate non-mutating Oracle interpretation/indexing slice,
+- add non-mutating Oracle interpretation/reporting over indexed program evidence,
+- integrate territory/frontier views over the indexed program-evidence run kind,
 - define the first explicit local promotion-state shell for program-shaped candidate assembly.
 
 Do not start by stuffing richer synthesis behavior directly into `module_service`.
