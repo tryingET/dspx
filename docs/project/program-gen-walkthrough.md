@@ -34,9 +34,10 @@ The current `program-gen` loop proves:
 5. `oracle_evidence.json` is Oracle-readable evidence derived from behavior results without invoking Oracle.
 6. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
 7. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
-8. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-9. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-10. Promotion and authority remain explicitly pending / non-authoritative.
+8. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
+9. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+10. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+11. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -44,9 +45,10 @@ It does **not** prove:
 - dataset splits,
 - model-backed jury execution,
 - promotion adjudication,
-- automatic Oracle indexing/interpretation during `program-gen`,
+- automatic Oracle indexing/interpretation/refinement during `program-gen`,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search refinement,
+- applying refinement proposals or generating a second candidate assembly,
 - AK export or task mutation.
 
 ## 1. Prepare a temp workspace
@@ -256,7 +258,9 @@ You can then ask for an explicit interpretation/report over the indexed evidence
 ```bash
 uv run -q python -m dspx.cli.dspx oracle program-evidence report \
   --index-path "$TD/oracle/coordinates.db" \
-  --json
+  --json > "$TD/oracle/program-evidence-report.json"
+
+python -m json.tool "$TD/oracle/program-evidence-report.json"
 ```
 
 Expected JSON facts:
@@ -270,7 +274,31 @@ Expected JSON facts:
 
 This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still example-backed through `eval_examples.py` / `behavior_results.json`; there is no `eval_behavior.py` orchestration layer yet.
 
-## 8. Inspect manifest and receipt declarations
+## 8. Optional explicit bounded refinement proposal
+
+If you want to exercise the next consumer-side seam, propose a bounded refinement from the generated manifest and the saved Oracle report:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-refine propose \
+  --manifest "$TD/program/manifest.json" \
+  --oracle-report "$TD/oracle/program-evidence-report.json" \
+  --out "$TD/refinement/refinement_proposal.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-refinement-proposal-v1`
+- `identity` binds to the same request/candidate/assembly/episode/receipt-bundle IDs as `manifest.json`
+- `created_from` references the manifest, Oracle report, and `behavior_results.json` when present
+- `evidence_summary` reflects example-backed behavior status/counts plus Oracle report status and record match
+- failed example-backed behavior may produce a proposed next candidate intent patch such as tightening output mapping for the observed mismatch
+- no-examples assemblies degrade to `insufficient_behavior_evidence` rather than inventing behavior
+- `non_authority` confirms proposal-only posture and no apply, candidate generation, ranking, pruning, promotion, governance, or external mutation authority
+
+This command writes only the proposal artifact at `--out`. It does not mutate generated program files, does not create a second candidate assembly, does not index/report Oracle evidence automatically, and does not rank, prune, promote, block, export authority, or mutate governance.
+
+## 9. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
@@ -296,7 +324,7 @@ PY
 
 Replay is declaration-driven: the receipt points at `manifest.json`, and the manifest/receipt bundle declare which evidence artifacts and hashes must match.
 
-## 9. Run clean replay
+## 10. Run clean replay
 
 ```bash
 uv run -q python -m dspx.cli.dspx run replay \
@@ -316,7 +344,7 @@ Expected result:
 
 Replay is local/offline. It should not require MLflow, a provider, Oracle, or AK.
 
-## 10. Prove replay detects execution-episode drift
+## 11. Prove replay detects execution-episode drift
 
 ```bash
 cp "$TD/program/execution_episode.json" "$TD/execution_episode.original.json"
@@ -351,7 +379,7 @@ cp "$TD/execution_episode.original.json" "$TD/program/execution_episode.json"
 
 This proves `execution_episode.json` is a replay-checked evidence artifact, not just duplicated metadata.
 
-## 11. Optional sidecar authority export plan
+## 12. Optional sidecar authority export plan
 
 The local base smoke includes an optional authority adapter planning step:
 
@@ -369,7 +397,7 @@ This writes:
 
 The plan status is `planned_not_exported`. It is not an AK mutation, not a promotion decision, and not an authority export.
 
-## 12. Cleanup
+## 13. Cleanup
 
 ```bash
 rm -rf "$TD"
@@ -387,10 +415,10 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic Oracle indexing or interpretation, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, and if the optional report step was run, it only read that temp CoordinateIndex.
+- no automatic Oracle indexing, interpretation, refinement, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, and if the optional refinement step was run, it wrote only the `--out` proposal artifact.
 
 ## Where this points next
 
-The best next implementation wave after this walkthrough is bounded refinement over behavior evidence plus the Oracle program-evidence report, or a bounded territory/frontier integration for the same indexed run kind that remains non-authoritative.
+The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, an explicit promotion-shell refinement that consumes behavior plus Oracle report plus refinement proposal evidence, or an explicitly accepted proposal path that generates a second candidate assembly without making the proposal itself authoritative.
 
 A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, selected model-jury execution, or enough distinct behavior sources to justify a future `eval_behavior.py` orchestration layer. Promotion/adjudication should remain separate until an explicit authority contract exists.

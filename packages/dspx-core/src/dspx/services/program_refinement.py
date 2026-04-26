@@ -1,0 +1,587 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+from typing import Any, Mapping
+
+PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
+PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
+PROGRAM_BEHAVIOR_RESULTS_SCHEMA = "program-behavior-results-v1"
+PROGRAM_ORACLE_REPORT_SCHEMA = "program-oracle-evidence-report-v1"
+
+_REQUIRED_FALSE_REPORT_NON_AUTHORITY_FLAGS = (
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "governance_authority",
+    "external_mutation",
+)
+
+_PROPOSAL_NON_AUTHORITY = {
+    "proposal_only": True,
+    "applies_changes": False,
+    "generates_candidate": False,
+    "oracle_ranking": False,
+    "oracle_pruning": False,
+    "oracle_promotion": False,
+    "promotion_authority": False,
+    "governance_authority": False,
+    "external_mutation": False,
+}
+
+_LIMITATIONS = [
+    "Evidence is example-backed via eval_examples.py.",
+    "No dataset split, jury execution, or general behavior harness was run.",
+    "This proposal is not a promotion or ranking decision.",
+]
+
+
+class ProgramRefinementError(ValueError):
+    """Raised when a refinement proposal input is malformed or mismatched."""
+
+
+def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.expanduser().read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ProgramRefinementError(f"{label} not found: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ProgramRefinementError(f"{label} must be valid JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise ProgramRefinementError(f"{label} must contain a JSON object: {path}")
+    return payload
+
+
+def _safe_mapping(value: object) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _safe_list(value: object) -> list[Any]:
+    return list(value) if isinstance(value, list) else []
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _json_text(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def load_program_manifest(path: Path) -> dict[str, Any]:
+    """Load and validate the narrow program-gen manifest shape."""
+
+    manifest = _load_json_object(path, label="program manifest")
+    if manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
+        raise ProgramRefinementError(
+            "program manifest schema_version must be " + PROGRAM_MANIFEST_SCHEMA
+        )
+    identity = _identity_from_manifest(manifest)
+    if not any(identity.values()):
+        raise ProgramRefinementError(
+            "program manifest does not expose request/candidate/assembly/episode/receipt identity"
+        )
+    return manifest
+
+
+def _identity_from_manifest(manifest: Mapping[str, Any]) -> dict[str, str | None]:
+    request = _safe_mapping(manifest.get("request"))
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    return {
+        "request_id": _first_text(
+            request.get("request_id"),
+            candidate_assembly.get("request_id"),
+            execution_episode.get("request_id"),
+            receipt_bundle.get("request_id"),
+        ),
+        "candidate_id": _first_text(
+            candidate_assembly.get("candidate_id"),
+            execution_episode.get("candidate_id"),
+            receipt_bundle.get("candidate_id"),
+        ),
+        "assembly_id": _first_text(
+            candidate_assembly.get("assembly_id"),
+            execution_episode.get("assembly_id"),
+            receipt_bundle.get("assembly_id"),
+        ),
+        "episode_id": _first_text(
+            execution_episode.get("episode_id"),
+            receipt_bundle.get("episode_id"),
+        ),
+        "receipt_bundle_id": _first_text(receipt_bundle.get("receipt_bundle_id")),
+    }
+
+
+def _first_text(*values: object) -> str | None:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return None
+
+
+def _manifest_root(manifest_path: Path) -> Path:
+    return manifest_path.expanduser().resolve().parent
+
+
+def _declared_behavior_path(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> Path | None:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_results = _safe_mapping(execution_episode.get("behavior_results"))
+    behavior_path = _first_text(behavior_results.get("path"))
+    if behavior_path is None:
+        candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+        for surface in _safe_list(candidate_assembly.get("surfaces")):
+            if not isinstance(surface, Mapping):
+                continue
+            if surface.get("kind") == "behavior_results":
+                behavior_path = _first_text(surface.get("path"))
+                break
+    if behavior_path is None:
+        request = _safe_mapping(manifest.get("request"))
+        if request.get("behavior_results_hash"):
+            behavior_path = "behavior_results.json"
+    if behavior_path is None:
+        return None
+    path = Path(behavior_path)
+    if not path.is_absolute():
+        path = _manifest_root(manifest_path) / path
+    return path
+
+
+def _declared_behavior_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    request = _safe_mapping(manifest.get("request"))
+    request_hash = _first_text(request.get("behavior_results_hash"))
+    if request_hash:
+        hashes["request.behavior_results_hash"] = request_hash
+
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_results = _safe_mapping(execution_episode.get("behavior_results"))
+    episode_hash = _first_text(behavior_results.get("content_hash"))
+    if episode_hash:
+        hashes["execution_episode.behavior_results.content_hash"] = episode_hash
+
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    evidence_hash = _first_text(evidence.get("behavior_results_hash"))
+    if evidence_hash:
+        hashes["receipt_bundle.evidence.behavior_results_hash"] = evidence_hash
+
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate_assembly.get("surfaces")):
+        if not isinstance(surface, Mapping):
+            continue
+        if surface.get("kind") == "behavior_results":
+            surface_hash = _first_text(surface.get("content_hash"))
+            if surface_hash:
+                hashes["candidate_assembly.surfaces.behavior_results.content_hash"] = (
+                    surface_hash
+                )
+    return hashes
+
+
+def load_program_behavior_results(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+    """Load declared behavior_results.json, if present, and verify manifest hashes."""
+
+    behavior_path = _declared_behavior_path(manifest, manifest_path)
+    if behavior_path is None or not behavior_path.exists():
+        return None, behavior_path, None
+
+    behavior = _load_json_object(behavior_path, label="program behavior results")
+    if behavior.get("schema_version") != PROGRAM_BEHAVIOR_RESULTS_SCHEMA:
+        raise ProgramRefinementError(
+            "program behavior results schema_version must be "
+            + PROGRAM_BEHAVIOR_RESULTS_SCHEMA
+        )
+    actual_hash = _sha256_file(behavior_path)
+    declared_hashes = _declared_behavior_hashes(manifest)
+    mismatches = [
+        name
+        for name, declared_hash in declared_hashes.items()
+        if declared_hash != actual_hash
+    ]
+    if mismatches:
+        raise ProgramRefinementError(
+            "program behavior results hash does not match manifest declaration(s): "
+            + ", ".join(sorted(mismatches))
+        )
+    return behavior, behavior_path, actual_hash
+
+
+def load_program_oracle_report(path: Path) -> dict[str, Any]:
+    """Load a Wave 6 program Oracle evidence report."""
+
+    report = _load_json_object(path, label="program Oracle evidence report")
+    if report.get("schema_version") != PROGRAM_ORACLE_REPORT_SCHEMA:
+        raise ProgramRefinementError(
+            "program Oracle evidence report schema_version must be "
+            + PROGRAM_ORACLE_REPORT_SCHEMA
+        )
+    return report
+
+
+def validate_program_oracle_report_non_authority(report: Mapping[str, Any]) -> None:
+    """Fail unless the report is explicitly interpretation-only and non-authoritative."""
+
+    non_authority = _safe_mapping(report.get("non_authority"))
+    if non_authority.get("oracle_interpretation_only") is not True:
+        raise ProgramRefinementError(
+            "program Oracle evidence report must be interpretation-only"
+        )
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_REPORT_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramRefinementError(
+            "program Oracle evidence report widens non-authority flags: "
+            + ", ".join(invalid)
+        )
+
+
+def _matching_oracle_record(
+    report: Mapping[str, Any], identity: Mapping[str, str | None]
+) -> tuple[dict[str, Any] | None, bool]:
+    records = [
+        item for item in _safe_list(report.get("records")) if isinstance(item, Mapping)
+    ]
+    if not records:
+        return None, False
+    match_order = ("receipt_bundle_id", "episode_id", "assembly_id", "candidate_id")
+    for key in match_order:
+        wanted = identity.get(key)
+        if not wanted:
+            continue
+        for raw_record in records:
+            record_identity = _safe_mapping(raw_record.get("identity"))
+            if record_identity.get(key) == wanted:
+                return dict(raw_record), True
+    return None, False
+
+
+def _validate_report_identity_match(
+    report: Mapping[str, Any], identity: Mapping[str, str | None]
+) -> tuple[dict[str, Any] | None, bool]:
+    record, matched = _matching_oracle_record(report, identity)
+    records = [
+        item for item in _safe_list(report.get("records")) if isinstance(item, Mapping)
+    ]
+    if str(report.get("status") or "") == "ok" and records and not matched:
+        raise ProgramRefinementError(
+            "program Oracle evidence report does not contain a record matching manifest identity"
+        )
+    return record, matched
+
+
+def _behavior_summary(behavior: Mapping[str, Any] | None) -> dict[str, Any]:
+    if behavior is None:
+        return {}
+    return _safe_mapping(behavior.get("summary"))
+
+
+def _behavior_examples(behavior: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    if behavior is None:
+        return []
+    return [
+        dict(item)
+        for item in _safe_list(behavior.get("examples"))
+        if isinstance(item, Mapping)
+    ]
+
+
+def _output_fields(
+    manifest: Mapping[str, Any], behavior: Mapping[str, Any] | None
+) -> list[str]:
+    fields = _string_list(_safe_mapping(manifest.get("intent")).get("outputs"))
+    if fields:
+        return fields
+    if behavior is not None:
+        return _string_list(behavior.get("output_fields"))
+    return []
+
+
+def _failure_signals_from_behavior(
+    behavior: Mapping[str, Any] | None, *, output_fields: list[str]
+) -> list[str]:
+    signals: list[str] = []
+    for record in _behavior_examples(behavior):
+        status = str(record.get("status") or "unknown")
+        expected = _safe_mapping(record.get("expected_outputs"))
+        observed = _safe_mapping(record.get("observed_outputs"))
+        if status == "error":
+            error = _safe_mapping(record.get("error"))
+            error_type = str(error.get("type") or "unknown")
+            signals.append(f"error:{error_type}")
+        if status.startswith("degraded"):
+            signals.append(status)
+        for field in output_fields:
+            if (
+                field in expected
+                and field in observed
+                and str(expected[field]) != str(observed[field])
+            ):
+                signals.append(f"mismatch:{field}")
+            if field not in observed and status != "error":
+                signals.append(f"missing_observed:{field}")
+        for note in _string_list(record.get("notes")):
+            if "output mismatch" in note:
+                for field in output_fields:
+                    if field in note:
+                        signals.append(f"mismatch:{field}")
+    unique: list[str] = []
+    for signal in signals:
+        if signal not in unique:
+            unique.append(signal)
+    return unique
+
+
+def _failure_signals(
+    *,
+    behavior: Mapping[str, Any] | None,
+    oracle_record: Mapping[str, Any] | None,
+    output_fields: list[str],
+) -> list[str]:
+    signals = _failure_signals_from_behavior(behavior, output_fields=output_fields)
+    if oracle_record is not None:
+        for signal in _string_list(oracle_record.get("failure_signals")):
+            if signal not in signals:
+                signals.append(signal)
+    return signals
+
+
+def _proposal_id(
+    identity: Mapping[str, str | None],
+    behavior_hash: str | None,
+    report: Mapping[str, Any],
+) -> str:
+    seed = json.dumps(
+        {
+            "identity": identity,
+            "behavior_hash": behavior_hash,
+            "report_status": report.get("status"),
+            "total_records": report.get("total_records"),
+        },
+        sort_keys=True,
+    ).encode("utf-8")
+    return "prog-refine-prop-" + hashlib.sha256(seed).hexdigest()[:12]
+
+
+def _status_for_behavior(behavior: Mapping[str, Any] | None) -> str:
+    if behavior is None:
+        return "insufficient_behavior_evidence"
+    summary = _behavior_summary(behavior)
+    behavior_status = str(summary.get("status") or "unknown")
+    if behavior_status == "passed":
+        return "no_refinement_needed"
+    return "proposed"
+
+
+def _target_surface_for_status(
+    status: str, signals: list[str]
+) -> tuple[str | None, str | None]:
+    if status == "failed" or any(signal.startswith("mismatch:") for signal in signals):
+        fields = [
+            signal.split(":", 1)[1]
+            for signal in signals
+            if signal.startswith("mismatch:")
+        ]
+        field_text = ", ".join(fields) if fields else "declared outputs"
+        return "module", f"Observed example-backed output mismatch for {field_text}."
+    if any(signal.startswith("missing_observed:") for signal in signals):
+        fields = [
+            signal.split(":", 1)[1]
+            for signal in signals
+            if signal.startswith("missing_observed:")
+        ]
+        return (
+            "program",
+            "Observed example-backed output observability gap for "
+            + ", ".join(fields)
+            + ".",
+        )
+    if status == "error" or any(signal.startswith("error:") for signal in signals):
+        return "program", "Observed example-backed runtime or execution error."
+    if status == "degraded" or status.startswith("degraded"):
+        return (
+            "program",
+            "Observed degraded example-backed behavior; investigate IO binding and observability.",
+        )
+    return None, None
+
+
+def _bounded_refinement(
+    *, behavior_status: str | None, proposal_status: str, signals: list[str]
+) -> dict[str, Any]:
+    if proposal_status == "insufficient_behavior_evidence":
+        return {
+            "refinement_kind": "proposal_only",
+            "target_surfaces": [],
+            "proposed_changes": [],
+            "next_candidate_intent_patch": {
+                "bounded_next_questions": [
+                    "Add declared examples before proposing a semantic correction.",
+                    "Keep the input/output contract unchanged unless new evidence shows it is invalid.",
+                ]
+            },
+        }
+    if proposal_status == "no_refinement_needed":
+        return {
+            "refinement_kind": "proposal_only",
+            "target_surfaces": [],
+            "proposed_changes": [],
+            "next_candidate_intent_patch": {
+                "bounded_next_questions": [
+                    "Add more examples or a dataset slice before requesting another candidate.",
+                    "Preserve declared inputs and outputs.",
+                ]
+            },
+        }
+
+    status = behavior_status or "unknown"
+    surface, reason = _target_surface_for_status(status, signals)
+    if surface is None or reason is None:
+        surface = "program"
+        reason = "Observed example-backed behavior needs bounded inspection before another candidate is generated."
+
+    if any(signal.startswith("mismatch:") for signal in signals):
+        mismatch_fields = [
+            signal.split(":", 1)[1]
+            for signal in signals
+            if signal.startswith("mismatch:")
+        ]
+        focus = ", ".join(mismatch_fields) if mismatch_fields else "declared outputs"
+        change_type = "tighten_output_mapping"
+        rationale = (
+            f"The current example-backed behavior failed exact_match for {focus}."
+        )
+        constraints = [
+            "Preserve declared inputs and outputs.",
+            f"Focus on correcting observed {focus} mismatch.",
+        ]
+    elif status == "error" or any(signal.startswith("error:") for signal in signals):
+        change_type = "debug_execution_surface"
+        rationale = "The current example-backed behavior produced an execution error; debug runtime/materialized harness behavior before semantic changes."
+        constraints = [
+            "Preserve declared inputs and outputs.",
+            "Focus on making the generated program executable over the observed example.",
+        ]
+    elif (
+        status == "degraded"
+        or status.startswith("degraded")
+        or any(signal.startswith("missing_observed:") for signal in signals)
+    ):
+        change_type = "improve_output_observability"
+        rationale = "The current example-backed behavior did not expose comparable declared outputs; inspect IO binding before semantic correction."
+        constraints = [
+            "Preserve declared inputs and outputs.",
+            "Focus on exposing declared outputs for example-backed comparison.",
+        ]
+    else:
+        change_type = "bounded_behavior_inspection"
+        rationale = "The current example-backed behavior did not pass; inspect the smallest surface consistent with observed signals."
+        constraints = ["Preserve declared inputs and outputs."]
+
+    return {
+        "refinement_kind": "proposal_only",
+        "target_surfaces": [{"surface": surface, "reason": reason}],
+        "proposed_changes": [
+            {
+                "change_type": change_type,
+                "surface": surface,
+                "rationale": rationale,
+                "evidence_refs": ["behavior_results.json", "oracle_report"],
+            }
+        ],
+        "next_candidate_intent_patch": {"constraints": constraints},
+    }
+
+
+def build_program_refinement_proposal(
+    *,
+    manifest_path: Path,
+    oracle_report_path: Path,
+) -> dict[str, Any]:
+    """Build a deterministic proposal artifact without mutating program files."""
+
+    manifest_path = manifest_path.expanduser().resolve()
+    oracle_report_path = oracle_report_path.expanduser().resolve()
+    manifest = load_program_manifest(manifest_path)
+    report = load_program_oracle_report(oracle_report_path)
+    validate_program_oracle_report_non_authority(report)
+    identity = _identity_from_manifest(manifest)
+    oracle_record, oracle_matched = _validate_report_identity_match(report, identity)
+    behavior, behavior_path, behavior_hash = load_program_behavior_results(
+        manifest,
+        manifest_path,
+    )
+    summary = _behavior_summary(behavior)
+    behavior_status = str(summary.get("status") or "insufficient_behavior_evidence")
+    output_fields = _output_fields(manifest, behavior)
+    signals = _failure_signals(
+        behavior=behavior,
+        oracle_record=oracle_record,
+        output_fields=output_fields,
+    )
+    proposal_status = _status_for_behavior(behavior)
+    example_count = int(summary.get("total") or 0) if behavior is not None else 0
+    status_counts = _safe_mapping(summary.get("status_counts"))
+
+    proposal = {
+        "schema_version": PROGRAM_REFINEMENT_PROPOSAL_SCHEMA,
+        "status": proposal_status,
+        "proposal_id": _proposal_id(identity, behavior_hash, report),
+        "created_from": {
+            "manifest_path": str(manifest_path),
+            "oracle_report_path": str(oracle_report_path),
+            "behavior_results_path": str(behavior_path)
+            if behavior_path is not None and behavior_path.exists()
+            else None,
+        },
+        "identity": identity,
+        "evidence_summary": {
+            "behavior_status": behavior_status,
+            "example_count": example_count,
+            "status_counts": status_counts,
+            "failure_signals": signals,
+            "oracle_report_status": report.get("status"),
+            "oracle_report_total_records": int(report.get("total_records") or 0),
+            "oracle_report_record_matched": oracle_matched,
+        },
+        "bounded_refinement": _bounded_refinement(
+            behavior_status=behavior_status,
+            proposal_status=proposal_status,
+            signals=signals,
+        ),
+        "limitations": list(_LIMITATIONS),
+        "non_authority": dict(_PROPOSAL_NON_AUTHORITY),
+    }
+    return proposal
+
+
+def write_program_refinement_proposal(
+    proposal: Mapping[str, Any],
+    out_path: Path,
+) -> dict[str, Any]:
+    """Write the proposal artifact and return the same JSON-compatible payload."""
+
+    out_path = out_path.expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(proposal)
+    out_path.write_text(_json_text(payload), encoding="utf-8")
+    return payload

@@ -261,10 +261,22 @@ Oracle interpretation/reporting is also explicit and separate. It reads indexed 
 ```bash
 DSPX_ORACLE_EMBEDDING_BACKEND=mock just dspx oracle program-evidence report \
   --index-path /tmp/dspx-program-oracle/coordinates.db \
+  --json > /tmp/dspx-program-oracle/program-evidence-report.json
+```
+
+The report is evidence-grounded and non-authoritative: it summarizes behavior statuses, task/metric/IO facets, source artifacts, and failure signals such as output mismatches. It does not rank, prune, promote, block, approve, export authority, or activate policy.
+
+Bounded refinement proposal is another explicit, separate command. It consumes the `program-gen` manifest, declared example-backed behavior evidence, and the non-authoritative Oracle report, then writes one local proposal artifact:
+
+```bash
+just dspx program-refine propose \
+  --manifest generated/programs/answer_question/manifest.json \
+  --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json \
+  --out /tmp/dspx-program-refine/refinement_proposal.json \
   --json
 ```
 
-The report is evidence-grounded and non-authoritative: it summarizes behavior statuses, task/metric/IO facets, source artifacts, and failure signals such as output mismatches. It does not rank, prune, promote, block, approve, export authority, or activate policy. `program-gen` still does not automatically index or interpret Oracle evidence, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
+The proposal is local and advisory only. It does not mutate generated program files, does not create a new candidate assembly, and does not rank, prune, promote, block, export authority, or mutate governance. `program-gen` still does not automatically index, report, interpret, or refine, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
 
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
@@ -415,7 +427,10 @@ Receipt v2 metadata now supports a first local CLI slice for behavioral history:
 just dspx oracle index --from-program-evidence --path generated/programs --index-path /tmp/dspx-program-oracle/coordinates.db --json
 
 # Report on indexed program Oracle evidence without authority effects
-just dspx oracle program-evidence report --index-path /tmp/dspx-program-oracle/coordinates.db --json
+just dspx oracle program-evidence report --index-path /tmp/dspx-program-oracle/coordinates.db --json > /tmp/dspx-program-oracle/program-evidence-report.json
+
+# Propose a bounded refinement artifact without mutating generated files or authority
+just dspx program-refine propose --manifest generated/programs/answer_question/manifest.json --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json --out /tmp/dspx-program-refine/refinement_proposal.json --json
 
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json

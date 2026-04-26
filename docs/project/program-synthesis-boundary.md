@@ -389,6 +389,8 @@ The current implementation keeps that foothold narrow while making the surface b
 - a separately invoked Agent Kernel authority adapter can consume those manifests/receipts and produce a receipted sidecar export plan without mutating external authority,
 - a separately invoked Oracle indexing command can consume `program-oracle-evidence-v1` artifacts into a local CoordinateIndex as searchable evidence,
 - a separately invoked Oracle program-evidence report command can read those indexed records and summarize example-backed behavior evidence without ranking, pruning, promotion, governance, external mutation, or program-gen automation,
+- a separately invoked `program-refine propose` command can consume the manifest, declared `behavior_results.json` when present, and an explicit non-authoritative Oracle report to write a local `program-refinement-proposal-v1` artifact only,
+- the refinement proposal does not mutate generated program files, does not create a second candidate assembly, and cannot rank, prune, promote, block, export authority, mutate governance, or make Oracle authoritative,
 - the current behavior harness remains `eval_examples.py` / `behavior_results.json`; `eval_behavior.py` is not introduced until there are multiple behavior sources to orchestrate,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, external adapter apply/export mutation, or governance-policy authority.
@@ -400,8 +402,8 @@ When the repo is ready to materialize this concern, the best first slice should 
 Prefer a contract-grounding implementation step such as:
 - deepen the deterministic ProgramPlan contract into richer candidate-assembly planning,
 - deepen the first minimal local behavior-results contract into richer execution episode + receipt bundle semantics,
-- add bounded refinement proposals over the non-mutating Oracle program-evidence report,
 - integrate territory/frontier views over the indexed program-evidence run kind,
+- add an explicit acceptance-to-second-candidate seam for a bounded refinement proposal,
 - define the first explicit local promotion-state shell for program-shaped candidate assembly.
 
 Do not start by stuffing richer synthesis behavior directly into `module_service`.

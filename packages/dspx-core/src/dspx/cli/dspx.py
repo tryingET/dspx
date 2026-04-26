@@ -42,6 +42,7 @@ from dspx.cli.commands import (
     run_app,
     optimize_app,
     providers_app,
+    program_refine_app,
     oracle_app,
     signature_app,
     mermaid_app,
@@ -69,6 +70,11 @@ adapters_app.add_typer(adapters_eval_app, name="eval", help="Evaluation helpers"
 app.add_typer(cache_app, name="cache", help="Inspect and manage the on-disk cache")
 app.add_typer(optimize_app, name="optimize", help="Program optimization (GEPA, etc.)")
 app.add_typer(run_app, name="run", help="Replay/explain operations")
+app.add_typer(
+    program_refine_app,
+    name="program-refine",
+    help="Bounded program refinement proposals",
+)
 app.add_typer(
     oracle_app, name="oracle", help="Behavioral oracle (semantic coordinates)"
 )
