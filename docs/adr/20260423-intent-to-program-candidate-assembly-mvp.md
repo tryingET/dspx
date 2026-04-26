@@ -62,8 +62,9 @@ The first materialized bundle writes:
 - `eval_promotion.py` — deterministic promotion artifact binding harness that validates `promotion_review.json`, `promotion_adjudication_request.json`, and `promotion_decision_template.json` without invoking an adjudicator
 - `examples.json` / `eval_examples.py` — emitted when inline `examples` or `examples_path` examples are present, validating example binding, invoking the generated program locally, and writing behavior evidence without calling juror models
 - `behavior_results.json` — emitted when examples are present, recording `program-behavior-results-v1` per-example inputs, expected outputs, observed outputs when available, status/error/degraded notes, summary counts, and evidence-only authority
+- `oracle_evidence.json` — emitted when behavior results exist, recording `program-oracle-evidence-v1` readability-only evidence with candidate/assembly/episode/receipt IDs, intent/task/metric/IO facets, behavior result hash/summary/status counts, deterministic failure/degraded/error signals, compact `oracle_text`, source artifact hashes, and explicit non-authority flags
 - `intent.json` — normalized intent payload
-- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template-provenance, surface-provenance, example-binding, and per-surface hash metadata
+- `manifest.json` — candidate-assembly, execution-episode, receipt-bundle, plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template-provenance, surface-provenance, example-binding, behavior evidence, Oracle-readability evidence, and per-surface hash metadata
 - `manifest.json.meta.json` — standard DSPx run receipt with `run_kind=program-gen`
 
 Before marking the materialization episode as `passed`, DSPx compiles the generated files, runs `eval_smoke.py`, validates jury/promotion artifact binding, and, when examples exist, runs `eval_examples.py` in the candidate assembly directory to capture `behavior_results.json`. The receipt hash is computed from the exact written `manifest.json` bytes, and replay validation can recompute the `program-gen` cache key from `replay_inputs.intent`.
@@ -83,7 +84,7 @@ Positive:
 - DSPx now has a concrete foothold for one-intent program synthesis.
 - Program synthesis begins at the candidate-assembly boundary instead of being squeezed into module generation.
 - `program-gen` now composes signature and module generation as candidate-surface providers instead of permanently duplicating them inline.
-- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template provenance, surface provenance, optional example-binding evidence, behavior-result evidence over examples, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
+- Receipts and manifests already expose assembly, episode, receipt-bundle IDs, plan/jury/selection/rubric/promotion-review/external-ref/adjudication-request/decision-template provenance, surface provenance, optional example-binding evidence, behavior-result evidence over examples, Oracle-readability evidence, and per-surface hashes for later replay, Oracle interpretation, and bounded promotion work.
 - The first path is deterministic and testable, so it can compound before model-backed synthesis or GEPA-backed search is introduced.
 
 Tradeoffs:
@@ -116,6 +117,6 @@ The next truthful follow-ons are:
 
 1. richer intent normalization and examples/dataset binding,
 2. richer execution episodes that run the generated program and selected jury under declared runtime conditions,
-3. Oracle-readable behavioral phenotype extraction from program receipts,
+3. separate Oracle indexing/interpretation over the emitted `oracle_evidence.json` contract, without granting Oracle ranking, pruning, promotion, or governance authority,
 4. optional authority adapters that consume DSPx manifests/receipts and produce sidecar export plans without mutating external authority,
 5. later search/reflection engines that propose candidate assemblies without owning promotion authority.

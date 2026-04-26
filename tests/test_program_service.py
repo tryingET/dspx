@@ -494,6 +494,20 @@ def test_program_service_binds_examples_when_present(
 ) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    real_run = program_service.subprocess.run
+    subprocess_calls: list[list[str]] = []
+
+    def spy_run(
+        command: list[str], *args: object, **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        command_text = [str(part) for part in command]
+        command_names = [Path(part).name for part in command_text]
+        assert "ak" not in command_names
+        assert "oracle" not in command_names
+        subprocess_calls.append(command_text)
+        return real_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(program_service.subprocess, "run", spy_run)
     intent = ProgramIntent(
         name="ExampleBoundProgram",
         objective="Answer from context with a confidence score.",
@@ -513,6 +527,7 @@ def test_program_service_binds_examples_when_present(
     assert (root / "examples.json").exists()
     assert (root / "eval_examples.py").exists()
     assert (root / "behavior_results.json").exists()
+    assert (root / "oracle_evidence.json").exists()
 
     behavior_results = json.loads(
         (root / "behavior_results.json").read_text(encoding="utf-8")
@@ -542,6 +557,67 @@ def test_program_service_binds_examples_when_present(
         "executed",
     }
 
+    behavior_hash = hashlib.sha256(
+        (root / "behavior_results.json").read_bytes()
+    ).hexdigest()
+    oracle_evidence = json.loads(
+        (root / "oracle_evidence.json").read_text(encoding="utf-8")
+    )
+    assert oracle_evidence["schema_version"] == "program-oracle-evidence-v1"
+    assert oracle_evidence["evidence_kind"] == "program_execution_episode"
+    assert oracle_evidence["authority"] == "oracle_readability_only_non_authoritative"
+    assert oracle_evidence["non_authority"] == {
+        "oracle_ranking": False,
+        "oracle_pruning": False,
+        "oracle_promotion": False,
+        "governance_authority": False,
+        "external_mutation": False,
+    }
+    assert oracle_evidence["identity"] == {
+        "request_id": artifact.metadata["request_id"],
+        "candidate_id": artifact.metadata["candidate_id"],
+        "assembly_id": artifact.metadata["assembly_id"],
+        "episode_id": artifact.metadata["episode_id"],
+        "receipt_bundle_id": artifact.metadata["receipt_bundle_id"],
+    }
+    assert oracle_evidence["intent"] == {
+        "name": "ExampleBoundProgram",
+        "objective": "Answer from context with a confidence score.",
+        "task_type": "single_module",
+        "metric": "unspecified",
+        "constraints": [],
+    }
+    assert oracle_evidence["io"] == {
+        "inputs": ["context", "question"],
+        "outputs": ["answer", "confidence"],
+    }
+    assert oracle_evidence["behavior"]["result_path"] == "behavior_results.json"
+    assert oracle_evidence["behavior"]["result_hash"] == behavior_hash
+    assert oracle_evidence["behavior"]["summary"] == behavior_results["summary"]
+    assert (
+        oracle_evidence["behavior"]["statuses"]
+        == behavior_results["summary"]["status_counts"]
+    )
+    assert oracle_evidence["oracle_facets"]["task_type"] == "single_module"
+    assert oracle_evidence["oracle_facets"]["metric"] == "unspecified"
+    assert oracle_evidence["oracle_facets"]["input_fields"] == [
+        "context",
+        "question",
+    ]
+    assert oracle_evidence["oracle_facets"]["output_fields"] == [
+        "answer",
+        "confidence",
+    ]
+    assert oracle_evidence["oracle_facets"]["has_examples"] is True
+    assert oracle_evidence["oracle_facets"]["example_count"] == 1
+    assert "schema_version=program-oracle-evidence-v1" in oracle_evidence["oracle_text"]
+    assert "oracle_ranking=false" in oracle_evidence["oracle_text"]
+    assert {
+        "kind": "behavior_results",
+        "path": "behavior_results.json",
+        "content_hash": behavior_hash,
+    } in oracle_evidence["source_artifacts"]
+
     examples = subprocess.run(
         [sys.executable, "eval_examples.py"],
         cwd=root,
@@ -556,15 +632,27 @@ def test_program_service_binds_examples_when_present(
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     assert "examples" in manifest["candidate_assembly"]["surface_kinds"]
     assert "behavior_results" in manifest["candidate_assembly"]["surface_kinds"]
-    behavior_hash = hashlib.sha256(
-        (root / "behavior_results.json").read_bytes()
+    assert "oracle_evidence" in manifest["candidate_assembly"]["surface_kinds"]
+    oracle_hash = hashlib.sha256(
+        (root / "oracle_evidence.json").read_bytes()
     ).hexdigest()
     assert manifest["request"]["behavior_results_hash"] == behavior_hash
+    assert manifest["request"]["oracle_evidence_hash"] == oracle_hash
     assert manifest["execution_episode"]["behavior_results"] == {
         "path": "behavior_results.json",
         "content_hash": behavior_hash,
         "summary": behavior_results["summary"],
     }
+    assert manifest["execution_episode"]["oracle_evidence"] == {
+        "path": "oracle_evidence.json",
+        "content_hash": oracle_hash,
+        "summary": manifest["oracle_readability"]["summary"],
+        "facets": manifest["oracle_readability"]["facets"],
+    }
+    assert manifest["oracle_readability"]["path"] == "oracle_evidence.json"
+    assert manifest["oracle_readability"]["content_hash"] == oracle_hash
+    assert manifest["oracle_readability"]["summary"]["content_hash"] == oracle_hash
+    assert manifest["oracle_readability"]["facets"] == oracle_evidence["oracle_facets"]
     assert (
         manifest["execution_episode"]["behavior_status"]
         == behavior_results["summary"]["status"]
@@ -593,14 +681,47 @@ def test_program_service_binds_examples_when_present(
     assert evidence["behavior_results_hash"] == behavior_hash
     assert evidence["behavior_summary"] == behavior_results["summary"]
     assert evidence["behavior_results"] == behavior_results
+    assert evidence["oracle_evidence_hash"] == oracle_hash
+    assert evidence["oracle_evidence_path"] == "oracle_evidence.json"
+    assert (
+        evidence["oracle_readability_summary"]
+        == manifest["oracle_readability"]["summary"]
+    )
+    assert evidence["oracle_readability_facets"] == oracle_evidence["oracle_facets"]
+    assert evidence["oracle_readability"] == {
+        "path": "oracle_evidence.json",
+        "content_hash": oracle_hash,
+        "summary": manifest["oracle_readability"]["summary"],
+        "facets": oracle_evidence["oracle_facets"],
+    }
+    assert evidence["surface_generation"]["oracle_evidence"] == "program-gen"
+    assert evidence["surface_hashes"]["oracle_evidence.json"] == oracle_hash
     assert evidence["examples"]["returncode"] == 0
     assert "examples.json" in evidence["generated_files"]
     assert "behavior_results.json" in evidence["generated_files"]
+    assert "oracle_evidence.json" in evidence["generated_files"]
 
     receipt = json.loads((root / "manifest.json.meta.json").read_text(encoding="utf-8"))
     assert receipt["run_summary"]["behavior_results_hash"] == behavior_hash
     assert receipt["run_summary"]["behavior_summary"] == behavior_results["summary"]
+    assert receipt["run_summary"]["oracle_evidence_hash"] == oracle_hash
+    assert (
+        receipt["run_summary"]["oracle_readability_summary"]
+        == manifest["oracle_readability"]["summary"]
+    )
+    assert (
+        receipt["run_summary"]["oracle_readability_facets"]
+        == oracle_evidence["oracle_facets"]
+    )
     assert receipt["program_behavior_results"] == behavior_results
+    assert receipt["program_oracle_evidence"] == oracle_evidence
+    assert receipt["program_oracle_readability"] == manifest["oracle_readability"]
+    assert subprocess_calls
+    assert all(
+        "ak" not in [Path(part).name for part in command]
+        and "oracle" not in [Path(part).name for part in command]
+        for command in subprocess_calls
+    )
 
 
 def test_program_gen_cli_carries_explicit_jury_contract(

@@ -173,6 +173,11 @@ def build_program_plan(
                     "path": "behavior_results.json",
                     "generator": "program-gen",
                 },
+                {
+                    "kind": "oracle_evidence",
+                    "path": "oracle_evidence.json",
+                    "generator": "program-gen",
+                },
             ]
         )
     return {
@@ -248,6 +253,285 @@ def _run_eval_jury(root: Path) -> dict[str, Any]:
 
 def _run_eval_promotion(root: Path) -> dict[str, Any]:
     return _run_python_harness(root, "eval_promotion.py", label="promotion validation")
+
+
+def _safe_int(value: object, *, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return default
+        try:
+            return int(text)
+        except ValueError:
+            return default
+    if isinstance(value, float):
+        return int(value)
+    return default
+
+
+def _behavior_status_counts(
+    behavior_results: Mapping[str, Any], behavior_summary: Mapping[str, Any]
+) -> dict[str, int]:
+    raw_counts = behavior_summary.get("status_counts")
+    if isinstance(raw_counts, Mapping):
+        return {
+            str(status): _safe_int(count)
+            for status, count in sorted(
+                raw_counts.items(), key=lambda item: str(item[0])
+            )
+        }
+    records = behavior_results.get("examples")
+    counts: dict[str, int] = {}
+    if isinstance(records, list):
+        for raw_record in records:
+            if not isinstance(raw_record, Mapping):
+                continue
+            status = str(raw_record.get("status") or "unknown")
+            counts[status] = counts.get(status, 0) + 1
+    return {status: counts[status] for status in sorted(counts)}
+
+
+def _behavior_failure_modes(
+    behavior_results: Mapping[str, Any], *, output_fields: list[str]
+) -> list[dict[str, Any]]:
+    records = behavior_results.get("examples")
+    if not isinstance(records, list):
+        return []
+    failure_modes: list[dict[str, Any]] = []
+    for raw_record in records:
+        if not isinstance(raw_record, Mapping):
+            continue
+        record = dict(raw_record)
+        status = str(record.get("status") or "unknown")
+        raw_expected = record.get("expected_outputs")
+        raw_observed = record.get("observed_outputs")
+        expected = dict(raw_expected) if isinstance(raw_expected, Mapping) else {}
+        observed = dict(raw_observed) if isinstance(raw_observed, Mapping) else {}
+        compared_fields = [name for name in output_fields if name in observed]
+        mismatched_outputs = sorted(
+            name
+            for name in compared_fields
+            if str(expected.get(name, "")) != str(observed.get(name, ""))
+        )
+        missing_observed_outputs = sorted(
+            name for name in output_fields if name not in observed
+        )
+        raw_notes = record.get("notes")
+        notes = (
+            [str(note) for note in raw_notes if str(note).strip()]
+            if isinstance(raw_notes, list)
+            else []
+        )
+        raw_error = record.get("error")
+        error = dict(raw_error) if isinstance(raw_error, Mapping) else None
+        signals: list[str] = []
+        if status == "error" and error is not None:
+            signals.append(f"error:{error.get('type') or 'unknown'}")
+        if status.startswith("degraded"):
+            signals.append(status)
+        signals.extend(f"mismatch:{name}" for name in mismatched_outputs)
+        signals.extend(f"missing_observed:{name}" for name in missing_observed_outputs)
+        if notes:
+            signals.extend(f"note:{note}" for note in notes)
+        if status == "passed" and not signals:
+            continue
+        failure_mode: dict[str, Any] = {
+            "index": record.get("index"),
+            "status": status,
+            "signals": signals,
+            "mismatched_outputs": mismatched_outputs,
+            "missing_observed_outputs": missing_observed_outputs,
+            "notes": notes,
+        }
+        if error is not None:
+            failure_mode["error"] = error
+        failure_modes.append(failure_mode)
+    return failure_modes
+
+
+def _oracle_text(
+    *,
+    intent: ProgramIntent,
+    ids: Mapping[str, str],
+    oracle_facets: Mapping[str, Any],
+    failure_modes: list[dict[str, Any]],
+) -> str:
+    status_counts = oracle_facets.get("status_counts")
+    status_text = "none"
+    if isinstance(status_counts, Mapping) and status_counts:
+        status_text = ",".join(
+            f"{status}:{status_counts[status]}" for status in sorted(status_counts)
+        )
+    failure_text = "none"
+    if failure_modes:
+        failure_parts = []
+        for failure in failure_modes[:10]:
+            failure_parts.append(
+                " ".join(
+                    [
+                        f"example={failure.get('index')}",
+                        f"status={failure.get('status')}",
+                        "mismatches="
+                        + ",".join(failure.get("mismatched_outputs") or []),
+                        "missing="
+                        + ",".join(failure.get("missing_observed_outputs") or []),
+                        "signals=" + ",".join(failure.get("signals") or []),
+                    ]
+                )
+            )
+        failure_text = "; ".join(failure_parts)
+    return "\n".join(
+        [
+            "schema_version=program-oracle-evidence-v1",
+            "evidence_kind=program_execution_episode",
+            f"intent.name={intent.name}",
+            f"intent.objective={intent.objective}",
+            f"intent.task_type={intent.task_type or 'single_module'}",
+            f"intent.metric={intent.metric or 'unspecified'}",
+            "io.inputs=" + ",".join(intent.inputs),
+            "io.outputs=" + ",".join(intent.outputs),
+            "constraints=" + " | ".join(intent.constraints),
+            f"identity.request_id={ids['request_id']}",
+            f"identity.candidate_id={ids['candidate_id']}",
+            f"identity.assembly_id={ids['assembly_id']}",
+            f"identity.episode_id={ids['episode_id']}",
+            f"identity.receipt_bundle_id={ids['receipt_bundle_id']}",
+            f"behavior.status={oracle_facets.get('behavior_status')}",
+            f"behavior.example_count={oracle_facets.get('example_count')}",
+            f"behavior.status_counts={status_text}",
+            f"behavior.failure_modes={failure_text}",
+            "authority=oracle_readability_only_non_authoritative; "
+            "oracle_ranking=false; oracle_pruning=false; oracle_promotion=false; "
+            "governance_authority=false; external_mutation=false",
+        ]
+    )
+
+
+def _build_oracle_evidence(
+    *,
+    intent: ProgramIntent,
+    ids: Mapping[str, str],
+    intent_hash: str,
+    plan_hash: str,
+    examples_hash: str | None,
+    behavior_results_hash: str,
+    behavior_results: Mapping[str, Any],
+    behavior_summary: Mapping[str, Any],
+    surface_hashes: Mapping[str, str],
+) -> dict[str, Any]:
+    output_fields = list(intent.outputs)
+    status_counts = _behavior_status_counts(behavior_results, behavior_summary)
+    failure_modes = _behavior_failure_modes(
+        behavior_results,
+        output_fields=output_fields,
+    )
+    example_count = _safe_int(
+        behavior_summary.get("total"), default=len(intent.examples or [])
+    )
+    oracle_facets = {
+        "task_type": intent.task_type or "single_module",
+        "metric": intent.metric or "unspecified",
+        "input_fields": list(intent.inputs),
+        "output_fields": output_fields,
+        "behavior_status": str(behavior_summary.get("status") or "unknown"),
+        "status_counts": status_counts,
+        "has_examples": bool(intent.examples),
+        "example_count": example_count,
+        "failure_mode_count": len(failure_modes),
+        "has_failures": bool(failure_modes),
+    }
+    oracle_text = _oracle_text(
+        intent=intent,
+        ids=ids,
+        oracle_facets=oracle_facets,
+        failure_modes=failure_modes,
+    )
+    source_artifacts = [
+        {"kind": "intent", "path": "intent.json", "content_hash": intent_hash},
+        {"kind": "plan", "path": "plan.json", "content_hash": plan_hash},
+        {
+            "kind": "behavior_results",
+            "path": "behavior_results.json",
+            "content_hash": behavior_results_hash,
+        },
+    ]
+    if examples_hash is not None:
+        source_artifacts.append(
+            {"kind": "examples", "path": "examples.json", "content_hash": examples_hash}
+        )
+    for path in ("signature.py", "module.py", "program.py"):
+        content_hash = surface_hashes.get(path)
+        if content_hash:
+            source_artifacts.append(
+                {
+                    "kind": path.removesuffix(".py"),
+                    "path": path,
+                    "content_hash": content_hash,
+                }
+            )
+    source_artifacts.sort(key=lambda item: str(item["path"]))
+    return {
+        "schema_version": "program-oracle-evidence-v1",
+        "evidence_kind": "program_execution_episode",
+        "authority": "oracle_readability_only_non_authoritative",
+        "non_authority": {
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "identity": {
+            "request_id": ids["request_id"],
+            "candidate_id": ids["candidate_id"],
+            "assembly_id": ids["assembly_id"],
+            "episode_id": ids["episode_id"],
+            "receipt_bundle_id": ids["receipt_bundle_id"],
+        },
+        "intent": {
+            "name": intent.name,
+            "objective": intent.objective,
+            "task_type": intent.task_type or "single_module",
+            "metric": intent.metric or "unspecified",
+            "constraints": list(intent.constraints),
+        },
+        "io": {"inputs": list(intent.inputs), "outputs": output_fields},
+        "behavior": {
+            "result_path": "behavior_results.json",
+            "result_hash": behavior_results_hash,
+            "summary": dict(behavior_summary),
+            "statuses": status_counts,
+            "example_count": example_count,
+            "failure_modes": failure_modes,
+        },
+        "oracle_facets": oracle_facets,
+        "oracle_text": oracle_text,
+        "source_artifacts": source_artifacts,
+    }
+
+
+def _oracle_readability_summary(
+    oracle_evidence: Mapping[str, Any], *, path: str, content_hash: str
+) -> dict[str, Any]:
+    facets = dict(oracle_evidence.get("oracle_facets") or {})
+    oracle_text = str(oracle_evidence.get("oracle_text") or "")
+    return {
+        "schema_version": oracle_evidence.get("schema_version"),
+        "evidence_kind": oracle_evidence.get("evidence_kind"),
+        "authority": oracle_evidence.get("authority"),
+        "path": path,
+        "content_hash": content_hash,
+        "behavior_status": facets.get("behavior_status"),
+        "status_counts": facets.get("status_counts") or {},
+        "example_count": facets.get("example_count"),
+        "failure_mode_count": facets.get("failure_mode_count"),
+        "has_failures": facets.get("has_failures"),
+        "oracle_text_hash": sha256_text(oracle_text),
+    }
 
 
 def materialize_program_from_intent(
@@ -384,6 +668,10 @@ def materialize_program_from_intent(
     behavior_results_payload: dict[str, Any] | None = None
     behavior_results_hash: str | None = None
     behavior_summary: dict[str, Any] | None = None
+    oracle_evidence_payload: dict[str, Any] | None = None
+    oracle_evidence_hash: str | None = None
+    oracle_readability_summary: dict[str, Any] | None = None
+    oracle_readability_facets: dict[str, Any] | None = None
     if examples_payload:
         behavior_results_path = root / "behavior_results.json"
         if not behavior_results_path.exists():
@@ -399,6 +687,30 @@ def materialize_program_from_intent(
             raw_summary = behavior_results_payload.get("summary")
             if isinstance(raw_summary, dict):
                 behavior_summary = dict(raw_summary)
+        if behavior_results_payload is not None and behavior_summary is not None:
+            assert behavior_results_hash is not None
+            oracle_evidence_payload = _build_oracle_evidence(
+                intent=intent,
+                ids=ids,
+                intent_hash=intent_hash,
+                plan_hash=plan_hash,
+                examples_hash=examples_hash,
+                behavior_results_hash=behavior_results_hash,
+                behavior_results=behavior_results_payload,
+                behavior_summary=behavior_summary,
+                surface_hashes=surface_hashes,
+            )
+            oracle_evidence_text = _write_json(
+                root / "oracle_evidence.json", oracle_evidence_payload
+            )
+            oracle_evidence_hash = sha256_text(oracle_evidence_text)
+            surface_hashes["oracle_evidence.json"] = oracle_evidence_hash
+            oracle_readability_summary = _oracle_readability_summary(
+                oracle_evidence_payload,
+                path="oracle_evidence.json",
+                content_hash=oracle_evidence_hash,
+            )
+            oracle_readability_facets = dict(oracle_evidence_payload["oracle_facets"])
     generated_file_names = sorted(
         [
             *generated_files.keys(),
@@ -410,7 +722,11 @@ def materialize_program_from_intent(
             "promotion_adjudication_request.json",
             "promotion_decision_template.json",
             "intent.json",
-            *(["examples.json", "behavior_results.json"] if examples_payload else []),
+            *(
+                ["examples.json", "behavior_results.json", "oracle_evidence.json"]
+                if examples_payload
+                else []
+            ),
             "manifest.json",
         ]
     )
@@ -429,7 +745,11 @@ def materialize_program_from_intent(
             "promotion_adjudication_request",
             "promotion_decision_template",
             "intent",
-            *(["examples", "behavior_results"] if examples_payload else []),
+            *(
+                ["examples", "behavior_results", "oracle_evidence"]
+                if examples_payload
+                else []
+            ),
             "signature",
             "module",
             "program",
@@ -549,6 +869,15 @@ def materialize_program_from_intent(
                         "schema_version": "program-behavior-results-v1",
                         "summary": behavior_summary or {},
                     },
+                    {
+                        "kind": "oracle_evidence",
+                        "path": "oracle_evidence.json",
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes["oracle_evidence.json"],
+                        "schema_version": "program-oracle-evidence-v1",
+                        "summary": oracle_readability_summary or {},
+                        "facets": oracle_readability_facets or {},
+                    },
                 ]
                 if eval_examples_code is not None
                 else []
@@ -572,6 +901,14 @@ def materialize_program_from_intent(
             "summary": behavior_summary or {},
         }
         if behavior_results_hash is not None
+        else None,
+        "oracle_evidence": {
+            "path": "oracle_evidence.json",
+            "content_hash": oracle_evidence_hash,
+            "summary": oracle_readability_summary or {},
+            "facets": oracle_readability_facets or {},
+        }
+        if oracle_evidence_hash is not None
         else None,
         "runtime_conditions": dict(intent.runtime),
         "metadata": {
@@ -611,6 +948,16 @@ def materialize_program_from_intent(
                 if behavior_results_hash is not None
                 else {}
             ),
+            **(
+                {
+                    "oracle_evidence_hash": oracle_evidence_hash,
+                    "oracle_evidence_path": "oracle_evidence.json",
+                    "oracle_readability_summary": oracle_readability_summary,
+                    "oracle_readability_facets": oracle_readability_facets,
+                }
+                if oracle_evidence_hash is not None
+                else {}
+            ),
             "surface_generation": {
                 "plan": "program-gen",
                 "jury": "program-gen",
@@ -629,6 +976,7 @@ def materialize_program_from_intent(
                     {
                         "examples_harness": "program-gen",
                         "behavior_results": "program-gen",
+                        "oracle_evidence": "program-gen",
                     }
                     if examples_result is not None
                     else {}
@@ -647,6 +995,18 @@ def materialize_program_from_intent(
             **(
                 {"behavior_summary": behavior_summary}
                 if behavior_summary is not None
+                else {}
+            ),
+            **(
+                {
+                    "oracle_readability": {
+                        "path": "oracle_evidence.json",
+                        "content_hash": oracle_evidence_hash,
+                        "summary": oracle_readability_summary,
+                        "facets": oracle_readability_facets,
+                    }
+                }
+                if oracle_evidence_hash is not None
                 else {}
             ),
         },
@@ -670,6 +1030,7 @@ def materialize_program_from_intent(
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "behavior_results_hash": behavior_results_hash,
+            "oracle_evidence_hash": oracle_evidence_hash,
         },
         "intent": intent_payload,
         "program_plan": program_plan,
@@ -678,6 +1039,14 @@ def materialize_program_from_intent(
         "program_promotion_review": promotion_review,
         "program_promotion_adjudication_request": promotion_adjudication_request,
         "program_promotion_decision_template": promotion_decision_template,
+        "oracle_readability": {
+            "path": "oracle_evidence.json",
+            "content_hash": oracle_evidence_hash,
+            "summary": oracle_readability_summary,
+            "facets": oracle_readability_facets,
+        }
+        if oracle_evidence_hash is not None
+        else None,
         "candidate_assembly": candidate_assembly,
         "execution_episode": execution_episode,
         "receipt_bundle": receipt_bundle,
@@ -723,6 +1092,9 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
+            "oracle_evidence_hash": oracle_evidence_hash,
+            "oracle_readability_summary": oracle_readability_summary,
+            "oracle_readability_facets": oracle_readability_facets,
             "generated_files": generated_file_names,
         },
         extra={
@@ -736,6 +1108,23 @@ def materialize_program_from_intent(
             **(
                 {"program_behavior_results": behavior_results_payload}
                 if behavior_results_payload is not None
+                else {}
+            ),
+            **(
+                {"program_oracle_evidence": oracle_evidence_payload}
+                if oracle_evidence_payload is not None
+                else {}
+            ),
+            **(
+                {
+                    "program_oracle_readability": {
+                        "path": "oracle_evidence.json",
+                        "content_hash": oracle_evidence_hash,
+                        "summary": oracle_readability_summary,
+                        "facets": oracle_readability_facets,
+                    }
+                }
+                if oracle_evidence_hash is not None
                 else {}
             ),
             "program_candidate_assembly": candidate_assembly,
@@ -779,6 +1168,9 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
+            "oracle_evidence_hash": oracle_evidence_hash,
+            "oracle_readability_summary": oracle_readability_summary,
+            "oracle_readability_facets": oracle_readability_facets,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
         },
