@@ -225,6 +225,8 @@ class ProgramIntent(BaseModel):
     constraints: list[str] = Field(default_factory=list)
     examples: list[dict[str, Any]] = Field(default_factory=list)
     examples_path: Optional[str] = None
+    dataset: dict[str, Any] = Field(default_factory=dict)
+    datasets: dict[str, Any] = Field(default_factory=dict)
     metric: Optional[str] = None
     runtime: dict[str, Any] = Field(default_factory=dict)
     jury: dict[str, Any] = Field(default_factory=dict)
@@ -275,7 +277,9 @@ class ProgramIntent(BaseModel):
             raise ValueError("program intent fields must be unique")
         return fields
 
-    @field_validator("jury", "promotion", "options", "runtime", "topology")
+    @field_validator(
+        "jury", "promotion", "options", "runtime", "topology", "dataset", "datasets"
+    )
     @classmethod
     def _mapping_fields_must_be_objects(cls, value: dict[str, Any]) -> dict[str, Any]:
         if value is None:

@@ -18,8 +18,9 @@ It is deliberately local-first and non-authoritative:
 - writes to a temp directory
 - does not call `ak`
 - does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run
+- can optionally materialize deterministic local dataset split evidence when intent declares `dataset` or `datasets`
 - does not run a model jury or promotion adjudicator
-- does not rank, prune, promote, export authority, or mutate governance state
+- does not rank, select winners, prune, promote, run GEPA/search, export authority, or mutate governance state
 
 The goal is to see the current artifact contract clearly, not to claim a final product loop.
 
@@ -33,7 +34,8 @@ The current `program-gen` loop proves:
 4. `module_surfaces.json` is a standalone `program-module-surfaces-v1` artifact containing one or more `program-module-surface-v1` contracts for the generated module surfaces that `program-gen` composed.
 5. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact.
 6. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`.
-6. `oracle_evidence.json` is Oracle-readable evidence derived from behavior results without invoking Oracle.
+6. When a dataset is declared, `program-gen` writes `dataset_manifest.json`, deterministic `splits/train.jsonl`, `splits/validation.jsonl`, `splits/test.jsonl`, split-specific harnesses, and `behavior_results.train.json` / `.validation.json` / `.test.json` without merging them into inline examples.
+6. `oracle_evidence.json` is Oracle-readable evidence derived from inline-example behavior results without invoking Oracle.
 7. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
 8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
@@ -50,10 +52,11 @@ It does **not** prove:
 
 - rich topology inference,
 - broad graph execution beyond the supported explicit `pipeline` subset,
-- dataset splits,
+- broad dataset/eval orchestration beyond the current deterministic split-specific local harnesses,
 - model-backed jury execution,
 - model-jury adjudication, external approval, or activation,
 - automatic Oracle indexing/interpretation/refinement/promotion-review/decision recording/second-candidate generation/candidate comparison during `program-gen`,
+- automatic GEPA/search, ranking, winner selection, or authority export,
 - ranking, winner selection, promotion approval, or authority export from candidate comparison,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search refinement,
@@ -153,6 +156,7 @@ Expected high-signal artifacts include:
 - `eval_examples.py`
 - `behavior_results.json`
 - `oracle_evidence.json`
+- optional dataset split artifacts when `dataset` / `datasets` are declared: `dataset_manifest.json`, `splits/*.jsonl`, `eval_train.py`, `eval_validation.py`, `eval_test.py`, and `behavior_results.{train,validation,test}.json`
 - `execution_episode.json`
 - `manifest.json`
 - `manifest.json.meta.json`
@@ -196,7 +200,28 @@ How to read it:
 - each surface declares primitive, signature IO, generated signature/module class names, artifact paths, false effect flags, and non-authority flags;
 - this is the bridge toward future local custom module refs, but the current slice does not import or execute arbitrary custom Python modules.
 
-## 5. Inspect the execution episode contract
+## 5. Optional: declare dataset split evidence
+
+A dataset declaration uses the same record shape as inline examples:
+
+```yaml
+dataset:
+  path: data/tickets.jsonl
+  input_fields: [ticket_text]
+  output_fields: [urgency]
+  split:
+    strategy: ratio
+    train: 0.7
+    validation: 0.15
+    test: 0.15
+    seed: 42
+```
+
+`program-gen` accepts JSONL (one object per row) plus JSON/YAML list-of-object files. Ratio split materialization loads source records in order, validates exact `inputs`/`outputs` fields, shuffles indices with `random.Random(seed)`, assigns `floor(n * train)` and `floor(n * validation)` records, and places the remainder in test. Explicit split files can instead be declared with `datasets.train`, `datasets.validation`, and `datasets.test`; those are normalized into canonical `splits/*.jsonl` artifacts without ratio recomputation. Empty splits are allowed and produce split behavior evidence with `summary.total: 0` and `status: no_examples`.
+
+Dataset split evidence is local and non-authoritative. It coexists with inline examples; it does not run Oracle automatically and does not introduce `eval_behavior.py`.
+
+## 6. Inspect the execution episode contract
 
 ```bash
 python - <<'PY'
@@ -228,7 +253,7 @@ How to read it:
 - `oracle_readability` points to `oracle_evidence.json` only when behavior evidence existed; `oracle_invoked` remains `false`.
 - `non_authority` keeps evidence separate from ranking, pruning, promotion, governance, Oracle, and external mutation authority.
 
-## 6. Inspect actual behavior over examples
+## 7. Inspect actual behavior over examples
 
 ```bash
 python - <<'PY'
@@ -250,7 +275,7 @@ With the stub provider, the example may fail exact-match comparison. That is sti
 
 Do not reinterpret this as promotion or ranking. It is evidence only.
 
-## 7. Inspect Oracle-readable evidence without invoking Oracle
+## 8. Inspect Oracle-readable evidence without invoking Oracle
 
 ```bash
 python - <<'PY'
@@ -272,7 +297,7 @@ PY
 
 This artifact is shaped for later Oracle consumption, but `program-gen` itself has not run `dspx oracle ...`, has not indexed anything, and has not mutated an Oracle DB.
 
-## 8. Optional explicit Oracle evidence indexing into a temp CoordinateIndex
+## 9. Optional explicit Oracle evidence indexing into a temp CoordinateIndex
 
 If you want to exercise the consumer-side seam, run Oracle indexing explicitly and keep the index in the temp workspace:
 
@@ -327,7 +352,7 @@ Expected JSON facts:
 
 This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still example-backed through `eval_examples.py` / `behavior_results.json`; there is no `eval_behavior.py` orchestration layer yet.
 
-## 9. Optional explicit bounded refinement proposal
+## 10. Optional explicit bounded refinement proposal
 
 If you want to exercise the next consumer-side seam, propose a bounded refinement from the generated manifest and the saved Oracle report:
 
@@ -351,7 +376,7 @@ Expected JSON facts:
 
 This command writes only the proposal artifact at `--out`. It does not mutate generated program files, does not create a second candidate assembly, does not index/report Oracle evidence automatically, and does not rank, prune, promote, block, export authority, or mutate governance.
 
-## 10. Optional explicit promotion-review refinement packet
+## 11. Optional explicit promotion-review refinement packet
 
 If you want to bring the generated promotion shell, behavior evidence, Oracle report, and refinement proposal into one local adjudication packet, run the promotion-review consumer explicitly:
 
@@ -377,7 +402,7 @@ Expected JSON facts:
 
 This command writes only the requested sidecar artifact. It does not overwrite generated `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`; it does not mutate `manifest.json`, behavior evidence, Oracle evidence, generated Python files, AK, governance, or external authority; it does not generate a new candidate assembly; it does not invoke an adjudicator or approve promotion. Top-level `status: review_packet_ready` means the packet was assembled from available evidence; it does not mean promotion is allowed. Promotion gating uses `review_readiness.ready_for_adjudicator_review`.
 
-## 11. Optional explicit local adjudicator decision record
+## 12. Optional explicit local adjudicator decision record
 
 If you want to record an explicit local operator/adjudicator decision against the refined packet, write a separate decision sidecar:
 
@@ -403,7 +428,7 @@ Expected JSON facts:
 
 The command writes only the requested decision sidecar. It does not mutate generated program artifacts, `promotion_review_refined.json`, Oracle indexes, AK, governance, external authority, or candidate code. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; there is no override flag in this wave, and top-level `status: review_packet_ready` is not sufficient.
 
-## 12. Optional explicit second candidate from request-more-evidence
+## 13. Optional explicit second candidate from request-more-evidence
 
 If the local decision outcome is `request_more_evidence`, you can materialize one bounded local second candidate from the proposal patch:
 
@@ -430,7 +455,7 @@ Expected JSON facts:
 
 This command is explicit follow-up candidate generation, not automatic program-gen behavior. It requires a `program-refinement-proposal-v1` with `status: proposed` and a local decision record with `outcome: request_more_evidence`. This first slice applies only bounded `constraints` intent patches. It does not mutate the source candidate, proposal, decision record, Oracle indexes, AK, governance, or external authority, and it does not promote either candidate.
 
-## 12a. Optional explicit comparison of source and second candidate
+## 13a. Optional explicit comparison of source and second candidate
 
 After the second candidate exists, compare the source and candidate behavior evidence without generating or promoting anything:
 
@@ -471,7 +496,7 @@ uv run -q python -m dspx.cli.dspx program-refine generate-and-compare \
 
 This workflow returns `schema_version: program-refinement-generate-and-compare-result-v1`, materializes exactly one second candidate, writes the same comparison sidecar, and still does not rank, select a winner, promote, mutate governance, export authority, or automate `program-gen`.
 
-## 13. Inspect manifest and receipt declarations
+## 14. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
@@ -499,7 +524,7 @@ PY
 
 Replay is declaration-driven: the receipt points at `manifest.json`, and the manifest/receipt bundle declare which evidence artifacts and hashes must match.
 
-## 14. Run clean replay
+## 15. Run clean replay
 
 ```bash
 uv run -q python -m dspx.cli.dspx run replay \
@@ -520,7 +545,7 @@ Expected result:
 
 Replay is local/offline. It should not require MLflow, a provider, Oracle, or AK.
 
-## 15. Prove replay detects execution-episode drift
+## 16. Prove replay detects execution-episode drift
 
 ```bash
 cp "$TD/program/execution_episode.json" "$TD/execution_episode.original.json"
@@ -555,7 +580,7 @@ cp "$TD/execution_episode.original.json" "$TD/program/execution_episode.json"
 
 This proves `execution_episode.json` is a replay-checked evidence artifact, not just duplicated metadata.
 
-## 16. Optional sidecar authority export plan
+## 17. Optional sidecar authority export plan
 
 The local base smoke includes an optional authority adapter planning step:
 
@@ -573,7 +598,7 @@ This writes:
 
 The plan status is `planned_not_exported`. It is not an AK mutation, not a promotion decision, and not an authority export.
 
-## 17. Cleanup
+## 18. Cleanup
 
 ```bash
 rm -rf "$TD"

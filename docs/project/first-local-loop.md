@@ -13,10 +13,10 @@ This is the smallest safe loop for trying the current DSPx base layer from a cle
 It demonstrates the current shipped path:
 
 ```text
-signature surface -> module surface -> module-surface contracts -> program-shaped candidate assembly -> execution episode -> receipt bundle -> authority export plan sidecar
+signature surface -> module surface -> module-surface contracts -> program-shaped candidate assembly -> optional example/dataset evidence -> execution episode -> receipt bundle -> authority export plan sidecar
 ```
 
-The default starter intent still exercises the single-module path. `program-gen` also supports explicit user-declared `pipeline` topology for the narrow `Predict` / `ChainOfThought` subset with `signature.name` / `signature.inputs` / `signature.outputs` and simple `when.field` / `when.equals` routing. In both paths it emits `module_surfaces.json` (`program-module-surfaces-v1`) so generated module surfaces are replayable, hashable, and IO-declared. That topology is rendered from structured intent only; DSPx does not infer topology, run arbitrary expressions, or import/execute custom Python modules.
+The default starter intent still exercises the single-module path. `program-gen` also supports explicit user-declared `pipeline` topology for the narrow `Predict` / `ChainOfThought` subset with `signature.name` / `signature.inputs` / `signature.outputs` and simple `when.field` / `when.equals` routing. In both paths it emits `module_surfaces.json` (`program-module-surfaces-v1`) so generated module surfaces are replayable, hashable, and IO-declared. Structured intent may also declare local dataset split evidence via `dataset` (JSONL/JSON/YAML source plus ratio seed) or `datasets` (explicit train/validation/test files), which adds `dataset_manifest.json`, split JSONL files, split eval harnesses, and split behavior results. Dataset support does not change topology rendering: DSPx does not infer topology, run arbitrary expressions, or import/execute custom Python modules.
 
 The loop is intentionally offline and non-authoritative:
 
@@ -25,7 +25,7 @@ The loop is intentionally offline and non-authoritative:
 - writes to a temp directory by default
 - does not call `ak`
 - does not mutate Agent Kernel or any other external authority
-- does not promote, rank, prune, or grant Oracle/governance authority
+- does not promote, rank, select winners, prune, run GEPA/search, run jury execution, or grant Oracle/governance authority
 
 ## One command
 
@@ -119,7 +119,8 @@ After a successful run, start with:
 - `program/module_surfaces.json` — standalone `program-module-surfaces-v1` contract containing one `program-module-surface-v1` per generated module surface; this prepares for future local custom module refs without executing them now
 - `program/execution_episode.json` — standalone `program-execution-episode-v1` contract separating materialization, binding checks, behavioral evaluation, Oracle readability, and non-authority flags
 - `program/behavior_results.json` — example-backed behavior evidence when examples exist
-- `program/oracle_evidence.json` — Oracle-readable evidence when behavior results exist; Oracle is not invoked
+- optional `program/dataset_manifest.json`, `program/splits/*.jsonl`, `program/eval_{train,validation,test}.py`, and `program/behavior_results.{train,validation,test}.json` — split-specific local behavior evidence when the intent declares a dataset
+- `program/oracle_evidence.json` — Oracle-readable evidence when inline-example behavior results exist; Oracle is not invoked
 - `program/manifest.json` — candidate assembly / execution episode / receipt-bundle metadata
 - `program/manifest.json.meta.json` — `program-gen` receipt
 - `program/ak-export-plan.json` — sidecar authority export plan, `planned_not_exported`
@@ -139,7 +140,7 @@ just smoke-program-refinement
 
 That target runs `scripts/smoke_program_refinement_loop.sh` in a temp directory by default. It exercises the local evidence/refinement path through explicit temp-dir Oracle indexing/reporting, `program-refine propose`, `program-promote review`, `program-promote decide --outcome request_more_evidence`, and `program-refine generate-and-compare`.
 
-It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not export authority, and does not introduce `eval_behavior.py`.
+It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not export authority, and does not introduce `eval_behavior.py`.
 
 ## Boundary reminder
 

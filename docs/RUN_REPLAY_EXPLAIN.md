@@ -77,13 +77,14 @@ Current writers using this contract:
 - receipt parse + schema validation (`receipt_version: v1`, required fields,
   required `replay_inputs` keys)
 - output artifact existence + output hash verification
-- for `program-gen`, module-surface and execution-episode evidence artifact
-  verification for declared standalone module-surface, episode, behavior, and
-  Oracle-readability artifacts such as `module_surfaces.json`,
-  `execution_episode.json`, `behavior_results.json`, and `oracle_evidence.json`;
-  replay compares declarations from the manifest execution episode/artifact fields,
-  candidate surfaces, receipt-bundle evidence, surface hashes, and receipt run
-  summary before hashing local artifacts
+- for `program-gen`, module-surface, execution-episode, inline behavior,
+  dataset split, and Oracle-readability evidence artifact verification for declared
+  standalone artifacts such as `module_surfaces.json`, `execution_episode.json`,
+  `behavior_results.json`, `oracle_evidence.json`, `dataset_manifest.json`,
+  `splits/{train,validation,test}.jsonl`, `eval_{train,validation,test}.py`,
+  and `behavior_results.{train,validation,test}.json`; replay compares
+  declarations from manifest artifact fields, candidate surfaces, receipt-bundle
+  evidence, surface hashes, and receipt run summary before hashing local artifacts
 - cache linkage verification (`cache_key`, `cache_file`, run-kind cache folder)
 - cache provenance verification (recomputed `cache_key`, cached `code` hash)
 - stable machine-readable diagnostics in JSON mode:
@@ -106,8 +107,9 @@ Stable replay issue codes (current v1 taxonomy):
 - program-gen evidence drift: `program_manifest_invalid_json_object`,
   `program_evidence_artifact_missing`, `program_evidence_hash_mismatch`,
   `program_evidence_declaration_mismatch`; current declared artifact kinds include
-  `module_surfaces`, `execution_episode`, `behavior_results`, and
-  `oracle_evidence` when present
+  `module_surfaces`, `execution_episode`, `behavior_results`, `oracle_evidence`,
+  `dataset_manifest`, `dataset_split_<split>`, `dataset_split_harness_<split>`, and
+  `dataset_split_behavior_results_<split>` when present
 
 Operational guarantees:
 - replay command forces local/offline posture (`MLFLOW_ENABLE=0`)

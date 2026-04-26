@@ -23,6 +23,13 @@ from dspx.services.program_intent import (
     default_outdir as _default_outdir,
     load_program_intent,
 )
+from dspx.services.program_dataset import (
+    SPLIT_NAMES,
+    finalize_program_dataset_manifest,
+    has_program_dataset,
+    materialize_program_dataset_splits,
+    render_dataset_split_eval_harness,
+)
 from dspx.services.program_jury import (
     build_jury_rubric,
     build_jury_selection,
@@ -98,6 +105,34 @@ def _examples_plan_metadata(
         "path": intent.examples_path,
         "hash": examples_hash,
     }
+
+
+def _dataset_plan_metadata(intent: ProgramIntent) -> dict[str, Any]:
+    if intent.dataset:
+        split = dict(intent.dataset.get("split") or {})
+        return {
+            "source": "dataset_path",
+            "path": intent.dataset.get("path"),
+            "input_fields": list(intent.dataset.get("input_fields") or intent.inputs),
+            "output_fields": list(
+                intent.dataset.get("output_fields") or intent.outputs
+            ),
+            "split": {
+                "strategy": split.get("strategy"),
+                "train": split.get("train"),
+                "validation": split.get("validation"),
+                "test": split.get("test"),
+                "seed": split.get("seed", 42),
+            },
+        }
+    if intent.datasets:
+        return {
+            "source": "explicit_splits",
+            "paths": {split: intent.datasets.get(split) for split in SPLIT_NAMES},
+            "input_fields": list(intent.inputs),
+            "output_fields": list(intent.outputs),
+        }
+    return {"source": "none"}
 
 
 def _default_materialized_topology(intent: ProgramIntent) -> dict[str, Any]:
@@ -182,6 +217,7 @@ def build_program_plan(
 
     topology_contract = _topology_plan_contract(intent)
     has_examples = bool(intent.examples)
+    has_dataset = has_program_dataset(intent)
     surfaces: list[dict[str, Any]] = [
         {"kind": "plan", "path": "plan.json", "generator": "program-gen"},
         {"kind": "jury", "path": "jury.json", "generator": "program-gen"},
@@ -257,6 +293,35 @@ def build_program_plan(
                 },
             ]
         )
+    if has_dataset:
+        dataset_surfaces: list[dict[str, Any]] = [
+            {
+                "kind": "dataset_manifest",
+                "path": "dataset_manifest.json",
+                "generator": "program-gen",
+            }
+        ]
+        for split in SPLIT_NAMES:
+            dataset_surfaces.extend(
+                [
+                    {
+                        "kind": f"dataset_split_{split}",
+                        "path": f"splits/{split}.jsonl",
+                        "generator": "program-gen",
+                    },
+                    {
+                        "kind": f"dataset_split_harness_{split}",
+                        "path": f"eval_{split}.py",
+                        "generator": "program-gen",
+                    },
+                    {
+                        "kind": f"dataset_split_behavior_results_{split}",
+                        "path": f"behavior_results.{split}.json",
+                        "generator": "program-gen",
+                    },
+                ]
+            )
+        surfaces.extend(dataset_surfaces)
     return {
         "schema_version": "program-plan-v1",
         "intent": {
@@ -279,6 +344,7 @@ def build_program_plan(
         "runtime": dict(intent.runtime),
         "constraints": list(intent.constraints),
         "examples": _examples_plan_metadata(intent, examples_hash=examples_hash),
+        "dataset": _dataset_plan_metadata(intent),
         "evaluation_strategy": _jury_plan_defaults(intent),
         "non_authority": {
             "candidate_assembly": "materialized_not_promoted",
@@ -326,6 +392,12 @@ def _run_eval_smoke(root: Path) -> dict[str, Any]:
 
 def _run_eval_examples(root: Path) -> dict[str, Any]:
     return _run_python_harness(root, "eval_examples.py", label="examples validation")
+
+
+def _run_eval_dataset_split(root: Path, split: str) -> dict[str, Any]:
+    return _run_python_harness(
+        root, f"eval_{split}.py", label=f"dataset split {split} validation"
+    )
 
 
 def _run_eval_jury(root: Path) -> dict[str, Any]:
@@ -635,6 +707,11 @@ def _build_execution_episode_contract(
     jury_result: Mapping[str, Any],
     promotion_result: Mapping[str, Any],
     examples_result: Mapping[str, Any] | None,
+    dataset_manifest_hash: str | None,
+    dataset_manifest_payload: Mapping[str, Any] | None,
+    dataset_split_results: Mapping[str, Mapping[str, Any]],
+    dataset_split_behavior_payloads: Mapping[str, Mapping[str, Any]],
+    dataset_split_behavior_hashes: Mapping[str, str],
     behavior_results_hash: str | None,
     behavior_summary: Mapping[str, Any] | None,
     behavior_results_payload: Mapping[str, Any] | None,
@@ -643,6 +720,11 @@ def _build_execution_episode_contract(
     oracle_readability_facets: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     examples_count = len(intent.examples or [])
+    dataset_artifacts = (
+        dict(dataset_manifest_payload.get("artifacts") or {})
+        if dataset_manifest_payload is not None
+        else {}
+    )
     behavior_status = None
     if behavior_summary is not None:
         behavior_status = str(behavior_summary.get("status") or "executed")
@@ -731,6 +813,24 @@ def _build_execution_episode_contract(
                 if examples_result is not None
                 else [],
             },
+            "dataset_binding": {
+                "status": "passed"
+                if dataset_manifest_payload is not None
+                else "not_applicable",
+                "dataset_manifest": "dataset_manifest.json"
+                if dataset_manifest_payload is not None
+                else None,
+                "split_artifacts": {
+                    split: {
+                        "split_path": artifact.get("path"),
+                        "eval_harness": artifact.get("eval_harness"),
+                        "behavior_results": artifact.get("behavior_results"),
+                        "record_count": artifact.get("record_count"),
+                    }
+                    for split, artifact in dataset_artifacts.items()
+                    if isinstance(artifact, Mapping)
+                },
+            },
             "jury_binding": {
                 "status": _harness_status(jury_result),
                 "returncode": jury_result.get("returncode"),
@@ -762,6 +862,34 @@ def _build_execution_episode_contract(
         }
         if behavior_results_hash is not None
         else None,
+        "dataset_evaluation": {
+            "status": "captured"
+            if dataset_manifest_payload is not None
+            else "not_applicable",
+            "dataset_manifest": {
+                "path": "dataset_manifest.json",
+                "content_hash": dataset_manifest_hash,
+                "schema_version": dataset_manifest_payload.get("schema_version"),
+            }
+            if dataset_manifest_payload is not None
+            else None,
+            "split_results": {
+                split: {
+                    "harness": dict(dataset_split_results.get(split) or {}),
+                    "behavior_results_path": dataset_artifacts.get(split, {}).get(
+                        "behavior_results"
+                    )
+                    if isinstance(dataset_artifacts.get(split), Mapping)
+                    else None,
+                    "behavior_results_hash": dataset_split_behavior_hashes.get(split),
+                    "summary": dict(
+                        dataset_split_behavior_payloads.get(split, {}).get("summary")
+                        or {}
+                    ),
+                }
+                for split in SPLIT_NAMES
+            },
+        },
         "oracle_readability": oracle_readability,
         "oracle_evidence": {
             "path": "oracle_evidence.json",
@@ -789,6 +917,23 @@ def _build_execution_episode_contract(
             **(
                 {"examples": dict(examples_result)}
                 if examples_result is not None
+                else {}
+            ),
+            **(
+                {
+                    "dataset": {
+                        "manifest": dict(dataset_manifest_payload),
+                        "split_harnesses": {
+                            split: dict(result)
+                            for split, result in dataset_split_results.items()
+                        },
+                        "split_behavior_results": {
+                            split: dict(payload)
+                            for split, payload in dataset_split_behavior_payloads.items()
+                        },
+                    }
+                }
+                if dataset_manifest_payload is not None
                 else {}
             ),
             **(
@@ -827,6 +972,11 @@ def materialize_program_from_intent(
     eval_smoke_code = render_eval_smoke(intent)
     eval_jury_code = render_eval_jury()
     eval_promotion_code = render_eval_promotion()
+    dataset_eval_codes = {
+        split: render_dataset_split_eval_harness(split)
+        for split in SPLIT_NAMES
+        if has_program_dataset(intent)
+    }
     examples_payload = list(intent.examples or [])
     examples_text = _json_text(examples_payload) if examples_payload else None
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
@@ -885,6 +1035,9 @@ def materialize_program_from_intent(
     ]
     if eval_examples_code is not None:
         bundle_parts.append(eval_examples_code)
+    bundle_parts.extend(
+        dataset_eval_codes[split] for split in sorted(dataset_eval_codes)
+    )
     surface_bundle_text = "\n\n".join(bundle_parts)
     ids = _build_ids(intent, surface_bundle_text)
     intent_payload = _intent_payload(intent)
@@ -907,6 +1060,8 @@ def materialize_program_from_intent(
     }
     if eval_examples_code is not None:
         surface_hashes["eval_examples.py"] = sha256_text(eval_examples_code)
+    for split, code in dataset_eval_codes.items():
+        surface_hashes[f"eval_{split}.py"] = sha256_text(code)
     program_hash = surface_hashes["program.py"]
     assembly_hash = sha256_text(surface_bundle_text)
 
@@ -920,6 +1075,8 @@ def materialize_program_from_intent(
     }
     if eval_examples_code is not None:
         generated_files["eval_examples.py"] = eval_examples_code
+    for split, code in dataset_eval_codes.items():
+        generated_files[f"eval_{split}.py"] = code
     for relative, content in generated_files.items():
         compile(content, str(root / relative), "exec")
         (root / relative).write_text(content, encoding="utf-8")
@@ -939,10 +1096,49 @@ def materialize_program_from_intent(
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
+    dataset_manifest_payload = materialize_program_dataset_splits(
+        intent,
+        root=root,
+        intent_source=intent_source,
+    )
     smoke_result = _run_eval_smoke(root)
     jury_result = _run_eval_jury(root)
     promotion_result = _run_eval_promotion(root)
     examples_result = _run_eval_examples(root) if examples_payload else None
+    dataset_split_results: dict[str, dict[str, Any]] = {}
+    dataset_split_behavior_payloads: dict[str, dict[str, Any]] = {}
+    dataset_split_behavior_hashes: dict[str, str] = {}
+    dataset_manifest_hash: str | None = None
+    if dataset_manifest_payload is not None:
+        for split in SPLIT_NAMES:
+            dataset_split_results[split] = _run_eval_dataset_split(root, split)
+            behavior_path = root / f"behavior_results.{split}.json"
+            if not behavior_path.exists():
+                raise ValueError(
+                    f"program dataset split harness did not write {behavior_path.name}"
+                )
+            behavior_text = behavior_path.read_text(encoding="utf-8")
+            dataset_split_behavior_hashes[split] = sha256_text(behavior_text)
+            raw_payload = json.loads(behavior_text)
+            if isinstance(raw_payload, dict):
+                dataset_split_behavior_payloads[split] = raw_payload
+        dataset_manifest_payload, dataset_manifest_hash = (
+            finalize_program_dataset_manifest(
+                dataset_manifest_payload,
+                root=root,
+            )
+        )
+        surface_hashes["dataset_manifest.json"] = dataset_manifest_hash
+        dataset_artifacts = dict(dataset_manifest_payload.get("artifacts") or {})
+        for split in SPLIT_NAMES:
+            split_artifact = dict(dataset_artifacts.get(split) or {})
+            split_path = str(split_artifact.get("path") or f"splits/{split}.jsonl")
+            behavior_path = str(
+                split_artifact.get("behavior_results")
+                or f"behavior_results.{split}.json"
+            )
+            surface_hashes[split_path] = str(split_artifact.get("content_hash"))
+            surface_hashes[behavior_path] = dataset_split_behavior_hashes[split]
     behavior_results_payload: dict[str, Any] | None = None
     behavior_results_hash: str | None = None
     behavior_summary: dict[str, Any] | None = None
@@ -989,9 +1185,27 @@ def materialize_program_from_intent(
                 content_hash=oracle_evidence_hash,
             )
             oracle_readability_facets = dict(oracle_evidence_payload["oracle_facets"])
+    dataset_generated_file_names: list[str] = []
+    if dataset_manifest_payload is not None:
+        dataset_generated_file_names.append("dataset_manifest.json")
+        dataset_artifacts_for_names = dict(
+            dataset_manifest_payload.get("artifacts") or {}
+        )
+        for split in SPLIT_NAMES:
+            artifact = dict(dataset_artifacts_for_names.get(split) or {})
+            dataset_generated_file_names.extend(
+                [
+                    str(artifact.get("path") or f"splits/{split}.jsonl"),
+                    str(
+                        artifact.get("behavior_results")
+                        or f"behavior_results.{split}.json"
+                    ),
+                ]
+            )
     generated_file_names = sorted(
         [
             *generated_files.keys(),
+            *dataset_generated_file_names,
             "plan.json",
             "jury.json",
             "jury_selection.json",
@@ -1018,6 +1232,11 @@ def materialize_program_from_intent(
         jury_result=jury_result,
         promotion_result=promotion_result,
         examples_result=examples_result,
+        dataset_manifest_hash=dataset_manifest_hash,
+        dataset_manifest_payload=dataset_manifest_payload,
+        dataset_split_results=dataset_split_results,
+        dataset_split_behavior_payloads=dataset_split_behavior_payloads,
+        dataset_split_behavior_hashes=dataset_split_behavior_hashes,
         behavior_results_hash=behavior_results_hash,
         behavior_summary=behavior_summary,
         behavior_results_payload=behavior_results_payload,
@@ -1031,6 +1250,76 @@ def materialize_program_from_intent(
     execution_episode_hash = sha256_text(execution_episode_text)
     surface_hashes["execution_episode.json"] = execution_episode_hash
     topology_execution = dict(execution_episode["topology_execution"])
+
+    dataset_candidate_surfaces: list[dict[str, Any]] = []
+    dataset_evidence: dict[str, Any] | None = None
+    if dataset_manifest_payload is not None and dataset_manifest_hash is not None:
+        dataset_artifacts = dict(dataset_manifest_payload.get("artifacts") or {})
+        dataset_candidate_surfaces.append(
+            {
+                "kind": "dataset_manifest",
+                "path": "dataset_manifest.json",
+                "generator": "program-gen",
+                "content_hash": dataset_manifest_hash,
+                "schema_version": dataset_manifest_payload["schema_version"],
+                "status": dataset_manifest_payload["status"],
+            }
+        )
+        split_evidence: dict[str, dict[str, Any]] = {}
+        for split in SPLIT_NAMES:
+            artifact = dict(dataset_artifacts.get(split) or {})
+            split_path = str(artifact.get("path") or f"splits/{split}.jsonl")
+            harness_path = str(artifact.get("eval_harness") or f"eval_{split}.py")
+            behavior_path = str(
+                artifact.get("behavior_results") or f"behavior_results.{split}.json"
+            )
+            dataset_candidate_surfaces.extend(
+                [
+                    {
+                        "kind": f"dataset_split_{split}",
+                        "path": split_path,
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes[split_path],
+                        "record_count": artifact.get("record_count"),
+                    },
+                    {
+                        "kind": f"dataset_split_harness_{split}",
+                        "path": harness_path,
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes[harness_path],
+                    },
+                    {
+                        "kind": f"dataset_split_behavior_results_{split}",
+                        "path": behavior_path,
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes[behavior_path],
+                        "schema_version": "program-behavior-results-v1",
+                        "summary": dict(
+                            dataset_split_behavior_payloads.get(split, {}).get(
+                                "summary"
+                            )
+                            or {}
+                        ),
+                    },
+                ]
+            )
+            split_evidence[split] = {
+                "split_path": split_path,
+                "split_hash": surface_hashes[split_path],
+                "record_count": artifact.get("record_count"),
+                "eval_harness": harness_path,
+                "eval_harness_hash": surface_hashes[harness_path],
+                "behavior_results_path": behavior_path,
+                "behavior_results_hash": surface_hashes[behavior_path],
+                "summary": dict(
+                    dataset_split_behavior_payloads.get(split, {}).get("summary") or {}
+                ),
+            }
+        dataset_evidence = {
+            "dataset_manifest_path": "dataset_manifest.json",
+            "dataset_manifest_hash": dataset_manifest_hash,
+            "split_artifacts": split_evidence,
+        }
 
     candidate_assembly = {
         "assembly_id": ids["assembly_id"],
@@ -1051,6 +1340,16 @@ def materialize_program_from_intent(
             *(
                 ["examples", "behavior_results", "oracle_evidence"]
                 if examples_payload
+                else []
+            ),
+            *(
+                [
+                    "dataset_manifest",
+                    "dataset_split",
+                    "dataset_split_harness",
+                    "dataset_split_behavior_results",
+                ]
+                if dataset_manifest_payload is not None
                 else []
             ),
             "signature",
@@ -1135,6 +1434,7 @@ def materialize_program_from_intent(
                 "schema_version": execution_episode["schema_version"],
                 "status": execution_episode["status"],
             },
+            *dataset_candidate_surfaces,
             {
                 "kind": "signature",
                 "path": "signature.py",
@@ -1244,6 +1544,12 @@ def materialize_program_from_intent(
                 if oracle_evidence_hash is not None
                 else {}
             ),
+            **({"dataset": dataset_evidence} if dataset_evidence is not None else {}),
+            **(
+                {"dataset_manifest_hash": dataset_manifest_hash}
+                if dataset_manifest_hash is not None
+                else {}
+            ),
             "surface_generation": {
                 "plan": "program-gen",
                 "jury": "program-gen",
@@ -1269,12 +1575,31 @@ def materialize_program_from_intent(
                     if examples_result is not None
                     else {}
                 ),
+                **(
+                    {
+                        "dataset_manifest": "program-gen",
+                        "dataset_split": "program-gen",
+                        "dataset_split_harness": "program-gen",
+                        "dataset_split_behavior_results": "program-gen",
+                    }
+                    if dataset_evidence is not None
+                    else {}
+                ),
             },
             "generated_files": generated_file_names,
             "smoke": smoke_result,
             "jury": jury_result,
             "promotion": promotion_result,
             **({"examples": examples_result} if examples_result is not None else {}),
+            **(
+                {
+                    "dataset_manifest": dataset_manifest_payload,
+                    "dataset_split_results": dataset_split_results,
+                    "dataset_split_behavior_results": dataset_split_behavior_payloads,
+                }
+                if dataset_manifest_payload is not None
+                else {}
+            ),
             **(
                 {"behavior_results": behavior_results_payload}
                 if behavior_results_payload is not None
@@ -1319,6 +1644,10 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "execution_episode_hash": execution_episode_hash,
+            "dataset_manifest_hash": dataset_manifest_hash,
+            "dataset_split_behavior_results_hashes": dict(
+                dataset_split_behavior_hashes
+            ),
             "behavior_results_hash": behavior_results_hash,
             "oracle_evidence_hash": oracle_evidence_hash,
         },
@@ -1340,6 +1669,15 @@ def materialize_program_from_intent(
             "content_hash": execution_episode_hash,
             "schema_version": execution_episode["schema_version"],
         },
+        "dataset_manifest": dataset_manifest_payload,
+        "dataset_manifest_artifact": {
+            "path": "dataset_manifest.json",
+            "content_hash": dataset_manifest_hash,
+            "schema_version": dataset_manifest_payload["schema_version"],
+        }
+        if dataset_manifest_payload is not None and dataset_manifest_hash is not None
+        else None,
+        "dataset_split_evidence": dataset_evidence,
         "topology_execution": topology_execution,
         "oracle_readability": {
             "path": "oracle_evidence.json",
@@ -1396,6 +1734,11 @@ def materialize_program_from_intent(
             "module_surfaces_path": "module_surfaces.json",
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
+            "dataset_manifest_hash": dataset_manifest_hash,
+            "dataset_manifest_path": "dataset_manifest.json"
+            if dataset_manifest_hash is not None
+            else None,
+            "dataset_split_evidence": dataset_evidence,
             "topology_execution": topology_execution,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
@@ -1423,6 +1766,20 @@ def materialize_program_from_intent(
                 "content_hash": execution_episode_hash,
                 "schema_version": execution_episode["schema_version"],
             },
+            **(
+                {
+                    "program_dataset_manifest": dataset_manifest_payload,
+                    "program_dataset_manifest_artifact": {
+                        "path": "dataset_manifest.json",
+                        "content_hash": dataset_manifest_hash,
+                        "schema_version": dataset_manifest_payload["schema_version"],
+                    },
+                    "program_dataset_split_evidence": dataset_evidence,
+                }
+                if dataset_manifest_payload is not None
+                and dataset_manifest_hash is not None
+                else {}
+            ),
             "program_topology_execution": topology_execution,
             **(
                 {"program_behavior_results": behavior_results_payload}
@@ -1487,6 +1844,10 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "execution_episode_hash": execution_episode_hash,
+            "dataset_manifest_hash": dataset_manifest_hash,
+            "dataset_split_behavior_results_hashes": dict(
+                dataset_split_behavior_hashes
+            ),
             "topology_execution": topology_execution,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,

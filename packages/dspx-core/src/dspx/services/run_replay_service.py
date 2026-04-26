@@ -323,6 +323,35 @@ def _program_evidence_declarations(
         content_hash=execution_episode_artifact.get("content_hash"),
         source="manifest.execution_episode_artifact",
     )
+    dataset_manifest_artifact = _nested_dict(manifest, "dataset_manifest_artifact")
+    add(
+        "dataset_manifest",
+        path=dataset_manifest_artifact.get("path"),
+        content_hash=dataset_manifest_artifact.get("content_hash"),
+        source="manifest.dataset_manifest_artifact",
+    )
+    dataset_split_evidence = _nested_dict(manifest, "dataset_split_evidence")
+    split_artifacts = _nested_dict(dataset_split_evidence, "split_artifacts")
+    for split in ("train", "validation", "test"):
+        split_payload = _as_dict(split_artifacts.get(split))
+        add(
+            f"dataset_split_{split}",
+            path=split_payload.get("split_path"),
+            content_hash=split_payload.get("split_hash"),
+            source=f"manifest.dataset_split_evidence.{split}.split_hash",
+        )
+        add(
+            f"dataset_split_harness_{split}",
+            path=split_payload.get("eval_harness"),
+            content_hash=split_payload.get("eval_harness_hash"),
+            source=f"manifest.dataset_split_evidence.{split}.eval_harness_hash",
+        )
+        add(
+            f"dataset_split_behavior_results_{split}",
+            path=split_payload.get("behavior_results_path"),
+            content_hash=split_payload.get("behavior_results_hash"),
+            source=f"manifest.dataset_split_evidence.{split}.behavior_results_hash",
+        )
 
     execution_episode = _nested_dict(manifest, "execution_episode")
     behavior_results = _nested_dict(execution_episode, "behavior_results")
@@ -351,6 +380,16 @@ def _program_evidence_declarations(
             "execution_episode",
             "behavior_results",
             "oracle_evidence",
+            "dataset_manifest",
+            "dataset_split_train",
+            "dataset_split_validation",
+            "dataset_split_test",
+            "dataset_split_harness_train",
+            "dataset_split_harness_validation",
+            "dataset_split_harness_test",
+            "dataset_split_behavior_results_train",
+            "dataset_split_behavior_results_validation",
+            "dataset_split_behavior_results_test",
         }:
             continue
         add(
@@ -385,6 +424,34 @@ def _program_evidence_declarations(
         content_hash=evidence.get("oracle_evidence_hash"),
         source="manifest.receipt_bundle.evidence.oracle_evidence_hash",
     )
+    add(
+        "dataset_manifest",
+        path="dataset_manifest.json",
+        content_hash=evidence.get("dataset_manifest_hash"),
+        source="manifest.receipt_bundle.evidence.dataset_manifest_hash",
+    )
+    receipt_dataset = _nested_dict(evidence, "dataset")
+    receipt_split_artifacts = _nested_dict(receipt_dataset, "split_artifacts")
+    for split in ("train", "validation", "test"):
+        split_payload = _as_dict(receipt_split_artifacts.get(split))
+        add(
+            f"dataset_split_{split}",
+            path=split_payload.get("split_path"),
+            content_hash=split_payload.get("split_hash"),
+            source=f"manifest.receipt_bundle.evidence.dataset.{split}.split_hash",
+        )
+        add(
+            f"dataset_split_harness_{split}",
+            path=split_payload.get("eval_harness"),
+            content_hash=split_payload.get("eval_harness_hash"),
+            source=f"manifest.receipt_bundle.evidence.dataset.{split}.eval_harness_hash",
+        )
+        add(
+            f"dataset_split_behavior_results_{split}",
+            path=split_payload.get("behavior_results_path"),
+            content_hash=split_payload.get("behavior_results_hash"),
+            source=f"manifest.receipt_bundle.evidence.dataset.{split}.behavior_results_hash",
+        )
 
     surface_hashes = _nested_dict(
         manifest, "receipt_bundle", "evidence", "surface_hashes"
@@ -413,6 +480,36 @@ def _program_evidence_declarations(
         content_hash=surface_hashes.get("oracle_evidence.json"),
         source="manifest.receipt_bundle.evidence.surface_hashes.oracle_evidence.json",
     )
+    add(
+        "dataset_manifest",
+        path="dataset_manifest.json",
+        content_hash=surface_hashes.get("dataset_manifest.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.dataset_manifest.json",
+    )
+    for split in ("train", "validation", "test"):
+        add(
+            f"dataset_split_{split}",
+            path=f"splits/{split}.jsonl",
+            content_hash=surface_hashes.get(f"splits/{split}.jsonl"),
+            source=(
+                f"manifest.receipt_bundle.evidence.surface_hashes.splits/{split}.jsonl"
+            ),
+        )
+        add(
+            f"dataset_split_harness_{split}",
+            path=f"eval_{split}.py",
+            content_hash=surface_hashes.get(f"eval_{split}.py"),
+            source=(f"manifest.receipt_bundle.evidence.surface_hashes.eval_{split}.py"),
+        )
+        add(
+            f"dataset_split_behavior_results_{split}",
+            path=f"behavior_results.{split}.json",
+            content_hash=surface_hashes.get(f"behavior_results.{split}.json"),
+            source=(
+                "manifest.receipt_bundle.evidence.surface_hashes."
+                f"behavior_results.{split}.json"
+            ),
+        )
 
     run_summary = _as_dict(receipt.get("run_summary"))
     add(
@@ -439,6 +536,37 @@ def _program_evidence_declarations(
         content_hash=run_summary.get("oracle_evidence_hash"),
         source="receipt.run_summary.oracle_evidence_hash",
     )
+    add(
+        "dataset_manifest",
+        path=run_summary.get("dataset_manifest_path") or "dataset_manifest.json",
+        content_hash=run_summary.get("dataset_manifest_hash"),
+        source="receipt.run_summary.dataset_manifest_hash",
+    )
+    summary_dataset = _nested_dict(run_summary, "dataset_split_evidence")
+    summary_split_artifacts = _nested_dict(summary_dataset, "split_artifacts")
+    for split in ("train", "validation", "test"):
+        split_payload = _as_dict(summary_split_artifacts.get(split))
+        add(
+            f"dataset_split_{split}",
+            path=split_payload.get("split_path"),
+            content_hash=split_payload.get("split_hash"),
+            source=f"receipt.run_summary.dataset_split_evidence.{split}.split_hash",
+        )
+        add(
+            f"dataset_split_harness_{split}",
+            path=split_payload.get("eval_harness"),
+            content_hash=split_payload.get("eval_harness_hash"),
+            source=f"receipt.run_summary.dataset_split_evidence.{split}.eval_harness_hash",
+        )
+        add(
+            f"dataset_split_behavior_results_{split}",
+            path=split_payload.get("behavior_results_path"),
+            content_hash=split_payload.get("behavior_results_hash"),
+            source=(
+                "receipt.run_summary.dataset_split_evidence."
+                f"{split}.behavior_results_hash"
+            ),
+        )
 
     grouped: list[dict[str, Any]] = []
     for kind in sorted(declarations_by_kind):
