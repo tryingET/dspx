@@ -300,19 +300,21 @@ def _validate_receipt(receipt: Mapping[str, Any]) -> list[ValidationIssue]:
 
 def _program_evidence_declarations(
     *, manifest: Mapping[str, Any], receipt: Mapping[str, Any]
-) -> list[dict[str, str]]:
-    declarations_by_kind: dict[str, dict[str, str]] = {}
+) -> list[dict[str, Any]]:
+    declarations_by_kind: dict[str, list[dict[str, str]]] = {}
 
-    def add(kind: str, *, path: object, content_hash: object) -> None:
+    def add(kind: str, *, path: object, content_hash: object, source: str) -> None:
         path_text = _optional_str(path)
         hash_text = _optional_str(content_hash)
         if path_text is None or hash_text is None:
             return
-        declarations_by_kind[kind] = {
-            "kind": kind,
-            "path": path_text,
-            "content_hash": hash_text,
-        }
+        declarations_by_kind.setdefault(kind, []).append(
+            {
+                "source": source,
+                "path": path_text,
+                "content_hash": hash_text,
+            }
+        )
 
     execution_episode = _nested_dict(manifest, "execution_episode")
     behavior_results = _nested_dict(execution_episode, "behavior_results")
@@ -320,24 +322,59 @@ def _program_evidence_declarations(
         "behavior_results",
         path=behavior_results.get("path"),
         content_hash=behavior_results.get("content_hash"),
+        source="manifest.execution_episode.behavior_results",
     )
     oracle_evidence = _nested_dict(execution_episode, "oracle_evidence")
     add(
         "oracle_evidence",
         path=oracle_evidence.get("path"),
         content_hash=oracle_evidence.get("content_hash"),
+        source="manifest.execution_episode.oracle_evidence",
     )
+
+    candidate_assembly = _nested_dict(manifest, "candidate_assembly")
+    for raw_surface in _as_list(candidate_assembly.get("surfaces")):
+        if not isinstance(raw_surface, Mapping):
+            continue
+        surface = dict(raw_surface)
+        kind = str(surface.get("kind") or "")
+        if kind not in {"behavior_results", "oracle_evidence"}:
+            continue
+        add(
+            kind,
+            path=surface.get("path"),
+            content_hash=surface.get("content_hash"),
+            source=f"manifest.candidate_assembly.surfaces.{kind}",
+        )
 
     evidence = _nested_dict(manifest, "receipt_bundle", "evidence")
     add(
         "behavior_results",
         path="behavior_results.json",
         content_hash=evidence.get("behavior_results_hash"),
+        source="manifest.receipt_bundle.evidence.behavior_results_hash",
     )
     add(
         "oracle_evidence",
         path=evidence.get("oracle_evidence_path") or "oracle_evidence.json",
         content_hash=evidence.get("oracle_evidence_hash"),
+        source="manifest.receipt_bundle.evidence.oracle_evidence_hash",
+    )
+
+    surface_hashes = _nested_dict(
+        manifest, "receipt_bundle", "evidence", "surface_hashes"
+    )
+    add(
+        "behavior_results",
+        path="behavior_results.json",
+        content_hash=surface_hashes.get("behavior_results.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.behavior_results.json",
+    )
+    add(
+        "oracle_evidence",
+        path="oracle_evidence.json",
+        content_hash=surface_hashes.get("oracle_evidence.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.oracle_evidence.json",
     )
 
     run_summary = _as_dict(receipt.get("run_summary"))
@@ -345,14 +382,27 @@ def _program_evidence_declarations(
         "behavior_results",
         path="behavior_results.json",
         content_hash=run_summary.get("behavior_results_hash"),
+        source="receipt.run_summary.behavior_results_hash",
     )
     add(
         "oracle_evidence",
         path="oracle_evidence.json",
         content_hash=run_summary.get("oracle_evidence_hash"),
+        source="receipt.run_summary.oracle_evidence_hash",
     )
 
-    return [declarations_by_kind[key] for key in sorted(declarations_by_kind)]
+    grouped: list[dict[str, Any]] = []
+    for kind in sorted(declarations_by_kind):
+        declarations = declarations_by_kind[kind]
+        grouped.append(
+            {
+                "kind": kind,
+                "path": declarations[0]["path"],
+                "content_hash": declarations[0]["content_hash"],
+                "declarations": declarations,
+            }
+        )
+    return grouped
 
 
 def _check_program_evidence_artifacts(
@@ -384,16 +434,41 @@ def _check_program_evidence_artifacts(
         return
     checks["program_evidence_artifacts_declared"] = True
 
-    manifest_surface_hashes = _nested_dict(
-        manifest, "receipt_bundle", "evidence", "surface_hashes"
-    )
     for declaration in declarations:
         kind = declaration["kind"]
-        artifact_path = _resolve_path(declaration["path"], meta_path=meta_path)
-        expected_hash = declaration["content_hash"]
+        artifact_path = _resolve_path(str(declaration["path"]), meta_path=meta_path)
+        expected_hash = str(declaration["content_hash"])
+        source_declarations = [
+            item
+            for item in _as_list(declaration.get("declarations"))
+            if isinstance(item, Mapping)
+        ]
+        declared_paths = {
+            str(item["path"])
+            for item in source_declarations
+            if isinstance(item.get("path"), str)
+        }
+        declared_hashes = {
+            str(item["content_hash"])
+            for item in source_declarations
+            if isinstance(item.get("content_hash"), str)
+        }
         exists_check = f"program_{kind}_exists"
         hash_check = f"program_{kind}_hash_match"
         declaration_check = f"program_{kind}_declaration_consistent"
+        checks[declaration_check] = (
+            len(declared_paths) <= 1 and len(declared_hashes) <= 1
+        )
+        if not checks[declaration_check]:
+            _add_error(
+                report,
+                code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                message=(
+                    f"program evidence declaration mismatch for {kind}: "
+                    f"paths={sorted(declared_paths)} hashes={sorted(declared_hashes)}"
+                ),
+                check=declaration_check,
+            )
         artifact_exists = artifact_path.exists() and artifact_path.is_file()
         checks[exists_check] = artifact_exists
         if not artifact_exists:
@@ -417,18 +492,6 @@ def _check_program_evidence_artifacts(
                     f"expected={expected_hash} actual={actual_hash}"
                 ),
                 check=hash_check,
-            )
-        surface_hash = _optional_str(manifest_surface_hashes.get(declaration["path"]))
-        checks[declaration_check] = surface_hash in {None, expected_hash}
-        if surface_hash not in {None, expected_hash}:
-            _add_error(
-                report,
-                code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
-                message=(
-                    f"program evidence declaration mismatch for {kind}: "
-                    f"surface_hash={surface_hash} declared={expected_hash}"
-                ),
-                check=declaration_check,
             )
 
 

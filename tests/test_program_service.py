@@ -786,6 +786,130 @@ def test_program_replay_detects_behavior_result_artifact_drift(
     )
 
 
+def test_program_replay_detects_oracle_evidence_artifact_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ReplayOracleEvidenceProgram",
+        objective="Classify a short support ticket.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        metric="exact_match",
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    oracle_path = root / "oracle_evidence.json"
+    oracle_payload = json.loads(oracle_path.read_text(encoding="utf-8"))
+    oracle_payload["oracle_text"] = "drifted oracle evidence"
+    oracle_path.write_text(
+        json.dumps(oracle_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    drift = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert drift["status"] == "failed"
+    assert drift["checks"]["output_hash_match"] is True
+    assert drift["checks"]["program_oracle_evidence_exists"] is True
+    assert drift["checks"]["program_oracle_evidence_hash_match"] is False
+    assert drift["checks"]["program_behavior_results_hash_match"] is True
+    assert "program_evidence_hash_mismatch" in drift["error_codes"]
+    assert any(
+        detail.get("code") == "program_evidence_hash_mismatch"
+        and detail.get("check") == "program_oracle_evidence_hash_match"
+        for detail in drift["error_details"]
+    )
+
+
+def test_program_replay_detects_missing_program_evidence_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ReplayMissingEvidenceProgram",
+        objective="Classify a short support ticket.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    (root / "behavior_results.json").unlink()
+
+    missing = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert missing["status"] == "failed"
+    assert missing["checks"]["output_hash_match"] is True
+    assert missing["checks"]["program_behavior_results_exists"] is False
+    assert missing["checks"]["program_oracle_evidence_exists"] is True
+    assert "program_evidence_artifact_missing" in missing["error_codes"]
+    assert any(
+        detail.get("code") == "program_evidence_artifact_missing"
+        and detail.get("check") == "program_behavior_results_exists"
+        for detail in missing["error_details"]
+    )
+
+
+def test_program_replay_detects_program_evidence_declaration_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ReplayDeclarationMismatchProgram",
+        objective="Classify a short support ticket.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        examples=[
+            {
+                "inputs": {"ticket_text": "Server is down for all users"},
+                "outputs": {"urgency": "high"},
+            }
+        ],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["execution_episode"]["behavior_results"]["content_hash"] = "0" * 64
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    mismatch = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert mismatch["status"] == "failed"
+    assert mismatch["checks"]["output_hash_match"] is False
+    assert mismatch["checks"]["program_behavior_results_exists"] is True
+    assert (
+        mismatch["checks"]["program_behavior_results_declaration_consistent"] is False
+    )
+    assert "program_evidence_declaration_mismatch" in mismatch["error_codes"]
+    assert any(
+        detail.get("code") == "program_evidence_declaration_mismatch"
+        and detail.get("check") == "program_behavior_results_declaration_consistent"
+        for detail in mismatch["error_details"]
+    )
+
+
 def test_program_gen_cli_carries_explicit_jury_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
