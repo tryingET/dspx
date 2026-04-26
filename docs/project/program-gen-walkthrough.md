@@ -19,7 +19,7 @@ It is deliberately local-first and non-authoritative:
 - does not call `ak`
 - does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run
 - can optionally materialize deterministic local dataset split evidence when intent declares `dataset` or `datasets`
-- does not run a model jury or promotion adjudicator
+- `program-gen` does not run a model jury or promotion adjudicator; explicit local deterministic jury execution is a separate `program-promote jury` sidecar command
 - does not rank, select winners, prune, promote, run GEPA/search, export authority, or mutate governance state
 
 The goal is to see the current artifact contract clearly, not to claim a final product loop.
@@ -40,14 +40,15 @@ The current `program-gen` loop proves:
 8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 10. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
-11. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
-12. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
-13. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over current example-backed behavior evidence.
-14. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
-15. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
-16. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-17. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-18. Promotion and authority remain explicitly pending / non-authoritative.
+11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and current `eval_examples.py` / `behavior_results.json` evidence to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
+12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
+13. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
+14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over current example-backed behavior evidence.
+15. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
+16. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
+17. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+18. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+19. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -403,7 +404,31 @@ Expected JSON facts:
 
 This command writes only the requested sidecar artifact. It does not overwrite generated `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`; it does not mutate `manifest.json`, behavior evidence, Oracle evidence, generated Python files, AK, governance, or external authority; it does not generate a new candidate assembly; it does not invoke an adjudicator or approve promotion. Top-level `status: review_packet_ready` means the packet was assembled from available evidence; it does not mean promotion is allowed. Promotion gating uses `review_readiness.ready_for_adjudicator_review`.
 
-## 12. Optional explicit local adjudicator decision record
+## 12. Optional explicit local jury execution sidecar
+
+If you want local deterministic jury evidence over the current example-backed behavior, run the jury consumer explicitly:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote jury \
+  --manifest "$TD/program/manifest.json" \
+  --out "$TD/promotion/jury_results.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-jury-results-v1`
+- `status: executed` when `behavior_results.json` is present, or `insufficient_behavior_evidence` when examples/behavior evidence are absent
+- `created_from` references `manifest.json`, `jury.json`, `jury_selection.json`, `jury_rubric.json`, and current `behavior_results.json` when present
+- `jury` records planned jury, selection, and rubric schemas plus selected juror count/perspectives
+- `behavior_evidence` summarizes current `eval_examples.py` / `behavior_results.json` only
+- `juror_results` records deterministic local per-juror judgments and criteria results while preserving provider/model fields from the planned jury artifacts
+- `aggregate` records judgment counts plus agreement/disagreement
+- `effect` and `non_authority` confirm local-only/no-mutation behavior
+
+This command writes only the requested `jury_results.json` sidecar. It does not mutate the candidate, does not mutate `promotion_review.json` or `promotion_review_refined.json`, does not generate a new candidate, does not create an Oracle index, does not call external models, does not require provider auth, does not introduce `eval_behavior.py`, and does not rank, select winners, promote, approve, export authority, mutate AK, or mutate governance.
+
+## 13. Optional explicit local adjudicator decision record
 
 If you want to record an explicit local operator/adjudicator decision against the refined packet, write a separate decision sidecar:
 
@@ -429,7 +454,7 @@ Expected JSON facts:
 
 The command writes only the requested decision sidecar. It does not mutate generated program artifacts, `promotion_review_refined.json`, Oracle indexes, AK, governance, external authority, or candidate code. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; there is no override flag in this wave, and top-level `status: review_packet_ready` is not sufficient.
 
-## 13. Optional explicit second candidate from request-more-evidence
+## 14. Optional explicit second candidate from request-more-evidence
 
 If the local decision outcome is `request_more_evidence`, you can materialize one bounded local second candidate from the proposal patch:
 
@@ -456,7 +481,7 @@ Expected JSON facts:
 
 This command is explicit follow-up candidate generation, not automatic program-gen behavior. It requires a `program-refinement-proposal-v1` with `status: proposed` and a local decision record with `outcome: request_more_evidence`. This first slice applies only bounded `constraints` intent patches. It does not mutate the source candidate, proposal, decision record, Oracle indexes, AK, governance, or external authority, and it does not promote either candidate.
 
-## 13a. Optional explicit comparison of source and second candidate
+## 14a. Optional explicit comparison of source and second candidate
 
 After the second candidate exists, compare the source and candidate behavior evidence without generating or promoting anything:
 
@@ -497,7 +522,7 @@ uv run -q python -m dspx.cli.dspx program-refine generate-and-compare \
 
 This workflow returns `schema_version: program-refinement-generate-and-compare-result-v1`, materializes exactly one second candidate, writes the same comparison sidecar, and still does not rank, select a winner, promote, mutate governance, export authority, or automate `program-gen`.
 
-## 14. Optional: run a local GEPA refinement attempt
+## 15. Optional: run a local GEPA refinement attempt
 
 GEPA refinement is explicit and local. It consumes the existing manifest plus the current local evidence surfaces. If you do not pass explicit files, the command prefers manifest dataset splits when present, then falls back to inline examples with limitation notes.
 
@@ -512,7 +537,7 @@ uv run -q python -m dspx.cli.dspx program-refine optimize-gepa \
 
 The sidecar has `schema_version: program-refinement-gepa-result-v1`. It records source identity, selected evidence source/counts, held-out-validation status, GEPA attempt status, any local optimizer output path, and non-authority flags. In this slice the GEPA optimizer output is not yet a normal `program-candidate-assembly-v1`, so `candidate` remains `null` and the top-level status can degrade truthfully even if GEPA was attempted. The command writes only to the requested `--outdir` and `--result-out`, does not mutate the source candidate or source dataset split artifacts/results, does not create a repo Oracle index, does not rank, select a winner, promote, mutate AK/governance/external authority, or introduce `eval_behavior.py`.
 
-## 15. Inspect manifest and receipt declarations
+## 16. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
@@ -540,7 +565,7 @@ PY
 
 Replay is declaration-driven: the receipt points at `manifest.json`, and the manifest/receipt bundle declare which evidence artifacts and hashes must match.
 
-## 15. Run clean replay
+## 17. Run clean replay
 
 ```bash
 uv run -q python -m dspx.cli.dspx run replay \
@@ -561,7 +586,7 @@ Expected result:
 
 Replay is local/offline. It should not require MLflow, a provider, Oracle, or AK.
 
-## 16. Prove replay detects execution-episode drift
+## 18. Prove replay detects execution-episode drift
 
 ```bash
 cp "$TD/program/execution_episode.json" "$TD/execution_episode.original.json"
@@ -596,7 +621,7 @@ cp "$TD/execution_episode.original.json" "$TD/program/execution_episode.json"
 
 This proves `execution_episode.json` is a replay-checked evidence artifact, not just duplicated metadata.
 
-## 17. Optional sidecar authority export plan
+## 19. Optional sidecar authority export plan
 
 The local base smoke includes an optional authority adapter planning step:
 
@@ -614,7 +639,7 @@ This writes:
 
 The plan status is `planned_not_exported`. It is not an AK mutation, not a promotion decision, and not an authority export.
 
-## 18. Cleanup
+## 20. Cleanup
 
 ```bash
 rm -rf "$TD"
@@ -634,7 +659,7 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic topology inference, broad graph execution, custom Python module import/execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, and if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative.
+- no automatic topology inference, broad graph execution, custom Python module import/execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional jury execution step was run, it wrote only the requested jury sidecar without mutating the candidate, promotion review, Oracle index, AK, governance, or external authority, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, and if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative.
 
 ## Where this points next
 

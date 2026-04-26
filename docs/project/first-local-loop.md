@@ -25,7 +25,7 @@ The loop is intentionally offline and non-authoritative:
 - writes to a temp directory by default
 - does not call `ak`
 - does not mutate Agent Kernel or any other external authority
-- does not promote, rank, select winners, prune, run GEPA/search, run jury execution, or grant Oracle/governance authority
+- `program-gen` does not promote, rank, select winners, prune, run GEPA/search, run jury execution, or grant Oracle/governance authority; explicit local deterministic jury execution is a separate `program-promote jury` sidecar command over an existing manifest
 
 ## One command
 
@@ -148,4 +148,4 @@ This loop proves local materialization and evidence plumbing only.
 
 DSPx core emits portable local evidence and opaque external authority refs. The authority adapter consumes those evidence artifacts to produce a planned sidecar export packet. It must not call Agent Kernel, mutate task state, invoke an adjudicator, or turn evidence into authority.
 
-Oracle may later interpret receipt evidence, but Oracle does not rank, prune, promote, block, or own governance authority in this loop.
+Oracle may later interpret receipt evidence, but Oracle does not rank, prune, promote, block, or own governance authority in this loop. If you explicitly run `program-promote jury` after this loop, it writes only a local `jury_results.json` sidecar from planned jury artifacts plus current `eval_examples.py` / `behavior_results.json`; it does not mutate the candidate, call external models, create Oracle indexes, rank, select winners, promote, approve, export authority, mutate AK/governance, or introduce `eval_behavior.py`.

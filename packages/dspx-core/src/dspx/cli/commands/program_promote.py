@@ -61,6 +61,43 @@ def review(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("jury")
+def jury(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to program-gen manifest.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local jury results sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print jury results JSON"),
+) -> None:
+    """Run local deterministic jury execution without promotion authority."""
+    from dspx.services.program_jury_execution import (
+        ProgramJuryExecutionError,
+        build_program_jury_execution_result,
+        write_program_jury_execution_result,
+    )
+
+    try:
+        result = build_program_jury_execution_result(manifest_path=manifest)
+        payload = write_program_jury_execution_result(result, out)
+    except ProgramJuryExecutionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program jury execution failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("decide")
 def decide(
     review: Path = typer.Option(
