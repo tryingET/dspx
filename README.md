@@ -289,7 +289,21 @@ just dspx program-promote review \
   --json
 ```
 
-The refined packet is local review evidence only. It keeps `promotion_state: not_promoted`, preserves the need for explicit adjudicator decision and any required model-jury evidence, does not overwrite `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`, does not generate a new candidate assembly, and does not rank, prune, promote, block via Oracle, export authority, or mutate governance. `program-gen` still does not automatically index, report, interpret, refine, or build promotion-review packets, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
+The refined packet is local review evidence only. It keeps `promotion_state: not_promoted`, preserves the need for explicit adjudicator decision and any required model-jury evidence, does not overwrite `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`, does not generate a new candidate assembly, and does not rank, prune, promote, block via Oracle, export authority, or mutate governance.
+
+Explicit local adjudicator decision recording is a separate sidecar command:
+
+```bash
+just dspx program-promote decide \
+  --review /tmp/dspx-program-promote/promotion_review_refined.json \
+  --outcome request_more_evidence \
+  --decided-by local_operator \
+  --rationale "Need model-jury execution before any promotion decision." \
+  --out /tmp/dspx-program-promote/promotion_decision_record.json \
+  --json
+```
+
+The decision record has `schema_version: program-promotion-decision-record-v1`. It consumes the refined packet, records explicit `withhold`, `reject`, `request_more_evidence`, or gated `promote` input, and writes only the requested sidecar. Non-promote outcomes keep `promotion_state_after_decision: not_promoted`. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; top-level `status: review_packet_ready` is not enough. The command does not mutate generated program artifacts, the refined review packet, Oracle indexes, AK, governance, external authority, or candidate code. `program-gen` still does not automatically index, report, interpret, refine, review, or decide, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
 
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
@@ -447,6 +461,9 @@ just dspx program-refine propose --manifest generated/programs/answer_question/m
 
 # Build a local refined promotion-review sidecar without promotion authority
 just dspx program-promote review --manifest generated/programs/answer_question/manifest.json --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json --out /tmp/dspx-program-promote/promotion_review_refined.json --json
+
+# Record an explicit local adjudicator decision sidecar without external authority
+just dspx program-promote decide --review /tmp/dspx-program-promote/promotion_review_refined.json --outcome request_more_evidence --decided-by local_operator --rationale "Need model-jury execution before promotion." --out /tmp/dspx-program-promote/promotion_decision_record.json --json
 
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json

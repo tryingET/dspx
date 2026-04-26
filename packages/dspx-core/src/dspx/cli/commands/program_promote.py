@@ -59,3 +59,62 @@ def review(
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("decide")
+def decide(
+    review: Path = typer.Option(
+        ...,
+        "--review",
+        help="Path to program-promotion-review-refined-v1 JSON",
+    ),
+    outcome: str = typer.Option(
+        ...,
+        "--outcome",
+        help="Decision outcome: withhold, reject, request_more_evidence, or promote",
+    ),
+    decided_by: str = typer.Option(
+        ...,
+        "--decided-by",
+        help="Explicit local operator/adjudicator identifier",
+    ),
+    rationale: str = typer.Option(
+        ...,
+        "--rationale",
+        help="Non-empty rationale for the local decision record",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local decision sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print decision record JSON"),
+) -> None:
+    """Record a local adjudicator decision sidecar without promotion authority."""
+    from dspx.services.program_promotion_decision import (
+        ProgramPromotionDecisionError,
+        build_program_promotion_decision_record,
+        write_program_promotion_decision_record,
+    )
+
+    try:
+        record = build_program_promotion_decision_record(
+            refined_review_path=review,
+            outcome=outcome,
+            decided_by=decided_by,
+            rationale=rationale,
+        )
+        payload = write_program_promotion_decision_record(record, out)
+    except ProgramPromotionDecisionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program promotion decision recording failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))

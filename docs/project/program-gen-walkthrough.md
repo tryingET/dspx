@@ -36,17 +36,18 @@ The current `program-gen` loop proves:
 7. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
 8. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 9. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
-10. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-11. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-12. Promotion and authority remain explicitly pending / non-authoritative.
+10. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
+11. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+12. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+13. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
 - rich topology inference,
 - dataset splits,
 - model-backed jury execution,
-- promotion adjudication or approval,
-- automatic Oracle indexing/interpretation/refinement/promotion-review during `program-gen`,
+- model-jury adjudication, external approval, or activation,
+- automatic Oracle indexing/interpretation/refinement/promotion-review/decision recording during `program-gen`,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search refinement,
 - applying refinement proposals or generating a second candidate assembly,
@@ -323,9 +324,35 @@ Expected JSON facts:
 - `adjudication_packet.status` remains `not_ready_missing_required_evidence` when required local evidence is absent
 - `non_authority` confirms local review-packet-only posture and no automatic promotion, Oracle ranking/pruning/promotion, program mutation, new candidate generation, governance authority, or external mutation
 
-This command writes only the requested sidecar artifact. It does not overwrite generated `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`; it does not mutate `manifest.json`, behavior evidence, Oracle evidence, generated Python files, AK, governance, or external authority; it does not generate a new candidate assembly; it does not invoke an adjudicator or approve promotion.
+This command writes only the requested sidecar artifact. It does not overwrite generated `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`; it does not mutate `manifest.json`, behavior evidence, Oracle evidence, generated Python files, AK, governance, or external authority; it does not generate a new candidate assembly; it does not invoke an adjudicator or approve promotion. Top-level `status: review_packet_ready` means the packet was assembled from available evidence; it does not mean promotion is allowed. Promotion gating uses `review_readiness.ready_for_adjudicator_review`.
 
-## 10. Inspect manifest and receipt declarations
+## 10. Optional explicit local adjudicator decision record
+
+If you want to record an explicit local operator/adjudicator decision against the refined packet, write a separate decision sidecar:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote decide \
+  --review "$TD/promotion/promotion_review_refined.json" \
+  --outcome request_more_evidence \
+  --decided-by local_operator \
+  --rationale "Need model-jury execution before any promotion decision." \
+  --out "$TD/promotion/promotion_decision_record.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-promotion-decision-record-v1`
+- `status: recorded`
+- `outcome` is one of `withhold`, `reject`, `request_more_evidence`, or `promote`
+- non-promote outcomes keep `promotion_state_after_decision: not_promoted`
+- `identity` matches the refined review packet identity
+- `review_snapshot.ready_for_adjudicator_review` and missing required evidence are copied from the refined packet
+- `effect` and `non_authority` confirm local-only/no mutation behavior
+
+The command writes only the requested decision sidecar. It does not mutate generated program artifacts, `promotion_review_refined.json`, Oracle indexes, AK, governance, external authority, or candidate code. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; there is no override flag in this wave, and top-level `status: review_packet_ready` is not sufficient.
+
+## 11. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
@@ -351,7 +378,7 @@ PY
 
 Replay is declaration-driven: the receipt points at `manifest.json`, and the manifest/receipt bundle declare which evidence artifacts and hashes must match.
 
-## 11. Run clean replay
+## 12. Run clean replay
 
 ```bash
 uv run -q python -m dspx.cli.dspx run replay \
@@ -371,7 +398,7 @@ Expected result:
 
 Replay is local/offline. It should not require MLflow, a provider, Oracle, or AK.
 
-## 12. Prove replay detects execution-episode drift
+## 13. Prove replay detects execution-episode drift
 
 ```bash
 cp "$TD/program/execution_episode.json" "$TD/execution_episode.original.json"
@@ -406,7 +433,7 @@ cp "$TD/execution_episode.original.json" "$TD/program/execution_episode.json"
 
 This proves `execution_episode.json` is a replay-checked evidence artifact, not just duplicated metadata.
 
-## 13. Optional sidecar authority export plan
+## 14. Optional sidecar authority export plan
 
 The local base smoke includes an optional authority adapter planning step:
 
@@ -424,7 +451,7 @@ This writes:
 
 The plan status is `planned_not_exported`. It is not an AK mutation, not a promotion decision, and not an authority export.
 
-## 14. Cleanup
+## 15. Cleanup
 
 ```bash
 rm -rf "$TD"
@@ -442,10 +469,10 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic Oracle indexing, interpretation, refinement, promotion-review refinement, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, and if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts.
+- no automatic Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, and if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet.
 
 ## Where this points next
 
-The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, an explicitly accepted proposal path that generates a second candidate assembly without making the proposal itself authoritative, richer execution episodes once a narrow behavior-source target exists, or explicit adjudicator decision recording.
+The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, an explicitly accepted/request-more-evidence refinement path that generates a second candidate assembly without making the proposal or decision record externally authoritative, richer execution episodes once a narrow behavior-source target exists, or external authority export planning from local decision records.
 
 A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, selected model-jury execution, or enough distinct behavior sources to justify a future `eval_behavior.py` orchestration layer. Promotion/adjudication should remain separate until an explicit authority contract exists.

@@ -391,7 +391,9 @@ The current implementation keeps that foothold narrow while making the surface b
 - a separately invoked Oracle program-evidence report command can read those indexed records and summarize example-backed behavior evidence without ranking, pruning, promotion, governance, external mutation, or program-gen automation,
 - a separately invoked `program-refine propose` command can consume the manifest, declared `behavior_results.json` when present, and an explicit non-authoritative Oracle report to write a local `program-refinement-proposal-v1` artifact only,
 - a separately invoked `program-promote review` command can consume the manifest, original generated promotion shell artifacts, declared behavior evidence when present, the explicit Oracle report, and the explicit refinement proposal to write a local `program-promotion-review-refined-v1` sidecar packet,
-- the refinement proposal and refined promotion-review packet do not mutate generated program files, do not overwrite `promotion_review.json` / adjudication request / decision template artifacts, do not create a second candidate assembly, and cannot rank, prune, promote, block via Oracle, export authority, mutate governance, or make Oracle authoritative,
+- a separately invoked `program-promote decide` command can consume that refined review packet plus explicit operator/adjudicator input to write a local `program-promotion-decision-record-v1` sidecar,
+- the refinement proposal, refined promotion-review packet, and decision record do not mutate generated program files, do not overwrite `promotion_review.json` / adjudication request / decision template artifacts, do not mutate `promotion_review_refined.json`, do not create a second candidate assembly, and cannot rank, prune, promote, block via Oracle, export authority, mutate governance, or make Oracle authoritative,
+- non-promote decision outcomes keep the candidate unpromoted, while `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true and remains local-only even when recordable,
 - the current behavior harness remains `eval_examples.py` / `behavior_results.json`; `eval_behavior.py` is not introduced until there are multiple behavior sources to orchestrate,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, external adapter apply/export mutation, or governance-policy authority.
@@ -407,7 +409,7 @@ Prefer a contract-grounding implementation step such as:
 - add an explicit acceptance-to-second-candidate seam for a bounded refinement proposal,
 - integrate territory/frontier views over the indexed program-evidence run kind,
 - deepen execution episodes toward richer behavior sources when that justifies a future `eval_behavior.py` orchestration layer,
-- or define explicit adjudicator decision recording for program-shaped candidate assemblies.
+- define external authority export planning from local decision records without making the decision sidecar itself authoritative.
 
 Do not start by stuffing richer synthesis behavior directly into `module_service`.
 Do not mistake `program_service` for the final ontology of the runtime.
