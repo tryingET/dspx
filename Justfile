@@ -202,6 +202,10 @@ clean-clone-smoke:
 smoke-base out="":
   bash scripts/smoke_base_loop.sh "{{out}}"
 
+# Program refinement loop smoke: evidence -> proposal -> review -> decision -> generate-and-compare.
+smoke-program-refinement out="":
+  bash scripts/smoke_program_refinement_loop.sh "{{out}}"
+
 # Monorepo boundary guardrail check
 monorepo-check:
   uv run --no-sync -q python scripts/check_monorepo_boundaries.py

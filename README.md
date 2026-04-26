@@ -67,6 +67,14 @@ just smoke-base
 
 This runs signature generation, module generation, `program-gen`, generated eval harnesses, and the non-mutating authority export-plan adapter using `examples/program_gen/ticket_intent.yaml`. See `docs/project/first-local-loop.md`; for a step-by-step inspection of `execution_episode.json`, behavior evidence, Oracle-readable evidence, replay, and authority boundaries, see `docs/project/program-gen-walkthrough.md`.
 
+Program-refinement loop smoke (also offline/temp-dir by default, no AK calls):
+
+```bash
+just smoke-program-refinement
+```
+
+This runs the explicit local evidence/refinement path through temp-dir Oracle indexing/reporting, proposal, refined review packet, request-more-evidence decision record, one second-candidate generation, and local comparison sidecar. It remains non-authoritative and does not rank, select a winner, promote, export authority, mutate governance, or introduce `eval_behavior.py`.
+
 ---
 
 ## Native signature workflow (core)
@@ -620,6 +628,8 @@ just check
 just ci
 just doctor
 just run              # falls back to DSPx CLI help when called without args
+just smoke-base
+just smoke-program-refinement
 ```
 
 Repo-local quality commands:
