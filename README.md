@@ -220,6 +220,22 @@ constraints:
 #       - system: agent_kernel
 #         ref: AK-1234
 #         role: optional_authority_export_target
+# Optional: explicit topology contract (preserved, not inferred)
+# topology:
+#   kind: pipeline
+#   execution_status: declared_not_materialized
+#   modules:
+#     - id: classify_ticket
+#       primitive: Predict
+#       signature:
+#         name: ClassifyTicket
+#         inputs: [ticket_text]
+#         outputs: [route]
+#   edges:
+#     - from: input
+#       to: classify_ticket
+#     - from: classify_ticket
+#       to: output
 # Optional: inline examples or examples_path: examples.yaml
 ```
 
@@ -231,7 +247,7 @@ just dspx program-gen \
 
 The generated candidate assembly contains a structured plan, separate surfaces, and replayable metadata:
 
-- `plan.json` — deterministic `program-plan-v1` contract derived from the intent; records normalized field specs, task type, default single-module topology, materialized surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and an explicit planned `program-jury-v1` multi-model evaluation shape when provided
+- `plan.json` — deterministic `program-plan-v1` contract derived from the intent; records normalized field specs, task type, default single-module topology or explicit declared topology, `declared_topology` vs `materialized_topology`, truthful topology execution/materialization status, materialized surfaces, metric/runtime/constraints, examples metadata, non-authority defaults, and an explicit planned `program-jury-v1` multi-model evaluation shape when provided
 - `jury.json` — standalone planned jury contract copied out of the plan so future jury execution can bind to an exact per-program juror/perspective pool artifact; when no explicit pool is supplied, DSPx infers one from intent features such as task type, metric, examples, fields, and constraints
 - `jury_selection.json` — deterministic non-authoritative juror selection artifact; prefers diverse perspectives from the per-program pool, records selected jurors, and still calls no models
 - `jury_rubric.json` — deterministic non-authoritative per-juror rubric artifact; binds selected perspectives to criteria and adversarial questions for a later jury execution episode
@@ -252,7 +268,7 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode hash provenance plus behavior result and Oracle-readability hashes/summaries when examples are present
 - `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode evidence plus behavior result and Oracle-readability hashes/summaries when examples are present
 
-This path is intentionally deterministic and scaffold-first. Example-backed runs now capture a minimal local behavior episode and a compact Oracle-readable evidence view for explicit later ingestion, but no Oracle indexing runs during materialization. The `jury` entry remains a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
+This path is intentionally deterministic and scaffold-first. `program-intent-v2` may carry an explicit user/Pi-declared topology (`single_module`, `pipeline`, `router`, `retrieve_then_answer`, `extract_transform_validate`, `generate_critique_revise`, or `custom`) with module IDs, primitive names, signature inputs/outputs, and edges. DSPx validates and preserves that topology in `intent.json`, `plan.json`, `manifest.json`, `execution_episode.json`, and the receipt, but the current renderer remains the single-module scaffold unless a later renderer slice materializes the topology. DSPx does not infer topology from natural language or provider output. Example-backed runs now capture a minimal local behavior episode and a compact Oracle-readable evidence view for explicit later ingestion, but no Oracle indexing runs during materialization. The `jury` entry remains a future evaluation contract shape only: no juror models are called during materialization. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not promote, rank, prune, export authority, or grant Oracle/governance authority.
 
 Oracle ingestion is a separate local command that writes only to a chosen CoordinateIndex:
 

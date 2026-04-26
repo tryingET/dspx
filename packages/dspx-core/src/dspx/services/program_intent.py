@@ -12,6 +12,169 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from dspx.cache import cache_dir
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_DECLARED_NOT_MATERIALIZED = "declared_not_materialized"
+_ACCEPTED_TOPOLOGY_KINDS = {
+    "single_module",
+    "pipeline",
+    "router",
+    "retrieve_then_answer",
+    "extract_transform_validate",
+    "generate_critique_revise",
+    "custom",
+}
+_PRIMITIVE_CANONICAL_NAMES = {
+    "predict": "Predict",
+    "chainofthought": "ChainOfThought",
+    "chain_of_thought": "ChainOfThought",
+    "react": "ReAct",
+    "programofthought": "ProgramOfThought",
+    "program_of_thought": "ProgramOfThought",
+    "retriever": "Retriever",
+    "retrieve": "Retriever",
+    "custom": "Custom",
+}
+
+
+def _validate_identifier(value: object, *, label: str) -> str:
+    text = str(value or "").strip()
+    if not text or not _IDENTIFIER_RE.match(text) or keyword.iskeyword(text):
+        raise ValueError(f"{label} must be a valid Python identifier")
+    return text
+
+
+def _validate_identifier_list(value: object, *, label: str) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be a list")
+    fields = [_validate_identifier(item, label=label) for item in value]
+    if not fields:
+        raise ValueError(f"{label} must include at least one field")
+    if len(set(fields)) != len(fields):
+        raise ValueError(f"{label} fields must be unique")
+    return fields
+
+
+def _normalize_topology_signature(value: object, *, module_id: str) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"topology module {module_id!r} signature must be an object")
+    signature = dict(value)
+    name = _validate_identifier(
+        signature.get("name"), label=f"topology module {module_id!r} signature.name"
+    )
+    inputs = _validate_identifier_list(
+        signature.get("inputs"),
+        label=f"topology module {module_id!r} signature.inputs",
+    )
+    outputs = _validate_identifier_list(
+        signature.get("outputs"),
+        label=f"topology module {module_id!r} signature.outputs",
+    )
+    return {"name": name, "inputs": inputs, "outputs": outputs}
+
+
+def _normalize_topology_module(value: object) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError("topology modules must contain objects")
+    module = dict(value)
+    module_id = _validate_identifier(module.get("id"), label="topology module id")
+    primitive = str(module.get("primitive") or "").strip()
+    if not primitive:
+        raise ValueError(f"topology module {module_id!r} primitive must not be blank")
+    primitive = _PRIMITIVE_CANONICAL_NAMES.get(primitive.lower(), primitive)
+    normalized: dict[str, Any] = {
+        "id": module_id,
+        "primitive": primitive,
+        "signature": _normalize_topology_signature(
+            module.get("signature"), module_id=module_id
+        ),
+    }
+    role = str(module.get("role") or "").strip()
+    if role:
+        normalized["role"] = role
+    return normalized
+
+
+def _normalize_topology_edge(
+    value: object, *, allowed_refs: set[str]
+) -> dict[str, str]:
+    if not isinstance(value, Mapping):
+        raise ValueError("topology edges must contain objects")
+    edge = dict(value)
+    source = str(edge.get("from") or "").strip()
+    target = str(edge.get("to") or "").strip()
+    invalid = [ref for ref in (source, target) if ref not in allowed_refs]
+    if invalid:
+        allowed = sorted(allowed_refs)
+        raise ValueError(
+            "topology edges must reference input, output, or declared module ids; "
+            f"invalid refs: {invalid}; allowed refs: {allowed}"
+        )
+    return {"from": source, "to": target}
+
+
+def normalize_program_topology(value: object) -> dict[str, Any]:
+    """Normalize and validate a declared program-intent topology contract.
+
+    An absent or empty topology remains empty so the current renderer can keep the
+    existing generated single-module scaffold. Any explicit topology is a
+    declared planning contract only in this slice and must say so truthfully.
+    """
+
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("program intent topology must be an object")
+    topology = dict(value)
+    if not topology:
+        return {}
+
+    kind = str(topology.get("kind") or "").strip()
+    if not kind:
+        raise ValueError(
+            "program intent topology.kind is required when topology is provided"
+        )
+    if kind not in _ACCEPTED_TOPOLOGY_KINDS:
+        allowed = sorted(_ACCEPTED_TOPOLOGY_KINDS)
+        raise ValueError(f"program intent topology.kind must be one of {allowed}")
+
+    execution_status = str(
+        topology.get("execution_status") or _DECLARED_NOT_MATERIALIZED
+    ).strip()
+    if execution_status != _DECLARED_NOT_MATERIALIZED:
+        raise ValueError(
+            "program intent topology.execution_status must be "
+            f"{_DECLARED_NOT_MATERIALIZED!r}; explicit topology is not "
+            "materialized or executed by this renderer"
+        )
+
+    raw_modules = topology.get("modules", [])
+    if kind != "single_module" or "modules" in topology:
+        if not isinstance(raw_modules, list):
+            raise ValueError("program intent topology.modules must be a list")
+        if kind != "single_module" and not raw_modules:
+            raise ValueError(
+                "program intent topology.modules must include at least one module "
+                "when topology.kind is not single_module"
+            )
+    modules = [_normalize_topology_module(item) for item in raw_modules]
+    module_ids = [str(module["id"]) for module in modules]
+    if len(set(module_ids)) != len(module_ids):
+        raise ValueError("program intent topology module ids must be unique")
+
+    raw_edges = topology.get("edges", [])
+    if "edges" in topology or kind != "single_module":
+        if not isinstance(raw_edges, list):
+            raise ValueError("program intent topology.edges must be a list")
+    allowed_refs = {"input", "output", *module_ids}
+    edges = [
+        _normalize_topology_edge(item, allowed_refs=allowed_refs) for item in raw_edges
+    ]
+
+    return {
+        "kind": kind,
+        "execution_status": _DECLARED_NOT_MATERIALIZED,
+        "modules": modules,
+        "edges": edges,
+    }
 
 
 class ProgramIntent(BaseModel):
@@ -136,6 +299,7 @@ class ProgramIntent(BaseModel):
                 "program intent input/output field names must not overlap; "
                 f"overlap: {overlap}"
             )
+        self.topology = normalize_program_topology(self.topology)
         return self
 
 

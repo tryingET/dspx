@@ -94,26 +94,73 @@ def _examples_plan_metadata(
     }
 
 
+def _default_materialized_topology(intent: ProgramIntent) -> dict[str, Any]:
+    names = _intent_surface_names(intent)
+    return {
+        "kind": "single_module",
+        "execution_status": "single_module_scaffold_materialized",
+        "modules": [
+            {
+                "id": "generated_module",
+                "primitive": "Predict",
+                "signature": {
+                    "name": names["signature_class"],
+                    "inputs": list(intent.inputs),
+                    "outputs": list(intent.outputs),
+                },
+                "role": "Default generated single-module scaffold.",
+                "name": names["module_class"],
+                "module_class": names["module_class"],
+            }
+        ],
+        "edges": [
+            {"from": "input", "to": "generated_module"},
+            {"from": "generated_module", "to": "output"},
+        ],
+    }
+
+
+def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
+    declared_topology = dict(intent.topology or {})
+    materialized_topology = _default_materialized_topology(intent)
+    if declared_topology:
+        topology = declared_topology
+        status = str(
+            declared_topology.get("execution_status") or "declared_not_materialized"
+        )
+        topology_materialized = False
+        notes = [
+            "Explicit topology is preserved as a planning contract.",
+            "This slice does not render or execute multi-module topology yet.",
+            "The generated Python remains the current single-module scaffold.",
+        ]
+    else:
+        topology = materialized_topology
+        status = str(materialized_topology["execution_status"])
+        topology_materialized = True
+        notes = [
+            "No explicit topology was declared; program-gen used the existing single-module scaffold.",
+        ]
+    return {
+        "topology": topology,
+        "declared_topology": declared_topology or None,
+        "materialized_topology": materialized_topology,
+        "topology_execution_status": status,
+        "materialization_scope": {
+            "topology_declared": bool(declared_topology),
+            "topology_materialized": topology_materialized,
+            "current_renderer": "single_module_scaffold",
+            "notes": notes,
+        },
+    }
+
+
 def build_program_plan(
     intent: ProgramIntent, *, examples_hash: Optional[str] = None
 ) -> dict[str, Any]:
     """Build the deterministic ProgramPlan v1 contract from a ProgramIntent."""
 
-    names = _intent_surface_names(intent)
-    topology = dict(intent.topology or {})
-    if not topology:
-        topology = {
-            "kind": "single_module",
-            "modules": [
-                {
-                    "name": names["module_class"],
-                    "signature": names["signature_class"],
-                    "inputs": list(intent.inputs),
-                    "outputs": list(intent.outputs),
-                }
-            ],
-            "edges": [],
-        }
+    topology_contract = _topology_plan_contract(intent)
     has_examples = bool(intent.examples)
     surfaces: list[dict[str, Any]] = [
         {"kind": "plan", "path": "plan.json", "generator": "program-gen"},
@@ -197,7 +244,11 @@ def build_program_plan(
             "inputs": _intent_field_specs(intent, role="input"),
             "outputs": _intent_field_specs(intent, role="output"),
         },
-        "topology": topology,
+        "topology": topology_contract["topology"],
+        "declared_topology": topology_contract["declared_topology"],
+        "materialized_topology": topology_contract["materialized_topology"],
+        "topology_execution_status": topology_contract["topology_execution_status"],
+        "materialization_scope": topology_contract["materialization_scope"],
         "surfaces": surfaces,
         "metric": intent.metric or "unspecified",
         "runtime": dict(intent.runtime),
@@ -584,6 +635,22 @@ def _build_execution_episode_contract(
         "summary": dict(oracle_readability_summary or {}),
         "facets": dict(oracle_readability_facets or {}),
     }
+    declared_topology = dict(intent.topology or {})
+    topology_execution = {
+        "declared_topology_present": bool(declared_topology),
+        "declared_topology_kind": declared_topology.get("kind"),
+        "materialized": not bool(declared_topology),
+        "status": str(
+            declared_topology.get("execution_status")
+            or "single_module_scaffold_materialized"
+        ),
+        "current_renderer": "single_module_scaffold",
+        "materialized_topology_kind": "single_module",
+        "notes": [
+            "Explicit topology is declared-only unless materialized is true.",
+            "program.py currently delegates to the generated single module scaffold.",
+        ],
+    }
     return {
         "schema_version": "program-execution-episode-v1",
         "episode_id": ids["episode_id"],
@@ -642,6 +709,7 @@ def _build_execution_episode_contract(
             },
         },
         "behavior_status": behavior_status,
+        "topology_execution": topology_execution,
         "behavioral_evaluation": behavioral_evaluation,
         "behavior_results": {
             "path": "behavior_results.json",
@@ -911,6 +979,7 @@ def materialize_program_from_intent(
     )
     execution_episode_hash = sha256_text(execution_episode_text)
     surface_hashes["execution_episode.json"] = execution_episode_hash
+    topology_execution = dict(execution_episode["topology_execution"])
 
     candidate_assembly = {
         "assembly_id": ids["assembly_id"],
@@ -1092,6 +1161,7 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
+            "topology_execution": topology_execution,
             "program_hash": program_hash,
             "assembly_hash": assembly_hash,
             "surface_hashes": surface_hashes,
@@ -1199,6 +1269,7 @@ def materialize_program_from_intent(
             "content_hash": execution_episode_hash,
             "schema_version": execution_episode["schema_version"],
         },
+        "topology_execution": topology_execution,
         "oracle_readability": {
             "path": "oracle_evidence.json",
             "content_hash": oracle_evidence_hash,
@@ -1252,6 +1323,7 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
+            "topology_execution": topology_execution,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
             "oracle_evidence_hash": oracle_evidence_hash,
@@ -1272,6 +1344,7 @@ def materialize_program_from_intent(
                 "content_hash": execution_episode_hash,
                 "schema_version": execution_episode["schema_version"],
             },
+            "program_topology_execution": topology_execution,
             **(
                 {"program_behavior_results": behavior_results_payload}
                 if behavior_results_payload is not None
@@ -1334,6 +1407,7 @@ def materialize_program_from_intent(
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "execution_episode_hash": execution_episode_hash,
+            "topology_execution": topology_execution,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
             "oracle_evidence_hash": oracle_evidence_hash,

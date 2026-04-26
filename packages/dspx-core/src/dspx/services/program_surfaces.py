@@ -66,6 +66,16 @@ def render_program_code(intent: Any) -> str:
     names = intent_surface_names(intent)
     constraints = list(intent.constraints)
     metric = intent.metric or "unspecified"
+    declared_topology = dict(intent.topology or {})
+    topology_execution_status = str(
+        declared_topology.get("execution_status")
+        or "single_module_scaffold_materialized"
+    )
+    materialization_scope = {
+        "topology_declared": bool(declared_topology),
+        "topology_materialized": not bool(declared_topology),
+        "current_renderer": "single_module_scaffold",
+    }
 
     lines: list[str] = [
         "from __future__ import annotations",
@@ -82,6 +92,9 @@ def render_program_code(intent: Any) -> str:
         f"OBJECTIVE = {intent.objective!r}",
         f"CONSTRAINTS = {constraints!r}",
         f"METRIC = {metric!r}",
+        f"DECLARED_TOPOLOGY = {declared_topology!r}",
+        f"TOPOLOGY_EXECUTION_STATUS = {topology_execution_status!r}",
+        f"MATERIALIZATION_SCOPE = {materialization_scope!r}",
         "",
         "",
         "def build_program() -> dspy.Module:",
@@ -99,6 +112,9 @@ def render_program_code(intent: Any) -> str:
         "        'constraints': list(CONSTRAINTS),",
         "        'metric': METRIC,",
         "        'io': io_spec(),",
+        "        'declared_topology': dict(DECLARED_TOPOLOGY),",
+        "        'topology_execution_status': TOPOLOGY_EXECUTION_STATUS,",
+        "        'materialization_scope': dict(MATERIALIZATION_SCOPE),",
         f"        'signature_class': {names['signature_class']!r},",
         f"        'module_class': {names['module_class']!r},",
         "    }",
