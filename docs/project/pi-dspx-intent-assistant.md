@@ -172,6 +172,16 @@ DSPx requires input/output names to be unique non-overlapping Python identifiers
 | `class` | `class_label` |
 | `1st answer` | `answer_1` or `first_answer` |
 
+## Optional YAML/JSON healing
+
+If Pi produces malformed structured text, `softwareco/contrib/sanitize` can be used as an optional Pi-side syntax repair helper before validation:
+
+```bash
+sanitize lint "$TD/intent.yaml" || sanitize fix "$TD/intent.yaml" > "$TD/intent.healed.yaml"
+```
+
+This is intentionally not a DSPx core dependency for this slice. Use it only for syntax-level structured-text repair such as indentation, missing spaces after colons, list dash spacing, trailing commas, fenced JSON, or prose-wrapped JSON. It must not infer intent fields, normalize identifiers, invent examples, decide promotion, attach authority refs, or replace `ProgramIntent` / `program-gen` validation. After a fix, Pi should inspect or summarize the change and then run `program-gen` against the original or healed file explicitly selected by the operator.
+
 ## Non-authority boundaries
 
 This assistant surface must not widen DSPx authority. In particular:

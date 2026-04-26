@@ -150,6 +150,16 @@ promotion:
 
 Keep rich fields small. Do not infer complex topology, dataset splits, GEPA/search policy, juror pools, or external authority refs unless the user explicitly asks.
 
+## Optional YAML/JSON healing
+
+If the authored YAML/JSON is syntactically malformed and `sanitize` is installed, you may use `softwareco/contrib/sanitize` as an optional Pi-side repair helper before `program-gen` validation:
+
+```bash
+sanitize lint "$TD/intent.yaml" || sanitize fix "$TD/intent.yaml" > "$TD/intent.healed.yaml"
+```
+
+Use `sanitize` only for structured-text syntax healing such as indentation, missing spaces after colons, list dash spacing, trailing commas, fenced JSON, or prose-wrapped JSON. Do not use it to infer fields, normalize identifiers, invent examples, or make semantic/authority decisions. After any fix, inspect or summarize what changed and still let DSPx `ProgramIntent` / `program-gen` validate the resulting file.
+
 ## Non-authority boundaries
 
 Always preserve these boundaries:
