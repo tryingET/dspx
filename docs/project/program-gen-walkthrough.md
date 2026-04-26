@@ -37,9 +37,10 @@ The current `program-gen` loop proves:
 8. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 9. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
 10. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
-11. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-12. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-13. Promotion and authority remain explicitly pending / non-authoritative.
+11. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
+12. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+13. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+14. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -47,10 +48,10 @@ It does **not** prove:
 - dataset splits,
 - model-backed jury execution,
 - model-jury adjudication, external approval, or activation,
-- automatic Oracle indexing/interpretation/refinement/promotion-review/decision recording during `program-gen`,
+- automatic Oracle indexing/interpretation/refinement/promotion-review/decision recording/second-candidate generation during `program-gen`,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search refinement,
-- applying refinement proposals or generating a second candidate assembly,
+- broad accepted-proposal policy beyond the explicit request-more-evidence constraints-patch path,
 - AK export or task mutation.
 
 ## 1. Prepare a temp workspace
@@ -352,7 +353,34 @@ Expected JSON facts:
 
 The command writes only the requested decision sidecar. It does not mutate generated program artifacts, `promotion_review_refined.json`, Oracle indexes, AK, governance, external authority, or candidate code. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; there is no override flag in this wave, and top-level `status: review_packet_ready` is not sufficient.
 
-## 11. Inspect manifest and receipt declarations
+## 11. Optional explicit second candidate from request-more-evidence
+
+If the local decision outcome is `request_more_evidence`, you can materialize one bounded local second candidate from the proposal patch:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-refine generate-candidate \
+  --manifest "$TD/program/manifest.json" \
+  --refinement-proposal "$TD/refinement/refinement_proposal.json" \
+  --decision-record "$TD/promotion/promotion_decision_record.json" \
+  --outdir "$TD/program-v2" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-refinement-candidate-result-v1`
+- `status: materialized`
+- `source_identity` matches the proposal and decision record identity
+- `decision.outcome: request_more_evidence`
+- `applied_patch.allowed_patch_fields: ["constraints"]`
+- the new candidate manifest exists under `$TD/program-v2/manifest.json`
+- the new candidate intent records `options.refinement_lineage`
+- the source candidate, proposal, and decision record are not mutated
+- the new candidate remains local and `not_promoted`
+
+This command is explicit follow-up candidate generation, not automatic program-gen behavior. It requires a `program-refinement-proposal-v1` with `status: proposed` and a local decision record with `outcome: request_more_evidence`. This first slice applies only bounded `constraints` intent patches. It does not mutate the source candidate, proposal, decision record, Oracle indexes, AK, governance, or external authority, and it does not promote either candidate.
+
+## 12. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
@@ -378,7 +406,7 @@ PY
 
 Replay is declaration-driven: the receipt points at `manifest.json`, and the manifest/receipt bundle declare which evidence artifacts and hashes must match.
 
-## 12. Run clean replay
+## 13. Run clean replay
 
 ```bash
 uv run -q python -m dspx.cli.dspx run replay \
@@ -398,7 +426,7 @@ Expected result:
 
 Replay is local/offline. It should not require MLflow, a provider, Oracle, or AK.
 
-## 13. Prove replay detects execution-episode drift
+## 14. Prove replay detects execution-episode drift
 
 ```bash
 cp "$TD/program/execution_episode.json" "$TD/execution_episode.original.json"
@@ -433,7 +461,7 @@ cp "$TD/execution_episode.original.json" "$TD/program/execution_episode.json"
 
 This proves `execution_episode.json` is a replay-checked evidence artifact, not just duplicated metadata.
 
-## 14. Optional sidecar authority export plan
+## 15. Optional sidecar authority export plan
 
 The local base smoke includes an optional authority adapter planning step:
 
@@ -451,7 +479,7 @@ This writes:
 
 The plan status is `planned_not_exported`. It is not an AK mutation, not a promotion decision, and not an authority export.
 
-## 15. Cleanup
+## 16. Cleanup
 
 ```bash
 rm -rf "$TD"
@@ -469,10 +497,10 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, and if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet.
+- no automatic Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, and if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate.
 
 ## Where this points next
 
-The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, an explicitly accepted/request-more-evidence refinement path that generates a second candidate assembly without making the proposal or decision record externally authoritative, richer execution episodes once a narrow behavior-source target exists, or external authority export planning from local decision records.
+The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, broader accepted-proposal policy beyond request-more-evidence constraints patches, richer execution episodes once a narrow behavior-source target exists, or external authority export planning from local decision records.
 
 A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, selected model-jury execution, or enough distinct behavior sources to justify a future `eval_behavior.py` orchestration layer. Promotion/adjudication should remain separate until an explicit authority contract exists.

@@ -51,3 +51,55 @@ def propose(
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("generate-candidate")
+def generate_candidate(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to source program-gen manifest.json",
+    ),
+    refinement_proposal: Path = typer.Option(
+        ...,
+        "--refinement-proposal",
+        help="Path to program-refinement-proposal-v1 JSON",
+    ),
+    decision_record: Path = typer.Option(
+        ...,
+        "--decision-record",
+        help="Path to local program-promotion-decision-record-v1 JSON",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        help="Directory where the second candidate assembly is materialized",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print candidate result JSON"),
+) -> None:
+    """Generate one explicit local second candidate from a request-more-evidence path."""
+    from dspx.services.program_refinement_candidate import (
+        ProgramRefinementCandidateError,
+        materialize_refinement_candidate,
+    )
+
+    try:
+        payload = materialize_refinement_candidate(
+            manifest_path=manifest,
+            refinement_proposal_path=refinement_proposal,
+            decision_record_path=decision_record,
+            outdir=outdir,
+        )
+    except ProgramRefinementCandidateError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program refinement candidate generation failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(outdir.expanduser().resolve()))

@@ -303,7 +303,20 @@ just dspx program-promote decide \
   --json
 ```
 
-The decision record has `schema_version: program-promotion-decision-record-v1`. It consumes the refined packet, records explicit `withhold`, `reject`, `request_more_evidence`, or gated `promote` input, and writes only the requested sidecar. Non-promote outcomes keep `promotion_state_after_decision: not_promoted`. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; top-level `status: review_packet_ready` is not enough. The command does not mutate generated program artifacts, the refined review packet, Oracle indexes, AK, governance, external authority, or candidate code. `program-gen` still does not automatically index, report, interpret, refine, review, or decide, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
+The decision record has `schema_version: program-promotion-decision-record-v1`. It consumes the refined packet, records explicit `withhold`, `reject`, `request_more_evidence`, or gated `promote` input, and writes only the requested sidecar. Non-promote outcomes keep `promotion_state_after_decision: not_promoted`. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; top-level `status: review_packet_ready` is not enough. The command does not mutate generated program artifacts, the refined review packet, Oracle indexes, AK, governance, external authority, or candidate code.
+
+A request-more-evidence decision can explicitly materialize one local second candidate from the bounded proposal patch:
+
+```bash
+just dspx program-refine generate-candidate \
+  --manifest generated/programs/answer_question/manifest.json \
+  --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json \
+  --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --outdir /tmp/dspx-program-refine/answer_question_v2 \
+  --json
+```
+
+This command requires a `program-refinement-proposal-v1` with `status: proposed` and a local decision record with `outcome: request_more_evidence`. It applies only the bounded `constraints` intent patch for this first slice, records local refinement lineage inside the new candidate intent, and materializes a normal local program candidate assembly at `--outdir`. It does not mutate the source candidate, proposal, decision record, Oracle indexes, AK, governance, or external authority, and it does not promote either candidate. `program-gen` still does not automatically index, report, interpret, refine, review, decide, or generate follow-up candidates, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
 
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
@@ -464,6 +477,9 @@ just dspx program-promote review --manifest generated/programs/answer_question/m
 
 # Record an explicit local adjudicator decision sidecar without external authority
 just dspx program-promote decide --review /tmp/dspx-program-promote/promotion_review_refined.json --outcome request_more_evidence --decided-by local_operator --rationale "Need model-jury execution before promotion." --out /tmp/dspx-program-promote/promotion_decision_record.json --json
+
+# Explicitly materialize one local second candidate from request-more-evidence
+just dspx program-refine generate-candidate --manifest generated/programs/answer_question/manifest.json --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json --decision-record /tmp/dspx-program-promote/promotion_decision_record.json --outdir /tmp/dspx-program-refine/answer_question_v2 --json
 
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json
