@@ -390,7 +390,8 @@ The current implementation keeps that foothold narrow while making the surface b
 - a separately invoked Oracle indexing command can consume `program-oracle-evidence-v1` artifacts into a local CoordinateIndex as searchable evidence,
 - a separately invoked Oracle program-evidence report command can read those indexed records and summarize example-backed behavior evidence without ranking, pruning, promotion, governance, external mutation, or program-gen automation,
 - a separately invoked `program-refine propose` command can consume the manifest, declared `behavior_results.json` when present, and an explicit non-authoritative Oracle report to write a local `program-refinement-proposal-v1` artifact only,
-- the refinement proposal does not mutate generated program files, does not create a second candidate assembly, and cannot rank, prune, promote, block, export authority, mutate governance, or make Oracle authoritative,
+- a separately invoked `program-promote review` command can consume the manifest, original generated promotion shell artifacts, declared behavior evidence when present, the explicit Oracle report, and the explicit refinement proposal to write a local `program-promotion-review-refined-v1` sidecar packet,
+- the refinement proposal and refined promotion-review packet do not mutate generated program files, do not overwrite `promotion_review.json` / adjudication request / decision template artifacts, do not create a second candidate assembly, and cannot rank, prune, promote, block via Oracle, export authority, mutate governance, or make Oracle authoritative,
 - the current behavior harness remains `eval_examples.py` / `behavior_results.json`; `eval_behavior.py` is not introduced until there are multiple behavior sources to orchestrate,
 - it remains scaffold-first and deterministic,
 - and it does not widen live ranking, pruning, promotion, Oracle, external adapter apply/export mutation, or governance-policy authority.
@@ -404,7 +405,9 @@ Prefer a contract-grounding implementation step such as:
 - deepen the first minimal local behavior-results contract into richer execution episode + receipt bundle semantics,
 - integrate territory/frontier views over the indexed program-evidence run kind,
 - add an explicit acceptance-to-second-candidate seam for a bounded refinement proposal,
-- define the first explicit local promotion-state shell for program-shaped candidate assembly.
+- integrate territory/frontier views over the indexed program-evidence run kind,
+- deepen execution episodes toward richer behavior sources when that justifies a future `eval_behavior.py` orchestration layer,
+- or define explicit adjudicator decision recording for program-shaped candidate assemblies.
 
 Do not start by stuffing richer synthesis behavior directly into `module_service`.
 Do not mistake `program_service` for the final ontology of the runtime.

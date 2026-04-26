@@ -42,6 +42,7 @@ from dspx.cli.commands import (
     run_app,
     optimize_app,
     providers_app,
+    program_promote_app,
     program_refine_app,
     oracle_app,
     signature_app,
@@ -74,6 +75,11 @@ app.add_typer(
     program_refine_app,
     name="program-refine",
     help="Bounded program refinement proposals",
+)
+app.add_typer(
+    program_promote_app,
+    name="program-promote",
+    help="Local program promotion-review evidence packets",
 )
 app.add_typer(
     oracle_app, name="oracle", help="Behavioral oracle (semantic coordinates)"

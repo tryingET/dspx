@@ -276,7 +276,20 @@ just dspx program-refine propose \
   --json
 ```
 
-The proposal is local and advisory only. It does not mutate generated program files, does not create a new candidate assembly, and does not rank, prune, promote, block, export authority, or mutate governance. `program-gen` still does not automatically index, report, interpret, or refine, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
+The proposal is local and advisory only. It does not mutate generated program files, does not create a new candidate assembly, and does not rank, prune, promote, block, export authority, or mutate governance.
+
+Promotion-review refinement is also explicit and separate. It consumes the `program-gen` manifest, original generated promotion shell artifacts, declared behavior evidence when present, the non-authoritative Oracle report, and the non-authoritative refinement proposal, then writes one local sidecar packet:
+
+```bash
+just dspx program-promote review \
+  --manifest generated/programs/answer_question/manifest.json \
+  --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json \
+  --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json \
+  --out /tmp/dspx-program-promote/promotion_review_refined.json \
+  --json
+```
+
+The refined packet is local review evidence only. It keeps `promotion_state: not_promoted`, preserves the need for explicit adjudicator decision and any required model-jury evidence, does not overwrite `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`, does not generate a new candidate assembly, and does not rank, prune, promote, block via Oracle, export authority, or mutate governance. `program-gen` still does not automatically index, report, interpret, refine, or build promotion-review packets, and this wave keeps `eval_examples.py` as the current example-backed behavior harness; no `eval_behavior.py` layer exists yet.
 
 A separately invoked adapter can plan an Agent Kernel export from the generated evidence without mutating AK:
 
@@ -431,6 +444,9 @@ just dspx oracle program-evidence report --index-path /tmp/dspx-program-oracle/c
 
 # Propose a bounded refinement artifact without mutating generated files or authority
 just dspx program-refine propose --manifest generated/programs/answer_question/manifest.json --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json --out /tmp/dspx-program-refine/refinement_proposal.json --json
+
+# Build a local refined promotion-review sidecar without promotion authority
+just dspx program-promote review --manifest generated/programs/answer_question/manifest.json --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json --out /tmp/dspx-program-promote/promotion_review_refined.json --json
 
 # List known behavioral branches from local receipts
 just dspx oracle branch --path generated --json
