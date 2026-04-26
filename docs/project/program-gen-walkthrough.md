@@ -38,9 +38,10 @@ The current `program-gen` loop proves:
 9. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
 10. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
 11. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
-12. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-13. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-14. Promotion and authority remain explicitly pending / non-authoritative.
+12. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over current example-backed behavior evidence.
+13. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+14. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+15. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
@@ -48,7 +49,8 @@ It does **not** prove:
 - dataset splits,
 - model-backed jury execution,
 - model-jury adjudication, external approval, or activation,
-- automatic Oracle indexing/interpretation/refinement/promotion-review/decision recording/second-candidate generation during `program-gen`,
+- automatic Oracle indexing/interpretation/refinement/promotion-review/decision recording/second-candidate generation/candidate comparison during `program-gen`,
+- ranking, winner selection, promotion approval, or authority export from candidate comparison,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search refinement,
 - broad accepted-proposal policy beyond the explicit request-more-evidence constraints-patch path,
@@ -380,6 +382,33 @@ Expected JSON facts:
 
 This command is explicit follow-up candidate generation, not automatic program-gen behavior. It requires a `program-refinement-proposal-v1` with `status: proposed` and a local decision record with `outcome: request_more_evidence`. This first slice applies only bounded `constraints` intent patches. It does not mutate the source candidate, proposal, decision record, Oracle indexes, AK, governance, or external authority, and it does not promote either candidate.
 
+## 11a. Optional explicit comparison of source and second candidate
+
+After the second candidate exists, compare the source and candidate behavior evidence without generating or promoting anything:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-refine compare-candidates \
+  --source-manifest "$TD/program/manifest.json" \
+  --candidate-manifest "$TD/program-v2/manifest.json" \
+  --refinement-proposal "$TD/refinement/refinement_proposal.json" \
+  --decision-record "$TD/promotion/promotion_decision_record.json" \
+  --out "$TD/refinement/candidate_comparison.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-refinement-candidate-comparison-v1`
+- `status: compared` when both manifests declare valid `behavior_results.json`, or `insufficient_behavior_evidence` when one side lacks example-backed behavior evidence
+- `source_identity` and `candidate_identity` come from the two manifests
+- `lineage` reports whether the candidate declares refinement lineage and whether that lineage points back to the source identity
+- `behavior_comparison.source` and `.candidate` summarize current `eval_examples.py` / `behavior_results.json` evidence only
+- `behavior_comparison.delta` reports failed/error/degraded count deltas, status change, and failure signals added, removed, and persisted
+- `interpretation` may say whether improvement was observed on the narrow example-backed evidence, but it is not approval
+- `effect` and `non_authority` confirm local-only/no-mutation posture
+
+This command writes only the requested sidecar. It does not mutate the source candidate, second candidate, proposal, decision record, Oracle index, AK, governance, or external authority. It does not generate a third candidate, rank candidates, select a winner, promote, block via Oracle, or introduce `eval_behavior.py`.
+
 ## 12. Inspect manifest and receipt declarations
 
 ```bash
@@ -497,7 +526,7 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, AK mutation, ranking, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, and if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate.
+- no automatic Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, AK mutation, ranking, winner selection, pruning, promotion, or governance mutation happened; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, and if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate.
 
 ## Where this points next
 

@@ -53,6 +53,66 @@ def propose(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("compare-candidates")
+def compare_candidates(
+    source_manifest: Path = typer.Option(
+        ...,
+        "--source-manifest",
+        help="Path to source program-candidate-assembly-v1 manifest.json",
+    ),
+    candidate_manifest: Path = typer.Option(
+        ...,
+        "--candidate-manifest",
+        help="Path to refinement candidate program-candidate-assembly-v1 manifest.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local candidate comparison sidecar should be written",
+    ),
+    refinement_proposal: Path | None = typer.Option(
+        None,
+        "--refinement-proposal",
+        help="Optional program-refinement-proposal-v1 lineage input",
+    ),
+    decision_record: Path | None = typer.Option(
+        None,
+        "--decision-record",
+        help="Optional program-promotion-decision-record-v1 lineage input",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print comparison JSON"),
+) -> None:
+    """Compare existing source and refinement candidates without authority effects."""
+    from dspx.services.program_refinement_comparison import (
+        ProgramRefinementComparisonError,
+        build_program_refinement_candidate_comparison,
+        write_program_refinement_candidate_comparison,
+    )
+
+    try:
+        comparison = build_program_refinement_candidate_comparison(
+            source_manifest_path=source_manifest,
+            candidate_manifest_path=candidate_manifest,
+            refinement_proposal_path=refinement_proposal,
+            decision_record_path=decision_record,
+        )
+        payload = write_program_refinement_candidate_comparison(comparison, out)
+    except ProgramRefinementComparisonError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program refinement candidate comparison failed: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("generate-candidate")
 def generate_candidate(
     manifest: Path = typer.Option(
