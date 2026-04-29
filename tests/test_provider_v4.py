@@ -11,7 +11,7 @@ import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
-from dspx.dspy_lm_auth_lm import DspyLMAuthLM
+from dspx.dspy_lm_auth_lm import DspyLMAuthCodexStreamResponse, DspyLMAuthLM
 import dspx.provider_registry as provider_registry
 from dspx.capabilities import ProviderCapabilities
 from dspx.provider_registry import available, ensure_default_providers
@@ -107,7 +107,7 @@ def test_dspy_lm_auth_wrapper_import_error_mentions_repo_helper(monkeypatch) -> 
         lm._import_module()
 
 
-def test_dspy_lm_auth_wrapper_strips_max_tokens_for_codex_route(
+def test_dspy_lm_auth_wrapper_strips_unsupported_params_and_streams_codex_route(
     monkeypatch, tmp_path: Path
 ) -> None:
     fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
@@ -124,7 +124,43 @@ def test_dspy_lm_auth_wrapper_strips_max_tokens_for_codex_route(
     lm.forward(prompt="hello", max_tokens=8, temperature=0)
     assert _FakeLM.last_kwargs is not None
     assert "max_tokens" not in _FakeLM.last_kwargs
-    assert _FakeLM.last_kwargs["temperature"] == 0
+    assert "temperature" not in _FakeLM.last_kwargs
+    assert _FakeLM.last_kwargs["stream"] is True
+    assert _FakeLM.last_kwargs["cache"] is False
+
+
+def test_dspy_lm_auth_codex_stream_patch_captures_output_text(monkeypatch) -> None:
+    fake_module = types.SimpleNamespace(__name__="fake_dspy_lm_auth")
+    fake_lm_module = types.ModuleType("fake_dspy_lm_auth.lm")
+    fake_lm_module._consume_codex_response_stream = lambda response_stream: (
+        response_stream
+    )
+    monkeypatch.setitem(sys.modules, "fake_dspy_lm_auth.lm", fake_lm_module)
+
+    DspyLMAuthLM._patch_codex_stream_text_capture(fake_module)
+
+    completed_response = types.SimpleNamespace(usage={"total_tokens": 3})
+    completed_event = types.SimpleNamespace(response=completed_response)
+
+    class _Stream:
+        completed_response = completed_event
+
+        def __iter__(self):
+            return iter(
+                [
+                    types.SimpleNamespace(delta="auto"),
+                    types.SimpleNamespace(delta="plan"),
+                    types.SimpleNamespace(
+                        type="response.output_text.done", text="ignored"
+                    ),
+                ]
+            )
+
+    captured = fake_lm_module._consume_codex_response_stream(_Stream())
+    assert isinstance(captured, DspyLMAuthCodexStreamResponse)
+    assert captured.output_text == "autoplan"
+    assert captured.usage == {"total_tokens": 3}
+    assert captured.raw is completed_response
 
 
 class _UsageObj:

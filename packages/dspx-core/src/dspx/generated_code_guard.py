@@ -52,17 +52,27 @@ def isolated_subprocess_env(
     return env
 
 
+def _default_smoke_timeout() -> int:
+    raw = os.environ.get("DSPX_GENERATED_CODE_GUARD_TIMEOUT") or os.environ.get(
+        "DSPX_PROGRAM_HARNESS_TIMEOUT", "30"
+    )
+    try:
+        return max(1, int(float(raw)))
+    except ValueError:
+        return 30
+
+
 def smoke_signature_code(
     code: str,
     *,
     expected_class_name: str | None = None,
-    timeout: int = 10,
+    timeout: int | None = None,
 ) -> tuple[bool, list[str]]:
     result = _run_worker(
         mode="signature",
         code=code,
         payload={"expected_class_name": expected_class_name},
-        timeout=timeout,
+        timeout=timeout or _default_smoke_timeout(),
     )
     errors = [str(item) for item in result.get("errors", []) if str(item).strip()]
     return bool(result.get("ok")) and not errors, errors
@@ -72,13 +82,13 @@ def smoke_module_code(
     code: str,
     *,
     payload: Mapping[str, Any],
-    timeout: int = 10,
+    timeout: int | None = None,
 ) -> tuple[bool, dict[str, bool], list[str]]:
     result = _run_worker(
         mode="module",
         code=code,
         payload=payload,
-        timeout=timeout,
+        timeout=timeout or _default_smoke_timeout(),
     )
     checks_raw = result.get("checks")
     checks = (

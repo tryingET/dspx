@@ -21,6 +21,8 @@ def render_module_skeleton(
     signature_code: Optional[str] = None,
     signature_class_name: Optional[str] = None,
     signature_import: Optional[str] = None,
+    inline_examples: Optional[list[dict[str, object]]] = None,
+    demo_input_fields: Optional[list[str]] = None,
 ) -> str:
     """Render a minimal deterministic dspy.Module skeleton.
 
@@ -48,6 +50,32 @@ def render_module_skeleton(
             header.append(signature_code.strip())
             header.append("")
 
+    demos = list(inline_examples or [])
+    demo_inputs = list(demo_input_fields or ins)
+    if demos:
+        header.extend(
+            [
+                f"DEMO_EXAMPLES = {demos!r}",
+                f"DEMO_INPUT_FIELDS = {demo_inputs!r}",
+                "",
+                "def _mapping_for(example: dict[str, object], role: str) -> dict[str, object]:",
+                "    nested = example.get(role)",
+                "    if isinstance(nested, dict):",
+                "        return dict(nested)",
+                "    return example",
+                "",
+                "def _build_demos() -> list[dspy.Example]:",
+                "    demos: list[dspy.Example] = []",
+                "    for example in DEMO_EXAMPLES:",
+                "        inputs_map = _mapping_for(example, 'inputs')",
+                "        outputs_map = _mapping_for(example, 'outputs')",
+                "        values = {**inputs_map, **outputs_map}",
+                "        demos.append(dspy.Example(**values).with_inputs(*DEMO_INPUT_FIELDS))",
+                "    return demos",
+                "",
+            ]
+        )
+
     body: List[str] = []
     doc = (description or f"Auto-generated module {cls}").replace("\n", " ")
     body.append(f"class {cls}(dspy.Module):")
@@ -60,6 +88,8 @@ def render_module_skeleton(
     else:
         io_sig = ", ".join(ins) + " -> " + ", ".join(outs)
         body.append(f"        self.predict = dspy.Predict({io_sig!r})")
+    if demos:
+        body.append("        self.predict.demos = _build_demos()")
     body.append("")
 
     # Build forward

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
 from dspx.cache import cache_dir, cache_enabled, make_key, sha256_text
+from dspx.generated_code_guard import isolated_subprocess_env
 from dspx.run_receipts import (
     build_mlflow_hints,
     build_run_receipt,
@@ -362,14 +364,34 @@ def _write_json(path: Path, payload: Mapping[str, Any] | list[Any]) -> str:
     return text
 
 
+def _program_harness_timeout_seconds() -> float:
+    raw = os.getenv("DSPX_PROGRAM_HARNESS_TIMEOUT", "60")
+    try:
+        return max(1.0, float(raw))
+    except ValueError:
+        return 60.0
+
+
 def _run_python_harness(root: Path, filename: str, *, label: str) -> dict[str, Any]:
+    source_root = Path(__file__).resolve().parents[2]
+    env = isolated_subprocess_env()
+    for key, value in os.environ.items():
+        if key.startswith("DSPX_") or key.startswith("MLFLOW_"):
+            env[key] = value
+    existing_pythonpath = os.environ.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        str(source_root)
+        if not existing_pythonpath
+        else f"{source_root}{os.pathsep}{existing_pythonpath}"
+    )
     proc = subprocess.run(
         [sys.executable, filename],
         cwd=root,
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=_program_harness_timeout_seconds(),
         check=False,
+        env=env,
     )
     stdout = (proc.stdout or "").strip()
     stderr = (proc.stderr or "").strip()

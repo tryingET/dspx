@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import importlib
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
@@ -38,6 +39,43 @@ else:  # pragma: no cover
 
 
 @dataclass
+class DspyLMAuthOutputText:
+    text: str
+
+
+@dataclass
+class DspyLMAuthOutputMessage:
+    content: list[DspyLMAuthOutputText]
+    type: str = "message"
+
+
+@dataclass
+class DspyLMAuthMinimalResponse:
+    model: str
+    choices: list[dict[str, Any]]
+    usage: dict[str, Any] | None
+    raw: Any | None = None
+    output: list[DspyLMAuthOutputMessage] = field(init=False)
+    _hidden_params: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.usage is None:
+            self.usage = {}
+        first = self.choices[0] if self.choices else {}
+        text = str(first.get("text") or "") if isinstance(first, dict) else ""
+        self.output = (
+            [DspyLMAuthOutputMessage([DspyLMAuthOutputText(text)])] if text else []
+        )
+
+
+@dataclass
+class DspyLMAuthCodexStreamResponse:
+    output_text: str
+    usage: Any | None
+    raw: Any | None = None
+
+
+@dataclass
 class DspyLmAuthCall:
     model: str
     auth_provider: str | None
@@ -62,7 +100,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
     def __init__(
         self,
         *,
-        model: str = "codex/gpt-5.4",
+        model: str = "codex/gpt-5.5",
         auth_provider: str | None = None,
         auth_storage: str | None = None,
         timeout: float | None = 60.0,
@@ -104,7 +142,53 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 "or 'pip install dspy-lm-auth'. From the DSPx repo, prefer 'just link-dspy-lm-auth' "
                 "to use the workspace contrib checkout."
             ) from e
+        self._patch_codex_stream_text_capture(dspy_lm_auth)
         return dspy_lm_auth
+
+    @staticmethod
+    def _patch_codex_stream_text_capture(module: Any) -> None:
+        try:
+            lm_module = importlib.import_module(f"{module.__name__}.lm")
+        except Exception:
+            lm_module = getattr(module, "lm", None)
+        if lm_module is None or getattr(lm_module, "_dspx_stream_text_patch", False):
+            return
+        original = getattr(lm_module, "_consume_codex_response_stream", None)
+        if not callable(original):
+            return
+
+        def _consume_with_text(response_stream: Any) -> Any:
+            if not hasattr(response_stream, "completed_response"):
+                return response_stream
+            text_parts: list[str] = []
+            done_text: str | None = None
+            for event in response_stream:
+                delta = getattr(event, "delta", None)
+                if isinstance(delta, str) and delta:
+                    text_parts.append(delta)
+                    continue
+                event_type = str(getattr(event, "type", ""))
+                if "output_text.done" in event_type:
+                    text = getattr(event, "text", None)
+                    if isinstance(text, str) and text:
+                        done_text = text
+            completed_event = getattr(response_stream, "completed_response", None)
+            completed_response = getattr(completed_event, "response", None)
+            if completed_response is None:
+                raise RuntimeError(
+                    "Codex response stream ended without a completed response"
+                )
+            output_text = ("".join(text_parts) or done_text or "").strip()
+            if not output_text:
+                return completed_response
+            return DspyLMAuthCodexStreamResponse(
+                output_text=output_text,
+                usage=getattr(completed_response, "usage", None),
+                raw=completed_response,
+            )
+
+        setattr(lm_module, "_consume_codex_response_stream", _consume_with_text)
+        setattr(lm_module, "_dspx_stream_text_patch", True)
 
     def _build_inner(self) -> Any:
         if self._inner is not None:
@@ -326,8 +410,11 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         text = ""
         usage: dict[str, Any] | None = None
         call_kwargs = dict(kwargs)
-        if bool(self._uses_codex_route):
+        if bool(self._uses_codex_route) or self.requested_model.startswith("codex/"):
             call_kwargs.pop("max_tokens", None)
+            call_kwargs.pop("temperature", None)
+            call_kwargs["stream"] = True
+            call_kwargs["cache"] = False
         try:
             resp = inner.forward(
                 prompt=prompt,
@@ -336,7 +423,13 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             )
             text = self._extract_text(resp)
             usage = self._extract_usage(resp)
-            return resp
+            return DspyLMAuthMinimalResponse(
+                model=getattr(self, "model", None)
+                or f"dspy-lm-auth/{self.requested_model}",
+                choices=[{"text": text}],
+                usage=usage,
+                raw=resp,
+            )
         except Exception as e:
             err = str(e)
             text = err

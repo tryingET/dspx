@@ -527,7 +527,7 @@ def _current_provider_details() -> dict[str, Any]:
         )
         details.update(
             {
-                "requested_model": os.getenv("DSPX_LM_AUTH_MODEL") or "codex/gpt-5.4",
+                "requested_model": os.getenv("DSPX_LM_AUTH_MODEL") or "codex/gpt-5.5",
                 "auth_provider": os.getenv("DSPX_LM_AUTH_PROVIDER") or None,
                 "auth_storage": storage,
                 "auth_storage_exists": Path(storage).exists(),

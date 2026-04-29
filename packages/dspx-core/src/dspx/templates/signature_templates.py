@@ -154,9 +154,12 @@ def render_signature_from_spec(
     inputs: list[dict[str, Any]] | None = None,
     outputs: list[dict[str, Any]] | None = None,
     version: str = "spec-v1",
+    preserve_class_name: bool = False,
 ) -> str:
     """Render deterministic signature code from a structured spec."""
-    cls = _safe_identifier(class_name, "GeneratedSignature", class_name=True)
+    cls = _safe_identifier(
+        class_name, "GeneratedSignature", class_name=not preserve_class_name
+    )
     doc = (description or "Auto-generated Signature").strip().replace("\n", " ")
 
     in_fields = _normalize_fields(

@@ -477,7 +477,7 @@ def render_dataset_split_eval_harness(split: str) -> str:
             "        import dspy",
             "        from dspx.provider_registry import create_from_env, ensure_default_providers",
             "        ensure_default_providers()",
-            "        lm = create_from_env(default='stub')",
+            "        lm = create_from_env(default='dspy-lm-auth')",
             "        dspy.configure(lm=lm)",
             "        return {'status': 'configured', 'provider': getattr(lm, 'model', type(lm).__name__)}",
             "    except Exception as exc:",

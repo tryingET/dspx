@@ -582,6 +582,15 @@ def test_program_service_binds_examples_when_present(
         command_names = [Path(part).name for part in command_text]
         assert "ak" not in command_names
         assert "oracle" not in command_names
+        env = kwargs.get("env")
+        if (
+            env is not None
+            and len(command_text) == 2
+            and Path(command_text[1]).name.startswith("eval_")
+        ):
+            assert isinstance(env, dict)
+            source_root = str(Path(program_service.__file__).resolve().parents[2])
+            assert source_root in str(env.get("PYTHONPATH", ""))
         subprocess_calls.append(command_text)
         return real_run(command, *args, **kwargs)
 
@@ -604,9 +613,16 @@ def test_program_service_binds_examples_when_present(
     root = Path(artifact.root_path)
     assert (root / "examples.json").exists()
     assert (root / "eval_examples.py").exists()
+    assert "create_from_env(default='dspy-lm-auth')" in (
+        root / "eval_examples.py"
+    ).read_text(encoding="utf-8")
     assert (root / "behavior_results.json").exists()
     assert (root / "oracle_evidence.json").exists()
     assert (root / "execution_episode.json").exists()
+    module_code = (root / "module.py").read_text(encoding="utf-8")
+    assert "DEMO_EXAMPLES =" in module_code
+    assert "self.predict.demos = _build_demos()" in module_code
+    assert "answer: str = dspy.OutputField" in module_code
 
     behavior_results = json.loads(
         (root / "behavior_results.json").read_text(encoding="utf-8")

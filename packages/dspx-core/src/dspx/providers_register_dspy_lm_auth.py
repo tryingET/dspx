@@ -15,7 +15,7 @@ def _truthy(name: str, default: bool) -> bool:
 
 
 def _factory() -> DspyLMAuthLM:
-    model = os.getenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.4")
+    model = os.getenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.5")
     auth_provider = os.getenv("DSPX_LM_AUTH_PROVIDER") or None
     auth_storage = os.getenv("DSPX_LM_AUTH_STORAGE") or None
     timeout = float(os.getenv("DSPX_LM_AUTH_TIMEOUT", "60") or 60.0)

@@ -8,7 +8,10 @@ import re
 from dspx.cache import make_key
 from dspx.dtos import ModuleSpec
 from dspx.templates.module_templates import render_module_skeleton
-from dspx.templates.signature_templates import render_simple_signature
+from dspx.templates.signature_templates import (
+    render_signature_from_spec,
+    render_simple_signature,
+)
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -93,6 +96,14 @@ def module_cache_key(
         payload["signature_class_name"] = options["signature_class_name"]
     if options.get("signature_import"):
         payload["signature_import"] = options["signature_import"]
+    if options.get("inline_examples"):
+        payload["inline_examples"] = options["inline_examples"]
+    if options.get("demo_input_fields"):
+        payload["demo_input_fields"] = options["demo_input_fields"]
+    if options.get("input_field_specs"):
+        payload["input_field_specs"] = options["input_field_specs"]
+    if options.get("output_field_specs"):
+        payload["output_field_specs"] = options["output_field_specs"]
     return make_key(payload)
 
 
@@ -176,15 +187,37 @@ def render_seed_module_code(
         sig_name = str(options.get("signature_class_name") or sig_class_name(spec.name))
         sig_import_raw = options.get("signature_import")
         sig_import = str(sig_import_raw) if sig_import_raw else None
+        signature_desc = desc or f"Signature for {spec.name}"
+        if options.get("inline_examples"):
+            signature_desc = (
+                f"{signature_desc} Use inline demos as binding examples; when inputs match a demo, "
+                "reproduce that demo's declared outputs exactly."
+            )
         if not sig_import:
-            sig_code = _signature_code_for_embedding(
-                render_simple_signature(
+            input_field_specs = options.get("input_field_specs")
+            output_field_specs = options.get("output_field_specs")
+            if isinstance(input_field_specs, list) or isinstance(
+                output_field_specs, list
+            ):
+                signature_code = render_signature_from_spec(
                     sig_name,
-                    desc or f"Signature for {spec.name}",
+                    signature_desc,
+                    inputs=input_field_specs
+                    if isinstance(input_field_specs, list)
+                    else None,
+                    outputs=output_field_specs
+                    if isinstance(output_field_specs, list)
+                    else None,
+                    preserve_class_name=True,
+                )
+            else:
+                signature_code = render_simple_signature(
+                    sig_name,
+                    signature_desc,
                     inputs=inputs,
                     outputs=outputs,
                 )
-            )
+            sig_code = _signature_code_for_embedding(signature_code)
     return render_module_skeleton(
         spec.name,
         inputs,
@@ -193,6 +226,12 @@ def render_seed_module_code(
         signature_code=sig_code,
         signature_class_name=sig_name,
         signature_import=sig_import,
+        inline_examples=options.get("inline_examples")
+        if isinstance(options.get("inline_examples"), list)
+        else None,
+        demo_input_fields=options.get("demo_input_fields")
+        if isinstance(options.get("demo_input_fields"), list)
+        else None,
     )
 
 

@@ -104,6 +104,9 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
     for split in ("train", "validation", "test"):
         assert (root / "splits" / f"{split}.jsonl").exists()
         assert (root / f"eval_{split}.py").exists()
+        assert "create_from_env(default='dspy-lm-auth')" in (
+            root / f"eval_{split}.py"
+        ).read_text(encoding="utf-8")
         assert (root / f"behavior_results.{split}.json").exists()
     assert not (root / "eval_behavior.py").exists()
     assert not (root / "refinement_proposal.json").exists()
