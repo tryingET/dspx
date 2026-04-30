@@ -13,7 +13,7 @@ This is the smallest safe loop for trying the current DSPx base layer from a cle
 It demonstrates the current shipped path:
 
 ```text
-signature surface -> module surface -> module-surface contracts -> program-shaped candidate assembly -> optional example/dataset evidence -> execution episode -> receipt bundle -> authority export plan sidecar
+signature surface -> module surface -> module-surface contracts -> program-shaped candidate assembly -> optional example/dataset evidence -> execution episode -> receipt bundle -> authority export plan sidecar -> optional external-authority export preflight packet
 ```
 
 The default starter intent still exercises the single-module path. `program-gen` also supports explicit user-declared `pipeline` topology for the narrow `Predict` / `ChainOfThought` subset with `signature.name` / `signature.inputs` / `signature.outputs` and simple `when.field` / `when.equals` routing. In both paths it emits `module_surfaces.json` (`program-module-surfaces-v1`) so generated module surfaces are replayable, hashable, and IO-declared. Structured intent may also declare local dataset split evidence via `dataset` (JSONL/JSON/YAML source plus ratio seed) or `datasets` (explicit train/validation/test files), which adds `dataset_manifest.json`, split JSONL files, split eval harnesses, and split behavior results. Dataset support does not change topology rendering: DSPx does not infer topology, run arbitrary expressions, or import/execute custom Python modules.
@@ -140,12 +140,24 @@ just smoke-program-refinement
 
 That target runs `scripts/smoke_program_refinement_loop.sh` in a temp directory by default. It exercises the local evidence/refinement path through explicit temp-dir Oracle indexing/reporting, `program-refine propose`, `program-promote review`, `program-promote decide --outcome request_more_evidence`, and `program-refine generate-and-compare`.
 
-It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not export authority, and does not introduce `eval_behavior.py`. The GEPA seam is a separate explicit command, `program-refine optimize-gepa`, over an existing manifest; it writes a local `program-refinement-gepa-result-v1` sidecar and can degrade truthfully without materializing a candidate assembly.
+From those explicit sidecars, an operator can separately build a local external-authority preflight packet:
+
+```bash
+uv run -q python -m dspx.cli.dspx adapters authority agent-kernel-export-preflight \
+  --manifest "$OUT_DIR/program/manifest.json" \
+  --external-ref AK-EXAMPLE \
+  --decision-record "$OUT_DIR/promotion/promotion_decision_record.json" \
+  --comparison "$OUT_DIR/refinement/candidate_comparison.json" \
+  --out "$OUT_DIR/export/ak-export-preflight.json" \
+  --json
+```
+
+The packet has `schema_version: program-external-authority-export-preflight-v1`; it records hashes, manifest identity, deterministic idempotency/export ID, an `ak_task_evidence_attachment` planned payload, and explicit apply blockers. It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not apply/export authority, does not mutate governance, and does not introduce `eval_behavior.py`. Missing optional decision/comparison sidecars degrade the packet to `incomplete_preflight`; explicit identity mismatches fail closed. The GEPA seam is a separate explicit command, `program-refine optimize-gepa`, over an existing manifest; it writes a local `program-refinement-gepa-result-v1` sidecar and can degrade truthfully without materializing a candidate assembly.
 
 ## Boundary reminder
 
 This loop proves local materialization and evidence plumbing only.
 
-DSPx core emits portable local evidence and opaque external authority refs. The authority adapter consumes those evidence artifacts to produce a planned sidecar export packet. It must not call Agent Kernel, mutate task state, invoke an adjudicator, or turn evidence into authority.
+DSPx core emits portable local evidence and opaque external authority refs. The authority adapter consumes those evidence artifacts to produce a planned sidecar export plan or a stronger local export-preflight packet. It must not call Agent Kernel, mutate task state, invoke an adjudicator, apply/export authority, or turn evidence into authority. Actual external apply remains future work requiring exact AK target-contract binding, external duplicate checks, an apply receipt, and rollback/failure semantics.
 
 Oracle may later interpret receipt evidence, but Oracle does not rank, prune, promote, block, or own governance authority in this loop. If you explicitly run `program-promote jury` after this loop, it writes only a local `jury_results.json` sidecar from planned jury artifacts plus current `eval_examples.py` / `behavior_results.json`; it does not mutate the candidate, call external models, create Oracle indexes, rank, select winners, promote, approve, export authority, mutate AK/governance, or introduce `eval_behavior.py`.

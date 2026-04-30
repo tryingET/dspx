@@ -73,7 +73,7 @@ Program-refinement loop smoke (also offline/temp-dir by default, no AK calls):
 just smoke-program-refinement
 ```
 
-This runs the explicit local evidence/refinement path through temp-dir Oracle indexing/reporting, proposal, refined review packet, request-more-evidence decision record, one second-candidate generation, and local comparison sidecar. A separate `program-promote plan` command can then consume an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan. The GEPA program-refinement seam is separate: `program-refine optimize-gepa` must be invoked explicitly against an existing manifest. These paths remain non-authoritative and do not rank, select a winner, promote, export authority, mutate governance, or introduce `eval_behavior.py`.
+This runs the explicit local evidence/refinement path through temp-dir Oracle indexing/reporting, proposal, refined review packet, request-more-evidence decision record, one second-candidate generation, and local comparison sidecar. A separate `program-promote plan` command can then consume an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan. A separate authority adapter can now consume a manifest, an explicit Agent Kernel ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet. The GEPA program-refinement seam is separate: `program-refine optimize-gepa` must be invoked explicitly against an existing manifest. These paths remain non-authoritative and do not call AK, rank, select a winner, promote, export/apply authority, mutate governance, or introduce `eval_behavior.py`.
 
 ---
 
@@ -450,7 +450,21 @@ just dspx adapters authority agent-kernel-plan \
   --out generated/programs/answer_question/ak-export-plan.json
 ```
 
-That adapter output is a sidecar export plan (`planned_not_exported`) plus a local `*.meta.json` receipt for the plan, not a promotion decision and not an AK write. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
+That legacy adapter output is a sidecar export plan (`planned_not_exported`) plus a local `*.meta.json` receipt for the plan, not a promotion decision and not an AK write.
+
+For the stronger base-layer authority boundary, a separate preflight command can bind local evidence artifacts to an explicit opaque AK ref and report what would still have to be true before any future apply layer could be allowed:
+
+```bash
+just dspx adapters authority agent-kernel-export-preflight \
+  --manifest generated/programs/answer_question/manifest.json \
+  --external-ref AK-1234 \
+  --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --comparison /tmp/dspx-program-refine/candidate_comparison.json \
+  --out /tmp/dspx-program-export/ak-export-preflight.json \
+  --json
+```
+
+The preflight packet has `schema_version: program-external-authority-export-preflight-v1`. It records manifest/decision/comparison schemas and hashes, manifest identity, deterministic `export_id` and idempotency fingerprint, an `ak_task_evidence_attachment` planned payload, effect flags proving `ak_called: false` / `external_authority_mutated: false` / `governance_mutated: false`, and blocking reasons including `external_apply_not_implemented` plus `target_contract_not_bound_to_ak_runtime`. Missing optional decision/comparison inputs degrade to `incomplete_preflight`; explicit identity mismatches fail closed. It does not call AK, mutate external authority, mutate governance, promote, select a winner, or provide an apply command. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
 
 ---
 

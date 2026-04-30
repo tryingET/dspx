@@ -46,6 +46,7 @@ def adapters_list(
         "eval.f1_binary",
         "store.local_object",
         "authority.agent_kernel.plan",
+        "authority.agent_kernel.export_preflight",
     ]
     descs = {
         "dataset.csv": "CSV dataset loader",
@@ -55,6 +56,7 @@ def adapters_list(
         "eval.f1_binary": "F1 (binary) metric",
         "store.local_object": "Local object store",
         "authority.agent_kernel.plan": "Agent Kernel export plan from DSPx evidence (no mutation)",
+        "authority.agent_kernel.export_preflight": "Agent Kernel evidence-attachment export preflight packet (no AK call, no mutation)",
     }
     if json_out:
         typer.echo(json.dumps(items, ensure_ascii=False, indent=2))
@@ -108,6 +110,65 @@ def adapters_authority_agent_kernel_plan(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     typer.echo(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+@authority_app.command("agent-kernel-export-preflight")
+def adapters_authority_agent_kernel_export_preflight(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        "-m",
+        help="Path to a program-gen manifest.json file",
+    ),
+    external_ref: str = typer.Option(
+        ...,
+        "--external-ref",
+        help="Opaque Agent Kernel target ref supplied by the operator, e.g. AK-1234",
+    ),
+    decision_record: Optional[Path] = typer.Option(
+        None,
+        "--decision-record",
+        help="Optional local program-promotion-decision-record-v1 sidecar",
+    ),
+    comparison: Optional[Path] = typer.Option(
+        None,
+        "--comparison",
+        help="Optional program-refinement-candidate-comparison-v1 sidecar",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        "-o",
+        help="Path to write the local export preflight packet JSON",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print preflight JSON"),
+) -> None:
+    """Build an Agent Kernel export preflight packet without AK mutation."""
+    from dspx.services.program_external_authority_export import (
+        ProgramExternalAuthorityExportError,
+        build_program_external_authority_export_preflight,
+        write_program_external_authority_export_preflight,
+    )
+
+    try:
+        packet = build_program_external_authority_export_preflight(
+            manifest_path=manifest,
+            external_ref=external_ref,
+            decision_record_path=decision_record,
+            comparison_path=comparison,
+        )
+        payload = write_program_external_authority_export_preflight(packet, out)
+    except ProgramExternalAuthorityExportError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"error: external authority export preflight failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
 
 
 @dataset_app.command("describe")
