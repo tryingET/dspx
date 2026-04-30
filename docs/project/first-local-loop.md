@@ -13,7 +13,7 @@ This is the smallest safe loop for trying the current DSPx base layer from a cle
 It demonstrates the current shipped path:
 
 ```text
-signature surface -> module surface -> module-surface contracts -> program-shaped candidate assembly -> optional example/dataset evidence -> execution episode -> receipt bundle -> authority export plan sidecar -> optional external-authority export preflight packet
+signature surface -> module surface -> module-surface contracts -> program-shaped candidate assembly -> optional example/dataset evidence -> execution episode -> receipt bundle -> authority export plan sidecar -> optional external-authority export preflight packet -> optional candidate truth-state summary
 ```
 
 The default starter intent still exercises the single-module path. `program-gen` also supports explicit user-declared `pipeline` topology for the narrow `Predict` / `ChainOfThought` subset with `signature.name` / `signature.inputs` / `signature.outputs` and simple `when.field` / `when.equals` routing. In both paths it emits `module_surfaces.json` (`program-module-surfaces-v1`) so generated module surfaces are replayable, hashable, and IO-declared. Structured intent may also declare local dataset split evidence via `dataset` (JSONL/JSON/YAML source plus ratio seed) or `datasets` (explicit train/validation/test files), which adds `dataset_manifest.json`, split JSONL files, split eval harnesses, and split behavior results. Dataset support does not change topology rendering: DSPx does not infer topology, run arbitrary expressions, or import/execute custom Python modules.
@@ -152,12 +152,30 @@ uv run -q python -m dspx.cli.dspx adapters authority agent-kernel-export-preflig
   --json
 ```
 
-The packet has `schema_version: program-external-authority-export-preflight-v1`; it records hashes, manifest identity, deterministic idempotency/export ID, an `ak_task_evidence_attachment` planned payload, and explicit apply blockers. It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not apply/export authority, does not mutate governance, and does not introduce `eval_behavior.py`. Missing optional decision/comparison sidecars degrade the packet to `incomplete_preflight`; explicit identity mismatches fail closed. The GEPA seam is a separate explicit command, `program-refine optimize-gepa`, over an existing manifest; it writes a local `program-refinement-gepa-result-v1` sidecar and can degrade truthfully without materializing a candidate assembly.
+The packet has `schema_version: program-external-authority-export-preflight-v1`; it records hashes, manifest identity, deterministic idempotency/export ID, an `ak_task_evidence_attachment` planned payload, and explicit apply blockers.
+
+To put the candidate's local truth into one inspectable artifact, use `program-promote status` with the manifest and whichever sidecars exist:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote status \
+  --manifest "$OUT_DIR/program-v2/manifest.json" \
+  --source-manifest "$OUT_DIR/program/manifest.json" \
+  --oracle-report "$OUT_DIR/oracle/program-evidence-report.json" \
+  --refinement-proposal "$OUT_DIR/refinement/refinement_proposal.json" \
+  --review "$OUT_DIR/promotion/promotion_review_refined.json" \
+  --decision-record "$OUT_DIR/promotion/promotion_decision_record.json" \
+  --comparison "$OUT_DIR/refinement/candidate_comparison.json" \
+  --export-preflight "$OUT_DIR/export/ak-export-preflight.json" \
+  --out "$OUT_DIR/state/program_candidate_state.json" \
+  --json
+```
+
+The state artifact has `schema_version: program-candidate-state-v1`; it summarizes materialization, behavior evidence, Oracle readability/reporting, review/decision/comparison/plan/preflight posture, artifact hashes, no-mutation effects, and future apply requirements. It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not apply/export authority, does not mutate governance, and does not introduce `eval_behavior.py`. Missing optional sidecars are reported as missing rather than invented; explicit identity/authority mismatches fail closed. The GEPA seam is a separate explicit command, `program-refine optimize-gepa`, over an existing manifest; it writes a local `program-refinement-gepa-result-v1` sidecar and can degrade truthfully without materializing a candidate assembly.
 
 ## Boundary reminder
 
 This loop proves local materialization and evidence plumbing only.
 
-DSPx core emits portable local evidence and opaque external authority refs. The authority adapter consumes those evidence artifacts to produce a planned sidecar export plan or a stronger local export-preflight packet. It must not call Agent Kernel, mutate task state, invoke an adjudicator, apply/export authority, or turn evidence into authority. Actual external apply remains future work requiring exact AK target-contract binding, external duplicate checks, an apply receipt, and rollback/failure semantics.
+DSPx core emits portable local evidence and opaque external authority refs. The authority adapter consumes those evidence artifacts to produce a planned sidecar export plan or a stronger local export-preflight packet, and `program-promote status` can summarize all local truth into one state artifact. These surfaces must not call Agent Kernel, mutate task state, invoke an adjudicator, apply/export authority, or turn evidence into authority. Actual external apply remains future work requiring exact AK target-contract binding, external duplicate checks, an apply receipt, and rollback/failure semantics.
 
 Oracle may later interpret receipt evidence, but Oracle does not rank, prune, promote, block, or own governance authority in this loop. If you explicitly run `program-promote jury` after this loop, it writes only a local `jury_results.json` sidecar from planned jury artifacts plus current `eval_examples.py` / `behavior_results.json`; it does not mutate the candidate, call external models, create Oracle indexes, rank, select winners, promote, approve, export authority, mutate AK/governance, or introduce `eval_behavior.py`.

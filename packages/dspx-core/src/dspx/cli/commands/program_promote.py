@@ -173,6 +173,94 @@ def plan(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("status")
+def status(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to candidate program-candidate-assembly-v1 manifest.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local candidate truth-state sidecar should be written",
+    ),
+    source_manifest: Path | None = typer.Option(
+        None,
+        "--source-manifest",
+        help="Optional source manifest when the candidate state includes refinement lineage",
+    ),
+    oracle_report: Path | None = typer.Option(
+        None,
+        "--oracle-report",
+        help="Optional program-oracle-evidence-report-v1 JSON",
+    ),
+    refinement_proposal: Path | None = typer.Option(
+        None,
+        "--refinement-proposal",
+        help="Optional program-refinement-proposal-v1 JSON",
+    ),
+    review: Path | None = typer.Option(
+        None,
+        "--review",
+        help="Optional program-promotion-review-refined-v1 JSON",
+    ),
+    decision_record: Path | None = typer.Option(
+        None,
+        "--decision-record",
+        help="Optional program-promotion-decision-record-v1 JSON",
+    ),
+    comparison: Path | None = typer.Option(
+        None,
+        "--comparison",
+        help="Optional program-refinement-candidate-comparison-v1 JSON",
+    ),
+    promotion_plan: Path | None = typer.Option(
+        None,
+        "--promotion-plan",
+        help="Optional program-promotion-plan-v1 JSON",
+    ),
+    export_preflight: Path | None = typer.Option(
+        None,
+        "--export-preflight",
+        help="Optional program-external-authority-export-preflight-v1 JSON",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print state JSON"),
+) -> None:
+    """Summarize the local truth state for one program candidate."""
+    from dspx.services.program_candidate_state import (
+        ProgramCandidateStateError,
+        build_program_candidate_state,
+        write_program_candidate_state,
+    )
+
+    try:
+        state = build_program_candidate_state(
+            manifest_path=manifest,
+            out_path=out,
+            source_manifest_path=source_manifest,
+            oracle_report_path=oracle_report,
+            refinement_proposal_path=refinement_proposal,
+            review_path=review,
+            decision_record_path=decision_record,
+            comparison_path=comparison,
+            promotion_plan_path=promotion_plan,
+            export_preflight_path=export_preflight,
+        )
+        payload = write_program_candidate_state(state, out)
+    except ProgramCandidateStateError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program candidate state summarization failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("decide")
 def decide(
     review: Path = typer.Option(

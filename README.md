@@ -464,7 +464,26 @@ just dspx adapters authority agent-kernel-export-preflight \
   --json
 ```
 
-The preflight packet has `schema_version: program-external-authority-export-preflight-v1`. It records manifest/decision/comparison schemas and hashes, manifest identity, deterministic `export_id` and idempotency fingerprint, an `ak_task_evidence_attachment` planned payload, effect flags proving `ak_called: false` / `external_authority_mutated: false` / `governance_mutated: false`, and blocking reasons including `external_apply_not_implemented` plus `target_contract_not_bound_to_ak_runtime`. Missing optional decision/comparison inputs degrade to `incomplete_preflight`; explicit identity mismatches fail closed. It does not call AK, mutate external authority, mutate governance, promote, select a winner, or provide an apply command. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
+The preflight packet has `schema_version: program-external-authority-export-preflight-v1`. It records manifest/decision/comparison schemas and hashes, manifest identity, deterministic `export_id` and idempotency fingerprint, an `ak_task_evidence_attachment` planned payload, effect flags proving `ak_called: false` / `external_authority_mutated: false` / `governance_mutated: false`, and blocking reasons including `external_apply_not_implemented` plus `target_contract_not_bound_to_ak_runtime`. Missing optional decision/comparison inputs degrade to `incomplete_preflight`; explicit identity mismatches fail closed. It does not call AK, mutate external authority, mutate governance, promote, select a winner, or provide an apply command.
+
+To explain the whole local truth state for a candidate in one sidecar, use:
+
+```bash
+just dspx program-promote status \
+  --manifest /tmp/dspx-program-refine/answer_question_v2/manifest.json \
+  --source-manifest generated/programs/answer_question/manifest.json \
+  --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json \
+  --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json \
+  --review /tmp/dspx-program-promote/promotion_review_refined.json \
+  --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --comparison /tmp/dspx-program-refine/candidate_comparison.json \
+  --promotion-plan /tmp/dspx-program-promote/promotion_plan.json \
+  --export-preflight /tmp/dspx-program-export/ak-export-preflight.json \
+  --out /tmp/dspx-program-state/program_candidate_state.json \
+  --json
+```
+
+The state artifact has `schema_version: program-candidate-state-v1`. It summarizes materialization, behavior evidence, Oracle readability/reporting, refinement proposal, review readiness, decision outcome, comparison role, promotion plan/apply posture, external-authority preflight blockers, deterministic artifact hashes, and the remaining future-apply requirements. It is a state summary only: it does not call AK, mutate inputs, mutate Oracle indexes, apply promotion, select a winner, or mutate governance/external authority. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
 
 ---
 

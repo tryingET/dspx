@@ -47,8 +47,9 @@ The current `program-gen` loop proves:
 15. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
 16. `program-promote plan` can be run explicitly over an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan sidecar.
 17. `adapters authority agent-kernel-export-preflight` can be run explicitly over a manifest, opaque AK ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet that is preflighted/planned/not applied.
-18. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
-19. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+18. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
+19. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
+20. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
 19. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
 20. Promotion and authority remain explicitly pending / non-authoritative.
 
@@ -700,6 +701,36 @@ Expected JSON facts:
 
 This command writes only the requested preflight packet. It does not call AK, validate the ref against AK, mutate external authority, mutate governance, mutate program/decision/comparison artifacts, rank, select a winner, promote, apply, or introduce `eval_behavior.py`. A future apply command would need exact AK target-contract binding, external duplicate checks, an apply receipt, and rollback/failure semantics.
 
+## 19b. Optional whole-candidate truth-state summary
+
+After local sidecars exist, summarize the current candidate truth state in one artifact:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote status \
+  --manifest "$TD/program-v2/manifest.json" \
+  --source-manifest "$TD/program/manifest.json" \
+  --oracle-report "$TD/oracle/program-evidence-report.json" \
+  --refinement-proposal "$TD/refinement/refinement_proposal.json" \
+  --review "$TD/promotion/promotion_review_refined.json" \
+  --decision-record "$TD/promotion/promotion_decision_record.json" \
+  --comparison "$TD/refinement/candidate_comparison.json" \
+  --export-preflight "$TD/export/ak-export-preflight.json" \
+  --out "$TD/state/program_candidate_state.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-candidate-state-v1`
+- `status` is a truth-preserving local posture such as `not_promoted_external_preflighted_not_applied`
+- `candidate_identity` and optional `source_identity` identify the exact artifacts being summarized
+- `evidence_state` reports behavior evidence, execution episode, Oracle-readable evidence, optional Oracle report, and optional refinement proposal
+- `promotion_state` reports review readiness, decision outcome, comparison role, optional promotion plan, and optional external-authority preflight blockers
+- `truth_summary` keeps `promotion_applied`, `external_authority_mutated`, `governance_mutated`, `ak_called`, `winner_selected`, `automatic_promotion`, and `ready_for_future_apply` false
+- `artifact_hashes` records deterministic hashes for every supplied sidecar
+
+This command writes only the requested state summary. It does not mutate candidate artifacts or sidecar inputs, does not create or mutate Oracle indexes, does not call AK, does not apply authority, does not select a winner, does not promote, and does not introduce `eval_behavior.py`.
+
 ## 20. Cleanup
 
 ```bash
@@ -720,10 +751,10 @@ Use this checklist when reviewing a generated program assembly:
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.
 - replay passes before drift and fails after declared evidence drift.
-- no automatic topology inference, broad graph execution, custom Python module import/execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, promotion planning, authority export preflight, AK mutation, ranking, winner selection, pruning, promotion, deployment, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional jury execution step was run, it wrote only the requested jury sidecar without mutating the candidate, promotion review, Oracle index, AK, governance, or external authority, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative, if the optional promotion/adjudication plan step was run, it wrote only the requested plan sidecar with `allowed_for_apply: false` and no authority mutation, and if the optional export-preflight step was run, it wrote only the requested preflight packet with `ak_called: false`, `external_authority_mutated: false`, and `ready_for_future_apply: false`.
+- no automatic topology inference, broad graph execution, custom Python module import/execution, Oracle indexing, interpretation, refinement, promotion-review refinement, decision recording, second-candidate generation, candidate comparison, promotion planning, authority export preflight, candidate-state summarization, AK mutation, ranking, winner selection, pruning, promotion, deployment, or governance mutation happened; if an explicit supported `pipeline` topology is present, `topology_execution.status` is `pipeline_materialized`, while unsupported valid topology kinds remain declared-only; if the optional indexing step was run, it wrote only to `$TD/oracle/coordinates.db`, if the optional report step was run, it only read that temp CoordinateIndex, if the optional refinement step was run, it wrote only the `--out` proposal artifact, if the optional promotion-review refinement step was run, it wrote only the requested sidecar packet without overwriting generated promotion artifacts, if the optional jury execution step was run, it wrote only the requested jury sidecar without mutating the candidate, promotion review, Oracle index, AK, governance, or external authority, if the optional decision-recording step was run, it wrote only the requested decision sidecar without mutating the refined review packet, if the optional second-candidate step was run, it wrote only the requested new candidate directory without mutating the source candidate, if the optional comparison step was run, it wrote only the requested comparison sidecar without mutating either candidate or generating another candidate, if the optional generate-and-compare workflow was run, it explicitly wrote one second candidate plus one comparison sidecar without generating a third candidate or making either artifact authoritative, if the optional promotion/adjudication plan step was run, it wrote only the requested plan sidecar with `allowed_for_apply: false` and no authority mutation, if the optional export-preflight step was run, it wrote only the requested preflight packet with `ak_called: false`, `external_authority_mutated: false`, and `ready_for_future_apply: false`, and if the optional candidate-state step was run, it wrote only the requested `program-candidate-state-v1` summary without mutating any input artifact.
 
 ## Where this points next
 
-The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, broader accepted-proposal policy beyond request-more-evidence constraints patches, richer execution episodes once a narrow behavior-source target exists, or a future external-authority apply layer that consumes export preflight packets only after exact AK contract binding, duplicate checks, apply receipts, and rollback/failure semantics exist.
+The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, broader accepted-proposal policy beyond request-more-evidence constraints patches, richer execution episodes once a narrow behavior-source target exists, or a future external-authority apply layer that consumes export preflight plus candidate-state packets only after exact AK contract binding, duplicate checks, apply receipts, and rollback/failure semantics exist.
 
 A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, selected model-jury execution, or enough distinct behavior sources to justify a future `eval_behavior.py` orchestration layer. Promotion/adjudication should remain separate until an explicit authority contract exists.
