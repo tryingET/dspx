@@ -476,6 +476,7 @@ just dspx program-promote status \
   --refinement-proposal /tmp/dspx-program-refine/refinement_proposal.json \
   --review /tmp/dspx-program-promote/promotion_review_refined.json \
   --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --jury-results /tmp/dspx-program-promote/jury_results.json \
   --comparison /tmp/dspx-program-refine/candidate_comparison.json \
   --promotion-plan /tmp/dspx-program-promote/promotion_plan.json \
   --export-preflight /tmp/dspx-program-export/ak-export-preflight.json \
@@ -483,7 +484,7 @@ just dspx program-promote status \
   --json
 ```
 
-The state artifact has `schema_version: program-candidate-state-v1`. It summarizes materialization, behavior evidence, Oracle readability/reporting, refinement proposal, review readiness, decision outcome, comparison role, promotion plan/apply posture, external-authority preflight blockers, deterministic artifact hashes, and the remaining future-apply requirements. It is a state summary only: it does not call AK, mutate inputs, mutate Oracle indexes, apply promotion, select a winner, or mutate governance/external authority. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
+The state artifact has `schema_version: program-candidate-state-v1`. It summarizes materialization, behavior evidence, Oracle readability/reporting, refinement proposal, review readiness, decision outcome, optional local jury-results evidence, comparison role, promotion plan/apply posture, external-authority preflight blockers, deterministic artifact hashes, and the remaining future-apply requirements. It is a state summary only: it does not call AK, mutate inputs, mutate Oracle indexes, apply promotion, select a winner, or mutate governance/external authority. DSPy's native `Adapter` abstraction remains the right pattern for LM protocol/format adaptation; AK authority export is kept as a DSPx authority adapter over evidence artifacts rather than as part of deterministic `program-gen` core.
 
 ---
 

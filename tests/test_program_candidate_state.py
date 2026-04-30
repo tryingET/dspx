@@ -20,6 +20,10 @@ from dspx.services.program_external_authority_export import (
     write_program_external_authority_export_preflight,
 )
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_jury_execution import (
+    build_program_jury_execution_result,
+    write_program_jury_execution_result,
+)
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_promotion_decision import (
@@ -143,6 +147,12 @@ def _materialize_candidate_state_inputs(
     assert (candidate_root / "manifest.json").exists()
     assert comparison_path.exists()
 
+    jury_results = build_program_jury_execution_result(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    jury_results_path = tmp_path / "promotion" / "jury_results.json"
+    write_program_jury_execution_result(jury_results, jury_results_path)
+
     promotion_plan = build_program_promotion_plan(
         manifest_path=candidate_root / "manifest.json",
         decision_record_path=decision_path,
@@ -172,6 +182,7 @@ def _materialize_candidate_state_inputs(
         "proposal": proposal_path,
         "review": review_path,
         "decision": decision_path,
+        "jury_results": jury_results_path,
         "comparison": comparison_path,
         "promotion_plan": promotion_plan_path,
         "export_preflight": export_preflight_path,
@@ -217,6 +228,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["review"]),
             "--decision-record",
             str(paths["decision"]),
+            "--jury-results",
+            str(paths["jury_results"]),
             "--comparison",
             str(paths["comparison"]),
             "--promotion-plan",
@@ -256,6 +269,9 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert payload["artifact_hashes"]["behavior_results_sha256"] == _sha256(
         candidate_root / "behavior_results.json"
     )
+    assert payload["artifact_hashes"]["jury_results_sha256"] == before_sidecars[
+        "jury_results"
+    ]
     assert payload["artifact_hashes"]["comparison_sha256"] == before_sidecars[
         "comparison"
     ]
@@ -292,6 +308,15 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         "promotion_state_after_decision": "not_promoted",
         "external_authority_exported": False,
     }
+    assert promotion["jury_results"]["present"] is True
+    assert promotion["jury_results"]["schema_version"] == "program-jury-results-v1"
+    assert promotion["jury_results"]["status"] == "executed"
+    assert promotion["jury_results"]["manifest_role"] == "candidate"
+    assert promotion["jury_results"]["selected_juror_count"] >= 1
+    assert promotion["jury_results"]["provider_backed_model_calls"] is False
+    assert promotion["jury_results"]["behavior_evidence_present"] is True
+    assert promotion["jury_results"]["promotion_authority"] is False
+    assert promotion["jury_results"]["ready_for_promotion_decision"] is False
     assert promotion["comparison"]["present"] is True
     assert promotion["comparison"]["manifest_role"] == "candidate"
     assert promotion["comparison"]["winner_selected"] is False
@@ -320,6 +345,7 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert truth["oracle_report_present"] is True
     assert truth["review_present"] is True
     assert truth["decision_record_present"] is True
+    assert truth["jury_results_present"] is True
     assert truth["comparison_present"] is True
     assert truth["promotion_plan_present"] is True
     assert truth["external_authority_preflight_present"] is True
@@ -375,6 +401,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["review"]),
             "--decision-record",
             str(paths["decision"]),
+            "--jury-results",
+            str(paths["jury_results"]),
             "--comparison",
             str(paths["comparison"]),
             "--promotion-plan",
@@ -432,6 +460,10 @@ def test_program_candidate_state_degrades_with_manifest_only(
         "present": False,
         "status": "missing",
     }
+    assert payload["promotion_state"]["jury_results"] == {
+        "present": False,
+        "status": "missing",
+    }
     assert payload["promotion_state"]["external_authority_export_preflight"] == {
         "present": False,
         "status": "missing",
@@ -464,4 +496,27 @@ def test_program_candidate_state_fails_closed_on_widened_preflight_authority(
             decision_record_path=paths["decision"],
             comparison_path=paths["comparison"],
             export_preflight_path=bad_preflight_path,
+        )
+
+
+def test_program_candidate_state_fails_closed_on_widened_jury_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_jury = json.loads(paths["jury_results"].read_text(encoding="utf-8"))
+    bad_jury["non_authority"]["promotion_authority"] = True
+    bad_jury_path = tmp_path / "promotion" / "bad-jury-results.json"
+    _write_json(bad_jury_path, bad_jury)
+
+    with pytest.raises(ProgramCandidateStateError, match="promotion_authority"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            decision_record_path=paths["decision"],
+            jury_results_path=bad_jury_path,
+            comparison_path=paths["comparison"],
         )

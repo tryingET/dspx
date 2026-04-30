@@ -210,6 +210,11 @@ def status(
         "--decision-record",
         help="Optional program-promotion-decision-record-v1 JSON",
     ),
+    jury_results: Path | None = typer.Option(
+        None,
+        "--jury-results",
+        help="Optional program-jury-results-v1 JSON",
+    ),
     comparison: Path | None = typer.Option(
         None,
         "--comparison",
@@ -243,6 +248,7 @@ def status(
             refinement_proposal_path=refinement_proposal,
             review_path=review,
             decision_record_path=decision_record,
+            jury_results_path=jury_results,
             comparison_path=comparison,
             promotion_plan_path=promotion_plan,
             export_preflight_path=export_preflight,

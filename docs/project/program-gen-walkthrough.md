@@ -713,6 +713,7 @@ uv run -q python -m dspx.cli.dspx program-promote status \
   --refinement-proposal "$TD/refinement/refinement_proposal.json" \
   --review "$TD/promotion/promotion_review_refined.json" \
   --decision-record "$TD/promotion/promotion_decision_record.json" \
+  --jury-results "$TD/promotion/jury_results.json" \
   --comparison "$TD/refinement/candidate_comparison.json" \
   --export-preflight "$TD/export/ak-export-preflight.json" \
   --out "$TD/state/program_candidate_state.json" \
@@ -725,11 +726,11 @@ Expected JSON facts:
 - `status` is a truth-preserving local posture such as `not_promoted_external_preflighted_not_applied`
 - `candidate_identity` and optional `source_identity` identify the exact artifacts being summarized
 - `evidence_state` reports behavior evidence, execution episode, Oracle-readable evidence, optional Oracle report, and optional refinement proposal
-- `promotion_state` reports review readiness, decision outcome, comparison role, optional promotion plan, and optional external-authority preflight blockers
+- `promotion_state` reports review readiness, decision outcome, optional local jury-results evidence, comparison role, optional promotion plan, and optional external-authority preflight blockers
 - `truth_summary` keeps `promotion_applied`, `external_authority_mutated`, `governance_mutated`, `ak_called`, `winner_selected`, `automatic_promotion`, and `ready_for_future_apply` false
 - `artifact_hashes` records deterministic hashes for every supplied sidecar
 
-This command writes only the requested state summary. It does not mutate candidate artifacts or sidecar inputs, does not create or mutate Oracle indexes, does not call AK, does not apply authority, does not select a winner, does not promote, and does not introduce `eval_behavior.py`.
+This command writes only the requested state summary. Local jury results are summarized as evidence only and do not create promotion authority or winner selection. The command does not mutate candidate artifacts or sidecar inputs, does not create or mutate Oracle indexes, does not call AK, does not apply authority, does not select a winner, does not promote, and does not introduce `eval_behavior.py`.
 
 ## 20. Cleanup
 

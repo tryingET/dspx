@@ -164,13 +164,14 @@ uv run -q python -m dspx.cli.dspx program-promote status \
   --refinement-proposal "$OUT_DIR/refinement/refinement_proposal.json" \
   --review "$OUT_DIR/promotion/promotion_review_refined.json" \
   --decision-record "$OUT_DIR/promotion/promotion_decision_record.json" \
+  --jury-results "$OUT_DIR/promotion/jury_results.json" \
   --comparison "$OUT_DIR/refinement/candidate_comparison.json" \
   --export-preflight "$OUT_DIR/export/ak-export-preflight.json" \
   --out "$OUT_DIR/state/program_candidate_state.json" \
   --json
 ```
 
-The state artifact has `schema_version: program-candidate-state-v1`; it summarizes materialization, behavior evidence, Oracle readability/reporting, review/decision/comparison/plan/preflight posture, artifact hashes, no-mutation effects, and future apply requirements. It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not apply/export authority, does not mutate governance, and does not introduce `eval_behavior.py`. Missing optional sidecars are reported as missing rather than invented; explicit identity/authority mismatches fail closed. The GEPA seam is a separate explicit command, `program-refine optimize-gepa`, over an existing manifest; it writes a local `program-refinement-gepa-result-v1` sidecar and can degrade truthfully without materializing a candidate assembly.
+The state artifact has `schema_version: program-candidate-state-v1`; it summarizes materialization, behavior evidence, Oracle readability/reporting, review/decision/jury-results/comparison/plan/preflight posture, artifact hashes, no-mutation effects, and future apply requirements. It is still offline and non-authoritative: it does not call AK, does not mutate repo Oracle indexes, does not rank or select winners, does not promote, does not run GEPA/search, does not apply/export authority, does not mutate governance, and does not introduce `eval_behavior.py`. Missing optional sidecars are reported as missing rather than invented; explicit identity/authority mismatches fail closed. The GEPA seam is a separate explicit command, `program-refine optimize-gepa`, over an existing manifest; it writes a local `program-refinement-gepa-result-v1` sidecar and can degrade truthfully without materializing a candidate assembly.
 
 ## Boundary reminder
 
