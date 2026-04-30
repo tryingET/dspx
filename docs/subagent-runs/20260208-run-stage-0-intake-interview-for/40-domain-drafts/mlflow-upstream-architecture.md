@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: MLflow upstream architecture draft (Stage 4)."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for MLflow upstream architecture draft (Stage 4)."
+type: "reference"
+---
+
 # MLflow upstream architecture draft (Stage 4)
 
 ## Problem framing

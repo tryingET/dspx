@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Documentation explorer report."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Documentation explorer report."
+type: "reference"
+---
+
 # Documentation explorer report
 
 ## Documentation baseline

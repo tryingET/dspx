@@ -1,3 +1,11 @@
+---
+summary: "Crystallized learning note: CLI Refactoring — 3,712 Lines to 15 Modules."
+read_when:
+  - "You are looking for prior DSPx implementation learnings."
+  - "You need the learning note for CLI Refactoring — 3,712 Lines to 15 Modules."
+type: "reference"
+---
+
 # CLI Refactoring — 3,712 Lines to 15 Modules
 
 ## Context

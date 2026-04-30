@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Stage 8 release sign-off — workflow packet."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Stage 8 release sign-off — workflow packet."
+type: "review"
+---
+
 # Stage 8 release sign-off — workflow packet
 
 Run: `20260208-run-stage-0-intake-interview-for`

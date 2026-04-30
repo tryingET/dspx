@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Stage 9 operations follow-through."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Stage 9 operations follow-through."
+type: "reference"
+---
+
 # Stage 9 operations follow-through
 
 Run: `20260208-run-stage-0-intake-interview-for`

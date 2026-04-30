@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Database explorer report (SQLite) — rerun after local MLflow materialization."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Database explorer report (SQLite) — rerun after local MLflow materialization."
+type: "reference"
+---
+
 # Database explorer report (SQLite) — rerun after local MLflow materialization
 
 ## Schema map

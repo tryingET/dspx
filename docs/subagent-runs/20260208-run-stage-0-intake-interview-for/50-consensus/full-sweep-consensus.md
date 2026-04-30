@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Stage 5 consensus — full-sweep."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Stage 5 consensus — full-sweep."
+type: "reference"
+---
+
 # Stage 5 consensus — full-sweep
 
 Decision timestamp: 2026-02-08T19:56:59+01:00

@@ -1,3 +1,11 @@
+---
+summary: "Subagent-run template artifact: Subagent run template."
+read_when:
+  - "You are using or updating the subagent-run template structure."
+  - "You need the template artifact for Subagent run template."
+type: "reference"
+---
+
 # Subagent run template
 
 Copy this folder to `docs/subagent-runs/<RUN_ID>/`.

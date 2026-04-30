@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Interview 4D responses."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Interview 4D responses."
+type: "reference"
+---
+
 # Interview 4D responses
 
 ## Intake metadata

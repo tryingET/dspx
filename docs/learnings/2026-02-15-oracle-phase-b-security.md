@@ -1,3 +1,11 @@
+---
+summary: "Crystallized learning note: Oracle Phase B Security & Correctness."
+read_when:
+  - "You are looking for prior DSPx implementation learnings."
+  - "You need the learning note for Oracle Phase B Security & Correctness."
+type: "reference"
+---
+
 # Oracle Phase B Security & Correctness
 
 ## Context

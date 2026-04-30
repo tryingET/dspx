@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: DSPx workflow architecture draft (Stage 4)."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for DSPx workflow architecture draft (Stage 4)."
+type: "reference"
+---
+
 # DSPx workflow architecture draft (Stage 4)
 
 ## Context + constraints

@@ -1,3 +1,11 @@
+---
+summary: "DSPx community code of conduct."
+read_when:
+  - "You need community conduct expectations for DSPx."
+  - "You are reviewing contributor policy."
+type: "policy"
+---
+
 Code of Conduct
 ===============
 

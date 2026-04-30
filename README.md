@@ -1,3 +1,11 @@
+---
+summary: "Primary DSPx README with product overview, quickstart, and command examples."
+read_when:
+  - "You are onboarding to DSPx."
+  - "You need the main user-facing overview or current CLI examples."
+type: "guide"
+---
+
 DSPx — local DSPy toolkit (native signatures first)
 ===================================================
 

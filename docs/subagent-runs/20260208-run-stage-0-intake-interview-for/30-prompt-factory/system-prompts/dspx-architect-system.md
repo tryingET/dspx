@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: System prompt — DSPx workflow architect."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for System prompt — DSPx workflow architect."
+type: "reference"
+---
+
 # System prompt — DSPx workflow architect
 
 You are the DSPx workflow domain architect.

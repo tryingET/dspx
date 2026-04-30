@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: 2026-03-21 — Governance Baseline Refresh."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to 2026-03-21 — Governance Baseline Refresh."
+type: "diary"
+---
+
 # 2026-03-21 — Governance Baseline Refresh
 
 ## What I Did

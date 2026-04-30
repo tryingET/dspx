@@ -1,3 +1,11 @@
+---
+summary: "Security policy and vulnerability reporting guidance for DSPx."
+read_when:
+  - "You need DSPx security reporting guidance."
+  - "You are reviewing security expectations before contributing."
+type: "policy"
+---
+
 Security Policy
 ===============
 

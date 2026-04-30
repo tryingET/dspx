@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Wave 1 execution log (DSPx foundation)."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Wave 1 execution log (DSPx foundation)."
+type: "reference"
+---
+
 # Wave 1 execution log (DSPx foundation)
 
 Date: 2026-02-08

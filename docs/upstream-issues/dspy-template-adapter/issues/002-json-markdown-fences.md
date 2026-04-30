@@ -1,7 +1,12 @@
 ---
 title: "JSON parser doesn't handle markdown-wrapped output"
+summary: "Upstream DSPy template adapter issue covering JSON parsing from markdown fences."
+read_when:
+  - "You are investigating upstream DSPy template adapter issues."
+  - "You need context from docs/upstream-issues/dspy-template-adapter/issues/002-json-markdown-fences.md."
 labels: ["bug", "parse-mode"]
 priority: "high"
+type: "issue"
 ---
 
 ## Describe the bug

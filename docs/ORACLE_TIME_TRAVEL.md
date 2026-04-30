@@ -1,3 +1,11 @@
+---
+summary: "Guide to Oracle time-travel behavior and usage."
+read_when:
+  - "You are using Oracle time-travel features."
+  - "You need historical behavior replay context."
+type: "guide"
+---
+
 # Oracle Time Travel CLI (Phase C slice)
 
 DSPx now ships a first receipt-backed Oracle Phase C workflow for inspecting

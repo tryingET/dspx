@@ -1,3 +1,11 @@
+---
+summary: "Tracked upstream issues for the DSPy template adapter."
+read_when:
+  - "You are investigating DSPy template adapter upstream issues."
+  - "You need known issue context for adapter work."
+type: "reference"
+---
+
 # Upstream Issues for dspy-template-adapter
 
 **Target repo:** https://github.com/MaximeRivest/dspy-template-adapter

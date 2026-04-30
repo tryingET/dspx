@@ -1,7 +1,12 @@
 ---
 title: "XML parser fails on nested tags and CDATA"
+summary: "Upstream DSPy template adapter issue covering XML parser nested tags and CDATA handling."
+read_when:
+  - "You are investigating upstream DSPy template adapter issues."
+  - "You need context from docs/upstream-issues/dspy-template-adapter/issues/001-xml-parser-nested-cdata.md."
 labels: ["bug", "parse-mode"]
 priority: "high"
+type: "issue"
 ---
 
 ## Describe the bug

@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: 2026-03-22 — Replay Provenance CI Hardening."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to 2026-03-22 — Replay Provenance CI Hardening."
+type: "diary"
+---
+
 # 2026-03-22 — Replay Provenance CI Hardening
 
 ## What I Did

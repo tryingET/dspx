@@ -1,3 +1,11 @@
+---
+summary: "DSPx project status snapshot."
+read_when:
+  - "You need the current project status summary."
+  - "You are checking high-level completion or remaining work."
+type: "reference"
+---
+
 # Project Status
 
 Current working branch: `main`.

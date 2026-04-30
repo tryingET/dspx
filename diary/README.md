@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: Diary."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to Diary."
+type: "diary"
+---
+
 # Diary
 
 Repo-local session capture for KES (Knowledge Evolution System).

@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: Nexus Fix: Extract Stats into Outer Middleware."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to Nexus Fix: Extract Stats into Outer Middleware."
+type: "diary"
+---
+
 # Nexus Fix: Extract Stats into Outer Middleware
 
 **Date**: 2026-04-05

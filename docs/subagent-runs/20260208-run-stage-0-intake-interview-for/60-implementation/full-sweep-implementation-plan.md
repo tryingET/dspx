@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Stage 6 implementation plan — full-sweep."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Stage 6 implementation plan — full-sweep."
+type: "reference"
+---
+
 # Stage 6 implementation plan — full-sweep
 
 Run: `20260208-run-stage-0-intake-interview-for`

@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Codebase explorer report."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Codebase explorer report."
+type: "reference"
+---
+
 # Codebase explorer report
 
 ## Findings summary

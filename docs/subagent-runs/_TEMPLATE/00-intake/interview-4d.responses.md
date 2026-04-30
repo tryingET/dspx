@@ -1,3 +1,11 @@
+---
+summary: "Subagent-run template artifact: Interview 4D responses."
+read_when:
+  - "You are using or updating the subagent-run template structure."
+  - "You need the template artifact for Interview 4D responses."
+type: "reference"
+---
+
 # Interview 4D responses
 
 ## Raw responses

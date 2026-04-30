@@ -1,7 +1,12 @@
 ---
 title: "Add __repr__ to TemplateAdapter for easier debugging"
+summary: "Upstream DSPy template adapter issue covering repr/debugging support."
+read_when:
+  - "You are investigating upstream DSPy template adapter issues."
+  - "You need context from docs/upstream-issues/dspy-template-adapter/issues/004-repr-for-debugging.md."
 labels: ["enhancement", "dx"]
 priority: "low"
+type: "issue"
 ---
 
 ## Current behavior

@@ -1,7 +1,12 @@
 ---
 title: "Handle partial demos from optimizers (BootstrapFewShot, GEPA)"
+summary: "Upstream DSPy template adapter issue covering partial demos support."
+read_when:
+  - "You are investigating upstream DSPy template adapter issues."
+  - "You need context from docs/upstream-issues/dspy-template-adapter/issues/006-partial-demos.md."
 labels: ["bug", "optimizers"]
 priority: "medium"
+type: "issue"
 ---
 
 ## Describe the bug

@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: AK-800: Add Request Body Size Limits Middleware."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to AK-800: Add Request Body Size Limits Middleware."
+type: "diary"
+---
+
 # AK-800: Add Request Body Size Limits Middleware
 
 **Date**: 2026-04-05

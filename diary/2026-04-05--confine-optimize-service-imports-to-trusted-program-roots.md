@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: AK-797 — Confine optimize-service imports to trusted program roots."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to AK-797 — Confine optimize-service imports to trusted program roots."
+type: "diary"
+---
+
 # AK-797 — Confine optimize-service imports to trusted program roots
 
 ## Summary

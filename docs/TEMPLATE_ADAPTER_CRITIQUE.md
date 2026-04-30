@@ -1,3 +1,11 @@
+---
+summary: "Critique of DSPy template adapter behavior and boundaries."
+read_when:
+  - "You are reviewing template adapter design concerns."
+  - "You need critique context before changing adapter code."
+type: "review"
+---
+
 # Template Adapter Integration — Architectural Critique
 
 **Status:** Critical review of `docs/TEMPLATE_ADAPTER_INTEGRATION.md`

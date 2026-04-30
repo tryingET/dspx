@@ -1,3 +1,11 @@
+---
+summary: "Repository-level DSPx operating instructions for agents."
+read_when:
+  - "You are starting work in the DSPx repo."
+  - "You need repo-specific guardrails, read order, and commands."
+type: "reference"
+---
+
 # AGENTS.md — dspx
 
 ## Intent

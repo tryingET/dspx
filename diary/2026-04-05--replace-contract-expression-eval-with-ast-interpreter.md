@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: AK-798 — Replace contract-expression eval() with a tiny AST interpreter."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to AK-798 — Replace contract-expression eval() with a tiny AST interpreter."
+type: "diary"
+---
+
 # AK-798 — Replace contract-expression `eval()` with a tiny AST interpreter
 
 ## Summary

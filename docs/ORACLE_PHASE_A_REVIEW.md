@@ -1,3 +1,11 @@
+---
+summary: "Review notes for Oracle Phase A."
+read_when:
+  - "You are auditing early Oracle implementation decisions."
+  - "You need historical context for Oracle Phase A."
+type: "review"
+---
+
 # Phase A: Semantic Coordinates — Deep Review
 
 **Review Date:** 2026-02-22

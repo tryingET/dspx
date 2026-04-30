@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: 2026-04-05 — Materialize the Next TG25 Hardening Wave."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to 2026-04-05 — Materialize the Next TG25 Hardening Wave."
+type: "diary"
+---
+
 # 2026-04-05 — Materialize the Next TG25 Hardening Wave
 
 ## Why this refresh was needed

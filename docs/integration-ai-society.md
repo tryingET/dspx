@@ -1,3 +1,11 @@
+---
+summary: "Notes for integrating DSPx with ai-society workflows."
+read_when:
+  - "You are connecting DSPx to ai-society workflows."
+  - "You need integration context across DSPx and ai-society."
+type: "reference"
+---
+
 # DSPx → ai-society Integration
 
 ## Context

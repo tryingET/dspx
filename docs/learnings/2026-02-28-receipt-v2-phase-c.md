@@ -1,3 +1,11 @@
+---
+summary: "Crystallized learning note: Receipt v2 for Oracle Phase C+."
+read_when:
+  - "You are looking for prior DSPx implementation learnings."
+  - "You need the learning note for Receipt v2 for Oracle Phase C+."
+type: "reference"
+---
+
 # Receipt v2 for Oracle Phase C+
 
 ## Context

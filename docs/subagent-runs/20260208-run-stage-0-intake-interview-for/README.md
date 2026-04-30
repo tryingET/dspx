@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Subagent run template."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Subagent run template."
+type: "reference"
+---
+
 # Subagent run template
 
 Copy this folder to `docs/subagent-runs/<RUN_ID>/`.

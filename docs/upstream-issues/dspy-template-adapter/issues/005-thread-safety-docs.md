@@ -1,7 +1,12 @@
 ---
 title: "Document thread-safety guarantees for async/concurrent usage"
+summary: "Upstream DSPy template adapter issue covering thread-safety documentation."
+read_when:
+  - "You are investigating upstream DSPy template adapter issues."
+  - "You need context from docs/upstream-issues/dspy-template-adapter/issues/005-thread-safety-docs.md."
 labels: ["documentation", "async"]
 priority: "medium"
+type: "issue"
 ---
 
 ## Question

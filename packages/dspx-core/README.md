@@ -1,3 +1,11 @@
+---
+summary: "README for the dspx-core package."
+read_when:
+  - "You are working inside packages/dspx-core."
+  - "You need package-level setup or usage context."
+type: "guide"
+---
+
 # dspx-core
 
 Canonical DSPx product kernel.

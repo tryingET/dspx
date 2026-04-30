@@ -1,3 +1,11 @@
+---
+summary: "Implementation review for the DSPy template adapter."
+read_when:
+  - "You are changing or reviewing template adapter implementation."
+  - "You need prior implementation review context."
+type: "review"
+---
+
 # Template Adapter Implementation Review
 
 **Date:** 2026-02-21

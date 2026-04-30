@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Master prompt factory output."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Master prompt factory output."
+type: "reference"
+---
+
 # Master prompt factory output
 
 ## Input synthesis references

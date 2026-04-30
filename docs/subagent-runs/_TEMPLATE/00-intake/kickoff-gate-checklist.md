@@ -1,3 +1,11 @@
+---
+summary: "Subagent-run template artifact: Kickoff gate checklist."
+read_when:
+  - "You are using or updating the subagent-run template structure."
+  - "You need the template artifact for Kickoff gate checklist."
+type: "reference"
+---
+
 # Kickoff gate checklist
 
 Gate intent:

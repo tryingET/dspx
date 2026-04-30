@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: 2026-04-05 — Land AK-834 TG25 NEXUS fixes."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to 2026-04-05 — Land AK-834 TG25 NEXUS fixes."
+type: "diary"
+---
+
 # 2026-04-05 — Land AK-834 TG25 NEXUS fixes
 
 ## Why this slice existed

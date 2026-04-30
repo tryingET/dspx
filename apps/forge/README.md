@@ -1,3 +1,11 @@
+---
+summary: "Forge app README for the DSPx application surface."
+read_when:
+  - "You are working on the Forge app."
+  - "You need the app-level overview before editing Forge."
+type: "guide"
+---
+
 # Forge app boundary
 
 Forge is an optional app surface on top of `dspx-core`.

@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Stage 7 QA report — workflow run artifacts."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Stage 7 QA report — workflow run artifacts."
+type: "reference"
+---
+
 # Stage 7 QA report — workflow run artifacts
 
 Run: `20260208-run-stage-0-intake-interview-for`

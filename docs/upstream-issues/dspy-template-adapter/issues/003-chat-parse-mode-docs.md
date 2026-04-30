@@ -1,7 +1,12 @@
 ---
 title: "Clarify semantics and limitations of parse_mode='chat'"
+summary: "Upstream DSPy template adapter issue covering chat parse-mode documentation."
+read_when:
+  - "You are investigating upstream DSPy template adapter issues."
+  - "You need context from docs/upstream-issues/dspy-template-adapter/issues/003-chat-parse-mode-docs.md."
 labels: ["documentation", "clarification"]
 priority: "medium"
+type: "issue"
 ---
 
 ## Summary

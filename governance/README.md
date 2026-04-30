@@ -1,3 +1,11 @@
+---
+summary: "Governance artifacts index for DSPx."
+read_when:
+  - "You are looking for DSPx governance artifacts."
+  - "You need to understand governance files in this repo."
+type: "reference"
+---
+
 # Project Work Items
 
 This file tracks project-specific work (features, bugs, improvements).

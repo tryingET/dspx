@@ -1,3 +1,11 @@
+---
+summary: "Diary entry: AK-799 — Flip server auth default to required."
+read_when:
+  - "You need the historical implementation context captured in this diary entry."
+  - "You are reviewing or extending work related to AK-799 — Flip server auth default to required."
+type: "diary"
+---
+
 # AK-799 — Flip server auth default to required
 
 ## Summary

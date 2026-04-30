@@ -1,3 +1,11 @@
+---
+summary: "Repo-local ontology index for DSPx."
+read_when:
+  - "You are inspecting DSPx ontology artifacts."
+  - "You need repo-local ontology entry points."
+type: "reference"
+---
+
 # Ontology Index (repo)
 
 Start here when browsing manually.

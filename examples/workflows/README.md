@@ -1,3 +1,11 @@
+---
+summary: "Example workflow documentation: Workflow examples."
+read_when:
+  - "You are inspecting DSPx workflow examples."
+  - "You need the example workflow context for Workflow examples."
+type: "example"
+---
+
 # Workflow examples
 
 This directory contains illustrative generated/example workflow programs.

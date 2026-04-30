@@ -1,3 +1,11 @@
+---
+summary: "Contributor guide for DSPx development."
+read_when:
+  - "You are contributing changes to DSPx."
+  - "You need local development or contribution expectations."
+type: "guide"
+---
+
 Contributing
 ============
 

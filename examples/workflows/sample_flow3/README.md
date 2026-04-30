@@ -1,3 +1,11 @@
+---
+summary: "Example workflow documentation: Generated DSPy Programs for sampleflow3."
+read_when:
+  - "You are inspecting DSPx workflow examples."
+  - "You need the example workflow context for Generated DSPy Programs for sampleflow3."
+type: "example"
+---
+
 # Generated DSPy Programs for sample_flow3
 
 Variants:

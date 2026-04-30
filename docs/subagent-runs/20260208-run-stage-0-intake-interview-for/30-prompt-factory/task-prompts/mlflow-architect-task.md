@@ -1,3 +1,11 @@
+---
+summary: "Archived subagent-run artifact: Task prompt — MLflow upstream architecture draft."
+read_when:
+  - "You are auditing the archived subagent-run workflow output."
+  - "You need the recorded artifact for Task prompt — MLflow upstream architecture draft."
+type: "reference"
+---
+
 # Task prompt — MLflow upstream architecture draft
 
 Draft `40-domain-drafts/mlflow-upstream-architecture.md`.
