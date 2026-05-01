@@ -119,6 +119,11 @@ replay-provenance-check:
 module-synthesis-quality-check:
   uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py
 
+# Executable boundary contract matrix for validation-only/preflight/rooting/parser surfaces
+boundary-contract-check:
+  uv run --no-sync -m pytest -q tests/test_agent_service.py tests/test_synthesis_runtime_smoke.py tests/test_adapters_stores.py tests/test_tools_registry.py tests/test_authority_adapter_export_preflight.py tests/test_program_candidate_state.py
+  node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict
+
 # Check the attested task slice against an AK task-scope snapshot
 # (with brownfield legacy scope-file fallback).
 # Auto mode validates the working tree when the repo is dirty, otherwise the full
@@ -141,6 +146,7 @@ verify-runtime:
   just replay-provenance-check
   just monorepo-check
   just module-synthesis-quality-check
+  just boundary-contract-check
 
 # Full static + test branch
 verify-tests:

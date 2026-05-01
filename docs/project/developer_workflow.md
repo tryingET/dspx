@@ -86,6 +86,9 @@ Validation contract:
 - `just verify-pre-push`
   - runs `just verify-fast`
   - is the hook-facing pre-push gate
+- `just verify-runtime`
+  - runs replay provenance, monorepo boundary, module synthesis quality, and `just boundary-contract-check`
+  - `just boundary-contract-check` executes the repo boundary contract matrix from `docs/project/boundary-contract-matrix.md` plus docs strict validation
 - `just verify-full`
   - runs `just verify-fast` first
   - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel

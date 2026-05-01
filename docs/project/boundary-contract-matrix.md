@@ -10,6 +10,12 @@ type: "reference"
 
 This matrix records repo-level boundary invariants that must stay executable through tests. It is intentionally narrow: it covers validation-only generated-code execution, local preflight truth, rooted local paths, and SQLite URL discovery.
 
+Run the matrix with:
+
+```bash
+just boundary-contract-check
+```
+
 ## Invariants
 
 | Boundary | Contract | Executable coverage |
