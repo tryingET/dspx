@@ -154,7 +154,7 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
 
     assert ok is False
     assert checks["module-smoke"] is False
-    assert any("dynamic_import_denied_during_smoke:os" in err for err in errors)
+    assert "method_call_not_allowed:forward:__import__" in errors
     assert not (tmp_path / marker).exists()
 
 
@@ -206,7 +206,7 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
 
     assert ok is False
     assert checks["module-smoke"] is False
-    assert any("dynamic_import_denied_during_smoke:ctypes" in err for err in errors)
+    assert "method_call_not_allowed:forward:__import__" in errors
     assert not (tmp_path / marker).exists()
 
 

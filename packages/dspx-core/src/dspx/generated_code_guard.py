@@ -64,6 +64,42 @@ _DENIED_DYNAMIC_IMPORT_ROOTS = frozenset(
     }
 )
 
+_DENIED_FUNCTION_CALLS = frozenset(
+    {
+        "__import__",
+        "breakpoint",
+        "compile",
+        "delattr",
+        "dir",
+        "eval",
+        "exec",
+        "getattr",
+        "globals",
+        "input",
+        "locals",
+        "open",
+        "setattr",
+        "vars",
+    }
+)
+
+_DENIED_CALL_ROOTS = _DENIED_DYNAMIC_IMPORT_ROOTS | {"__builtins__"}
+
+_FORBIDDEN_FUNCTION_BODY_NODES = (
+    ast.AsyncWith,
+    ast.Await,
+    ast.Delete,
+    ast.Global,
+    ast.Import,
+    ast.ImportFrom,
+    ast.Lambda,
+    ast.Nonlocal,
+    ast.Try,
+    ast.With,
+    ast.Yield,
+    ast.YieldFrom,
+)
+
 
 def isolated_subprocess_env(
     extra_env: Mapping[str, str] | None = None,
@@ -355,6 +391,33 @@ def _validate_function_defaults(
         errors.append(f"{label}_defaults_not_literal:{node.name}")
 
 
+def _validate_generated_function_body(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    for child in ast.walk(node):
+        if child is node:
+            continue
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            errors.append(f"{label}_nested_definition_not_allowed:{node.name}")
+            continue
+        if isinstance(child, _FORBIDDEN_FUNCTION_BODY_NODES):
+            errors.append(
+                f"{label}_body_node_not_allowed:{node.name}:{child.__class__.__name__}"
+            )
+            continue
+        if isinstance(child, ast.Call):
+            callee = _call_name(child.func) or "unknown"
+            root = callee.split(".", 1)[0]
+            if callee in _DENIED_FUNCTION_CALLS or root in _DENIED_CALL_ROOTS:
+                errors.append(f"{label}_call_not_allowed:{node.name}:{callee}")
+                continue
+            if callee.startswith("__") and callee != "__init__":
+                errors.append(f"{label}_call_not_allowed:{node.name}:{callee}")
+
+
 def _validate_module_class(node: ast.ClassDef, *, errors: list[str]) -> None:
     if node.decorator_list:
         errors.append(f"class_decorators_not_allowed:{node.name}")
@@ -376,6 +439,11 @@ def _validate_module_class(node: ast.ClassDef, *, errors: list[str]) -> None:
         if child.decorator_list:
             errors.append(f"method_decorators_not_allowed:{node.name}.{child.name}")
         _validate_function_defaults(
+            child,
+            errors=errors,
+            label="method",
+        )
+        _validate_generated_function_body(
             child,
             errors=errors,
             label="method",
@@ -416,6 +484,11 @@ def _validate_module_source(code: str) -> list[str]:
                 )
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 _validate_function_defaults(
+                    node,
+                    errors=errors,
+                    label="top_level_function",
+                )
+                _validate_generated_function_body(
                     node,
                     errors=errors,
                     label="top_level_function",
