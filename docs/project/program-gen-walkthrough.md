@@ -695,7 +695,8 @@ Expected JSON facts:
 - `target.system: agent_kernel`, `target.target_contract: ak_task_evidence_attachment`, `mutation_supported: false`, and `apply_command_available: false`
 - `artifact_hashes` contains SHA-256 hashes for the manifest plus any supplied decision/comparison sidecars
 - `idempotency.export_id` is deterministic for the target system/ref/contract/schema and artifact hashes
-- `preflight.ready_for_future_apply: false` with blockers including `external_apply_not_implemented` and `target_contract_not_bound_to_ak_runtime`
+- `preflight.blocking_reasons` contains local preflight blockers only; it is empty when `status: ready_not_applied`
+- `preflight.ready_for_future_apply: false` with `external_apply_blocking_reasons` including `external_apply_not_implemented` and `target_contract_not_bound_to_ak_runtime`
 - `effect.ak_called`, `effect.external_authority_mutated`, and `effect.governance_mutated` are all `false`
 - `non_authority.preflight_only` and `non_authority.planned_not_exported` are `true`
 
@@ -726,7 +727,7 @@ Expected JSON facts:
 - `status` is a truth-preserving local posture such as `not_promoted_external_preflighted_not_applied`
 - `candidate_identity` and optional `source_identity` identify the exact artifacts being summarized
 - `evidence_state` reports behavior evidence, execution episode, Oracle-readable evidence, optional Oracle report, and optional refinement proposal
-- `promotion_state` reports review readiness, decision outcome, optional local jury-results evidence, comparison role, optional promotion plan, and optional external-authority preflight blockers
+- `promotion_state` reports review readiness, decision outcome, optional local jury-results evidence, comparison role, optional promotion plan, optional external-authority local preflight blockers, and separate future external-apply blockers
 - `truth_summary` keeps `promotion_applied`, `external_authority_mutated`, `governance_mutated`, `ak_called`, `winner_selected`, `automatic_promotion`, and `ready_for_future_apply` false
 - `artifact_hashes` records deterministic hashes for every supplied sidecar
 

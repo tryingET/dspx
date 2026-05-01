@@ -152,7 +152,7 @@ uv run -q python -m dspx.cli.dspx adapters authority agent-kernel-export-preflig
   --json
 ```
 
-The packet has `schema_version: program-external-authority-export-preflight-v1`; it records hashes, manifest identity, deterministic idempotency/export ID, an `ak_task_evidence_attachment` planned payload, and explicit apply blockers.
+The packet has `schema_version: program-external-authority-export-preflight-v1`; it records hashes, manifest identity, deterministic idempotency/export ID, an `ak_task_evidence_attachment` planned payload, local preflight blockers in `blocking_reasons`, and future apply limitations in `external_apply_blocking_reasons`.
 
 To put the candidate's local truth into one inspectable artifact, use `program-promote status` with the manifest and whichever sidecars exist:
 
