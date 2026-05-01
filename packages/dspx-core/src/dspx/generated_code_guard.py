@@ -21,6 +21,49 @@ _SAFE_IMPORT_MODULES = frozenset(
     }
 )
 
+_OS_PROCESS_FUNCTIONS = (
+    "execl",
+    "execle",
+    "execlp",
+    "execlpe",
+    "execv",
+    "execve",
+    "execvp",
+    "execvpe",
+    "fork",
+    "forkpty",
+    "popen",
+    "posix_spawn",
+    "posix_spawnp",
+    "spawnl",
+    "spawnle",
+    "spawnlp",
+    "spawnlpe",
+    "spawnv",
+    "spawnve",
+    "spawnvp",
+    "spawnvpe",
+    "startfile",
+    "system",
+)
+
+_DENIED_DYNAMIC_IMPORT_ROOTS = frozenset(
+    {
+        "builtins",
+        "ctypes",
+        "importlib",
+        "io",
+        "multiprocessing",
+        "os",
+        "pathlib",
+        "runpy",
+        "shutil",
+        "socket",
+        "subprocess",
+        "sys",
+    }
+)
+
 
 def isolated_subprocess_env(
     extra_env: Mapping[str, str] | None = None,
@@ -383,6 +426,7 @@ def _validate_module_source(code: str) -> list[str]:
 
 
 def _install_runtime_guards() -> Mapping[str, Any]:
+    original_import = builtins.__import__
     original_open = builtins.open
     original_io_open = io.open
     original_path_open = Path.open
@@ -400,6 +444,9 @@ def _install_runtime_guards() -> Mapping[str, Any]:
     original_os_rmdir = os.rmdir
     original_os_rename = os.rename
     original_os_replace = os.replace
+    original_os_process_functions = {
+        name: getattr(os, name) for name in _OS_PROCESS_FUNCTIONS if hasattr(os, name)
+    }
     original_socket_create_connection = socket.create_connection
     original_socket_connect = socket.socket.connect
     original_socket_connect_ex = socket.socket.connect_ex
@@ -411,6 +458,16 @@ def _install_runtime_guards() -> Mapping[str, Any]:
             raise PermissionError(message)
 
         return _inner
+
+    def _guard_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if level:
+            return original_import(name, globals, locals, fromlist, level)
+        root = str(name or "").split(".", 1)[0]
+        if root in _DENIED_DYNAMIC_IMPORT_ROOTS:
+            raise PermissionError(f"dynamic_import_denied_during_smoke:{root}")
+        if root in _SAFE_IMPORT_MODULES or root in sys.modules:
+            return original_import(name, globals, locals, fromlist, level)
+        raise PermissionError(f"dynamic_import_denied_during_smoke:{root or 'unknown'}")
 
     def _guard_open(file, mode="r", *args, **kwargs):
         mode_str = str(mode or "r")
@@ -430,6 +487,7 @@ def _install_runtime_guards() -> Mapping[str, Any]:
             raise PermissionError("filesystem_write_denied_during_smoke")
         return original_path_open(self, mode, *args, **kwargs)
 
+    builtins.__import__ = cast(Any, _guard_import)
     builtins.open = cast(Any, _guard_open)
     io.open = cast(Any, _guard_io_open)
     Path.open = cast(Any, _guard_path_open)
@@ -447,6 +505,8 @@ def _install_runtime_guards() -> Mapping[str, Any]:
     os.rmdir = _deny("filesystem_write_denied_during_smoke")
     os.rename = _deny("filesystem_write_denied_during_smoke")
     os.replace = _deny("filesystem_write_denied_during_smoke")
+    for name in original_os_process_functions:
+        setattr(os, name, _deny("subprocess_denied_during_smoke"))
     socket.create_connection = _deny("network_access_denied_during_smoke")
     socket.socket.connect = _deny("network_access_denied_during_smoke")
     socket.socket.connect_ex = _deny("network_access_denied_during_smoke")
@@ -454,6 +514,7 @@ def _install_runtime_guards() -> Mapping[str, Any]:
     subprocess.Popen = _deny("subprocess_denied_during_smoke")
 
     return {
+        "import": original_import,
         "open": original_open,
         "io_open": original_io_open,
         "path_open": original_path_open,
@@ -471,6 +532,7 @@ def _install_runtime_guards() -> Mapping[str, Any]:
         "os_rmdir": original_os_rmdir,
         "os_rename": original_os_rename,
         "os_replace": original_os_replace,
+        "os_process_functions": original_os_process_functions,
         "socket_create_connection": original_socket_create_connection,
         "socket_connect": original_socket_connect,
         "socket_connect_ex": original_socket_connect_ex,
@@ -480,6 +542,7 @@ def _install_runtime_guards() -> Mapping[str, Any]:
 
 
 def _restore_runtime_guards(originals: Mapping[str, Any]) -> None:
+    builtins.__import__ = originals["import"]
     builtins.open = originals["open"]
     io.open = originals["io_open"]
     Path.open = originals["path_open"]
@@ -497,6 +560,8 @@ def _restore_runtime_guards(originals: Mapping[str, Any]) -> None:
     os.rmdir = originals["os_rmdir"]
     os.rename = originals["os_rename"]
     os.replace = originals["os_replace"]
+    for name, value in originals["os_process_functions"].items():
+        setattr(os, name, value)
     socket.create_connection = originals["socket_create_connection"]
     socket.socket.connect = originals["socket_connect"]
     socket.socket.connect_ex = originals["socket_connect_ex"]

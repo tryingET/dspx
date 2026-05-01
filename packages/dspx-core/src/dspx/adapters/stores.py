@@ -28,12 +28,12 @@ class LocalObjectStore(StoreAdapter):
     create: bool = True
 
     def __post_init__(self) -> None:
-        p = Path(self.root)
+        p = Path(self.root).expanduser()
         if self.create:
             p.mkdir(parents=True, exist_ok=True)
         if not p.exists():
             raise FileNotFoundError(p)
-        self._root = p
+        self._root = p.resolve()
 
     def _full(self, rel: str) -> Path:
         relp = Path(rel)

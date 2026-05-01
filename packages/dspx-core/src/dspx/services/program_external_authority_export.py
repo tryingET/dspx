@@ -16,7 +16,7 @@ PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
 TARGET_SYSTEM = "agent_kernel"
 TARGET_CONTRACT = "ak_task_evidence_attachment"
 
-_BASE_BLOCKING_REASONS = [
+_EXTERNAL_APPLY_BLOCKING_REASONS = [
     "external_apply_not_implemented",
     "target_contract_not_bound_to_ak_runtime",
 ]
@@ -31,7 +31,9 @@ def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
     try:
         payload = json.loads(source.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise ProgramExternalAuthorityExportError(f"{label} not found: {source}") from exc
+        raise ProgramExternalAuthorityExportError(
+            f"{label} not found: {source}"
+        ) from exc
     except json.JSONDecodeError as exc:
         raise ProgramExternalAuthorityExportError(
             f"{label} must be valid JSON: {source}"
@@ -218,8 +220,13 @@ def _load_optional_comparison(
     if path is None:
         return None, None, False
     source = path.expanduser().resolve()
-    comparison = _load_json_object(source, label="program refinement candidate comparison")
-    if comparison.get("schema_version") != PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA:
+    comparison = _load_json_object(
+        source, label="program refinement candidate comparison"
+    )
+    if (
+        comparison.get("schema_version")
+        != PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+    ):
         raise ProgramExternalAuthorityExportError(
             "program refinement candidate comparison schema_version must be "
             + PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
@@ -257,8 +264,14 @@ def _status_for_preflight(
     target_ref_matches_manifest: bool,
     decision_record_present: bool,
     comparison_present: bool,
+    promotion_not_applied: bool,
 ) -> str:
-    if target_ref_matches_manifest and decision_record_present and comparison_present:
+    if (
+        target_ref_matches_manifest
+        and decision_record_present
+        and comparison_present
+        and promotion_not_applied
+    ):
         return "ready_not_applied"
     return "incomplete_preflight"
 
@@ -268,14 +281,17 @@ def _blocking_reasons(
     target_ref_matches_manifest: bool,
     decision_record_present: bool,
     comparison_present: bool,
+    promotion_not_applied: bool,
 ) -> list[str]:
-    reasons = list(_BASE_BLOCKING_REASONS)
+    reasons: list[str] = []
     if not target_ref_matches_manifest:
         reasons.append("target_ref_not_declared_in_manifest_external_authority_refs")
     if not decision_record_present:
         reasons.append("missing_decision_record")
     if not comparison_present:
         reasons.append("missing_candidate_comparison")
+    if not promotion_not_applied:
+        reasons.append("promotion_already_applied_or_state_not_not_promoted")
     return reasons
 
 
@@ -284,9 +300,7 @@ def _artifact_hashes_fingerprint(artifact_hashes: Mapping[str, str | None]) -> s
     return _sha256_payload(seed)
 
 
-def _export_id(
-    *, external_ref: str, artifact_hashes: Mapping[str, str | None]
-) -> str:
+def _export_id(*, external_ref: str, artifact_hashes: Mapping[str, str | None]) -> str:
     seed = {
         "schema_version": PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA,
         "target_system": TARGET_SYSTEM,
@@ -323,9 +337,11 @@ def build_program_external_authority_export_preflight(
         decision_record_path,
         manifest_identity=identity,
     )
-    comparison, comparison_file, comparison_mentions_identity = _load_optional_comparison(
-        comparison_path,
-        manifest_identity=identity,
+    comparison, comparison_file, comparison_mentions_identity = (
+        _load_optional_comparison(
+            comparison_path,
+            manifest_identity=identity,
+        )
     )
     decision_hash = _sha256_file(decision_file) if decision_file is not None else None
     comparison_hash = (
@@ -344,15 +360,18 @@ def build_program_external_authority_export_preflight(
     target_ref_matches_manifest = normalized_external_ref in declared_refs
     decision_record_present = decision_record is not None
     comparison_present = comparison is not None
+    promotion_not_applied = _promotion_not_applied(manifest, decision_record)
     blocking_reasons = _blocking_reasons(
         target_ref_matches_manifest=target_ref_matches_manifest,
         decision_record_present=decision_record_present,
         comparison_present=comparison_present,
+        promotion_not_applied=promotion_not_applied,
     )
     status = _status_for_preflight(
         target_ref_matches_manifest=target_ref_matches_manifest,
         decision_record_present=decision_record_present,
         comparison_present=comparison_present,
+        promotion_not_applied=promotion_not_applied,
     )
     evidence_refs: list[dict[str, Any]] = [
         {
@@ -415,11 +434,12 @@ def build_program_external_authority_export_preflight(
             "decision_record_identity_matches_manifest": decision_record_present,
             "comparison_present": comparison_present,
             "comparison_mentions_manifest_identity": comparison_mentions_identity,
-            "promotion_not_applied": _promotion_not_applied(manifest, decision_record),
+            "promotion_not_applied": promotion_not_applied,
             "external_mutation_supported": False,
             "external_mutation_requested": False,
             "ready_for_future_apply": False,
             "blocking_reasons": blocking_reasons,
+            "external_apply_blocking_reasons": list(_EXTERNAL_APPLY_BLOCKING_REASONS),
         },
         "planned_payload": {
             "kind": TARGET_CONTRACT,

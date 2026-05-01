@@ -595,14 +595,14 @@ def _repo_summary(root: str = ".", max_files: int = 20, depth: int = 2) -> str:
 
 def _detect_sqlite_url(url: Optional[str]) -> Optional[Path]:
     if url and url.startswith("sqlite:///"):
-        return Path(url[len("sqlite///") :])
+        return Path(url[len("sqlite:///") :])
     if url and url.startswith("sqlite:"):
         # sqlite:path or sqlite:path?mode=rw — not fully supported; try naive strip
         return Path(url.split(":", 1)[1])
-    # Try env or default location
-    env = os.getenv("DATABASE_URL") or os.getenv("SIXE_DB_URL")
-    if env and env.startswith("sqlite///"):
-        return Path(env[len("sqlite///") :])
+    # Try env or default location, matching storage.get_db_url precedence.
+    env = os.getenv("SIXE_DB_URL") or os.getenv("DATABASE_URL")
+    if env and env.startswith("sqlite:///"):
+        return Path(env[len("sqlite:///") :])
     if env and env.startswith("sqlite:"):
         return Path(env.split(":", 1)[1])
     default = Path("generated/sixe.db")

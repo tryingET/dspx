@@ -31,7 +31,9 @@ from dspx.services.program_promotion_decision import (
     write_program_promotion_decision_record,
 )
 from dspx.services.program_promotion_plan import build_program_promotion_plan
-from dspx.services.program_promotion_refinement import build_program_promotion_refinement
+from dspx.services.program_promotion_refinement import (
+    build_program_promotion_refinement,
+)
 from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_refinement_workflow import (
     materialize_and_compare_refinement_candidate,
@@ -103,7 +105,9 @@ def _materialize_candidate_state_inputs(
     source_root = Path(artifact.root_path)
 
     index_path = tmp_path / "oracle" / "coordinates.db"
-    index_result = index_program_oracle_evidence_path(source_root, index_path=index_path)
+    index_result = index_program_oracle_evidence_path(
+        source_root, index_path=index_path
+    )
     assert index_result["indexed"] == 1
 
     oracle_report = build_program_oracle_evidence_report(index_path=index_path)
@@ -207,7 +211,9 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     def forbid_subprocess_run(
         *_args: object, **_kwargs: object
     ) -> subprocess.CompletedProcess[str]:
-        raise AssertionError("candidate state summarization must not invoke subprocesses")
+        raise AssertionError(
+            "candidate state summarization must not invoke subprocesses"
+        )
 
     monkeypatch.setattr(subprocess, "run", forbid_subprocess_run)
 
@@ -269,15 +275,17 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert payload["artifact_hashes"]["behavior_results_sha256"] == _sha256(
         candidate_root / "behavior_results.json"
     )
-    assert payload["artifact_hashes"]["jury_results_sha256"] == before_sidecars[
-        "jury_results"
-    ]
-    assert payload["artifact_hashes"]["comparison_sha256"] == before_sidecars[
-        "comparison"
-    ]
-    assert payload["artifact_hashes"]["export_preflight_sha256"] == before_sidecars[
-        "export_preflight"
-    ]
+    assert (
+        payload["artifact_hashes"]["jury_results_sha256"]
+        == before_sidecars["jury_results"]
+    )
+    assert (
+        payload["artifact_hashes"]["comparison_sha256"] == before_sidecars["comparison"]
+    )
+    assert (
+        payload["artifact_hashes"]["export_preflight_sha256"]
+        == before_sidecars["export_preflight"]
+    )
 
     evidence = payload["evidence_state"]
     assert evidence["behavior"]["present"] is True
@@ -327,17 +335,22 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert promotion["external_authority_export_preflight"]["status"] == (
         "ready_not_applied"
     )
-    assert promotion["external_authority_export_preflight"]["ready_for_future_apply"] is False
-    assert promotion["external_authority_export_preflight"]["ak_called"] is False
     assert (
-        promotion["external_authority_export_preflight"][
-            "external_authority_mutated"
-        ]
+        promotion["external_authority_export_preflight"]["ready_for_future_apply"]
         is False
     )
-    assert "external_apply_not_implemented" in promotion[
-        "external_authority_export_preflight"
-    ]["blocking_reasons"]
+    assert promotion["external_authority_export_preflight"]["ak_called"] is False
+    assert (
+        promotion["external_authority_export_preflight"]["external_authority_mutated"]
+        is False
+    )
+    assert promotion["external_authority_export_preflight"]["blocking_reasons"] == []
+    assert (
+        "external_apply_not_implemented"
+        in promotion["external_authority_export_preflight"][
+            "external_apply_blocking_reasons"
+        ]
+    )
 
     truth = payload["truth_summary"]
     assert truth["program_materialized"] is True
@@ -356,9 +369,9 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert truth["winner_selected"] is False
     assert truth["automatic_promotion"] is False
     assert truth["ready_for_future_apply"] is False
-    assert "future_apply_requires_exact_ak_target_contract" in truth[
-        "required_next_steps"
-    ]
+    assert (
+        "future_apply_requires_exact_ak_target_contract" in truth["required_next_steps"]
+    )
 
     assert payload["effect"] == {
         "local_state_written": True,
@@ -444,7 +457,9 @@ def test_program_candidate_state_degrades_with_manifest_only(
     program_root = Path(artifact.root_path)
     before = _file_hashes(program_root)
 
-    payload = build_program_candidate_state(manifest_path=program_root / "manifest.json")
+    payload = build_program_candidate_state(
+        manifest_path=program_root / "manifest.json"
+    )
 
     assert payload["schema_version"] == "program-candidate-state-v1"
     assert payload["status"] == "not_promoted_materialized"
@@ -470,7 +485,9 @@ def test_program_candidate_state_degrades_with_manifest_only(
     }
     assert payload["truth_summary"]["behavior_evidence_present"] is False
     assert payload["truth_summary"]["external_authority_preflight_present"] is False
-    assert "capture_behavior_evidence" in payload["truth_summary"]["required_next_steps"]
+    assert (
+        "capture_behavior_evidence" in payload["truth_summary"]["required_next_steps"]
+    )
     assert payload["effect"]["local_state_written"] is False
     assert not (tmp_path / "oracle" / "coordinates.db").exists()
     assert _file_hashes(program_root) == before

@@ -42,7 +42,9 @@ def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
             f"{label} must be valid JSON: {source}"
         ) from exc
     if not isinstance(payload, dict):
-        raise ProgramCandidateStateError(f"{label} must contain a JSON object: {source}")
+        raise ProgramCandidateStateError(
+            f"{label} must contain a JSON object: {source}"
+        )
     return payload
 
 
@@ -217,10 +219,15 @@ def _validate_optional_inputs(
             ),
         )
         review_identity = _safe_mapping(review.get("identity"))
-        if not any(_identity_exactly_matches(review_identity, item) for item in source_or_candidate):
+        if not any(
+            _identity_exactly_matches(review_identity, item)
+            for item in source_or_candidate
+        ):
             raise ProgramCandidateStateError(
                 "refined promotion review identity does not match candidate/source identity: "
-                + ", ".join(_identity_mismatch_keys(review_identity, candidate_identity))
+                + ", ".join(
+                    _identity_mismatch_keys(review_identity, candidate_identity)
+                )
             )
 
     if decision is not None:
@@ -240,10 +247,15 @@ def _validate_optional_inputs(
             ),
         )
         decision_identity = _safe_mapping(decision.get("identity"))
-        if not any(_identity_exactly_matches(decision_identity, item) for item in source_or_candidate):
+        if not any(
+            _identity_exactly_matches(decision_identity, item)
+            for item in source_or_candidate
+        ):
             raise ProgramCandidateStateError(
                 "program promotion decision record identity does not match candidate/source identity: "
-                + ", ".join(_identity_mismatch_keys(decision_identity, candidate_identity))
+                + ", ".join(
+                    _identity_mismatch_keys(decision_identity, candidate_identity)
+                )
             )
 
     if jury_results is not None:
@@ -272,7 +284,10 @@ def _validate_optional_inputs(
                 "program jury results must record program_files_mutated false"
             )
         jury_identity = _safe_mapping(jury_results.get("identity"))
-        if not any(_identity_exactly_matches(jury_identity, item) for item in source_or_candidate):
+        if not any(
+            _identity_exactly_matches(jury_identity, item)
+            for item in source_or_candidate
+        ):
             raise ProgramCandidateStateError(
                 "program jury results identity does not match candidate/source identity"
             )
@@ -309,7 +324,10 @@ def _validate_optional_inputs(
             raise ProgramCandidateStateError(
                 "program promotion plan must have status planned_not_applied"
             )
-        if _safe_mapping(promotion_plan.get("eligibility")).get("allowed_for_apply") is not False:
+        if (
+            _safe_mapping(promotion_plan.get("eligibility")).get("allowed_for_apply")
+            is not False
+        ):
             raise ProgramCandidateStateError(
                 "program promotion plan must keep eligibility.allowed_for_apply false"
             )
@@ -330,7 +348,10 @@ def _validate_optional_inputs(
         )
 
     if export_preflight is not None:
-        if export_preflight.get("status") not in {"ready_not_applied", "incomplete_preflight"}:
+        if export_preflight.get("status") not in {
+            "ready_not_applied",
+            "incomplete_preflight",
+        }:
             raise ProgramCandidateStateError(
                 "external authority export preflight status must be ready_not_applied or incomplete_preflight"
             )
@@ -357,7 +378,10 @@ def _validate_optional_inputs(
             ),
         )
         preflight_identity = _safe_mapping(export_preflight.get("identity"))
-        if not any(_identity_exactly_matches(preflight_identity, item) for item in source_or_candidate):
+        if not any(
+            _identity_exactly_matches(preflight_identity, item)
+            for item in source_or_candidate
+        ):
             raise ProgramCandidateStateError(
                 "external authority export preflight identity does not match candidate/source identity"
             )
@@ -386,7 +410,9 @@ def _behavior_summary(
     }
 
 
-def _oracle_readability_summary(manifest: Mapping[str, Any], manifest_path: Path) -> dict[str, Any]:
+def _oracle_readability_summary(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> dict[str, Any]:
     oracle = _safe_mapping(manifest.get("oracle_readability"))
     path_text = _first_text(oracle.get("path"))
     path = None
@@ -413,8 +439,11 @@ def _review_summary(review: Mapping[str, Any] | None) -> dict[str, Any]:
         "schema_version": review.get("schema_version"),
         "status": review.get("status"),
         "promotion_state": review.get("promotion_state"),
-        "ready_for_adjudicator_review": readiness.get("ready_for_adjudicator_review") is True,
-        "missing_required_evidence": _string_list(readiness.get("missing_required_evidence")),
+        "ready_for_adjudicator_review": readiness.get("ready_for_adjudicator_review")
+        is True,
+        "missing_required_evidence": _string_list(
+            readiness.get("missing_required_evidence")
+        ),
     }
 
 
@@ -426,8 +455,13 @@ def _decision_summary(decision: Mapping[str, Any] | None) -> dict[str, Any]:
         "schema_version": decision.get("schema_version"),
         "status": decision.get("status"),
         "outcome": decision.get("outcome"),
-        "promotion_state_after_decision": decision.get("promotion_state_after_decision"),
-        "external_authority_exported": _safe_mapping(decision.get("decision_constraints")).get("external_authority_exported") is True,
+        "promotion_state_after_decision": decision.get(
+            "promotion_state_after_decision"
+        ),
+        "external_authority_exported": _safe_mapping(
+            decision.get("decision_constraints")
+        ).get("external_authority_exported")
+        is True,
     }
 
 
@@ -463,7 +497,10 @@ def _jury_results_summary(
         "aggregate_status": aggregate.get("status"),
         "judgment_counts": _safe_mapping(aggregate.get("judgment_counts")),
         "disagreement_present": aggregate.get("disagreement_present") is True,
-        "ready_for_promotion_decision": interpretation.get("ready_for_promotion_decision") is True,
+        "ready_for_promotion_decision": interpretation.get(
+            "ready_for_promotion_decision"
+        )
+        is True,
         "promotion_authority": False,
     }
 
@@ -474,9 +511,13 @@ def _comparison_summary(
     if comparison is None:
         return {"present": False, "status": "missing"}
     role = "unrelated"
-    if _identity_exactly_matches(_safe_mapping(comparison.get("source_identity")), identity):
+    if _identity_exactly_matches(
+        _safe_mapping(comparison.get("source_identity")), identity
+    ):
         role = "source"
-    elif _identity_exactly_matches(_safe_mapping(comparison.get("candidate_identity")), identity):
+    elif _identity_exactly_matches(
+        _safe_mapping(comparison.get("candidate_identity")), identity
+    ):
         role = "candidate"
     interpretation = _safe_mapping(comparison.get("interpretation"))
     return {
@@ -501,7 +542,9 @@ def _promotion_plan_summary(plan: Mapping[str, Any] | None) -> dict[str, Any]:
         "promotion_state": plan.get("promotion_state"),
         "target": _safe_mapping(plan.get("target")).get("kind"),
         "allowed_for_apply": eligibility.get("allowed_for_apply") is True,
-        "missing_required_evidence": _string_list(eligibility.get("missing_required_evidence")),
+        "missing_required_evidence": _string_list(
+            eligibility.get("missing_required_evidence")
+        ),
     }
 
 
@@ -517,8 +560,14 @@ def _export_preflight_summary(preflight: Mapping[str, Any] | None) -> dict[str, 
         "export_id": preflight.get("export_id"),
         "ready_for_future_apply": preflight_block.get("ready_for_future_apply") is True,
         "blocking_reasons": _string_list(preflight_block.get("blocking_reasons")),
+        "external_apply_blocking_reasons": _string_list(
+            preflight_block.get("external_apply_blocking_reasons")
+        ),
         "ak_called": _safe_mapping(preflight.get("effect")).get("ak_called") is True,
-        "external_authority_mutated": _safe_mapping(preflight.get("effect")).get("external_authority_mutated") is True,
+        "external_authority_mutated": _safe_mapping(preflight.get("effect")).get(
+            "external_authority_mutated"
+        )
+        is True,
     }
 
 
@@ -530,7 +579,10 @@ def _oracle_report_summary(report: Mapping[str, Any] | None) -> dict[str, Any]:
         "schema_version": report.get("schema_version"),
         "status": report.get("status"),
         "total_records": int(report.get("total_records") or 0),
-        "interpretation_only": _safe_mapping(report.get("non_authority")).get("oracle_interpretation_only") is True,
+        "interpretation_only": _safe_mapping(report.get("non_authority")).get(
+            "oracle_interpretation_only"
+        )
+        is True,
     }
 
 
@@ -542,7 +594,10 @@ def _proposal_summary(proposal: Mapping[str, Any] | None) -> dict[str, Any]:
         "schema_version": proposal.get("schema_version"),
         "status": proposal.get("status"),
         "proposal_id": proposal.get("proposal_id"),
-        "proposal_only": _safe_mapping(proposal.get("non_authority")).get("proposal_only") is True,
+        "proposal_only": _safe_mapping(proposal.get("non_authority")).get(
+            "proposal_only"
+        )
+        is True,
     }
 
 
@@ -792,11 +847,21 @@ def build_program_candidate_state(
         "artifact_hashes": artifact_hashes,
         "candidate": {
             "root_path": root_path,
-            "artifact_kind": _safe_mapping(manifest.get("candidate_assembly")).get("artifact_kind"),
-            "assembly_status": _safe_mapping(manifest.get("candidate_assembly")).get("status"),
-            "promotion_state": _safe_mapping(manifest.get("program_promotion_review")).get("promotion_state"),
-            "candidate_status": _safe_mapping(manifest.get("program_promotion_review")).get("candidate_status"),
-            "program_gen_source_command": _safe_mapping(manifest.get("request")).get("source_command"),
+            "artifact_kind": _safe_mapping(manifest.get("candidate_assembly")).get(
+                "artifact_kind"
+            ),
+            "assembly_status": _safe_mapping(manifest.get("candidate_assembly")).get(
+                "status"
+            ),
+            "promotion_state": _safe_mapping(
+                manifest.get("program_promotion_review")
+            ).get("promotion_state"),
+            "candidate_status": _safe_mapping(
+                manifest.get("program_promotion_review")
+            ).get("candidate_status"),
+            "program_gen_source_command": _safe_mapping(manifest.get("request")).get(
+                "source_command"
+            ),
         },
         "evidence_state": {
             "behavior": _behavior_summary(behavior, behavior_hash),
@@ -804,7 +869,9 @@ def build_program_candidate_state(
                 "present": execution_episode_path.exists(),
                 "path": str(execution_episode_path),
                 "sha256": _optional_hash(execution_episode_path),
-                "schema_version": _safe_mapping(manifest.get("execution_episode_artifact")).get("schema_version"),
+                "schema_version": _safe_mapping(
+                    manifest.get("execution_episode_artifact")
+                ).get("schema_version"),
             },
             "oracle_readability": oracle_readability,
             "oracle_report": _oracle_report_summary(oracle_report),

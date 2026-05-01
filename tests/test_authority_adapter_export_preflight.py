@@ -161,8 +161,12 @@ def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
     comparison_hash_before = hashlib.sha256(comparison_path.read_bytes()).hexdigest()
     out = tmp_path / "export" / "ak-export-preflight.json"
 
-    def forbid_subprocess_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        raise AssertionError("external authority preflight must not invoke subprocesses")
+    def forbid_subprocess_run(
+        *_args: object, **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        raise AssertionError(
+            "external authority preflight must not invoke subprocesses"
+        )
 
     monkeypatch.setattr(subprocess, "run", forbid_subprocess_run)
 
@@ -224,9 +228,7 @@ def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
     assert payload["preflight"]["manifest_valid"] is True
     assert payload["preflight"]["target_ref_present"] is True
     assert (
-        payload["preflight"][
-            "target_ref_matches_manifest_external_authority_refs"
-        ]
+        payload["preflight"]["target_ref_matches_manifest_external_authority_refs"]
         is True
     )
     assert payload["preflight"]["decision_record_present"] is True
@@ -237,10 +239,14 @@ def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
     assert payload["preflight"]["external_mutation_supported"] is False
     assert payload["preflight"]["external_mutation_requested"] is False
     assert payload["preflight"]["ready_for_future_apply"] is False
-    assert "external_apply_not_implemented" in payload["preflight"]["blocking_reasons"]
+    assert payload["preflight"]["blocking_reasons"] == []
+    assert (
+        "external_apply_not_implemented"
+        in payload["preflight"]["external_apply_blocking_reasons"]
+    )
     assert (
         "target_contract_not_bound_to_ak_runtime"
-        in payload["preflight"]["blocking_reasons"]
+        in payload["preflight"]["external_apply_blocking_reasons"]
     )
     assert payload["planned_payload"]["kind"] == "ak_task_evidence_attachment"
     assert payload["planned_payload"]["target_ref"] == "AK-EXAMPLE"
@@ -252,8 +258,7 @@ def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
     assert payload["idempotency"]["export_id"] == payload["export_id"]
     assert payload["idempotency"]["safe_to_recompute"] is True
     assert (
-        payload["idempotency"]["repeated_preflight_same_inputs_same_export_id"]
-        is True
+        payload["idempotency"]["repeated_preflight_same_inputs_same_export_id"] is True
     )
     assert payload["idempotency"]["external_duplicate_check_performed"] is False
     assert payload["idempotency"]["external_duplicate_check_reason"] == (
@@ -314,13 +319,16 @@ def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
     assert repeated.exit_code == 0, repeated.output
     repeated_payload = json.loads(repeated.stdout)
     assert repeated_payload["export_id"] == payload["export_id"]
-    assert repeated_payload["idempotency"]["artifact_hashes_fingerprint"] == (
-        payload["idempotency"]["artifact_hashes_fingerprint"]
+    assert (
+        repeated_payload["idempotency"]["artifact_hashes_fingerprint"]
+        == (payload["idempotency"]["artifact_hashes_fingerprint"])
     )
 
     assert _file_hashes(program_root) == source_hashes_before
     assert _file_hashes(candidate_root) == candidate_hashes_before
-    assert hashlib.sha256(decision_path.read_bytes()).hexdigest() == decision_hash_before
+    assert (
+        hashlib.sha256(decision_path.read_bytes()).hexdigest() == decision_hash_before
+    )
     assert (
         hashlib.sha256(comparison_path.read_bytes()).hexdigest()
         == comparison_hash_before
@@ -366,7 +374,10 @@ def test_agent_kernel_export_preflight_degrades_without_optional_evidence(
 
     assert payload["schema_version"] == "program-external-authority-export-preflight-v1"
     assert payload["status"] == "incomplete_preflight"
-    assert payload["preflight"]["target_ref_matches_manifest_external_authority_refs"] is True
+    assert (
+        payload["preflight"]["target_ref_matches_manifest_external_authority_refs"]
+        is True
+    )
     assert payload["preflight"]["decision_record_present"] is False
     assert payload["preflight"]["decision_record_identity_matches_manifest"] is False
     assert payload["preflight"]["comparison_present"] is False
@@ -381,6 +392,81 @@ def test_agent_kernel_export_preflight_degrades_without_optional_evidence(
     assert payload["effect"]["governance_mutated"] is False
     assert _file_hashes(program_root) == before
     assert not (tmp_path / "oracle" / "coordinates.db").exists()
+
+
+def test_agent_kernel_export_preflight_not_ready_when_promotion_already_applied(
+    tmp_path: Path,
+) -> None:
+    identity = {
+        "request_id": "req-1",
+        "candidate_id": "cand-1",
+        "assembly_id": "asm-1",
+        "episode_id": "episode-1",
+        "receipt_bundle_id": "bundle-1",
+    }
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "request": {"request_id": identity["request_id"]},
+        "candidate_assembly": {
+            "artifact_kind": "program",
+            "candidate_id": identity["candidate_id"],
+            "assembly_id": identity["assembly_id"],
+        },
+        "execution_episode": {"episode_id": identity["episode_id"]},
+        "receipt_bundle": {"receipt_bundle_id": identity["receipt_bundle_id"]},
+        "program_promotion_review": {
+            "promotion_state": "promoted",
+            "external_authority": {
+                "refs": [
+                    {
+                        "system": "agent_kernel",
+                        "ref": "AK-EXAMPLE",
+                        "role": "optional_authority_export_target",
+                    }
+                ]
+            },
+        },
+    }
+    decision = {
+        "schema_version": "program-promotion-decision-record-v1",
+        "status": "recorded",
+        "identity": identity,
+        "effect": {
+            "external_authority_mutated": False,
+            "governance_mutated": False,
+        },
+    }
+    comparison = {
+        "schema_version": "program-refinement-candidate-comparison-v1",
+        "source_identity": identity,
+        "candidate_identity": identity,
+    }
+    manifest_path = tmp_path / "manifest.json"
+    decision_path = tmp_path / "decision.json"
+    comparison_path = tmp_path / "comparison.json"
+    _write_json(manifest_path, manifest)
+    _write_json(decision_path, decision)
+    _write_json(comparison_path, comparison)
+
+    payload = build_program_external_authority_export_preflight(
+        manifest_path=manifest_path,
+        external_ref="AK-EXAMPLE",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+    )
+
+    assert payload["status"] == "incomplete_preflight"
+    assert (
+        payload["preflight"]["target_ref_matches_manifest_external_authority_refs"]
+        is True
+    )
+    assert payload["preflight"]["decision_record_present"] is True
+    assert payload["preflight"]["comparison_present"] is True
+    assert payload["preflight"]["promotion_not_applied"] is False
+    assert (
+        "promotion_already_applied_or_state_not_not_promoted"
+        in payload["preflight"]["blocking_reasons"]
+    )
 
 
 def test_agent_kernel_export_preflight_fails_closed_on_identity_mismatch(

@@ -10,6 +10,13 @@ from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
 
 
+class AgentQuestionAnswer(dspy.Signature):
+    """Answer a user question with optional tool use."""
+
+    question: str = dspy.InputField(desc="user question")
+    answer: str = dspy.OutputField(desc="agent answer")
+
+
 def run(question: str, *, tools: Optional[List[str]] = None, max_iters: int = 3) -> str:
     """Run a minimal ReAct agent with optional tools.
 
@@ -34,6 +41,6 @@ def run(question: str, *, tools: Optional[List[str]] = None, max_iters: int = 3)
                 # Skip unknown tool names
                 continue
 
-    agent = dspy.ReAct("question -> answer", tools=tool_fns, max_iters=max_iters)
+    agent = dspy.ReAct(AgentQuestionAnswer, tools=tool_fns, max_iters=max_iters)
     pred = agent(question=question)
     return getattr(pred, "answer", str(pred))
