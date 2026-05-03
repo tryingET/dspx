@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-03T14:49:48.293233527+00:00",
+  "task_id": 2096,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/boundary-contract-matrix.md",
+      "docs/project/first-local-loop.md",
+      "docs/project/product_posture.md",
+      "docs/project/program-gen-walkthrough.md",
+      "docs/project/program-synthesis-boundary.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_contracts.py",
+      "packages/dspx-core/src/dspx/services/program_dataset.py",
+      "packages/dspx-core/src/dspx/services/program_service.py",
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "tests/test_authority_adapter_export_preflight.py",
+      "tests/test_program_candidate_state.py",
+      "tests/test_program_dataset_splits.py",
+      "tests/test_program_service.py",
+      "tests/test_program_topology_intent.py"
+    ],
+    "required_paths": [],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -197,6 +197,43 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         manifest["execution_episode"]["checks"]["dataset_binding"]["status"] == "passed"
     )
     assert manifest["execution_episode"]["dataset_evaluation"]["status"] == "captured"
+    evaluation_sources = manifest["execution_episode"]["evaluation_sources"]
+    assert [source["split"] for source in evaluation_sources] == [
+        "train",
+        "validation",
+        "test",
+    ]
+    assert {source["source_kind"] for source in evaluation_sources} == {"dataset_split"}
+    for source in evaluation_sources:
+        split = source["split"]
+        assert source["kind"] == "dataset_split"
+        assert source["source_artifact_path"] == f"splits/{split}.jsonl"
+        assert source["source_artifact_hash"] == _hash(
+            root / "splits" / f"{split}.jsonl"
+        )
+        assert source["dataset_manifest_path"] == "dataset_manifest.json"
+        assert source["dataset_manifest_hash"] == dataset_manifest_hash
+        assert source["behavior_results_path"] == f"behavior_results.{split}.json"
+        assert source["behavior_results_hash"] == _hash(
+            root / f"behavior_results.{split}.json"
+        )
+        assert source["count"] == dataset["split"]["counts"][split]
+        assert source["summary"]["total"] == dataset["split"]["counts"][split]
+        assert source["metric"] == "exact_match"
+        assert source["harness"]["path"] == f"eval_{split}.py"
+        assert source["harness"]["status"] == "passed"
+    evidence_summary = manifest["execution_episode"]["behavior_evidence_summary"]
+    assert evidence_summary["source_count"] == 3
+    assert evidence_summary["total"] == 10
+    assert evidence_summary["no_examples_source_count"] == 0
+    assert manifest["execution_episode"]["runtime_conditions"]["metric"] == (
+        "exact_match"
+    )
+    assert manifest["execution_episode"]["non_authority"]["winner_selection"] is False
+    assert (
+        manifest["execution_episode"]["non_authority"]["external_authority_mutated"]
+        is False
+    )
     assert manifest["program_promotion_review"]["promotion_state"] == "not_promoted"
     assert receipt["run_summary"]["dataset_manifest_hash"] == dataset_manifest_hash
     assert receipt["program_dataset_manifest"] == dataset

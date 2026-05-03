@@ -32,10 +32,10 @@ The current `program-gen` loop proves:
 2. Signature, module, program, jury, promotion, and eval harness surfaces are generated as separate artifacts.
 3. Explicit user/Pi-declared topology can be validated and preserved in artifacts; the narrow supported `pipeline` subset is rendered into multiple signatures/modules and a composed program, while topology is never inferred.
 4. `module_surfaces.json` is a standalone `program-module-surfaces-v1` artifact containing one or more `program-module-surface-v1` contracts for the generated module surfaces that `program-gen` composed.
-5. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact.
-6. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`.
-6. When a dataset is declared, `program-gen` writes `dataset_manifest.json`, deterministic `splits/train.jsonl`, `splits/validation.jsonl`, `splits/test.jsonl`, split-specific harnesses, and `behavior_results.train.json` / `.validation.json` / `.test.json` without merging them into inline examples.
-6. `oracle_evidence.json` is Oracle-readable evidence derived from inline-example behavior results without invoking Oracle.
+5. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact with source-indexed behavior evidence summaries.
+6. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`; `execution_episode.json` records whether that source came from inline examples or `examples_path`, plus result path/hash, count, provider, and metric facts already known.
+6. When a dataset is declared, `program-gen` writes `dataset_manifest.json`, deterministic `splits/train.jsonl`, `splits/validation.jsonl`, `splits/test.jsonl`, split-specific harnesses, and `behavior_results.train.json` / `.validation.json` / `.test.json` without merging them into inline examples; `execution_episode.json` records each split as a separate evidence source.
+6. `oracle_evidence.json` is Oracle-readable evidence derived from example-backed behavior results without invoking Oracle.
 7. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
 8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
@@ -239,6 +239,9 @@ print(json.dumps({
     "phase": payload["phase"],
     "materialization": payload["materialization"],
     "checks": payload["checks"],
+    "runtime_conditions": payload["runtime_conditions"],
+    "evaluation_sources": payload["evaluation_sources"],
+    "behavior_evidence_summary": payload["behavior_evidence_summary"],
     "behavioral_evaluation": payload["behavioral_evaluation"],
     "oracle_readability": payload["oracle_readability"],
     "non_authority": payload["non_authority"],
@@ -254,9 +257,12 @@ How to read it:
 - `checks.examples_binding` means `examples.json` matched declared input/output fields.
 - `checks.jury_binding` means `jury.json`, `jury_selection.json`, and `jury_rubric.json` are internally consistent; no juror model was called.
 - `checks.promotion_binding` means promotion review/request/template artifacts are internally consistent; no adjudicator was invoked.
-- `behavioral_evaluation` points to `behavior_results.json` only when examples existed and `eval_examples.py` wrote that evidence.
+- `runtime_conditions` records only already-known metric/runtime/provider facts; provider entries come from the local behavior harness payloads.
+- `evaluation_sources` lists every local behavior evidence source that actually ran: inline examples, `examples_path`, and/or each dataset split. Each source records kind, source path or split path, result path/hash, count, status, summary, metric, provider, and harness return status.
+- `behavior_evidence_summary` aggregates totals/status counts across those sources without claiming quality, selecting a winner, or applying authority.
+- `behavioral_evaluation` remains the legacy inline-example summary pointer to `behavior_results.json` when examples existed and `eval_examples.py` wrote that evidence.
 - `oracle_readability` points to `oracle_evidence.json` only when behavior evidence existed; `oracle_invoked` remains `false`.
-- `non_authority` keeps evidence separate from ranking, pruning, promotion, governance, Oracle, and external mutation authority.
+- `non_authority` keeps evidence separate from ranking, pruning, promotion, governance, AK mutation, Oracle authority, winner selection, and external authority mutation.
 
 ## 7. Inspect actual behavior over examples
 
@@ -747,8 +753,9 @@ Use this checklist when reviewing a generated program assembly:
 - `module_surfaces.json` exists and has `schema_version: program-module-surfaces-v1`.
 - each module surface has `schema_version: program-module-surface-v1`, declared IO, false effects, and no authority to rank/prune/promote/govern/mutate externally.
 - `execution_episode.json` exists and has `schema_version: program-execution-episode-v1`.
-- `execution_episode.json` separates materialization, topology execution status, binding checks, behavioral evaluation, and Oracle readability.
-- If examples exist, `behavioral_evaluation.result_artifact` is `behavior_results.json` and its hash matches manifest/receipt declarations.
+- `execution_episode.json` separates materialization, topology execution status, binding checks, source-indexed evaluation evidence, behavioral evaluation, and Oracle readability.
+- If examples exist, `behavioral_evaluation.result_artifact` is `behavior_results.json` and its hash matches manifest/receipt declarations; `evaluation_sources` also states whether the source was inline examples or `examples_path`.
+- If dataset splits exist, each split appears in `evaluation_sources` with its split artifact hash, `behavior_results.<split>.json` path/hash, count, status, and provider/metric facts already present.
 - If examples do not exist, behavioral evaluation is `not_applicable` rather than falsely passed.
 - `oracle_readability.oracle_invoked` is `false`.
 - `promotion_review.json` keeps `promotion_state: not_promoted`.

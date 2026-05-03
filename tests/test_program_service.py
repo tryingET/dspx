@@ -560,6 +560,19 @@ def test_program_gen_cli_binds_examples_path_relative_to_intent(
     assert manifest["program_plan"]["examples"]["source"] == "examples_path"
     assert manifest["program_plan"]["examples"]["path"] == str(examples_path.resolve())
     assert manifest["program_plan"]["examples"]["count"] == 1
+    episode = manifest["execution_episode"]
+    assert episode["evaluation_sources"][0]["source_kind"] == "examples_path"
+    assert episode["evaluation_sources"][0]["source_path"] == str(
+        examples_path.resolve()
+    )
+    assert episode["evaluation_sources"][0]["input_artifact_path"] == "examples.json"
+    assert episode["evaluation_sources"][0]["behavior_results_path"] == (
+        "behavior_results.json"
+    )
+    assert episode["behavior_evidence_summary"]["source_count"] == 1
+    assert episode["behavior_evidence_summary"]["total"] == 1
+    assert episode["non_authority"]["external_authority_mutated"] is False
+    assert episode["non_authority"]["winner_selection"] is False
     assert (
         manifest["request"]["plan_hash"]
         == hashlib.sha256((outdir / "plan.json").read_bytes()).hexdigest()
@@ -632,6 +645,10 @@ def test_program_service_binds_examples_when_present(
     assert behavior_results["input_fields"] == ["context", "question"]
     assert behavior_results["output_fields"] == ["answer", "confidence"]
     assert behavior_results["authority"] == "behavior_evidence_only_non_authoritative"
+    assert behavior_results["non_authority"]["promotion_authority"] is False
+    assert behavior_results["non_authority"]["oracle_ranking"] is False
+    assert behavior_results["non_authority"]["external_authority_mutated"] is False
+    assert behavior_results["non_authority"]["winner_selection"] is False
     assert behavior_results["summary"]["total"] == 1
     assert behavior_results["summary"]["status"] in {
         "passed",
@@ -775,6 +792,55 @@ def test_program_service_binds_examples_when_present(
         "oracle_evidence.json"
     )
     assert execution_episode["oracle_readability"]["result_hash"] == oracle_hash
+    examples_hash = hashlib.sha256((root / "examples.json").read_bytes()).hexdigest()
+    assert execution_episode["evaluation_sources"] == [
+        {
+            "kind": "examples",
+            "source_kind": "inline_examples",
+            "source_path": None,
+            "input_artifact_path": "examples.json",
+            "input_artifact_hash": examples_hash,
+            "behavior_results_path": "behavior_results.json",
+            "behavior_results_hash": behavior_hash,
+            "status": behavior_results["summary"]["status"],
+            "count": 1,
+            "summary": behavior_results["summary"],
+            "metric": "unspecified",
+            "provider": behavior_results["provider"],
+            "harness": {
+                "path": "eval_examples.py",
+                "status": "passed",
+                "returncode": 0,
+            },
+        }
+    ]
+    assert execution_episode["behavior_evidence_summary"] == {
+        "status": behavior_results["summary"]["status"],
+        "source_count": 1,
+        "executed_source_count": 1,
+        "total": 1,
+        "passed": behavior_results["summary"]["passed"],
+        "failed": behavior_results["summary"]["failed"],
+        "error": behavior_results["summary"]["error"],
+        "degraded": behavior_results["summary"]["degraded"],
+        "no_examples_source_count": 0,
+        "status_counts": {behavior_results["summary"]["status"]: 1},
+        "source_statuses": [
+            {
+                "kind": "examples",
+                "source_kind": "inline_examples",
+                "split": None,
+                "status": behavior_results["summary"]["status"],
+                "count": 1,
+                "behavior_results_path": "behavior_results.json",
+            }
+        ],
+    }
+    assert execution_episode["runtime_conditions"] == {
+        "runtime": {},
+        "metric": "unspecified",
+        "providers": {"examples": behavior_results["provider"]},
+    }
     assert execution_episode["non_authority"] == {
         "evidence_only": True,
         "oracle_role": "not_invoked",
@@ -783,8 +849,14 @@ def test_program_service_binds_examples_when_present(
         "oracle_promotion": False,
         "ranking_pruning_promotion": False,
         "promotion_authority": False,
+        "oracle_authority": False,
+        "winner_selection": False,
+        "automatic_promotion": False,
         "governance_authority": False,
+        "ak_mutation": False,
+        "governance_mutation": False,
         "external_mutation": False,
+        "external_authority_mutated": False,
     }
     assert manifest["oracle_readability"]["path"] == "oracle_evidence.json"
     assert manifest["oracle_readability"]["content_hash"] == oracle_hash

@@ -348,6 +348,7 @@ def render_eval_examples(intent: Any) -> str:
             "        'examples': records,",
             "        'summary': _summary(records),",
             "        'authority': 'behavior_evidence_only_non_authoritative',",
+            "        'non_authority': {'optimization_authority': False, 'promotion_authority': False, 'oracle_ranking': False, 'oracle_pruning': False, 'oracle_promotion': False, 'governance_authority': False, 'external_mutation': False, 'external_authority_mutated': False, 'winner_selection': False},",
             "    }",
             "    RESULT_PATH.write_text(json.dumps(payload, indent=2, sort_keys=True) + '\\n', encoding='utf-8')",
             '    print(f\'program examples ok: {len(examples)} example(s); behavior status: {payload["summary"]["status"]}\')',

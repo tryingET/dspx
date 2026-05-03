@@ -720,6 +720,177 @@ def _harness_status(result: Mapping[str, Any] | None) -> str:
     return "passed" if result.get("returncode") == 0 else "failed"
 
 
+def _safe_summary_int(summary: Mapping[str, Any], key: str) -> int:
+    value = summary.get(key)
+    return value if isinstance(value, int) else 0
+
+
+def _behavior_source_status(summary: Mapping[str, Any]) -> str:
+    return str(summary.get("status") or "executed")
+
+
+def _behavior_provider(payload: Mapping[str, Any] | None) -> dict[str, Any]:
+    if payload is None:
+        return {}
+    raw_provider = payload.get("provider")
+    return dict(raw_provider) if isinstance(raw_provider, Mapping) else {}
+
+
+def _build_behavior_evidence_summary(
+    sources: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not sources:
+        return {
+            "status": "not_applicable",
+            "source_count": 0,
+            "executed_source_count": 0,
+            "total": 0,
+            "passed": 0,
+            "failed": 0,
+            "error": 0,
+            "degraded": 0,
+            "no_examples_source_count": 0,
+            "status_counts": {},
+            "source_statuses": [],
+        }
+
+    totals = {"total": 0, "passed": 0, "failed": 0, "error": 0, "degraded": 0}
+    status_counts: dict[str, int] = {}
+    source_statuses: list[dict[str, Any]] = []
+    no_examples_source_count = 0
+    for source in sources:
+        summary = dict(source.get("summary") or {})
+        status = _behavior_source_status(summary)
+        status_counts[status] = status_counts.get(status, 0) + 1
+        if status == "no_examples":
+            no_examples_source_count += 1
+        for key in totals:
+            totals[key] += _safe_summary_int(summary, key)
+        source_statuses.append(
+            {
+                "kind": source.get("kind"),
+                "source_kind": source.get("source_kind"),
+                "split": source.get("split"),
+                "status": status,
+                "count": source.get("count"),
+                "behavior_results_path": source.get("behavior_results_path"),
+            }
+        )
+
+    if totals["total"] == 0:
+        aggregate_status = "no_examples"
+    elif totals["error"] == totals["total"]:
+        aggregate_status = "error"
+    elif totals["failed"]:
+        aggregate_status = "failed"
+    elif totals["degraded"]:
+        aggregate_status = "degraded"
+    elif totals["passed"] == totals["total"]:
+        aggregate_status = "passed"
+    else:
+        aggregate_status = "executed"
+
+    return {
+        "status": aggregate_status,
+        "source_count": len(sources),
+        "executed_source_count": len(sources) - no_examples_source_count,
+        **totals,
+        "no_examples_source_count": no_examples_source_count,
+        "status_counts": status_counts,
+        "source_statuses": source_statuses,
+    }
+
+
+def _build_evaluation_sources(
+    *,
+    intent: ProgramIntent,
+    examples_hash: str | None,
+    examples_result: Mapping[str, Any] | None,
+    dataset_manifest_hash: str | None,
+    dataset_manifest_payload: Mapping[str, Any] | None,
+    dataset_split_results: Mapping[str, Mapping[str, Any]],
+    dataset_split_behavior_payloads: Mapping[str, Mapping[str, Any]],
+    dataset_split_behavior_hashes: Mapping[str, str],
+    behavior_results_hash: str | None,
+    behavior_summary: Mapping[str, Any] | None,
+    behavior_results_payload: Mapping[str, Any] | None,
+) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
+    metric = intent.metric or "unspecified"
+    if behavior_results_hash is not None:
+        summary = dict(behavior_summary or {})
+        sources.append(
+            {
+                "kind": "examples",
+                "source_kind": "examples_path"
+                if intent.examples_path
+                else "inline_examples",
+                "source_path": intent.examples_path,
+                "input_artifact_path": "examples.json",
+                "input_artifact_hash": examples_hash,
+                "behavior_results_path": "behavior_results.json",
+                "behavior_results_hash": behavior_results_hash,
+                "status": _behavior_source_status(summary),
+                "count": _safe_summary_int(summary, "total"),
+                "summary": summary,
+                "metric": metric,
+                "provider": _behavior_provider(behavior_results_payload),
+                "harness": {
+                    "path": "eval_examples.py",
+                    "status": _harness_status(examples_result),
+                    "returncode": examples_result.get("returncode")
+                    if examples_result is not None
+                    else None,
+                },
+            }
+        )
+
+    dataset_artifacts = (
+        dict(dataset_manifest_payload.get("artifacts") or {})
+        if dataset_manifest_payload is not None
+        else {}
+    )
+    for split in SPLIT_NAMES:
+        behavior_hash = dataset_split_behavior_hashes.get(split)
+        if behavior_hash is None:
+            continue
+        payload = dict(dataset_split_behavior_payloads.get(split) or {})
+        summary = dict(payload.get("summary") or {})
+        artifact = dict(dataset_artifacts.get(split) or {})
+        split_path = str(artifact.get("path") or f"splits/{split}.jsonl")
+        behavior_path = str(
+            artifact.get("behavior_results") or f"behavior_results.{split}.json"
+        )
+        harness_path = str(artifact.get("eval_harness") or f"eval_{split}.py")
+        sources.append(
+            {
+                "kind": "dataset_split",
+                "source_kind": "dataset_split",
+                "split": split,
+                "source_path": split_path,
+                "source_artifact_path": split_path,
+                "source_artifact_hash": artifact.get("content_hash"),
+                "dataset_manifest_path": "dataset_manifest.json",
+                "dataset_manifest_hash": dataset_manifest_hash,
+                "behavior_results_path": behavior_path,
+                "behavior_results_hash": behavior_hash,
+                "status": _behavior_source_status(summary),
+                "count": _safe_summary_int(summary, "total"),
+                "summary": summary,
+                "metric": metric,
+                "provider": _behavior_provider(payload),
+                "harness": {
+                    "path": harness_path,
+                    "status": _harness_status(dataset_split_results.get(split)),
+                    "returncode": dataset_split_results.get(split, {}).get(
+                        "returncode"
+                    ),
+                },
+            }
+        )
+    return sources
+
+
 def _build_execution_episode_contract(
     *,
     ids: Mapping[str, str],
@@ -729,6 +900,7 @@ def _build_execution_episode_contract(
     jury_result: Mapping[str, Any],
     promotion_result: Mapping[str, Any],
     examples_result: Mapping[str, Any] | None,
+    examples_hash: str | None,
     dataset_manifest_hash: str | None,
     dataset_manifest_payload: Mapping[str, Any] | None,
     dataset_split_results: Mapping[str, Mapping[str, Any]],
@@ -769,6 +941,28 @@ def _build_execution_episode_contract(
         "summary": dict(oracle_readability_summary or {}),
         "facets": dict(oracle_readability_facets or {}),
     }
+    evaluation_sources = _build_evaluation_sources(
+        intent=intent,
+        examples_hash=examples_hash,
+        examples_result=examples_result,
+        dataset_manifest_hash=dataset_manifest_hash,
+        dataset_manifest_payload=dataset_manifest_payload,
+        dataset_split_results=dataset_split_results,
+        dataset_split_behavior_payloads=dataset_split_behavior_payloads,
+        dataset_split_behavior_hashes=dataset_split_behavior_hashes,
+        behavior_results_hash=behavior_results_hash,
+        behavior_summary=behavior_summary,
+        behavior_results_payload=behavior_results_payload,
+    )
+    behavior_evidence_summary = _build_behavior_evidence_summary(evaluation_sources)
+    provider_conditions: dict[str, Any] = {}
+    if behavior_results_payload is not None:
+        provider_conditions["examples"] = _behavior_provider(behavior_results_payload)
+    if dataset_split_behavior_payloads:
+        provider_conditions["dataset_splits"] = {
+            split: _behavior_provider(payload)
+            for split, payload in dataset_split_behavior_payloads.items()
+        }
     declared_topology = dict(intent.topology or {})
     if declared_topology.get("kind") == "pipeline":
         topology_execution = {
@@ -810,7 +1004,11 @@ def _build_execution_episode_contract(
         "status": "passed",
         "status_scope": "materialization_and_binding_checks",
         "authority": "execution_episode_evidence_only_non_authoritative",
-        "runtime_conditions": dict(intent.runtime),
+        "runtime_conditions": {
+            "runtime": dict(intent.runtime),
+            "metric": intent.metric or "unspecified",
+            "providers": provider_conditions,
+        },
         "materialization": {
             "status": "passed",
             "generated_file_count": len(generated_file_names),
@@ -876,6 +1074,8 @@ def _build_execution_episode_contract(
         },
         "behavior_status": behavior_status,
         "topology_execution": topology_execution,
+        "evaluation_sources": evaluation_sources,
+        "behavior_evidence_summary": behavior_evidence_summary,
         "behavioral_evaluation": behavioral_evaluation,
         "behavior_results": {
             "path": "behavior_results.json",
@@ -929,8 +1129,14 @@ def _build_execution_episode_contract(
             "oracle_promotion": False,
             "ranking_pruning_promotion": False,
             "promotion_authority": False,
+            "oracle_authority": False,
+            "winner_selection": False,
+            "automatic_promotion": False,
             "governance_authority": False,
+            "ak_mutation": False,
+            "governance_mutation": False,
             "external_mutation": False,
+            "external_authority_mutated": False,
         },
         "metadata": {
             "smoke": dict(smoke_result),
@@ -1254,6 +1460,7 @@ def materialize_program_from_intent(
         jury_result=jury_result,
         promotion_result=promotion_result,
         examples_result=examples_result,
+        examples_hash=examples_hash,
         dataset_manifest_hash=dataset_manifest_hash,
         dataset_manifest_payload=dataset_manifest_payload,
         dataset_split_results=dataset_split_results,
