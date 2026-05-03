@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-03T13:37:45.830102869+00:00",
+  "task_id": 2088,
+  "entity_version": 5,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      ".gitignore",
+      "Justfile",
+      "docs/project/boundary-contract-matrix.md",
+      "docs/project/developer_workflow.md",
+      "governance/task-scopes/AK-2088.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/commands/adapters.py",
+      "packages/dspx-core/src/dspx/cli/commands/program_promote.py",
+      "packages/dspx-core/src/dspx/task_scope.py",
+      "tests/test_task_scope.py"
+    ],
+    "required_paths": [],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

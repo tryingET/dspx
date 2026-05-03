@@ -258,7 +258,9 @@ def status(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     except Exception as exc:
-        typer.echo(f"Error: program candidate state summarization failed: {exc}", err=True)
+        typer.echo(
+            f"Error: program candidate state summarization failed: {exc}", err=True
+        )
         raise typer.Exit(code=2) from exc
 
     if json_out:

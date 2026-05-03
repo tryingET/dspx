@@ -162,7 +162,9 @@ def adapters_authority_agent_kernel_export_preflight(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     except Exception as exc:
-        typer.echo(f"error: external authority export preflight failed: {exc}", err=True)
+        typer.echo(
+            f"error: external authority export preflight failed: {exc}", err=True
+        )
         raise typer.Exit(code=2) from exc
 
     if json_out:
