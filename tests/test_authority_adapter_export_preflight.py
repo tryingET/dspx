@@ -91,7 +91,8 @@ def _materialize_external_authority_path(
     artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
     program_root = Path(artifact.root_path)
     assert (program_root / "eval_examples.py").exists()
-    assert not (program_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
 
     index_path = tmp_path / "oracle" / "coordinates.db"
     index_result = index_program_oracle_evidence_path(
@@ -144,7 +145,8 @@ def _materialize_external_authority_path(
     ).resolve()
     assert candidate_manifest.exists()
     assert comparison_path.exists()
-    assert not (candidate_manifest.parent / "eval_behavior.py").exists()
+    assert (candidate_manifest.parent / "eval_behavior.py").exists()
+    assert (candidate_manifest.parent / "behavior_episode.json").exists()
     return program_root, candidate_manifest.parent, decision_path, comparison_path
 
 
@@ -334,8 +336,10 @@ def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
         == comparison_hash_before
     )
     assert not (program_root / "ak-export-preflight.json").exists()
-    assert not (program_root / "eval_behavior.py").exists()
-    assert not (candidate_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (candidate_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
+    assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 

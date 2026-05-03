@@ -203,7 +203,8 @@ def test_program_refine_generate_candidate_cli_materializes_second_candidate_loc
         is False
     )
     assert (outdir / "eval_examples.py").exists()
-    assert not (outdir / "eval_behavior.py").exists()
+    assert (outdir / "eval_behavior.py").exists()
+    assert (outdir / "behavior_episode.json").exists()
 
     assert _file_hashes(program_root) == before_source_hashes
     assert (

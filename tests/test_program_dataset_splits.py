@@ -88,7 +88,6 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         assert "oracle" not in command_names
         assert "program-refine" not in command_names
         assert "program-promote" not in command_names
-        assert "eval_behavior.py" not in command_names
         subprocess_calls.append(command_text)
         return real_run(command, *args, **kwargs)
 
@@ -108,7 +107,8 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
             root / f"eval_{split}.py"
         ).read_text(encoding="utf-8")
         assert (root / f"behavior_results.{split}.json").exists()
-    assert not (root / "eval_behavior.py").exists()
+    assert (root / "eval_behavior.py").exists()
+    assert (root / "behavior_episode.json").exists()
     assert not (root / "refinement_proposal.json").exists()
     assert not (root / "candidate_comparison.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
@@ -186,6 +186,9 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         in manifest["candidate_assembly"]["surface_kinds"]
     )
     assert "module_surfaces" in manifest["candidate_assembly"]["surface_kinds"]
+    assert "behavior_harness" in manifest["candidate_assembly"]["surface_kinds"]
+    assert "behavior_episode" in manifest["candidate_assembly"]["surface_kinds"]
+    assert "oracle_evidence" in manifest["candidate_assembly"]["surface_kinds"]
     assert (root / "module_surfaces.json").exists()
     surface_kinds = {
         surface["kind"] for surface in manifest["candidate_assembly"]["surfaces"]
@@ -197,6 +200,24 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         manifest["execution_episode"]["checks"]["dataset_binding"]["status"] == "passed"
     )
     assert manifest["execution_episode"]["dataset_evaluation"]["status"] == "captured"
+    behavior_episode = json.loads(
+        (root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    behavior_episode_hash = _hash(root / "behavior_episode.json")
+    assert behavior_episode["schema_version"] == "program-behavior-episode-v1"
+    assert behavior_episode["summary"]["source_count"] == 3
+    assert [source["split"] for source in behavior_episode["sources"]] == [
+        "train",
+        "validation",
+        "test",
+    ]
+    assert manifest["request"]["behavior_episode_hash"] == behavior_episode_hash
+    assert manifest["execution_episode"]["behavior_orchestration"]["status"] == (
+        "passed"
+    )
+    assert manifest["execution_episode"]["behavior_orchestration"]["result_hash"] == (
+        behavior_episode_hash
+    )
     evaluation_sources = manifest["execution_episode"]["evaluation_sources"]
     assert [source["split"] for source in evaluation_sources] == [
         "train",

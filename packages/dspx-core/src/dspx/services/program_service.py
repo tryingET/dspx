@@ -43,6 +43,7 @@ from dspx.services.program_promotion import (
     build_promotion_review,
 )
 from dspx.services.program_surfaces import (
+    render_eval_behavior,
     render_eval_examples,
     render_eval_jury,
     render_eval_promotion,
@@ -292,12 +293,24 @@ def build_program_plan(
             ]
         )
     if has_behavior_evidence:
-        surfaces.append(
-            {
-                "kind": "oracle_evidence",
-                "path": "oracle_evidence.json",
-                "generator": "program-gen",
-            }
+        surfaces.extend(
+            [
+                {
+                    "kind": "behavior_harness",
+                    "path": "eval_behavior.py",
+                    "generator": "program-gen",
+                },
+                {
+                    "kind": "behavior_episode",
+                    "path": "behavior_episode.json",
+                    "generator": "program-gen",
+                },
+                {
+                    "kind": "oracle_evidence",
+                    "path": "oracle_evidence.json",
+                    "generator": "program-gen",
+                },
+            ]
         )
     if has_dataset:
         dataset_surfaces: list[dict[str, Any]] = [
@@ -432,6 +445,10 @@ def _run_eval_jury(root: Path) -> dict[str, Any]:
 
 def _run_eval_promotion(root: Path) -> dict[str, Any]:
     return _run_python_harness(root, "eval_promotion.py", label="promotion validation")
+
+
+def _run_eval_behavior(root: Path) -> dict[str, Any]:
+    return _run_python_harness(root, "eval_behavior.py", label="behavior orchestration")
 
 
 def _safe_int(value: object, *, default: int = 0) -> int:
@@ -1024,6 +1041,9 @@ def _build_execution_episode_contract(
     jury_result: Mapping[str, Any],
     promotion_result: Mapping[str, Any],
     examples_result: Mapping[str, Any] | None,
+    behavior_episode_result: Mapping[str, Any] | None,
+    behavior_episode_hash: str | None,
+    behavior_episode_payload: Mapping[str, Any] | None,
     examples_hash: str | None,
     dataset_manifest_hash: str | None,
     dataset_manifest_payload: Mapping[str, Any] | None,
@@ -1200,6 +1220,20 @@ def _build_execution_episode_contract(
         "topology_execution": topology_execution,
         "evaluation_sources": evaluation_sources,
         "behavior_evidence_summary": behavior_evidence_summary,
+        "behavior_orchestration": {
+            "status": _harness_status(behavior_episode_result),
+            "harness": "eval_behavior.py"
+            if behavior_episode_result is not None
+            else None,
+            "returncode": behavior_episode_result.get("returncode")
+            if behavior_episode_result is not None
+            else None,
+            "result_artifact": "behavior_episode.json"
+            if behavior_episode_hash is not None
+            else None,
+            "result_hash": behavior_episode_hash,
+            "summary": dict(dict(behavior_episode_payload or {}).get("summary") or {}),
+        },
         "behavioral_evaluation": behavioral_evaluation,
         "behavior_results": {
             "path": "behavior_results.json",
@@ -1272,6 +1306,11 @@ def _build_execution_episode_contract(
                 else {}
             ),
             **(
+                {"behavior_episode": dict(behavior_episode_payload)}
+                if behavior_episode_payload is not None
+                else {}
+            ),
+            **(
                 {
                     "dataset": {
                         "manifest": dict(dataset_manifest_payload),
@@ -1324,6 +1363,8 @@ def materialize_program_from_intent(
     eval_smoke_code = render_eval_smoke(intent)
     eval_jury_code = render_eval_jury()
     eval_promotion_code = render_eval_promotion()
+    has_behavior_evidence = bool(intent.examples) or has_program_dataset(intent)
+    eval_behavior_code = render_eval_behavior(intent) if has_behavior_evidence else None
     dataset_eval_codes = {
         split: render_dataset_split_eval_harness(split)
         for split in SPLIT_NAMES
@@ -1390,6 +1431,8 @@ def materialize_program_from_intent(
     bundle_parts.extend(
         dataset_eval_codes[split] for split in sorted(dataset_eval_codes)
     )
+    if eval_behavior_code is not None:
+        bundle_parts.append(eval_behavior_code)
     surface_bundle_text = "\n\n".join(bundle_parts)
     ids = _build_ids(intent, surface_bundle_text)
     intent_payload = _intent_payload(intent)
@@ -1414,6 +1457,8 @@ def materialize_program_from_intent(
         surface_hashes["eval_examples.py"] = sha256_text(eval_examples_code)
     for split, code in dataset_eval_codes.items():
         surface_hashes[f"eval_{split}.py"] = sha256_text(code)
+    if eval_behavior_code is not None:
+        surface_hashes["eval_behavior.py"] = sha256_text(eval_behavior_code)
     program_hash = surface_hashes["program.py"]
     assembly_hash = sha256_text(surface_bundle_text)
 
@@ -1429,6 +1474,8 @@ def materialize_program_from_intent(
         generated_files["eval_examples.py"] = eval_examples_code
     for split, code in dataset_eval_codes.items():
         generated_files[f"eval_{split}.py"] = code
+    if eval_behavior_code is not None:
+        generated_files["eval_behavior.py"] = eval_behavior_code
     for relative, content in generated_files.items():
         compile(content, str(root / relative), "exec")
         (root / relative).write_text(content, encoding="utf-8")
@@ -1457,6 +1504,23 @@ def materialize_program_from_intent(
     jury_result = _run_eval_jury(root)
     promotion_result = _run_eval_promotion(root)
     examples_result = _run_eval_examples(root) if examples_payload else None
+    behavior_episode_result = (
+        _run_eval_behavior(root) if eval_behavior_code is not None else None
+    )
+    behavior_episode_payload: dict[str, Any] | None = None
+    behavior_episode_hash: str | None = None
+    if eval_behavior_code is not None:
+        behavior_episode_path = root / "behavior_episode.json"
+        if not behavior_episode_path.exists():
+            raise ValueError(
+                "program behavior harness did not write behavior_episode.json"
+            )
+        behavior_episode_text = behavior_episode_path.read_text(encoding="utf-8")
+        behavior_episode_hash = sha256_text(behavior_episode_text)
+        surface_hashes["behavior_episode.json"] = behavior_episode_hash
+        raw_behavior_episode = json.loads(behavior_episode_text)
+        if isinstance(raw_behavior_episode, dict):
+            behavior_episode_payload = raw_behavior_episode
     dataset_split_results: dict[str, dict[str, Any]] = {}
     dataset_split_behavior_payloads: dict[str, dict[str, Any]] = {}
     dataset_split_behavior_hashes: dict[str, str] = {}
@@ -1588,6 +1652,7 @@ def materialize_program_from_intent(
             "module_surfaces.json",
             "intent.json",
             *(["examples.json", "behavior_results.json"] if examples_payload else []),
+            *(["behavior_episode.json"] if behavior_episode_hash is not None else []),
             *(["oracle_evidence.json"] if oracle_evidence_hash is not None else []),
             "execution_episode.json",
             "manifest.json",
@@ -1601,6 +1666,9 @@ def materialize_program_from_intent(
         jury_result=jury_result,
         promotion_result=promotion_result,
         examples_result=examples_result,
+        behavior_episode_result=behavior_episode_result,
+        behavior_episode_hash=behavior_episode_hash,
+        behavior_episode_payload=behavior_episode_payload,
         examples_hash=examples_hash,
         dataset_manifest_hash=dataset_manifest_hash,
         dataset_manifest_payload=dataset_manifest_payload,
@@ -1707,9 +1775,10 @@ def materialize_program_from_intent(
             "intent",
             "module_surfaces",
             "execution_episode",
+            *(["examples", "behavior_results"] if examples_payload else []),
             *(
-                ["examples", "behavior_results", "oracle_evidence"]
-                if examples_payload
+                ["behavior_harness", "behavior_episode", "oracle_evidence"]
+                if eval_behavior_code is not None
                 else []
             ),
             *(
@@ -1859,6 +1928,28 @@ def materialize_program_from_intent(
                         "schema_version": "program-behavior-results-v1",
                         "summary": behavior_summary or {},
                     },
+                ]
+                if eval_examples_code is not None
+                else []
+            ),
+            *(
+                [
+                    {
+                        "kind": "behavior_harness",
+                        "path": "eval_behavior.py",
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes["eval_behavior.py"],
+                    },
+                    {
+                        "kind": "behavior_episode",
+                        "path": "behavior_episode.json",
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes["behavior_episode.json"],
+                        "schema_version": "program-behavior-episode-v1",
+                        "summary": dict(
+                            dict(behavior_episode_payload or {}).get("summary") or {}
+                        ),
+                    },
                     {
                         "kind": "oracle_evidence",
                         "path": "oracle_evidence.json",
@@ -1869,7 +1960,7 @@ def materialize_program_from_intent(
                         "facets": oracle_readability_facets or {},
                     },
                 ]
-                if eval_examples_code is not None
+                if eval_behavior_code is not None and oracle_evidence_hash is not None
                 else []
             ),
         ],
@@ -1902,6 +1993,14 @@ def materialize_program_from_intent(
             **(
                 {"behavior_results_hash": behavior_results_hash}
                 if behavior_results_hash is not None
+                else {}
+            ),
+            **(
+                {
+                    "behavior_episode_hash": behavior_episode_hash,
+                    "behavior_episode_path": "behavior_episode.json",
+                }
+                if behavior_episode_hash is not None
                 else {}
             ),
             **(
@@ -1940,9 +2039,17 @@ def materialize_program_from_intent(
                     {
                         "examples_harness": "program-gen",
                         "behavior_results": "program-gen",
-                        "oracle_evidence": "program-gen",
                     }
                     if examples_result is not None
+                    else {}
+                ),
+                **(
+                    {
+                        "behavior_harness": "program-gen",
+                        "behavior_episode": "program-gen",
+                        "oracle_evidence": "program-gen",
+                    }
+                    if behavior_episode_hash is not None
                     else {}
                 ),
                 **(
@@ -1961,6 +2068,11 @@ def materialize_program_from_intent(
             "jury": jury_result,
             "promotion": promotion_result,
             **({"examples": examples_result} if examples_result is not None else {}),
+            **(
+                {"behavior_episode": behavior_episode_payload}
+                if behavior_episode_payload is not None
+                else {}
+            ),
             **(
                 {
                     "dataset_manifest": dataset_manifest_payload,
@@ -2019,6 +2131,7 @@ def materialize_program_from_intent(
                 dataset_split_behavior_hashes
             ),
             "behavior_results_hash": behavior_results_hash,
+            "behavior_episode_hash": behavior_episode_hash,
             "oracle_evidence_hash": oracle_evidence_hash,
         },
         "intent": intent_payload,
@@ -2039,6 +2152,13 @@ def materialize_program_from_intent(
             "content_hash": execution_episode_hash,
             "schema_version": execution_episode["schema_version"],
         },
+        "behavior_episode_artifact": {
+            "path": "behavior_episode.json",
+            "content_hash": behavior_episode_hash,
+            "schema_version": "program-behavior-episode-v1",
+        }
+        if behavior_episode_hash is not None
+        else None,
         "dataset_manifest": dataset_manifest_payload,
         "dataset_manifest_artifact": {
             "path": "dataset_manifest.json",
@@ -2112,6 +2232,10 @@ def materialize_program_from_intent(
             "topology_execution": topology_execution,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
+            "behavior_episode_hash": behavior_episode_hash,
+            "behavior_episode_path": "behavior_episode.json"
+            if behavior_episode_hash is not None
+            else None,
             "oracle_evidence_hash": oracle_evidence_hash,
             "oracle_readability_summary": oracle_readability_summary,
             "oracle_readability_facets": oracle_readability_facets,
@@ -2138,6 +2262,17 @@ def materialize_program_from_intent(
             },
             **(
                 {
+                    "program_behavior_episode_artifact": {
+                        "path": "behavior_episode.json",
+                        "content_hash": behavior_episode_hash,
+                        "schema_version": "program-behavior-episode-v1",
+                    }
+                }
+                if behavior_episode_hash is not None
+                else {}
+            ),
+            **(
+                {
                     "program_dataset_manifest": dataset_manifest_payload,
                     "program_dataset_manifest_artifact": {
                         "path": "dataset_manifest.json",
@@ -2154,6 +2289,11 @@ def materialize_program_from_intent(
             **(
                 {"program_behavior_results": behavior_results_payload}
                 if behavior_results_payload is not None
+                else {}
+            ),
+            **(
+                {"program_behavior_episode": behavior_episode_payload}
+                if behavior_episode_payload is not None
                 else {}
             ),
             **(
@@ -2221,6 +2361,7 @@ def materialize_program_from_intent(
             "topology_execution": topology_execution,
             "behavior_results_hash": behavior_results_hash,
             "behavior_summary": behavior_summary,
+            "behavior_episode_hash": behavior_episode_hash,
             "oracle_evidence_hash": oracle_evidence_hash,
             "oracle_readability_summary": oracle_readability_summary,
             "oracle_readability_facets": oracle_readability_facets,

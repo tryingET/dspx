@@ -233,7 +233,8 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
 
     assert _file_hashes(program_root) == before
     assert not (program_root / "jury_results.json").exists()
-    assert not (program_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 

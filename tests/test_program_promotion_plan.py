@@ -319,8 +319,10 @@ def test_program_promote_plan_cli_writes_local_non_authoritative_plan_only(
     assert out_path.parent != candidate_root
     assert not (source_root / "promotion_plan.json").exists()
     assert not (candidate_root / "promotion_plan.json").exists()
-    assert not (source_root / "eval_behavior.py").exists()
-    assert not (candidate_root / "eval_behavior.py").exists()
+    assert (source_root / "eval_behavior.py").exists()
+    assert (candidate_root / "eval_behavior.py").exists()
+    assert (source_root / "behavior_episode.json").exists()
+    assert (candidate_root / "behavior_episode.json").exists()
     assert index_path.exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
@@ -418,4 +420,5 @@ def test_program_promote_plan_does_not_create_default_oracle_index(
     assert payload["schema_version"] == "program-promotion-plan-v1"
     assert payload["effect"]["oracle_index_mutated"] is False
     assert not default_index.exists()
-    assert not (candidate_root / "eval_behavior.py").exists()
+    assert (candidate_root / "eval_behavior.py").exists()
+    assert (candidate_root / "behavior_episode.json").exists()

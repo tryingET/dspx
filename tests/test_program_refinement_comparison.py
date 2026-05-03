@@ -281,8 +281,10 @@ def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
     assert _file_hashes(candidate_root) == before_candidate_hashes
     assert not (program_root / "candidate_comparison.json").exists()
     assert not (candidate_root / "candidate_comparison.json").exists()
-    assert not (program_root / "eval_behavior.py").exists()
-    assert not (candidate_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (candidate_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
+    assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
@@ -523,8 +525,10 @@ def test_program_refine_generate_and_compare_cli_is_explicit_local_workflow(
     assert comparison["non_authority"]["winner_selection"] is False
     assert (outdir / "manifest.json").exists()
     assert (outdir / "eval_examples.py").exists()
-    assert not (outdir / "eval_behavior.py").exists()
-    assert not (program_root / "eval_behavior.py").exists()
+    assert (outdir / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (outdir / "behavior_episode.json").exists()
+    assert (program_root / "behavior_episode.json").exists()
     assert _file_hashes(program_root) == before_source_hashes
     assert (
         hashlib.sha256(proposal_path.read_bytes()).hexdigest() == before_proposal_hash

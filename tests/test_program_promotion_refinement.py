@@ -225,7 +225,8 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
     assert _file_hashes(program_root) == before
     assert sorted(_file_hashes(program_root)) == before_names
     assert not (program_root / "promotion_review_refined.json").exists()
-    assert not (program_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
 
 
 def test_program_promotion_refinement_rejects_authority_widened_oracle_report(

@@ -160,6 +160,8 @@ Expected high-signal artifacts include:
 - `examples.json`
 - `eval_examples.py`
 - `behavior_results.json`
+- `eval_behavior.py`
+- `behavior_episode.json`
 - `oracle_evidence.json`
 - optional dataset split artifacts when `dataset` / `datasets` are declared: `dataset_manifest.json`, `splits/*.jsonl`, `eval_train.py`, `eval_validation.py`, `eval_test.py`, and `behavior_results.{train,validation,test}.json`
 - `execution_episode.json`
@@ -224,7 +226,7 @@ dataset:
 
 `program-gen` accepts JSONL (one object per row) plus JSON/YAML list-of-object files. Ratio split materialization loads source records in order, validates exact `inputs`/`outputs` fields, shuffles indices with `random.Random(seed)`, assigns `floor(n * train)` and `floor(n * validation)` records, and places the remainder in test. Explicit split files can instead be declared with `datasets.train`, `datasets.validation`, and `datasets.test`; those are normalized into canonical `splits/*.jsonl` artifacts without ratio recomputation. Empty splits are allowed and produce split behavior evidence with `summary.total: 0` and `status: no_examples`.
 
-Dataset split evidence is local and non-authoritative. It coexists with inline examples; it does not run Oracle automatically and does not introduce `eval_behavior.py`.
+Dataset split evidence is local and non-authoritative. It coexists with inline examples; `eval_behavior.py` orchestrates only the generated example/split harnesses and does not run Oracle automatically.
 
 ## 6. Inspect the execution episode contract
 
@@ -363,7 +365,7 @@ Expected JSON facts:
 - `behavior_source_kind_counts`, `evidence_source_count`, and `total_evaluation_count` summarize source-aware coverage across examples and/or dataset splits
 - `non_authority` confirms interpretation-only posture and no ranking, pruning, promotion, governance, or external mutation authority
 
-This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still local and bounded through `eval_examples.py` / `behavior_results.json` and/or split-specific `eval_{train,validation,test}.py` / `behavior_results.<split>.json`; there is no `eval_behavior.py` orchestration layer yet.
+This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still local and bounded through `eval_behavior.py` orchestrating `eval_examples.py` / `behavior_results.json` and/or split-specific `eval_{train,validation,test}.py` / `behavior_results.<split>.json`; there is no broad behavior execution layer beyond those generated harnesses.
 
 ## 10. Optional explicit bounded refinement proposal
 
@@ -755,7 +757,7 @@ Use this checklist when reviewing a generated program assembly:
 - `module_surfaces.json` exists and has `schema_version: program-module-surfaces-v1`.
 - each module surface has `schema_version: program-module-surface-v1`, declared IO, false effects, and no authority to rank/prune/promote/govern/mutate externally.
 - `execution_episode.json` exists and has `schema_version: program-execution-episode-v1`.
-- `execution_episode.json` separates materialization, topology execution status, binding checks, source-indexed evaluation evidence, behavioral evaluation, and Oracle readability.
+- `execution_episode.json` separates materialization, topology execution status, binding checks, bounded `eval_behavior.py` orchestration, source-indexed evaluation evidence, behavioral evaluation, and Oracle readability.
 - If examples exist, `behavioral_evaluation.result_artifact` is `behavior_results.json` and its hash matches manifest/receipt declarations; `evaluation_sources` also states whether the source was inline examples or `examples_path`.
 - If dataset splits exist, each split appears in `evaluation_sources` with its split artifact hash, `behavior_results.<split>.json` path/hash, count, status, and provider/metric facts already present.
 - If examples do not exist, behavioral evaluation is `not_applicable` rather than falsely passed.
@@ -768,4 +770,4 @@ Use this checklist when reviewing a generated program assembly:
 
 The best next implementation wave after this walkthrough is either bounded territory/frontier integration for the same indexed run kind, broader accepted-proposal policy beyond request-more-evidence constraints patches, richer execution episodes once a narrow behavior-source target exists, or a future external-authority apply layer that consumes export preflight plus candidate-state packets only after exact AK contract binding, duplicate checks, apply receipts, and rollback/failure semantics exist.
 
-A richer execution-episode wave should wait until there is a narrow target such as dataset splits, traces, selected model-jury execution, or enough distinct behavior sources to justify a future `eval_behavior.py` orchestration layer. Promotion/adjudication should remain separate until an explicit authority contract exists.
+A richer execution-episode wave should wait until there is a narrow target such as traces or selected model-jury execution. The current `eval_behavior.py` layer is intentionally bounded to generated example/split harness orchestration. Promotion/adjudication should remain separate until an explicit authority contract exists.

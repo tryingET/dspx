@@ -181,7 +181,8 @@ def test_program_refine_optimize_gepa_inline_examples_writes_sidecar_only(
     }
     assert _hash_tree(program_root) == before
     assert not (program_root / "gepa_refinement_result.json").exists()
-    assert not (program_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
     assert not (outdir / "eval_behavior.py").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
     assert calls and Path(calls[0]["train_path"]).name == "train.csv"

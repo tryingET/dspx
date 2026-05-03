@@ -83,7 +83,6 @@ def test_explicit_pipeline_topology_is_normalized_and_persisted(
         assert "oracle" not in command_names
         assert "program-refine" not in command_names
         assert "program-promote" not in command_names
-        assert "eval_behavior.py" not in command_names
         subprocess_calls.append(command_text)
         return real_run(command, *args, **kwargs)
 
@@ -172,7 +171,8 @@ def test_explicit_pipeline_topology_is_normalized_and_persisted(
     assert "pipeline_topology_renderer" in program_text
     assert "def build_program() -> dspy.Module:" in program_text
     assert "def build_student(*, use_cot: bool = False) -> dspy.Module:" in program_text
-    assert not (root / "eval_behavior.py").exists()
+    assert (root / "eval_behavior.py").exists()
+    assert (root / "behavior_episode.json").exists()
     assert subprocess_calls
     assert all(
         "oracle" not in [Path(part).name for part in call] for call in subprocess_calls
@@ -290,7 +290,8 @@ def test_explicit_router_pipeline_materializes_three_modules_and_runs_harnesses(
 
     assert (root / "behavior_results.json").exists()
     assert (root / "oracle_evidence.json").exists()
-    assert not (root / "eval_behavior.py").exists()
+    assert (root / "eval_behavior.py").exists()
+    assert (root / "behavior_episode.json").exists()
     for filename in ("eval_smoke.py", "eval_examples.py"):
         result = subprocess.run(
             [sys.executable, filename],

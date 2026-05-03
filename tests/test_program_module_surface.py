@@ -120,7 +120,6 @@ def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
         assert "oracle" not in command_names
         assert "program-refine" not in command_names
         assert "program-promote" not in command_names
-        assert "eval_behavior.py" not in command_names
         subprocess_calls.append(command_text)
         return real_run(command, *args, **kwargs)
 
@@ -242,7 +241,8 @@ def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
     assert "custom" not in surface_payload
     assert (root / "behavior_results.json").exists()
     assert (root / "oracle_evidence.json").exists()
-    assert not (root / "eval_behavior.py").exists()
+    assert (root / "eval_behavior.py").exists()
+    assert (root / "behavior_episode.json").exists()
     assert subprocess_calls
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 

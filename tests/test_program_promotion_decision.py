@@ -69,7 +69,8 @@ def _materialize_program_review(
     artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
     program_root = Path(artifact.root_path)
     assert (program_root / "eval_examples.py").exists()
-    assert not (program_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
 
     index_path = tmp_path / "oracle" / "coordinates.db"
     index_result = index_program_oracle_evidence_path(
@@ -192,7 +193,8 @@ def test_program_promotion_decision_cli_records_local_sidecar_without_mutating_i
     assert hashlib.sha256(review_path.read_bytes()).hexdigest() == before_review_hash
     assert not (program_root / "promotion_decision_record.json").exists()
     assert not (program_root / "promotion_review_refined.json").exists()
-    assert not (program_root / "eval_behavior.py").exists()
+    assert (program_root / "eval_behavior.py").exists()
+    assert (program_root / "behavior_episode.json").exists()
 
 
 def test_program_promotion_decision_rejects_invalid_outcome(

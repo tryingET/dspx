@@ -630,6 +630,8 @@ def test_program_service_binds_examples_when_present(
         root / "eval_examples.py"
     ).read_text(encoding="utf-8")
     assert (root / "behavior_results.json").exists()
+    assert (root / "eval_behavior.py").exists()
+    assert (root / "behavior_episode.json").exists()
     assert (root / "oracle_evidence.json").exists()
     assert (root / "execution_episode.json").exists()
     module_code = (root / "module.py").read_text(encoding="utf-8")
@@ -672,6 +674,21 @@ def test_program_service_binds_examples_when_present(
     behavior_hash = hashlib.sha256(
         (root / "behavior_results.json").read_bytes()
     ).hexdigest()
+    behavior_episode = json.loads(
+        (root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    behavior_episode_hash = hashlib.sha256(
+        (root / "behavior_episode.json").read_bytes()
+    ).hexdigest()
+    assert behavior_episode["schema_version"] == "program-behavior-episode-v1"
+    assert behavior_episode["authority"] == "behavior_evidence_only_non_authoritative"
+    assert behavior_episode["non_authority"]["winner_selection"] is False
+    assert behavior_episode["summary"]["source_count"] == 1
+    assert behavior_episode["sources"][0]["source_kind"] == "inline_examples"
+    assert behavior_episode["sources"][0]["behavior_results_path"] == (
+        "behavior_results.json"
+    )
+    assert behavior_episode["sources"][0]["behavior_results_hash"] == behavior_hash
     oracle_evidence = json.loads(
         (root / "oracle_evidence.json").read_text(encoding="utf-8")
     )
@@ -775,11 +792,14 @@ def test_program_service_binds_examples_when_present(
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     assert "examples" in manifest["candidate_assembly"]["surface_kinds"]
     assert "behavior_results" in manifest["candidate_assembly"]["surface_kinds"]
+    assert "behavior_harness" in manifest["candidate_assembly"]["surface_kinds"]
+    assert "behavior_episode" in manifest["candidate_assembly"]["surface_kinds"]
     assert "oracle_evidence" in manifest["candidate_assembly"]["surface_kinds"]
     oracle_hash = hashlib.sha256(
         (root / "oracle_evidence.json").read_bytes()
     ).hexdigest()
     assert manifest["request"]["behavior_results_hash"] == behavior_hash
+    assert manifest["request"]["behavior_episode_hash"] == behavior_episode_hash
     assert manifest["request"]["oracle_evidence_hash"] == oracle_hash
     assert manifest["execution_episode"]["behavior_results"] == {
         "path": "behavior_results.json",
@@ -816,6 +836,18 @@ def test_program_service_binds_examples_when_present(
     assert (
         execution_episode["behavioral_evaluation"]["summary"]
         == behavior_results["summary"]
+    )
+    assert execution_episode["behavior_orchestration"]["status"] == "passed"
+    assert execution_episode["behavior_orchestration"]["harness"] == "eval_behavior.py"
+    assert execution_episode["behavior_orchestration"]["result_artifact"] == (
+        "behavior_episode.json"
+    )
+    assert execution_episode["behavior_orchestration"]["result_hash"] == (
+        behavior_episode_hash
+    )
+    assert (
+        execution_episode["behavior_orchestration"]["summary"]
+        == (behavior_episode["summary"])
     )
     assert execution_episode["oracle_readability"]["status"] == "captured"
     assert execution_episode["oracle_readability"]["oracle_invoked"] is False
@@ -921,6 +953,9 @@ def test_program_service_binds_examples_when_present(
     assert evidence["behavior_results_hash"] == behavior_hash
     assert evidence["behavior_summary"] == behavior_results["summary"]
     assert evidence["behavior_results"] == behavior_results
+    assert evidence["behavior_episode_hash"] == behavior_episode_hash
+    assert evidence["behavior_episode_path"] == "behavior_episode.json"
+    assert evidence["behavior_episode"] == behavior_episode
     assert evidence["execution_episode_hash"] == execution_episode_hash
     assert evidence["execution_episode_path"] == "execution_episode.json"
     assert evidence["oracle_evidence_hash"] == oracle_hash
@@ -937,6 +972,8 @@ def test_program_service_binds_examples_when_present(
         "facets": oracle_evidence["oracle_facets"],
     }
     assert evidence["surface_generation"]["execution_episode"] == "program-gen"
+    assert evidence["surface_generation"]["behavior_harness"] == "program-gen"
+    assert evidence["surface_generation"]["behavior_episode"] == "program-gen"
     assert evidence["surface_generation"]["oracle_evidence"] == "program-gen"
     assert (
         evidence["surface_hashes"]["execution_episode.json"] == execution_episode_hash
@@ -945,12 +982,16 @@ def test_program_service_binds_examples_when_present(
     assert evidence["examples"]["returncode"] == 0
     assert "examples.json" in evidence["generated_files"]
     assert "behavior_results.json" in evidence["generated_files"]
+    assert "eval_behavior.py" in evidence["generated_files"]
+    assert "behavior_episode.json" in evidence["generated_files"]
     assert "oracle_evidence.json" in evidence["generated_files"]
     assert "execution_episode.json" in evidence["generated_files"]
 
     receipt = json.loads((root / "manifest.json.meta.json").read_text(encoding="utf-8"))
     assert receipt["run_summary"]["behavior_results_hash"] == behavior_hash
     assert receipt["run_summary"]["behavior_summary"] == behavior_results["summary"]
+    assert receipt["run_summary"]["behavior_episode_hash"] == behavior_episode_hash
+    assert receipt["run_summary"]["behavior_episode_path"] == "behavior_episode.json"
     assert receipt["run_summary"]["execution_episode_hash"] == execution_episode_hash
     assert receipt["run_summary"]["execution_episode_path"] == "execution_episode.json"
     assert receipt["run_summary"]["oracle_evidence_hash"] == oracle_hash
@@ -967,6 +1008,7 @@ def test_program_service_binds_examples_when_present(
         == manifest["execution_episode_artifact"]
     )
     assert receipt["program_behavior_results"] == behavior_results
+    assert receipt["program_behavior_episode"] == behavior_episode
     assert receipt["program_oracle_evidence"] == oracle_evidence
     assert receipt["program_oracle_readability"] == manifest["oracle_readability"]
 

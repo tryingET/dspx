@@ -435,8 +435,10 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert {name: _sha256(path) for name, path in paths.items()} == before_sidecars
     assert not (source_root / "program_candidate_state.json").exists()
     assert not (candidate_root / "program_candidate_state.json").exists()
-    assert not (source_root / "eval_behavior.py").exists()
-    assert not (candidate_root / "eval_behavior.py").exists()
+    assert (source_root / "eval_behavior.py").exists()
+    assert (candidate_root / "eval_behavior.py").exists()
+    assert (source_root / "behavior_episode.json").exists()
+    assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
