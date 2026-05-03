@@ -1249,14 +1249,15 @@
         {
           "id": "AK-TASK-2088",
           "title": "Validate DSPx boundary hardening full gate",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Validate DSPx boundary hardening full gate (task #2088)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-03"
         }
       ]
     }
