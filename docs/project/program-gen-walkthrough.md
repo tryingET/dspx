@@ -381,13 +381,13 @@ Expected JSON facts:
 
 - `schema_version: program-refinement-proposal-v1`
 - `identity` binds to the same request/candidate/assembly/episode/receipt-bundle IDs as `manifest.json`
-- `created_from` references the manifest, Oracle report, and `behavior_results.json` when present
-- `evidence_summary` reflects example-backed behavior status/counts plus Oracle report status and record match
-- failed example-backed behavior may produce a proposed next candidate intent patch such as tightening output mapping for the observed mismatch
+- `created_from` references the manifest, Oracle report, and `behavior_results.json` when inline/example-file behavior exists; dataset-only proposals keep that path `null` and use source-indexed execution/oracle evidence instead
+- `evidence_summary` reflects local behavior status/counts, behavior source kinds, evidence source counts, total evaluation count, Oracle report status, and record match
+- failed local behavior may produce a proposed next candidate intent patch such as tightening output mapping for the observed mismatch
 - no-examples assemblies degrade to `insufficient_behavior_evidence` rather than inventing behavior
 - `non_authority` confirms proposal-only posture and no apply, candidate generation, ranking, pruning, promotion, governance, or external mutation authority
 
-This command writes only the proposal artifact at `--out`. It does not mutate generated program files, does not create a second candidate assembly, does not index/report Oracle evidence automatically, and does not rank, prune, promote, block, export authority, or mutate governance.
+This command writes only the proposal artifact at `--out`. It does not mutate generated program files or behavior result artifacts, does not create a second candidate assembly, does not index/report Oracle evidence automatically, and does not rank, prune, promote, block, export authority, or mutate governance.
 
 ## 11. Optional explicit promotion-review refinement packet
 

@@ -30,9 +30,9 @@ _PROPOSAL_NON_AUTHORITY = {
     "external_mutation": False,
 }
 
-_LIMITATIONS = [
-    "Evidence is example-backed via eval_examples.py.",
-    "No dataset split, jury execution, or general behavior harness was run.",
+_BASE_LIMITATIONS = [
+    "Behavior evidence is local and source-indexed; it is not a quality claim.",
+    "No jury execution, broad eval_behavior.py orchestration, or authority apply was run.",
     "This proposal is not a promotion or ranking decision.",
 ]
 
@@ -382,14 +382,58 @@ def _proposal_id(
     return "prog-refine-prop-" + hashlib.sha256(seed).hexdigest()[:12]
 
 
-def _status_for_behavior(behavior: Mapping[str, Any] | None) -> str:
-    if behavior is None:
+def _manifest_behavior_evidence_summary(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    return _safe_mapping(execution_episode.get("behavior_evidence_summary"))
+
+
+def _evidence_sources(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    return [
+        dict(source)
+        for source in _safe_list(execution_episode.get("evaluation_sources"))
+        if isinstance(source, Mapping)
+    ]
+
+
+def _behavior_source_kinds(manifest: Mapping[str, Any]) -> list[str]:
+    kinds = {
+        str(source.get("source_kind"))
+        for source in _evidence_sources(manifest)
+        if str(source.get("source_kind") or "").strip()
+    }
+    return sorted(kinds)
+
+
+def _status_for_evidence(
+    behavior: Mapping[str, Any] | None, evidence_summary: Mapping[str, Any]
+) -> str:
+    if behavior is None and int(evidence_summary.get("total") or 0) <= 0:
         return "insufficient_behavior_evidence"
-    summary = _behavior_summary(behavior)
+    summary = _behavior_summary(behavior) if behavior is not None else evidence_summary
     behavior_status = str(summary.get("status") or "unknown")
-    if behavior_status == "passed":
-        return "no_refinement_needed"
+    if behavior_status in {"passed", "no_examples"}:
+        return (
+            "no_refinement_needed"
+            if behavior_status == "passed"
+            else "insufficient_behavior_evidence"
+        )
     return "proposed"
+
+
+def _limitations_for_sources(source_kinds: list[str]) -> list[str]:
+    limitations = list(_BASE_LIMITATIONS)
+    if not source_kinds:
+        limitations.insert(0, "No local behavior evidence source was available.")
+    elif source_kinds == ["inline_examples"] or source_kinds == ["examples_path"]:
+        limitations.insert(0, "Evidence is example-backed via eval_examples.py.")
+        limitations.insert(1, "No dataset split behavior evidence was present.")
+    elif "dataset_split" in source_kinds:
+        limitations.insert(
+            0,
+            "Dataset split evidence is split-local; no broad graph or eval_behavior.py orchestration was run.",
+        )
+    return limitations
 
 
 def _target_surface_for_status(
@@ -402,7 +446,7 @@ def _target_surface_for_status(
             if signal.startswith("mismatch:")
         ]
         field_text = ", ".join(fields) if fields else "declared outputs"
-        return "module", f"Observed example-backed output mismatch for {field_text}."
+        return "module", f"Observed local behavior output mismatch for {field_text}."
     if any(signal.startswith("missing_observed:") for signal in signals):
         fields = [
             signal.split(":", 1)[1]
@@ -411,16 +455,16 @@ def _target_surface_for_status(
         ]
         return (
             "program",
-            "Observed example-backed output observability gap for "
+            "Observed local behavior output observability gap for "
             + ", ".join(fields)
             + ".",
         )
     if status == "error" or any(signal.startswith("error:") for signal in signals):
-        return "program", "Observed example-backed runtime or execution error."
+        return "program", "Observed local behavior runtime or execution error."
     if status == "degraded" or status.startswith("degraded"):
         return (
             "program",
-            "Observed degraded example-backed behavior; investigate IO binding and observability.",
+            "Observed degraded local behavior; investigate IO binding and observability.",
         )
     return None, None
 
@@ -457,7 +501,7 @@ def _bounded_refinement(
     surface, reason = _target_surface_for_status(status, signals)
     if surface is None or reason is None:
         surface = "program"
-        reason = "Observed example-backed behavior needs bounded inspection before another candidate is generated."
+        reason = "Observed local behavior needs bounded inspection before another candidate is generated."
 
     if any(signal.startswith("mismatch:") for signal in signals):
         mismatch_fields = [
@@ -467,19 +511,17 @@ def _bounded_refinement(
         ]
         focus = ", ".join(mismatch_fields) if mismatch_fields else "declared outputs"
         change_type = "tighten_output_mapping"
-        rationale = (
-            f"The current example-backed behavior failed exact_match for {focus}."
-        )
+        rationale = f"The current local behavior failed exact_match for {focus}."
         constraints = [
             "Preserve declared inputs and outputs.",
             f"Focus on correcting observed {focus} mismatch.",
         ]
     elif status == "error" or any(signal.startswith("error:") for signal in signals):
         change_type = "debug_execution_surface"
-        rationale = "The current example-backed behavior produced an execution error; debug runtime/materialized harness behavior before semantic changes."
+        rationale = "The current local behavior produced an execution error; debug runtime/materialized harness behavior before semantic changes."
         constraints = [
             "Preserve declared inputs and outputs.",
-            "Focus on making the generated program executable over the observed example.",
+            "Focus on making the generated program executable over the observed evidence source.",
         ]
     elif (
         status == "degraded"
@@ -487,14 +529,14 @@ def _bounded_refinement(
         or any(signal.startswith("missing_observed:") for signal in signals)
     ):
         change_type = "improve_output_observability"
-        rationale = "The current example-backed behavior did not expose comparable declared outputs; inspect IO binding before semantic correction."
+        rationale = "The current local behavior did not expose comparable declared outputs; inspect IO binding before semantic correction."
         constraints = [
             "Preserve declared inputs and outputs.",
             "Focus on exposing declared outputs for example-backed comparison.",
         ]
     else:
         change_type = "bounded_behavior_inspection"
-        rationale = "The current example-backed behavior did not pass; inspect the smallest surface consistent with observed signals."
+        rationale = "The current local behavior did not pass; inspect the smallest surface consistent with observed signals."
         constraints = ["Preserve declared inputs and outputs."]
 
     return {
@@ -530,7 +572,9 @@ def build_program_refinement_proposal(
         manifest,
         manifest_path,
     )
-    summary = _behavior_summary(behavior)
+    episode_summary = _manifest_behavior_evidence_summary(manifest)
+    source_kinds = _behavior_source_kinds(manifest)
+    summary = _behavior_summary(behavior) if behavior is not None else episode_summary
     behavior_status = str(summary.get("status") or "insufficient_behavior_evidence")
     output_fields = _output_fields(manifest, behavior)
     signals = _failure_signals(
@@ -538,9 +582,15 @@ def build_program_refinement_proposal(
         oracle_record=oracle_record,
         output_fields=output_fields,
     )
-    proposal_status = _status_for_behavior(behavior)
-    example_count = int(summary.get("total") or 0) if behavior is not None else 0
+    proposal_status = _status_for_evidence(behavior, episode_summary)
+    example_count = (
+        int(_behavior_summary(behavior).get("total") or 0)
+        if behavior is not None
+        else 0
+    )
     status_counts = _safe_mapping(summary.get("status_counts"))
+    evidence_source_count = int(episode_summary.get("source_count") or 0)
+    total_evaluation_count = int(episode_summary.get("total") or 0)
 
     proposal = {
         "schema_version": PROGRAM_REFINEMENT_PROPOSAL_SCHEMA,
@@ -557,18 +607,27 @@ def build_program_refinement_proposal(
         "evidence_summary": {
             "behavior_status": behavior_status,
             "example_count": example_count,
+            "evidence_source_count": evidence_source_count,
+            "total_evaluation_count": total_evaluation_count,
+            "behavior_source_kinds": source_kinds,
             "status_counts": status_counts,
             "failure_signals": signals,
             "oracle_report_status": report.get("status"),
             "oracle_report_total_records": int(report.get("total_records") or 0),
             "oracle_report_record_matched": oracle_matched,
+            "oracle_report_evidence_source_count": int(
+                report.get("evidence_source_count") or 0
+            ),
+            "oracle_report_total_evaluation_count": int(
+                report.get("total_evaluation_count") or 0
+            ),
         },
         "bounded_refinement": _bounded_refinement(
             behavior_status=behavior_status,
             proposal_status=proposal_status,
             signals=signals,
         ),
-        "limitations": list(_LIMITATIONS),
+        "limitations": _limitations_for_sources(source_kinds),
         "non_authority": dict(_PROPOSAL_NON_AUTHORITY),
     }
     return proposal

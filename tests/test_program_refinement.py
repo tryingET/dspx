@@ -38,6 +38,13 @@ def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     reset_embedding_engine()
 
 
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, sort_keys=True) + "\n")
+
+
 def _materialize_program_with_report(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -165,6 +172,79 @@ def test_program_refinement_cli_proposes_from_manifest_behavior_and_oracle_repor
     assert sorted(after) == before_names
     assert not (program_root / "refinement_proposal.json").exists()
     assert len(list(tmp_path.glob("program*"))) == 1
+
+
+def test_program_refinement_proposes_from_dataset_split_evidence_without_inline_examples(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    dataset_path = tmp_path / "data" / "tickets.jsonl"
+    _write_jsonl(
+        dataset_path,
+        [
+            {
+                "inputs": {"ticket_text": f"ticket {index}"},
+                "outputs": {"urgency": "high" if index % 2 else "low"},
+            }
+            for index in range(6)
+        ],
+    )
+    intent = ProgramIntent(
+        name="TicketDatasetProgram",
+        objective="Classify support ticket urgency.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        metric="exact_match",
+        dataset={
+            "path": str(dataset_path),
+            "input_fields": ["ticket_text"],
+            "output_fields": ["urgency"],
+            "split": {
+                "strategy": "ratio",
+                "train": 0.5,
+                "validation": 0.25,
+                "test": 0.25,
+            },
+        },
+    )
+    artifact = materialize_program_from_intent(
+        intent, outdir=tmp_path / "dataset-program"
+    )
+    program_root = Path(artifact.root_path)
+    assert not (program_root / "behavior_results.json").exists()
+    assert (program_root / "behavior_results.train.json").exists()
+    assert (program_root / "oracle_evidence.json").exists()
+    index_path = tmp_path / "oracle" / "coordinates.db"
+    index_result = index_program_oracle_evidence_path(
+        program_root, index_path=index_path
+    )
+    assert index_result["indexed"] == 1
+    report = build_program_oracle_evidence_report(index_path=index_path)
+    report_path = tmp_path / "oracle" / "program-evidence-report.json"
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    before = _file_hashes(program_root)
+
+    proposal = build_program_refinement_proposal(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+    )
+
+    assert proposal["schema_version"] == "program-refinement-proposal-v1"
+    assert proposal["status"] in {"proposed", "no_refinement_needed"}
+    assert proposal["created_from"]["behavior_results_path"] is None
+    evidence_summary = proposal["evidence_summary"]
+    assert evidence_summary["example_count"] == 0
+    assert evidence_summary["behavior_source_kinds"] == ["dataset_split"]
+    assert evidence_summary["evidence_source_count"] == 3
+    assert evidence_summary["total_evaluation_count"] == 6
+    assert evidence_summary["oracle_report_record_matched"] is True
+    assert evidence_summary["oracle_report_evidence_source_count"] == 3
+    assert evidence_summary["oracle_report_total_evaluation_count"] == 6
+    assert "Dataset split evidence" in "\n".join(proposal["limitations"])
+    assert proposal["non_authority"]["generates_candidate"] is False
+    assert _file_hashes(program_root) == before
+    assert not (program_root / "refinement_proposal.json").exists()
 
 
 def test_program_refinement_rejects_authority_widened_oracle_report(

@@ -1284,6 +1284,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-03"
+        },
+        {
+          "id": "AK-TASK-2110",
+          "title": "Make refinement proposals source-aware",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Make refinement proposals source-aware (task #2110)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-03"
         }
       ]
     }
