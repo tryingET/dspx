@@ -25,6 +25,13 @@ def _file_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, sort_keys=True) + "\n")
+
+
 def _materialize_indexed_program(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Path]:
@@ -86,6 +93,9 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
     assert report["metric_counts"] == {"exact_match": 1}
     assert report["input_field_counts"] == {"ticket_text": 1}
     assert report["output_field_counts"] == {"urgency": 1}
+    assert report["behavior_source_kind_counts"] == {"inline_examples": 1}
+    assert report["evidence_source_count"] == 1
+    assert report["total_evaluation_count"] == 1
 
     record = report["records"][0]
     assert record["run_id"].startswith("program-oracle-evidence:")
@@ -102,6 +112,9 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
     assert record["metric"] == "exact_match"
     assert record["input_fields"] == ["ticket_text"]
     assert record["output_fields"] == ["urgency"]
+    assert record["behavior_source_kinds"] == ["inline_examples"]
+    assert record["evidence_source_count"] == 1
+    assert record["total_evaluation_count"] == 1
     assert record["evidence_path"] == str(program_root / "oracle_evidence.json")
     assert record["evidence_hash"]
     assert set(record["source_artifact_kinds"]) >= {
@@ -119,8 +132,8 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
 
     interpretation = report["interpretation"]
     interpretation_text = json.dumps(interpretation, sort_keys=True).lower()
-    assert "example-backed" in interpretation_text
-    assert "eval_examples.py" in interpretation_text
+    assert "inline_examples" in interpretation_text
+    assert "behavior source" in interpretation_text
     assert "evidence" in interpretation_text
     forbidden = [
         "promoted",
@@ -136,6 +149,77 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
         "should deploy",
     ]
     assert all(word not in interpretation_text for word in forbidden)
+
+
+def test_program_oracle_report_summarizes_dataset_split_evidence_sources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    reset_embedding_engine()
+    dataset_path = tmp_path / "data" / "tickets.jsonl"
+    _write_jsonl(
+        dataset_path,
+        [
+            {
+                "inputs": {"ticket_text": f"ticket {index}"},
+                "outputs": {"urgency": "high" if index % 2 else "low"},
+            }
+            for index in range(6)
+        ],
+    )
+    intent = ProgramIntent(
+        name="TicketDatasetProgram",
+        objective="Classify support ticket urgency.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        metric="exact_match",
+        dataset={
+            "path": str(dataset_path),
+            "input_fields": ["ticket_text"],
+            "output_fields": ["urgency"],
+            "split": {
+                "strategy": "ratio",
+                "train": 0.5,
+                "validation": 0.25,
+                "test": 0.25,
+            },
+        },
+    )
+    artifact = materialize_program_from_intent(
+        intent, outdir=tmp_path / "dataset-program"
+    )
+    program_root = Path(artifact.root_path)
+    assert (program_root / "oracle_evidence.json").exists()
+    index_path = tmp_path / "oracle" / "coordinates.db"
+    result = index_program_oracle_evidence_path(program_root, index_path=index_path)
+    assert result["indexed"] == 1
+    assert result["errors"] == 0
+
+    report = build_program_oracle_evidence_report(index_path=index_path)
+
+    assert report["status"] == "ok"
+    assert report["behavior_source_kind_counts"] == {"dataset_split": 1}
+    assert report["evidence_source_count"] == 3
+    assert report["total_evaluation_count"] == 6
+    record = report["records"][0]
+    assert record["behavior_source_kinds"] == ["dataset_split"]
+    assert record["evidence_source_count"] == 3
+    assert record["total_evaluation_count"] == 6
+    assert set(record["source_artifact_kinds"]) >= {
+        "behavior_results",
+        "dataset_manifest",
+        "dataset_split",
+        "intent",
+        "plan",
+    }
+    interpretation_text = json.dumps(report["interpretation"], sort_keys=True).lower()
+    assert "dataset_split" in interpretation_text
+    assert "winner" not in interpretation_text
+    assert report["non_authority"]["oracle_ranking"] is False
 
 
 def test_program_oracle_report_cli_outputs_json_without_default_index(

@@ -724,10 +724,41 @@ def test_program_service_binds_examples_when_present(
     assert oracle_evidence["oracle_facets"]["example_count"] == 1
     assert "schema_version=program-oracle-evidence-v1" in oracle_evidence["oracle_text"]
     assert "oracle_ranking=false" in oracle_evidence["oracle_text"]
+    assert oracle_evidence["behavior"]["evidence_summary"] == {
+        "status": behavior_results["summary"]["status"],
+        "source_count": 1,
+        "executed_source_count": 1,
+        "total": 1,
+        "passed": behavior_results["summary"]["passed"],
+        "failed": behavior_results["summary"]["failed"],
+        "error": behavior_results["summary"]["error"],
+        "degraded": behavior_results["summary"]["degraded"],
+        "no_examples_source_count": 0,
+        "status_counts": {behavior_results["summary"]["status"]: 1},
+        "source_statuses": [
+            {
+                "kind": "examples",
+                "source_kind": "inline_examples",
+                "split": None,
+                "status": behavior_results["summary"]["status"],
+                "count": 1,
+                "behavior_results_path": "behavior_results.json",
+            }
+        ],
+    }
+    assert oracle_evidence["oracle_facets"]["evidence_source_count"] == 1
+    assert oracle_evidence["oracle_facets"]["behavior_source_kinds"] == [
+        "inline_examples"
+    ]
+    assert oracle_evidence["oracle_facets"]["total_evaluation_count"] == 1
+    assert oracle_evidence["oracle_facets"]["has_dataset_splits"] is False
+    assert "behavior.evidence_source_count=1" in oracle_evidence["oracle_text"]
+    assert "behavior.source_kinds=inline_examples" in oracle_evidence["oracle_text"]
     assert {
         "kind": "behavior_results",
         "path": "behavior_results.json",
         "content_hash": behavior_hash,
+        "source_kind": "inline_examples",
     } in oracle_evidence["source_artifacts"]
 
     examples = subprocess.run(

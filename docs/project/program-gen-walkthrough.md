@@ -35,9 +35,9 @@ The current `program-gen` loop proves:
 5. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact with source-indexed behavior evidence summaries.
 6. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`; `execution_episode.json` records whether that source came from inline examples or `examples_path`, plus result path/hash, count, provider, and metric facts already known.
 6. When a dataset is declared, `program-gen` writes `dataset_manifest.json`, deterministic `splits/train.jsonl`, `splits/validation.jsonl`, `splits/test.jsonl`, split-specific harnesses, and `behavior_results.train.json` / `.validation.json` / `.test.json` without merging them into inline examples; `execution_episode.json` records each split as a separate evidence source.
-6. `oracle_evidence.json` is Oracle-readable evidence derived from example-backed behavior results without invoking Oracle.
+6. `oracle_evidence.json` is source-aware Oracle-readable evidence derived from local behavior results without invoking Oracle: inline examples, `examples_path`, and dataset splits can all contribute evidence sources.
 7. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
-8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize example-backed behavior evidence without authority effects; it is not part of `program-gen`.
+8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize source-aware behavior evidence without authority effects; it is not part of `program-gen`.
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 10. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
 11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and current `eval_examples.py` / `behavior_results.json` evidence to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
@@ -261,7 +261,7 @@ How to read it:
 - `evaluation_sources` lists every local behavior evidence source that actually ran: inline examples, `examples_path`, and/or each dataset split. Each source records kind, source path or split path, result path/hash, count, status, summary, metric, provider, and harness return status.
 - `behavior_evidence_summary` aggregates totals/status counts across those sources without claiming quality, selecting a winner, or applying authority.
 - `behavioral_evaluation` remains the legacy inline-example summary pointer to `behavior_results.json` when examples existed and `eval_examples.py` wrote that evidence.
-- `oracle_readability` points to `oracle_evidence.json` only when behavior evidence existed; `oracle_invoked` remains `false`.
+- `oracle_readability` points to `oracle_evidence.json` when local behavior evidence existed; `oracle_invoked` remains `false`.
 - `non_authority` keeps evidence separate from ranking, pruning, promotion, governance, AK mutation, Oracle authority, winner selection, and external authority mutation.
 
 ## 7. Inspect actual behavior over examples
@@ -286,7 +286,7 @@ With the stub provider, the example may fail exact-match comparison. That is sti
 
 Do not reinterpret this as promotion or ranking. It is evidence only.
 
-## 8. Inspect Oracle-readable evidence without invoking Oracle
+## 8. Inspect source-aware Oracle-readable evidence without invoking Oracle
 
 ```bash
 python - <<'PY'
@@ -300,6 +300,7 @@ print(json.dumps({
     "identity": payload["identity"],
     "behavior": payload["behavior"],
     "oracle_facets": payload["oracle_facets"],
+    "source_artifacts": payload["source_artifacts"],
     "non_authority": payload["non_authority"],
     "oracle_text_preview": payload["oracle_text"][:500],
 }, indent=2, sort_keys=True))
@@ -357,11 +358,12 @@ Expected JSON facts:
 - `schema_version: program-oracle-evidence-report-v1`
 - `status: ok`
 - `total_records: 1`
-- behavior status, task type, metric, input/output field, failure signal, and source artifact counts are summarized from indexed evidence
-- `interpretation.summary` describes example-backed behavior evidence and its limits
+- behavior status, task type, metric, input/output field, failure signal, behavior source kind, and source artifact counts are summarized from indexed evidence
+- `interpretation.summary` describes the indexed behavior source kinds and their limits
+- `behavior_source_kind_counts`, `evidence_source_count`, and `total_evaluation_count` summarize source-aware coverage across examples and/or dataset splits
 - `non_authority` confirms interpretation-only posture and no ranking, pruning, promotion, governance, or external mutation authority
 
-This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still example-backed through `eval_examples.py` / `behavior_results.json`; there is no `eval_behavior.py` orchestration layer yet.
+This report reads the supplied CoordinateIndex. It does not modify `program-gen` artifacts, manifests, receipts, AK, governance, or external authority. The current behavior evidence is still local and bounded through `eval_examples.py` / `behavior_results.json` and/or split-specific `eval_{train,validation,test}.py` / `behavior_results.<split>.json`; there is no `eval_behavior.py` orchestration layer yet.
 
 ## 10. Optional explicit bounded refinement proposal
 

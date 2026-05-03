@@ -113,6 +113,18 @@ def _source_artifact_kinds(metadata: Mapping[str, Any]) -> list[str]:
     return sorted(kinds)
 
 
+def _behavior_source_kinds(behavior: Mapping[str, Any]) -> list[str]:
+    raw_sources = behavior.get("evaluation_sources")
+    if not isinstance(raw_sources, list):
+        return []
+    kinds = {
+        str(source.get("source_kind"))
+        for source in raw_sources
+        if isinstance(source, Mapping) and str(source.get("source_kind") or "").strip()
+    }
+    return sorted(kinds)
+
+
 def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
     metadata = embedding.metadata
     facets = _safe_mapping(metadata.get("oracle_facets"))
@@ -125,6 +137,9 @@ def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
     output_fields = _string_list(facets.get("output_fields"))
     if not output_fields:
         output_fields = _string_list(_safe_mapping(metadata.get("io")).get("outputs"))
+    source_kinds = _string_list(facets.get("behavior_source_kinds"))
+    if not source_kinds:
+        source_kinds = _behavior_source_kinds(behavior)
     return {
         "run_id": embedding.run_id,
         "identity": identity,
@@ -139,6 +154,13 @@ def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
         "evidence_path": metadata.get("evidence_path") or embedding.source_path,
         "evidence_hash": metadata.get("evidence_hash"),
         "source_artifact_kinds": _source_artifact_kinds(metadata),
+        "behavior_source_kinds": source_kinds,
+        "evidence_source_count": _safe_mapping(behavior.get("evidence_summary")).get(
+            "source_count", facets.get("evidence_source_count")
+        ),
+        "total_evaluation_count": _safe_mapping(behavior.get("evidence_summary")).get(
+            "total", facets.get("total_evaluation_count")
+        ),
     }
 
 
@@ -154,6 +176,9 @@ def summarize_program_oracle_evidence(
     input_field_counts: Counter[str] = Counter()
     output_field_counts: Counter[str] = Counter()
     failure_signal_counts: Counter[str] = Counter()
+    behavior_source_kind_counts: Counter[str] = Counter()
+    total_evaluation_count = 0
+    evidence_source_count = 0
 
     for record in records:
         behavior_status_counts[str(record["behavior_status"])] += 1
@@ -162,6 +187,9 @@ def summarize_program_oracle_evidence(
         input_field_counts.update(record["input_fields"])
         output_field_counts.update(record["output_fields"])
         failure_signal_counts.update(record["failure_signals"])
+        behavior_source_kind_counts.update(record["behavior_source_kinds"])
+        total_evaluation_count += int(record.get("total_evaluation_count") or 0)
+        evidence_source_count += int(record.get("evidence_source_count") or 0)
 
     return {
         "total_records": len(records),
@@ -171,6 +199,9 @@ def summarize_program_oracle_evidence(
         "input_field_counts": _counter_payload(input_field_counts),
         "output_field_counts": _counter_payload(output_field_counts),
         "failure_signal_counts": _counter_payload(failure_signal_counts),
+        "behavior_source_kind_counts": _counter_payload(behavior_source_kind_counts),
+        "evidence_source_count": evidence_source_count,
+        "total_evaluation_count": total_evaluation_count,
         "records": records,
     }
 
@@ -189,7 +220,7 @@ def _build_interpretation(summary: Mapping[str, Any]) -> dict[str, Any]:
             "summary": "No indexed program Oracle evidence records were found.",
             "notable_patterns": [],
             "bounded_next_questions": [
-                "Has program-gen emitted oracle_evidence.json for an example-backed run?",
+                "Has program-gen emitted oracle_evidence.json for a run with local behavior evidence?",
                 "Was that evidence explicitly indexed into the intended local CoordinateIndex?",
             ],
         }
@@ -201,16 +232,19 @@ def _build_interpretation(summary: Mapping[str, Any]) -> dict[str, Any]:
 
     status_phrase = status_top[0] if status_top is not None else "unknown"
     metric_phrase = metric_top[0] if metric_top is not None else "unknown"
+    source_counts = _safe_mapping(summary.get("behavior_source_kind_counts"))
+    source_phrase = ", ".join(sorted(source_counts)) if source_counts else "unknown"
     summary_text = (
-        f"Indexed program Oracle evidence currently contains {total} example-backed "
-        f"record(s); the most common behavior status is {status_phrase} under "
-        f"{metric_phrase} evidence. This is an evidence-grounded summary of "
-        "example behavior and is not live authority."
+        f"Indexed program Oracle evidence currently contains {total} program "
+        f"record(s) across {summary.get('evidence_source_count', 0)} behavior "
+        f"source(s); the most common behavior status is {status_phrase} under "
+        f"{metric_phrase} evidence. Sources: {source_phrase}. This is an "
+        "evidence-grounded behavior summary and is not live authority."
     )
 
     notable_patterns = [
         f"Behavior status distribution: {summary.get('behavior_status_counts')}",
-        "Coverage is limited to example-backed behavior from eval_examples.py.",
+        f"Behavior source distribution: {source_counts}",
     ]
     if task_top is not None:
         notable_patterns.append(
@@ -230,9 +264,9 @@ def _build_interpretation(summary: Mapping[str, Any]) -> dict[str, Any]:
         )
 
     bounded_next_questions = [
-        "Which example inputs are associated with the observed behavior statuses?",
+        "Which evidence sources are associated with the observed behavior statuses?",
         "Which input/output fields appear in repeated failure signals?",
-        "What additional examples would make this behavior evidence less narrow?",
+        "What additional examples, splits, or traces would make this behavior evidence less narrow?",
     ]
     return {
         "summary": summary_text,

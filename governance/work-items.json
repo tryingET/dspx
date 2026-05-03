@@ -1271,6 +1271,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-03"
+        },
+        {
+          "id": "AK-TASK-2100",
+          "title": "Make program Oracle evidence source-aware",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Make program Oracle evidence source-aware (task #2100)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-03"
         }
       ]
     }

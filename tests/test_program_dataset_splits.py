@@ -229,6 +229,44 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
     assert manifest["execution_episode"]["runtime_conditions"]["metric"] == (
         "exact_match"
     )
+    assert (root / "oracle_evidence.json").exists()
+    oracle_evidence = json.loads(
+        (root / "oracle_evidence.json").read_text(encoding="utf-8")
+    )
+    oracle_hash = _hash(root / "oracle_evidence.json")
+    assert manifest["request"]["oracle_evidence_hash"] == oracle_hash
+    assert oracle_evidence["schema_version"] == "program-oracle-evidence-v1"
+    assert oracle_evidence["oracle_facets"]["has_examples"] is False
+    assert oracle_evidence["oracle_facets"]["has_dataset_splits"] is True
+    assert oracle_evidence["oracle_facets"]["dataset_split_count"] == 3
+    assert oracle_evidence["oracle_facets"]["evidence_source_count"] == 3
+    assert oracle_evidence["oracle_facets"]["behavior_source_kinds"] == [
+        "dataset_split"
+    ]
+    assert oracle_evidence["oracle_facets"]["total_evaluation_count"] == 10
+    assert oracle_evidence["behavior"]["result_path"] is None
+    assert oracle_evidence["behavior"]["result_hash"] is None
+    assert oracle_evidence["behavior"]["evidence_summary"] == evidence_summary
+    assert [
+        source["behavior_results_path"]
+        for source in oracle_evidence["behavior"]["evaluation_sources"]
+    ] == [
+        "behavior_results.train.json",
+        "behavior_results.validation.json",
+        "behavior_results.test.json",
+    ]
+    assert {
+        "kind": "dataset_manifest",
+        "path": "dataset_manifest.json",
+        "content_hash": dataset_manifest_hash,
+    } in oracle_evidence["source_artifacts"]
+    assert any(
+        artifact.get("kind") == "behavior_results"
+        and artifact.get("split") == "validation"
+        and artifact.get("path") == "behavior_results.validation.json"
+        for artifact in oracle_evidence["source_artifacts"]
+    )
+    assert "behavior.source_kinds=dataset_split" in oracle_evidence["oracle_text"]
     assert manifest["execution_episode"]["non_authority"]["winner_selection"] is False
     assert (
         manifest["execution_episode"]["non_authority"]["external_authority_mutated"]

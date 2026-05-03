@@ -220,6 +220,7 @@ def build_program_plan(
     topology_contract = _topology_plan_contract(intent)
     has_examples = bool(intent.examples)
     has_dataset = has_program_dataset(intent)
+    has_behavior_evidence = has_examples or has_dataset
     surfaces: list[dict[str, Any]] = [
         {"kind": "plan", "path": "plan.json", "generator": "program-gen"},
         {"kind": "jury", "path": "jury.json", "generator": "program-gen"},
@@ -288,12 +289,15 @@ def build_program_plan(
                     "path": "behavior_results.json",
                     "generator": "program-gen",
                 },
-                {
-                    "kind": "oracle_evidence",
-                    "path": "oracle_evidence.json",
-                    "generator": "program-gen",
-                },
             ]
+        )
+    if has_behavior_evidence:
+        surfaces.append(
+            {
+                "kind": "oracle_evidence",
+                "path": "oracle_evidence.json",
+                "generator": "program-gen",
+            }
         )
     if has_dataset:
         dataset_surfaces: list[dict[str, Any]] = [
@@ -541,6 +545,10 @@ def _oracle_text(
         status_text = ",".join(
             f"{status}:{status_counts[status]}" for status in sorted(status_counts)
         )
+    source_kinds = oracle_facets.get("behavior_source_kinds")
+    source_kind_text = "none"
+    if isinstance(source_kinds, list) and source_kinds:
+        source_kind_text = ",".join(str(kind) for kind in source_kinds)
     failure_text = "none"
     if failure_modes:
         failure_parts = []
@@ -548,7 +556,9 @@ def _oracle_text(
             failure_parts.append(
                 " ".join(
                     [
-                        f"example={failure.get('index')}",
+                        f"source={failure.get('source_kind') or 'examples'}",
+                        f"split={failure.get('split') or 'none'}",
+                        f"index={failure.get('index')}",
                         f"status={failure.get('status')}",
                         "mismatches="
                         + ",".join(failure.get("mismatched_outputs") or []),
@@ -577,6 +587,9 @@ def _oracle_text(
             f"identity.receipt_bundle_id={ids['receipt_bundle_id']}",
             f"behavior.status={oracle_facets.get('behavior_status')}",
             f"behavior.example_count={oracle_facets.get('example_count')}",
+            f"behavior.total_evaluation_count={oracle_facets.get('total_evaluation_count')}",
+            f"behavior.evidence_source_count={oracle_facets.get('evidence_source_count')}",
+            f"behavior.source_kinds={source_kind_text}",
             f"behavior.status_counts={status_text}",
             f"behavior.failure_modes={failure_text}",
             "authority=oracle_readability_only_non_authoritative; "
@@ -586,59 +599,53 @@ def _oracle_text(
     )
 
 
-def _build_oracle_evidence(
+def _oracle_source_artifacts(
     *,
-    intent: ProgramIntent,
-    ids: Mapping[str, str],
     intent_hash: str,
     plan_hash: str,
     examples_hash: str | None,
-    behavior_results_hash: str,
-    behavior_results: Mapping[str, Any],
-    behavior_summary: Mapping[str, Any],
+    evaluation_sources: list[dict[str, Any]],
     surface_hashes: Mapping[str, str],
-) -> dict[str, Any]:
-    output_fields = list(intent.outputs)
-    status_counts = _behavior_status_counts(behavior_results, behavior_summary)
-    failure_modes = _behavior_failure_modes(
-        behavior_results,
-        output_fields=output_fields,
-    )
-    example_count = _safe_int(
-        behavior_summary.get("total"), default=len(intent.examples or [])
-    )
-    oracle_facets = {
-        "task_type": intent.task_type or "single_module",
-        "metric": intent.metric or "unspecified",
-        "input_fields": list(intent.inputs),
-        "output_fields": output_fields,
-        "behavior_status": str(behavior_summary.get("status") or "unknown"),
-        "status_counts": status_counts,
-        "has_examples": bool(intent.examples),
-        "example_count": example_count,
-        "failure_mode_count": len(failure_modes),
-        "has_failures": bool(failure_modes),
-    }
-    oracle_text = _oracle_text(
-        intent=intent,
-        ids=ids,
-        oracle_facets=oracle_facets,
-        failure_modes=failure_modes,
-    )
-    source_artifacts = [
+) -> list[dict[str, Any]]:
+    source_artifacts: list[dict[str, Any]] = [
         {"kind": "intent", "path": "intent.json", "content_hash": intent_hash},
         {"kind": "plan", "path": "plan.json", "content_hash": plan_hash},
-        {
-            "kind": "behavior_results",
-            "path": "behavior_results.json",
-            "content_hash": behavior_results_hash,
-        },
     ]
     if examples_hash is not None:
         source_artifacts.append(
             {"kind": "examples", "path": "examples.json", "content_hash": examples_hash}
         )
+    for source in evaluation_sources:
+        behavior_path = source.get("behavior_results_path")
+        behavior_hash = source.get("behavior_results_hash")
+        if behavior_path and behavior_hash:
+            source_artifacts.append(
+                {
+                    "kind": "behavior_results",
+                    "path": str(behavior_path),
+                    "content_hash": str(behavior_hash),
+                    "source_kind": source.get("source_kind"),
+                    **({"split": source.get("split")} if source.get("split") else {}),
+                }
+            )
+        source_path = source.get("source_artifact_path") or source.get(
+            "input_artifact_path"
+        )
+        source_hash = source.get("source_artifact_hash") or source.get(
+            "input_artifact_hash"
+        )
+        if source_path and source_hash:
+            source_artifacts.append(
+                {
+                    "kind": str(source.get("kind") or "evaluation_source"),
+                    "path": str(source_path),
+                    "content_hash": str(source_hash),
+                    "source_kind": source.get("source_kind"),
+                    **({"split": source.get("split")} if source.get("split") else {}),
+                }
+            )
     for kind, path in (
+        ("dataset_manifest", "dataset_manifest.json"),
         ("module_surfaces", "module_surfaces.json"),
         ("signature", "signature.py"),
         ("module", "module.py"),
@@ -653,7 +660,114 @@ def _build_oracle_evidence(
                     "content_hash": content_hash,
                 }
             )
-    source_artifacts.sort(key=lambda item: str(item["path"]))
+    deduped: dict[tuple[str, str, str | None], dict[str, Any]] = {}
+    for artifact in source_artifacts:
+        key = (
+            str(artifact.get("kind")),
+            str(artifact.get("path")),
+            str(artifact.get("split")) if artifact.get("split") else None,
+        )
+        deduped[key] = artifact
+    return sorted(deduped.values(), key=lambda item: str(item["path"]))
+
+
+def _source_failure_modes(
+    *,
+    evaluation_sources: list[dict[str, Any]],
+    source_payloads: Mapping[str, Mapping[str, Any]],
+    output_fields: list[str],
+) -> list[dict[str, Any]]:
+    failure_modes: list[dict[str, Any]] = []
+    for source in evaluation_sources:
+        behavior_path = source.get("behavior_results_path")
+        if not behavior_path:
+            continue
+        payload = source_payloads.get(str(behavior_path))
+        if payload is None:
+            continue
+        for failure in _behavior_failure_modes(payload, output_fields=output_fields):
+            failure_modes.append(
+                {
+                    "source_kind": source.get("source_kind"),
+                    "split": source.get("split"),
+                    "behavior_results_path": behavior_path,
+                    **failure,
+                }
+            )
+    return failure_modes
+
+
+def _build_oracle_evidence(
+    *,
+    intent: ProgramIntent,
+    ids: Mapping[str, str],
+    intent_hash: str,
+    plan_hash: str,
+    examples_hash: str | None,
+    evaluation_sources: list[dict[str, Any]],
+    behavior_evidence_summary: Mapping[str, Any],
+    source_payloads: Mapping[str, Mapping[str, Any]],
+    behavior_results_hash: str | None,
+    behavior_summary: Mapping[str, Any] | None,
+    surface_hashes: Mapping[str, str],
+) -> dict[str, Any]:
+    output_fields = list(intent.outputs)
+    status_counts = {
+        str(status): _safe_int(count)
+        for status, count in dict(
+            behavior_evidence_summary.get("status_counts") or {}
+        ).items()
+    }
+    failure_modes = _source_failure_modes(
+        evaluation_sources=evaluation_sources,
+        source_payloads=source_payloads,
+        output_fields=output_fields,
+    )
+    example_count = _safe_int(
+        dict(behavior_summary or {}).get("total"), default=len(intent.examples or [])
+    )
+    total_evaluation_count = _safe_int(behavior_evidence_summary.get("total"))
+    source_kinds = sorted(
+        {
+            str(source.get("source_kind"))
+            for source in evaluation_sources
+            if str(source.get("source_kind") or "").strip()
+        }
+    )
+    dataset_split_count = sum(
+        1 for source in evaluation_sources if source.get("kind") == "dataset_split"
+    )
+    behavior_status = str(behavior_evidence_summary.get("status") or "unknown")
+    oracle_facets = {
+        "task_type": intent.task_type or "single_module",
+        "metric": intent.metric or "unspecified",
+        "input_fields": list(intent.inputs),
+        "output_fields": output_fields,
+        "behavior_status": behavior_status,
+        "status_counts": status_counts,
+        "has_examples": bool(intent.examples),
+        "example_count": example_count,
+        "has_dataset_splits": dataset_split_count > 0,
+        "dataset_split_count": dataset_split_count,
+        "evidence_source_count": len(evaluation_sources),
+        "behavior_source_kinds": source_kinds,
+        "total_evaluation_count": total_evaluation_count,
+        "failure_mode_count": len(failure_modes),
+        "has_failures": bool(failure_modes),
+    }
+    oracle_text = _oracle_text(
+        intent=intent,
+        ids=ids,
+        oracle_facets=oracle_facets,
+        failure_modes=failure_modes,
+    )
+    source_artifacts = _oracle_source_artifacts(
+        intent_hash=intent_hash,
+        plan_hash=plan_hash,
+        examples_hash=examples_hash,
+        evaluation_sources=evaluation_sources,
+        surface_hashes=surface_hashes,
+    )
     return {
         "schema_version": "program-oracle-evidence-v1",
         "evidence_kind": "program_execution_episode",
@@ -681,11 +795,21 @@ def _build_oracle_evidence(
         },
         "io": {"inputs": list(intent.inputs), "outputs": output_fields},
         "behavior": {
-            "result_path": "behavior_results.json",
+            "result_path": "behavior_results.json" if behavior_results_hash else None,
             "result_hash": behavior_results_hash,
-            "summary": dict(behavior_summary),
-            "statuses": status_counts,
+            "summary": dict(behavior_summary or {}),
+            "statuses": _behavior_status_counts(
+                source_payloads.get("behavior_results.json") or {},
+                dict(behavior_summary or {}),
+            )
+            if behavior_summary is not None
+            else {},
             "example_count": example_count,
+            "evaluation_sources": evaluation_sources,
+            "evidence_summary": dict(behavior_evidence_summary),
+            "source_statuses": list(
+                behavior_evidence_summary.get("source_statuses") or []
+            ),
             "failure_modes": failure_modes,
         },
         "oracle_facets": oracle_facets,
@@ -1389,30 +1513,50 @@ def materialize_program_from_intent(
             raw_summary = behavior_results_payload.get("summary")
             if isinstance(raw_summary, dict):
                 behavior_summary = dict(raw_summary)
-        if behavior_results_payload is not None and behavior_summary is not None:
-            assert behavior_results_hash is not None
-            oracle_evidence_payload = _build_oracle_evidence(
-                intent=intent,
-                ids=ids,
-                intent_hash=intent_hash,
-                plan_hash=plan_hash,
-                examples_hash=examples_hash,
-                behavior_results_hash=behavior_results_hash,
-                behavior_results=behavior_results_payload,
-                behavior_summary=behavior_summary,
-                surface_hashes=surface_hashes,
-            )
-            oracle_evidence_text = _write_json(
-                root / "oracle_evidence.json", oracle_evidence_payload
-            )
-            oracle_evidence_hash = sha256_text(oracle_evidence_text)
-            surface_hashes["oracle_evidence.json"] = oracle_evidence_hash
-            oracle_readability_summary = _oracle_readability_summary(
-                oracle_evidence_payload,
-                path="oracle_evidence.json",
-                content_hash=oracle_evidence_hash,
-            )
-            oracle_readability_facets = dict(oracle_evidence_payload["oracle_facets"])
+    evaluation_sources = _build_evaluation_sources(
+        intent=intent,
+        examples_hash=examples_hash,
+        examples_result=examples_result,
+        dataset_manifest_hash=dataset_manifest_hash,
+        dataset_manifest_payload=dataset_manifest_payload,
+        dataset_split_results=dataset_split_results,
+        dataset_split_behavior_payloads=dataset_split_behavior_payloads,
+        dataset_split_behavior_hashes=dataset_split_behavior_hashes,
+        behavior_results_hash=behavior_results_hash,
+        behavior_summary=behavior_summary,
+        behavior_results_payload=behavior_results_payload,
+    )
+    behavior_evidence_summary = _build_behavior_evidence_summary(evaluation_sources)
+    source_payloads: dict[str, Mapping[str, Any]] = {}
+    if behavior_results_payload is not None:
+        source_payloads["behavior_results.json"] = behavior_results_payload
+    for split, payload in dataset_split_behavior_payloads.items():
+        source_payloads[f"behavior_results.{split}.json"] = payload
+    if evaluation_sources:
+        oracle_evidence_payload = _build_oracle_evidence(
+            intent=intent,
+            ids=ids,
+            intent_hash=intent_hash,
+            plan_hash=plan_hash,
+            examples_hash=examples_hash,
+            evaluation_sources=evaluation_sources,
+            behavior_evidence_summary=behavior_evidence_summary,
+            source_payloads=source_payloads,
+            behavior_results_hash=behavior_results_hash,
+            behavior_summary=behavior_summary,
+            surface_hashes=surface_hashes,
+        )
+        oracle_evidence_text = _write_json(
+            root / "oracle_evidence.json", oracle_evidence_payload
+        )
+        oracle_evidence_hash = sha256_text(oracle_evidence_text)
+        surface_hashes["oracle_evidence.json"] = oracle_evidence_hash
+        oracle_readability_summary = _oracle_readability_summary(
+            oracle_evidence_payload,
+            path="oracle_evidence.json",
+            content_hash=oracle_evidence_hash,
+        )
+        oracle_readability_facets = dict(oracle_evidence_payload["oracle_facets"])
     dataset_generated_file_names: list[str] = []
     if dataset_manifest_payload is not None:
         dataset_generated_file_names.append("dataset_manifest.json")
@@ -1443,11 +1587,8 @@ def materialize_program_from_intent(
             "promotion_decision_template.json",
             "module_surfaces.json",
             "intent.json",
-            *(
-                ["examples.json", "behavior_results.json", "oracle_evidence.json"]
-                if examples_payload
-                else []
-            ),
+            *(["examples.json", "behavior_results.json"] if examples_payload else []),
+            *(["oracle_evidence.json"] if oracle_evidence_hash is not None else []),
             "execution_episode.json",
             "manifest.json",
         ]
