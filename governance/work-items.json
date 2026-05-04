@@ -1427,6 +1427,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2174",
+          "title": "Make local jury execution behavior-episode aware",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Make local jury execution behavior-episode aware (task #2174)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

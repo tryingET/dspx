@@ -23,6 +23,13 @@ def _file_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, sort_keys=True) + "\n")
+
+
 def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
@@ -93,6 +100,9 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
     behavior = json.loads(
         (program_root / "behavior_results.json").read_text(encoding="utf-8")
     )
+    behavior_episode = json.loads(
+        (program_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
     before = _file_hashes(program_root)
     out_path = tmp_path / "promotion" / "jury_results.json"
 
@@ -140,6 +150,9 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
     assert payload["created_from"]["behavior_results_path"] == str(
         (program_root / "behavior_results.json").resolve()
     )
+    assert payload["created_from"]["behavior_episode_path"] == str(
+        (program_root / "behavior_episode.json").resolve()
+    )
 
     assert payload["jury"] == {
         "planned_jury_schema_version": "program-jury-v1",
@@ -155,7 +168,11 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
         "schema_version": "program-behavior-results-v1",
         "behavior_status": behavior["summary"]["status"],
         "example_count": behavior["summary"]["total"],
+        "source_count": behavior_episode["summary"]["source_count"],
         "status_counts": behavior["summary"]["status_counts"],
+        "behavior_results_present": True,
+        "behavior_episode_present": True,
+        "behavior_evidence_kind": "behavior_results",
     }
     assert len(payload["juror_results"]) == 3
     assert {item["juror_id"] for item in payload["juror_results"]} == {
@@ -171,7 +188,7 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
     assert all(item["status"] == "judged" for item in payload["juror_results"])
     assert all(item["criteria_results"] for item in payload["juror_results"])
     assert all(
-        item["evidence_refs"] == ["behavior_results.json"]
+        item["evidence_refs"] == ["behavior_results.json", "behavior_episode.json"]
         for item in payload["juror_results"]
     )
 
@@ -189,8 +206,8 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
     assert "disagreement_present" in aggregate
 
     limits_text = "\n".join(payload["interpretation"]["limits"])
-    assert "eval_examples.py" in limits_text
     assert "behavior_results.json" in limits_text
+    assert "behavior_episode.json" in limits_text
     assert "not promotion approval" in limits_text
     assert "do not rank" in limits_text
     assert payload["interpretation"]["ready_for_promotion_decision"] is False
@@ -238,6 +255,114 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
+def test_program_promote_jury_uses_behavior_episode_for_dataset_only_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    dataset_path = tmp_path / "data" / "tickets.jsonl"
+    _write_jsonl(
+        dataset_path,
+        [
+            {
+                "inputs": {"ticket_text": f"ticket {index}"},
+                "outputs": {"urgency": "high" if index % 2 else "low"},
+            }
+            for index in range(8)
+        ],
+    )
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="TicketDatasetJuryProgram",
+            objective="Classify support ticket urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+            metric="exact_match",
+            dataset={
+                "path": str(dataset_path),
+                "input_fields": ["ticket_text"],
+                "output_fields": ["urgency"],
+                "split": {
+                    "strategy": "ratio",
+                    "train": 0.5,
+                    "validation": 0.25,
+                    "test": 0.25,
+                    "seed": 7,
+                },
+            },
+            jury={
+                "selection_model": "perspective_balanced_explicit_pool",
+                "minimum_jurors": 2,
+                "perspectives": ["correctness", "robustness"],
+                "jurors": [
+                    {
+                        "id": "correctness_local",
+                        "model": "stub",
+                        "provider": "stub",
+                        "perspective": "correctness",
+                    },
+                    {
+                        "id": "robustness_local",
+                        "model": "stub",
+                        "provider": "stub",
+                        "perspective": "robustness",
+                    },
+                ],
+            },
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    before = _file_hashes(program_root)
+    behavior_episode = json.loads(
+        (program_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    assert not (program_root / "behavior_results.json").exists()
+
+    payload = build_program_jury_execution_result(
+        manifest_path=program_root / "manifest.json"
+    )
+
+    assert payload["schema_version"] == "program-jury-results-v1"
+    assert payload["status"] == "executed"
+    assert payload["created_from"]["behavior_results_path"] is None
+    assert payload["created_from"]["behavior_episode_path"] == str(
+        (program_root / "behavior_episode.json").resolve()
+    )
+    assert payload["behavior_evidence"]["present"] is True
+    assert payload["behavior_evidence"]["schema_version"] == (
+        "program-behavior-episode-v1"
+    )
+    assert (
+        payload["behavior_evidence"]["behavior_status"]
+        == behavior_episode["summary"]["status"]
+    )
+    assert (
+        payload["behavior_evidence"]["example_count"]
+        == behavior_episode["summary"]["total"]
+    )
+    assert (
+        payload["behavior_evidence"]["source_count"]
+        == behavior_episode["summary"]["source_count"]
+    )
+    assert payload["behavior_evidence"]["behavior_results_present"] is False
+    assert payload["behavior_evidence"]["behavior_episode_present"] is True
+    assert payload["behavior_evidence"]["behavior_evidence_kind"] == (
+        "behavior_episode"
+    )
+    assert all(
+        item["status"] == "judged"
+        and item["evidence_refs"] == ["behavior_episode.json"]
+        for item in payload["juror_results"]
+    )
+    limits = "\n".join(payload["interpretation"]["limits"])
+    assert "No example, dataset split" in limits
+    assert payload["non_authority"]["promotion_authority"] is False
+    assert payload["effect"]["program_files_mutated"] is False
+    assert _file_hashes(program_root) == before
+    assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
 def test_program_jury_execution_degrades_without_behavior_evidence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -252,12 +377,17 @@ def test_program_jury_execution_degrades_without_behavior_evidence(
     assert payload["schema_version"] == "program-jury-results-v1"
     assert payload["status"] == "insufficient_behavior_evidence"
     assert payload["created_from"]["behavior_results_path"] is None
+    assert payload["created_from"]["behavior_episode_path"] is None
     assert payload["behavior_evidence"] == {
         "present": False,
         "schema_version": None,
         "behavior_status": "insufficient_behavior_evidence",
         "example_count": 0,
+        "source_count": 0,
         "status_counts": {},
+        "behavior_results_present": False,
+        "behavior_episode_present": False,
+        "behavior_evidence_kind": None,
     }
     assert len(payload["juror_results"]) == 3
     assert all(item["status"] == "unable_to_judge" for item in payload["juror_results"])

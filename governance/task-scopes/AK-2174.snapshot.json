@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T17:16:20.973013635+00:00",
+  "task_id": 2174,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/boundary-contract-matrix.md",
+      "docs/project/product_posture.md",
+      "docs/project/program-gen-walkthrough.md",
+      "docs/project/program-synthesis-boundary.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_jury_execution.py",
+      "tests/test_program_jury_execution.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_jury_execution.py",
+      "tests/test_program_jury_execution.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

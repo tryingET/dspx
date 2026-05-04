@@ -16,6 +16,7 @@ PROGRAM_JURY_SCHEMA = "program-jury-v1"
 PROGRAM_JURY_SELECTION_SCHEMA = "program-jury-selection-v1"
 PROGRAM_JURY_RUBRIC_SCHEMA = "program-jury-rubric-v1"
 PROGRAM_BEHAVIOR_RESULTS_SCHEMA = "program-behavior-results-v1"
+PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 
 _JUDGMENT_LABELS = (
     "supports_promotion",
@@ -194,6 +195,106 @@ def _validate_declared_hash(
         )
 
 
+def _declared_behavior_episode_path(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> Path | None:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    episode_path = _first_text(behavior_orchestration.get("result_artifact"))
+    if episode_path is None:
+        episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+        episode_path = _first_text(episode_artifact.get("path"))
+    if episode_path is None:
+        candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+        for surface in _safe_list(candidate_assembly.get("surfaces")):
+            if not isinstance(surface, Mapping):
+                continue
+            if surface.get("kind") == "behavior_episode":
+                episode_path = _first_text(surface.get("path"))
+                break
+    if episode_path is None:
+        request = _safe_mapping(manifest.get("request"))
+        if request.get("behavior_episode_hash"):
+            episode_path = "behavior_episode.json"
+    if episode_path is None:
+        return None
+    path = Path(episode_path)
+    if not path.is_absolute():
+        path = _manifest_root(manifest_path) / path
+    return path
+
+
+def _declared_behavior_episode_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    request = _safe_mapping(manifest.get("request"))
+    request_hash = _first_text(request.get("behavior_episode_hash"))
+    if request_hash:
+        hashes["request.behavior_episode_hash"] = request_hash
+
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    orchestration_hash = _first_text(behavior_orchestration.get("result_hash"))
+    if orchestration_hash:
+        hashes["execution_episode.behavior_orchestration.result_hash"] = (
+            orchestration_hash
+        )
+
+    episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+    artifact_hash = _first_text(episode_artifact.get("content_hash"))
+    if artifact_hash:
+        hashes["manifest.behavior_episode_artifact.content_hash"] = artifact_hash
+
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    evidence_hash = _first_text(evidence.get("behavior_episode_hash"))
+    if evidence_hash:
+        hashes["receipt_bundle.evidence.behavior_episode_hash"] = evidence_hash
+
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate_assembly.get("surfaces")):
+        if not isinstance(surface, Mapping):
+            continue
+        if surface.get("kind") == "behavior_episode":
+            surface_hash = _first_text(surface.get("content_hash"))
+            if surface_hash:
+                hashes["candidate_assembly.surfaces.behavior_episode.content_hash"] = (
+                    surface_hash
+                )
+    return hashes
+
+
+def _load_program_behavior_episode(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+    episode_path = _declared_behavior_episode_path(manifest, manifest_path)
+    if episode_path is None or not episode_path.exists():
+        return None, episode_path, None
+
+    episode = _load_json_object(episode_path, label="program behavior episode")
+    if episode.get("schema_version") != PROGRAM_BEHAVIOR_EPISODE_SCHEMA:
+        raise ProgramJuryExecutionError(
+            "program behavior episode schema_version must be "
+            + PROGRAM_BEHAVIOR_EPISODE_SCHEMA
+        )
+    actual_hash = _sha256_file(episode_path)
+    declared_hashes = _declared_behavior_episode_hashes(manifest)
+    mismatches = [
+        name
+        for name, declared_hash in declared_hashes.items()
+        if declared_hash != actual_hash
+    ]
+    if mismatches:
+        raise ProgramJuryExecutionError(
+            "program behavior episode hash does not match manifest declaration(s): "
+            + ", ".join(sorted(mismatches))
+        )
+    return episode, episode_path, actual_hash
+
+
 def _load_jury_artifacts(
     manifest: Mapping[str, Any], manifest_path: Path
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Path]]:
@@ -262,26 +363,68 @@ def _status_counts(behavior: Mapping[str, Any] | None) -> dict[str, int]:
     return {status: counts[status] for status in sorted(counts)}
 
 
-def _behavior_summary(behavior: Mapping[str, Any] | None) -> dict[str, Any]:
-    if behavior is None:
+def _episode_status_counts(episode: Mapping[str, Any] | None) -> dict[str, int]:
+    if episode is None:
+        return {}
+    summary = _safe_mapping(episode.get("summary"))
+    raw_counts = summary.get("status_counts")
+    if isinstance(raw_counts, Mapping):
+        return {str(key): _safe_int(value) for key, value in sorted(raw_counts.items())}
+    counts: dict[str, int] = {}
+    for key in ("passed", "failed", "error", "degraded"):
+        value = _safe_int(summary.get(key))
+        if value:
+            counts[key] = value
+    return {key: counts[key] for key in sorted(counts)}
+
+
+def _behavior_summary(
+    behavior: Mapping[str, Any] | None,
+    behavior_episode: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    episode_summary = _safe_mapping((behavior_episode or {}).get("summary"))
+    if behavior is None and behavior_episode is None:
         return {
             "present": False,
             "schema_version": None,
             "behavior_status": "insufficient_behavior_evidence",
             "example_count": 0,
+            "source_count": 0,
             "status_counts": {},
+            "behavior_results_present": False,
+            "behavior_episode_present": False,
+            "behavior_evidence_kind": None,
         }
-    summary = _safe_mapping(behavior.get("summary"))
+    if behavior is not None:
+        summary = _safe_mapping(behavior.get("summary"))
+        return {
+            "present": True,
+            "schema_version": behavior.get("schema_version"),
+            "behavior_status": str(summary.get("status") or "unknown"),
+            "example_count": _safe_int(summary.get("total")),
+            "source_count": _safe_int(episode_summary.get("source_count"), default=1),
+            "status_counts": _status_counts(behavior),
+            "behavior_results_present": True,
+            "behavior_episode_present": behavior_episode is not None,
+            "behavior_evidence_kind": "behavior_results",
+        }
+    assert behavior_episode is not None
     return {
         "present": True,
-        "schema_version": behavior.get("schema_version"),
-        "behavior_status": str(summary.get("status") or "unknown"),
-        "example_count": _safe_int(summary.get("total")),
-        "status_counts": _status_counts(behavior),
+        "schema_version": behavior_episode.get("schema_version"),
+        "behavior_status": str(episode_summary.get("status") or "unknown"),
+        "example_count": _safe_int(episode_summary.get("total")),
+        "source_count": _safe_int(episode_summary.get("source_count")),
+        "status_counts": _episode_status_counts(behavior_episode),
+        "behavior_results_present": False,
+        "behavior_episode_present": True,
+        "behavior_evidence_kind": "behavior_episode",
     }
 
 
-def _behavior_failure_signals(behavior: Mapping[str, Any] | None) -> list[str]:
+def _behavior_results_failure_signals(
+    behavior: Mapping[str, Any] | None,
+) -> list[str]:
     if behavior is None:
         return []
     output_fields = _string_list(behavior.get("output_fields"))
@@ -310,10 +453,41 @@ def _behavior_failure_signals(behavior: Mapping[str, Any] | None) -> list[str]:
                 signals.append(f"mismatch:{field}")
             if field not in observed and status != "error":
                 signals.append(f"missing_observed:{field}")
+    return _unique_strings(signals)
+
+
+def _behavior_episode_failure_signals(
+    behavior_episode: Mapping[str, Any] | None,
+) -> list[str]:
+    if behavior_episode is None:
+        return []
+    signals: list[str] = []
+    for source in _safe_list(behavior_episode.get("sources")):
+        if not isinstance(source, Mapping):
+            continue
+        source_label = _first_text(
+            source.get("split"), source.get("source_kind"), "source"
+        )
+        summary = _safe_mapping(source.get("summary"))
+        if _safe_int(summary.get("failed")):
+            signals.append(f"failed:{source_label}")
+        if _safe_int(summary.get("error")):
+            signals.append(f"error:{source_label}")
+        if _safe_int(summary.get("degraded")):
+            signals.append(f"degraded:{source_label}")
+        behavior_status = _first_text(source.get("behavior_status"))
+        if behavior_status in {"failed", "error"} or str(behavior_status).startswith(
+            "degraded"
+        ):
+            signals.append(f"source_status:{source_label}:{behavior_status}")
+    return _unique_strings(signals)
+
+
+def _unique_strings(values: list[str]) -> list[str]:
     unique: list[str] = []
-    for signal in signals:
-        if signal not in unique:
-            unique.append(signal)
+    for value in values:
+        if value not in unique:
+            unique.append(value)
     return unique
 
 
@@ -328,54 +502,68 @@ def _rubric_by_juror(rubric: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     return rubrics
 
 
-def _judgment_for_behavior(behavior: Mapping[str, Any] | None) -> tuple[str, str, str]:
-    if behavior is None:
+def _evidence_label(behavior_summary: Mapping[str, Any]) -> str:
+    kind = behavior_summary.get("behavior_evidence_kind")
+    if kind == "behavior_results":
+        return "example-backed behavior_results.json evidence"
+    if kind == "behavior_episode":
+        return "bounded behavior_episode.json evidence"
+    return "behavior evidence"
+
+
+def _judgment_for_behavior(
+    behavior_summary: Mapping[str, Any],
+) -> tuple[str, str, str]:
+    if behavior_summary.get("present") is not True:
         return (
             "needs_more_evidence",
             "low",
-            "Unable to judge because behavior_results.json is not present for this candidate.",
+            "Unable to judge because no behavior_results.json or behavior_episode.json evidence is present for this candidate.",
         )
-    summary = _safe_mapping(behavior.get("summary"))
-    status = str(summary.get("status") or "unknown")
+    status = str(behavior_summary.get("behavior_status") or "unknown")
+    evidence_label = _evidence_label(behavior_summary)
     if status == "passed":
         return (
             "withhold",
             "low",
-            "Current example-backed behavior passed, but this local deterministic jury slice does not treat that as promotion approval.",
+            f"Current {evidence_label} passed, but this local deterministic jury slice does not treat that as promotion approval.",
         )
     if status in {"failed", "error"} or status.startswith("degraded"):
         return (
             "needs_more_evidence",
             "low",
-            "Current example-backed behavior did not establish enough reliable evidence for promotion review.",
+            f"Current {evidence_label} did not establish enough reliable evidence for promotion review.",
         )
     return (
         "needs_more_evidence",
         "low",
-        "Current example-backed behavior is limited and requires more evidence before adjudicator review.",
+        f"Current {evidence_label} is limited and requires more evidence before adjudicator review.",
     )
 
 
 def _criterion_results(
-    *, juror_rubric: Mapping[str, Any], behavior: Mapping[str, Any] | None
+    *,
+    juror_rubric: Mapping[str, Any],
+    behavior_summary: Mapping[str, Any],
+    failure_signals: list[str],
 ) -> list[dict[str, Any]]:
     criteria = _string_list(juror_rubric.get("criteria")) or ["behavior_evidence"]
-    behavior_status = _behavior_summary(behavior)["behavior_status"]
-    signals = _behavior_failure_signals(behavior)
+    behavior_status = str(behavior_summary.get("behavior_status") or "unknown")
+    evidence_label = _evidence_label(behavior_summary)
     results: list[dict[str, Any]] = []
     for criterion in criteria:
-        if behavior is None:
+        if behavior_summary.get("present") is not True:
             status = "unable_to_judge"
-            rationale = (
-                "No behavior_results.json evidence is available for this criterion."
-            )
+            rationale = "No behavior evidence is available for this criterion."
         elif behavior_status == "passed":
             status = "partially_satisfied"
-            rationale = "Available eval_examples.py evidence passed, but the evidence slice is still narrow."
-        elif signals:
+            rationale = f"Available {evidence_label} passed, but the evidence slice is still narrow."
+        elif failure_signals:
             status = "not_satisfied"
             rationale = (
-                "Observed behavior evidence includes: " + ", ".join(signals[:5]) + "."
+                "Observed behavior evidence includes: "
+                + ", ".join(failure_signals[:5])
+                + "."
             )
         else:
             status = "needs_more_evidence"
@@ -396,12 +584,13 @@ def _juror_results(
     *,
     selection: Mapping[str, Any],
     rubric: Mapping[str, Any],
-    behavior: Mapping[str, Any] | None,
+    behavior_summary: Mapping[str, Any],
+    failure_signals: list[str],
+    evidence_refs: list[str],
 ) -> list[dict[str, Any]]:
     rubrics = _rubric_by_juror(rubric)
-    judgment, confidence, base_rationale = _judgment_for_behavior(behavior)
-    status = "judged" if behavior is not None else "unable_to_judge"
-    evidence_refs = ["behavior_results.json"] if behavior is not None else []
+    judgment, confidence, base_rationale = _judgment_for_behavior(behavior_summary)
+    status = "judged" if behavior_summary.get("present") is True else "unable_to_judge"
     results: list[dict[str, Any]] = []
     for raw_juror in _safe_list(selection.get("selected_jurors")):
         if not isinstance(raw_juror, Mapping):
@@ -424,7 +613,8 @@ def _juror_results(
                 "evidence_refs": list(evidence_refs),
                 "criteria_results": _criterion_results(
                     juror_rubric=juror_rubric,
-                    behavior=behavior,
+                    behavior_summary=behavior_summary,
+                    failure_signals=failure_signals,
                 ),
             }
         )
@@ -432,7 +622,7 @@ def _juror_results(
 
 
 def _aggregate(
-    juror_results: list[dict[str, Any]], *, behavior_present: bool
+    juror_results: list[dict[str, Any]], *, behavior_summary: Mapping[str, Any]
 ) -> dict[str, Any]:
     counts = {label: 0 for label in _JUDGMENT_LABELS}
     for result in juror_results:
@@ -448,12 +638,16 @@ def _aggregate(
         agreement_level = "mixed"
     else:
         agreement_level = "high"
-    if not behavior_present:
+    if behavior_summary.get("present") is not True:
         status = "insufficient_behavior_evidence"
-        summary = "Jurors could not judge because behavior_results.json is missing."
+        summary = "Jurors could not judge because behavior_results.json and behavior_episode.json are missing."
     elif counts.get("needs_more_evidence", 0) == len(juror_results):
         status = "completed"
-        summary = "All jurors request more evidence based on current example-backed behavior_results.json."
+        summary = (
+            "All jurors request more evidence based on current "
+            + _evidence_label(behavior_summary)
+            + "."
+        )
     elif counts.get("withhold", 0) == len(juror_results):
         status = "completed"
         summary = "All jurors withhold on the narrow current evidence; this is not promotion approval."
@@ -479,6 +673,9 @@ def build_program_jury_execution_result(*, manifest_path: Path) -> dict[str, Any
             manifest,
             manifest_path,
         )
+        behavior_episode, behavior_episode_path, _behavior_episode_hash = (
+            _load_program_behavior_episode(manifest, manifest_path)
+        )
     except ProgramRefinementError as exc:
         raise ProgramJuryExecutionError(str(exc)) from exc
     jury, selection, rubric, jury_paths = _load_jury_artifacts(manifest, manifest_path)
@@ -489,15 +686,25 @@ def build_program_jury_execution_result(*, manifest_path: Path) -> dict[str, Any
             expected_schema=PROGRAM_BEHAVIOR_RESULTS_SCHEMA,
         )
     identity = _identity_from_manifest(manifest)
-    behavior_summary = _behavior_summary(behavior)
+    behavior_summary = _behavior_summary(behavior, behavior_episode)
+    failure_signals = _behavior_results_failure_signals(behavior)
+    if behavior is None:
+        failure_signals = _behavior_episode_failure_signals(behavior_episode)
+    evidence_refs = []
+    if behavior is not None:
+        evidence_refs.append("behavior_results.json")
+    if behavior_episode is not None:
+        evidence_refs.append("behavior_episode.json")
     juror_results = _juror_results(
         selection=selection,
         rubric=rubric,
-        behavior=behavior,
+        behavior_summary=behavior_summary,
+        failure_signals=failure_signals,
+        evidence_refs=evidence_refs,
     )
     aggregate = _aggregate(
         juror_results,
-        behavior_present=behavior_summary["present"] is True,
+        behavior_summary=behavior_summary,
     )
     status = (
         "executed"
@@ -505,13 +712,16 @@ def build_program_jury_execution_result(*, manifest_path: Path) -> dict[str, Any
         else "insufficient_behavior_evidence"
     )
     limits = [
-        "Jury execution is limited to current eval_examples.py / behavior_results.json evidence.",
-        "No dataset split was run by this command.",
+        "Jury execution is limited to already-generated behavior_results.json and/or bounded behavior_episode.json evidence.",
+        "No example, dataset split, model jury, Oracle, topology, or custom-module execution is run by this command.",
         "Jury results are not promotion approval.",
         "Jury results do not rank or select a winner.",
     ]
-    if behavior is None:
-        limits.insert(0, "No behavior_results.json evidence was available to judge.")
+    if behavior is None and behavior_episode is None:
+        limits.insert(
+            0,
+            "No behavior_results.json or behavior_episode.json evidence was available to judge.",
+        )
     return {
         "schema_version": PROGRAM_JURY_RESULTS_SCHEMA,
         "status": status,
@@ -524,6 +734,9 @@ def build_program_jury_execution_result(*, manifest_path: Path) -> dict[str, Any
             "jury_rubric_path": str(jury_paths["jury_rubric_path"].resolve()),
             "behavior_results_path": str(behavior_path.resolve())
             if behavior_path is not None and behavior_path.exists()
+            else None,
+            "behavior_episode_path": str(behavior_episode_path.resolve())
+            if behavior_episode_path is not None and behavior_episode_path.exists()
             else None,
         },
         "jury": {

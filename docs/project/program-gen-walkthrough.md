@@ -40,7 +40,7 @@ The current `program-gen` loop proves:
 8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize source-aware behavior evidence without authority effects; it is not part of `program-gen`.
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 10. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
-11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and current `eval_examples.py` / `behavior_results.json` evidence to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
+11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and already-generated behavior evidence (`behavior_results.json` when present, otherwise bounded `behavior_episode.json`) to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
 12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
 13. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
 14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over already-generated `behavior_episode.json` evidence plus example-backed `behavior_results.json` when present.
@@ -419,7 +419,7 @@ This command writes only the requested sidecar artifact. It does not overwrite g
 
 ## 12. Optional explicit local jury execution sidecar
 
-If you want local deterministic jury evidence over the current example-backed behavior, run the jury consumer explicitly:
+If you want local deterministic jury evidence over already-generated behavior evidence, run the jury consumer explicitly:
 
 ```bash
 uv run -q python -m dspx.cli.dspx program-promote jury \
@@ -431,15 +431,15 @@ uv run -q python -m dspx.cli.dspx program-promote jury \
 Expected JSON facts:
 
 - `schema_version: program-jury-results-v1`
-- `status: executed` when `behavior_results.json` is present, or `insufficient_behavior_evidence` when examples/behavior evidence are absent
-- `created_from` references `manifest.json`, `jury.json`, `jury_selection.json`, `jury_rubric.json`, and current `behavior_results.json` when present
+- `status: executed` when `behavior_results.json` or `behavior_episode.json` is present, or `insufficient_behavior_evidence` when behavior evidence is absent
+- `created_from` references `manifest.json`, `jury.json`, `jury_selection.json`, `jury_rubric.json`, current `behavior_results.json` when present, and current `behavior_episode.json` when present
 - `jury` records planned jury, selection, and rubric schemas plus selected juror count/perspectives
-- `behavior_evidence` summarizes current `eval_examples.py` / `behavior_results.json` only
+- `behavior_evidence` summarizes current example-backed `behavior_results.json` when present, otherwise bounded `behavior_episode.json` from generated example/split harness orchestration
 - `juror_results` records deterministic local per-juror judgments and criteria results while preserving provider/model fields from the planned jury artifacts
 - `aggregate` records judgment counts plus agreement/disagreement
 - `effect` and `non_authority` confirm local-only/no-mutation behavior
 
-This command writes only the requested `jury_results.json` sidecar. It does not mutate the candidate, does not mutate `promotion_review.json` or `promotion_review_refined.json`, does not generate a new candidate, does not create an Oracle index, does not call external models, does not require provider auth, does not introduce `eval_behavior.py`, and does not rank, select winners, promote, approve, export authority, mutate AK, or mutate governance.
+This command writes only the requested `jury_results.json` sidecar. It reads already-generated evidence only: it does not mutate the candidate, does not mutate `promotion_review.json` or `promotion_review_refined.json`, does not generate a new candidate, does not run example/dataset/model-jury/topology/custom-module execution, does not create an Oracle index, does not call external models, does not require provider auth, does not introduce or broaden `eval_behavior.py`, and does not rank, select winners, promote, approve, export authority, mutate AK, or mutate governance.
 
 ## 13. Optional explicit local adjudicator decision record
 
