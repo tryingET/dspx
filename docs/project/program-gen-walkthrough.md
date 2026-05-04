@@ -68,6 +68,16 @@ It does **not** prove:
 - broad accepted-proposal policy beyond the explicit request-more-evidence constraints-patch path,
 - AK export or task mutation.
 
+## PDF transition scenario
+
+A concrete Obsidian/PDF-transition `program-gen` fixture now exists for the flow:
+
+```text
+PDF -> source package -> section units -> evidence cards -> merge/create -> review -> canonical notes
+```
+
+Read `docs/project/pdf-transition-program-gen.md` for the scenario intent, fixture paths, authority boundaries, and test command. The scenario generates reviewable transition/proposal artifacts only; it does not mutate canonical Wiki/Atlas notes.
+
 ## 1. Prepare a temp workspace
 
 From the repo root:

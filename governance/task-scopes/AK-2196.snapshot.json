@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T18:58:37.111000193+00:00",
+  "task_id": 2196,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/pdf-transition-program-gen.md",
+      "docs/project/program-gen-walkthrough.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "tests/fixtures/program_gen/pdf_transition/examples.yaml",
+      "tests/fixtures/program_gen/pdf_transition/intent.yaml",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "required_paths": [
+      "docs/project/pdf-transition-program-gen.md",
+      "tests/fixtures/program_gen/pdf_transition/examples.yaml",
+      "tests/fixtures/program_gen/pdf_transition/intent.yaml",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

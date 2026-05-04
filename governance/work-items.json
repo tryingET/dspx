@@ -1466,6 +1466,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2196",
+          "title": "Add PDF transition program-gen scenario",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add PDF transition program-gen scenario (task #2196)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

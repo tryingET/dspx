@@ -1,0 +1,158 @@
+- inputs:
+    source_package_manifest_json: |
+      {
+        "schema_version": 1,
+        "artifact_type": "source_package_manifest",
+        "state": "extracted",
+        "doc_id": "doc:pdf-transition-demo",
+        "source_id": "zotero:user:demo/DEMO2026",
+        "attachment_id": "sha256:demo",
+        "package_root": "_System/pdf-pipeline/packages/doc:pdf-transition-demo",
+        "marker_markdown_path": "marker/document.md",
+        "content_profile": "article_report",
+        "extraction_engine": "marker"
+      }
+    marker_markdown: |
+      # Five Levels of Close Reading
+
+      Close reading is not just copying sentences. A reader first paraphrases the passage in plain language, then identifies the main thesis, then explains the logic that connects claims and examples.
+
+      The reader should also evaluate the limits of the passage and state where the idea can be applied. These stages make interpretation reviewable before it becomes a permanent note.
+    existing_wiki_index_json: |
+      {
+        "schema_version": 1,
+        "canonical_artifacts": [
+          {
+            "artifact_family": "canonical",
+            "space": "Wiki",
+            "path": "Wiki/Close Reading.md",
+            "title": "Close Reading",
+            "state": "accepted"
+          }
+        ]
+      }
+    declared_output_root: "transition/pdf-transition-demo"
+  outputs:
+    section_units_json: |
+      [
+        {
+          "artifact_family": "transition",
+          "artifact_type": "section_unit_candidate",
+          "state": "candidate",
+          "doc_id": "doc:pdf-transition-demo",
+          "unit_id": "sec-0001",
+          "section_title": "Five Levels of Close Reading",
+          "source_refs": [
+            {
+              "source_id": "zotero:user:demo/DEMO2026",
+              "section": "Five Levels of Close Reading",
+              "marker_markdown_path": "marker/document.md"
+            }
+          ],
+          "raw_text_excerpt": "Close reading is not just copying sentences..."
+        }
+      ]
+    distillation_frames_json: |
+      [
+        {
+          "artifact_family": "transition",
+          "artifact_type": "distillation_frame",
+          "state": "distilled",
+          "unit_id": "sec-0001",
+          "paraphrase": "The passage says close reading moves through restatement, thesis extraction, logic analysis, evaluation, and application before notes become permanent.",
+          "thesis": {
+            "main": "Close reading is a staged method for making interpretation reviewable.",
+            "subclaims": [
+              "Paraphrase is only the first step.",
+              "Evaluation and application are required before canonicalization."
+            ]
+          },
+          "logic": {
+            "reasoning_pattern": "progressive decomposition",
+            "steps": [
+              "Restate the passage.",
+              "Identify the main thesis.",
+              "Explain the logic connecting claims and examples.",
+              "Evaluate limitations.",
+              "State applications before permanent notes."
+            ]
+          },
+          "evaluation": {
+            "strengths": ["Makes interpretation inspectable before canonical notes."],
+            "limits": ["The excerpt does not define exact acceptance criteria."],
+            "interpretation_confidence": 0.82
+          },
+          "application": {
+            "uses": ["Use as a transition artifact schema for PDF distillation."],
+            "note_implications": ["Enrich existing Wiki/Close Reading.md after review."],
+            "board_implications": ["Show staged close-reading passes on an Atlas board after review."]
+          }
+        }
+      ]
+    evidence_cards_json: |
+      [
+        {
+          "artifact_family": "transition",
+          "artifact_type": "evidence_card",
+          "state": "carded",
+          "card_id": "ev:doc-pdf-transition-demo:sec-0001:close-reading",
+          "candidate_title": "Close Reading",
+          "candidate_space": "wiki",
+          "candidate_state": "distilled",
+          "summary": "Close reading is represented as a staged reviewable method rather than immediate note creation.",
+          "source_refs": [
+            {
+              "source_id": "zotero:user:demo/DEMO2026",
+              "section": "Five Levels of Close Reading"
+            }
+          ],
+          "confidence": 0.82
+        }
+      ]
+    merge_create_proposals_json: |
+      [
+        {
+          "artifact_family": "proposal",
+          "artifact_type": "merge_create_candidate",
+          "state": "proposed",
+          "candidate_title": "Close Reading",
+          "proposed_action": "enrich",
+          "target_path": "Wiki/Close Reading.md",
+          "canonical_mutation_allowed": false,
+          "review_required": true,
+          "rationale": "An existing Wiki note is present, so propose enrichment rather than creating or mutating the note."
+        }
+      ]
+    review_packet_json: |
+      {
+        "artifact_family": "review",
+        "artifact_type": "pdf_transition_review_packet",
+        "state": "needs_review",
+        "doc_id": "doc:pdf-transition-demo",
+        "proposal_refs": ["ev:doc-pdf-transition-demo:sec-0001:close-reading"],
+        "canonical_mutation_performed": false,
+        "review_needs": [
+          "Verify source grounding against Marker markdown.",
+          "Decide whether Wiki/Close Reading.md should be enriched."
+        ]
+      }
+    artifact_contract_manifest_json: |
+      {
+        "schema_version": "pdf-transition-artifact-contract-v1",
+        "artifact_family_authority": {
+          "source": "raw extraction/source package authority",
+          "transition": "regenerable source-grounded transition artifacts",
+          "proposal": "merge/create proposal artifacts only",
+          "review": "human/operator review artifacts",
+          "canonical": "Wiki/Atlas artifacts only after explicit review"
+        },
+        "declared_output_root": "transition/pdf-transition-demo",
+        "canonical_mutation_performed": false,
+        "forbidden_effects": [
+          "canonical_wiki_mutation",
+          "atlas_authority_decision",
+          "zotero_identity_mutation",
+          "marker_extraction_mutation",
+          "promotion_to_accepted_note"
+        ]
+      }

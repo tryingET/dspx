@@ -1,0 +1,109 @@
+schema_version: program-intent-v2
+name: PdfTransitionProgram
+objective: >-
+  Transform raw PDF/Marker markdown plus source-package context into source-grounded,
+  reviewable Obsidian Wiki transition artifacts: section-unit candidates,
+  close-reading distillation frames, evidence cards, merge/create proposals,
+  review packets, and an artifact contract manifest.
+task_type: single_module
+inputs:
+  - source_package_manifest_json
+  - marker_markdown
+  - existing_wiki_index_json
+  - declared_output_root
+outputs:
+  - section_units_json
+  - distillation_frames_json
+  - evidence_cards_json
+  - merge_create_proposals_json
+  - review_packet_json
+  - artifact_contract_manifest_json
+input_fields:
+  - name: source_package_manifest_json
+    type: str
+    desc: JSON source-package manifest derived from Zotero/Marker package authority.
+  - name: marker_markdown
+    type: str
+    desc: Raw Marker markdown or section text from a PDF-like source artifact.
+  - name: existing_wiki_index_json
+    type: str
+    desc: Read-only summary of existing canonical Wiki/Atlas candidates for merge-before-create decisions.
+  - name: declared_output_root
+    type: str
+    desc: Declared transition artifact root; generated program outputs describe artifacts for this root but must not mutate Wiki notes.
+output_fields:
+  - name: section_units_json
+    type: str
+    desc: JSON array of transition-family section-unit candidates with source references.
+  - name: distillation_frames_json
+    type: str
+    desc: JSON array of close-reading distillation frames containing paraphrase, thesis, logic, evaluation, and application fields.
+  - name: evidence_cards_json
+    type: str
+    desc: JSON array of source-grounded transition-family evidence cards.
+  - name: merge_create_proposals_json
+    type: str
+    desc: JSON array of proposal-family merge/create candidates; proposals only, not canonical note writes.
+  - name: review_packet_json
+    type: str
+    desc: JSON review-family packet summarizing confidence, uncertainty, provenance, and review needs.
+  - name: artifact_contract_manifest_json
+    type: str
+    desc: JSON manifest declaring source/transition/proposal/review/canonical artifact families and forbidden effects.
+examples_path: examples.yaml
+metric: exact_match
+constraints:
+  - Treat Zotero/source package metadata as source identity authority; do not invent or mutate source identity.
+  - Treat Marker markdown as extraction/source artifact input; do not claim Marker extraction authority.
+  - Section units, distillation frames, and evidence cards are transition artifacts only.
+  - Merge/create outputs are proposal artifacts only and must include review_required when targeting Wiki or Atlas.
+  - Review packets are review artifacts only and do not approve canonicalization.
+  - Canonical Wiki or Atlas artifacts may be mentioned as targets but must not be created, overwritten, accepted, or mutated.
+  - Preserve source_refs/provenance on every transition or proposal artifact.
+  - Explain confidence, uncertainty, and review needs explicitly.
+  - External filesystem mutation is forbidden except for declared DSPx program-gen output artifacts.
+jury:
+  selection_model: perspective_balanced_explicit_pool
+  minimum_jurors: 3
+  perspectives:
+    - source_grounding
+    - authority_boundaries
+    - transition_artifact_quality
+promotion:
+  adjudicator:
+    kind: human_operator
+    id: obsidian_pdf_transition_reviewer
+  external_authority:
+    refs:
+      - system: obsidian_wiki_review_queue
+        ref: review-required-no-canonical-mutation
+        role: optional_review_target_not_applied
+options:
+  scenario_name: pdf-transition-program-gen
+  primary_architecture: /home/tryinget/Documents/Obsidian/_System/architecture/pdf-transition-architecture.md
+  related_architectures:
+    - /home/tryinget/Documents/Obsidian/_System/architecture/distillation-method-architecture.md
+    - /home/tryinget/Documents/Obsidian/_System/architecture/source-semantic-scaffold-architecture.md
+    - /home/tryinget/Documents/Obsidian/_System/pdf-pipeline/workflow-profiles.md
+  authority_model:
+    source: raw extraction/source package artifact
+    transition: section units, distillation frames, and evidence cards
+    proposal: merge/create candidates
+    review: review packet
+    canonical: Wiki/Atlas note only after explicit review
+  expected_artifact_family:
+    - section-unit candidates
+    - distillation frames
+    - evidence cards
+    - merge/create proposals
+    - review packets
+    - replay/receipt metadata
+    - artifact contract manifest
+  forbidden_effects:
+    - canonical Wiki mutation
+    - final acceptance
+    - Atlas/Wiki authority decision without review
+    - Zotero/source identity authority
+    - Marker extraction authority
+    - external filesystem mutation beyond declared DSPx output artifacts
+    - promotion from proposal to accepted note
