@@ -13,7 +13,9 @@ import fnmatch
 import json
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -440,19 +442,124 @@ def _print_text_summary(plan: dict[str, Any]) -> None:
         print(f"- {command['id']}: {' '.join(command['command'])}")
 
 
-def run_plan(plan: dict[str, Any], *, allow_wide: bool) -> int:
+def _now_utc() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def _result_payload(
+    *,
+    plan: dict[str, Any],
+    status: str,
+    started_at: str,
+    ended_at: str,
+    command_results: list[dict[str, Any]],
+    exit_code: int,
+    note: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": "dspx-verification-impact-result-v1",
+        "status": status,
+        "started_at": started_at,
+        "ended_at": ended_at,
+        "exit_code": exit_code,
+        "plan": plan,
+        "commands": command_results,
+        "summary": {
+            "command_count": len(command_results),
+            "passed_count": sum(
+                1 for item in command_results if item["status"] == "passed"
+            ),
+            "failed_count": sum(
+                1 for item in command_results if item["status"] == "failed"
+            ),
+            "blocked_wide": status == "blocked_wide",
+            "full_verification_required": bool(plan.get("full_verification_required")),
+            "risk": plan.get("risk"),
+        },
+        "non_authority": {
+            "local_verification_receipt_only": True,
+            "full_verification_replacement": False,
+            "ak_mutation": False,
+            "governance_mutation": False,
+            "oracle_mutation": False,
+            "external_authority_mutation": False,
+        },
+        **({"note": note} if note else {}),
+    }
+
+
+def execute_plan(
+    plan: dict[str, Any], *, allow_wide: bool
+) -> tuple[int, dict[str, Any]]:
+    started_at = _now_utc()
+    command_results: list[dict[str, Any]] = []
     if plan["full_verification_required"] and not allow_wide:
-        print(
-            "error: impact plan requires broad/full verification; rerun with --allow-wide to execute selected wide commands",
-            file=sys.stderr,
+        ended_at = _now_utc()
+        return (
+            2,
+            _result_payload(
+                plan=plan,
+                status="blocked_wide",
+                started_at=started_at,
+                ended_at=ended_at,
+                command_results=command_results,
+                exit_code=2,
+                note="impact plan requires broad/full verification; rerun with --allow-wide to execute selected wide commands",
+            ),
         )
-        return 2
+
+    exit_code = 0
     for command in plan["commands"]:
-        print(f"==> {command['id']}: {' '.join(command['command'])}")
+        print(f"==> {command['id']}: {' '.join(command['command'])}", flush=True)
+        command_started_at = _now_utc()
+        command_start = time.monotonic()
         proc = subprocess.run(command["command"], cwd=ROOT, check=False)
+        command_ended_at = _now_utc()
+        command_result = {
+            "id": command["id"],
+            "command": list(command["command"]),
+            "reason": command.get("reason"),
+            "started_at": command_started_at,
+            "ended_at": command_ended_at,
+            "duration_seconds": round(time.monotonic() - command_start, 6),
+            "returncode": proc.returncode,
+            "status": "passed" if proc.returncode == 0 else "failed",
+        }
+        command_results.append(command_result)
         if proc.returncode != 0:
-            return proc.returncode
-    return 0
+            exit_code = int(proc.returncode)
+            break
+    ended_at = _now_utc()
+    status = "passed" if exit_code == 0 else "failed"
+    return (
+        exit_code,
+        _result_payload(
+            plan=plan,
+            status=status,
+            started_at=started_at,
+            ended_at=ended_at,
+            command_results=command_results,
+            exit_code=exit_code,
+        ),
+    )
+
+
+def run_plan(
+    plan: dict[str, Any], *, allow_wide: bool, result_out: Path | None = None
+) -> int:
+    exit_code, result = execute_plan(plan, allow_wide=allow_wide)
+    if result_out is not None:
+        _write_json(result_out.expanduser().resolve(), result)
+    if result["status"] == "blocked_wide":
+        print(str(result["note"]), file=sys.stderr)
+    return exit_code
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -472,6 +579,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     mode.add_argument("--run", action="store_true", help="Run selected commands")
     parser.add_argument(
         "--allow-wide", action="store_true", help="Allow execution of wide-risk plans"
+    )
+    parser.add_argument(
+        "--result-out",
+        help="Optional path for a local JSON verification result receipt when --run is used",
     )
     parser.add_argument("--json", action="store_true", help="Print JSON only")
     return parser.parse_args(argv)
@@ -494,7 +605,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(plan, indent=2, sort_keys=True))
     if args.run:
         sys.stdout.flush()
-        return run_plan(plan, allow_wide=args.allow_wide)
+        result_out = Path(args.result_out) if args.result_out else None
+        return run_plan(plan, allow_wide=args.allow_wide, result_out=result_out)
     return 0
 
 

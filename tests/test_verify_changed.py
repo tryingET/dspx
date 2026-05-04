@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -125,6 +126,64 @@ def test_working_tree_status_parser_preserves_first_path_character(monkeypatch) 
         "Justfile",
         "docs/project/developer_workflow.md",
     ]
+
+
+def test_run_plan_writes_result_receipt(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    module = _load_module()
+    plan = _plan("docs/project/developer_workflow.md")
+    result_out = tmp_path / "impact-result.json"
+    calls: list[list[str]] = []
+
+    def fake_run(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    exit_code = module.run_plan(plan, allow_wide=False, result_out=result_out)
+
+    assert exit_code == 0
+    assert calls == [
+        [
+            "node",
+            str(Path.home() / "ai-society/core/agent-scripts/scripts/docs-list.mjs"),
+            "--docs",
+            ".",
+            "--strict",
+        ]
+    ]
+    payload = json.loads(result_out.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "dspx-verification-impact-result-v1"
+    assert payload["status"] == "passed"
+    assert payload["exit_code"] == 0
+    assert payload["summary"] == {
+        "blocked_wide": False,
+        "command_count": 1,
+        "failed_count": 0,
+        "full_verification_required": False,
+        "passed_count": 1,
+        "risk": "docs_only",
+    }
+    assert payload["commands"][0]["id"] == "docs_strict"
+    assert payload["commands"][0]["returncode"] == 0
+    assert payload["non_authority"]["full_verification_replacement"] is False
+
+
+def test_run_plan_writes_blocked_wide_receipt(tmp_path) -> None:
+    module = _load_module()
+    plan = _plan("Justfile")
+    result_out = tmp_path / "impact-wide-result.json"
+
+    exit_code = module.run_plan(plan, allow_wide=False, result_out=result_out)
+
+    assert exit_code == 2
+    payload = json.loads(result_out.read_text(encoding="utf-8"))
+    assert payload["status"] == "blocked_wide"
+    assert payload["summary"]["blocked_wide"] is True
+    assert payload["commands"] == []
+    assert payload["plan"]["full_verification_required"] is True
 
 
 def test_plan_json_is_serializable() -> None:

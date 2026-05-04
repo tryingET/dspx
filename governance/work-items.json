@@ -1362,6 +1362,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2155",
+          "title": "Add impact verification result receipts",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add impact verification result receipts (task #2155)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2156",
+          "title": "Draft MLflow local sqlite backend RFC",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Draft MLflow local sqlite backend RFC (task #2156)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

@@ -224,7 +224,7 @@ Why not chosen as the only path: performance work is valuable but complementary.
 - Add planner unit tests.
 - Add `just verify-impact-plan`.
 
-Implementation task: `AK-2147` begins this rollout by adding the deterministic planner, checked-in impact map, Justfile targets, planner tests, and workflow documentation without changing `verify-full`.
+Implementation task: `AK-2147` began this rollout by adding the deterministic planner, checked-in impact map, Justfile targets, planner tests, and workflow documentation without changing `verify-full`. Follow-up task `AK-2155` adds optional local result receipts for `--run` via `--result-out`, preserving the same non-authority boundary.
 
 ### Phase 2 — Execution mode
 
@@ -279,7 +279,7 @@ Attempt `just verify-full` when tool time allows or when the impact plan reports
 
 - Should `verify-impact` default to working-tree changes or staged changes when both exist?
 - Should wide plans fail by default or run the broad commands when an environment flag is set?
-- Should command results be printed only or also written as a JSON receipt under `generated/ci/`?
+- Resolved in `AK-2155`: command results may optionally be written as a local JSON receipt with `--result-out`; no receipt is written unless requested.
 - Should CI use `verify-impact` as a fast advisory preflight while keeping full CI required?
 - What exact file-count and impact-group thresholds should trigger wide risk?
 

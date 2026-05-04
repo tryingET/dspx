@@ -99,6 +99,7 @@ Validation contract:
   - runs the selected impact-aware commands when the plan is bounded or expanded
   - refuses to execute wide/full-required plans unless the planner is explicitly run with its wide-allowing flag
   - is a local iteration gate, not the final merge/release confidence gate
+  - for a local machine-readable receipt, run the underlying planner with `--result-out generated/ci/verify-impact-result.json`; this receipt is evidence only and does not replace `just verify-full`
 - `just verify-full`
   - runs `just verify-fast` first
   - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel
