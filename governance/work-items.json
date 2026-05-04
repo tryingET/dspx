@@ -1440,6 +1440,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2176",
+          "title": "Fix workflow contract fixture for impact verification",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Fix workflow contract fixture for impact verification (task #2176)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

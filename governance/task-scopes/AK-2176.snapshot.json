@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T17:41:28.252896370+00:00",
+  "task_id": 2176,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "scripts/check_workflow_contracts.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "required_paths": [
+      "tests/test_workflow_contracts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

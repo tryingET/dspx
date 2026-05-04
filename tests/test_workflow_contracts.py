@@ -51,6 +51,9 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "just doctor\n"
         "just run\n"
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-impact-plan\n"
+        "just verify-impact\n"
+        "just verify-impact-receipt\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
         "`next_session_prompt.md` remains handoff context only\n"
         "brownfield legacy scope file\n"
@@ -150,6 +153,12 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py\n"
         "verify-runtime:\n"
         "  echo runtime\n"
+        'verify-impact-plan base="auto":\n'
+        "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --plan-only\n"
+        'verify-impact base="auto":\n'
+        "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run\n"
+        'verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":\n'
+        "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --result-out {{out}}\n"
         "verify-tests:\n"
         "  echo tests\n"
         "verify-pre-push:\n"
@@ -252,6 +261,9 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "just doctor\n"
         "just run\n"
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
+        "just verify-impact-plan\n"
+        "just verify-impact\n"
+        "just verify-impact-receipt\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
         "`next_session_prompt.md` remains handoff context only\n"
         "brownfield legacy scope file\n"
@@ -351,6 +363,12 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "  echo bad quality\n"
         "verify-runtime:\n"
         "  echo runtime\n"
+        'verify-impact-plan base="auto":\n'
+        "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --plan-only\n"
+        'verify-impact base="auto":\n'
+        "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run\n"
+        'verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":\n'
+        "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --result-out {{out}}\n"
         "verify-tests:\n"
         "  echo tests\n"
         "verify-pre-push:\n"
