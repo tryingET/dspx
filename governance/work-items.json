@@ -1379,14 +1379,15 @@
         {
           "id": "AK-TASK-2156",
           "title": "Draft MLflow local sqlite backend RFC",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Draft MLflow local sqlite backend RFC (task #2156)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         },
         {
           "id": "AK-TASK-2161",
@@ -1400,6 +1401,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2163",
+          "title": "Propagate behavior episode evidence into candidate state and promotion plans",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Propagate behavior episode evidence into candidate state and promotion plans (task #2163)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
