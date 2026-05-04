@@ -63,6 +63,8 @@ This uses the stub provider, disables MLflow, writes to a temp directory by defa
 ```bash
 ./scripts/ci/smoke.sh
 just task-scope-check task_id=<AK-ID> mode=working-tree   # before commit, for the current slice
+just verify-impact-plan                                   # deterministic changed-file validation plan
+just verify-impact                                        # run the bounded/expanded impact-aware plan when it is not wide
 just verify-pre-push                                      # matches the pre-push hook
 just verify-full                                          # explicit full gate before merge/release or when needed
 ```
@@ -89,6 +91,14 @@ Validation contract:
 - `just verify-runtime`
   - runs replay provenance, monorepo boundary, module synthesis quality, and `just boundary-contract-check`
   - `just boundary-contract-check` executes the repo boundary contract matrix from `docs/project/boundary-contract-matrix.md` plus docs strict validation
+- `just verify-impact-plan`
+  - runs `scripts/ci/verify_changed.py --plan-only` to produce a deterministic changed-file validation plan from `scripts/ci/verification-impact.yml`
+  - does not execute checks and does not replace `just verify-full`
+  - fails wide in the plan for unknown, CI/dependency, broad shared, or cross-domain changes
+- `just verify-impact`
+  - runs the selected impact-aware commands when the plan is bounded or expanded
+  - refuses to execute wide/full-required plans unless the planner is explicitly run with its wide-allowing flag
+  - is a local iteration gate, not the final merge/release confidence gate
 - `just verify-full`
   - runs `just verify-fast` first
   - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel

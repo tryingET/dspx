@@ -1,0 +1,233 @@
+schema_version: dspx-verification-impact-map-v1
+thresholds:
+  max_changed_files_before_wide: 20
+  max_impact_groups_before_wide: 3
+rules:
+  - match: "docs/**/*.md"
+    category: docs
+    impact_group: docs
+    risk: docs_only
+    commands:
+      - docs_strict
+
+  - match: "README.md"
+    category: docs
+    impact_group: docs
+    risk: docs_only
+    commands:
+      - docs_strict
+
+  - match: "AGENTS.md"
+    category: agent_context
+    impact_group: workflow_context
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - docs_strict
+      - verify_fast
+
+  - match: "CLAUDE.md"
+    category: agent_context
+    impact_group: workflow_context
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - docs_strict
+      - verify_fast
+
+  - match: "governance/work-items.json"
+    category: governance_projection
+    impact_group: governance
+    risk: bounded
+    commands:
+      - governance_check
+      - task_scope_check
+
+  - match: "governance/task-scopes/*.snapshot.json"
+    category: task_scope_projection
+    impact_group: governance
+    risk: bounded
+    commands:
+      - task_scope_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_service.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+      - docs_strict
+
+  - match: "packages/dspx-core/src/dspx/services/program_surfaces.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_dataset.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+
+  - match: "packages/dspx-core/src/dspx/services/program_oracle_index.py"
+    category: python_service
+    impact_group: program_oracle_refinement
+    risk: bounded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_oracle_refinement
+
+  - match: "packages/dspx-core/src/dspx/services/program_oracle_report.py"
+    category: python_service
+    impact_group: program_oracle_refinement
+    risk: bounded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_oracle_refinement
+
+  - match: "packages/dspx-core/src/dspx/services/program_refinement.py"
+    category: python_service
+    impact_group: program_oracle_refinement
+    risk: bounded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_oracle_refinement
+
+  - match: "packages/dspx-core/src/dspx/services/program_refinement_candidate.py"
+    category: python_service
+    impact_group: program_refinement_candidates
+    risk: bounded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_refinement_candidate_comparison
+
+  - match: "packages/dspx-core/src/dspx/services/program_refinement_comparison.py"
+    category: python_service
+    impact_group: program_refinement_candidates
+    risk: bounded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_refinement_candidate_comparison
+
+  - match: "packages/dspx-core/src/dspx/services/program_refinement_workflow.py"
+    category: python_service
+    impact_group: program_refinement_candidates
+    risk: bounded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_refinement_candidate_comparison
+
+  - match: "packages/dspx-core/src/dspx/services/program_promotion_plan.py"
+    category: python_service
+    impact_group: program_refinement_candidates
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_refinement_candidate_comparison
+      - pytest_promotion_plan_adjacent
+
+  - match: "packages/dspx-core/src/dspx/services/program_external_authority_export.py"
+    category: python_service
+    impact_group: boundary_sensitive
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_candidate_state.py"
+    category: python_service
+    impact_group: boundary_sensitive
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/run_replay_service.py"
+    category: python_service
+    impact_group: boundary_sensitive
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - verify_runtime
+
+  - match: "tests/test_*.py"
+    category: test
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_touched
+
+  - match: "scripts/check_workflow_contracts.py"
+    category: workflow_contract
+    impact_group: workflow
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - ruff_touched
+      - workflow_contract_check
+      - verify_fast
+
+  - match: "scripts/check_task_scope.py"
+    category: task_scope_checker
+    impact_group: workflow
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - ruff_touched
+      - verify_fast
+
+  - match: "scripts/ci/**"
+    category: ci
+    impact_group: ci
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - ruff_touched
+      - verify_fast
+
+  - match: "Justfile"
+    category: ci_contract
+    impact_group: ci
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - workflow_contract_check
+      - verify_fast
+
+  - match: "pyproject.toml"
+    category: dependency
+    impact_group: dependency
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - verify_fast
+
+  - match: "uv.lock"
+    category: dependency
+    impact_group: dependency
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - verify_fast

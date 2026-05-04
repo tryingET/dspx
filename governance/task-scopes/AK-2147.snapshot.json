@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T02:34:33.044292529+00:00",
+  "task_id": 2147,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "docs/adr/20260504-impact-aware-verification.md",
+      "docs/project/developer_workflow.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "scripts/check_workflow_contracts.py",
+      "scripts/ci/verification-impact.yml",
+      "scripts/ci/verify_changed.py",
+      "tests/test_verify_changed.py"
+    ],
+    "required_paths": [
+      "Justfile",
+      "docs/project/developer_workflow.md",
+      "scripts/ci/verification-impact.yml",
+      "scripts/ci/verify_changed.py",
+      "tests/test_verify_changed.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

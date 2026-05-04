@@ -1349,6 +1349,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2147",
+          "title": "Implement impact-aware verification planner",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement impact-aware verification planner (task #2147)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

@@ -224,6 +224,8 @@ Why not chosen as the only path: performance work is valuable but complementary.
 - Add planner unit tests.
 - Add `just verify-impact-plan`.
 
+Implementation task: `AK-2147` begins this rollout by adding the deterministic planner, checked-in impact map, Justfile targets, planner tests, and workflow documentation without changing `verify-full`.
+
 ### Phase 2 — Execution mode
 
 - Add `--run`.

@@ -163,6 +163,8 @@ def collect_issues(root: Path) -> list[Issue]:
                 "just doctor",
                 "just run",
                 "just task-scope-check task_id=<AK-ID> mode=working-tree",
+                "just verify-impact-plan",
+                "just verify-impact",
                 "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths",
                 "`next_session_prompt.md` remains handoff context only",
                 "brownfield legacy scope file",
@@ -220,6 +222,8 @@ def collect_issues(root: Path) -> list[Issue]:
                 "active AK claim or changed task-scope artifact paths",
                 "verify-fast:",
                 "verify-runtime:",
+                'verify-impact-plan base="auto":',
+                'verify-impact base="auto":',
                 "verify-tests:",
                 "verify-pre-push:",
                 "bash scripts/ci/verify-full.sh",
@@ -312,6 +316,20 @@ def collect_issues(root: Path) -> list[Issue]:
                 [
                     "uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py"
                 ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                'verify-impact-plan base="auto":',
+                ["uv run --no-sync python scripts/ci/verify_changed.py --base"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                'verify-impact base="auto":',
+                ["uv run --no-sync python scripts/ci/verify_changed.py --base"],
                 issues,
             )
             _check_recipe_body_contains(

@@ -148,6 +148,14 @@ verify-runtime:
   just module-synthesis-quality-check
   just boundary-contract-check
 
+# Plan deterministic impact-aware local validation from changed files without running it
+verify-impact-plan base="auto":
+  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --plan-only
+
+# Run deterministic impact-aware local validation from changed files
+verify-impact base="auto":
+  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run
+
 # Full static + test branch
 verify-tests:
   just typecheck
