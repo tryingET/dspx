@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T02:19:27.905492952+00:00",
+  "task_id": 2144,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/adr/20260504-impact-aware-verification.md",
+      "docs/adr/README.md",
+      "docs/project/2026-05-04-review-impact-aware-verification.md",
+      "docs/rfc/RFC-DSPX-VERIFY-20260504-impact-aware-verification.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/adr/20260504-impact-aware-verification.md",
+      "docs/adr/README.md",
+      "docs/project/2026-05-04-review-impact-aware-verification.md",
+      "docs/rfc/RFC-DSPX-VERIFY-20260504-impact-aware-verification.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

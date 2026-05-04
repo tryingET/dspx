@@ -1336,6 +1336,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2144",
+          "title": "Record impact-aware verification RFC and ADR",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Record impact-aware verification RFC and ADR (task #2144)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }
