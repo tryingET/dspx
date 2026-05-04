@@ -224,7 +224,7 @@ Why not chosen as the only path: performance work is valuable but complementary.
 - Add planner unit tests.
 - Add `just verify-impact-plan`.
 
-Implementation task: `AK-2147` began this rollout by adding the deterministic planner, checked-in impact map, Justfile targets, planner tests, and workflow documentation without changing `verify-full`. Follow-up task `AK-2155` adds optional local result receipts for `--run` via `--result-out`, preserving the same non-authority boundary.
+Implementation task: `AK-2147` began this rollout by adding the deterministic planner, checked-in impact map, Justfile targets, planner tests, and workflow documentation without changing `verify-full`. Follow-up task `AK-2155` added optional local result receipts for `--run` via `--result-out`, preserving the same non-authority boundary. Follow-up task `AK-2161` adds the ergonomic `just verify-impact-receipt` wrapper so local receipt writing does not require remembering the underlying script flags.
 
 ### Phase 2 — Execution mode
 

@@ -65,6 +65,7 @@ This uses the stub provider, disables MLflow, writes to a temp directory by defa
 just task-scope-check task_id=<AK-ID> mode=working-tree   # before commit, for the current slice
 just verify-impact-plan                                   # deterministic changed-file validation plan
 just verify-impact                                        # run the bounded/expanded impact-aware plan when it is not wide
+just verify-impact-receipt                                # run impact-aware validation and write generated/ci/verify-impact-result.json
 just verify-pre-push                                      # matches the pre-push hook
 just verify-full                                          # explicit full gate before merge/release or when needed
 ```
@@ -99,7 +100,10 @@ Validation contract:
   - runs the selected impact-aware commands when the plan is bounded or expanded
   - refuses to execute wide/full-required plans unless the planner is explicitly run with its wide-allowing flag
   - is a local iteration gate, not the final merge/release confidence gate
-  - for a local machine-readable receipt, run the underlying planner with `--result-out generated/ci/verify-impact-result.json`; this receipt is evidence only and does not replace `just verify-full`
+- `just verify-impact-receipt`
+  - runs the same impact-aware planner with `--result-out generated/ci/verify-impact-result.json`
+  - writes `dspx-verification-impact-result-v1` local evidence for passed, failed, or blocked-wide plans
+  - does not replace `just verify-full`; a blocked-wide receipt is an escalation signal, not validation success
 - `just verify-full`
   - runs `just verify-fast` first
   - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel

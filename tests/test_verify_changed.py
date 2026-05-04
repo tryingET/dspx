@@ -171,6 +171,50 @@ def test_run_plan_writes_result_receipt(tmp_path, monkeypatch) -> None:  # type:
     assert payload["non_authority"]["full_verification_replacement"] is False
 
 
+def test_main_run_writes_result_receipt_from_cli_args(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    module = _load_module()
+    result_out = tmp_path / "cli-impact-result.json"
+    calls: list[list[str]] = []
+
+    def fake_run(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    exit_code = module.main(
+        [
+            "--files",
+            "tests/test_verify_changed.py",
+            "--run",
+            "--result-out",
+            str(result_out),
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls == [
+        ["uvx", "ruff", "check", "tests/test_verify_changed.py"],
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_verify_changed.py",
+        ],
+    ]
+    payload = json.loads(result_out.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "dspx-verification-impact-result-v1"
+    assert payload["status"] == "passed"
+    assert payload["summary"]["command_count"] == 2
+    assert payload["plan"]["changed_files"] == ["tests/test_verify_changed.py"]
+
+
 def test_run_plan_writes_blocked_wide_receipt(tmp_path) -> None:
     module = _load_module()
     plan = _plan("Justfile")

@@ -1387,6 +1387,19 @@
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-2161",
+          "title": "Harden impact-aware verification ergonomics",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Harden impact-aware verification ergonomics (task #2161)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

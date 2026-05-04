@@ -156,6 +156,10 @@ verify-impact-plan base="auto":
 verify-impact base="auto":
   uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run
 
+# Run impact-aware validation and write a local evidence-only result receipt
+verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":
+  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --result-out "{{out}}"
+
 # Full static + test branch
 verify-tests:
   just typecheck
