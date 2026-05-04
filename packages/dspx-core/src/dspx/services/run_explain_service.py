@@ -13,6 +13,7 @@ from dspx.services.run_replay_service import check_run_receipt
 _REASON_CODE_VERSION = "v1"
 _REASON_PRECEDENCE: tuple[str, ...] = (
     "mlflow_disabled",
+    "mlflow_filesystem_backend_unsupported",
     "mlflow_remote_lookup_not_enabled",
     "mlflow_remote_auth_unavailable",
     "mlflow_remote_time_budget_exceeded",
@@ -249,7 +250,7 @@ def _resolve_tracking_root(tracking_uri: str | None) -> tuple[Path | None, str, 
     mode:
       - local-sqlite-default
       - local-sqlite
-      - local-file-store
+      - unsupported-filesystem-tracking
       - remote-uri
 
     Note: for sqlite tracking, MLflow default artifact location is cwd-local
@@ -270,16 +271,9 @@ def _resolve_tracking_root(tracking_uri: str | None) -> tuple[Path | None, str, 
         return None, "remote-uri", uri
 
     if uri.startswith("file:"):
-        raw = uri[len("file:") :]
-        root = Path(raw or "./mlruns").expanduser()
-        if not root.is_absolute():
-            root = (Path.cwd() / root).resolve()
-        return root, "local-file-store", uri
+        return None, "unsupported-filesystem-tracking", uri
 
-    root = Path(uri).expanduser()
-    if not root.is_absolute():
-        root = (Path.cwd() / root).resolve()
-    return root, "local-file-store", str(root)
+    return None, "unsupported-filesystem-tracking", uri
 
 
 def _local_path_from_uri(uri: str | None) -> Path | None:
@@ -306,19 +300,7 @@ def _local_path_from_uri(uri: str | None) -> Path | None:
     return path
 
 
-def _uses_deprecated_filesystem_tracking_backend(tracking_uri: str) -> bool:
-    uri = str(tracking_uri or "").strip()
-    if not uri:
-        return False
-    parsed = urlparse(uri)
-    if parsed.scheme in {"", "file"}:
-        return True
-    return False
-
-
 def _artifact_roots_from_mlflow_experiments(tracking_uri: str) -> list[Path]:
-    if _uses_deprecated_filesystem_tracking_backend(tracking_uri):
-        return []
     try:
         from mlflow.entities import ViewType
         from mlflow.tracking import MlflowClient
@@ -803,6 +785,22 @@ def _mlflow_context(
     )
     out["mode"] = mode
     out["tracking_uri"] = tracking_display
+
+    if mode == "unsupported-filesystem-tracking":
+        out["lookup_mode"] = "disabled"
+        out["lookup_steps"] = [
+            "baseline-local-replay",
+            "unsupported-filesystem-tracking",
+        ]
+        out["note"] = (
+            "MLflow filesystem tracking backends are unsupported in DSPx alpha"
+        )
+        out["warnings"] = [
+            "MLflow filesystem tracking backends are unsupported in DSPx alpha; use sqlite:///mlflow.db."
+        ]
+        reasons.append("mlflow_filesystem_backend_unsupported")
+        out["degrade_reason_codes"] = _ordered_unique_reason_codes(reasons)
+        return out
 
     if tracking_root is None:
         out["lookup_mode"] = "remote-search"

@@ -1414,6 +1414,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2164",
+          "title": "Implement sqlite-only local MLflow backend",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement sqlite-only local MLflow backend (task #2164)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

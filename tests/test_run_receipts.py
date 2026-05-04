@@ -85,6 +85,59 @@ def _write_fake_local_mlflow_run(
         tag_path.write_text(str(value), encoding="utf-8")
 
 
+def _write_sqlite_mlflow_run(
+    tmp_path: Path,
+    *,
+    run_name: str,
+    artifacts: dict[str, str],
+    tags: dict[str, str],
+) -> str:
+    import mlflow
+
+    staging_root = tmp_path / "mlflow-artifact-staging" / run_name
+    with mlflow.start_run(run_name=run_name) as run:
+        mlflow.set_tags(tags)
+        for rel_path, content in artifacts.items():
+            source = staging_root / rel_path
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text(content, encoding="utf-8")
+            artifact_parent = Path(rel_path).parent.as_posix()
+            mlflow.log_artifact(
+                str(source),
+                artifact_path=None if artifact_parent == "." else artifact_parent,
+            )
+        return str(run.info.run_id)
+
+
+def _setup_sqlite_mlflow(
+    tmp_path: Path,
+    monkeypatch,
+    *,
+    experiment_name: str,
+) -> str:
+    import mlflow
+    from mlflow import MlflowClient
+
+    tracking_db = tmp_path / "tracking" / "mlflow.db"
+    tracking_db.parent.mkdir(parents=True, exist_ok=True)
+    tracking_uri = f"sqlite:///{tracking_db}"
+    artifact_root = tmp_path / "mlflow_artifacts" / experiment_name
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_uri)
+    monkeypatch.setenv("MLFLOW_EXPERIMENT", experiment_name)
+    mlflow.set_tracking_uri(tracking_uri)
+    client = MlflowClient(tracking_uri=tracking_uri)
+    try:
+        client.create_experiment(
+            experiment_name,
+            artifact_location=artifact_root.resolve().as_uri(),
+        )
+    except Exception:
+        pass
+    mlflow.set_experiment(experiment_name)
+    return tracking_uri
+
+
 def _generate_signature_receipt(
     tmp_path: Path, monkeypatch, *, output_name: str
 ) -> Path:
@@ -1191,30 +1244,29 @@ def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
     expected_tags = dict(receipt["mlflow_hints"]["expected_tags"])
     output_path = tmp_path / "sig.py"
 
-    tracking_root = tmp_path / "mlruns"
     artifact_payloads = {
         "sig.py": output_path.read_text(encoding="utf-8"),
         "sig.py.meta.json": meta_path.read_text(encoding="utf-8"),
     }
-    _write_fake_local_mlflow_run(
-        tracking_root,
-        experiment_id="0",
-        run_id="matching-run",
+    _setup_sqlite_mlflow(
+        tmp_path,
+        monkeypatch,
+        experiment_name="DSPxExplainTagFiltering",
+    )
+    matching_run_id = _write_sqlite_mlflow_run(
+        tmp_path,
+        run_name="matching-run",
         artifacts=artifact_payloads,
         tags=expected_tags,
     )
     mismatched_tags = dict(expected_tags)
     mismatched_tags["dspx.output_hash_prefix"] = "deadbeefdead"
-    _write_fake_local_mlflow_run(
-        tracking_root,
-        experiment_id="0",
-        run_id="mismatched-run",
+    _write_sqlite_mlflow_run(
+        tmp_path,
+        run_name="mismatched-run",
         artifacts=artifact_payloads,
         tags=mismatched_tags,
     )
-
-    monkeypatch.setenv("MLFLOW_ENABLE", "1")
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", FutureWarning)
@@ -1236,7 +1288,7 @@ def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
     payload = json.loads(r_explain.stdout)
     linked_runs = payload["mlflow_context"].get("linked_runs") or []
     assert len(linked_runs) == 1
-    assert linked_runs[0]["run_id"] == "matching-run"
+    assert linked_runs[0]["run_id"] == matching_run_id
     assert payload["mlflow_context"]["candidate_count"] == 1
     assert payload["mlflow_context"]["matched_count"] == 1
     assert "mlflow_tag_contract_violation" in (
@@ -1256,21 +1308,21 @@ def test_run_explain_local_mlflow_accepts_partial_matching_tags(
     expected_tags = dict(receipt["mlflow_hints"]["expected_tags"])
     output_path = tmp_path / "sig.py"
 
-    tracking_root = tmp_path / "mlruns"
     artifact_payloads = {
         "sig.py": output_path.read_text(encoding="utf-8"),
         "sig.py.meta.json": meta_path.read_text(encoding="utf-8"),
     }
-    _write_fake_local_mlflow_run(
-        tracking_root,
-        experiment_id="0",
-        run_id="partial-run",
+    _setup_sqlite_mlflow(
+        tmp_path,
+        monkeypatch,
+        experiment_name="DSPxExplainPartialTags",
+    )
+    partial_run_id = _write_sqlite_mlflow_run(
+        tmp_path,
+        run_name="partial-run",
         artifacts=artifact_payloads,
         tags={"service": expected_tags["service"]},
     )
-
-    monkeypatch.setenv("MLFLOW_ENABLE", "1")
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
 
     r_explain = runner.invoke(
         app,
@@ -1287,7 +1339,7 @@ def test_run_explain_local_mlflow_accepts_partial_matching_tags(
     payload = json.loads(r_explain.stdout)
     linked_runs = payload["mlflow_context"].get("linked_runs") or []
     assert len(linked_runs) == 1
-    assert linked_runs[0]["run_id"] == "partial-run"
+    assert linked_runs[0]["run_id"] == partial_run_id
     assert payload["mlflow_context"]["candidate_count"] == 1
     assert "mlflow_tag_contract_violation" not in (
         payload["mlflow_context"].get("degrade_reason_codes") or []
@@ -1306,21 +1358,21 @@ def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
     expected_tags = dict(receipt["mlflow_hints"]["expected_tags"])
     output_path = tmp_path / "sig.py"
 
-    tracking_root = tmp_path / "mlruns"
     artifact_payloads = {
         "nested/sig.py": output_path.read_text(encoding="utf-8"),
         "nested/sig.py.meta.json": meta_path.read_text(encoding="utf-8"),
     }
-    _write_fake_local_mlflow_run(
-        tracking_root,
-        experiment_id="0",
-        run_id="nested-run",
+    _setup_sqlite_mlflow(
+        tmp_path,
+        monkeypatch,
+        experiment_name="DSPxExplainNestedArtifacts",
+    )
+    nested_run_id = _write_sqlite_mlflow_run(
+        tmp_path,
+        run_name="nested-run",
         artifacts=artifact_payloads,
         tags=expected_tags,
     )
-
-    monkeypatch.setenv("MLFLOW_ENABLE", "1")
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
 
     r_explain = runner.invoke(
         app,
@@ -1337,7 +1389,7 @@ def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
     payload = json.loads(r_explain.stdout)
     linked_runs = payload["mlflow_context"].get("linked_runs") or []
     assert len(linked_runs) == 1
-    assert linked_runs[0]["run_id"] == "nested-run"
+    assert linked_runs[0]["run_id"] == nested_run_id
     assert sorted(linked_runs[0]["matched_artifacts"]) == [
         "nested/sig.py",
         "nested/sig.py.meta.json",
@@ -1345,6 +1397,91 @@ def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
     assert "mlflow_tag_contract_violation" not in (
         payload["mlflow_context"].get("degrade_reason_codes") or []
     )
+
+
+def test_run_explain_rejects_filesystem_tracking_uri_without_linking_runs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="sig.py",
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    expected_tags = dict(receipt["mlflow_hints"]["expected_tags"])
+    tracking_root = tmp_path / "mlruns"
+    _write_fake_local_mlflow_run(
+        tracking_root,
+        experiment_id="0",
+        run_id="unsupported-run",
+        artifacts={
+            "sig.py": (tmp_path / "sig.py").read_text(encoding="utf-8"),
+            "sig.py.meta.json": meta_path.read_text(encoding="utf-8"),
+        },
+        tags=expected_tags,
+    )
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", FutureWarning)
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "explain",
+                "--from",
+                str(meta_path),
+                "--with-mlflow",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert not any(
+        "filesystem tracking backend" in str(item.message) for item in caught
+    )
+    payload = json.loads(result.stdout)
+    ctx = payload["mlflow_context"]
+    assert ctx["mode"] == "unsupported-filesystem-tracking"
+    assert ctx["lookup_mode"] == "disabled"
+    assert ctx["linked_runs"] == []
+    assert ctx["candidate_count"] == 0
+    assert ctx["matched_count"] == 0
+    assert "mlflow_filesystem_backend_unsupported" in ctx["degrade_reason_codes"]
+    assert "unsupported-run" not in json.dumps(ctx)
+
+
+def test_run_explain_rejects_local_path_tracking_uri(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path,
+        monkeypatch,
+        output_name="sig.py",
+    )
+    tracking_root = tmp_path / "mlruns"
+    tracking_root.mkdir()
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", str(tracking_root))
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(meta_path),
+            "--with-mlflow",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    ctx = json.loads(result.stdout)["mlflow_context"]
+    assert ctx["mode"] == "unsupported-filesystem-tracking"
+    assert ctx["lookup_mode"] == "disabled"
+    assert ctx["degrade_reason_codes"] == ["mlflow_filesystem_backend_unsupported"]
 
 
 def test_run_explain_remote_uri_default_off_lookup(tmp_path: Path, monkeypatch) -> None:

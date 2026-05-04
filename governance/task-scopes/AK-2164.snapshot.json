@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T13:23:33.580408039+00:00",
+  "task_id": 2164,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/MLFLOW_OBSERVABILITY_PLAN.md",
+      "docs/rfc/RFC-DSPX-OBS-20260504-mlflow-local-sqlite-backend.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/run_explain_service.py",
+      "packages/dspx-core/src/dspx/tracing.py",
+      "tests/test_mlflow_tracking_uri_modes.py",
+      "tests/test_run_receipts.py"
+    ],
+    "required_paths": [
+      "docs/MLFLOW_OBSERVABILITY_PLAN.md",
+      "packages/dspx-core/src/dspx/services/run_explain_service.py",
+      "packages/dspx-core/src/dspx/tracing.py",
+      "tests/test_mlflow_tracking_uri_modes.py",
+      "tests/test_run_receipts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

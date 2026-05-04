@@ -18,6 +18,7 @@ from contextlib import contextmanager
 import hashlib
 import inspect
 import os
+from urllib.parse import urlparse
 
 __all__ = [
     "enable_mlflow_from_env",
@@ -25,6 +26,7 @@ __all__ = [
     "mlflow_enabled",
     "get_mlflow",
     "default_tracking_uri_from_env",
+    "filesystem_tracking_uri_unsupported",
     "standard_tags",
     "ensure_run_with_standard_tags",
     "nested_run_with_tags",
@@ -56,6 +58,8 @@ def get_mlflow():
     """
     if not mlflow_enabled():
         return None
+    if filesystem_tracking_uri_unsupported():
+        return None
     try:
         import mlflow
 
@@ -68,13 +72,26 @@ def default_tracking_uri_from_env() -> str:
     """Resolve tracking URI with DSPx local-default policy.
 
     Policy:
-    - explicit MLFLOW_TRACKING_URI wins
+    - explicit MLFLOW_TRACKING_URI wins when it is supported
     - otherwise use local sqlite backend (deterministic across MLflow versions)
     """
     uri = os.getenv("MLFLOW_TRACKING_URI")
     if uri and uri.strip():
         return uri.strip()
     return "sqlite:///mlflow.db"
+
+
+def filesystem_tracking_uri_unsupported(uri: str | None = None) -> bool:
+    """Return True when a URI selects MLflow's deprecated filesystem backend."""
+
+    value = os.getenv("MLFLOW_TRACKING_URI") if uri is None else uri
+    raw = str(value or "").strip()
+    if not raw:
+        return False
+    parsed = urlparse(raw)
+    if parsed.scheme in {"", "file"}:
+        return True
+    return False
 
 
 def _autolog_enabled() -> bool:
@@ -149,6 +166,8 @@ def enable_mlflow_from_env() -> bool:
     """
     if not mlflow_enabled():
         return False
+    if filesystem_tracking_uri_unsupported():
+        return False
 
     mlflow = get_mlflow()
     if mlflow is None:
@@ -182,6 +201,8 @@ def ensure_run_from_env(
     - Honors `MLFLOW_ENABLE` toggle; returns False if disabled or mlflow missing.
     """
     if not mlflow_enabled():
+        return False
+    if filesystem_tracking_uri_unsupported():
         return False
     mlflow = get_mlflow()
     if mlflow is None:
@@ -412,6 +433,9 @@ def nested_run_with_tags(
     - If nested runs are not enabled via env, yields False.
     - Otherwise starts a nested run and yields True, ending it on exit.
     """
+    if filesystem_tracking_uri_unsupported():
+        yield False
+        return
     mlflow = get_mlflow()
     if mlflow is None:
         yield False

@@ -84,7 +84,6 @@ def _install_fake_mlflow(monkeypatch: pytest.MonkeyPatch) -> _FakeMlflowBackend:
 @pytest.mark.parametrize(
     "uri",
     [
-        "file:/tmp/dspx_mlruns_explicit",
         "sqlite:////tmp/dspx_mlflow_explicit.db",
         "http://127.0.0.1:5000",
     ],
@@ -102,6 +101,29 @@ def test_enable_mlflow_honors_explicit_tracking_uri(
     assert enable_mlflow_from_env() is True
     assert ("set_tracking_uri", uri) in backend.calls
     assert ("set_experiment", "DSPxTest") in backend.calls
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "file:/tmp/dspx_mlruns_explicit",
+        "/tmp/dspx_mlruns_explicit",
+    ],
+)
+def test_enable_mlflow_rejects_filesystem_tracking_uri(
+    monkeypatch: pytest.MonkeyPatch, uri: str
+) -> None:
+    backend = _install_fake_mlflow(monkeypatch)
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", uri)
+    monkeypatch.setenv("MLFLOW_EXPERIMENT", "DSPxTest")
+
+    from dspx.tracing import enable_mlflow_from_env, filesystem_tracking_uri_unsupported
+
+    assert filesystem_tracking_uri_unsupported() is True
+    assert enable_mlflow_from_env() is False
+    assert not any(call[0] == "set_tracking_uri" for call in backend.calls)
+    assert not any(call[0] == "set_experiment" for call in backend.calls)
 
 
 def test_enable_mlflow_defaults_to_local_sqlite_uri(
