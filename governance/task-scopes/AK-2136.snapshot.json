@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T02:02:29.017929572+00:00",
+  "task_id": 2136,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/MLFLOW_OBSERVABILITY_PLAN.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/run_explain_service.py",
+      "tests/test_run_receipts.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/run_explain_service.py",
+      "tests/test_run_receipts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

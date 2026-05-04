@@ -306,7 +306,19 @@ def _local_path_from_uri(uri: str | None) -> Path | None:
     return path
 
 
+def _uses_deprecated_filesystem_tracking_backend(tracking_uri: str) -> bool:
+    uri = str(tracking_uri or "").strip()
+    if not uri:
+        return False
+    parsed = urlparse(uri)
+    if parsed.scheme in {"", "file"}:
+        return True
+    return False
+
+
 def _artifact_roots_from_mlflow_experiments(tracking_uri: str) -> list[Path]:
+    if _uses_deprecated_filesystem_tracking_backend(tracking_uri):
+        return []
     try:
         from mlflow.entities import ViewType
         from mlflow.tracking import MlflowClient

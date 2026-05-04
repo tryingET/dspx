@@ -4,6 +4,7 @@ from pathlib import Path
 import hashlib
 import json
 import subprocess
+import warnings
 
 from typer.testing import CliRunner
 
@@ -1215,16 +1216,21 @@ def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
     monkeypatch.setenv("MLFLOW_ENABLE", "1")
     monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_root.resolve().as_uri())
 
-    r_explain = runner.invoke(
-        app,
-        [
-            "run",
-            "explain",
-            "--from",
-            str(meta_path),
-            "--with-mlflow",
-            "--json",
-        ],
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", FutureWarning)
+        r_explain = runner.invoke(
+            app,
+            [
+                "run",
+                "explain",
+                "--from",
+                str(meta_path),
+                "--with-mlflow",
+                "--json",
+            ],
+        )
+    assert not any(
+        "filesystem tracking backend" in str(item.message) for item in caught
     )
     assert r_explain.exit_code == 0
     payload = json.loads(r_explain.stdout)
