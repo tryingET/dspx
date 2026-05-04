@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T19:49:25.191574646+00:00",
+  "task_id": 2202,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/rfc/RFC-DSPX-OBS-20260207-mlflow-explain-correlation-v11.md",
+      "docs/rfc/RFC-DSPX-OBS-20260504-mlflow-local-sqlite-backend.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/rfc/RFC-DSPX-OBS-20260207-mlflow-explain-correlation-v11.md",
+      "docs/rfc/RFC-DSPX-OBS-20260504-mlflow-local-sqlite-backend.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

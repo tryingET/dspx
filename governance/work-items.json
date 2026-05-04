@@ -1492,6 +1492,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2202",
+          "title": "Reconcile MLflow sqlite RFC state",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Reconcile MLflow sqlite RFC state (task #2202)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

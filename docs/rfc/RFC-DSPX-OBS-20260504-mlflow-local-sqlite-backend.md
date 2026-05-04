@@ -1,5 +1,5 @@
 ---
-summary: "RFC draft for making sqlite the only supported local MLflow backend for DSPx explain correlation in alpha, with filesystem tracking removed rather than preserved as compatibility."
+summary: "Implemented RFC for making sqlite the only supported local MLflow backend for DSPx explain correlation in alpha, with filesystem tracking removed rather than preserved as compatibility."
 read_when:
   - "You are changing MLflow tracking URI handling, local explain enrichment, or MLflow-related tests."
   - "You are resolving MLflow filesystem tracking deprecation warnings."
@@ -11,7 +11,7 @@ read_when:
 ## 0) Metadata
 
 - RFC ID: `RFC-DSPX-OBS-20260504-mlflow-local-sqlite-backend`
-- Status: `draft`
+- Status: `accepted/implemented`
 - Owner: `DSPx maintainers`
 - Reviewers: `DSPx observability reviewers`, `runtime/replay maintainers`
 - Created: `2026-05-04`
@@ -21,7 +21,10 @@ read_when:
   - `docs/rfc/RFC-DSPX-OBS-20260207-mlflow-explain-correlation-v11.md`
   - `docs/ARCH_DRAFT_DSPX_NEXT.md`
 - Related recent commits:
-  - `06727cb fix: avoid deprecated mlflow file-store lookup`
+  - `06727cb fix: avoid deprecated mlflow file-store lookup` — superseded warning workaround
+  - `754de9f docs: specify sqlite-only local mlflow backend`
+  - `9c0f82d fix: require sqlite for local mlflow tracking`
+  - `7cf87f7 docs: align mlflow sqlite setup surfaces`
 
 ## 1) Problem statement
 
@@ -49,27 +52,34 @@ The design question is therefore:
 - expected local artifact root remains `./mlruns`;
 - replay/explain truth remains receipt/replay-local, with MLflow as optional enrichment only.
 
-The doc still lists `file:...` and local path tracking modes. This RFC supersedes that portion for DSPx alpha: file/local-path MLflow tracking should no longer be a supported DSPx local mode.
+Before this RFC was implemented, that plan still listed `file:...` and local path tracking modes. This RFC superseded that portion for DSPx alpha: file/local-path MLflow tracking is not a supported DSPx local mode.
 
-### 2.2 Existing implementation still treats file-store as local
+### 2.2 Former implementation drift treated file-store as local
 
-`run_explain_service.py` currently treats sqlite and filesystem tracking as local scan modes. That is the source of the design drift. SQLite tracking should be the local backend of record. Filesystem tracking should be rejected or degraded before MLflow constructs the deprecated backend.
+Before the sqlite-only implementation, `run_explain_service.py` treated sqlite and filesystem tracking as local scan modes. That was the source of the design drift. SQLite tracking is now the local backend of record. Filesystem tracking is rejected or degraded before MLflow can construct the deprecated backend.
 
-The local artifact scan remains valid for sqlite because MLflow sqlite stores metadata in the database while artifacts normally live on the filesystem. The problem is not scanning artifacts; the problem is treating the artifact directory as the MLflow tracking backend.
+The local artifact scan remains valid for sqlite because MLflow sqlite stores metadata in the database while artifacts normally live on the filesystem. The problem was not scanning artifacts; the problem was treating the artifact directory as the MLflow tracking backend.
 
-### 2.3 Warning-producing tests encode the wrong contract
+### 2.3 Former warning-producing tests encoded the wrong contract
 
-The three warning-producing tests create fake `mlruns` directory layouts and set `MLFLOW_TRACKING_URI` to `file://.../mlruns`:
+The three warning-producing tests created fake `mlruns` directory layouts and set `MLFLOW_TRACKING_URI` to `file://.../mlruns`:
 
 - same-artifact filtering by expected tags;
 - partial tag matching;
 - nested artifact paths.
 
-Those behaviors are valuable, but the fixture backend is wrong. The tests should be migrated to real sqlite-backed MLflow runs.
+Those behaviors are valuable, but the fixture backend was wrong. The canonical tests now use real sqlite-backed MLflow runs for those behaviors.
 
-### 2.4 Existing sqlite coverage is incomplete
+### 2.4 Implementation outcome
 
-The suite already contains sqlite-backed tests, including custom artifact-root coverage. These prove the sqlite path exists, but they do not yet cover all local explain-correlation scenarios currently exercised by filesystem fixtures.
+The sqlite-only contract is implemented:
+
+- unset `MLFLOW_TRACKING_URI` resolves to `sqlite:///mlflow.db`;
+- explicit `sqlite:...` local tracking is supported;
+- `file:...` and bare local path tracking URIs are unsupported;
+- read-only explain degrades MLflow enrichment with `mlflow_filesystem_backend_unsupported` rather than instantiating MLflow's filesystem backend;
+- canonical local explain-correlation tests use sqlite-backed MLflow runs for tag filtering, partial tag matching, and nested artifact paths;
+- setup/onboarding surfaces now tell local users to leave `MLFLOW_TRACKING_URI` unset or set `sqlite:///mlflow.db`.
 
 ## 3) Goals and non-goals
 
@@ -280,13 +290,13 @@ If time allows, run `just verify-full`; if it exceeds harness time, run `just ve
 
 ## 8) Implementation wave
 
-Recommended implementation wave:
+Implemented wave:
 
 ```text
 Remove local MLflow filesystem tracking and migrate explain correlation to sqlite
 ```
 
-Initial scope:
+Implemented scope:
 
 - `packages/dspx-core/src/dspx/tracing.py`
 - `packages/dspx-core/src/dspx/services/run_explain_service.py`
@@ -295,49 +305,46 @@ Initial scope:
 - `governance/work-items.json`
 - `governance/task-scopes/AK-<ID>.snapshot.json`
 
-Steps:
+Completed steps:
 
-1. Add or adapt a sqlite MLflow fixture helper that creates a temp sqlite DB, experiment, artifact root, run tags, and logged artifacts.
-2. Rewrite the three warning-producing tests to use sqlite-backed real runs.
-3. Replace file-store direct-scan behavior with unsupported filesystem tracking degradation.
-4. Add `mlflow_filesystem_backend_unsupported` to diagnostics/reason-code handling.
-5. Guard MLflow bootstrap/logging helpers against `file:` and local path tracking URIs.
-6. Update `docs/MLFLOW_OBSERVABILITY_PLAN.md` to remove file/local-path tracking from supported modes.
-7. Run targeted validation.
+1. Added sqlite MLflow fixture helpers that create a temp sqlite DB, experiment, artifact root, run tags, and logged artifacts.
+2. Rewrote the three warning-producing tests to use sqlite-backed real runs.
+3. Replaced file-store direct-scan behavior with unsupported filesystem tracking degradation.
+4. Added `mlflow_filesystem_backend_unsupported` to diagnostics/reason-code handling.
+5. Guarded MLflow bootstrap/logging helpers against `file:` and local path tracking URIs.
+6. Updated `docs/MLFLOW_OBSERVABILITY_PLAN.md` and setup/onboarding surfaces to remove file/local-path tracking from supported modes.
+7. Ran targeted warning-as-error validation and sqlite smoke validation.
 
 ## 9) Compatibility and rollout
 
 DSPx is in alpha. No filesystem-tracking compatibility window is required.
 
-Rollout:
+Rollout status:
 
-1. Land sqlite-backed test migration and unsupported filesystem tracking diagnostics in one focused implementation wave.
-2. Remove fake file-store matching fixtures from canonical explain-correlation tests.
-3. Keep output schema changes additive where practical, but do not preserve deprecated backend behavior for schema compatibility alone.
-4. Document the migration path for local users as: set `MLFLOW_TRACKING_URI=sqlite:///mlflow.db` or leave it unset.
+1. SQLite-backed test migration and unsupported filesystem tracking diagnostics landed in one focused implementation wave.
+2. Fake file-store matching fixtures were removed from canonical explain-correlation tests.
+3. Output schema changes stayed additive where practical, but deprecated backend behavior was not preserved for schema compatibility alone.
+4. The migration path for local users is documented as: set `MLFLOW_TRACKING_URI=sqlite:///mlflow.db` or leave it unset.
 
-## 10) Acceptance criteria
+## 10) Acceptance evidence
 
-This RFC is implemented when:
+Implemented acceptance evidence:
 
 - the three former warning-producing tests no longer use `file://.../mlruns` as their backend;
 - sqlite-backed real MLflow runs cover tag filtering, partial tag matching, and nested artifact paths;
 - explicit `file:` and local path tracking URIs are unsupported and do not link runs;
 - unsupported filesystem tracking emits deterministic diagnostics, including `mlflow_filesystem_backend_unsupported`;
-- no DSPx path instantiates MLflow's filesystem tracking backend;
-- `uv run pytest tests/test_run_receipts.py -q -W error::FutureWarning` passes;
+- DSPx rejects filesystem tracking before configuring MLflow's deprecated filesystem backend;
+- `uv run pytest tests/test_mlflow_tracking_uri_modes.py tests/test_mlflow_enabled_local_store.py tests/test_run_receipts.py -q -W error::FutureWarning` passed after implementation/setup alignment;
 - docs say sqlite is the only supported local MLflow backend;
 - read-only explain still has no MLflow run creation/logging side effects;
 - remote lookup remains opt-in.
 
-## 11) Open questions
+## 11) Resolved questions
 
-1. Should unsupported filesystem tracking set `mlflow_context.mode` to `unsupported-filesystem-tracking`, or preserve the older `local-file-store` value with a new reason code?
-   - Recommendation: use `unsupported-filesystem-tracking`; DSPx is alpha and should prefer clear diagnostics over compatibility naming.
-2. Should `enable_mlflow_from_env()` return `False` silently for filesystem tracking URIs or expose a warning in a diagnostics surface?
-   - Recommendation: return `False` without importing/configuring MLflow; add diagnostics only in caller surfaces that already emit structured context, such as `run explain`.
-3. Should local path tracking ever be interpreted as sqlite path shorthand?
-   - Recommendation: no. Require `sqlite:///...` explicitly for sqlite and reject bare paths to avoid ambiguity.
+1. Unsupported filesystem tracking sets `mlflow_context.mode` to `unsupported-filesystem-tracking` rather than preserving `local-file-store` naming.
+2. `enable_mlflow_from_env()` returns `False` for filesystem tracking URIs before importing/configuring MLflow; structured diagnostics are emitted on caller surfaces that already expose `mlflow_context`, such as `run explain`.
+3. Bare local paths are not sqlite shorthand. Users must leave `MLFLOW_TRACKING_URI` unset or use explicit `sqlite:///...`.
 
 ## 12) Reviewer checklist
 

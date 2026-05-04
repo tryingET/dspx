@@ -52,9 +52,10 @@ Impact:
 ## 3) Current state evidence
 
 - existing behavior:
-  - local sqlite/file scan support implemented
+  - local sqlite-only tracking support implemented for DSPx alpha
+  - unsupported filesystem-tracking diagnostics implemented for `file:...` and bare local path tracking URIs
   - sqlite custom artifact-root fallback via experiment metadata implemented
-  - run metadata fallback via `MlflowClient.get_run(...)` when local `meta.yaml` missing
+  - run metadata fallback via `MlflowClient.get_run(...)` when local artifact-side metadata is missing
 - metrics/logs/tests proving gap:
   - remote URI path degrades by design, with no high-confidence correlation contract yet
   - no formalized diagnostics reason-code set for enrichment-specific degradations
