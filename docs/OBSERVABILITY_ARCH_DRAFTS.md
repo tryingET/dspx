@@ -14,9 +14,10 @@ Prepare clean handoff docs so domain experts can draft architecture in a new con
 ## Current baseline (already landed)
 
 - deterministic local MLflow default: `sqlite:///mlflow.db`
+- local MLflow tracking is sqlite-only in DSPx alpha; `file:...` and bare local path tracking URIs are unsupported
 - explicit run start semantics (bootstrap does not start runs)
 - DSPy autolog trace collection off by default for stability
-- explain local enrichment supports sqlite/file modes
+- explain local enrichment supports sqlite metadata plus local artifact-root scanning; filesystem artifact scanning does not make filesystem tracking a supported backend
 - sqlite custom artifact roots now resolved from MLflow experiment metadata
 
 Read baseline docs first:

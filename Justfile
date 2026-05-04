@@ -513,18 +513,21 @@ viberefine prompt out="generated/refined_sig.py":
   uv run -q python -m dspx.cli.viberefine --non-interactive -o "{{out}}" "{{prompt}}"
 
 # MLflow smoke: signature refine should create a `signature-refine` run with standard tags and code artifacts.
+# Local MLflow tracking is sqlite-only; run from the temp dir so sqlite artifacts stay temp-local too.
 mlflow-smoke-signature-refine:
+  REPO="$PWD"; \
   TD="$(mktemp -d)"; \
   echo "[mlflow-smoke-signature-refine] dir=$TD"; \
+  cd "$TD"; \
   export MLFLOW_ENABLE=1; \
-  export MLFLOW_TRACKING_URI="file:$TD/mlruns"; \
+  export MLFLOW_TRACKING_URI="sqlite:///$TD/mlflow.db"; \
   export MLFLOW_EXPERIMENT="DSPxSmoke"; \
   export DSPX_PROVIDER=stub; \
-  uv run -q python -m dspx.cli.dspx signature refine \
+  uv run --project "$REPO" -q python -m dspx.cli.dspx signature refine \
     --attempts 1 \
     --outfile "$TD/refined_sig.py" \
     "Reply with the single word: hello" >/dev/null; \
-  DSPX_EXPECT_OUTFILE="refined_sig.py" uv run -q python scripts/smoke_mlflow_signature_refine.py
+  DSPX_EXPECT_OUTFILE="refined_sig.py" uv run --project "$REPO" -q python "$REPO/scripts/smoke_mlflow_signature_refine.py"
 
 # Generate code from a spec (prints or writes a file) from source
 codegen spec lang="python" out="generated/codegen_out.py":

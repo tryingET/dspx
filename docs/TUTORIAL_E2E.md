@@ -13,9 +13,10 @@ Goal: generate DSPy programs from a Mermaid flow, call an OpenAPI endpoint, and 
 Prereqs
 - Python 3.13 with `uv` and project deps installed (`just install`).
 - Optional: `.env` for provider keys / Just recipes: `cp .env.example .env` (git-ignored).
-- Optional: MLflow server:
-  - Local file store (no server): set `MLFLOW_TRACKING_URI=file:./mlruns`.
+- Optional: MLflow tracking:
+  - Local sqlite backend (no server): leave `MLFLOW_TRACKING_URI` unset, or set `MLFLOW_TRACKING_URI=sqlite:///mlflow.db`.
   - Docker compose (Synology/NAS-oriented): `just mlflow-up` then set `MLFLOW_TRACKING_URI=http://127.0.0.1:50000` (see `docker-compose.yml`).
+  - `file:./mlruns` / bare local path tracking URIs are unsupported in DSPx alpha; local artifacts may still live under `./mlruns` when sqlite tracking is used.
 
 1) Prepare a simple Mermaid workflow
 Create `flow.mmd` with a single step and an OpenAPI call:
@@ -96,7 +97,15 @@ just dspx run explain --from sig.py.meta.json --with-mlflow --json
 ```
 
 7) Observability (optional)
-Enable MLflow to record inputs/outputs and attach artifacts/manifests:
+Enable MLflow to record inputs/outputs and attach artifacts/manifests. For local-first use, either leave `MLFLOW_TRACKING_URI` unset or set sqlite explicitly:
+
+```
+export MLFLOW_ENABLE=1
+export MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+just dspx codegen "A CLI that prints hi" -l python --outfile gen.py
+```
+
+For a running MLflow server, use the server URI instead:
 
 ```
 export MLFLOW_ENABLE=1
@@ -112,7 +121,7 @@ Set a run group to help filter related executions in MLflow, and provide clearer
 
 ```
 export MLFLOW_ENABLE=1
-export MLFLOW_TRACKING_URI=http://127.0.0.1:50000
+export MLFLOW_TRACKING_URI=sqlite:///mlflow.db
 export DSPX_RUN_GROUP=my-demo
 
 # Named runs appear as signature-<class>, module-<name>, codegen-<lang>, mermaid-<flow>

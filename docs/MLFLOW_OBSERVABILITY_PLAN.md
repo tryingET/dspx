@@ -93,7 +93,7 @@ Run explain enrichment (`--with-mlflow`) treats sqlite modes as local scan candi
 
 - disabled mode: no import + no side effects
 - local default mode: uses sqlite + local artifacts
-- explicit URI mode: file/sqlite/http behavior covered
+- explicit URI mode: sqlite/http supported behavior and unsupported filesystem-tracking diagnostics covered
 - nested run behavior: child run does not end parent
 - GEPA path with tracing enabled: no noisy span-start warning flood
 

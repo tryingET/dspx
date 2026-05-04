@@ -19,6 +19,7 @@ def main() -> None:
     uri = os.environ["MLFLOW_TRACKING_URI"]
     exp_name = os.environ["MLFLOW_EXPERIMENT"]
     expected_outfile = os.environ.get("DSPX_EXPECT_OUTFILE", "refined_sig.py")
+    expected_template_version = os.environ.get("DSPX_EXPECT_TEMPLATE_VERSION", "v1")
 
     client = MlflowClient(tracking_uri=uri)
     exp = client.get_experiment_by_name(exp_name)
@@ -34,8 +35,9 @@ def main() -> None:
 
     assert (r.info.run_name or "") == "signature-refine", r.info.run_name
     assert r.data.tags.get("service") == "signature", r.data.tags.get("service")
-    assert r.data.tags.get("template_version") == "refine-v1", r.data.tags.get(
-        "template_version"
+    assert r.data.tags.get("template_version") == expected_template_version, (
+        expected_template_version,
+        r.data.tags.get("template_version"),
     )
     assert r.data.tags.get("signature.mode") == "refine", r.data.tags.get(
         "signature.mode"

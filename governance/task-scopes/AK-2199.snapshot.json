@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T19:36:26.260398781+00:00",
+  "task_id": 2199,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "docs/ARCH_DRAFT_DSPX_NEXT.md",
+      "docs/MLFLOW_OBSERVABILITY_PLAN.md",
+      "docs/OBSERVABILITY_ARCH_DRAFTS.md",
+      "docs/RUN_REPLAY_EXPLAIN.md",
+      "docs/TUTORIAL_E2E.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "scripts/smoke_mlflow_signature_refine.py"
+    ],
+    "required_paths": [
+      "Justfile",
+      "docs/ARCH_DRAFT_DSPX_NEXT.md",
+      "docs/OBSERVABILITY_ARCH_DRAFTS.md",
+      "docs/RUN_REPLAY_EXPLAIN.md",
+      "docs/TUTORIAL_E2E.md",
+      "scripts/smoke_mlflow_signature_refine.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

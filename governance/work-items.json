@@ -1479,6 +1479,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2199",
+          "title": "Align local MLflow sqlite setup surfaces",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Align local MLflow sqlite setup surfaces (task #2199)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

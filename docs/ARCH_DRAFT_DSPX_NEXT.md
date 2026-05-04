@@ -25,9 +25,10 @@ Do **not** own in DSPx:
 ## Current state
 
 Implemented:
-- sqlite/file local scan mode
-- sqlite custom artifact-root fallback via MLflow experiment metadata
-- run metadata fallback via `MlflowClient.get_run(...)` when local `meta.yaml` missing
+- sqlite-only local MLflow tracking mode for DSPx alpha
+- unsupported filesystem-tracking diagnostics for `file:...` and bare local path tracking URIs
+- sqlite artifact-root fallback via MLflow experiment metadata
+- run metadata fallback via `MlflowClient.get_run(...)` when local artifact-side metadata is missing
 
 Still weak:
 - remote backend linkage = best-effort degraded
@@ -65,10 +66,11 @@ Compatibility: hints optional; replay contract remains local-first.
 
 `run explain --with-mlflow` stages:
 1. baseline local replay checks (already source of truth)
-2. local artifact linkage scan (sqlite/file)
-3. local metadata enrich (meta.yaml or client fallback)
-4. optional remote lookup phase (new)
-5. merge + emit deterministic `mlflow_context`
+2. tracking mode classification: sqlite local, unsupported filesystem tracking, or remote URI
+3. sqlite-backed local artifact linkage scan using MLflow metadata and artifact roots
+4. local metadata enrich (artifact-side metadata or client fallback)
+5. optional remote lookup phase (new)
+6. merge + emit deterministic `mlflow_context`
 
 ### C) Remote lookup (opt-in, best-effort)
 
