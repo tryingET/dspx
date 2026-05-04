@@ -492,13 +492,17 @@ tool-install:
   uv tool install packages/dspx-core
   uv tool install apps/forge
 
-# Start MLflow server via Docker Compose
+# Explain repo-local MLflow server setup policy
 mlflow-up:
-  docker compose up -d
+  @echo "No repo-local MLflow Docker Compose config is provided."
+  @echo "For local tracking, leave MLFLOW_TRACKING_URI unset or set MLFLOW_TRACKING_URI=sqlite:///mlflow.db."
+  @echo "For an external MLflow server, start it outside DSPx and set MLFLOW_TRACKING_URI=http://host:port."
+  @exit 2
 
-# Stop MLflow server
+# Explain repo-local MLflow server shutdown policy
 mlflow-down:
-  docker compose down
+  @echo "No repo-local MLflow Docker Compose config is provided; nothing repo-local was started by DSPx."
+  @exit 2
 
 # Run the DSPy + Codex Exec example (from source)
 example:

@@ -1505,6 +1505,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2207",
+          "title": "Align MLflow server setup guidance with sqlite default",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Align MLflow server setup guidance with sqlite default (task #2207)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

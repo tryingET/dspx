@@ -614,9 +614,11 @@ Enable MLflow for local tracing:
 
 ```bash
 export MLFLOW_ENABLE=1
-# optional: omit this for local sqlite default
-export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+# optional: omit this because sqlite:///mlflow.db is the local default
+export MLFLOW_TRACKING_URI=sqlite:///mlflow.db
 ```
+
+For an external MLflow server, start that server outside DSPx and set `MLFLOW_TRACKING_URI=http://host:port`. DSPx does not require a server for local tracing.
 
 MLflow behavior and constraints:
 - `docs/MLFLOW_OBSERVABILITY_PLAN.md`
