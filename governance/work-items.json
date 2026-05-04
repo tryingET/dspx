@@ -1405,14 +1405,15 @@
         {
           "id": "AK-TASK-2163",
           "title": "Propagate behavior episode evidence into candidate state and promotion plans",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Propagate behavior episode evidence into candidate state and promotion plans (task #2163)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

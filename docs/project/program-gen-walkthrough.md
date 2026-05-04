@@ -558,7 +558,8 @@ Expected JSON facts:
 - target kind and `authority_owner` are copied from explicit CLI input
 - `candidate_identity` matches the candidate manifest
 - `created_from` records candidate manifest, decision record, comparison sidecar, optional review/source paths, and schemas
-- `evidence_hashes` records candidate manifest, behavior results, execution episode, Oracle-readable evidence, decision record, and comparison sidecar hashes when present
+- `evidence_hashes` records candidate manifest, behavior results when present, behavior episode, execution episode, Oracle-readable evidence, decision record, and comparison sidecar hashes when present
+- `eligibility` reports whether behavior evidence came from example-backed `behavior_results.json` or the broader bounded `behavior_episode.json`; dataset-only evidence can qualify the local plan without implying apply readiness
 - `eligibility.status` can be `eligible_for_local_plan_only`, but `eligibility.allowed_for_apply` remains `false`
 - `missing_required_evidence` includes future authority/apply requirements such as `no_external_authority_contract` and `apply_not_supported`
 - `audit_trail` records evidence hashes plus `created_by`
@@ -736,10 +737,10 @@ Expected JSON facts:
 - `schema_version: program-candidate-state-v1`
 - `status` is a truth-preserving local posture such as `not_promoted_external_preflighted_not_applied`
 - `candidate_identity` and optional `source_identity` identify the exact artifacts being summarized
-- `evidence_state` reports behavior evidence, execution episode, Oracle-readable evidence, optional Oracle report, and optional refinement proposal
+- `evidence_state` reports example-backed behavior results when present, bounded `behavior_episode.json` evidence when present, execution episode, Oracle-readable evidence, optional Oracle report, and optional refinement proposal
 - `promotion_state` reports review readiness, decision outcome, optional local jury-results evidence, comparison role, optional promotion plan, optional external-authority local preflight blockers, and separate future external-apply blockers
 - `truth_summary` keeps `promotion_applied`, `external_authority_mutated`, `governance_mutated`, `ak_called`, `winner_selected`, `automatic_promotion`, and `ready_for_future_apply` false
-- `artifact_hashes` records deterministic hashes for every supplied sidecar
+- `artifact_hashes` records deterministic hashes for every supplied sidecar plus local behavior result / behavior episode evidence when present
 
 This command writes only the requested state summary. Local jury results are summarized as evidence only and do not create promotion authority or winner selection. The command does not mutate candidate artifacts or sidecar inputs, does not create or mutate Oracle indexes, does not call AK, does not apply authority, does not select a winner, does not promote, and does not introduce `eval_behavior.py`.
 

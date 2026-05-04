@@ -25,6 +25,7 @@ PROGRAM_PROMOTION_PLAN_SCHEMA = "program-promotion-plan-v1"
 PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA = (
     "program-external-authority-export-preflight-v1"
 )
+PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 
 
 class ProgramCandidateStateError(ValueError):
@@ -62,6 +63,24 @@ def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value if str(item).strip()]
+
+
+def _safe_int(value: object, *, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return default
+        try:
+            return int(text)
+        except ValueError:
+            return default
+    return default
 
 
 def _first_text(*values: object) -> str | None:
@@ -163,6 +182,106 @@ def _optional_hash(path: Path | None) -> str | None:
     if path is None or not path.exists():
         return None
     return _sha256_file(path)
+
+
+def _declared_behavior_episode_path(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> Path | None:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    episode_path = _first_text(behavior_orchestration.get("result_artifact"))
+    if episode_path is None:
+        episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+        episode_path = _first_text(episode_artifact.get("path"))
+    if episode_path is None:
+        candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+        for surface in _safe_list(candidate_assembly.get("surfaces")):
+            if not isinstance(surface, Mapping):
+                continue
+            if surface.get("kind") == "behavior_episode":
+                episode_path = _first_text(surface.get("path"))
+                break
+    if episode_path is None:
+        request = _safe_mapping(manifest.get("request"))
+        if request.get("behavior_episode_hash"):
+            episode_path = "behavior_episode.json"
+    if episode_path is None:
+        return None
+    path = Path(episode_path)
+    if not path.is_absolute():
+        path = _manifest_root(manifest_path) / path
+    return path
+
+
+def _declared_behavior_episode_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    request = _safe_mapping(manifest.get("request"))
+    request_hash = _first_text(request.get("behavior_episode_hash"))
+    if request_hash:
+        hashes["request.behavior_episode_hash"] = request_hash
+
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    orchestration_hash = _first_text(behavior_orchestration.get("result_hash"))
+    if orchestration_hash:
+        hashes["execution_episode.behavior_orchestration.result_hash"] = (
+            orchestration_hash
+        )
+
+    episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+    artifact_hash = _first_text(episode_artifact.get("content_hash"))
+    if artifact_hash:
+        hashes["manifest.behavior_episode_artifact.content_hash"] = artifact_hash
+
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    evidence_hash = _first_text(evidence.get("behavior_episode_hash"))
+    if evidence_hash:
+        hashes["receipt_bundle.evidence.behavior_episode_hash"] = evidence_hash
+
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate_assembly.get("surfaces")):
+        if not isinstance(surface, Mapping):
+            continue
+        if surface.get("kind") == "behavior_episode":
+            surface_hash = _first_text(surface.get("content_hash"))
+            if surface_hash:
+                hashes["candidate_assembly.surfaces.behavior_episode.content_hash"] = (
+                    surface_hash
+                )
+    return hashes
+
+
+def _load_program_behavior_episode(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+    episode_path = _declared_behavior_episode_path(manifest, manifest_path)
+    if episode_path is None or not episode_path.exists():
+        return None, episode_path, None
+
+    episode = _load_json_object(episode_path, label="program behavior episode")
+    if episode.get("schema_version") != PROGRAM_BEHAVIOR_EPISODE_SCHEMA:
+        raise ProgramCandidateStateError(
+            "program behavior episode schema_version must be "
+            + PROGRAM_BEHAVIOR_EPISODE_SCHEMA
+        )
+    actual_hash = _sha256_file(episode_path)
+    declared_hashes = _declared_behavior_episode_hashes(manifest)
+    mismatches = [
+        name
+        for name, declared_hash in declared_hashes.items()
+        if declared_hash != actual_hash
+    ]
+    if mismatches:
+        raise ProgramCandidateStateError(
+            "program behavior episode hash does not match manifest declaration(s): "
+            + ", ".join(sorted(mismatches))
+        )
+    return episode, episode_path, actual_hash
 
 
 def _load_optional_artifact(
@@ -404,9 +523,45 @@ def _behavior_summary(
         "present": True,
         "schema_version": behavior.get("schema_version"),
         "status": str(summary.get("status") or "unknown"),
-        "example_count": int(summary.get("total") or 0),
+        "example_count": _safe_int(summary.get("total")),
         "status_counts": _safe_mapping(summary.get("status_counts")),
         "sha256": behavior_hash,
+    }
+
+
+def _behavior_episode_summary(
+    episode: Mapping[str, Any] | None, episode_hash: str | None
+) -> dict[str, Any]:
+    if episode is None:
+        return {
+            "present": False,
+            "schema_version": None,
+            "status": "insufficient_behavior_evidence",
+            "source_count": 0,
+            "example_count": 0,
+            "status_counts": {},
+            "sha256": None,
+        }
+    summary = _safe_mapping(episode.get("summary"))
+    status_counts: dict[str, int] = {}
+    raw_counts = summary.get("status_counts")
+    if isinstance(raw_counts, Mapping):
+        status_counts = {
+            str(key): _safe_int(value) for key, value in sorted(raw_counts.items())
+        }
+    else:
+        for key in ("passed", "failed", "error", "degraded"):
+            value = _safe_int(summary.get(key))
+            if value:
+                status_counts[key] = value
+    return {
+        "present": True,
+        "schema_version": episode.get("schema_version"),
+        "status": str(summary.get("status") or "unknown"),
+        "source_count": _safe_int(summary.get("source_count")),
+        "example_count": _safe_int(summary.get("total")),
+        "status_counts": status_counts,
+        "sha256": episode_hash,
     }
 
 
@@ -625,7 +780,7 @@ def _overall_status(
 
 def _required_next_steps(
     *,
-    behavior: Mapping[str, Any] | None,
+    behavior_present: bool,
     review: Mapping[str, Any] | None,
     decision: Mapping[str, Any] | None,
     jury_results: Mapping[str, Any] | None,
@@ -633,7 +788,7 @@ def _required_next_steps(
     export_preflight: Mapping[str, Any] | None,
 ) -> list[str]:
     steps: list[str] = []
-    if behavior is None:
+    if not behavior_present:
         steps.append("capture_behavior_evidence")
     if review is None:
         steps.append("build_refined_promotion_review")
@@ -687,6 +842,9 @@ def build_program_candidate_state(
         behavior, behavior_path, behavior_hash = load_program_behavior_results(
             manifest,
             manifest_path,
+        )
+        behavior_episode, behavior_episode_path, behavior_episode_hash = (
+            _load_program_behavior_episode(manifest, manifest_path)
         )
     except ProgramRefinementError as exc:
         raise ProgramCandidateStateError(str(exc)) from exc
@@ -776,6 +934,7 @@ def build_program_candidate_state(
         "manifest_sha256": manifest_hash,
         "source_manifest_sha256": source_manifest_hash,
         "behavior_results_sha256": behavior_hash,
+        "behavior_episode_sha256": behavior_episode_hash,
         "execution_episode_sha256": _optional_hash(execution_episode_path),
         "oracle_evidence_sha256": oracle_readability.get("sha256"),
         "oracle_report_sha256": oracle_report_hash,
@@ -821,6 +980,9 @@ def build_program_candidate_state(
             "behavior_results_path": str(behavior_path)
             if behavior_path is not None and behavior_path.exists()
             else None,
+            "behavior_episode_path": str(behavior_episode_path)
+            if behavior_episode_path is not None and behavior_episode_path.exists()
+            else None,
             "oracle_report_path": str(oracle_report_file)
             if oracle_report_file is not None
             else None,
@@ -865,6 +1027,10 @@ def build_program_candidate_state(
         },
         "evidence_state": {
             "behavior": _behavior_summary(behavior, behavior_hash),
+            "behavior_episode": _behavior_episode_summary(
+                behavior_episode,
+                behavior_episode_hash,
+            ),
             "execution_episode": {
                 "present": execution_episode_path.exists(),
                 "path": str(execution_episode_path),
@@ -893,7 +1059,8 @@ def build_program_candidate_state(
         },
         "truth_summary": {
             "program_materialized": True,
-            "behavior_evidence_present": behavior is not None,
+            "behavior_evidence_present": behavior is not None
+            or behavior_episode is not None,
             "oracle_report_present": oracle_report is not None,
             "review_present": review is not None,
             "decision_record_present": decision is not None,
@@ -909,7 +1076,7 @@ def build_program_candidate_state(
             "automatic_promotion": False,
             "ready_for_future_apply": False,
             "required_next_steps": _required_next_steps(
-                behavior=behavior,
+                behavior_present=behavior is not None or behavior_episode is not None,
                 review=review,
                 decision=decision,
                 jury_results=jury_results,

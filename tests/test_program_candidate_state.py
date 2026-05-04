@@ -48,6 +48,13 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, sort_keys=True) + "\n")
+
+
 def _file_hashes(root: Path) -> dict[str, str]:
     return {
         str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -275,6 +282,9 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert payload["artifact_hashes"]["behavior_results_sha256"] == _sha256(
         candidate_root / "behavior_results.json"
     )
+    assert payload["artifact_hashes"]["behavior_episode_sha256"] == _sha256(
+        candidate_root / "behavior_episode.json"
+    )
     assert (
         payload["artifact_hashes"]["jury_results_sha256"]
         == before_sidecars["jury_results"]
@@ -287,10 +297,22 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         == before_sidecars["export_preflight"]
     )
 
+    assert payload["created_from"]["behavior_episode_path"] == str(
+        (candidate_root / "behavior_episode.json").resolve()
+    )
+
     evidence = payload["evidence_state"]
     assert evidence["behavior"]["present"] is True
     assert evidence["behavior"]["schema_version"] == "program-behavior-results-v1"
     assert evidence["behavior"]["example_count"] == 1
+    assert evidence["behavior_episode"]["present"] is True
+    assert evidence["behavior_episode"]["schema_version"] == (
+        "program-behavior-episode-v1"
+    )
+    assert evidence["behavior_episode"]["source_count"] == 1
+    assert evidence["behavior_episode"]["sha256"] == _sha256(
+        candidate_root / "behavior_episode.json"
+    )
     assert evidence["execution_episode"]["present"] is True
     assert evidence["oracle_readability"]["present"] is True
     assert evidence["oracle_readability"]["oracle_invoked_by_program_gen"] is False
@@ -473,6 +495,15 @@ def test_program_candidate_state_degrades_with_manifest_only(
         "status_counts": {},
         "sha256": None,
     }
+    assert payload["evidence_state"]["behavior_episode"] == {
+        "present": False,
+        "schema_version": None,
+        "status": "insufficient_behavior_evidence",
+        "source_count": 0,
+        "example_count": 0,
+        "status_counts": {},
+        "sha256": None,
+    }
     assert payload["promotion_state"]["decision"] == {
         "present": False,
         "status": "missing",
@@ -493,6 +524,80 @@ def test_program_candidate_state_degrades_with_manifest_only(
     assert payload["effect"]["local_state_written"] is False
     assert not (tmp_path / "oracle" / "coordinates.db").exists()
     assert _file_hashes(program_root) == before
+
+
+def test_program_candidate_state_uses_behavior_episode_for_dataset_only_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    dataset_path = tmp_path / "data" / "tickets.jsonl"
+    _write_jsonl(
+        dataset_path,
+        [
+            {
+                "inputs": {"ticket_text": f"ticket {index}"},
+                "outputs": {"urgency": "high" if index % 2 else "low"},
+            }
+            for index in range(8)
+        ],
+    )
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="DatasetStateProgram",
+            objective="Classify support ticket urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+            metric="exact_match",
+            dataset={
+                "path": str(dataset_path),
+                "input_fields": ["ticket_text"],
+                "output_fields": ["urgency"],
+                "split": {
+                    "strategy": "ratio",
+                    "train": 0.5,
+                    "validation": 0.25,
+                    "test": 0.25,
+                    "seed": 7,
+                },
+            },
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    before = _file_hashes(program_root)
+    behavior_episode = json.loads(
+        (program_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    assert not (program_root / "behavior_results.json").exists()
+
+    payload = build_program_candidate_state(
+        manifest_path=program_root / "manifest.json"
+    )
+
+    assert payload["schema_version"] == "program-candidate-state-v1"
+    assert payload["artifact_hashes"]["behavior_results_sha256"] is None
+    assert payload["artifact_hashes"]["behavior_episode_sha256"] == _sha256(
+        program_root / "behavior_episode.json"
+    )
+    assert payload["created_from"]["behavior_results_path"] is None
+    assert payload["created_from"]["behavior_episode_path"] == str(
+        (program_root / "behavior_episode.json").resolve()
+    )
+    assert payload["evidence_state"]["behavior"]["present"] is False
+    episode_state = payload["evidence_state"]["behavior_episode"]
+    assert episode_state["present"] is True
+    assert episode_state["schema_version"] == "program-behavior-episode-v1"
+    assert episode_state["status"] == behavior_episode["summary"]["status"]
+    assert episode_state["source_count"] == behavior_episode["summary"]["source_count"]
+    assert episode_state["example_count"] == behavior_episode["summary"]["total"]
+    assert payload["truth_summary"]["behavior_evidence_present"] is True
+    assert (
+        "capture_behavior_evidence"
+        not in payload["truth_summary"]["required_next_steps"]
+    )
+    assert _file_hashes(program_root) == before
+    assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
 def test_program_candidate_state_fails_closed_on_widened_preflight_authority(

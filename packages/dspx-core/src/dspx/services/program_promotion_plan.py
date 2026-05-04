@@ -19,6 +19,7 @@ PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
+PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 
 SUPPORTED_LOCAL_TARGETS = {
     "local_preferred_candidate": "Local plan target for the named candidate manifest; no promotion is applied.",
@@ -117,6 +118,10 @@ def _safe_string_list(value: object) -> list[str]:
     return [str(item) for item in value if str(item).strip()]
 
 
+def _safe_list(value: object) -> list[Any]:
+    return list(value) if isinstance(value, list) else []
+
+
 def _first_text(*values: object) -> str | None:
     for value in values:
         text = str(value or "").strip()
@@ -204,6 +209,106 @@ def _artifact_path_from_manifest(
 
 def _optional_artifact_hash(path: Path) -> str | None:
     return _sha256_file(path) if path.exists() else None
+
+
+def _declared_behavior_episode_path(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> Path | None:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    episode_path = _first_text(behavior_orchestration.get("result_artifact"))
+    if episode_path is None:
+        episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+        episode_path = _first_text(episode_artifact.get("path"))
+    if episode_path is None:
+        candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+        for surface in _safe_list(candidate_assembly.get("surfaces")):
+            if not isinstance(surface, Mapping):
+                continue
+            if surface.get("kind") == "behavior_episode":
+                episode_path = _first_text(surface.get("path"))
+                break
+    if episode_path is None:
+        request = _safe_mapping(manifest.get("request"))
+        if request.get("behavior_episode_hash"):
+            episode_path = "behavior_episode.json"
+    if episode_path is None:
+        return None
+    path = Path(episode_path)
+    if not path.is_absolute():
+        path = _manifest_root(manifest_path) / path
+    return path
+
+
+def _declared_behavior_episode_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    request = _safe_mapping(manifest.get("request"))
+    request_hash = _first_text(request.get("behavior_episode_hash"))
+    if request_hash:
+        hashes["request.behavior_episode_hash"] = request_hash
+
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    orchestration_hash = _first_text(behavior_orchestration.get("result_hash"))
+    if orchestration_hash:
+        hashes["execution_episode.behavior_orchestration.result_hash"] = (
+            orchestration_hash
+        )
+
+    episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+    artifact_hash = _first_text(episode_artifact.get("content_hash"))
+    if artifact_hash:
+        hashes["manifest.behavior_episode_artifact.content_hash"] = artifact_hash
+
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    evidence_hash = _first_text(evidence.get("behavior_episode_hash"))
+    if evidence_hash:
+        hashes["receipt_bundle.evidence.behavior_episode_hash"] = evidence_hash
+
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate_assembly.get("surfaces")):
+        if not isinstance(surface, Mapping):
+            continue
+        if surface.get("kind") == "behavior_episode":
+            surface_hash = _first_text(surface.get("content_hash"))
+            if surface_hash:
+                hashes["candidate_assembly.surfaces.behavior_episode.content_hash"] = (
+                    surface_hash
+                )
+    return hashes
+
+
+def _load_program_behavior_episode(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+    episode_path = _declared_behavior_episode_path(manifest, manifest_path)
+    if episode_path is None or not episode_path.exists():
+        return None, episode_path, None
+
+    episode = _load_json_object(episode_path, label="program behavior episode")
+    if episode.get("schema_version") != PROGRAM_BEHAVIOR_EPISODE_SCHEMA:
+        raise ProgramPromotionPlanError(
+            "program behavior episode schema_version must be "
+            + PROGRAM_BEHAVIOR_EPISODE_SCHEMA
+        )
+    actual_hash = _sha256_file(episode_path)
+    declared_hashes = _declared_behavior_episode_hashes(manifest)
+    mismatches = [
+        name
+        for name, declared_hash in declared_hashes.items()
+        if declared_hash != actual_hash
+    ]
+    if mismatches:
+        raise ProgramPromotionPlanError(
+            "program behavior episode hash does not match manifest declaration(s): "
+            + ", ".join(sorted(mismatches))
+        )
+    return episode, episode_path, actual_hash
 
 
 def _load_decision_record(path: Path) -> dict[str, Any]:
@@ -317,6 +422,8 @@ def _authority_owner_payload(authority_owner: str) -> dict[str, str]:
 def _eligibility_payload(
     *,
     behavior_present: bool,
+    behavior_results_present: bool,
+    behavior_episode_present: bool,
     comparison: Mapping[str, Any],
     decision: Mapping[str, Any],
     authority_owner: str,
@@ -363,6 +470,13 @@ def _eligibility_payload(
         if eligible_for_local_plan
         else "not_eligible",
         "behavior_evidence_present": behavior_present,
+        "behavior_results_present": behavior_results_present,
+        "behavior_episode_present": behavior_episode_present,
+        "behavior_evidence_kind": "behavior_results"
+        if behavior_results_present
+        else "behavior_episode"
+        if behavior_episode_present
+        else None,
         "comparison_present": True,
         "comparison_status": comparison_status,
         "decision_record_present": True,
@@ -407,6 +521,9 @@ def build_program_promotion_plan(
         behavior, behavior_path, behavior_hash = load_program_behavior_results(
             manifest,
             manifest_path,
+        )
+        behavior_episode, behavior_episode_path, behavior_episode_hash = (
+            _load_program_behavior_episode(manifest, manifest_path)
         )
     except ProgramRefinementError as exc:
         raise ProgramPromotionPlanError(str(exc)) from exc
@@ -471,7 +588,19 @@ def build_program_promotion_plan(
         behavior_hash,
         comparison_created_from.get("candidate_behavior_results_hash"),
     )
-    behavior_present = isinstance(behavior, Mapping) and behavior_hash is not None
+    source_behavior_episode_hash = _first_text(
+        comparison_created_from.get("source_behavior_episode_hash")
+    )
+    candidate_behavior_episode_hash = _first_text(
+        behavior_episode_hash,
+        comparison_created_from.get("candidate_behavior_episode_hash"),
+    )
+    behavior_present = (
+        isinstance(behavior, Mapping)
+        and behavior_hash is not None
+        or isinstance(behavior_episode, Mapping)
+        and behavior_episode_hash is not None
+    )
     created_at = _utc_now_iso()
 
     return {
@@ -495,10 +624,19 @@ def build_program_promotion_plan(
             "source_manifest_path": str(source_manifest_path)
             if source_manifest_path is not None
             else None,
+            "candidate_behavior_episode_path": str(behavior_episode_path)
+            if behavior_episode_path is not None and behavior_episode_path.exists()
+            else None,
+            "candidate_behavior_episode_schema_version": behavior_episode.get(
+                "schema_version"
+            )
+            if behavior_episode is not None
+            else None,
         },
         "evidence_hashes": {
             "candidate_manifest_hash": candidate_manifest_hash,
             "candidate_behavior_results_hash": candidate_behavior_hash,
+            "candidate_behavior_episode_hash": candidate_behavior_episode_hash,
             "candidate_execution_episode_hash": execution_episode_hash,
             "candidate_oracle_evidence_hash": oracle_evidence_hash,
             "decision_record_hash": decision_record_hash,
@@ -506,6 +644,10 @@ def build_program_promotion_plan(
         },
         "eligibility": _eligibility_payload(
             behavior_present=behavior_present,
+            behavior_results_present=isinstance(behavior, Mapping)
+            and behavior_hash is not None,
+            behavior_episode_present=isinstance(behavior_episode, Mapping)
+            and behavior_episode_hash is not None,
             comparison=comparison,
             decision=decision,
             authority_owner=authority_owner,
@@ -517,7 +659,9 @@ def build_program_promotion_plan(
             "decision_record_hash": decision_record_hash,
             "comparison_hash": comparison_hash,
             "source_behavior_results_hash": source_behavior_hash,
+            "source_behavior_episode_hash": source_behavior_episode_hash,
             "candidate_behavior_results_hash": candidate_behavior_hash,
+            "candidate_behavior_episode_hash": candidate_behavior_episode_hash,
             "created_at": created_at,
             "created_by": authority_info["id"],
         },

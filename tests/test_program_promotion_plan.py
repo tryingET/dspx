@@ -234,6 +234,12 @@ def test_program_promote_plan_cli_writes_local_non_authoritative_plan_only(
     assert payload["created_from"]["review_schema_version"] == (
         "program-promotion-review-refined-v1"
     )
+    assert payload["created_from"]["candidate_behavior_episode_path"] == str(
+        (candidate_root / "behavior_episode.json").resolve()
+    )
+    assert payload["created_from"]["candidate_behavior_episode_schema_version"] == (
+        "program-behavior-episode-v1"
+    )
 
     hashes = payload["evidence_hashes"]
     assert hashes["candidate_manifest_hash"] == _sha256(
@@ -241,6 +247,9 @@ def test_program_promote_plan_cli_writes_local_non_authoritative_plan_only(
     )
     assert hashes["candidate_behavior_results_hash"] == _sha256(
         candidate_root / "behavior_results.json"
+    )
+    assert hashes["candidate_behavior_episode_hash"] == _sha256(
+        candidate_root / "behavior_episode.json"
     )
     assert hashes["candidate_execution_episode_hash"] == _sha256(
         candidate_root / "execution_episode.json"
@@ -254,6 +263,9 @@ def test_program_promote_plan_cli_writes_local_non_authoritative_plan_only(
     eligibility = payload["eligibility"]
     assert eligibility["status"] == "eligible_for_local_plan_only"
     assert eligibility["behavior_evidence_present"] is True
+    assert eligibility["behavior_results_present"] is True
+    assert eligibility["behavior_episode_present"] is True
+    assert eligibility["behavior_evidence_kind"] == "behavior_results"
     assert eligibility["comparison_present"] is True
     assert eligibility["comparison_status"] == "compared"
     assert eligibility["decision_record_present"] is True
@@ -274,6 +286,14 @@ def test_program_promote_plan_cli_writes_local_non_authoritative_plan_only(
     assert (
         audit["candidate_behavior_results_hash"]
         == hashes["candidate_behavior_results_hash"]
+    )
+    assert (
+        audit["candidate_behavior_episode_hash"]
+        == hashes["candidate_behavior_episode_hash"]
+    )
+    assert (
+        audit["source_behavior_episode_hash"]
+        == comparison["created_from"]["source_behavior_episode_hash"]
     )
     assert audit["created_by"] == "local_operator"
     assert audit["created_at"]
