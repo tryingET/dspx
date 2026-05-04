@@ -42,6 +42,36 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+def _dataset_intent(dataset_path: Path, *, name: str) -> ProgramIntent:
+    return ProgramIntent(
+        name=name,
+        objective="Classify support ticket urgency.",
+        inputs=["ticket_text"],
+        outputs=["urgency"],
+        metric="exact_match",
+        constraints=["use only the supplied ticket text"],
+        dataset={
+            "path": str(dataset_path),
+            "input_fields": ["ticket_text"],
+            "output_fields": ["urgency"],
+            "split": {
+                "strategy": "ratio",
+                "train": 0.5,
+                "validation": 0.25,
+                "test": 0.25,
+                "seed": 7,
+            },
+        },
+    )
+
+
 def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
@@ -141,6 +171,12 @@ def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
     candidate_behavior = json.loads(
         (candidate_root / "behavior_results.json").read_text(encoding="utf-8")
     )
+    source_behavior_episode = json.loads(
+        (program_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    candidate_behavior_episode = json.loads(
+        (candidate_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
     before_source_hashes = _file_hashes(program_root)
     before_candidate_hashes = _file_hashes(candidate_root)
     out_path = tmp_path / "refinement" / "candidate_comparison.json"
@@ -197,6 +233,24 @@ def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
     assert payload["created_from"]["candidate_behavior_results_path"] == str(
         (candidate_root / "behavior_results.json").resolve()
     )
+    assert payload["created_from"]["source_behavior_episode_path"] == str(
+        (program_root / "behavior_episode.json").resolve()
+    )
+    assert payload["created_from"]["candidate_behavior_episode_path"] == str(
+        (candidate_root / "behavior_episode.json").resolve()
+    )
+    assert (
+        payload["created_from"]["source_behavior_episode_hash"]
+        == hashlib.sha256(
+            (program_root / "behavior_episode.json").read_bytes()
+        ).hexdigest()
+    )
+    assert (
+        payload["created_from"]["candidate_behavior_episode_hash"]
+        == hashlib.sha256(
+            (candidate_root / "behavior_episode.json").read_bytes()
+        ).hexdigest()
+    )
 
     lineage = payload["lineage"]
     assert lineage["candidate_declares_refinement_lineage"] is True
@@ -207,7 +261,14 @@ def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
     assert lineage["decision_record_input_present"] is True
 
     comparison = payload["behavior_comparison"]
+    assert comparison["source"]["behavior_evidence_present"] is True
     assert comparison["source"]["behavior_results_present"] is True
+    assert comparison["source"]["behavior_episode_present"] is True
+    assert comparison["source"]["behavior_evidence_kind"] == "behavior_results"
+    assert (
+        comparison["source"]["source_count"]
+        == source_behavior_episode["summary"]["source_count"]
+    )
     assert (
         comparison["source"]["behavior_status"] == source_behavior["summary"]["status"]
     )
@@ -216,7 +277,14 @@ def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
         comparison["source"]["status_counts"]
         == source_behavior["summary"]["status_counts"]
     )
+    assert comparison["candidate"]["behavior_evidence_present"] is True
     assert comparison["candidate"]["behavior_results_present"] is True
+    assert comparison["candidate"]["behavior_episode_present"] is True
+    assert comparison["candidate"]["behavior_evidence_kind"] == "behavior_results"
+    assert (
+        comparison["candidate"]["source_count"]
+        == candidate_behavior_episode["summary"]["source_count"]
+    )
     assert (
         comparison["candidate"]["behavior_status"]
         == candidate_behavior["summary"]["status"]
@@ -248,9 +316,10 @@ def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
     assert isinstance(payload["interpretation"]["improvement_observed"], bool)
     assert isinstance(payload["interpretation"]["needs_more_evidence"], bool)
     limits = "\n".join(payload["interpretation"]["limits"])
-    assert "eval_examples.py" in limits
+    assert "behavior_episode.json" in limits
     assert "example-backed" in limits
-    assert "not a promotion, ranking, or approval" in limits
+    assert "Dataset split evidence" in limits
+    assert "not a promotion, ranking" in limits
     assert payload["effect"] == {
         "local_comparison_only": True,
         "source_program_files_mutated": False,
@@ -324,16 +393,24 @@ def test_program_refine_compare_candidates_degrades_without_behavior_evidence(
     assert payload["schema_version"] == "program-refinement-candidate-comparison-v1"
     assert payload["status"] == "insufficient_behavior_evidence"
     assert payload["behavior_comparison"]["source"] == {
+        "behavior_evidence_present": False,
         "behavior_results_present": False,
+        "behavior_episode_present": False,
+        "behavior_evidence_kind": None,
         "behavior_status": "insufficient_behavior_evidence",
         "example_count": 0,
+        "source_count": 0,
         "status_counts": {},
         "failure_signals": [],
     }
     assert payload["behavior_comparison"]["candidate"] == {
+        "behavior_evidence_present": False,
         "behavior_results_present": False,
+        "behavior_episode_present": False,
+        "behavior_evidence_kind": None,
         "behavior_status": "insufficient_behavior_evidence",
         "example_count": 0,
+        "source_count": 0,
         "status_counts": {},
         "failure_signals": [],
     }
@@ -341,6 +418,101 @@ def test_program_refine_compare_candidates_degrades_without_behavior_evidence(
     assert payload["interpretation"]["needs_more_evidence"] is True
     assert payload["lineage"]["candidate_declares_refinement_lineage"] is False
     assert payload["lineage"]["source_identity_matches_candidate_lineage"] is None
+    assert _file_hashes(source_root) == before_source
+    assert _file_hashes(candidate_root) == before_candidate
+    assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_refine_compare_candidates_uses_behavior_episode_for_dataset_only_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    dataset_path = tmp_path / "data" / "tickets.jsonl"
+    _write_jsonl(
+        dataset_path,
+        [
+            {
+                "inputs": {"ticket_text": f"ticket {index}"},
+                "outputs": {"urgency": "high" if index % 2 else "low"},
+            }
+            for index in range(8)
+        ],
+    )
+    source = materialize_program_from_intent(
+        _dataset_intent(dataset_path, name="DatasetSource"),
+        outdir=tmp_path / "program",
+    )
+    candidate = materialize_program_from_intent(
+        _dataset_intent(dataset_path, name="DatasetCandidate"),
+        outdir=tmp_path / "program-v2",
+    )
+    source_root = Path(source.root_path)
+    candidate_root = Path(candidate.root_path)
+    before_source = _file_hashes(source_root)
+    before_candidate = _file_hashes(candidate_root)
+    source_episode = json.loads(
+        (source_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    candidate_episode = json.loads(
+        (candidate_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+
+    payload = build_program_refinement_candidate_comparison(
+        source_manifest_path=source_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+    )
+
+    assert payload["schema_version"] == "program-refinement-candidate-comparison-v1"
+    assert payload["status"] == "compared"
+    assert payload["created_from"]["source_behavior_results_path"] is None
+    assert payload["created_from"]["candidate_behavior_results_path"] is None
+    assert payload["created_from"]["source_behavior_episode_path"] == str(
+        (source_root / "behavior_episode.json").resolve()
+    )
+    assert payload["created_from"]["candidate_behavior_episode_path"] == str(
+        (candidate_root / "behavior_episode.json").resolve()
+    )
+    assert (
+        payload["created_from"]["source_behavior_episode_hash"]
+        == hashlib.sha256(
+            (source_root / "behavior_episode.json").read_bytes()
+        ).hexdigest()
+    )
+    assert (
+        payload["created_from"]["candidate_behavior_episode_hash"]
+        == hashlib.sha256(
+            (candidate_root / "behavior_episode.json").read_bytes()
+        ).hexdigest()
+    )
+
+    source_summary = payload["behavior_comparison"]["source"]
+    candidate_summary = payload["behavior_comparison"]["candidate"]
+    assert source_summary["behavior_evidence_present"] is True
+    assert source_summary["behavior_results_present"] is False
+    assert source_summary["behavior_episode_present"] is True
+    assert source_summary["behavior_evidence_kind"] == "behavior_episode"
+    assert source_summary["behavior_status"] == source_episode["summary"]["status"]
+    assert source_summary["example_count"] == source_episode["summary"]["total"]
+    assert source_summary["source_count"] == source_episode["summary"]["source_count"]
+    assert candidate_summary["behavior_evidence_present"] is True
+    assert candidate_summary["behavior_results_present"] is False
+    assert candidate_summary["behavior_episode_present"] is True
+    assert candidate_summary["behavior_evidence_kind"] == "behavior_episode"
+    assert (
+        candidate_summary["behavior_status"] == candidate_episode["summary"]["status"]
+    )
+    assert candidate_summary["example_count"] == candidate_episode["summary"]["total"]
+    assert (
+        candidate_summary["source_count"]
+        == candidate_episode["summary"]["source_count"]
+    )
+    assert payload["interpretation"]["needs_more_evidence"] in {True, False}
+    limits = "\n".join(payload["interpretation"]["limits"])
+    assert "behavior_episode.json" in limits
+    assert "Dataset split evidence" in limits
+    assert not (source_root / "candidate_comparison.json").exists()
+    assert not (candidate_root / "candidate_comparison.json").exists()
     assert _file_hashes(source_root) == before_source
     assert _file_hashes(candidate_root) == before_candidate
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()

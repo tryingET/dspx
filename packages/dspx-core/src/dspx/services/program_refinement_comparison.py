@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -15,6 +16,7 @@ PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
 )
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
+PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 
 _COMPARISON_EFFECT = {
     "local_comparison_only": True,
@@ -39,9 +41,9 @@ _COMPARISON_NON_AUTHORITY = {
 }
 
 _LIMITS = [
-    "Comparison is limited to example-backed behavior_results.json from eval_examples.py.",
-    "No model jury or dataset split was run.",
-    "This comparison is not a promotion, ranking, or approval decision.",
+    "Comparison is limited to generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+    "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+    "This comparison is not a promotion, ranking, winner-selection, or approval decision.",
 ]
 
 
@@ -64,6 +66,14 @@ def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
             f"{label} must contain a JSON object: {source}"
         )
     return payload
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _manifest_root(manifest_path: Path) -> Path:
+    return manifest_path.expanduser().resolve().parent
 
 
 def _safe_mapping(value: object) -> dict[str, Any]:
@@ -210,30 +220,204 @@ def _status_counts(behavior: Mapping[str, Any] | None) -> dict[str, int]:
     return {key: counts[key] for key in sorted(counts)}
 
 
+def _declared_behavior_episode_path(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> Path | None:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    episode_path = _first_text(behavior_orchestration.get("result_artifact"))
+    if episode_path is None:
+        episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+        episode_path = _first_text(episode_artifact.get("path"))
+    if episode_path is None:
+        candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+        for surface in _safe_list(candidate_assembly.get("surfaces")):
+            if not isinstance(surface, Mapping):
+                continue
+            if surface.get("kind") == "behavior_episode":
+                episode_path = _first_text(surface.get("path"))
+                break
+    if episode_path is None:
+        request = _safe_mapping(manifest.get("request"))
+        if request.get("behavior_episode_hash"):
+            episode_path = "behavior_episode.json"
+    if episode_path is None:
+        return None
+    path = Path(episode_path)
+    if not path.is_absolute():
+        path = _manifest_root(manifest_path) / path
+    return path
+
+
+def _declared_behavior_episode_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    request = _safe_mapping(manifest.get("request"))
+    request_hash = _first_text(request.get("behavior_episode_hash"))
+    if request_hash:
+        hashes["request.behavior_episode_hash"] = request_hash
+
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    orchestration_hash = _first_text(behavior_orchestration.get("result_hash"))
+    if orchestration_hash:
+        hashes["execution_episode.behavior_orchestration.result_hash"] = (
+            orchestration_hash
+        )
+
+    episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+    artifact_hash = _first_text(episode_artifact.get("content_hash"))
+    if artifact_hash:
+        hashes["manifest.behavior_episode_artifact.content_hash"] = artifact_hash
+
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    evidence_hash = _first_text(evidence.get("behavior_episode_hash"))
+    if evidence_hash:
+        hashes["receipt_bundle.evidence.behavior_episode_hash"] = evidence_hash
+
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate_assembly.get("surfaces")):
+        if not isinstance(surface, Mapping):
+            continue
+        if surface.get("kind") == "behavior_episode":
+            surface_hash = _first_text(surface.get("content_hash"))
+            if surface_hash:
+                hashes["candidate_assembly.surfaces.behavior_episode.content_hash"] = (
+                    surface_hash
+                )
+    return hashes
+
+
+def _load_program_behavior_episode(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+    episode_path = _declared_behavior_episode_path(manifest, manifest_path)
+    if episode_path is None or not episode_path.exists():
+        return None, episode_path, None
+
+    episode = _load_json_object(episode_path, label="program behavior episode")
+    if episode.get("schema_version") != PROGRAM_BEHAVIOR_EPISODE_SCHEMA:
+        raise ProgramRefinementComparisonError(
+            "program behavior episode schema_version must be "
+            + PROGRAM_BEHAVIOR_EPISODE_SCHEMA
+        )
+    actual_hash = _sha256_file(episode_path)
+    declared_hashes = _declared_behavior_episode_hashes(manifest)
+    mismatches = [
+        name
+        for name, declared_hash in declared_hashes.items()
+        if declared_hash != actual_hash
+    ]
+    if mismatches:
+        raise ProgramRefinementComparisonError(
+            "program behavior episode hash does not match manifest declaration(s): "
+            + ", ".join(sorted(mismatches))
+        )
+    return episode, episode_path, actual_hash
+
+
+def _episode_status_counts(episode: Mapping[str, Any]) -> dict[str, int]:
+    summary = _safe_mapping(episode.get("summary"))
+    counts: dict[str, int] = {}
+    for key in ("passed", "failed", "error", "degraded"):
+        value = _safe_int(summary.get(key))
+        if value:
+            counts[key] = value
+    if counts:
+        return {key: counts[key] for key in sorted(counts)}
+    raw_counts = summary.get("status_counts")
+    if isinstance(raw_counts, Mapping):
+        return {str(key): _safe_int(value) for key, value in sorted(raw_counts.items())}
+    return {}
+
+
+def _failure_signals_from_episode(episode: Mapping[str, Any]) -> list[str]:
+    signals: list[str] = []
+    for source in _safe_list(episode.get("sources")):
+        if not isinstance(source, Mapping):
+            continue
+        source_label = _first_text(
+            source.get("split"), source.get("source_kind"), "source"
+        )
+        summary = _safe_mapping(source.get("summary"))
+        failed = _safe_int(summary.get("failed"))
+        error = _safe_int(summary.get("error"))
+        degraded = _safe_int(summary.get("degraded"))
+        if failed:
+            signals.append(f"failed:{source_label}")
+        if error:
+            signals.append(f"error:{source_label}")
+        if degraded:
+            signals.append(f"degraded:{source_label}")
+        behavior_status = _first_text(source.get("behavior_status"))
+        if behavior_status in {"failed", "error"} or str(behavior_status).startswith(
+            "degraded"
+        ):
+            signals.append(f"source_status:{source_label}:{behavior_status}")
+    unique: list[str] = []
+    for signal in signals:
+        if signal not in unique:
+            unique.append(signal)
+    return unique
+
+
 def _behavior_summary(
-    *, manifest: Mapping[str, Any], behavior: Mapping[str, Any] | None
+    *,
+    manifest: Mapping[str, Any],
+    behavior: Mapping[str, Any] | None,
+    behavior_episode: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
-    if behavior is None:
+    if behavior is None and behavior_episode is None:
         return {
+            "behavior_evidence_present": False,
             "behavior_results_present": False,
+            "behavior_episode_present": False,
+            "behavior_evidence_kind": None,
             "behavior_status": "insufficient_behavior_evidence",
             "example_count": 0,
+            "source_count": 0,
             "status_counts": {},
             "failure_signals": [],
         }
-    summary = _safe_mapping(behavior.get("summary"))
-    output_fields = _output_fields(manifest, behavior)
+    if behavior is not None:
+        summary = _safe_mapping(behavior.get("summary"))
+        output_fields = _output_fields(manifest, behavior)
+        return {
+            "behavior_evidence_present": True,
+            "behavior_results_present": True,
+            "behavior_episode_present": behavior_episode is not None,
+            "behavior_evidence_kind": "behavior_results",
+            "behavior_status": str(summary.get("status") or "unknown"),
+            "example_count": _safe_int(
+                summary.get("total"), default=len(_behavior_examples(behavior))
+            ),
+            "source_count": _safe_int(
+                _safe_mapping((behavior_episode or {}).get("summary")).get(
+                    "source_count"
+                ),
+                default=1,
+            ),
+            "status_counts": _status_counts(behavior),
+            "failure_signals": _failure_signals_from_behavior(
+                behavior,
+                output_fields=output_fields,
+            ),
+        }
+    episode_summary = _safe_mapping((behavior_episode or {}).get("summary"))
     return {
-        "behavior_results_present": True,
-        "behavior_status": str(summary.get("status") or "unknown"),
-        "example_count": _safe_int(
-            summary.get("total"), default=len(_behavior_examples(behavior))
-        ),
-        "status_counts": _status_counts(behavior),
-        "failure_signals": _failure_signals_from_behavior(
-            behavior,
-            output_fields=output_fields,
-        ),
+        "behavior_evidence_present": True,
+        "behavior_results_present": False,
+        "behavior_episode_present": True,
+        "behavior_evidence_kind": "behavior_episode",
+        "behavior_status": str(episode_summary.get("status") or "unknown"),
+        "example_count": _safe_int(episode_summary.get("total")),
+        "source_count": _safe_int(episode_summary.get("source_count")),
+        "status_counts": _episode_status_counts(behavior_episode or {}),
+        "failure_signals": _failure_signals_from_episode(behavior_episode or {}),
     }
 
 
@@ -367,10 +551,10 @@ def _interpretation(
     candidate_summary: Mapping[str, Any],
     delta: Mapping[str, Any],
 ) -> dict[str, Any]:
-    source_present = source_summary.get("behavior_results_present") is True
-    candidate_present = candidate_summary.get("behavior_results_present") is True
+    source_present = source_summary.get("behavior_evidence_present") is True
+    candidate_present = candidate_summary.get("behavior_evidence_present") is True
     if not source_present or not candidate_present:
-        summary = "Comparison has insufficient example-backed behavior evidence for one or both candidates."
+        summary = "Comparison has insufficient local behavior evidence for one or both candidates."
         improvement_observed = False
         needs_more_evidence = True
     else:
@@ -383,13 +567,13 @@ def _interpretation(
         if failed_delta < 0 or error_delta < 0 or degraded_delta < 0:
             improvement_observed = True
         if improvement_observed:
-            summary = "The second candidate removed or reduced at least one observed example-backed behavior signal."
+            summary = "The second candidate removed or reduced at least one observed local behavior signal."
         elif _string_list(delta.get("failure_signals_persisted")):
-            summary = "The second candidate did not remove the observed example-backed failure signal."
+            summary = "The second candidate did not remove the observed local behavior signal."
         elif added:
-            summary = "The second candidate introduced new example-backed failure signals without removing prior signals."
+            summary = "The second candidate introduced new local behavior signals without removing prior signals."
         else:
-            summary = "The second candidate behavior status is unchanged on the available example-backed evidence."
+            summary = "The second candidate behavior status is unchanged on the available local evidence."
         needs_more_evidence = not improvement_observed or bool(added)
     return {
         "summary": summary,
@@ -429,6 +613,12 @@ def build_program_refinement_candidate_comparison(
         candidate_behavior, candidate_behavior_path, candidate_behavior_hash = (
             load_program_behavior_results(candidate_manifest, candidate_manifest_path)
         )
+        source_episode, source_episode_path, source_episode_hash = (
+            _load_program_behavior_episode(source_manifest, source_manifest_path)
+        )
+        candidate_episode, candidate_episode_path, candidate_episode_hash = (
+            _load_program_behavior_episode(candidate_manifest, candidate_manifest_path)
+        )
     except ProgramRefinementError as exc:
         raise ProgramRefinementComparisonError(str(exc)) from exc
 
@@ -439,16 +629,18 @@ def build_program_refinement_candidate_comparison(
     source_summary = _behavior_summary(
         manifest=source_manifest,
         behavior=source_behavior,
+        behavior_episode=source_episode,
     )
     candidate_summary = _behavior_summary(
         manifest=candidate_manifest,
         behavior=candidate_behavior,
+        behavior_episode=candidate_episode,
     )
     delta = _behavior_delta(source_summary, candidate_summary)
     status = (
         "compared"
-        if source_summary["behavior_results_present"]
-        and candidate_summary["behavior_results_present"]
+        if source_summary["behavior_evidence_present"]
+        and candidate_summary["behavior_evidence_present"]
         else "insufficient_behavior_evidence"
     )
     return {
@@ -469,6 +661,14 @@ def build_program_refinement_candidate_comparison(
             else None,
             "source_behavior_results_hash": source_behavior_hash,
             "candidate_behavior_results_hash": candidate_behavior_hash,
+            "source_behavior_episode_path": str(source_episode_path)
+            if source_episode_path is not None and source_episode_path.exists()
+            else None,
+            "candidate_behavior_episode_path": str(candidate_episode_path)
+            if candidate_episode_path is not None and candidate_episode_path.exists()
+            else None,
+            "source_behavior_episode_hash": source_episode_hash,
+            "candidate_behavior_episode_hash": candidate_episode_hash,
             "refinement_proposal_path": str(refinement_proposal_path)
             if refinement_proposal_path is not None
             else None,

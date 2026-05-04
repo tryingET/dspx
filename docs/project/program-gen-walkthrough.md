@@ -43,7 +43,7 @@ The current `program-gen` loop proves:
 11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and current `eval_examples.py` / `behavior_results.json` evidence to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
 12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
 13. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
-14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over current example-backed behavior evidence.
+14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over already-generated `behavior_episode.json` evidence plus example-backed `behavior_results.json` when present.
 15. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
 16. `program-promote plan` can be run explicitly over an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan sidecar.
 17. `adapters authority agent-kernel-export-preflight` can be run explicitly over a manifest, opaque AK ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet that is preflighted/planned/not applied.
@@ -519,7 +519,7 @@ Expected JSON facts:
 - `interpretation` may say whether improvement was observed on the narrow example-backed evidence, but it is not approval
 - `effect` and `non_authority` confirm local-only/no-mutation posture
 
-This command writes only the requested sidecar. It does not mutate the source candidate, second candidate, proposal, decision record, Oracle index, AK, governance, or external authority. It does not generate a third candidate, rank candidates, select a winner, promote, block via Oracle, or introduce `eval_behavior.py`.
+This command writes only the requested sidecar. It reads already-generated `behavior_episode.json` evidence plus example-backed `behavior_results.json` when present, but it does not run new behavior harnesses. It does not mutate the source candidate, second candidate, proposal, decision record, Oracle index, AK, governance, or external authority. It does not generate a third candidate, rank candidates, select a winner, promote, block via Oracle, or broaden `eval_behavior.py` beyond its generated harness orchestration role.
 
 If you want the explicit one-shot local workflow, use:
 

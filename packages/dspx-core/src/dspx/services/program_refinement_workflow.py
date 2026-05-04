@@ -117,7 +117,7 @@ def materialize_and_compare_refinement_candidate(
         "notes": [
             "This explicit workflow materializes one local second candidate and writes one local comparison sidecar.",
             "It is not program-gen automation and does not rank, select a winner, promote, export authority, or mutate governance.",
-            "Comparison uses current eval_examples.py / behavior_results.json evidence only.",
+            "Comparison uses current generated local behavior evidence: behavior_episode.json plus example-backed behavior_results.json when present.",
         ],
     }
 

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-04T00:59:07.157317399+00:00",
+  "task_id": 2130,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/first-local-loop.md",
+      "docs/project/product_posture.md",
+      "docs/project/program-gen-walkthrough.md",
+      "docs/project/program-synthesis-boundary.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_refinement_comparison.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_workflow.py",
+      "tests/test_program_refinement_comparison.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_refinement_comparison.py",
+      "tests/test_program_refinement_comparison.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

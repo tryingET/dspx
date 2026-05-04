@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-03",
+  "updated_at": "2026-05-04",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -1310,6 +1310,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-03"
+        },
+        {
+          "id": "AK-TASK-2130",
+          "title": "Make refinement candidate comparison behavior-episode aware",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Make refinement candidate comparison behavior-episode aware (task #2130)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }
