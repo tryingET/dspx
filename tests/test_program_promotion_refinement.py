@@ -44,6 +44,13 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, sort_keys=True) + "\n")
+
+
 def _materialize_program_report_and_proposal(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -101,6 +108,9 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
     behavior = json.loads(
         (program_root / "behavior_results.json").read_text(encoding="utf-8")
     )
+    behavior_episode = json.loads(
+        (program_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
     proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
     before = _file_hashes(program_root)
     before_names = sorted(before)
@@ -144,6 +154,9 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
     assert payload["created_from"]["behavior_results_path"] == str(
         (program_root / "behavior_results.json").resolve()
     )
+    assert payload["created_from"]["behavior_episode_path"] == str(
+        (program_root / "behavior_episode.json").resolve()
+    )
     assert payload["created_from"]["oracle_report_path"] == str(report_path.resolve())
     assert payload["created_from"]["refinement_proposal_path"] == str(
         proposal_path.resolve()
@@ -162,7 +175,11 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
         "present": True,
         "status": behavior["summary"]["status"],
         "example_count": behavior["summary"]["total"],
+        "source_count": behavior_episode["summary"]["source_count"],
         "status_counts": behavior["summary"]["status_counts"],
+        "behavior_results_present": True,
+        "behavior_episode_present": True,
+        "behavior_evidence_kind": "behavior_results",
     }
     assert payload["evidence_summary"]["oracle_report"] == {
         "present": True,
@@ -348,6 +365,102 @@ def test_program_promotion_refinement_rejects_proposal_identity_mismatch(
     assert not (tmp_path / "promotion" / "review.json").exists()
 
 
+def test_program_promotion_refinement_uses_behavior_episode_for_dataset_only_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    dataset_path = tmp_path / "data" / "tickets.jsonl"
+    _write_jsonl(
+        dataset_path,
+        [
+            {
+                "inputs": {"ticket_text": f"ticket {index}"},
+                "outputs": {"urgency": "high" if index % 2 else "low"},
+            }
+            for index in range(8)
+        ],
+    )
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="DatasetReviewProgram",
+            objective="Classify support ticket urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+            metric="exact_match",
+            dataset={
+                "path": str(dataset_path),
+                "input_fields": ["ticket_text"],
+                "output_fields": ["urgency"],
+                "split": {
+                    "strategy": "ratio",
+                    "train": 0.5,
+                    "validation": 0.25,
+                    "test": 0.25,
+                    "seed": 7,
+                },
+            },
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    assert not (program_root / "behavior_results.json").exists()
+    behavior_episode = json.loads(
+        (program_root / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    index_path = tmp_path / "oracle" / "coordinates.db"
+    index_result = index_program_oracle_evidence_path(
+        program_root,
+        index_path=index_path,
+    )
+    assert index_result["indexed"] == 1
+    report = build_program_oracle_evidence_report(index_path=index_path)
+    report_path = tmp_path / "oracle" / "program-evidence-report.json"
+    _write_json(report_path, report)
+    proposal = build_program_refinement_proposal(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+    )
+    proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
+    _write_json(proposal_path, proposal)
+    before = _file_hashes(program_root)
+
+    payload = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+
+    assert payload["schema_version"] == "program-promotion-review-refined-v1"
+    assert payload["status"] == "review_packet_ready"
+    assert payload["created_from"]["behavior_results_path"] is None
+    assert payload["created_from"]["behavior_episode_path"] == str(
+        (program_root / "behavior_episode.json").resolve()
+    )
+    expected_status_counts = behavior_episode["summary"]["status_counts"]
+    assert payload["evidence_summary"]["behavior"] == {
+        "present": True,
+        "status": behavior_episode["summary"]["status"],
+        "example_count": behavior_episode["summary"]["total"],
+        "source_count": behavior_episode["summary"]["source_count"],
+        "status_counts": expected_status_counts,
+        "behavior_results_present": False,
+        "behavior_episode_present": True,
+        "behavior_evidence_kind": "behavior_episode",
+    }
+    assert payload["review_readiness"]["behavior_evidence_present"] is True
+    assert payload["review_readiness"]["missing_required_evidence"] == [
+        "no_model_jury_execution_episode",
+        "no_promotion_adjudicator_decision",
+    ]
+    assert (
+        "behavior_results.json" not in payload["adjudication_packet"]["evidence_refs"]
+    )
+    assert "behavior_episode.json" in payload["adjudication_packet"]["evidence_refs"]
+    assert payload["non_authority"]["promotion_authority"] is False
+    assert _file_hashes(program_root) == before
+
+
 def test_program_promotion_refinement_degrades_without_behavior_results(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -399,11 +512,16 @@ def test_program_promotion_refinement_degrades_without_behavior_results(
     assert payload["status"] == "insufficient_behavior_evidence"
     assert payload["promotion_state"] == "not_promoted"
     assert payload["created_from"]["behavior_results_path"] is None
+    assert payload["created_from"]["behavior_episode_path"] is None
     assert payload["evidence_summary"]["behavior"] == {
         "present": False,
         "status": "insufficient_behavior_evidence",
         "example_count": 0,
+        "source_count": 0,
         "status_counts": {},
+        "behavior_results_present": False,
+        "behavior_episode_present": False,
+        "behavior_evidence_kind": None,
     }
     assert payload["evidence_summary"]["oracle_report"] == {
         "present": True,

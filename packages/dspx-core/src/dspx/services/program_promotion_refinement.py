@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -19,6 +20,7 @@ PROGRAM_PROMOTION_ADJUDICATION_REQUEST_SCHEMA = (
 )
 PROGRAM_PROMOTION_DECISION_SCHEMA = "program-promotion-decision-v1"
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
+PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 
 _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
     "applies_changes",
@@ -84,6 +86,24 @@ def _first_text(*values: object) -> str | None:
     return None
 
 
+def _safe_int(value: object, *, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return default
+        try:
+            return int(text)
+        except ValueError:
+            return default
+    return default
+
+
 def _identity_from_manifest(manifest: Mapping[str, Any]) -> dict[str, str | None]:
     request = _safe_mapping(manifest.get("request"))
     candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
@@ -141,6 +161,106 @@ def _validate_schema(
         raise ProgramPromotionRefinementError(
             f"{label} schema_version must be {expected_schema}"
         )
+
+
+def _declared_behavior_episode_path(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> Path | None:
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    episode_path = _first_text(behavior_orchestration.get("result_artifact"))
+    if episode_path is None:
+        episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+        episode_path = _first_text(episode_artifact.get("path"))
+    if episode_path is None:
+        candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+        for surface in _safe_list(candidate_assembly.get("surfaces")):
+            if not isinstance(surface, Mapping):
+                continue
+            if surface.get("kind") == "behavior_episode":
+                episode_path = _first_text(surface.get("path"))
+                break
+    if episode_path is None:
+        request = _safe_mapping(manifest.get("request"))
+        if request.get("behavior_episode_hash"):
+            episode_path = "behavior_episode.json"
+    if episode_path is None:
+        return None
+    path = Path(episode_path)
+    if not path.is_absolute():
+        path = _manifest_root(manifest_path) / path
+    return path
+
+
+def _declared_behavior_episode_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    request = _safe_mapping(manifest.get("request"))
+    request_hash = _first_text(request.get("behavior_episode_hash"))
+    if request_hash:
+        hashes["request.behavior_episode_hash"] = request_hash
+
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_orchestration = _safe_mapping(
+        execution_episode.get("behavior_orchestration")
+    )
+    orchestration_hash = _first_text(behavior_orchestration.get("result_hash"))
+    if orchestration_hash:
+        hashes["execution_episode.behavior_orchestration.result_hash"] = (
+            orchestration_hash
+        )
+
+    episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+    artifact_hash = _first_text(episode_artifact.get("content_hash"))
+    if artifact_hash:
+        hashes["manifest.behavior_episode_artifact.content_hash"] = artifact_hash
+
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    evidence_hash = _first_text(evidence.get("behavior_episode_hash"))
+    if evidence_hash:
+        hashes["receipt_bundle.evidence.behavior_episode_hash"] = evidence_hash
+
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate_assembly.get("surfaces")):
+        if not isinstance(surface, Mapping):
+            continue
+        if surface.get("kind") == "behavior_episode":
+            surface_hash = _first_text(surface.get("content_hash"))
+            if surface_hash:
+                hashes["candidate_assembly.surfaces.behavior_episode.content_hash"] = (
+                    surface_hash
+                )
+    return hashes
+
+
+def _load_program_behavior_episode(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+    episode_path = _declared_behavior_episode_path(manifest, manifest_path)
+    if episode_path is None or not episode_path.exists():
+        return None, episode_path, None
+
+    episode = _load_json_object(episode_path, label="program behavior episode")
+    _validate_schema(
+        episode,
+        label="program behavior episode",
+        expected_schema=PROGRAM_BEHAVIOR_EPISODE_SCHEMA,
+    )
+    actual_hash = hashlib.sha256(episode_path.read_bytes()).hexdigest()
+    declared_hashes = _declared_behavior_episode_hashes(manifest)
+    mismatches = [
+        name
+        for name, declared_hash in declared_hashes.items()
+        if declared_hash != actual_hash
+    ]
+    if mismatches:
+        raise ProgramPromotionRefinementError(
+            "program behavior episode hash does not match manifest declaration(s): "
+            + ", ".join(sorted(mismatches))
+        )
+    return episode, episode_path, actual_hash
 
 
 def _identity_matches(left: Mapping[str, Any], right: Mapping[str, str | None]) -> bool:
@@ -227,8 +347,60 @@ def _load_refinement_proposal(path: Path) -> dict[str, Any]:
     return proposal
 
 
-def _behavior_summary(behavior: Mapping[str, Any] | None) -> dict[str, Any]:
-    return _safe_mapping(behavior.get("summary")) if behavior is not None else {}
+def _episode_status_counts(episode: Mapping[str, Any] | None) -> dict[str, int]:
+    if episode is None:
+        return {}
+    summary = _safe_mapping(episode.get("summary"))
+    raw_counts = summary.get("status_counts")
+    if isinstance(raw_counts, Mapping):
+        return {str(key): _safe_int(value) for key, value in sorted(raw_counts.items())}
+    counts: dict[str, int] = {}
+    for key in ("passed", "failed", "error", "degraded"):
+        value = _safe_int(summary.get(key))
+        if value:
+            counts[key] = value
+    return {key: counts[key] for key in sorted(counts)}
+
+
+def _behavior_evidence_summary(
+    behavior: Mapping[str, Any] | None,
+    behavior_episode: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    episode_summary = _safe_mapping((behavior_episode or {}).get("summary"))
+    if behavior is None and behavior_episode is None:
+        return {
+            "present": False,
+            "status": "insufficient_behavior_evidence",
+            "example_count": 0,
+            "source_count": 0,
+            "status_counts": {},
+            "behavior_results_present": False,
+            "behavior_episode_present": False,
+            "behavior_evidence_kind": None,
+        }
+    if behavior is not None:
+        summary = _safe_mapping(behavior.get("summary"))
+        return {
+            "present": True,
+            "status": str(summary.get("status") or "unknown"),
+            "example_count": _safe_int(summary.get("total")),
+            "source_count": _safe_int(episode_summary.get("source_count"), default=1),
+            "status_counts": _safe_mapping(summary.get("status_counts")),
+            "behavior_results_present": True,
+            "behavior_episode_present": behavior_episode is not None,
+            "behavior_evidence_kind": "behavior_results",
+        }
+    assert behavior_episode is not None
+    return {
+        "present": True,
+        "status": str(episode_summary.get("status") or "unknown"),
+        "example_count": _safe_int(episode_summary.get("total")),
+        "source_count": _safe_int(episode_summary.get("source_count")),
+        "status_counts": _episode_status_counts(behavior_episode),
+        "behavior_results_present": False,
+        "behavior_episode_present": True,
+        "behavior_evidence_kind": "behavior_episode",
+    }
 
 
 def _promotion_policy(review: Mapping[str, Any]) -> dict[str, Any]:
@@ -364,6 +536,9 @@ def load_program_promotion_inputs(
             manifest,
             manifest_path,
         )
+        behavior_episode, behavior_episode_path, behavior_episode_hash = (
+            _load_program_behavior_episode(manifest, manifest_path)
+        )
         report = load_program_oracle_report(oracle_report_path)
         validate_program_oracle_report_non_authority(report)
     except ProgramRefinementError as exc:
@@ -388,6 +563,9 @@ def load_program_promotion_inputs(
         "behavior": behavior,
         "behavior_path": behavior_path,
         "behavior_hash": behavior_hash,
+        "behavior_episode": behavior_episode,
+        "behavior_episode_path": behavior_episode_path,
+        "behavior_episode_hash": behavior_episode_hash,
         "oracle_report_path": oracle_report_path,
         "oracle_report": report,
         "oracle_record": oracle_record,
@@ -436,9 +614,14 @@ def build_program_promotion_refinement(
 
     identity = _safe_mapping(inputs["identity"])
     behavior = inputs.get("behavior")
-    behavior_present = isinstance(behavior, Mapping)
-    behavior_summary = _behavior_summary(
-        behavior if isinstance(behavior, Mapping) else None
+    behavior_episode = inputs.get("behavior_episode")
+    behavior_present = isinstance(behavior, Mapping) or isinstance(
+        behavior_episode,
+        Mapping,
+    )
+    behavior_summary = _behavior_evidence_summary(
+        behavior if isinstance(behavior, Mapping) else None,
+        behavior_episode if isinstance(behavior_episode, Mapping) else None,
     )
     report = _safe_mapping(inputs.get("oracle_report"))
     proposal = _safe_mapping(inputs.get("refinement_proposal"))
@@ -466,6 +649,12 @@ def build_program_promotion_refinement(
         if isinstance(behavior_path, Path) and behavior_path.exists()
         else None
     )
+    behavior_episode_path = inputs.get("behavior_episode_path")
+    behavior_episode_path_text = (
+        str(Path(behavior_episode_path).resolve())
+        if isinstance(behavior_episode_path, Path) and behavior_episode_path.exists()
+        else None
+    )
     packet = {
         "schema_version": PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA,
         "status": _status_for_packet(
@@ -479,6 +668,7 @@ def build_program_promotion_refinement(
         "created_from": {
             "manifest_path": str(Path(inputs["manifest_path"]).resolve()),
             "behavior_results_path": behavior_path_text,
+            "behavior_episode_path": behavior_episode_path_text,
             "oracle_report_path": str(Path(inputs["oracle_report_path"]).resolve()),
             "refinement_proposal_path": str(
                 Path(inputs["refinement_proposal_path"]).resolve()
@@ -498,14 +688,7 @@ def build_program_promotion_refinement(
             ),
         },
         "evidence_summary": {
-            "behavior": {
-                "present": behavior_present,
-                "status": str(
-                    behavior_summary.get("status") or "insufficient_behavior_evidence"
-                ),
-                "example_count": int(behavior_summary.get("total") or 0),
-                "status_counts": _safe_mapping(behavior_summary.get("status_counts")),
-            },
+            "behavior": behavior_summary,
             "oracle_report": {
                 "present": True,
                 "status": report.get("status"),
@@ -552,7 +735,12 @@ def build_program_promotion_refinement(
                 "promotion_review.json",
                 "promotion_adjudication_request.json",
                 "promotion_decision_template.json",
-                *(["behavior_results.json"] if behavior_present else []),
+                *(["behavior_results.json"] if behavior_path_text is not None else []),
+                *(
+                    ["behavior_episode.json"]
+                    if behavior_episode_path_text is not None
+                    else []
+                ),
                 "oracle_report",
                 "refinement_proposal",
             ],

@@ -1453,6 +1453,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2182",
+          "title": "Make promotion review refinement behavior-episode aware",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Make promotion review refinement behavior-episode aware (task #2182)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-04"
         }
       ]
     }

@@ -409,8 +409,8 @@ Expected JSON facts:
 - `schema_version: program-promotion-review-refined-v1`
 - `promotion_state: not_promoted`
 - `candidate_status: exploratory`
-- `created_from` references `manifest.json`, original `promotion_review.json`, original `promotion_adjudication_request.json`, original `promotion_decision_template.json`, `behavior_results.json` when present, the Oracle report, and the refinement proposal
-- behavior, Oracle report, and refinement proposal summaries are explicit
+- `created_from` references `manifest.json`, original `promotion_review.json`, original `promotion_adjudication_request.json`, original `promotion_decision_template.json`, `behavior_results.json` when present, `behavior_episode.json` when present, the Oracle report, and the refinement proposal
+- behavior, Oracle report, and refinement proposal summaries are explicit; behavior evidence records whether it came from example-backed `behavior_results.json` or bounded `behavior_episode.json`
 - model-jury execution and explicit adjudicator decision remain missing unless policy and evidence truly say otherwise
 - `adjudication_packet.status` remains `not_ready_missing_required_evidence` when required local evidence is absent
 - `non_authority` confirms local review-packet-only posture and no automatic promotion, Oracle ranking/pruning/promotion, program mutation, new candidate generation, governance authority, or external mutation
