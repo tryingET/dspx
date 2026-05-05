@@ -1715,6 +1715,87 @@ def test_remote_program_lookup_includes_related_assembly_runs(monkeypatch) -> No
     assert {run["relation"] for run in related} == {"same_program_assembly"}
 
 
+def test_remote_program_lookup_reports_related_assembly_lookup_failure(
+    monkeypatch,
+) -> None:
+    import sys
+    import types
+
+    from dspx.services.run_explain_service import _remote_search_candidates
+
+    def _run(run_id: str, run_kind: str):
+        tags = {
+            "service": "program",
+            "template_version": "program-candidate-assembly-v1",
+            "dspx.run_kind": run_kind,
+            "dspx.template_version": "program-candidate-assembly-v1",
+            "dspx.output_basename": "manifest.json",
+            "program.assembly_id": "asm-1",
+            "mlflow.runName": run_kind,
+        }
+        return types.SimpleNamespace(
+            info=types.SimpleNamespace(
+                run_id=run_id,
+                experiment_id="exp-1",
+                status="FINISHED",
+                lifecycle_stage="active",
+                start_time=1,
+                end_time=2,
+                artifact_uri=f"mlflow-artifacts:/exp-1/{run_id}/artifacts",
+                run_name=run_kind,
+            ),
+            data=types.SimpleNamespace(tags=tags),
+        )
+
+    class _FakeClient:
+        def __init__(self, tracking_uri: str) -> None:
+            assert tracking_uri == "http://mlflow.example:5000"
+
+        def search_experiments(self, **kwargs):
+            return [types.SimpleNamespace(experiment_id="exp-1")]
+
+        def search_runs(self, *, filter_string: str, **kwargs):
+            if "tags.program.assembly_id" in filter_string:
+                raise RuntimeError("related lookup backend unavailable")
+            return [_run("gen-1", "program-gen")]
+
+    mlflow_mod = types.ModuleType("mlflow")
+    entities_mod = types.ModuleType("mlflow.entities")
+    tracking_mod = types.ModuleType("mlflow.tracking")
+    setattr(entities_mod, "ViewType", types.SimpleNamespace(ACTIVE_ONLY="active"))
+    setattr(tracking_mod, "MlflowClient", _FakeClient)
+    monkeypatch.setitem(sys.modules, "mlflow", mlflow_mod)
+    monkeypatch.setitem(sys.modules, "mlflow.entities", entities_mod)
+    monkeypatch.setitem(sys.modules, "mlflow.tracking", tracking_mod)
+
+    receipt = {
+        "run_kind": "program-gen",
+        "template_version": "program-candidate-assembly-v1",
+        "output_path": "manifest.json",
+        "run_summary": {"assembly_id": "asm-1"},
+        "mlflow_hints": {
+            "expected_tags": {
+                "service": "program",
+                "template_version": "program-candidate-assembly-v1",
+                "dspx.run_kind": "program-gen",
+                "dspx.template_version": "program-candidate-assembly-v1",
+                "dspx.output_basename": "manifest.json",
+            }
+        },
+    }
+
+    linked, related, reasons, _elapsed_ms = _remote_search_candidates(
+        receipt=receipt,
+        tracking_uri="http://mlflow.example:5000",
+        candidate_cap=10,
+        time_budget_ms=3000,
+    )
+
+    assert [run["run_id"] for run in linked] == ["gen-1"]
+    assert related == []
+    assert "mlflow_related_runs_lookup_failed" in reasons
+
+
 def test_run_explain_invalid_receipt_exit_code(tmp_path: Path) -> None:
     bad_meta = tmp_path / "bad-explain.meta.json"
     bad_meta.write_text('{"receipt_version":"v1"}\n', encoding="utf-8")

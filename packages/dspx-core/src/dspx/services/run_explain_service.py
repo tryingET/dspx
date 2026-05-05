@@ -816,9 +816,17 @@ def _remote_search_candidates(
                 seen_related.add(run_id)
                 item["relation"] = "same_program_assembly"
                 related_runs.append(item)
-        except Exception:
-            # Related-run discovery is enrichment only; keep primary lookup result.
-            pass
+        except Exception as exc:
+            # Related-run discovery is enrichment only; keep primary lookup result,
+            # but make the lost enrichment visible in explain output.
+            msg = str(exc).lower()
+            if any(
+                token in msg
+                for token in ("401", "403", "unauthorized", "forbidden", "auth")
+            ):
+                reasons.append("mlflow_related_runs_auth_unavailable")
+            else:
+                reasons.append("mlflow_related_runs_lookup_failed")
 
     if tag_contract_violation:
         reasons.append("mlflow_tag_contract_violation")

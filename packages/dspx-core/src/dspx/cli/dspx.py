@@ -264,6 +264,18 @@ def _log_program_artifact_to_mlflow(artifact: Any) -> None:
         if mlflow is None:
             return
 
+        def _safe_set_tag(key: str, value: object) -> None:
+            try:
+                mlflow.set_tag(key, str(value)[:500])
+            except Exception:
+                pass
+
+        def _safe_log_metric(key: str, value: float) -> None:
+            try:
+                mlflow.log_metric(key, float(value))
+            except Exception:
+                pass
+
         root = Path(str(getattr(artifact, "root_path", "") or ""))
         if not root.exists() or not root.is_dir():
             return
@@ -336,8 +348,13 @@ def _log_program_artifact_to_mlflow(artifact: Any) -> None:
                         root=root,
                         files=declared_files,
                     )
-                except Exception:
-                    pass
+                    _safe_set_tag("program.artifacts.upload_status", "logged")
+                    _safe_log_metric("program.artifacts.upload_error", 0.0)
+                except Exception as exc:
+                    _safe_set_tag("program.artifacts.upload_status", "failed")
+                    _safe_set_tag("program.artifacts.error_type", type(exc).__name__)
+                    _safe_set_tag("program.artifacts.error", str(exc))
+                    _safe_log_metric("program.artifacts.upload_error", 1.0)
         finally:
             if started_run:
                 try:

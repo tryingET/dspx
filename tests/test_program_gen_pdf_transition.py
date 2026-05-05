@@ -41,6 +41,7 @@ class _FakeMlflowBackend:
     def __init__(self) -> None:
         self.calls: list[tuple[object, ...]] = []
         self.logged_artifact_files: list[str] = []
+        self.fail_log_artifacts = False
         self._active: _FakeRun | None = None
 
     def set_tracking_uri(self, uri: str) -> None:
@@ -72,6 +73,8 @@ class _FakeMlflowBackend:
 
     def log_artifacts(self, path: str) -> None:
         self.calls.append(("log_artifacts", path))
+        if self.fail_log_artifacts:
+            raise RuntimeError("artifact store down")
         root = Path(path)
         if root.exists():
             self.logged_artifact_files = sorted(
@@ -292,6 +295,8 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     assert ("set_tag", "service", "program") in backend.calls
     assert ("set_tag", "dspx.run_kind", "program-gen") in backend.calls
     assert any(call[0] == "log_artifacts" for call in backend.calls)
+    assert ("set_tag", "program.artifacts.upload_status", "logged") in backend.calls
+    assert ("log_metric", "program.artifacts.upload_error", 0.0) in backend.calls
     assert "manifest.json" in backend.logged_artifact_files
     assert "program.py" in backend.logged_artifact_files
     assert "preexisting-secret.txt" not in backend.logged_artifact_files
@@ -314,6 +319,24 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
         program_spec.loader.exec_module(generated_program)
     finally:
         sys.path[:] = old_path
+
+    receipt_hash = json.loads((outdir / "manifest.json.meta.json").read_text())["hash"]
+    assert (
+        generated_program.program_observability_tags()["program.manifest_hash"]
+        == receipt_hash
+    )
+    manifest_payload = json.loads((outdir / "manifest.json").read_text())
+    manifest_payload["post_generation_note"] = (
+        "runtime metadata must not alter receipt-bound hash"
+    )
+    (outdir / "manifest.json").write_text(
+        json.dumps(manifest_payload), encoding="utf-8"
+    )
+    assert generated_program._current_manifest_hash() != receipt_hash
+    assert (
+        generated_program.program_observability_tags()["program.manifest_hash"]
+        == receipt_hash
+    )
 
     started = generated_program.configure_observability(
         run_name="program-runtime", run_kind="program-runtime"
@@ -354,4 +377,41 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
         "mlflow.log_metric(f'program.behavior.{key}', float(value))"
         in eval_behavior_source
     )
+    assert any(call[0] == "end_run" for call in backend.calls)
+
+
+def test_program_gen_surfaces_mlflow_artifact_upload_failures(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    backend = _install_fake_mlflow(monkeypatch)
+    backend.fail_log_artifacts = True
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{tmp_path / 'mlflow.db'}")
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    reset_embedding_engine()
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(FIXTURE_ROOT / "intent.yaml"),
+            "--outdir",
+            str(tmp_path / "program"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert ("set_tag", "program.artifacts.upload_status", "failed") in backend.calls
+    assert ("set_tag", "program.artifacts.error_type", "RuntimeError") in backend.calls
+    assert (
+        "set_tag",
+        "program.artifacts.error",
+        "artifact store down",
+    ) in backend.calls
+    assert ("log_metric", "program.artifacts.upload_error", 1.0) in backend.calls
     assert any(call[0] == "end_run" for call in backend.calls)

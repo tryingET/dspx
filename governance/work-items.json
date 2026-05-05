@@ -1661,6 +1661,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2328",
+          "title": "Close remaining program MLflow observability review findings",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Close remaining program MLflow observability review findings (task #2328)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }
