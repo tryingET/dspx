@@ -320,6 +320,14 @@ DSPX_ORACLE_EMBEDDING_BACKEND=mock just dspx oracle index \
 
 That command indexes `program-oracle-evidence-v1` records for later Oracle interpretation/search. It does not rank, prune, promote, block, approve, export authority, or mutate governance state.
 
+The current Oracle storage backend is intentionally local SQLite only. The DS1621 Postgres service discussed in the MLflow setup backs MLflow metadata, not Oracle coordinates; DSPx does not currently provision or consume a shared Oracle Postgres/pgvector backend. To make that boundary executable, inspect it with:
+
+```bash
+just dspx oracle backend-status --json
+```
+
+`backend-status` is read-only: it does not create the CoordinateIndex, does not connect to Postgres, and does not report secret values from database-related environment variables.
+
 Oracle interpretation/reporting is also explicit and separate. It reads indexed `program-oracle-evidence` records from the supplied local CoordinateIndex and summarizes example-backed behavior evidence from `eval_examples.py` / `behavior_results.json` without mutating program artifacts, governance, or external authority:
 
 ```bash

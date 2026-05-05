@@ -30,6 +30,34 @@ app.add_typer(
 )
 
 
+@app.command("backend-status")
+def oracle_backend_status(
+    index_path: Optional[Path] = typer.Option(
+        None,
+        "--index-path",
+        help="Path to coordinate index database",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    """Report the current Oracle storage/backend posture without mutations."""
+    from dspx.services.oracle_backend_status import build_oracle_backend_status
+
+    status = build_oracle_backend_status(index_path=index_path)
+    if json_out:
+        typer.echo(json.dumps(status, ensure_ascii=False, indent=2))
+        return
+
+    typer.echo("=== Oracle Backend Status ===\n")
+    typer.echo(f"Status: {status['status']}")
+    typer.echo(f"Index backend: {status['coordinate_index']['backend']}")
+    typer.echo(f"Index path: {status['coordinate_index']['path']}")
+    typer.echo(
+        f"Shared Postgres supported: {status['shared_postgres_backend']['supported']}"
+    )
+    typer.echo(status["summary"])
+    typer.echo(f"Next: {status['next_required_action']}")
+
+
 @program_evidence_app.command("report")
 def oracle_program_evidence_report(
     index_path: Optional[Path] = typer.Option(

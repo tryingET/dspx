@@ -1713,6 +1713,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2372",
+          "title": "Make Oracle Postgres backend status explicit",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Make Oracle Postgres backend status explicit (task #2372)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }
