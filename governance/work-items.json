@@ -1739,6 +1739,35 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2385",
+          "title": "Advance shared Oracle backend RFC through review workflow",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Advance shared Oracle backend RFC through review workflow (task #2385)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2390",
+          "title": "Implement Oracle CoordinateStore abstraction without behavior change",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Implement Oracle CoordinateStore abstraction without behavior change (task #2390)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "labels": [
+            "deferred"
+          ],
+          "note": "Deferred:\n- reason: Phase 1 implementation task created by RFC workflow; defer until operator explicitly starts shared Oracle backend implementation.\n- kind: until_event\n- trigger_ref: decision:29-implementation-start"
         }
       ]
     }

@@ -12,14 +12,17 @@ type: "rfc"
 ## 0) Metadata
 
 - RFC ID: `RFC-DSPX-ORACLE-20260505-shared-coordinate-backend`
-- Status: `draft`
+- Status: `review; accepted by ADR 20260505-shared-oracle-coordinate-backend`
 - Owner: `DSPx core`
 - Reviewers: `DSPx core reviewers`, `softwareco/infra DS1621 operator`, `AK/governance liaison`
 - Created: `2026-05-05`
 - Target milestone: `generated-program production-readiness follow-up`
+- AK decision: `#29 Adopt shared Oracle coordinate backend target architecture`
 - Related docs:
   - `docs/ARCHITECTURE.md`
   - `docs/ORACLE_TIME_TRAVEL.md`
+  - `docs/project/2026-05-05-review-shared-oracle-coordinate-backend.md`
+  - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
   - `docs/adr/20260322-synthesis-architecture-v7-v9.md`
   - `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
   - `docs/rfc/RFC-DSPX-OBS-20260504-mlflow-local-sqlite-backend.md`
@@ -488,7 +491,8 @@ Operator diagnostics:
 
 ## 15) Execution checklist
 
-- [ ] RFC reviewed by DSPx core.
+- [x] RFC reviewed by DSPx core.
+- [x] ADR recorded for target architecture.
 - [ ] Infra owner confirms or rejects DS1621 as pilot host.
 - [ ] Store abstraction task scoped.
 - [ ] Postgres + pgvector adapter task scoped.
