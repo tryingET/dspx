@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-04",
+  "updated_at": "2026-05-05",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -1518,6 +1518,32 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-04"
+        },
+        {
+          "id": "AK-TASK-2224",
+          "title": "Normalize JSON behavior outputs for program exact-match",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Normalize JSON behavior outputs for program exact-match (task #2224)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2227",
+          "title": "Refresh work-items projection after task completion",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Refresh work-items projection after task completion (task #2227)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }
