@@ -1726,6 +1726,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2381",
+          "title": "Draft shared Oracle coordinate backend RFC from session architecture",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Draft shared Oracle coordinate backend RFC from session architecture (task #2381)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }
