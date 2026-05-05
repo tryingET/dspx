@@ -139,8 +139,8 @@ CI guard (current deterministic path):
 
 Optional enrichment mode:
 - `--with-mlflow` enables best-effort MLflow linkage enrichment
-- local MLflow tracking is sqlite-only: unset `MLFLOW_TRACKING_URI` resolves to `sqlite:///mlflow.db`, explicit `sqlite:...` is supported, and `file:...` / bare local path tracking URIs are reported as unsupported filesystem tracking
-- sqlite linkage uses MLflow metadata plus local artifact roots (including sqlite artifact-root fallback via MLflow experiment metadata); filesystem artifact scanning does not make filesystem tracking a supported backend
+- unset `MLFLOW_TRACKING_URI` is unconfigured: enrichment reports `mlflow_tracking_uri_missing` and DSPx does not create a local sqlite fallback
+- explicit sqlite linkage uses MLflow metadata plus local artifact roots (including sqlite artifact-root fallback via MLflow experiment metadata); filesystem artifact scanning does not make filesystem tracking a supported backend
 - remote tracking URIs default to safe/no-network mode unless `--mlflow-remote-lookup` is set
 - `--mlflow-remote-lookup` enables bounded remote candidate search (default cap/time-budget fields are reported in `mlflow_context`)
 - remote lookup applies bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes

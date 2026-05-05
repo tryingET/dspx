@@ -3,7 +3,7 @@ MLflow tracing helper for DSPx + DSPy.
 
 Environment knobs:
 - MLFLOW_ENABLE=1 (default: enabled)
-- MLFLOW_TRACKING_URI=<uri> (optional; when unset DSPx forces local sqlite)
+- MLFLOW_TRACKING_URI=<uri> (required for MLflow side effects; no local fallback)
 - MLFLOW_EXPERIMENT=DSPy
 
 DSPy autologging knobs (MLflow 3.x):
@@ -52,13 +52,15 @@ def mlflow_enabled() -> bool:
 
 
 def get_mlflow():
-    """Return mlflow module if enabled+importable; otherwise None.
+    """Return mlflow module if enabled+explicitly configured; otherwise None.
 
-    Centralizes the "MLFLOW_ENABLE=0 means no MLflow side effects" rule.
+    Centralizes the "MLFLOW_ENABLE=0 means no MLflow side effects" rule and
+    the alpha policy that DSPx does not invent a local MLflow backend when
+    `MLFLOW_TRACKING_URI` is unset.
     """
     if not mlflow_enabled():
         return None
-    if filesystem_tracking_uri_unsupported():
+    if tracking_uri_missing() or filesystem_tracking_uri_unsupported():
         return None
     try:
         import mlflow
@@ -69,16 +71,22 @@ def get_mlflow():
 
 
 def default_tracking_uri_from_env() -> str:
-    """Resolve tracking URI with DSPx local-default policy.
+    """Return the explicitly configured tracking URI, or an empty string.
 
-    Policy:
-    - explicit MLFLOW_TRACKING_URI wins when it is supported
-    - otherwise use local sqlite backend (deterministic across MLflow versions)
+    DSPx alpha policy does not keep a local sqlite fallback. Callers that want
+    MLflow side effects must set `MLFLOW_TRACKING_URI` explicitly, normally to
+    the shared DS1621 server (`http://ds1621:50000`).
     """
     uri = os.getenv("MLFLOW_TRACKING_URI")
     if uri and uri.strip():
         return uri.strip()
-    return "sqlite:///mlflow.db"
+    return ""
+
+
+def tracking_uri_missing() -> bool:
+    """Return True when MLflow is enabled but no tracking URI is configured."""
+
+    return not default_tracking_uri_from_env()
 
 
 def filesystem_tracking_uri_unsupported(uri: str | None = None) -> bool:
@@ -166,7 +174,7 @@ def enable_mlflow_from_env() -> bool:
     """
     if not mlflow_enabled():
         return False
-    if filesystem_tracking_uri_unsupported():
+    if tracking_uri_missing() or filesystem_tracking_uri_unsupported():
         return False
 
     mlflow = get_mlflow()
@@ -177,9 +185,6 @@ def enable_mlflow_from_env() -> bool:
     exp = os.getenv("MLFLOW_EXPERIMENT", "DSPy")
 
     try:
-        # Stabilize local default backend across MLflow versions.
-        if not os.getenv("MLFLOW_TRACKING_URI"):
-            os.environ["MLFLOW_TRACKING_URI"] = uri
         mlflow.set_tracking_uri(uri)
         mlflow.set_experiment(exp)
         _enable_dspy_autolog(mlflow)
@@ -202,7 +207,7 @@ def ensure_run_from_env(
     """
     if not mlflow_enabled():
         return False
-    if filesystem_tracking_uri_unsupported():
+    if tracking_uri_missing() or filesystem_tracking_uri_unsupported():
         return False
     mlflow = get_mlflow()
     if mlflow is None:

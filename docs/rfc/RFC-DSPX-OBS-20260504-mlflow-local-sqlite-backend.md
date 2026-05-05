@@ -1,9 +1,9 @@
 ---
-summary: "Implemented RFC for making sqlite the only supported local MLflow backend for DSPx explain correlation in alpha, with filesystem tracking removed rather than preserved as compatibility."
+summary: "Historical RFC for sqlite-only local MLflow correlation; superseded for unset tracking URI by explicit DS1621/remote tracking policy."
 read_when:
   - "You are changing MLflow tracking URI handling, local explain enrichment, or MLflow-related tests."
   - "You are resolving MLflow filesystem tracking deprecation warnings."
-  - "You need the design contract for sqlite-only local MLflow correlation in DSPx alpha."
+  - "You need the historical design contract for explicit sqlite local MLflow correlation in DSPx alpha."
 ---
 
 # RFC: SQLite-Only Local MLflow Backend for DSPx Alpha
@@ -11,7 +11,7 @@ read_when:
 ## 0) Metadata
 
 - RFC ID: `RFC-DSPX-OBS-20260504-mlflow-local-sqlite-backend`
-- Status: `accepted/implemented`
+- Status: `accepted/implemented; partially superseded`
 - Owner: `DSPx maintainers`
 - Reviewers: `DSPx observability reviewers`, `runtime/replay maintainers`
 - Created: `2026-05-04`
@@ -25,6 +25,10 @@ read_when:
   - `754de9f docs: specify sqlite-only local mlflow backend`
   - `9c0f82d fix: require sqlite for local mlflow tracking`
   - `7cf87f7 docs: align mlflow sqlite setup surfaces`
+
+### 0.1 Supersession note — explicit tracking URI policy
+
+This RFC remains the historical rationale for rejecting MLflow filesystem tracking and for keeping explicit `sqlite:...` test/developer coverage. Its unset-URI fallback decision is superseded: DSPx no longer resolves missing `MLFLOW_TRACKING_URI` to `sqlite:///mlflow.db`. When MLflow is enabled but no tracking URI is configured, DSPx performs no MLflow side effects and reports missing tracking URI diagnostics for explain enrichment. The normal shared tracking target is the DS1621 MLflow service at `http://ds1621:50000`, backed by Postgres plus MinIO.
 
 ## 1) Problem statement
 

@@ -13,6 +13,7 @@ from dspx.services.run_replay_service import check_run_receipt
 _REASON_CODE_VERSION = "v1"
 _REASON_PRECEDENCE: tuple[str, ...] = (
     "mlflow_disabled",
+    "mlflow_tracking_uri_missing",
     "mlflow_filesystem_backend_unsupported",
     "mlflow_remote_lookup_not_enabled",
     "mlflow_remote_auth_unavailable",
@@ -248,17 +249,16 @@ def _resolve_tracking_root(tracking_uri: str | None) -> tuple[Path | None, str, 
 
     Returns (path_or_none, mode, tracking_uri_display).
     mode:
-      - local-sqlite-default
+      - unconfigured
       - local-sqlite
       - unsupported-filesystem-tracking
       - remote-uri
 
-    Note: for sqlite tracking, MLflow default artifact location is cwd-local
-    `./mlruns` unless users configured a custom artifact root.
+    Note: for explicit sqlite tracking, MLflow default artifact location is
+    cwd-local `./mlruns` unless users configured a custom artifact root.
     """
     if not tracking_uri:
-        root = (Path.cwd() / "mlruns").resolve()
-        return root, "local-sqlite-default", "sqlite:///mlflow.db"
+        return None, "unconfigured", ""
 
     uri = str(tracking_uri).strip()
     low = uri.lower()
@@ -786,6 +786,20 @@ def _mlflow_context(
     out["mode"] = mode
     out["tracking_uri"] = tracking_display
 
+    if mode == "unconfigured":
+        out["lookup_mode"] = "disabled"
+        out["lookup_steps"] = [
+            "baseline-local-replay",
+            "missing-tracking-uri",
+        ]
+        out["note"] = "MLflow tracking URI is not configured"
+        out["warnings"] = [
+            "Set MLFLOW_TRACKING_URI explicitly for MLflow enrichment; DSPx does not keep a local sqlite fallback."
+        ]
+        reasons.append("mlflow_tracking_uri_missing")
+        out["degrade_reason_codes"] = _ordered_unique_reason_codes(reasons)
+        return out
+
     if mode == "unsupported-filesystem-tracking":
         out["lookup_mode"] = "disabled"
         out["lookup_steps"] = [
@@ -796,7 +810,7 @@ def _mlflow_context(
             "MLflow filesystem tracking backends are unsupported in DSPx alpha"
         )
         out["warnings"] = [
-            "MLflow filesystem tracking backends are unsupported in DSPx alpha; use sqlite:///mlflow.db."
+            "MLflow filesystem tracking backends are unsupported in DSPx alpha; use http://ds1621:50000 or another explicit tracking URI."
         ]
         reasons.append("mlflow_filesystem_backend_unsupported")
         out["degrade_reason_codes"] = _ordered_unique_reason_codes(reasons)

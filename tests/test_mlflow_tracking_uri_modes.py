@@ -126,18 +126,19 @@ def test_enable_mlflow_rejects_filesystem_tracking_uri(
     assert not any(call[0] == "set_experiment" for call in backend.calls)
 
 
-def test_enable_mlflow_defaults_to_local_sqlite_uri(
+def test_enable_mlflow_requires_explicit_tracking_uri(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     backend = _install_fake_mlflow(monkeypatch)
     monkeypatch.setenv("MLFLOW_ENABLE", "1")
     monkeypatch.delenv("MLFLOW_TRACKING_URI", raising=False)
 
-    from dspx.tracing import enable_mlflow_from_env
+    from dspx.tracing import default_tracking_uri_from_env, enable_mlflow_from_env
 
-    assert enable_mlflow_from_env() is True
-    assert ("set_tracking_uri", "sqlite:///mlflow.db") in backend.calls
-    assert os.environ.get("MLFLOW_TRACKING_URI") == "sqlite:///mlflow.db"
+    assert default_tracking_uri_from_env() == ""
+    assert enable_mlflow_from_env() is False
+    assert not any(call[0] == "set_tracking_uri" for call in backend.calls)
+    assert "MLFLOW_TRACKING_URI" not in os.environ
 
 
 def test_ensure_run_requires_explicit_run_name(monkeypatch: pytest.MonkeyPatch) -> None:

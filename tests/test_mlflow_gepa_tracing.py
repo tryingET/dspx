@@ -14,7 +14,7 @@ def test_gepa_tracing_enabled_has_no_noisy_span_start_failures(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("MLFLOW_ENABLE", "1")
-    monkeypatch.delenv("MLFLOW_TRACKING_URI", raising=False)
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"sqlite:///{tmp_path / 'mlflow.db'}")
     monkeypatch.setenv("MLFLOW_EXPERIMENT", "DSPxGEPAWarnings")
 
     assert enable_mlflow_from_env() is True

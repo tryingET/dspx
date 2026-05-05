@@ -1557,6 +1557,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2244",
+          "title": "Remove DSPx local SQLite MLflow fallback",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Remove DSPx local SQLite MLflow fallback (task #2244)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

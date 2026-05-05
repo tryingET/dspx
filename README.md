@@ -588,7 +588,7 @@ just dspx run explain --from generated/sig_names.py.meta.json --with-mlflow --js
 just dspx run explain --from generated/sig_names.py.meta.json --with-mlflow --mlflow-remote-lookup --json
 ```
 
-`--with-mlflow` local scan resolves sqlite custom artifact roots via MLflow experiment metadata when available.
+`--with-mlflow` requires an explicit tracking URI. Explicit sqlite URIs are treated as local scan candidates; remote URIs stay bounded/no-network unless `--mlflow-remote-lookup` is set.
 
 Explain exit codes:
 - `0`: explanation generated (`ok` or `degraded`)
@@ -606,17 +606,9 @@ Explainability sink (optional):
 - execution must still work with `MLFLOW_ENABLE=0`.
 
 MLflow defaults/policy:
-- `MLFLOW_ENABLE=1` + no `MLFLOW_TRACKING_URI` -> local sqlite backend (`sqlite:///mlflow.db`)
+- `MLFLOW_ENABLE=1` + no `MLFLOW_TRACKING_URI` -> no MLflow side effects; DSPx does not keep a local sqlite fallback
 - runs are started explicitly by DSPx commands/services (no implicit run start during bootstrap)
 - DSPy autolog traces are disabled by default to avoid noisy GEPA span warnings
-
-Enable MLflow for local tracing:
-
-```bash
-export MLFLOW_ENABLE=1
-# optional: omit this because sqlite:///mlflow.db is the local default
-export MLFLOW_TRACKING_URI=sqlite:///mlflow.db
-```
 
 Use the shared DS1621 MLflow server when you want the UI / shared remote tracking surface:
 
@@ -626,7 +618,7 @@ export MLFLOW_ENABLE=1
 export MLFLOW_TRACKING_URI=http://ds1621:50000
 ```
 
-DSPx does not require a server for local tracing; the DS1621 server is optional remote enrichment/logging infrastructure.
+The DS1621 server is the normal DSPx MLflow target. Replay/explain correctness remains local-first from receipts/manifests and does not require MLflow availability.
 
 MLflow behavior and constraints:
 - `docs/MLFLOW_OBSERVABILITY_PLAN.md`

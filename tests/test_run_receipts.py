@@ -1018,6 +1018,53 @@ def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> 
     assert payload["mlflow_context"]["degrade_reason_codes"] == []
 
 
+def test_run_explain_with_mlflow_requires_explicit_tracking_uri(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.delenv("MLFLOW_TRACKING_URI", raising=False)
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    out = tmp_path / "sig.py"
+    r_gen = runner.invoke(
+        app,
+        [
+            "signature",
+            "gen",
+            "Extract names from text",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(out),
+        ],
+    )
+    assert r_gen.exit_code == 0
+
+    r_explain = runner.invoke(
+        app,
+        [
+            "run",
+            "explain",
+            "--from",
+            str(tmp_path / "sig.py.meta.json"),
+            "--with-mlflow",
+            "--json",
+        ],
+    )
+    assert r_explain.exit_code == 0
+    payload = json.loads(r_explain.stdout)
+    ctx = payload["mlflow_context"]
+    assert ctx["requested"] is True
+    assert ctx["mode"] == "unconfigured"
+    assert ctx["lookup_mode"] == "disabled"
+    assert ctx["tracking_uri"] == ""
+    assert ctx["degrade_reason_codes"] == ["mlflow_tracking_uri_missing"]
+    assert not (tmp_path / "mlflow.db").exists()
+    assert not (tmp_path / "mlruns").exists()
+
+
 def test_run_explain_is_stable_with_partial_lineage_metadata(
     tmp_path: Path, monkeypatch
 ) -> None:

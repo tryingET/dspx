@@ -1,5 +1,5 @@
 ---
-summary: "MLflow lifecycle policy after dspy-ai 3.1.3 + mlflow 3.9.0: deterministic local backend, explicit run starts, safe DSPy autolog defaults."
+summary: "MLflow lifecycle policy after dspy-ai 3.1.3 + mlflow 3.9.0: explicit tracking URI, DS1621 remote target, explicit run starts, safe DSPy autolog defaults."
 read_when:
   - "You are changing tracing, MLflow env handling, or run lifecycle behavior."
   - "You are debugging GEPA warnings, MLflow backend selection, or CI hangs."
@@ -16,8 +16,9 @@ read_when:
 - no tracking/network side effects
 
 2) If `MLFLOW_ENABLE=1` and `MLFLOW_TRACKING_URI` is **unset**:
-- DSPx forces deterministic local backend: `sqlite:///mlflow.db`
-- expected local artifact root remains `./mlruns`
+- DSPx performs no MLflow side effects
+- DSPx does not create or imply a local sqlite fallback
+- set `MLFLOW_TRACKING_URI=http://ds1621:50000` for the shared DS1621 MLflow service
 
 3) Run creation is explicit:
 - bootstrapping tracing does **not** start runs
@@ -32,7 +33,7 @@ read_when:
 
 ### A) Bootstrap (configuration only)
 `enable_mlflow_from_env()` does:
-- resolve tracking URI (explicit env or default local sqlite)
+- require an explicit tracking URI
 - set experiment
 - configure DSPy autolog integration (best-effort)
 
@@ -73,14 +74,15 @@ Optional opt-in knobs:
 
 ## Tracking URI modes
 
-DSPx is still alpha, so local MLflow tracking is sqlite-only instead of preserving MLflow's deprecated filesystem backend.
+DSPx is still alpha, so it does not preserve implicit local MLflow fallbacks or MLflow's deprecated filesystem backend.
 
-- unset: `sqlite:///mlflow.db` (DSPx default)
-- `sqlite:...`: supported local sqlite backend
-- `file:...` or local path: unsupported filesystem tracking backend; use sqlite instead
-- `http(s)://...`: remote backend (user-managed); the shared DSPx/NAS instance is `http://ds1621:50000`
+- unset: unconfigured; no MLflow logging/bootstrap side effects
+- `http://ds1621:50000`: normal shared DSPx/NAS MLflow target
+- `http(s)://...`: remote backend (user-managed)
+- explicit `sqlite:...`: supported only when a developer intentionally chooses a local sqlite tracking URI (not a fallback)
+- `file:...` or local path: unsupported filesystem tracking backend; use the DS1621 server or another explicit database-backed tracking URI instead
 
-Run explain enrichment (`--with-mlflow`) treats sqlite modes as local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata. The local scan reads artifact files after sqlite metadata identifies local artifact roots; it does not make filesystem directories a supported MLflow tracking backend. File/local-path tracking URIs degrade MLflow enrichment with deterministic unsupported-backend diagnostics and must not instantiate MLflow's deprecated filesystem tracking backend. Remote URIs stay safe by default (no remote lookup) unless `--mlflow-remote-lookup` is explicitly set, in which case bounded remote candidate search is attempted with bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes. `http://ds1621:50000` is the current shared DS1621 MLflow server for optional DSPx remote logging/UI; it is not required for local replay/explain correctness.
+Run explain enrichment (`--with-mlflow`) requires an explicit tracking URI. Explicit sqlite URIs are local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata. The local scan reads artifact files after sqlite metadata identifies local artifact roots; it does not make filesystem directories a supported MLflow tracking backend. File/local-path tracking URIs degrade MLflow enrichment with deterministic unsupported-backend diagnostics and must not instantiate MLflow's deprecated filesystem tracking backend. Remote URIs stay safe by default (no remote lookup) unless `--mlflow-remote-lookup` is explicitly set, in which case bounded remote candidate search is attempted with bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes. `http://ds1621:50000` is the current shared DS1621 MLflow server for optional DSPx remote logging/UI; it is backed by Postgres plus MinIO object storage on DS1621.
 
 ## Guardrails for contributors
 
@@ -92,8 +94,8 @@ Run explain enrichment (`--with-mlflow`) treats sqlite modes as local scan candi
 ## Validation checklist
 
 - disabled mode: no import + no side effects
-- local default mode: uses sqlite + local artifacts
-- explicit URI mode: sqlite/http supported behavior and unsupported filesystem-tracking diagnostics covered
+- unconfigured mode: no sqlite fallback and no MLflow side effects
+- explicit URI mode: http/sqlite supported behavior and unsupported filesystem-tracking diagnostics covered
 - nested run behavior: child run does not end parent
 - GEPA path with tracing enabled: no noisy span-start warning flood
 
