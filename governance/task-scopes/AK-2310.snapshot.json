@@ -1,0 +1,21 @@
+{
+  "task_id": 2310,
+  "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
+  "title": "Make generated program MLflow eval report failures not errors",
+  "status": "done",
+  "entity_version": 4,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false
+}

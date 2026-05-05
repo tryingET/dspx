@@ -1622,6 +1622,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2310",
+          "title": "Make generated program MLflow eval report failures not errors",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Make generated program MLflow eval report failures not errors (task #2310)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

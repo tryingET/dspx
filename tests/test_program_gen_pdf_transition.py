@@ -206,11 +206,13 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         json.dumps(section_units, separators=(",", ":")),
     )
     assert gold == pred
-
     behavior_results = json.loads((outdir / "behavior_results.json").read_text())
     behavior_episode = json.loads((outdir / "behavior_episode.json").read_text())
     receipt_meta = json.loads((outdir / "manifest.json.meta.json").read_text())
     assert behavior_results["schema_version"] == "program-behavior-results-v1"
+    assert behavior_results["summary"]["status"] == "failed"
+    assert behavior_results["examples"][0]["status"] == "failed"
+    assert "error" not in behavior_results["examples"][0]
     assert behavior_results["examples"][0]["expected_outputs"] == expected_outputs
     assert behavior_episode["schema_version"] == "program-behavior-episode-v1"
     assert behavior_episode["authority"] == "behavior_evidence_only_non_authoritative"
