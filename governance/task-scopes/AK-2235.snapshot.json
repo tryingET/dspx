@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-05T03:59:18.034400071+00:00",
+  "task_id": 2235,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "README.md",
+      "docs/MLFLOW_OBSERVABILITY_PLAN.md",
+      "docs/TUTORIAL_E2E.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "Justfile",
+      "README.md",
+      "docs/MLFLOW_OBSERVABILITY_PLAN.md",
+      "docs/TUTORIAL_E2E.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

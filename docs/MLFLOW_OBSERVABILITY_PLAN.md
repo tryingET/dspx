@@ -78,9 +78,9 @@ DSPx is still alpha, so local MLflow tracking is sqlite-only instead of preservi
 - unset: `sqlite:///mlflow.db` (DSPx default)
 - `sqlite:...`: supported local sqlite backend
 - `file:...` or local path: unsupported filesystem tracking backend; use sqlite instead
-- `http(s)://...`: remote backend (user-managed)
+- `http(s)://...`: remote backend (user-managed); the shared DSPx/NAS instance is `http://ds1621:50000`
 
-Run explain enrichment (`--with-mlflow`) treats sqlite modes as local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata. The local scan reads artifact files after sqlite metadata identifies local artifact roots; it does not make filesystem directories a supported MLflow tracking backend. File/local-path tracking URIs degrade MLflow enrichment with deterministic unsupported-backend diagnostics and must not instantiate MLflow's deprecated filesystem tracking backend. Remote URIs stay safe by default (no remote lookup) unless `--mlflow-remote-lookup` is explicitly set, in which case bounded remote candidate search is attempted with bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes.
+Run explain enrichment (`--with-mlflow`) treats sqlite modes as local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata. The local scan reads artifact files after sqlite metadata identifies local artifact roots; it does not make filesystem directories a supported MLflow tracking backend. File/local-path tracking URIs degrade MLflow enrichment with deterministic unsupported-backend diagnostics and must not instantiate MLflow's deprecated filesystem tracking backend. Remote URIs stay safe by default (no remote lookup) unless `--mlflow-remote-lookup` is explicitly set, in which case bounded remote candidate search is attempted with bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes. `http://ds1621:50000` is the current shared DS1621 MLflow server for optional DSPx remote logging/UI; it is not required for local replay/explain correctness.
 
 ## Guardrails for contributors
 

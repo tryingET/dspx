@@ -618,7 +618,15 @@ export MLFLOW_ENABLE=1
 export MLFLOW_TRACKING_URI=sqlite:///mlflow.db
 ```
 
-For an external MLflow server, start that server outside DSPx and set `MLFLOW_TRACKING_URI=http://host:port`. DSPx does not require a server for local tracing.
+Use the shared DS1621 MLflow server when you want the UI / shared remote tracking surface:
+
+```bash
+just mlflow-up
+export MLFLOW_ENABLE=1
+export MLFLOW_TRACKING_URI=http://ds1621:50000
+```
+
+DSPx does not require a server for local tracing; the DS1621 server is optional remote enrichment/logging infrastructure.
 
 MLflow behavior and constraints:
 - `docs/MLFLOW_OBSERVABILITY_PLAN.md`

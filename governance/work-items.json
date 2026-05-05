@@ -1544,6 +1544,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2235",
+          "title": "Wire DSPx setup to DS1621 MLflow instance",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Wire DSPx setup to DS1621 MLflow instance (task #2235)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

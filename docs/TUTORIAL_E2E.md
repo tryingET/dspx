@@ -15,8 +15,8 @@ Prereqs
 - Optional: `.env` for provider keys / Just recipes: `cp .env.example .env` (git-ignored).
 - Optional: MLflow tracking:
   - Local sqlite backend (no server): leave `MLFLOW_TRACKING_URI` unset, or set `MLFLOW_TRACKING_URI=sqlite:///mlflow.db`.
-  - External server: start MLflow outside this repo and set `MLFLOW_TRACKING_URI=http://host:port`.
-  - DSPx does not ship a repo-local MLflow Docker Compose file; `just mlflow-up/down` fail closed with guidance instead of starting a hidden server.
+  - Shared DS1621 server: run `just mlflow-up`, then set `MLFLOW_TRACKING_URI=http://ds1621:50000`.
+  - `just mlflow-up` starts/verifies the NAS-hosted MLflow stack at `/volume1/docker/mlflow`; `just mlflow-down` requires `confirm=1` because it stops shared infrastructure.
   - `file:./mlruns` / bare local path tracking URIs are unsupported in DSPx alpha; local artifacts may still live under `./mlruns` when sqlite tracking is used.
 
 1) Prepare a simple Mermaid workflow
@@ -106,11 +106,12 @@ export MLFLOW_TRACKING_URI=sqlite:///mlflow.db
 just dspx codegen "A CLI that prints hi" -l python --outfile gen.py
 ```
 
-For a running external MLflow server, use the server URI instead:
+For the shared DS1621 MLflow server, verify/start it first and use its URI:
 
 ```
+just mlflow-up
 export MLFLOW_ENABLE=1
-export MLFLOW_TRACKING_URI=http://host:port
+export MLFLOW_TRACKING_URI=http://ds1621:50000
 just dspx codegen "A CLI that prints hi" -l python --outfile gen.py
 ```
 

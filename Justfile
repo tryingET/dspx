@@ -492,17 +492,25 @@ tool-install:
   uv tool install packages/dspx-core
   uv tool install apps/forge
 
-# Explain repo-local MLflow server setup policy
+# Start or verify the shared DS1621 MLflow server used by DSPx optional remote tracking
 mlflow-up:
-  @echo "No repo-local MLflow Docker Compose config is provided."
-  @echo "For local tracking, leave MLFLOW_TRACKING_URI unset or set MLFLOW_TRACKING_URI=sqlite:///mlflow.db."
-  @echo "For an external MLflow server, start it outside DSPx and set MLFLOW_TRACKING_URI=http://host:port."
-  @exit 2
+  @ssh "${DSPX_MLFLOW_DS1621_SSH:-ds1621-admin}" 'cd /volume1/docker/mlflow && /usr/local/bin/docker compose up -d && /usr/local/bin/docker compose ps'
+  @curl -fsS --max-time 10 http://ds1621:50000/health >/dev/null
+  @echo "MLflow is available at http://ds1621:50000"
+  @echo "Use: export MLFLOW_ENABLE=1 MLFLOW_TRACKING_URI=http://ds1621:50000"
 
-# Explain repo-local MLflow server shutdown policy
-mlflow-down:
-  @echo "No repo-local MLflow Docker Compose config is provided; nothing repo-local was started by DSPx."
-  @exit 2
+# Stop the shared DS1621 MLflow server only with explicit confirmation
+mlflow-down confirm="":
+  @if [ "{{confirm}}" != "1" ]; then \
+    echo "Refusing to stop shared DS1621 MLflow without confirm=1."; \
+    echo "Use: just mlflow-down confirm=1"; \
+    exit 2; \
+  fi
+  @ssh "${DSPX_MLFLOW_DS1621_SSH:-ds1621-admin}" 'cd /volume1/docker/mlflow && /usr/local/bin/docker compose down'
+
+# Check the shared DS1621 MLflow server health endpoint
+mlflow-status:
+  @curl -fsS --max-time 10 http://ds1621:50000/health
 
 # Run the DSPy + Codex Exec example (from source)
 example:
