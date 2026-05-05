@@ -1674,6 +1674,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2335",
+          "title": "Fix full-test regression in program MLflow observability test",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Fix full-test regression in program MLflow observability test (task #2335)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

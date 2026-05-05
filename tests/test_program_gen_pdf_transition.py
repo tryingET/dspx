@@ -353,6 +353,10 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     finally:
         generated_program.end_observability_run(started)
 
+    def _failing_program() -> object:
+        raise RuntimeError("forced runtime observability failure")
+
+    generated_program.build_program = _failing_program
     try:
         generated_program.run_with_observability(
             source_package_manifest_json="{}",
@@ -360,7 +364,7 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
             existing_wiki_index_json="{}",
             declared_output_root="x",
         )
-    except Exception:
+    except RuntimeError:
         pass
     assert ("set_tag", "program.runtime.status", "failed") in backend.calls
     assert any(
