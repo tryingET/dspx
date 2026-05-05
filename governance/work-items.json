@@ -1609,6 +1609,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2300",
+          "title": "Connect generated DSPy program runtime to MLflow",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Connect generated DSPy program runtime to MLflow (task #2300)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

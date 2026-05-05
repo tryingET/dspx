@@ -269,6 +269,8 @@ def _normalize_run_kind(value: str | None) -> str:
         "signature-refine",
         "module-gen",
         "program-gen",
+        "program-runtime",
+        "program-eval",
         "codegen",
         "other",
     }

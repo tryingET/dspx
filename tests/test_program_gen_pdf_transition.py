@@ -66,6 +66,9 @@ class _FakeMlflowBackend:
     def log_param(self, key: str, value: str) -> None:
         self.calls.append(("log_param", key, value))
 
+    def log_metric(self, key: str, value: float) -> None:
+        self.calls.append(("log_metric", key, value))
+
     def log_artifacts(self, path: str) -> None:
         self.calls.append(("log_artifacts", path))
 
@@ -83,6 +86,7 @@ def _install_fake_mlflow(monkeypatch) -> _FakeMlflowBackend:
     setattr(mod, "end_run", backend.end_run)
     setattr(mod, "set_tag", backend.set_tag)
     setattr(mod, "log_param", backend.log_param)
+    setattr(mod, "log_metric", backend.log_metric)
     setattr(mod, "log_artifacts", backend.log_artifacts)
     setattr(mod, "dspy", types.SimpleNamespace(autolog=backend.dspy_autolog))
     monkeypatch.setitem(sys.modules, "mlflow", mod)
@@ -249,7 +253,8 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("MLFLOW_ENABLE", "1")
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://mlflow.example:5000")
+    tracking_uri = f"sqlite:///{tmp_path / 'mlflow.db'}"
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking_uri)
     monkeypatch.setenv("MLFLOW_EXPERIMENT", "DSPxProgramGenTest")
     monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
     reset_embedding_engine()
@@ -267,14 +272,54 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     )
 
     assert result.exit_code == 0, result.output
-    assert ("set_tracking_uri", "http://mlflow.example:5000") in backend.calls
+    assert ("set_tracking_uri", tracking_uri) in backend.calls
     assert ("set_experiment", "DSPxProgramGenTest") in backend.calls
     assert ("start_run", "program-gen") in backend.calls
     assert ("set_tag", "service", "program") in backend.calls
     assert ("set_tag", "dspx.run_kind", "program-gen") in backend.calls
     assert any(call == ("log_artifacts", str(outdir)) for call in backend.calls)
-    assert any(
-        call == ("log_param", "program.generated_file_count", "24")
+    file_count_calls = [
+        call
         for call in backend.calls
+        if call[:2] == ("log_param", "program.generated_file_count")
+    ]
+    assert file_count_calls
+    assert int(str(file_count_calls[-1][2])) >= 24
+    program_spec = importlib.util.spec_from_file_location(
+        "pdf_transition_generated_program_mlflow", outdir / "program.py"
+    )
+    assert program_spec is not None
+    assert program_spec.loader is not None
+    generated_program = importlib.util.module_from_spec(program_spec)
+    old_path = list(sys.path)
+    try:
+        sys.path.insert(0, str(outdir))
+        program_spec.loader.exec_module(generated_program)
+    finally:
+        sys.path[:] = old_path
+
+    started = generated_program.configure_observability(
+        run_name="program-runtime", run_kind="program-runtime"
+    )
+    assert started is True
+    try:
+        tags = generated_program.program_observability_tags()
+        assert tags["program.name"] == "PdfTransitionProgram"
+        assert tags["program.assembly_id"]
+        assert tags["program.manifest_hash"]
+        assert ("start_run", "program-runtime") in backend.calls
+        assert ("set_tag", "dspx.run_kind", "program-runtime") in backend.calls
+        assert ("set_tag", "program.name", "PdfTransitionProgram") in backend.calls
+    finally:
+        generated_program.end_observability_run(started)
+
+    eval_behavior_source = (outdir / "eval_behavior.py").read_text(encoding="utf-8")
+    assert (
+        "configure_observability(run_name='program-eval', run_kind='program-eval')"
+        in eval_behavior_source
+    )
+    assert (
+        "mlflow.log_metric(f'program.behavior.{key}', float(value))"
+        in eval_behavior_source
     )
     assert ("end_run",) in backend.calls

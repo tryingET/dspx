@@ -618,7 +618,7 @@ export MLFLOW_ENABLE=1
 export MLFLOW_TRACKING_URI=http://ds1621:50000
 ```
 
-The DS1621 server is the normal DSPx MLflow target. Replay/explain correctness remains local-first from receipts/manifests and does not require MLflow availability. `dspx program-gen` logs a `program-gen` run and uploads the materialized assembly artifacts when MLflow is configured.
+The DS1621 server is the normal DSPx MLflow target. Replay/explain correctness remains local-first from receipts/manifests and does not require MLflow availability. `dspx program-gen` logs a `program-gen` run and uploads the materialized assembly artifacts when MLflow is configured; generated `program.py` also exposes explicit runtime hooks for `program-runtime` runs, and generated `eval_behavior.py` logs `program-eval` metrics/artifacts.
 
 MLflow behavior and constraints:
 - `docs/MLFLOW_OBSERVABILITY_PLAN.md`

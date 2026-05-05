@@ -191,3 +191,8 @@ def test_standard_tags_include_program_gen_run_kind() -> None:
 
     assert tags["service"] == "program"
     assert tags["dspx.run_kind"] == "program-gen"
+
+    runtime_tags = standard_tags("program", run_kind="program-runtime")
+    eval_tags = standard_tags("program", run_kind="program-eval")
+    assert runtime_tags["dspx.run_kind"] == "program-runtime"
+    assert eval_tags["dspx.run_kind"] == "program-eval"
