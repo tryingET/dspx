@@ -1,0 +1,27 @@
+{
+  "task_id": 2292,
+  "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
+  "title": "Log program-gen assemblies to MLflow",
+  "status": "done",
+  "entity_version": 5,
+  "scope": {
+    "allowed_paths": [
+      "README.md",
+      "docs/**",
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/dspx.py",
+      "packages/dspx-core/src/dspx/tracing.py",
+      "tests/test_mlflow_tracking_uri_modes.py",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "required_paths": [
+      "README.md",
+      "packages/dspx-core/src/dspx/cli/dspx.py",
+      "packages/dspx-core/src/dspx/tracing.py",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false
+}

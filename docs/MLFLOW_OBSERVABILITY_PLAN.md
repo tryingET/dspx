@@ -84,6 +84,8 @@ DSPx is still alpha, so it does not preserve implicit local MLflow fallbacks or 
 
 Run explain enrichment (`--with-mlflow`) requires an explicit tracking URI. Explicit sqlite URIs are local scan candidates, including sqlite custom artifact roots resolved from MLflow experiment metadata. The local scan reads artifact files after sqlite metadata identifies local artifact roots; it does not make filesystem directories a supported MLflow tracking backend. File/local-path tracking URIs degrade MLflow enrichment with deterministic unsupported-backend diagnostics and must not instantiate MLflow's deprecated filesystem tracking backend. Remote URIs stay safe by default (no remote lookup) unless `--mlflow-remote-lookup` is explicitly set, in which case bounded remote candidate search is attempted with bounded MLflow HTTP request behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remotes. `http://ds1621:50000` is the current shared DS1621 MLflow server for optional DSPx remote logging/UI; it is backed by Postgres plus MinIO object storage on DS1621.
 
+`dspx program-gen` logs a `program-gen` run when MLflow is configured. The run carries standard correlation tags (`service=program`, `dspx.run_kind=program-gen`, `dspx.template_version=program-candidate-assembly-v1`) and uploads the materialized assembly directory, including `manifest.json`, `manifest.json.meta.json`, `program.py`, `module.py`, `signature.py`, behavior evidence, jury/review artifacts, and evaluation scripts.
+
 ## Guardrails for contributors
 
 - never `import mlflow` directly outside `dspx.tracing`

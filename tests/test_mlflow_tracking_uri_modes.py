@@ -178,3 +178,16 @@ def test_standard_tags_include_dspx_correlation_fields() -> None:
     assert tags["dspx.output_basename"] == "sig.py"
     assert tags["dspx.cache_key"] == "a" * 64
     assert tags["dspx.output_hash_prefix"] == "b" * 12
+
+
+def test_standard_tags_include_program_gen_run_kind() -> None:
+    from dspx.tracing import standard_tags
+
+    tags = standard_tags(
+        "program",
+        template_version="program-candidate-assembly-v1",
+        run_kind="program-gen",
+    )
+
+    assert tags["service"] == "program"
+    assert tags["dspx.run_kind"] == "program-gen"

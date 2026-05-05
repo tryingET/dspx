@@ -16,7 +16,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import typer
 
@@ -182,6 +182,83 @@ def module_gen(
             )
 
 
+def _log_program_artifact_to_mlflow(artifact: Any) -> None:
+    """Best-effort MLflow logging for materialized program-gen assemblies."""
+    try:
+        from dspx.cache import sha256_text
+        from dspx.tracing import ensure_run_with_standard_tags, get_mlflow
+
+        mlflow = get_mlflow()
+        if mlflow is None:
+            return
+
+        root = Path(str(getattr(artifact, "root_path", "") or ""))
+        if not root.exists() or not root.is_dir():
+            return
+
+        manifest_path = root / "manifest.json"
+        receipt_path = Path(str(getattr(artifact, "receipt_path", "") or ""))
+        receipt: dict[str, Any] = {}
+        if receipt_path.exists() and receipt_path.is_file():
+            try:
+                loaded = json.loads(receipt_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    receipt = loaded
+            except Exception:
+                receipt = {}
+
+        metadata = dict(getattr(artifact, "metadata", {}) or {})
+        template_version = str(
+            receipt.get("template_version") or "program-candidate-assembly-v1"
+        )
+        cache_key = str(
+            receipt.get("cache_key") or metadata.get("request_id") or manifest_path
+        )
+        if receipt.get("output_hash"):
+            output_hash = str(receipt["output_hash"])
+        elif manifest_path.exists():
+            output_hash = sha256_text(manifest_path.read_text(encoding="utf-8"))
+        else:
+            output_hash = ""
+
+        started_run = ensure_run_with_standard_tags(
+            "program",
+            template_version=template_version,
+            run_name="program-gen",
+            run_kind="program-gen",
+            output_basename=manifest_path.name,
+            cache_key=cache_key,
+            output_hash=output_hash,
+            extra={
+                "program.name": str(getattr(artifact, "name", "") or ""),
+                "program.assembly_id": str(metadata.get("assembly_id") or ""),
+                "program.episode_id": str(metadata.get("episode_id") or ""),
+            },
+        )
+
+        try:
+            if mlflow.active_run() is not None:
+                try:
+                    mlflow.log_param(
+                        "program.generated_file_count",
+                        str(sum(1 for path in root.rglob("*") if path.is_file())),
+                    )
+                except Exception:
+                    pass
+                try:
+                    mlflow.log_artifacts(str(root))
+                except Exception:
+                    pass
+        finally:
+            if started_run:
+                try:
+                    mlflow.end_run()
+                except Exception:
+                    pass
+    except Exception:
+        return
+
+
 @app.command("program-gen")
 def program_gen(
     intent: Path = typer.Option(
@@ -209,11 +286,15 @@ def program_gen(
         typer.echo(f"Error: intent file not found: {intent}", err=True)
         raise typer.Exit(code=2)
 
+    ensure_env(None)
+
     try:
         artifact = run_generate_from_intent_path(intent, outdir=outdir)
     except Exception as exc:
         typer.echo(f"Error: program intent generation failed: {exc}", err=True)
         raise typer.Exit(code=2) from exc
+
+    _log_program_artifact_to_mlflow(artifact)
 
     if print_manifest:
         typer.echo(json.dumps(artifact.manifest, indent=2, sort_keys=True))

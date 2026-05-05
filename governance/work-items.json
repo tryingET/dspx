@@ -1596,6 +1596,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2292",
+          "title": "Log program-gen assemblies to MLflow",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Log program-gen assemblies to MLflow (task #2292)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

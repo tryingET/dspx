@@ -268,6 +268,7 @@ def _normalize_run_kind(value: str | None) -> str:
         "signature-gen",
         "signature-refine",
         "module-gen",
+        "program-gen",
         "codegen",
         "other",
     }
@@ -279,6 +280,7 @@ def _run_kind_from_service(service: str) -> str:
     mapped = {
         "signature": "signature-gen",
         "module": "module-gen",
+        "program": "program-gen",
         "codegen": "codegen",
     }.get((service or "").strip().lower(), "other")
     return _normalize_run_kind(mapped)

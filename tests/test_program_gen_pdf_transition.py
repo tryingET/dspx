@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 import sys
+import types
 from pathlib import Path
 
 import yaml
@@ -30,6 +31,62 @@ def _all_files(root: Path) -> set[Path]:
 def _load_json_text(value: object) -> object:
     assert isinstance(value, str)
     return json.loads(value)
+
+
+class _FakeRun:
+    pass
+
+
+class _FakeMlflowBackend:
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, ...]] = []
+        self._active: _FakeRun | None = None
+
+    def set_tracking_uri(self, uri: str) -> None:
+        self.calls.append(("set_tracking_uri", uri))
+
+    def set_experiment(self, name: str) -> None:
+        self.calls.append(("set_experiment", name))
+
+    def active_run(self):
+        return self._active
+
+    def start_run(self, run_name: str | None = None) -> _FakeRun:
+        self.calls.append(("start_run", run_name))
+        self._active = _FakeRun()
+        return self._active
+
+    def end_run(self) -> None:
+        self.calls.append(("end_run",))
+        self._active = None
+
+    def set_tag(self, key: str, value: str) -> None:
+        self.calls.append(("set_tag", key, value))
+
+    def log_param(self, key: str, value: str) -> None:
+        self.calls.append(("log_param", key, value))
+
+    def log_artifacts(self, path: str) -> None:
+        self.calls.append(("log_artifacts", path))
+
+    def dspy_autolog(self, **kwargs: object) -> None:
+        self.calls.append(("dspy.autolog", tuple(sorted(kwargs))))
+
+
+def _install_fake_mlflow(monkeypatch) -> _FakeMlflowBackend:
+    backend = _FakeMlflowBackend()
+    mod = types.ModuleType("mlflow")
+    setattr(mod, "set_tracking_uri", backend.set_tracking_uri)
+    setattr(mod, "set_experiment", backend.set_experiment)
+    setattr(mod, "active_run", backend.active_run)
+    setattr(mod, "start_run", backend.start_run)
+    setattr(mod, "end_run", backend.end_run)
+    setattr(mod, "set_tag", backend.set_tag)
+    setattr(mod, "log_param", backend.log_param)
+    setattr(mod, "log_artifacts", backend.log_artifacts)
+    setattr(mod, "dspy", types.SimpleNamespace(autolog=backend.dspy_autolog))
+    monkeypatch.setitem(sys.modules, "mlflow", mod)
+    return backend
 
 
 def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_only(
@@ -181,3 +238,43 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert not (wiki_root / "Close Reading.transition.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
     assert all(path.is_relative_to(outdir) for path in _all_files(outdir))
+
+
+def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    backend = _install_fake_mlflow(monkeypatch)
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://mlflow.example:5000")
+    monkeypatch.setenv("MLFLOW_EXPERIMENT", "DSPxProgramGenTest")
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    reset_embedding_engine()
+
+    outdir = tmp_path / "program"
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(FIXTURE_ROOT / "intent.yaml"),
+            "--outdir",
+            str(outdir),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert ("set_tracking_uri", "http://mlflow.example:5000") in backend.calls
+    assert ("set_experiment", "DSPxProgramGenTest") in backend.calls
+    assert ("start_run", "program-gen") in backend.calls
+    assert ("set_tag", "service", "program") in backend.calls
+    assert ("set_tag", "dspx.run_kind", "program-gen") in backend.calls
+    assert any(call == ("log_artifacts", str(outdir)) for call in backend.calls)
+    assert any(
+        call == ("log_param", "program.generated_file_count", "24")
+        for call in backend.calls
+    )
+    assert ("end_run",) in backend.calls
