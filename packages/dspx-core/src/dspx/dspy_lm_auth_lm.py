@@ -41,6 +41,7 @@ else:  # pragma: no cover
 @dataclass
 class DspyLMAuthOutputText:
     text: str
+    type: str = "output_text"
 
 
 @dataclass
@@ -237,6 +238,51 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         raise DspyLMAuthResponseError(error_text)
 
     @staticmethod
+    def _responses_text_block(text: Any, *, role: str) -> dict[str, Any]:
+        block_type = "output_text" if role == "assistant" else "input_text"
+        return {"type": block_type, "text": "" if text is None else str(text)}
+
+    @classmethod
+    def _normalize_codex_message_content(cls, content: Any, *, role: str) -> Any:
+        if role != "assistant":
+            return content
+        if isinstance(content, str):
+            return [cls._responses_text_block(content, role=role)]
+        if isinstance(content, list):
+            blocks: list[Any] = []
+            for item in content:
+                if isinstance(item, dict):
+                    item_type = str(item.get("type") or "")
+                    if item_type in {"", "text", "input_text"}:
+                        blocks.append(
+                            cls._responses_text_block(item.get("text", ""), role=role)
+                        )
+                    else:
+                        blocks.append(dict(item))
+                elif item is not None:
+                    blocks.append(cls._responses_text_block(item, role=role))
+            return blocks
+        if content is None:
+            return []
+        return [cls._responses_text_block(content, role=role)]
+
+    @classmethod
+    def _normalize_codex_messages(
+        cls, messages: Iterable[Dict[str, Any]] | None
+    ) -> list[dict[str, Any]] | None:
+        if messages is None:
+            return None
+        normalized: list[dict[str, Any]] = []
+        for message in messages:
+            msg = dict(message)
+            role = str(msg.get("role", "user"))
+            msg["content"] = cls._normalize_codex_message_content(
+                msg.get("content"), role=role
+            )
+            normalized.append(msg)
+        return normalized
+
+    @staticmethod
     def _extract_text(resp: Any) -> str:
         DspyLMAuthLM._raise_on_error_payload(resp)
         try:
@@ -416,9 +462,14 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             call_kwargs["stream"] = True
             call_kwargs["cache"] = False
         try:
+            raw_messages = list(messages) if messages is not None else None
+            if bool(self._uses_codex_route) or self.requested_model.startswith(
+                "codex/"
+            ):
+                raw_messages = self._normalize_codex_messages(raw_messages)
             resp = inner.forward(
                 prompt=prompt,
-                messages=list(messages) if messages is not None else None,
+                messages=raw_messages,
                 **call_kwargs,
             )
             text = self._extract_text(resp)

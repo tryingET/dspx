@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-05T12:29:00.708780031+00:00",
+  "task_id": 2266,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/pdf-transition-program-gen.md",
+      "governance/task-scopes/AK-2266.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "tests/test_provider_v4.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "tests/test_provider_v4.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

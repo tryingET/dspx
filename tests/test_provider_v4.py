@@ -11,7 +11,11 @@ import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
-from dspx.dspy_lm_auth_lm import DspyLMAuthCodexStreamResponse, DspyLMAuthLM
+from dspx.dspy_lm_auth_lm import (
+    DspyLMAuthCodexStreamResponse,
+    DspyLMAuthLM,
+    DspyLMAuthMinimalResponse,
+)
 import dspx.provider_registry as provider_registry
 from dspx.capabilities import ProviderCapabilities
 from dspx.provider_registry import available, ensure_default_providers
@@ -34,6 +38,7 @@ class _FakeAuthStorage:
 
 class _FakeLM:
     last_kwargs = None
+    last_messages = None
 
     def __init__(
         self, model: str, *args, auth_provider=None, auth_storage=None, **kwargs
@@ -50,6 +55,7 @@ class _FakeLM:
 
     def forward(self, prompt=None, messages=None, **kwargs):
         _FakeLM.last_kwargs = dict(kwargs)
+        _FakeLM.last_messages = messages
         text = (
             prompt or ((messages or [{}])[0].get("content") if messages else "") or ""
         )
@@ -129,11 +135,66 @@ def test_dspy_lm_auth_wrapper_strips_unsupported_params_and_streams_codex_route(
     assert _FakeLM.last_kwargs["cache"] is False
 
 
+def test_dspy_lm_auth_codex_route_normalizes_assistant_message_blocks(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
+    _FakeLM.last_messages = None
+
+    storage = tmp_path / "auth.json"
+    storage.write_text("{}\n", encoding="utf-8")
+    lm = DspyLMAuthLM(
+        model="codex/gpt-5.5",
+        auth_provider="codex",
+        auth_storage=str(storage),
+    )
+
+    lm.forward(
+        messages=[
+            {"role": "user", "content": "question"},
+            {"role": "assistant", "content": "answer"},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "input_text", "text": "demo answer"},
+                    {"type": "refusal", "refusal": "cannot comply"},
+                ],
+            },
+        ]
+    )
+
+    assert _FakeLM.last_messages == [
+        {"role": "user", "content": "question"},
+        {"role": "assistant", "content": [{"type": "output_text", "text": "answer"}]},
+        {
+            "role": "assistant",
+            "content": [
+                {"type": "output_text", "text": "demo answer"},
+                {"type": "refusal", "refusal": "cannot comply"},
+            ],
+        },
+    ]
+
+
+def test_dspy_lm_auth_minimal_response_uses_responses_output_text_blocks() -> None:
+    resp = DspyLMAuthMinimalResponse(
+        model="dspy-lm-auth/codex/gpt-5.5",
+        choices=[{"text": "hello"}],
+        usage={},
+    )
+
+    assert resp.output[0].content[0].type == "output_text"
+    assert resp.output[0].content[0].text == "hello"
+
+
 def test_dspy_lm_auth_codex_stream_patch_captures_output_text(monkeypatch) -> None:
     fake_module = types.SimpleNamespace(__name__="fake_dspy_lm_auth")
     fake_lm_module = types.ModuleType("fake_dspy_lm_auth.lm")
-    fake_lm_module._consume_codex_response_stream = lambda response_stream: (
-        response_stream
+    setattr(
+        fake_lm_module,
+        "_consume_codex_response_stream",
+        lambda response_stream: response_stream,
     )
     monkeypatch.setitem(sys.modules, "fake_dspy_lm_auth.lm", fake_lm_module)
 
@@ -156,7 +217,8 @@ def test_dspy_lm_auth_codex_stream_patch_captures_output_text(monkeypatch) -> No
                 ]
             )
 
-    captured = fake_lm_module._consume_codex_response_stream(_Stream())
+    consume = getattr(fake_lm_module, "_consume_codex_response_stream")
+    captured = consume(_Stream())
     assert isinstance(captured, DspyLMAuthCodexStreamResponse)
     assert captured.output_text == "autoplan"
     assert captured.usage == {"total_tokens": 3}

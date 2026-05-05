@@ -132,6 +132,33 @@ promotion_decision_template.json
 
 The fixture's expected transition artifacts are embedded as `expected_outputs` in `behavior_results.json`. With the stub provider, the behavior check may report mismatches; that is acceptable for this scenario because the test proves the generated program shape, artifact contracts, replay metadata, and authority boundaries rather than model quality.
 
+To exercise the generated DSPy program with the default auth-backed provider/model instead of the stub, run:
+
+```bash
+export TD="$(mktemp -d)"
+export DSPX_PROVIDER=dspy-lm-auth
+export DSPX_LM_AUTH_MODEL=codex/gpt-5.5
+export MLFLOW_ENABLE=0
+export DSPX_CACHE_DIR="$TD/cache"
+export DSPX_CACHE_ENABLE=1
+
+uv run -q python -m dspx.cli.dspx program-gen \
+  --intent tests/fixtures/program_gen/pdf_transition/intent.yaml \
+  --outdir "$TD/pdf-transition-program" \
+  --print-manifest
+
+python3 - <<'PY'
+import json, os
+from pathlib import Path
+out = Path(os.environ["TD"]) / "pdf-transition-program"
+behavior = json.loads((out / "behavior_results.json").read_text())
+print(json.dumps(behavior["summary"], indent=2, sort_keys=True))
+print(json.dumps(behavior["examples"][0].get("observed_outputs"), indent=2, sort_keys=True))
+PY
+```
+
+`dspy-lm-auth` defaults to `codex/gpt-5.5` when `DSPX_LM_AUTH_MODEL` is unset. The explicit export above keeps the provider-backed run auditable.
+
 ## Test coverage
 
 The executable scenario test is:

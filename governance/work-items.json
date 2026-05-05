@@ -1570,6 +1570,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2266",
+          "title": "Fix dspy-lm-auth Codex DSPy message formatting",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Fix dspy-lm-auth Codex DSPy message formatting (task #2266)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }
