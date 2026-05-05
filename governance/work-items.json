@@ -1687,6 +1687,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2364",
+          "title": "Link DSPx agents to generated DSPy promotion governance boundary",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Link DSPx agents to generated DSPy promotion governance boundary (task #2364)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

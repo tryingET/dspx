@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-05T18:26:05.017037087+00:00",
+  "task_id": 2364,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "AGENTS.md",
+      "README.md",
+      "governance/task-scopes/**",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "AGENTS.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

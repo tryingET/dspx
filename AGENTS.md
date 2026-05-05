@@ -18,6 +18,12 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 - Canonical local workflow: `docs/project/developer_workflow.md`.
 - Run `just hooks-install` after cloning.
 
+## Generated DSPy program promotion boundary
+- DSPx owns generation, replay, local eval, Oracle evidence, and local jury/adjudication sidecars for generated DSPy programs.
+- DSPx artifacts do not by themselves approve production activation.
+- For generated-program production activation, use the governance-kernel boundary: `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`.
+- The owning domain or delegated governing body is the judge; AK/current accepted runtime authority records canonical decision/evidence/transition truth where landed.
+
 ## Read Order
 1. `docs/system4d/compass.md` — Direction
 2. `docs/ARCHITECTURE.md` — System design
