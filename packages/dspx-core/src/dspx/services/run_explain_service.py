@@ -552,13 +552,54 @@ def _bounded_remote_http_env(*, time_budget_ms: int):
     )
 
 
+def _program_assembly_id_from_receipt(receipt: Mapping[str, Any]) -> str | None:
+    """Return the program assembly id carried by program-gen receipts, if any."""
+
+    for key in (
+        "run_summary",
+        "program_execution_episode",
+        "program_candidate_assembly",
+    ):
+        value = receipt.get(key)
+        if not isinstance(value, Mapping):
+            continue
+        assembly_id = str(value.get("assembly_id") or "").strip()
+        if assembly_id:
+            return assembly_id
+    return None
+
+
+def _run_candidate_from_mlflow_run(run: Any) -> dict[str, Any]:
+    info = getattr(run, "info", None)
+    data = getattr(run, "data", None)
+    tags = _as_dict(getattr(data, "tags", {}))
+    run_name = getattr(info, "run_name", None) or tags.get("mlflow.runName")
+    candidate: dict[str, Any] = {
+        "run_id": str(getattr(info, "run_id", "") or ""),
+        "experiment_id": str(getattr(info, "experiment_id", "") or ""),
+        "status": getattr(info, "status", None),
+        "lifecycle_stage": getattr(info, "lifecycle_stage", None),
+        "start_time": getattr(info, "start_time", None),
+        "end_time": getattr(info, "end_time", None),
+        "artifact_uri": getattr(info, "artifact_uri", None),
+        "run_name": run_name,
+    }
+    run_kind = str(tags.get("dspx.run_kind") or "").strip()
+    if run_kind:
+        candidate["run_kind"] = run_kind
+    assembly_id = str(tags.get("program.assembly_id") or "").strip()
+    if assembly_id:
+        candidate["program_assembly_id"] = assembly_id
+    return candidate
+
+
 def _remote_search_candidates(
     *,
     receipt: Mapping[str, Any],
     tracking_uri: str,
     candidate_cap: int,
     time_budget_ms: int,
-) -> tuple[list[dict[str, Any]], list[str], float]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str], float]:
     reasons: list[str] = []
     started = time.perf_counter()
 
@@ -568,7 +609,7 @@ def _remote_search_candidates(
     except Exception:
         elapsed = (time.perf_counter() - started) * 1000.0
         reasons.append("mlflow_remote_search_failed")
-        return [], reasons, elapsed
+        return [], [], reasons, elapsed
 
     try:
         with _bounded_remote_http_env(time_budget_ms=time_budget_ms):
@@ -587,12 +628,12 @@ def _remote_search_candidates(
             reasons.append("mlflow_remote_auth_unavailable")
         else:
             reasons.append("mlflow_remote_search_failed")
-        return [], reasons, elapsed
+        return [], [], reasons, elapsed
 
     if (time.perf_counter() - started) * 1000.0 > float(time_budget_ms):
         elapsed = (time.perf_counter() - started) * 1000.0
         reasons.append("mlflow_remote_time_budget_exceeded")
-        return [], reasons, elapsed
+        return [], [], reasons, elapsed
 
     exp_ids: list[str] = []
     for exp in experiments:
@@ -603,16 +644,40 @@ def _remote_search_candidates(
     if not exp_ids:
         elapsed = (time.perf_counter() - started) * 1000.0
         reasons.append("mlflow_remote_no_candidate")
-        return [], reasons, elapsed
+        return [], [], reasons, elapsed
 
     expected_tags = _normalized_expected_mlflow_tags(receipt)
 
     run_kind = str(expected_tags.get("dspx.run_kind") or "").strip()
     template_version = str(expected_tags.get("dspx.template_version") or "").strip()
     output_basename = str(expected_tags.get("dspx.output_basename") or "").strip()
+    output_hash_prefix = str(expected_tags.get("dspx.output_hash_prefix") or "").strip()
+    cache_key = str(expected_tags.get("dspx.cache_key") or "").strip()
     service = str(expected_tags.get("service") or "").strip()
 
     filter_candidates: list[str] = []
+    if run_kind and template_version and output_basename and output_hash_prefix:
+        filter_candidates.append(
+            " and ".join(
+                [
+                    f"tags.dspx.run_kind = '{_quote_filter_value(run_kind)}'",
+                    f"tags.dspx.template_version = '{_quote_filter_value(template_version)}'",
+                    f"tags.dspx.output_basename = '{_quote_filter_value(output_basename)}'",
+                    f"tags.dspx.output_hash_prefix = '{_quote_filter_value(output_hash_prefix)}'",
+                ]
+            )
+        )
+    if run_kind and template_version and output_basename and cache_key:
+        filter_candidates.append(
+            " and ".join(
+                [
+                    f"tags.dspx.run_kind = '{_quote_filter_value(run_kind)}'",
+                    f"tags.dspx.template_version = '{_quote_filter_value(template_version)}'",
+                    f"tags.dspx.output_basename = '{_quote_filter_value(output_basename)}'",
+                    f"tags.dspx.cache_key = '{_quote_filter_value(cache_key)}'",
+                ]
+            )
+        )
     if run_kind and template_version and output_basename:
         filter_candidates.append(
             " and ".join(
@@ -706,7 +771,6 @@ def _remote_search_candidates(
     candidates: list[dict[str, Any]] = []
     tag_contract_violation = False
     for run in runs[: int(candidate_cap)]:
-        info = getattr(run, "info", None)
         data = getattr(run, "data", None)
         tags = _as_dict(getattr(data, "tags", {}))
         if expected_tags and _mlflow_candidate_tag_conflicts(tags, expected_tags):
@@ -717,17 +781,7 @@ def _remote_search_candidates(
             strict=True,
         ):
             continue
-        run_name = getattr(info, "run_name", None) or tags.get("mlflow.runName")
-        candidate = {
-            "run_id": str(getattr(info, "run_id", "") or ""),
-            "experiment_id": str(getattr(info, "experiment_id", "") or ""),
-            "status": getattr(info, "status", None),
-            "lifecycle_stage": getattr(info, "lifecycle_stage", None),
-            "start_time": getattr(info, "start_time", None),
-            "end_time": getattr(info, "end_time", None),
-            "artifact_uri": getattr(info, "artifact_uri", None),
-            "run_name": run_name,
-        }
+        candidate = _run_candidate_from_mlflow_run(run)
         matched_tags = [
             key
             for key, expected in expected_tags.items()
@@ -736,6 +790,35 @@ def _remote_search_candidates(
         if matched_tags:
             candidate["matched_tags"] = matched_tags
         candidates.append(candidate)
+
+    related_runs: list[dict[str, Any]] = []
+    assembly_id = _program_assembly_id_from_receipt(receipt)
+    if assembly_id:
+        try:
+            with _bounded_remote_http_env(time_budget_ms=time_budget_ms):
+                related = list(
+                    client.search_runs(
+                        experiment_ids=exp_ids,
+                        filter_string=(
+                            "tags.program.assembly_id = "
+                            f"'{_quote_filter_value(assembly_id)}'"
+                        ),
+                        max_results=int(candidate_cap),
+                        order_by=["attributes.start_time DESC"],
+                    )
+                )
+            seen_related: set[str] = set()
+            for run in related:
+                item = _run_candidate_from_mlflow_run(run)
+                run_id = str(item.get("run_id") or "")
+                if not run_id or run_id in seen_related:
+                    continue
+                seen_related.add(run_id)
+                item["relation"] = "same_program_assembly"
+                related_runs.append(item)
+        except Exception:
+            # Related-run discovery is enrichment only; keep primary lookup result.
+            pass
 
     if tag_contract_violation:
         reasons.append("mlflow_tag_contract_violation")
@@ -746,7 +829,7 @@ def _remote_search_candidates(
     elif len(candidates) > 1:
         reasons.append("mlflow_remote_multi_candidate")
 
-    return candidates, reasons, elapsed
+    return candidates, related_runs, reasons, elapsed
 
 
 def _mlflow_context(
@@ -827,13 +910,17 @@ def _mlflow_context(
             ]
             reasons.append("mlflow_remote_lookup_not_enabled")
         else:
-            candidates, remote_reasons, elapsed_ms = _remote_search_candidates(
-                receipt=receipt,
-                tracking_uri=tracking_display,
-                candidate_cap=int(out["remote_candidate_cap"]),
-                time_budget_ms=int(out["remote_time_budget_ms"]),
+            candidates, related_runs, remote_reasons, elapsed_ms = (
+                _remote_search_candidates(
+                    receipt=receipt,
+                    tracking_uri=tracking_display,
+                    candidate_cap=int(out["remote_candidate_cap"]),
+                    time_budget_ms=int(out["remote_time_budget_ms"]),
+                )
             )
             out["linked_runs"] = candidates
+            if related_runs:
+                out["related_runs"] = related_runs
             out["candidate_count"] = len(candidates)
             out["matched_count"] = 1 if len(candidates) == 1 else 0
             out["remote_elapsed_ms"] = float(elapsed_ms)

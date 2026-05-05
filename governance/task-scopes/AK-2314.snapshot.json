@@ -1,0 +1,25 @@
+{
+  "task_id": 2314,
+  "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
+  "title": "Link program MLflow run family in explain",
+  "status": "done",
+  "entity_version": 3,
+  "scope": {
+    "allowed_paths": [
+      "README.md",
+      "docs/**",
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_service.py",
+      "packages/dspx-core/src/dspx/services/run_explain_service.py",
+      "tests/test_program_gen_pdf_transition.py",
+      "tests/test_run_receipts.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/run_explain_service.py",
+      "tests/test_run_receipts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false
+}
