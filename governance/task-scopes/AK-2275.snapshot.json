@@ -1,0 +1,19 @@
+{
+  "task_id": 2275,
+  "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
+  "title": "Reconcile module synthesis golden corpus drift",
+  "status": "done",
+  "entity_version": 4,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "tests/golden/**"
+    ],
+    "required_paths": [
+      "tests/golden/module_synthesis_cases.json"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false
+}

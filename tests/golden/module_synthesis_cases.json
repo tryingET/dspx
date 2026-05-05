@@ -30,7 +30,7 @@
     "expected_candidate_count": 3,
     "expected_promotion_status": "ready",
     "expected_promotion_outcome": "withheld",
-    "sha256": "b0de648cec5017c5131112608d246d6282d2bf00db309b711dd9611895feaec0"
+    "sha256": "9f2a342280343d0c6907b93036159b0795d758d47fb969042ccbcd3d72d03bbb"
   },
   {
     "name": "intent_signature",
@@ -63,7 +63,7 @@
     "expected_candidate_count": 3,
     "expected_promotion_status": "ready",
     "expected_promotion_outcome": "withheld",
-    "sha256": "ac2c1ff47bddec1a035735f01dbd48b3979235c33065ae5af1013d9ad05bc55e"
+    "sha256": "de05bda04445c1ff9df7a163de95c899cb8af1cdf876658a8d964e1a02078a29"
   },
   {
     "name": "router_multi_io_promoted",
@@ -98,6 +98,6 @@
     "expected_candidate_count": 3,
     "expected_promotion_status": "promoted",
     "expected_promotion_outcome": "promoted",
-    "sha256": "d151bdd1153be99275206152f2a92059f6721c1b1287b3097fb2ab1d04ed2103"
+    "sha256": "f8d6cdd7ab87d9ada4a19dc5e2a65192e21138c1c25756e3c18871baa0253bac"
   }
 ]

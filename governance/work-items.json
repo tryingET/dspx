@@ -1583,6 +1583,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2275",
+          "title": "Reconcile module synthesis golden corpus drift",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Reconcile module synthesis golden corpus drift (task #2275)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }
