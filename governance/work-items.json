@@ -1700,6 +1700,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-05"
+        },
+        {
+          "id": "AK-TASK-2369",
+          "title": "Implement generated program production activation packet export",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement generated program production activation packet export (task #2369)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-05"
         }
       ]
     }

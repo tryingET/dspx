@@ -173,6 +173,113 @@ def plan(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("activation-packet")
+def activation_packet(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to candidate program-candidate-assembly-v1 manifest.json",
+    ),
+    owning_domain: str = typer.Option(
+        ...,
+        "--owning-domain",
+        help="Explicit governing domain accountable for this activation target",
+    ),
+    activation_target: str = typer.Option(
+        ...,
+        "--activation-target",
+        help="Concrete production/material activation target being requested",
+    ),
+    authority_owner: str = typer.Option(
+        ...,
+        "--authority-owner",
+        help="Domain governing body or delegated adjudicator identifier",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the activation evidence packet should be written",
+    ),
+    oracle_report: Path | None = typer.Option(
+        None,
+        "--oracle-report",
+        help="Optional program-oracle-evidence-report-v1 JSON",
+    ),
+    jury_results: Path | None = typer.Option(
+        None,
+        "--jury-results",
+        help="Optional program-jury-results-v1 JSON",
+    ),
+    review: Path | None = typer.Option(
+        None,
+        "--review",
+        help="Optional program-promotion-review-refined-v1 JSON",
+    ),
+    decision_record: Path | None = typer.Option(
+        None,
+        "--decision-record",
+        help="Optional program-promotion-decision-record-v1 JSON",
+    ),
+    promotion_plan: Path | None = typer.Option(
+        None,
+        "--promotion-plan",
+        help="Optional program-promotion-plan-v1 JSON",
+    ),
+    canonical_binding_ref: str | None = typer.Option(
+        None,
+        "--canonical-binding-ref",
+        help="Optional AK/current-authority binding ref; does not create that binding",
+    ),
+    rollout_owner: str | None = typer.Option(
+        None,
+        "--rollout-owner",
+        help="Optional owner responsible for rollout execution",
+    ),
+    rollback_plan: str | None = typer.Option(
+        None,
+        "--rollback-plan",
+        help="Optional rollback/deactivation plan summary",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print packet JSON"),
+) -> None:
+    """Write a non-authoritative production-activation evidence packet."""
+    from dspx.services.program_activation_packet import (
+        ProgramActivationPacketError,
+        build_generated_program_activation_packet,
+        write_generated_program_activation_packet,
+    )
+
+    try:
+        packet = build_generated_program_activation_packet(
+            manifest_path=manifest,
+            owning_domain=owning_domain,
+            activation_target=activation_target,
+            authority_owner=authority_owner,
+            oracle_report_path=oracle_report,
+            jury_results_path=jury_results,
+            review_path=review,
+            decision_record_path=decision_record,
+            promotion_plan_path=promotion_plan,
+            canonical_binding_ref=canonical_binding_ref,
+            rollout_owner=rollout_owner,
+            rollback_plan=rollback_plan,
+        )
+        payload = write_generated_program_activation_packet(packet, out)
+    except ProgramActivationPacketError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program activation packet generation failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("status")
 def status(
     manifest: Path = typer.Option(

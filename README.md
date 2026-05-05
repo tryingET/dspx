@@ -434,6 +434,26 @@ just dspx program-promote plan \
 
 The plan has `schema_version: program-promotion-plan-v1`, `status: planned_not_applied`, and `promotion_state: not_promoted`. It records the local target, declared authority owner, candidate identity, source artifact schemas, evidence hashes, eligibility for local planning only, audit trail, and reversibility posture. It writes only the requested `promotion_plan.json` sidecar. It does not mutate candidate artifacts, decision records, comparison sidecars, Oracle indexes, AK, governance, or external authority, and it does not rank, select a winner, approve, promote, deploy, export authority, or make Oracle authoritative. `allowed_for_apply` is always false; a future apply surface would need a separate authority contract.
 
+For governance-kernel's generated cognition-program activation transition, DSPx can export a non-authoritative activation evidence packet:
+
+```bash
+just dspx program-promote activation-packet \
+  --manifest generated/programs/answer_question/manifest.json \
+  --owning-domain softwareco/program-governance \
+  --activation-target softwareco-production-route:answer_question \
+  --authority-owner softwareco-program-governance \
+  --oracle-report /tmp/dspx-program-oracle/program-evidence-report.json \
+  --jury-results /tmp/dspx-program-promote/jury_results.json \
+  --review /tmp/dspx-program-promote/promotion_review_refined.json \
+  --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --rollout-owner softwareco-runtime-operator \
+  --rollback-plan "disable generated route and restore previous production program" \
+  --out /tmp/dspx-program-promote/activation_packet.json \
+  --json
+```
+
+The packet has `schema_version: generated-cognition-program-production-activation-packet-v1` and maps local DSPx/Oracle/MLflow/jury evidence to `generated-cognition-program.production_activation`. It never activates production, never calls AK, and never mutates governance; it remains blocked until the owning domain decision, canonical binding, rollout, and rollback requirements are satisfied. The society-wide governance boundary lives in `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`.
+
 GEPA-backed program refinement is also explicit and local. It consumes an existing `program-candidate-assembly-v1` manifest, chooses input evidence from explicit `--train` / `--validation` JSONL files, manifest-declared `splits/train.jsonl` and `splits/validation.jsonl`, or limited inline `examples.json` fallback, and writes a `program-refinement-gepa-result-v1` sidecar:
 
 ```bash
