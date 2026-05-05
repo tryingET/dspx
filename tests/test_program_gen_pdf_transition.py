@@ -40,6 +40,7 @@ class _FakeRun:
 class _FakeMlflowBackend:
     def __init__(self) -> None:
         self.calls: list[tuple[object, ...]] = []
+        self.logged_artifact_files: list[str] = []
         self._active: _FakeRun | None = None
 
     def set_tracking_uri(self, uri: str) -> None:
@@ -56,8 +57,8 @@ class _FakeMlflowBackend:
         self._active = _FakeRun()
         return self._active
 
-    def end_run(self) -> None:
-        self.calls.append(("end_run",))
+    def end_run(self, status: str | None = None) -> None:
+        self.calls.append(("end_run", status) if status is not None else ("end_run",))
         self._active = None
 
     def set_tag(self, key: str, value: str) -> None:
@@ -71,6 +72,13 @@ class _FakeMlflowBackend:
 
     def log_artifacts(self, path: str) -> None:
         self.calls.append(("log_artifacts", path))
+        root = Path(path)
+        if root.exists():
+            self.logged_artifact_files = sorted(
+                item.relative_to(root).as_posix()
+                for item in root.rglob("*")
+                if item.is_file()
+            )
 
     def dspy_autolog(self, **kwargs: object) -> None:
         self.calls.append(("dspy.autolog", tuple(sorted(kwargs))))
@@ -262,6 +270,10 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     reset_embedding_engine()
 
     outdir = tmp_path / "program"
+    outdir.mkdir(parents=True)
+    (outdir / "preexisting-secret.txt").write_text(
+        "must not upload\n", encoding="utf-8"
+    )
     result = runner.invoke(
         app,
         [
@@ -279,7 +291,10 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     assert ("start_run", "program-gen") in backend.calls
     assert ("set_tag", "service", "program") in backend.calls
     assert ("set_tag", "dspx.run_kind", "program-gen") in backend.calls
-    assert any(call == ("log_artifacts", str(outdir)) for call in backend.calls)
+    assert any(call[0] == "log_artifacts" for call in backend.calls)
+    assert "manifest.json" in backend.logged_artifact_files
+    assert "program.py" in backend.logged_artifact_files
+    assert "preexisting-secret.txt" not in backend.logged_artifact_files
     file_count_calls = [
         call
         for call in backend.calls
@@ -315,6 +330,21 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     finally:
         generated_program.end_observability_run(started)
 
+    try:
+        generated_program.run_with_observability(
+            source_package_manifest_json="{}",
+            marker_markdown="",
+            existing_wiki_index_json="{}",
+            declared_output_root="x",
+        )
+    except Exception:
+        pass
+    assert ("set_tag", "program.runtime.status", "failed") in backend.calls
+    assert any(
+        call == ("log_metric", "program.runtime.error", 1.0) for call in backend.calls
+    )
+    assert ("end_run", "FAILED") in backend.calls
+
     eval_behavior_source = (outdir / "eval_behavior.py").read_text(encoding="utf-8")
     assert (
         "configure_observability(run_name='program-eval', run_kind='program-eval')"
@@ -324,4 +354,4 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
         "mlflow.log_metric(f'program.behavior.{key}', float(value))"
         in eval_behavior_source
     )
-    assert ("end_run",) in backend.calls
+    assert any(call[0] == "end_run" for call in backend.calls)

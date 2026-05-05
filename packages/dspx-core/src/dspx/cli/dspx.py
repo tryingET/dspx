@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -182,6 +183,77 @@ def module_gen(
             )
 
 
+def _as_root_relative_file(root: Path, value: object) -> Path | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    path = Path(raw)
+    candidate = path if path.is_absolute() else root / path
+    try:
+        resolved = candidate.resolve()
+        root_resolved = root.resolve()
+        if not resolved.is_relative_to(root_resolved):
+            return None
+        if not resolved.is_file():
+            return None
+        return resolved.relative_to(root_resolved)
+    except Exception:
+        return None
+
+
+def _collect_program_manifest_paths(value: object) -> list[object]:
+    paths: list[object] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in {"path", "entrypoint", "harness", "result"}:
+                paths.append(item)
+            paths.extend(_collect_program_manifest_paths(item))
+    elif isinstance(value, list):
+        for item in value:
+            paths.extend(_collect_program_manifest_paths(item))
+    return paths
+
+
+def _declared_program_artifact_files(
+    *,
+    root: Path,
+    artifact: Any,
+    manifest: dict[str, Any],
+) -> list[Path]:
+    candidates: list[object] = ["manifest.json", "manifest.json.meta.json"]
+    candidates.extend(_collect_program_manifest_paths(manifest))
+    files = getattr(artifact, "files", {}) or {}
+    if isinstance(files, dict):
+        candidates.extend(files.keys())
+        candidates.extend(files.values())
+
+    out: list[Path] = []
+    seen: set[str] = set()
+    for value in candidates:
+        rel = _as_root_relative_file(root, value)
+        if rel is None:
+            continue
+        key = rel.as_posix()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(rel)
+    return out
+
+
+def _log_declared_program_artifacts(
+    mlflow: Any, *, root: Path, files: list[Path]
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="dspx-program-mlflow-") as tmp:
+        staging = Path(tmp)
+        for rel in files:
+            source = root / rel
+            target = staging / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        mlflow.log_artifacts(str(staging))
+
+
 def _log_program_artifact_to_mlflow(artifact: Any) -> None:
     """Best-effort MLflow logging for materialized program-gen assemblies."""
     try:
@@ -197,6 +269,14 @@ def _log_program_artifact_to_mlflow(artifact: Any) -> None:
             return
 
         manifest_path = root / "manifest.json"
+        manifest: dict[str, Any] = {}
+        if manifest_path.exists() and manifest_path.is_file():
+            try:
+                loaded_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if isinstance(loaded_manifest, dict):
+                    manifest = loaded_manifest
+            except Exception:
+                manifest = {}
         receipt_path = Path(str(getattr(artifact, "receipt_path", "") or ""))
         receipt: dict[str, Any] = {}
         if receipt_path.exists() and receipt_path.is_file():
@@ -207,6 +287,11 @@ def _log_program_artifact_to_mlflow(artifact: Any) -> None:
             except Exception:
                 receipt = {}
 
+        declared_files = _declared_program_artifact_files(
+            root=root,
+            artifact=artifact,
+            manifest=manifest,
+        )
         metadata = dict(getattr(artifact, "metadata", {}) or {})
         template_version = str(
             receipt.get("template_version") or "program-candidate-assembly-v1"
@@ -241,12 +326,16 @@ def _log_program_artifact_to_mlflow(artifact: Any) -> None:
                 try:
                     mlflow.log_param(
                         "program.generated_file_count",
-                        str(sum(1 for path in root.rglob("*") if path.is_file())),
+                        str(len(declared_files)),
                     )
                 except Exception:
                     pass
                 try:
-                    mlflow.log_artifacts(str(root))
+                    _log_declared_program_artifacts(
+                        mlflow,
+                        root=root,
+                        files=declared_files,
+                    )
                 except Exception:
                     pass
         finally:

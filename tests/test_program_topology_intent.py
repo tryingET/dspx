@@ -171,6 +171,8 @@ def test_explicit_pipeline_topology_is_normalized_and_persisted(
     assert "pipeline_topology_renderer" in program_text
     assert "def build_program() -> dspy.Module:" in program_text
     assert "def build_student(*, use_cot: bool = False) -> dspy.Module:" in program_text
+    assert "def configure_observability(" in program_text
+    assert "def run_with_observability(" in program_text
     assert (root / "eval_behavior.py").exists()
     assert (root / "behavior_episode.json").exists()
     assert subprocess_calls
