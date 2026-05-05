@@ -16,6 +16,7 @@ _SAFE_IMPORT_MODULES = frozenset(
     {
         "__future__",
         "dspy",
+        "json",
         "typing",
         "typing_extensions",
     }

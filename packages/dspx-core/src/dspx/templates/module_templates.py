@@ -40,6 +40,8 @@ def render_module_skeleton(
     weights = {k: 1.0 for k in outs}
 
     header: List[str] = []
+    header.append("import json")
+    header.append("")
     header.append("import dspy")
     if signature_import and signature_class_name:
         header.append(signature_import)
@@ -113,11 +115,25 @@ def render_module_skeleton(
     body.append("def output_weights() -> dict[str, float]:")
     body.append(f"    return {weights!r}")
     body.append("")
+    body.append("def _json_container_text(value: str) -> bool:")
+    body.append("    text = value.strip()")
+    body.append(
+        "    return (text.startswith('{') and text.endswith('}')) or (text.startswith('[') and text.endswith(']'))"
+    )
+    body.append("")
+    body.append("def _normalize_json_text(value: str) -> str:")
+    body.append("    parsed = json.loads(value.strip())")
+    body.append(
+        "    return json.dumps(parsed, ensure_ascii=False, sort_keys=True, separators=(',', ':'))"
+    )
+    body.append("")
     body.append(
         "def normalize_output("
         "key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None"
         ") -> tuple[str, str]:"
     )
+    body.append("    if _json_container_text(gold) and _json_container_text(pred):")
+    body.append("        return _normalize_json_text(gold), _normalize_json_text(pred)")
     body.append("    return gold, pred")
 
     code = "\n".join(header + [""] + body)

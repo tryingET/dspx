@@ -165,7 +165,7 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
     topology = validate_materializable_pipeline_topology(intent)
     modules = [dict(item) for item in topology.get("modules", [])]
     signature_names = [_signature_class_name(module) for module in modules]
-    lines: list[str] = ["import dspy", "", "from signature import ("]
+    lines: list[str] = ["import json", "", "import dspy", "", "from signature import ("]
     lines.extend(f"    {name}," for name in signature_names)
     lines.extend([")", ""])
     for index, module in enumerate(modules):
@@ -235,7 +235,19 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
             "    pred_trace: object | None = None,",
             ") -> tuple[str, str]:",
             '    """Normalize gold/pred pairs for deterministic checks."""',
+            "    if _json_container_text(gold) and _json_container_text(pred):",
+            "        return _normalize_json_text(gold), _normalize_json_text(pred)",
             "    return gold, pred",
+            "",
+            "",
+            "def _json_container_text(value: str) -> bool:",
+            "    text = value.strip()",
+            "    return (text.startswith('{') and text.endswith('}')) or (text.startswith('[') and text.endswith(']'))",
+            "",
+            "",
+            "def _normalize_json_text(value: str) -> str:",
+            "    parsed = json.loads(value.strip())",
+            "    return json.dumps(parsed, ensure_ascii=False, sort_keys=True, separators=(',', ':'))",
             "",
         ]
     )

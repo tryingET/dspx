@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import yaml
@@ -124,6 +126,25 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     }
     assert contract["canonical_mutation_performed"] is False
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]
+
+    module_spec = importlib.util.spec_from_file_location(
+        "pdf_transition_generated_module", outdir / "module.py"
+    )
+    assert module_spec is not None
+    assert module_spec.loader is not None
+    generated_module = importlib.util.module_from_spec(module_spec)
+    old_path = list(sys.path)
+    try:
+        sys.path.insert(0, str(outdir))
+        module_spec.loader.exec_module(generated_module)
+    finally:
+        sys.path[:] = old_path
+    gold, pred = generated_module.normalize_output(
+        "section_units_json",
+        expected_outputs["section_units_json"],
+        json.dumps(section_units, separators=(",", ":")),
+    )
+    assert gold == pred
 
     behavior_results = json.loads((outdir / "behavior_results.json").read_text())
     behavior_episode = json.loads((outdir / "behavior_episode.json").read_text())
