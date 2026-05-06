@@ -69,7 +69,22 @@ generated DSPy program
   -> optional AK/decision handoff, never automatic authority
 ```
 
-## Evidence surface 4 — Governance boundary already exists
+## Evidence surface 4 — DS1621 Oracle pilot contract exists but is not deployed
+
+The infra-owned DS1621 contract-only target is published in:
+
+- `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`
+- `~/ai-society/softwareco/infra/ds1621-admin/contracts/ds1621-oracle-coordinate-backend.env`
+
+Its deployment status is:
+
+```text
+contract_only_not_deployed
+```
+
+This proves the owner boundary and non-secret target contract exist. It does **not** prove a live Postgres/pgvector service, DS1621 health, DSPx live ingest, backup readiness, or production readiness.
+
+## Evidence surface 5 — Governance boundary already exists
 
 The generated cognition-program production-activation boundary lives outside DSPx local sidecars:
 
@@ -80,4 +95,4 @@ The generated cognition-program production-activation boundary lives outside DSP
 
 ## Conclusion
 
-The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. The next legal step was RFC review and ADR recording before implementation.
+The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, and a DS1621 contract-only target now exist; live DS1621 service provisioning and live-gated DSPx integration remain undone.

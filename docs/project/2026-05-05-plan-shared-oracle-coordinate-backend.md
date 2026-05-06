@@ -67,13 +67,20 @@ Exit gate:
 - unset or incomplete config does not silently fall back to a shared backend;
 - secret values never appear in JSON/log output.
 
+## Current implementation status
+
+- Phase 1 SQLite `CoordinateStore` boundary: landed.
+- Phase 2 Postgres/pgvector adapter: scaffolded behind explicit opt-in; no live DB validation yet.
+- Phase 3 DS1621 pilot: infra contract published, deployment status `contract_only_not_deployed`.
+- Shared Oracle service: not live and not production-ready.
+
 ## Phase 3 — DS1621 pilot service, infra-owned
 
 Goal: run a pilot shared Oracle backend only after infra contract exists.
 
 Scope owned by `softwareco/infra/ds1621-admin`:
 
-- Compose/runbook/service contract;
+- Compose/runbook/service contract — contract-only target now published at `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`;
 - health checks;
 - backup/restore posture;
 - retention/quota policy;
@@ -88,6 +95,7 @@ DSPx scope:
 Exit gate:
 
 - DS1621 service contract committed in infra repo;
+- backend status links the contract without implying a live service;
 - non-secret generated-program ingest/report smoke passes;
 - service rollback documented.
 
@@ -112,12 +120,20 @@ Exit gate:
 
 - activation packets remain blocked unless owning-domain/governing-body decision and canonical binding requirements are satisfied.
 
-## First task to create next
+## Next task to create
 
-Recommended next AK task:
+Recommended next AK task depends on owner:
 
 ```text
-Implement CoordinateStore abstraction for Oracle SQLite backend without behavior change
+Provision DS1621 Oracle Postgres/pgvector pilot stack from the published contract
 ```
 
-Allowed initial scope should include only current Oracle storage, CLI/report call sites, and tests. Do not include DS1621 infra or Postgres adapter in the first task.
+for `softwareco/infra/ds1621-admin`, or:
+
+```text
+Add live-gated DSPx Postgres/pgvector integration smoke for Oracle CoordinateStore
+```
+
+for DSPx.
+
+Do not claim production readiness until both the infra service and DSPx live-gated smoke pass with redacted diagnostics.

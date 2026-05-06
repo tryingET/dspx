@@ -11,6 +11,19 @@ from dspx.coordinates.postgres_store import (
 from dspx.coordinates.storage import get_default_index_path
 
 ORACLE_BACKEND_STATUS_SCHEMA = "oracle-backend-status-v1"
+DS1621_ORACLE_INFRA_CONTRACT = {
+    "owner": "softwareco/infra/ds1621-admin",
+    "status": "published_contract_only",
+    "deployment_status": "contract_only_not_deployed",
+    "machine_readable_contract": (
+        "softwareco/infra/ds1621-admin/contracts/ds1621-oracle-coordinate-backend.env"
+    ),
+    "contract_doc": (
+        "softwareco/infra/ds1621-admin/docs/project/"
+        "ds1621-oracle-coordinate-backend-contract.md"
+    ),
+    "provisioned_service": False,
+}
 
 
 def _index_path_source(index_path: Path | None) -> str:
@@ -56,6 +69,7 @@ def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, 
             "supported": True,
             "adapter_available": True,
             "provisioned_by_default": False,
+            "infra_contract": DS1621_ORACLE_INFRA_CONTRACT,
             "configured_env_present": postgres_config_present,
             "configured_env_keys": configured_postgres_keys,
             "configured_store_selected": os.getenv("DSPX_ORACLE_STORE", "").lower()

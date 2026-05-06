@@ -77,9 +77,12 @@ Rollback:
 
 ## Phase 3 validation — DS1621 pilot service
 
+Current status: infra contract published, deployment status `contract_only_not_deployed`.
+
 Minimum checks:
 
 - infra repo docs strict for the DS1621 service contract/runbook;
+- DSPx `backend-status --json` links the infra contract while preserving local SQLite default truth;
 - DS1621 health check from workstation;
 - non-secret generated-program ingest/report smoke;
 - backup/restore posture documented;
@@ -88,6 +91,7 @@ Minimum checks:
 Rollout:
 
 - infra owner lands service contract in `softwareco/infra/ds1621-admin`;
+- DSPx status/docs link the contract as contract-only until live deployment evidence exists;
 - deploy separate Oracle backend, not MLflow database/schema;
 - publish non-secret connection/health contract;
 - keep secrets in 1Password/env injection, never repo docs.
@@ -129,7 +133,7 @@ When debugging shared Oracle backend work, inspect in this order:
 3. shared store health only if explicitly configured
 4. ingest receipt errors
 5. non-authority validation errors
-6. DS1621 service/runbook if pilot is active
+6. DS1621 contract/runbook, noting that the current contract status is not deployed unless infra evidence says otherwise
 
 ## Explicit non-goals for rollout
 

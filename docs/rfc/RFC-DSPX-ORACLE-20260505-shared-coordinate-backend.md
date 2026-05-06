@@ -30,6 +30,8 @@ type: "rfc"
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/transition-passports/generated-cognition-program-production-activation.md`
   - `~/ai-society/softwareco/infra/ds1621-admin/README.md`
+  - `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`
+  - `~/ai-society/softwareco/infra/ds1621-admin/contracts/ds1621-oracle-coordinate-backend.env`
   - `~/ai-society/softwareco/infra/ds1621-admin/diary/2026-05-05--ops-ds1621-mlflow-postgres-minio-cutover.md`
 
 ## 1) Problem statement
@@ -94,6 +96,7 @@ Pi session JSONL is historical capture, not canonical repo authority. This RFC i
 - `dspx.coordinates.storage.CoordinateIndex` is SQLite-backed.
 - Default local index path is `generated/oracle/coordinates.db`, or `DSPX_ORACLE_INDEX_PATH` when set.
 - `dspx oracle backend-status --json` reports the current backend truth without creating indexes or exposing secret values.
+- `dspx oracle backend-status --json` links the DS1621 infra contract as `contract_only_not_deployed` rather than implying a live shared backend.
 - Generated-program activation packets can include Oracle reports as evidence, while staying blocked until governance/authority requirements are met.
 
 ### Operational context
@@ -101,6 +104,7 @@ Pi session JSONL is historical capture, not canonical repo authority. This RFC i
 - DS1621 MLflow service exists at `http://ds1621:50000`.
 - DS1621 MLflow uses Postgres for MLflow metadata and MinIO for MLflow artifacts.
 - That Postgres instance is not currently an Oracle store.
+- DS1621 now publishes a contract-only Oracle pilot target in `softwareco/infra/ds1621-admin`; deployment status is `contract_only_not_deployed`.
 
 ### Session-captured target shape
 
@@ -482,10 +486,10 @@ Operator diagnostics:
 
 ## 14) Open questions / decisions needed
 
-1. Should the first shared backend be DS1621-hosted Postgres + pgvector, or should DS1621 remain MLflow-only while Oracle pilots on the workstation?
-2. Should DSPx expose direct Postgres access, or only an Oracle HTTP API once the shared backend exists?
+1. DS1621 is the first contract-only pilot target, but the live service is not provisioned yet.
+2. Should DSPx continue first-pilot direct Postgres access, or add an Oracle HTTP API before live shared use?
 3. What embedding backend/dimension should be frozen for production records?
-4. What retention policy applies to generated-program Oracle records?
+4. What retention policy applies to generated-program Oracle records beyond the initial contract-only 14-day pilot placeholder?
 5. Should activation packets cite shared Oracle report IDs, local report JSON paths, or both during the pilot?
 6. Which owner reviews non-authority labels in the future UI?
 
@@ -493,10 +497,11 @@ Operator diagnostics:
 
 - [x] RFC reviewed by DSPx core.
 - [x] ADR recorded for target architecture.
-- [ ] Infra owner confirms or rejects DS1621 as pilot host.
+- [x] Infra owner confirms DS1621 as the first contract-only pilot target.
 - [x] Store abstraction task scoped.
 - [x] SQLite `CoordinateStore` abstraction landed without shared-backend behavior change.
-- [ ] Postgres + pgvector adapter task scoped.
-- [ ] DS1621 service contract task scoped in infra repo if selected.
+- [x] Postgres + pgvector adapter scaffold landed behind explicit opt-in.
+- [x] DS1621 service contract scoped and published in infra repo as contract-only/not-deployed.
+- [ ] Live DS1621 Oracle service provisioned and health checked.
 - [ ] Non-authority tests added before any shared ingest path can land.
-- [ ] README/backend-status updated when implementation state changes.
+- [x] Backend-status updated when contract-only DS1621 implementation state changed.

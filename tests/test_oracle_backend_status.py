@@ -30,9 +30,24 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         "exists": False,
         "created_by_status_check": False,
     }
-    assert status["shared_postgres_backend"]["supported"] is True
-    assert status["shared_postgres_backend"]["adapter_available"] is True
-    assert status["shared_postgres_backend"]["provisioned_by_default"] is False
+    shared = status["shared_postgres_backend"]
+    assert shared["supported"] is True
+    assert shared["adapter_available"] is True
+    assert shared["provisioned_by_default"] is False
+    assert shared["infra_contract"] == {
+        "owner": "softwareco/infra/ds1621-admin",
+        "status": "published_contract_only",
+        "deployment_status": "contract_only_not_deployed",
+        "machine_readable_contract": (
+            "softwareco/infra/ds1621-admin/contracts/"
+            "ds1621-oracle-coordinate-backend.env"
+        ),
+        "contract_doc": (
+            "softwareco/infra/ds1621-admin/docs/project/"
+            "ds1621-oracle-coordinate-backend-contract.md"
+        ),
+        "provisioned_service": False,
+    }
     assert status["ds1621_mlflow_postgres"]["oracle_backend"] is False
     assert status["effects"] == {
         "oracle_index_mutated": False,
@@ -88,4 +103,8 @@ def test_oracle_backend_status_cli_json(tmp_path: Path, monkeypatch) -> None:
     assert payload["coordinate_index"]["backend"] == "sqlite"
     assert payload["coordinate_index"]["path"] == str(index_path.resolve())
     assert payload["shared_postgres_backend"]["supported"] is True
+    assert (
+        payload["shared_postgres_backend"]["infra_contract"]["deployment_status"]
+        == "contract_only_not_deployed"
+    )
     assert not index_path.exists()

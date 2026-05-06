@@ -47,6 +47,8 @@ system4d:
   - `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/transition-passports/generated-cognition-program-production-activation.md`
+  - `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`
+  - `~/ai-society/softwareco/infra/ds1621-admin/contracts/ds1621-oracle-coordinate-backend.env`
 
 ## Executive summary
 
@@ -166,7 +168,7 @@ Before any Postgres/pgvector implementation:
 
 Before any DS1621 pilot:
 
-1. create an infra-owned service contract/runbook in `softwareco/infra/ds1621-admin`;
+1. create an infra-owned service contract/runbook in `softwareco/infra/ds1621-admin` — initial contract-only target published at `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`;
 2. define health checks, backup/restore, retention, rollback, and operator diagnostics;
 3. keep the Oracle service separate from the MLflow database/schema;
 4. run a non-secret generated-program ingest/report smoke.
@@ -196,12 +198,14 @@ For implementation tasks:
 
 ## Current implementation status
 
-Accepted architecture with Phase 1 local storage seam in progress/landed: the shared Oracle backend is not implemented yet, but the local SQLite `CoordinateIndex` is the first `CoordinateStore` backend boundary.
+Accepted architecture with the local storage seam and explicit Postgres/pgvector adapter scaffold landed. DS1621 has an infra-owned contract-only pilot target, but no live shared Oracle service is provisioned.
 
 Current truth remains:
 
 ```text
 DSPx Oracle storage: local SQLite CoordinateStore/CoordinateIndex by default
+DSPx Postgres/pgvector adapter: scaffolded behind explicit opt-in
 DS1621 MLflow Postgres: MLflow metadata only
-Shared Oracle Postgres/pgvector: accepted target, not implemented
+DS1621 Oracle pilot contract: published, contract_only_not_deployed
+Shared Oracle service: not live / not production-ready
 ```
