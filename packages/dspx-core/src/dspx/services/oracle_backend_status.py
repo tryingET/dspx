@@ -13,8 +13,8 @@ from dspx.coordinates.storage import get_default_index_path
 ORACLE_BACKEND_STATUS_SCHEMA = "oracle-backend-status-v1"
 DS1621_ORACLE_INFRA_CONTRACT = {
     "owner": "softwareco/infra/ds1621-admin",
-    "status": "published_contract_only",
-    "deployment_status": "contract_only_not_deployed",
+    "status": "pilot_deployed_not_production_ready",
+    "deployment_status": "pilot_deployed_health_ok_live_smoke_passed_not_production_ready",
     "machine_readable_contract": (
         "softwareco/infra/ds1621-admin/contracts/ds1621-oracle-coordinate-backend.env"
     ),
@@ -22,7 +22,7 @@ DS1621_ORACLE_INFRA_CONTRACT = {
         "softwareco/infra/ds1621-admin/docs/project/"
         "ds1621-oracle-coordinate-backend-contract.md"
     ),
-    "provisioned_service": False,
+    "provisioned_service": True,
 }
 
 
@@ -69,6 +69,7 @@ def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, 
             "supported": True,
             "adapter_available": True,
             "provisioned_by_default": False,
+            "pilot_service_live": True,
             "infra_contract": DS1621_ORACLE_INFRA_CONTRACT,
             "configured_env_present": postgres_config_present,
             "configured_env_keys": configured_postgres_keys,

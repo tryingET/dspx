@@ -206,6 +206,6 @@ Current truth remains:
 DSPx Oracle storage: local SQLite CoordinateStore/CoordinateIndex by default
 DSPx Postgres/pgvector adapter: scaffolded behind explicit opt-in
 DS1621 MLflow Postgres: MLflow metadata only
-DS1621 Oracle pilot contract: published, contract_only_not_deployed
-Shared Oracle service: not live / not production-ready
+DS1621 Oracle pilot: live, health ok, live smoke passed, not production-ready
+Shared Oracle service: pilot only / not production-ready
 ```

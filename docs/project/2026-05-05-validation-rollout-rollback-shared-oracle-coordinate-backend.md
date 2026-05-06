@@ -88,12 +88,12 @@ Rollback:
 
 ## Phase 3 validation — DS1621 pilot service
 
-Current status: infra contract published, deployment status `contract_only_not_deployed`.
+Current status: DS1621 live pilot deployed, pgvector health passed, and DSPx live-gated smoke passed; production-readiness gates remain open.
 
 Minimum checks:
 
 - infra repo docs strict for the DS1621 service contract/runbook;
-- DSPx `backend-status --json` links the infra contract while preserving local SQLite default truth;
+- DSPx `backend-status --json` links the infra contract and reports the live pilot while preserving local SQLite default truth;
 - DS1621 health check from workstation;
 - non-secret generated-program ingest/report smoke;
 - backup/restore posture documented;

@@ -104,7 +104,7 @@ Pi session JSONL is historical capture, not canonical repo authority. This RFC i
 - DS1621 MLflow service exists at `http://ds1621:50000`.
 - DS1621 MLflow uses Postgres for MLflow metadata and MinIO for MLflow artifacts.
 - That Postgres instance is not currently an Oracle store.
-- DS1621 now publishes a contract-only Oracle pilot target in `softwareco/infra/ds1621-admin`; deployment status is `contract_only_not_deployed`.
+- DS1621 now runs a live Oracle Postgres/pgvector pilot in `softwareco/infra/ds1621-admin`; deployment status is `pilot_deployed_health_ok_live_smoke_passed_not_production_ready`.
 
 ### Session-captured target shape
 
@@ -486,7 +486,7 @@ Operator diagnostics:
 
 ## 14) Open questions / decisions needed
 
-1. DS1621 is the first contract-only pilot target, but the live service is not provisioned yet.
+1. DS1621 is the first live pilot target; backup/restore and production-readiness gates remain open.
 2. Should DSPx continue first-pilot direct Postgres access, or add an Oracle HTTP API before live shared use?
 3. What embedding backend/dimension should be frozen for production records?
 4. What retention policy applies to generated-program Oracle records beyond the initial contract-only 14-day pilot placeholder?
@@ -501,7 +501,7 @@ Operator diagnostics:
 - [x] Store abstraction task scoped.
 - [x] SQLite `CoordinateStore` abstraction landed without shared-backend behavior change.
 - [x] Postgres + pgvector adapter scaffold landed behind explicit opt-in.
-- [x] DS1621 service contract scoped and published in infra repo as contract-only/not-deployed.
-- [ ] Live DS1621 Oracle service provisioned and health checked.
+- [x] DS1621 service contract scoped and published in infra repo.
+- [x] Live DS1621 Oracle service provisioned and health checked.
 - [ ] Non-authority tests added before any shared ingest path can land.
 - [x] Backend-status updated when contract-only DS1621 implementation state changed.

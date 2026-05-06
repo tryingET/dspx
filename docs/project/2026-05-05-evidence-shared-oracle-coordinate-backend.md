@@ -79,10 +79,10 @@ The infra-owned DS1621 contract-only target is published in:
 Its deployment status is:
 
 ```text
-contract_only_not_deployed
+pilot_deployed_health_ok_live_smoke_passed_not_production_ready
 ```
 
-This proves the owner boundary and non-secret target contract exist. It does **not** prove a live Postgres/pgvector service, DS1621 health, DSPx live ingest, backup readiness, or production readiness.
+This proves the owner boundary, non-secret target contract, live DS1621 pgvector health, and DSPx live-gated smoke exist. It does **not** prove backup readiness, restore readiness, production readiness, or activation authority.
 
 ## Evidence surface 5 — DSPx live-gated integration smoke exists but is skipped by default
 
@@ -109,4 +109,4 @@ The generated cognition-program production-activation boundary lives outside DSP
 
 ## Conclusion
 
-The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, a DS1621 contract-only target, provisioning helpers, optional driver declaration, and a live-gated DSPx integration smoke now exist; live DS1621 service provisioning and a passed live smoke remain undone.
+The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, DS1621 pilot provisioning, optional driver declaration, and a passed live-gated DSPx integration smoke now exist. Backup/restore proof, retention/monitoring, and production-readiness gates remain undone.

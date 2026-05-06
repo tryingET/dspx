@@ -36,8 +36,10 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
     assert shared["provisioned_by_default"] is False
     assert shared["infra_contract"] == {
         "owner": "softwareco/infra/ds1621-admin",
-        "status": "published_contract_only",
-        "deployment_status": "contract_only_not_deployed",
+        "status": "pilot_deployed_not_production_ready",
+        "deployment_status": (
+            "pilot_deployed_health_ok_live_smoke_passed_not_production_ready"
+        ),
         "machine_readable_contract": (
             "softwareco/infra/ds1621-admin/contracts/"
             "ds1621-oracle-coordinate-backend.env"
@@ -46,7 +48,7 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
             "softwareco/infra/ds1621-admin/docs/project/"
             "ds1621-oracle-coordinate-backend-contract.md"
         ),
-        "provisioned_service": False,
+        "provisioned_service": True,
     }
     assert status["ds1621_mlflow_postgres"]["oracle_backend"] is False
     assert status["effects"] == {
@@ -105,6 +107,6 @@ def test_oracle_backend_status_cli_json(tmp_path: Path, monkeypatch) -> None:
     assert payload["shared_postgres_backend"]["supported"] is True
     assert (
         payload["shared_postgres_backend"]["infra_contract"]["deployment_status"]
-        == "contract_only_not_deployed"
+        == "pilot_deployed_health_ok_live_smoke_passed_not_production_ready"
     )
     assert not index_path.exists()
