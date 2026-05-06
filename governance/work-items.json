@@ -1834,14 +1834,15 @@
         {
           "id": "AK-TASK-2423",
           "title": "Add DSPx live-gated Oracle Postgres integration smoke",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Add DSPx live-gated Oracle Postgres integration smoke (task #2423)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
         }
       ]
     }
