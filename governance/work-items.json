@@ -1934,6 +1934,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2510",
+          "title": "Report remote Hyper Backup selection in DSPx",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Report remote Hyper Backup selection in DSPx (task #2510)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
