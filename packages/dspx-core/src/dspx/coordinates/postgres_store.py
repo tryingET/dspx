@@ -467,6 +467,18 @@ class PostgresPgvectorCoordinateStore:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1")
                     cur.fetchone()
+                    cur.execute(
+                        "SELECT extname FROM pg_extension WHERE extname = 'vector'"
+                    )
+                    vector_row = cur.fetchone()
+            if not vector_row:
+                return StoreHealth(
+                    backend=self.backend_name,
+                    status="unavailable",
+                    available=False,
+                    path=self.redacted_database_url,
+                    error="missing_pgvector_extension",
+                )
             return StoreHealth(
                 backend=self.backend_name,
                 status="ok",

@@ -84,7 +84,21 @@ contract_only_not_deployed
 
 This proves the owner boundary and non-secret target contract exist. It does **not** prove a live Postgres/pgvector service, DS1621 health, DSPx live ingest, backup readiness, or production readiness.
 
-## Evidence surface 5 — Governance boundary already exists
+## Evidence surface 5 — DSPx live-gated integration smoke exists but is skipped by default
+
+DSPx now declares optional Postgres driver support as `dspx-core[oracle-postgres]` and includes `tests/test_postgres_store_live.py` for an explicit live round-trip smoke.
+
+The smoke requires:
+
+```text
+DSPX_ORACLE_LIVE_POSTGRES=1
+DSPX_ORACLE_DATABASE_URL=<operator-injected secret URL>
+psycopg installed through the oracle-postgres extra
+```
+
+Default local/CI runs remain service-free and skip this test unless those opt-in gates are present.
+
+## Evidence surface 6 — Governance boundary already exists
 
 The generated cognition-program production-activation boundary lives outside DSPx local sidecars:
 
@@ -95,4 +109,4 @@ The generated cognition-program production-activation boundary lives outside DSP
 
 ## Conclusion
 
-The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, and a DS1621 contract-only target now exist; live DS1621 service provisioning and live-gated DSPx integration remain undone.
+The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, a DS1621 contract-only target, provisioning helpers, optional driver declaration, and a live-gated DSPx integration smoke now exist; live DS1621 service provisioning and a passed live smoke remain undone.

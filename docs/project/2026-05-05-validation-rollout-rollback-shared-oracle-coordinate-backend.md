@@ -61,6 +61,17 @@ Minimum checks:
 - fail-closed tests for missing config, unreachable backend, missing pgvector extension, migration mismatch, and authority-claiming evidence;
 - optional live integration smoke only when explicit service env vars are present.
 
+Live-gated smoke command shape:
+
+```bash
+DSPX_ORACLE_LIVE_POSTGRES=1 \
+DSPX_ORACLE_STORE=postgres_pgvector \
+DSPX_ORACLE_DATABASE_URL='<operator-injected secret URL>' \
+uv run --extra oracle-postgres pytest tests/test_postgres_store_live.py -q
+```
+
+This test must skip by default in local/CI service-free runs.
+
 Rollout:
 
 - keep `sqlite` as default;

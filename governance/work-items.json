@@ -1782,18 +1782,66 @@
         {
           "id": "AK-TASK-2408",
           "title": "Add dep-redteam advisory usage export adapter",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Add dep-redteam advisory usage export adapter (task #2408)",
-              "done": false
+              "done": true
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
-          "labels": [
-            "deferred"
+          "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2415",
+          "title": "Link DSPx Oracle status to DS1621 pilot contract",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Link DSPx Oracle status to DS1621 pilot contract (task #2415)",
+              "done": true
+            }
           ],
-          "note": "Deferred:\n- reason: Not active in this session; defer to keep DSPx ready queue aligned while peer works AK-2406.\n- kind: manual"
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2417",
+          "title": "Nexus harden dep-redteam adapter evidence binding",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Nexus harden dep-redteam adapter evidence binding (task #2417)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2421",
+          "title": "Document dep-redteam adapter command example",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Document dep-redteam adapter command example (task #2421)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2423",
+          "title": "Add DSPx live-gated Oracle Postgres integration smoke",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Add DSPx live-gated Oracle Postgres integration smoke (task #2423)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

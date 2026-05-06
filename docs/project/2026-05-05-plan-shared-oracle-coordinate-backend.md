@@ -70,8 +70,10 @@ Exit gate:
 ## Current implementation status
 
 - Phase 1 SQLite `CoordinateStore` boundary: landed.
-- Phase 2 Postgres/pgvector adapter: scaffolded behind explicit opt-in; no live DB validation yet.
-- Phase 3 DS1621 pilot: infra contract published, deployment status `contract_only_not_deployed`.
+- Phase 2 Postgres/pgvector adapter: scaffolded behind explicit opt-in.
+- Phase 2 optional driver strategy: `dspx-core[oracle-postgres]` installs `psycopg[binary]` for explicit live use.
+- Phase 2 live-gated integration smoke: added and skipped by default unless `DSPX_ORACLE_LIVE_POSTGRES=1` plus a database URL are present.
+- Phase 3 DS1621 pilot: infra contract and provisioning helpers published, deployment status `contract_only_not_deployed`.
 - Shared Oracle service: not live and not production-ready.
 
 ## Phase 3 — DS1621 pilot service, infra-owned
@@ -131,9 +133,9 @@ Provision DS1621 Oracle Postgres/pgvector pilot stack from the published contrac
 for `softwareco/infra/ds1621-admin`, or:
 
 ```text
-Add live-gated DSPx Postgres/pgvector integration smoke for Oracle CoordinateStore
+Provision DS1621 Oracle Postgres/pgvector pilot stack and run live-gated DSPx smoke
 ```
 
-for DSPx.
+across infra plus DSPx once operator-provided secrets are available.
 
 Do not claim production readiness until both the infra service and DSPx live-gated smoke pass with redacted diagnostics.
