@@ -1960,6 +1960,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2517",
+          "title": "Add coherent one-intent program loop workflow",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add coherent one-intent program loop workflow (task #2517)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
         }
       ]
     }
