@@ -88,7 +88,7 @@ Rollback:
 
 ## Phase 3 validation — DS1621 pilot service
 
-Current status: DS1621 live pilot deployed, pgvector health passed, DSPx live-gated smoke passed, first disposable restore proof passed, 14-day retention/quota helpers exist, and latest dump is exported to the operator-confirmed `DspxOracleBackups` Hyper Backup share; production-readiness gates remain open.
+Current status: DS1621 live pilot deployed, pgvector health passed, DSPx live-gated smoke passed, first disposable restore proof passed, 14-day retention/quota helpers exist, latest dump is exported to the operator-confirmed `DspxOracleBackups` Hyper Backup share, and the infra monitoring bundle passed once; production-readiness gates remain open.
 
 Minimum checks:
 
@@ -98,6 +98,7 @@ Minimum checks:
 - non-secret generated-program ingest/report smoke;
 - backup/restore posture documented;
 - off-NAS backup boundary documented and latest dump exported to a Hyper Backup selected share;
+- monitoring helper exists and passed once (`scripts/oracle/monitor-ds1621-oracle.sh` in `ds1621-admin`);
 - rollback to local SQLite demonstrated or documented.
 
 Rollout:

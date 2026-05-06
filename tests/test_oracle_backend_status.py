@@ -55,6 +55,11 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
             "latest_dump_exported_to_operator_confirmed_hyper_backup_selected_share_2026_05_06"
         ),
         "hyper_backup_share": "DspxOracleBackups",
+        "monitoring_status": "monitoring_helper_verified_not_scheduled_2026_05_06",
+        "monitoring_command": "./scripts/oracle/monitor-ds1621-oracle.sh",
+        "monitoring_last_verified_at": "2026-05-06",
+        "rotation_status": "manual_rotation_runbook_defined_not_exercised",
+        "rotation_next_review": "2026-08-04",
     }
     assert status["ds1621_mlflow_postgres"]["oracle_backend"] is False
     assert status["effects"] == {
