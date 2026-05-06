@@ -29,8 +29,10 @@ DS1621_ORACLE_INFRA_CONTRACT = {
         "latest_dump_exported_to_operator_confirmed_hyper_backup_selected_share_2026_05_06"
     ),
     "hyper_backup_share": "DspxOracleBackups",
-    "monitoring_status": "monitoring_helper_verified_not_scheduled_2026_05_06",
+    "monitoring_status": "systemd_user_timer_enabled_ntfy_alert_path_verified_2026_05_06",
     "monitoring_command": "./scripts/oracle/monitor-ds1621-oracle.sh",
+    "monitoring_schedule": "systemd_user_timer_daily_05_30_persistent_randomized_15m",
+    "monitoring_alert_target": "http://ds1621:2586/dspx-oracle-alerts",
     "monitoring_last_verified_at": "2026-05-06",
     "rotation_status": "manual_rotation_runbook_defined_not_exercised",
     "rotation_next_review": "2026-08-04",
