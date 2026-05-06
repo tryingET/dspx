@@ -82,7 +82,7 @@ Its deployment status is:
 pilot_deployed_health_ok_live_smoke_passed_not_production_ready
 ```
 
-This proves the owner boundary, non-secret target contract, live DS1621 pgvector health, and DSPx live-gated smoke exist. It does **not** prove backup readiness, restore readiness, production readiness, or activation authority.
+This proves the owner boundary, non-secret target contract, live DS1621 pgvector health, DSPx live-gated smoke, and first disposable restore proof exist. It does **not** prove retention/quota readiness, monitoring/rotation readiness, production readiness, or activation authority.
 
 ## Evidence surface 5 — DSPx live-gated integration smoke exists but is skipped by default
 
@@ -109,4 +109,4 @@ The generated cognition-program production-activation boundary lives outside DSP
 
 ## Conclusion
 
-The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, DS1621 pilot provisioning, optional driver declaration, and a passed live-gated DSPx integration smoke now exist. Backup/restore proof, retention/monitoring, and production-readiness gates remain undone.
+The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, DS1621 pilot provisioning, optional driver declaration, a passed live-gated DSPx integration smoke, and backup/restore proof now exist. Retention/monitoring/rotation and production-readiness gates remain undone.

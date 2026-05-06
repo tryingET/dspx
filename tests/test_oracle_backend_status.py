@@ -49,6 +49,7 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
             "ds1621-oracle-coordinate-backend-contract.md"
         ),
         "provisioned_service": True,
+        "backup_restore_status": "verified_disposable_restore_2026_05_06",
     }
     assert status["ds1621_mlflow_postgres"]["oracle_backend"] is False
     assert status["effects"] == {

@@ -88,7 +88,7 @@ Rollback:
 
 ## Phase 3 validation — DS1621 pilot service
 
-Current status: DS1621 live pilot deployed, pgvector health passed, and DSPx live-gated smoke passed; production-readiness gates remain open.
+Current status: DS1621 live pilot deployed, pgvector health passed, DSPx live-gated smoke passed, and first disposable restore proof passed; production-readiness gates remain open.
 
 Minimum checks:
 

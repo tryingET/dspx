@@ -23,6 +23,7 @@ DS1621_ORACLE_INFRA_CONTRACT = {
         "ds1621-oracle-coordinate-backend-contract.md"
     ),
     "provisioned_service": True,
+    "backup_restore_status": "verified_disposable_restore_2026_05_06",
 }
 
 

@@ -1856,6 +1856,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2445",
+          "title": "Report DS1621 Oracle backup restore proof in DSPx",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Report DS1621 Oracle backup restore proof in DSPx (task #2445)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

@@ -73,8 +73,8 @@ Exit gate:
 - Phase 2 Postgres/pgvector adapter: scaffolded behind explicit opt-in.
 - Phase 2 optional driver strategy: `dspx-core[oracle-postgres]` installs `psycopg[binary]` for explicit live use.
 - Phase 2 live-gated integration smoke: added and skipped by default unless `DSPX_ORACLE_LIVE_POSTGRES=1` plus a database URL are present.
-- Phase 3 DS1621 pilot: provisioned on DS1621 with 1Password-backed password, pgvector health passed, DSPx live smoke passed.
-- Shared Oracle service: live pilot only; not production-ready until backup/restore, retention, monitoring, and authority-label gates are done.
+- Phase 3 DS1621 pilot: provisioned on DS1621 with 1Password-backed password, pgvector health passed, DSPx live smoke passed, and first disposable restore proof passed.
+- Shared Oracle service: live pilot only; not production-ready until retention, monitoring/rotation, and authority-label gates are done.
 
 ## Phase 3 — DS1621 pilot service, infra-owned
 
