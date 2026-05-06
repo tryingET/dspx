@@ -19,7 +19,7 @@ Current DSPx Oracle storage is local SQLite:
 - `packages/dspx-core/src/dspx/coordinates/storage.py` defines SQLite-backed `CoordinateIndex`.
 - Default index path is `generated/oracle/coordinates.db` unless `DSPX_ORACLE_INDEX_PATH` is set.
 - `packages/dspx-core/src/dspx/services/program_oracle_index.py` explicitly ingests `program-oracle-evidence-v1` into `CoordinateIndex`.
-- `dspx oracle backend-status --json` reports `local_sqlite_only` until a shared backend implementation exists.
+- `dspx oracle backend-status --json` reports the local SQLite default and any explicitly configured shared-store scaffold state without creating indexes or exposing secrets.
 
 ## Evidence surface 2 — DS1621 MLflow is separate
 

@@ -407,7 +407,7 @@ Oracle may not:
 - No automatic migration from SQLite to Postgres in the first implementation.
 - If migration is later needed, it must be an explicit export/import command with receipts and source-hash checks.
 - Historical local `coordinates.db` files remain developer artifacts, not canonical production state.
-- `backend-status` should evolve from `local_sqlite_only` to report configured/available stores without making network connections unless explicitly requested.
+- `backend-status` now reports the local SQLite default plus any explicitly configured shared-store scaffold state without making network connections unless explicitly requested.
 
 ## 10) Validation plan
 

@@ -1765,6 +1765,35 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2406",
+          "title": "Add explicit Oracle Postgres pgvector store scaffold",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add explicit Oracle Postgres pgvector store scaffold (task #2406)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2408",
+          "title": "Add dep-redteam advisory usage export adapter",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Add dep-redteam advisory usage export adapter (task #2408)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "labels": [
+            "deferred"
+          ],
+          "note": "Deferred:\n- reason: Not active in this session; defer to keep DSPx ready queue aligned while peer works AK-2406.\n- kind: manual"
         }
       ]
     }

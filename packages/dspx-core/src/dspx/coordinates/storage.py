@@ -894,10 +894,9 @@ def open_coordinate_store(
     if store_name in {"sqlite", "local_sqlite"}:
         return CoordinateIndex(db_path=db_path, auto_migrate=auto_migrate)
     if store_name in {"postgres", "postgres_pgvector", "pgvector"}:
-        raise ValueError(
-            "DSPx Oracle postgres_pgvector store is not implemented yet; "
-            "use sqlite/local_sqlite or keep DSPX_ORACLE_STORE unset"
-        )
+        from .postgres_store import PostgresPgvectorCoordinateStore
+
+        return PostgresPgvectorCoordinateStore()
     raise ValueError(
         f"Unsupported DSPx Oracle coordinate store '{store_name}'. "
         "Supported today: sqlite"

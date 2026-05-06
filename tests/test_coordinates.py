@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -385,13 +386,29 @@ class TestCoordinateIndex:
         assert isinstance(store, CoordinateIndex)
         assert temp_db.exists()
 
-    def test_open_coordinate_store_rejects_unimplemented_postgres(
+    def test_open_coordinate_store_requires_postgres_url_when_selected(
         self, temp_db: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Postgres/pgvector remains explicit but unavailable in this slice."""
+        """Postgres/pgvector opt-in fails closed without a DB URL."""
         monkeypatch.setenv("DSPX_ORACLE_STORE", "postgres_pgvector")
-        with pytest.raises(ValueError, match="not implemented"):
+        with pytest.raises(ValueError, match="DATABASE_URL"):
             open_coordinate_store(db_path=temp_db)
+        assert not temp_db.exists()
+
+    def test_open_coordinate_store_postgres_health_redacts_secret(
+        self, temp_db: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Postgres store scaffold reports unavailable without leaking secrets."""
+        secret_url = "postgresql://oracle:super-secret@example.invalid/oracle"
+        monkeypatch.setenv("DSPX_ORACLE_STORE", "postgres_pgvector")
+        monkeypatch.setenv("DSPX_ORACLE_DATABASE_URL", secret_url)
+
+        store = open_coordinate_store(db_path=temp_db)
+        health = store.health().to_dict()
+
+        assert health["backend"] == "postgres_pgvector"
+        assert health["available"] is False
+        assert "super-secret" not in json.dumps(health)
         assert not temp_db.exists()
 
     def test_health_reports_sqlite_status(

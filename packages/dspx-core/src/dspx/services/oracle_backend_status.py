@@ -4,15 +4,13 @@ import os
 from pathlib import Path
 from typing import Any
 
+from dspx.coordinates.postgres_store import (
+    configured_postgres_env_keys,
+    redact_database_url,
+)
 from dspx.coordinates.storage import get_default_index_path
 
 ORACLE_BACKEND_STATUS_SCHEMA = "oracle-backend-status-v1"
-
-_POSTGRES_ENV_KEYS = (
-    "DSPX_ORACLE_POSTGRES_URL",
-    "DSPX_ORACLE_DATABASE_URL",
-    "DATABASE_URL",
-)
 
 
 def _index_path_source(index_path: Path | None) -> str:
@@ -21,10 +19,6 @@ def _index_path_source(index_path: Path | None) -> str:
     if os.getenv("DSPX_ORACLE_INDEX_PATH"):
         return "DSPX_ORACLE_INDEX_PATH"
     return "cwd_default"
-
-
-def _configured_postgres_env_keys() -> list[str]:
-    return [key for key in _POSTGRES_ENV_KEYS if os.getenv(key)]
 
 
 def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, Any]:
@@ -39,15 +33,16 @@ def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, 
     resolved_index_path = (
         (index_path or get_default_index_path()).expanduser().resolve()
     )
-    configured_postgres_keys = _configured_postgres_env_keys()
+    configured_postgres_keys = configured_postgres_env_keys()
     postgres_config_present = bool(configured_postgres_keys)
 
     return {
         "schema_version": ORACLE_BACKEND_STATUS_SCHEMA,
-        "status": "local_sqlite_only",
+        "status": "local_sqlite_default",
         "summary": (
-            "DSPx Oracle currently uses an explicit local SQLite CoordinateIndex. "
-            "No shared Oracle Postgres/pgvector backend is implemented or provisioned."
+            "DSPx Oracle defaults to an explicit local SQLite CoordinateStore. "
+            "A Postgres/pgvector store scaffold exists behind explicit opt-in, but "
+            "no shared Oracle service is provisioned by default."
         ),
         "coordinate_index": {
             "backend": "sqlite",
@@ -58,14 +53,23 @@ def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, 
             "created_by_status_check": False,
         },
         "shared_postgres_backend": {
-            "supported": False,
+            "supported": True,
+            "adapter_available": True,
+            "provisioned_by_default": False,
             "configured_env_present": postgres_config_present,
             "configured_env_keys": configured_postgres_keys,
-            "configuration_used_by_oracle": False,
+            "configured_store_selected": os.getenv("DSPX_ORACLE_STORE", "").lower()
+            in {"postgres", "postgres_pgvector", "pgvector"},
+            "configured_url_redacted": redact_database_url(
+                os.getenv("DSPX_ORACLE_DATABASE_URL")
+                or os.getenv("DSPX_ORACLE_POSTGRES_URL")
+                or os.getenv("DATABASE_URL")
+            ),
             "secret_values_reported": False,
             "reason": (
-                "CoordinateIndex is SQLite-backed in this repo. Postgres environment "
-                "variables, if present, are not consumed by Oracle indexing/search."
+                "Postgres/pgvector is an explicit opt-in Oracle CoordinateStore "
+                "adapter. It is separate from DS1621 MLflow Postgres and requires "
+                "a provisioned Oracle database plus driver/runtime validation."
             ),
         },
         "ds1621_mlflow_postgres": {
@@ -90,7 +94,7 @@ def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, 
             "production_activation_authority": False,
         },
         "next_required_action": (
-            "Define, provision, and validate a separate shared Oracle backend contract "
-            "before treating Oracle as a production shared evidence substrate."
+            "Provision and validate a separate shared Oracle backend before treating "
+            "Oracle as a production shared evidence substrate."
         ),
     }

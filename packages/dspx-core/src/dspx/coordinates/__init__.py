@@ -53,6 +53,13 @@ from .storage import (
     parse_since,
     SCHEMA_VERSION,
 )
+from .postgres_store import (
+    PostgresPgvectorCoordinateStore,
+    StoreConfigurationError,
+    StoreUnavailableError,
+    configured_postgres_env_keys,
+    redact_database_url,
+)
 from .clustering import (
     Cluster,
     compute_centroid,
@@ -146,6 +153,11 @@ __all__ = [
     "SearchResult",
     "StoreHealth",
     "StoreStats",
+    "PostgresPgvectorCoordinateStore",
+    "StoreConfigurationError",
+    "StoreUnavailableError",
+    "configured_postgres_env_keys",
+    "redact_database_url",
     "SchemaVersionError",
     "ParseSinceError",
     "get_default_index_path",
