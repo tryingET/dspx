@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Protocol, runtime_checkable
 
 from .embeddings import ExecutionEmbedding, EMBEDDING_VERSION
 from .metrics import cosine_similarity, semantic_distance
@@ -31,6 +31,40 @@ def get_default_index_path() -> Path:
     if base:
         return Path(base)
     return Path.cwd() / "generated" / "oracle" / "coordinates.db"
+
+
+@dataclass
+class StoreHealth:
+    """Read-only health/status payload for a coordinate store backend."""
+
+    backend: str
+    status: str
+    available: bool
+    path: str | None = None
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "backend": self.backend,
+            "status": self.status,
+            "available": self.available,
+        }
+        if self.path is not None:
+            payload["path"] = self.path
+        if self.error is not None:
+            payload["error"] = self.error
+        return payload
+
+
+@dataclass
+class StoreStats:
+    """Small wrapper for store statistics with backend identity."""
+
+    backend: str
+    stats: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"backend": self.backend, **self.stats}
 
 
 @dataclass
@@ -109,6 +143,85 @@ class CoordinateRecord:
         )
 
 
+@runtime_checkable
+class CoordinateStore(Protocol):
+    """Storage boundary for Oracle coordinate records.
+
+    The first implementation is intentionally backed by the existing SQLite
+    ``CoordinateIndex``.  This protocol gives future shared stores (for example
+    Postgres + pgvector) a contract to implement without changing callers or
+    making local development depend on a network service.
+    """
+
+    def upsert(self, embedding: ExecutionEmbedding) -> bool: ...
+
+    def upsert_batch(self, embeddings: list[ExecutionEmbedding]) -> int: ...
+
+    def get(self, run_id: str) -> ExecutionEmbedding | None: ...
+
+    def delete(self, run_id: str) -> bool: ...
+
+    def search(
+        self,
+        query_vector: list[float],
+        *,
+        top_k: int = 10,
+        run_kind: str | None = None,
+        provider: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        min_similarity: float = -1.0,
+        embedding_version: int | None = EMBEDDING_VERSION,
+    ) -> list[SearchResult]: ...
+
+    def search_by_text(
+        self,
+        query_text: str,
+        *,
+        top_k: int = 10,
+        run_kind: str | None = None,
+        provider: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        min_similarity: float = -1.0,
+    ) -> list[SearchResult]: ...
+
+    def get_neighbors(
+        self,
+        run_id: str,
+        *,
+        top_k: int = 10,
+        same_kind: bool = False,
+        same_provider: bool = False,
+    ) -> list[SearchResult]: ...
+
+    def list_all(
+        self,
+        *,
+        run_kind: str | None = None,
+        provider: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        embedding_version: int | None = None,
+        limit: int = 1000,
+        offset: int = 0,
+    ) -> list[ExecutionEmbedding]: ...
+
+    def count(
+        self,
+        *,
+        run_kind: str | None = None,
+        provider: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        embedding_version: int | None = None,
+    ) -> int: ...
+
+    def stats(self) -> dict[str, Any]: ...
+
+    def health(self) -> StoreHealth: ...
+
+
 class SchemaVersionError(Exception):
     """Raised when database schema version is incompatible."""
 
@@ -141,6 +254,8 @@ class CoordinateIndex:
     For larger scale, consider replacing with sqlite-vss or a dedicated
     vector database (Chroma, Qdrant, etc.).
     """
+
+    backend_name = "sqlite"
 
     def __init__(self, db_path: Path | str | None = None, *, auto_migrate: bool = True):
         self.db_path = Path(db_path) if db_path else get_default_index_path()
@@ -698,6 +813,29 @@ class CoordinateIndex:
                 "current_embedding_version": EMBEDDING_VERSION,
             }
 
+    def health(self) -> StoreHealth:
+        """Return read-only backend health without mutating store contents."""
+        try:
+            with self._read_conn() as conn:
+                row = conn.execute(
+                    "SELECT value FROM index_meta WHERE key = 'schema_version'"
+                ).fetchone()
+            schema_status = str(row["value"]) if row is not None else "unknown"
+            return StoreHealth(
+                backend=self.backend_name,
+                status=f"ok:schema_v{schema_status}",
+                available=True,
+                path=str(self.db_path),
+            )
+        except sqlite3.OperationalError as exc:
+            return StoreHealth(
+                backend=self.backend_name,
+                status="unavailable",
+                available=False,
+                path=str(self.db_path),
+                error=str(exc),
+            )
+
     def vacuum(self) -> None:
         """Vacuum the database to reclaim space."""
         with self._conn() as conn:
@@ -738,6 +876,32 @@ class CoordinateIndex:
             if "embedding_version" in row.keys()
             else 1,
         )
+
+
+def open_coordinate_store(
+    *,
+    store: str | None = None,
+    db_path: Path | str | None = None,
+    auto_migrate: bool = True,
+) -> CoordinateStore:
+    """Open a coordinate store using the current explicit backend contract.
+
+    ``sqlite`` is the only implemented backend today.  A shared Postgres/pgvector
+    store must be added behind this boundary later and must remain explicit opt-in.
+    """
+
+    store_name = (store or os.getenv("DSPX_ORACLE_STORE") or "sqlite").strip().lower()
+    if store_name in {"sqlite", "local_sqlite"}:
+        return CoordinateIndex(db_path=db_path, auto_migrate=auto_migrate)
+    if store_name in {"postgres", "postgres_pgvector", "pgvector"}:
+        raise ValueError(
+            "DSPx Oracle postgres_pgvector store is not implemented yet; "
+            "use sqlite/local_sqlite or keep DSPX_ORACLE_STORE unset"
+        )
+    raise ValueError(
+        f"Unsupported DSPx Oracle coordinate store '{store_name}'. "
+        "Supported today: sqlite"
+    )
 
 
 def parse_since(since_str: str) -> datetime:

@@ -494,7 +494,8 @@ Operator diagnostics:
 - [x] RFC reviewed by DSPx core.
 - [x] ADR recorded for target architecture.
 - [ ] Infra owner confirms or rejects DS1621 as pilot host.
-- [ ] Store abstraction task scoped.
+- [x] Store abstraction task scoped.
+- [x] SQLite `CoordinateStore` abstraction landed without shared-backend behavior change.
 - [ ] Postgres + pgvector adapter task scoped.
 - [ ] DS1621 service contract task scoped in infra repo if selected.
 - [ ] Non-authority tests added before any shared ingest path can land.

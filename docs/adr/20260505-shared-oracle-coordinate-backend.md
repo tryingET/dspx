@@ -196,12 +196,12 @@ For implementation tasks:
 
 ## Current implementation status
 
-Accepted architecture only. The shared Oracle backend is not implemented yet.
+Accepted architecture with Phase 1 local storage seam in progress/landed: the shared Oracle backend is not implemented yet, but the local SQLite `CoordinateIndex` is the first `CoordinateStore` backend boundary.
 
 Current truth remains:
 
 ```text
-DSPx Oracle storage: local SQLite CoordinateIndex by default
+DSPx Oracle storage: local SQLite CoordinateStore/CoordinateIndex by default
 DS1621 MLflow Postgres: MLflow metadata only
 Shared Oracle Postgres/pgvector: accepted target, not implemented
 ```

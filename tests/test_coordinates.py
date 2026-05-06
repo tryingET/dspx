@@ -23,6 +23,8 @@ from dspx.coordinates import (
     DimensionMismatchError,
     # Storage
     CoordinateIndex,
+    CoordinateStore,
+    open_coordinate_store,
     parse_since,
     ParseSinceError,
     # Clustering
@@ -370,6 +372,37 @@ class TestCoordinateIndex:
         """Index creates database file."""
         CoordinateIndex(db_path=temp_db)
         assert temp_db.exists()
+
+    def test_coordinate_index_satisfies_store_protocol(
+        self, index: CoordinateIndex
+    ) -> None:
+        """SQLite CoordinateIndex implements the CoordinateStore boundary."""
+        assert isinstance(index, CoordinateStore)
+
+    def test_open_coordinate_store_defaults_to_sqlite(self, temp_db: Path) -> None:
+        """Store factory preserves the current SQLite default behavior."""
+        store = open_coordinate_store(db_path=temp_db)
+        assert isinstance(store, CoordinateIndex)
+        assert temp_db.exists()
+
+    def test_open_coordinate_store_rejects_unimplemented_postgres(
+        self, temp_db: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Postgres/pgvector remains explicit but unavailable in this slice."""
+        monkeypatch.setenv("DSPX_ORACLE_STORE", "postgres_pgvector")
+        with pytest.raises(ValueError, match="not implemented"):
+            open_coordinate_store(db_path=temp_db)
+        assert not temp_db.exists()
+
+    def test_health_reports_sqlite_status(
+        self, index: CoordinateIndex, temp_db: Path
+    ) -> None:
+        """Store health is read-only and exposes backend identity."""
+        health = index.health()
+        assert health.backend == "sqlite"
+        assert health.available is True
+        assert health.path == str(temp_db)
+        assert health.to_dict()["backend"] == "sqlite"
 
     def test_upsert_and_get(
         self, index: CoordinateIndex, engine: EmbeddingEngine

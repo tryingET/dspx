@@ -42,10 +42,14 @@ from .metrics import (
 from .storage import (
     CoordinateIndex,
     CoordinateRecord,
+    CoordinateStore,
     SearchResult,
+    StoreHealth,
+    StoreStats,
     SchemaVersionError,
     ParseSinceError,
     get_default_index_path,
+    open_coordinate_store,
     parse_since,
     SCHEMA_VERSION,
 )
@@ -138,10 +142,14 @@ __all__ = [
     # Storage
     "CoordinateIndex",
     "CoordinateRecord",
+    "CoordinateStore",
     "SearchResult",
+    "StoreHealth",
+    "StoreStats",
     "SchemaVersionError",
     "ParseSinceError",
     "get_default_index_path",
+    "open_coordinate_store",
     "parse_since",
     "SCHEMA_VERSION",
     # Clustering

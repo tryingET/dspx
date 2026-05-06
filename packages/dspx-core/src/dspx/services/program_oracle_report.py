@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.coordinates import ExecutionEmbedding
-from dspx.coordinates.storage import CoordinateIndex, get_default_index_path
+from dspx.coordinates.storage import get_default_index_path, open_coordinate_store
 from dspx.services.program_oracle_index import (
     PROGRAM_ORACLE_EVIDENCE_KIND,
     PROGRAM_ORACLE_EVIDENCE_SCHEMA,
@@ -82,7 +82,7 @@ def load_program_oracle_evidence_embeddings(
     db_path = _index_path_for_report(index_path)
     if not db_path.exists():
         return []
-    index = CoordinateIndex(db_path=db_path)
+    index = open_coordinate_store(db_path=db_path)
     embeddings = index.list_all(run_kind=PROGRAM_ORACLE_RUN_KIND, limit=limit)
     return [emb for emb in embeddings if _metadata_has_expected_shape(emb.metadata)]
 

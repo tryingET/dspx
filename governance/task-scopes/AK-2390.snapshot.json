@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-05T19:22:30.249966054+00:00",
+  "task_id": 2390,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/adr/20260505-shared-oracle-coordinate-backend.md",
+      "docs/project/2026-05-05-plan-shared-oracle-coordinate-backend.md",
+      "docs/project/2026-05-05-validation-rollout-rollback-shared-oracle-coordinate-backend.md",
+      "docs/rfc/RFC-DSPX-ORACLE-20260505-shared-coordinate-backend.md",
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/commands/oracle.py",
+      "packages/dspx-core/src/dspx/coordinates/**",
+      "packages/dspx-core/src/dspx/services/oracle_backend_status.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_index.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_report.py",
+      "tests/test_coordinates.py",
+      "tests/test_oracle_backend_status.py",
+      "tests/test_program_oracle_index.py",
+      "tests/test_program_oracle_report.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/coordinates/storage.py",
+      "tests/test_coordinates.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

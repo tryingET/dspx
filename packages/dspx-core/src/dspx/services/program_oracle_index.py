@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from dspx.coordinates import (
-    CoordinateIndex,
     EmbeddingEngine,
     ExecutionEmbedding,
     get_embedding_engine,
+    open_coordinate_store,
 )
 
 PROGRAM_ORACLE_EVIDENCE_SCHEMA = "program-oracle-evidence-v1"
@@ -214,7 +214,7 @@ def index_program_oracle_evidence_path(
     """Index program-gen Oracle-readable evidence into a local CoordinateIndex."""
 
     engine = get_embedding_engine()
-    index = CoordinateIndex(db_path=index_path)
+    index = open_coordinate_store(db_path=index_path)
     scanned = 0
     indexed = 0
     skipped = 0
