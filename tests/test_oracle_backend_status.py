@@ -52,9 +52,15 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         "backup_restore_status": "verified_disposable_restore_2026_05_06",
         "retention_status": "pilot_14_day_policy_with_dry_run_prune_helper",
         "off_nas_coverage_status": (
-            "latest_dump_exported_to_operator_confirmed_hyper_backup_selected_share_2026_05_06"
+            "latest_dump_exported_but_remote_hyper_backup_success_after_export_not_proven_2026_05_06"
         ),
         "hyper_backup_share": "DspxOracleBackups",
+        "hyper_backup_selection_status": (
+            "dedicated_share_selected_in_local_hyper_backup_task_remote_task_missing_2026_05_06"
+        ),
+        "hyper_backup_remote_task_status": (
+            "task_3_hypterbackup2michy_dedicated_share_not_selected_last_success_before_latest_export_2026_03_30"
+        ),
         "monitoring_status": "systemd_user_timer_enabled_ntfy_alert_path_verified_2026_05_06",
         "monitoring_command": "./scripts/oracle/monitor-ds1621-oracle.sh",
         "monitoring_schedule": "systemd_user_timer_daily_05_30_persistent_randomized_15m",

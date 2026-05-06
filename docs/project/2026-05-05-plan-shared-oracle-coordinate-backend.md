@@ -73,8 +73,8 @@ Exit gate:
 - Phase 2 Postgres/pgvector adapter: scaffolded behind explicit opt-in.
 - Phase 2 optional driver strategy: `dspx-core[oracle-postgres]` installs `psycopg[binary]` for explicit live use.
 - Phase 2 live-gated integration smoke: added and skipped by default unless `DSPX_ORACLE_LIVE_POSTGRES=1` plus a database URL are present.
-- Phase 3 DS1621 pilot: provisioned on DS1621 with 1Password-backed password, pgvector health passed, DSPx live smoke passed, first disposable restore proof passed, 14-day retention/quota helpers exist, latest dump is exported to operator-confirmed `DspxOracleBackups` Hyper Backup share, scheduled infra monitoring with ntfy failure-alert path is installed and verified, and password rotation was exercised with a post-rotation DSPx live smoke.
-- Shared Oracle service: live pilot only; not production-ready until Hyper Backup remote-run evidence and authority-label gates are done.
+- Phase 3 DS1621 pilot: provisioned on DS1621 with 1Password-backed password, pgvector health passed, DSPx live smoke passed, first disposable restore proof passed, 14-day retention/quota helpers exist, latest dump is exported to `DspxOracleBackups`, scheduled infra monitoring with ntfy failure-alert path is installed and verified, and password rotation was exercised with a post-rotation DSPx live smoke.
+- Shared Oracle service: live pilot only; not production-ready until the remote Hyper Backup task includes `DspxOracleBackups`, remote-run evidence after export exists, and authority-label gates are done.
 
 ## Phase 3 — DS1621 pilot service, infra-owned
 

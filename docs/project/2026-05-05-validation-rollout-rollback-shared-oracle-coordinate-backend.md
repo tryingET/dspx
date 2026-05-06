@@ -88,7 +88,7 @@ Rollback:
 
 ## Phase 3 validation — DS1621 pilot service
 
-Current status: DS1621 live pilot deployed, pgvector health passed, DSPx live-gated smoke passed, first disposable restore proof passed, 14-day retention/quota helpers exist, latest dump is exported to the operator-confirmed `DspxOracleBackups` Hyper Backup share, scheduled infra monitoring with ntfy failure-alert path is installed and verified, and password rotation was exercised with a post-rotation DSPx live smoke; production-readiness gates remain open.
+Current status: DS1621 live pilot deployed, pgvector health passed, DSPx live-gated smoke passed, first disposable restore proof passed, 14-day retention/quota helpers exist, latest dump is exported to `DspxOracleBackups`, scheduled infra monitoring with ntfy failure-alert path is installed and verified, and password rotation was exercised with a post-rotation DSPx live smoke; production-readiness gates remain open because the remote Hyper Backup task does not yet include `DspxOracleBackups` and remote success after export is not proven.
 
 Minimum checks:
 
@@ -97,7 +97,7 @@ Minimum checks:
 - DS1621 health check from workstation;
 - non-secret generated-program ingest/report smoke;
 - backup/restore posture documented;
-- off-NAS backup boundary documented and latest dump exported to a Hyper Backup selected share;
+- off-NAS backup boundary documented; latest dump exported to a DSM share, but remote Hyper Backup coverage is not proven because `hypterbackup2Michy` does not include `DspxOracleBackups`;
 - monitoring helper exists and scheduled workstation user-level systemd timer is installed/verified (`ds1621-oracle-monitor.timer` in `ds1621-admin` posture);
 - password rotation was exercised and verified through 1Password, DS1621 health, scheduled monitor, and DSPx live smoke;
 - rollback to local SQLite demonstrated or documented.

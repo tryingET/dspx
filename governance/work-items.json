@@ -1921,6 +1921,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2494",
+          "title": "Report corrected Oracle Hyper Backup remote coverage in DSPx",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Report corrected Oracle Hyper Backup remote coverage in DSPx (task #2494)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
