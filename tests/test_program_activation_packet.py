@@ -163,6 +163,7 @@ def test_program_promote_activation_packet_blocks_without_required_evidence(
     assert "oracle_report" in payload["missing_required_evidence"]
     assert "jury_results" in payload["missing_required_evidence"]
     assert "refined_promotion_review" in payload["missing_required_evidence"]
+    assert "rollout_owner" in payload["missing_required_evidence"]
     assert "rollback_plan" in payload["missing_required_evidence"]
     assert payload["boundary_checks"] == {
         "mlflow_approval_authority": False,
@@ -170,6 +171,8 @@ def test_program_promote_activation_packet_blocks_without_required_evidence(
         "jury_promotion_authority": False,
         "dspx_activation_authority": False,
         "requires_domain_governing_body": True,
+        "requires_rollout_owner_before_rollout": True,
+        "requires_rollback_plan_before_rollout": True,
         "requires_canonical_binding_before_rollout": True,
     }
     assert payload["non_authority"]["activation_packet_only"] is True
@@ -247,3 +250,120 @@ def test_program_promote_activation_packet_dogfoods_review_chain_without_activat
     }
     assert _file_hashes(program_root) == before_hashes
     assert not (program_root / "activation_packet.json").exists()
+
+
+def test_program_promote_activation_packet_requires_rollout_owner_before_rollout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    promote_decision = json.loads(_decision_path.read_text(encoding="utf-8"))
+    promote_decision["outcome"] = "promote"
+    promote_decision["promotion_state_after_decision"] = "promoted"
+    promote_decision["rationale"] = (
+        "Domain adjudicator accepts the candidate for a bounded rollout."
+    )
+    decision_path = tmp_path / "promotion" / "promotion_decision_record_promote.json"
+    _write_json(decision_path, promote_decision)
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--canonical-binding-ref",
+            "ak://decision/123#accepted",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked"
+    assert payload["next_required_action"] == "collect_missing_evidence"
+    assert payload["missing_required_evidence"] == ["rollout_owner"]
+    assert payload["decision"]["outcome"] == "promote"
+    assert payload["canonical_binding_ref"] == "ak://decision/123#accepted"
+    assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_reaches_rollout_preflight_only_after_authority_fields(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    promote_decision = json.loads(_decision_path.read_text(encoding="utf-8"))
+    promote_decision["outcome"] = "promote"
+    promote_decision["promotion_state_after_decision"] = "promoted"
+    promote_decision["rationale"] = (
+        "Domain adjudicator accepts the candidate for a bounded rollout."
+    )
+    decision_path = tmp_path / "promotion" / "promotion_decision_record_promote.json"
+    _write_json(decision_path, promote_decision)
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--canonical-binding-ref",
+            "ak://decision/123#accepted",
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ready_for_rollout_preflight"
+    assert payload["next_required_action"] == "run_owner_approved_rollout_preflight"
+    assert payload["missing_required_evidence"] == []
+    assert payload["rollout_owner"] == "softwareco-runtime-operator"
+    assert payload["effect"]["production_activation_applied"] is False

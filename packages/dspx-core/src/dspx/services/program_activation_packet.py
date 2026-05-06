@@ -243,6 +243,7 @@ def _status_and_missing(
     refined_review: Mapping[str, Any] | None,
     decision_record: Mapping[str, Any] | None,
     canonical_binding_ref: str | None,
+    rollout_owner: str | None,
     rollback_plan: str | None,
 ) -> tuple[str, list[str], str]:
     missing: list[str] = []
@@ -254,6 +255,8 @@ def _status_and_missing(
         missing.append("jury_results")
     if refined_review is None:
         missing.append("refined_promotion_review")
+    if not str(rollout_owner or "").strip():
+        missing.append("rollout_owner")
     if not str(rollback_plan or "").strip():
         missing.append("rollback_plan")
     if missing:
@@ -350,6 +353,7 @@ def build_generated_program_activation_packet(
         refined_review=refined_review,
         decision_record=decision_record,
         canonical_binding_ref=canonical_binding_ref,
+        rollout_owner=rollout_owner,
         rollback_plan=rollback_plan,
     )
 
@@ -399,6 +403,8 @@ def build_generated_program_activation_packet(
             "jury_promotion_authority": False,
             "dspx_activation_authority": False,
             "requires_domain_governing_body": True,
+            "requires_rollout_owner_before_rollout": True,
+            "requires_rollback_plan_before_rollout": True,
             "requires_canonical_binding_before_rollout": True,
         },
         "effect": dict(_EFFECT),
