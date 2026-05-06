@@ -1951,14 +1951,15 @@
         {
           "id": "AK-TASK-2513",
           "title": "Tighten generated-program activation rollout authority gates",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Tighten generated-program activation rollout authority gates (task #2513)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
         }
       ]
     }
