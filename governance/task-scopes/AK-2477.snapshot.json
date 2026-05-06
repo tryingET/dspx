@@ -2,8 +2,8 @@
   "schema_version": 1,
   "exported_at": "2026-05-06T14:54:22.518730893+00:00",
   "task_id": 2477,
-  "entity_version": 3,
-  "commit_sha": null,
+  "entity_version": 4,
+  "commit_sha": "7dc814d",
   "scope": {
     "allowed_paths": [
       "docs/project/2026-05-05-evidence-shared-oracle-coordinate-backend.md",

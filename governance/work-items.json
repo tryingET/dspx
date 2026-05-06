@@ -1899,14 +1899,15 @@
         {
           "id": "AK-TASK-2477",
           "title": "Report DS1621 Oracle scheduled monitoring posture in DSPx",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Report DS1621 Oracle scheduled monitoring posture in DSPx (task #2477)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
         }
       ]
     }
