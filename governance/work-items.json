@@ -1873,14 +1873,15 @@
         {
           "id": "AK-TASK-2452",
           "title": "Report DS1621 Oracle retention quota posture in DSPx",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Report DS1621 Oracle retention quota posture in DSPx (task #2452)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
         }
       ]
     }
