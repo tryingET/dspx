@@ -1847,14 +1847,15 @@
         {
           "id": "AK-TASK-2435",
           "title": "Report DS1621 Oracle pilot live status in DSPx",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Report DS1621 Oracle pilot live status in DSPx (task #2435)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
         }
       ]
     }
