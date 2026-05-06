@@ -69,9 +69,9 @@ generated DSPy program
   -> optional AK/decision handoff, never automatic authority
 ```
 
-## Evidence surface 4 — DS1621 Oracle pilot contract exists but is not deployed
+## Evidence surface 4 — DS1621 Oracle pilot is live but not production-ready
 
-The infra-owned DS1621 contract-only target is published in:
+The infra-owned DS1621 pilot target is published in:
 
 - `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`
 - `~/ai-society/softwareco/infra/ds1621-admin/contracts/ds1621-oracle-coordinate-backend.env`
@@ -82,7 +82,7 @@ Its deployment status is:
 pilot_deployed_health_ok_live_smoke_passed_not_production_ready
 ```
 
-This proves the owner boundary, non-secret target contract, live DS1621 pgvector health, DSPx live-gated smoke, and first disposable restore proof exist. It does **not** prove retention/quota readiness, monitoring/rotation readiness, production readiness, or activation authority.
+This proves the owner boundary, non-secret target contract, live DS1621 pgvector health, DSPx live-gated smoke, first disposable restore proof, 14-day pilot retention/quota helpers, and latest-dump export to the operator-confirmed `DspxOracleBackups` Hyper Backup share exist. It does **not** prove a completed remote Hyper Backup run after export, monitoring/rotation readiness, production readiness, or activation authority.
 
 ## Evidence surface 5 — DSPx live-gated integration smoke exists but is skipped by default
 
@@ -109,4 +109,4 @@ The generated cognition-program production-activation boundary lives outside DSP
 
 ## Conclusion
 
-The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, DS1621 pilot provisioning, optional driver declaration, a passed live-gated DSPx integration smoke, and backup/restore proof now exist. Retention/monitoring/rotation and production-readiness gates remain undone.
+The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, DS1621 pilot provisioning, optional driver declaration, a passed live-gated DSPx integration smoke, backup/restore proof, retention/quota helpers, and latest-dump export into `DspxOracleBackups` now exist. Hyper Backup run evidence, monitoring/rotation, and production-readiness gates remain undone.

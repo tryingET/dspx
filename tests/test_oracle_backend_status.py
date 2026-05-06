@@ -50,6 +50,11 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         ),
         "provisioned_service": True,
         "backup_restore_status": "verified_disposable_restore_2026_05_06",
+        "retention_status": "pilot_14_day_policy_with_dry_run_prune_helper",
+        "off_nas_coverage_status": (
+            "latest_dump_exported_to_operator_confirmed_hyper_backup_selected_share_2026_05_06"
+        ),
+        "hyper_backup_share": "DspxOracleBackups",
     }
     assert status["ds1621_mlflow_postgres"]["oracle_backend"] is False
     assert status["effects"] == {
