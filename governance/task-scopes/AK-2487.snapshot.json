@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-06T15:01:51.654421678+00:00",
+  "task_id": 2487,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-05-evidence-shared-oracle-coordinate-backend.md",
+      "docs/project/2026-05-05-plan-shared-oracle-coordinate-backend.md",
+      "docs/project/2026-05-05-validation-rollout-rollback-shared-oracle-coordinate-backend.md",
+      "governance/task-scopes/AK-2487.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/oracle_backend_status.py",
+      "tests/test_oracle_backend_status.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/oracle_backend_status.py",
+      "tests/test_oracle_backend_status.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

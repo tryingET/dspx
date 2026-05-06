@@ -82,7 +82,7 @@ Its deployment status is:
 pilot_deployed_health_ok_live_smoke_passed_not_production_ready
 ```
 
-This proves the owner boundary, non-secret target contract, live DS1621 pgvector health, DSPx live-gated smoke, first disposable restore proof, 14-day pilot retention/quota helpers, latest-dump export to the operator-confirmed `DspxOracleBackups` Hyper Backup share, and scheduled infra monitoring with ntfy failure-alert path exist. It does **not** prove a completed remote Hyper Backup run after export, exercised password rotation, production readiness, or activation authority.
+This proves the owner boundary, non-secret target contract, live DS1621 pgvector health, DSPx live-gated smoke, first disposable restore proof, 14-day pilot retention/quota helpers, latest-dump export to the operator-confirmed `DspxOracleBackups` Hyper Backup share, scheduled infra monitoring with ntfy failure-alert path, and exercised password rotation with post-rotation DSPx live smoke exist. It does **not** prove a completed remote Hyper Backup run after export, production readiness, or activation authority.
 
 ## Evidence surface 5 — DSPx live-gated integration smoke exists but is skipped by default
 
@@ -109,4 +109,4 @@ The generated cognition-program production-activation boundary lives outside DSP
 
 ## Conclusion
 
-The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, DS1621 pilot provisioning, optional driver declaration, a passed live-gated DSPx integration smoke, backup/restore proof, retention/quota helpers, latest-dump export into `DspxOracleBackups`, and scheduled infra monitoring with ntfy failure-alert path now exist. Hyper Backup remote-run evidence, exercised password rotation, and production-readiness gates remain undone.
+The evidence supports a dedicated shared Oracle backend target, not reusing the MLflow Postgres database and not staying local-only as the production architecture. RFC review, ADR recording, storage seams, DS1621 pilot provisioning, optional driver declaration, a passed live-gated DSPx integration smoke, backup/restore proof, retention/quota helpers, latest-dump export into `DspxOracleBackups`, scheduled infra monitoring with ntfy failure-alert path, and exercised password rotation now exist. Hyper Backup remote-run evidence and production-readiness gates remain undone.

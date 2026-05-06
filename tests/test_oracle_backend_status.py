@@ -60,7 +60,8 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         "monitoring_schedule": "systemd_user_timer_daily_05_30_persistent_randomized_15m",
         "monitoring_alert_target": "http://ds1621:2586/dspx-oracle-alerts",
         "monitoring_last_verified_at": "2026-05-06",
-        "rotation_status": "manual_rotation_runbook_defined_not_exercised",
+        "rotation_status": "manual_rotation_exercised_and_verified_2026_05_06",
+        "rotation_last_verified_at": "2026-05-06",
         "rotation_next_review": "2026-08-04",
     }
     assert status["ds1621_mlflow_postgres"]["oracle_backend"] is False
