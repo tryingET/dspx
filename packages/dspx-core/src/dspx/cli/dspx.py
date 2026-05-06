@@ -408,6 +408,84 @@ def program_gen(
         typer.echo(artifact.root_path)
 
 
+@app.command("program-loop")
+def program_loop(
+    intent: Path = typer.Option(
+        ...,
+        "--intent",
+        "-i",
+        help="Path to a JSON/YAML one-intent program specification",
+    ),
+    outdir: Optional[Path] = typer.Option(
+        None,
+        "--outdir",
+        "-o",
+        help="Directory where the program candidate assembly is materialized",
+    ),
+    index_path: Optional[Path] = typer.Option(
+        None,
+        "--index-path",
+        help="Candidate-local Oracle CoordinateIndex path; defaults below --outdir",
+    ),
+    oracle_report_out: Optional[Path] = typer.Option(
+        None,
+        "--oracle-report-out",
+        help="Path for the non-authoritative Oracle report sidecar",
+    ),
+    state_out: Optional[Path] = typer.Option(
+        None,
+        "--state-out",
+        help="Path for the local candidate truth-state summary sidecar",
+    ),
+    workflow_out: Optional[Path] = typer.Option(
+        None,
+        "--workflow-out",
+        help="Path for the local program-loop summary sidecar",
+    ),
+    skip_oracle_index: bool = typer.Option(
+        False,
+        "--skip-oracle-index",
+        help="Skip local Oracle indexing/reporting and only write candidate state",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print workflow JSON"),
+) -> None:
+    """Run the coherent local one-intent program loop without authority effects."""
+    from dspx.services.program_workflow import run_program_loop_from_intent_path
+
+    if not intent.exists():
+        typer.echo(f"Error: intent file not found: {intent}", err=True)
+        raise typer.Exit(code=2)
+
+    ensure_env(None)
+
+    try:
+        payload = run_program_loop_from_intent_path(
+            intent,
+            outdir=outdir,
+            index_path=index_path,
+            oracle_report_out=oracle_report_out,
+            state_out=state_out,
+            workflow_out=workflow_out,
+            skip_oracle_index=skip_oracle_index,
+        )
+    except Exception as exc:
+        typer.echo(f"Error: program loop failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        steps = payload.get("steps") or {}
+        state = steps.get("candidate_state") or {}
+        typer.echo(str(payload.get("workflow_path") or "program_loop.json"))
+        typer.echo(f"candidate_state: {state.get('status')}")
+        required_next_steps = state.get("required_next_steps") or []
+        if required_next_steps:
+            typer.echo("next:")
+            for item in required_next_steps:
+                typer.echo(f"- {item}")
+
+
 @app.command("codegen")
 def codegen(
     spec: str = typer.Argument(..., help="Codegen task description"),

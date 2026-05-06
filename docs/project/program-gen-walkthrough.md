@@ -1,9 +1,9 @@
 ---
-summary: "Hands-on walkthrough for program-gen candidate assemblies, execution episodes, replay checks, Oracle-readable evidence, explicit Oracle reporting, and authority boundaries."
+summary: "Hands-on walkthrough for program-gen and program-loop candidate assemblies, execution episodes, replay checks, Oracle-readable evidence, explicit Oracle reporting, state summaries, and authority boundaries."
 read_when:
   - "You want to understand one-intent program generation end to end."
   - "You need to inspect execution_episode.json, behavior_results.json, oracle_evidence.json, manifest, receipt, replay, and optional temp-dir Oracle reporting without invoking AK."
-  - "You are explaining the current shipped program-gen product loop to an operator."
+  - "You are explaining the current shipped program-gen / program-loop product loop to an operator."
 type: "guide"
 ---
 
@@ -17,7 +17,7 @@ It is deliberately local-first and non-authoritative:
 - sets `MLFLOW_ENABLE=0`
 - writes to a temp directory
 - does not call `ak`
-- does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run
+- does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run; `program-loop` uses a candidate-local Oracle index by default and reports that mutation explicitly
 - can optionally materialize deterministic local dataset split evidence when intent declares `dataset` or `datasets`
 - `program-gen` does not run a model jury or promotion adjudicator; explicit local deterministic jury execution is a separate `program-promote jury` sidecar command
 - does not rank, select winners, prune, promote, run GEPA/search, export authority, or mutate governance state
@@ -38,6 +38,7 @@ The current `program-gen` loop proves:
 6. `oracle_evidence.json` is source-aware Oracle-readable evidence derived from local behavior results without invoking Oracle: inline examples, `examples_path`, and dataset splits can all contribute evidence sources.
 7. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
 8. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize source-aware behavior evidence without authority effects; it is not part of `program-gen`.
+8. `program-loop` can compose the core shipped loop in one command: `program-gen`, receipt replay check, candidate-local Oracle indexing/reporting, and `program-promote status`-equivalent candidate-state summary. It still does not rank, promote, call AK, deploy, or mutate governance.
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 10. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
 11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and already-generated behavior evidence (`behavior_results.json` when present, otherwise bounded `behavior_episode.json`) to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
@@ -66,7 +67,8 @@ It does **not** prove:
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
 - GEPA/search materializing a new `program-candidate-assembly-v1` in the current slice,
 - broad accepted-proposal policy beyond the explicit request-more-evidence constraints-patch path,
-- AK export or task mutation.
+- AK export or task mutation,
+- one-command refinement/search/review/decision/activation automation; `program-loop` currently stops at local evidence/state summary.
 
 ## PDF transition scenario
 
@@ -136,6 +138,42 @@ export DSPX_CACHE_ENABLE=1
 ```
 
 These environment settings keep the walkthrough offline and temp-dir scoped.
+
+## Fast path: run the coherent local loop
+
+`program-loop` is the first integrated operator path for the core one-intent evidence loop:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-loop \
+  --intent "$TD/intent.yaml" \
+  --outdir "$TD/program-loop" \
+  --json > "$TD/program-loop-result.json"
+```
+
+It writes these high-signal sidecars in the candidate directory:
+
+- `program_loop.json` — local workflow summary;
+- `oracle/coordinates.db` — candidate-local Oracle CoordinateIndex, not the shared/default Oracle DB;
+- `program_oracle_report.json` — non-authoritative Oracle program-evidence report;
+- `program_candidate_state.json` — local truth-state summary over the manifest and Oracle report.
+
+Inspect the loop summary:
+
+```bash
+python - <<'PY'
+import json, os
+payload = json.load(open(os.environ["TD"] + "/program-loop/program_loop.json"))
+print(json.dumps({
+    "schema_version": payload["schema_version"],
+    "status": payload["status"],
+    "steps": {key: value["status"] for key, value in payload["steps"].items()},
+    "effect": payload["effect"],
+    "non_authority": payload["non_authority"],
+}, indent=2, sort_keys=True))
+PY
+```
+
+Use `--skip-oracle-index` when you want generation/replay/state only and no CoordinateIndex mutation. Even without that flag, the default mutation is candidate-local under `--outdir`, not a production/shared Oracle authority action.
 
 ## 2. Generate the program candidate assembly
 
