@@ -1912,14 +1912,15 @@
         {
           "id": "AK-TASK-2487",
           "title": "Report DS1621 Oracle password rotation posture in DSPx",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Report DS1621 Oracle password rotation posture in DSPx (task #2487)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-06"
         }
       ]
     }
