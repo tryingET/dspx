@@ -2120,14 +2120,15 @@
         {
           "id": "AK-TASK-2583",
           "title": "Expose shared Oracle publication refs as evidence only",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Expose shared Oracle publication refs as evidence only (task #2583)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
