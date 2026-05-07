@@ -2172,14 +2172,15 @@
         {
           "id": "AK-TASK-2599",
           "title": "Fix Oracle publication hardening findings",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Fix Oracle publication hardening findings (task #2599)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         },
         {
           "id": "AK-TASK-2607",
