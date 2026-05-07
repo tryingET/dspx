@@ -303,3 +303,33 @@ def test_autoresearch_oracle_publication_preflight_rejects_missing_run_fields(
 
     with pytest.raises(AutoresearchOraclePublicationPreflightError, match="runStatus"):
         build_autoresearch_oracle_publication_preflight(**_base_kwargs(packet))
+
+
+def test_autoresearch_oracle_publication_preflight_rejects_secret_in_assertion(
+    tmp_path: Path,
+) -> None:
+    packet = _write_packet(tmp_path / "autoresearch_oracle_evidence.json")
+    kwargs = _base_kwargs(packet)
+    kwargs["publisher_assertion"] = "Bearer abcdefghijklmnopqrstuvwxyz0123456789"
+
+    with pytest.raises(
+        AutoresearchOraclePublicationPreflightError, match="secret|token"
+    ):
+        build_autoresearch_oracle_publication_preflight(**kwargs)
+
+
+def test_autoresearch_oracle_publication_preflight_records_onepassword_secret_refs(
+    tmp_path: Path,
+) -> None:
+    packet = _write_packet(tmp_path / "autoresearch_oracle_evidence.json")
+    kwargs = _base_kwargs(packet)
+    kwargs["publisher_secret_refs"] = ["op://Private/Autoresearch-Oracle/password"]
+
+    payload = build_autoresearch_oracle_publication_preflight(**kwargs)
+
+    refs = payload["publication"]["publisher_secret_refs"]
+    assert refs[0]["provider"] == "1password"
+    assert refs[0]["ref_redacted"] == "op://<redacted>/<redacted>/password"
+    assert refs[0]["secret_value_persisted"] is False
+    assert "Autoresearch-Oracle" not in json.dumps(payload)
+    assert payload["planned_record"]["publisher_secret_refs"] == refs

@@ -332,3 +332,53 @@ def test_program_oracle_publish_cli_rejects_ambient_database_url_without_oracle_
     assert result.exit_code == 2
     assert "DSPX_ORACLE_STORE=postgres_pgvector" in result.output
     assert not receipt_path.exists()
+
+
+def test_program_oracle_publish_preserves_redacted_secret_refs_without_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(
+        root,
+        tmp_path / "preflight.json",
+        publisher_secret_refs=["op://Private/DSPx-Oracle/password"],
+    )
+    store = FakeSharedOracleStore()
+
+    receipt = publish_program_oracle_preflight(
+        preflight_path=preflight_path,
+        store=cast(CoordinateStore, store),
+    )
+
+    refs = receipt["publication"]["publisher_secret_refs"]
+    assert refs[0]["ref_redacted"] == "op://<redacted>/<redacted>/password"
+    assert refs[0]["secret_value_persisted"] is False
+    record = next(iter(store.records.values()))
+    assert record.metadata["publication"]["publisher_secret_refs"] == refs
+    assert "DSPx-Oracle" not in json.dumps(receipt)
+    assert "Private" not in json.dumps(record.metadata)
+
+
+def test_program_oracle_publish_rejects_tampered_secret_ref_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(
+        root,
+        tmp_path / "preflight.json",
+        publisher_secret_refs=["op://Private/DSPx-Oracle/password"],
+    )
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["publication"]["publisher_secret_refs"][0]["resolved_value"] = (
+        "plaintext-secret"
+    )
+    preflight["planned_record"]["publisher_secret_refs"] = preflight["publication"][
+        "publisher_secret_refs"
+    ]
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramOraclePublicationError, match="resolved secret values"):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )

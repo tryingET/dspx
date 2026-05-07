@@ -116,6 +116,11 @@ def oracle_autoresearch_evidence_publish_preflight(
         "--authority-ref",
         help="Required for authority-mirror labels; opaque ref only, not authority mutation",
     ),
+    publisher_secret_ref: list[str] = typer.Option(
+        [],
+        "--publisher-secret-ref",
+        help="1Password op:// ref relevant to publisher custody; value is never resolved or persisted",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print preflight JSON"),
 ) -> None:
     """Write a local preflight packet for pi-autoresearch Oracle evidence."""
@@ -136,6 +141,7 @@ def oracle_autoresearch_evidence_publish_preflight(
             redaction_status=redaction_status,
             retention_class=retention_class,
             authority_ref=authority_ref,
+            publisher_secret_refs=publisher_secret_ref,
         )
         payload = write_autoresearch_oracle_publication_preflight(preflight, out)
     except AutoresearchOraclePublicationPreflightError as exc:
@@ -206,6 +212,11 @@ def oracle_program_evidence_publish_preflight(
         "--authority-ref",
         help="Required for authority-mirror labels; opaque ref only, not authority mutation",
     ),
+    publisher_secret_ref: list[str] = typer.Option(
+        [],
+        "--publisher-secret-ref",
+        help="1Password op:// ref relevant to publisher custody; value is never resolved or persisted",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print preflight JSON"),
 ) -> None:
     """Write a local shared-Oracle publication preflight packet without shared writes."""
@@ -226,6 +237,7 @@ def oracle_program_evidence_publish_preflight(
             redaction_status=redaction_status,
             retention_class=retention_class,
             authority_ref=authority_ref,
+            publisher_secret_refs=publisher_secret_ref,
         )
         payload = write_program_oracle_publication_preflight(packet, out)
     except ProgramOraclePublicationPreflightError as exc:

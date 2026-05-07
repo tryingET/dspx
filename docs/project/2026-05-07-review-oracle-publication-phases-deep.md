@@ -223,9 +223,9 @@ Recommended fix: validate schema/effect/non-authority fields inside writer funct
 
 ### L2 — Publisher assertions can contain secrets
 
-The current model treats redaction status as a declared custody assertion, not DLP. `publisher_assertion` is persisted as-is.
+The initial model treated redaction status as a declared custody assertion, not DLP, and persisted `publisher_assertion` as-is.
 
-Recommended fix: document that assertions must not contain secrets, or add a light secret-pattern guard before shared publication.
+Resolution: AK task `#2607` adds a light fail-closed guard for obvious secret-shaped publisher assertions and separates secret custody into explicit 1Password `op://` refs. DSPx validates URI-safe refs, stores only redacted descriptors plus stable hashes, does not resolve refs via SDK/CLI during publication, and revalidates descriptors before shared publication so resolved secret values cannot be smuggled into receipts or shared metadata.
 
 ## Recommended remediation order
 
@@ -249,7 +249,7 @@ AK task `#2599 Fix Oracle publication hardening findings` resolved the review bl
 - M4/M5: shared publication metadata omits local absolute source paths from the shared coordinate record, and preflight backend posture uses Oracle-specific URL keys consistently.
 - M6/M7: pi-autoresearch adapter preflight validates more of the source packet contract and rejects duplicate record ids.
 - M9: program-loop failure semantics are now tested: missing backend fails closed before receipt/workflow output; local generation/preflight side effects remain local-only and non-authoritative.
-- L2: publisher-assertion DLP/secret scanning is explicitly deferred to AK task `#2607` because it needs a policy decision to avoid unsafe false positives in declared custody text fields.
+- L2: publisher-assertion secret handling is resolved by AK task `#2607`: publisher assertions reject obvious secret-shaped content, and secret custody uses URI-safe redacted 1Password `op://` reference descriptors whose values are never resolved or persisted. Phase 2 publish also rejects tampered descriptors that add resolved values or extra fields.
 
 Validation for the hardening pass:
 

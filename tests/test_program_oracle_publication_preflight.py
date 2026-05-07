@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -45,7 +46,7 @@ def _materialize_example_program(
     return Path(artifact.root_path)
 
 
-def _base_kwargs(root: Path) -> dict[str, object]:
+def _base_kwargs(root: Path) -> dict[str, Any]:
     return {
         "manifest_path": root / "manifest.json",
         "target": "shared-postgres",
@@ -182,7 +183,7 @@ def test_program_oracle_publication_preflight_rejects_widened_non_authority(
 def test_program_oracle_publication_preflight_fails_closed_on_invalid_inputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    override: dict[str, object],
+    override: dict[str, Any],
     match: str,
 ) -> None:
     root = _materialize_example_program(tmp_path, monkeypatch)
@@ -212,3 +213,31 @@ def test_program_oracle_publication_preflight_accepts_authority_mirror_with_ref(
     assert payload["publication"]["authority_ref_required"] is True
     assert payload["publication"]["authority_ref"] == "AK-1234"
     assert payload["planned_record"]["authority_ref_kind"] == "opaque_reference_only"
+
+
+def test_program_oracle_publication_preflight_rejects_secret_in_assertion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    kwargs = _base_kwargs(root)
+    kwargs["publisher_assertion"] = "password=super-secret-value"
+
+    with pytest.raises(ProgramOraclePublicationPreflightError, match="secret"):
+        build_program_oracle_publication_preflight(**kwargs)
+
+
+def test_program_oracle_publication_preflight_records_onepassword_secret_refs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    kwargs = _base_kwargs(root)
+    kwargs["publisher_secret_refs"] = ["op://Private/DSPx-Oracle/password"]
+
+    payload = build_program_oracle_publication_preflight(**kwargs)
+
+    refs = payload["publication"]["publisher_secret_refs"]
+    assert refs[0]["provider"] == "1password"
+    assert refs[0]["ref_redacted"] == "op://<redacted>/<redacted>/password"
+    assert refs[0]["secret_value_persisted"] is False
+    assert "Private" not in json.dumps(payload)
+    assert payload["planned_record"]["publisher_secret_refs"] == refs

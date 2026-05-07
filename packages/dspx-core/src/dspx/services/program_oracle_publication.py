@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping
@@ -88,6 +89,51 @@ def _required_text(value: object, *, field: str) -> str:
     if not text:
         raise ProgramOraclePublicationError(f"{field} is required")
     return text
+
+
+def _validate_publisher_secret_ref_descriptors(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        raise ProgramOraclePublicationError(
+            "publication.publisher_secret_refs must be a list"
+        )
+    allowed_keys = {
+        "provider",
+        "ref_kind",
+        "ref_redacted",
+        "ref_sha256",
+        "sdk_resolution_attempted",
+        "secret_value_persisted",
+    }
+    descriptors: list[dict[str, Any]] = []
+    for index, ref in enumerate(value):
+        if not isinstance(ref, Mapping):
+            raise ProgramOraclePublicationError(
+                f"publication.publisher_secret_refs[{index}] must be an object"
+            )
+        descriptor = {str(key): item for key, item in ref.items()}
+        extra_keys = sorted(set(descriptor) - allowed_keys)
+        if extra_keys:
+            raise ProgramOraclePublicationError(
+                "publication publisher_secret_refs must not contain resolved secret values or extra fields: "
+                + ", ".join(extra_keys)
+            )
+        ref_sha256 = descriptor.get("ref_sha256")
+        ref_redacted = descriptor.get("ref_redacted")
+        if (
+            descriptor.get("provider") != "1password"
+            or descriptor.get("ref_kind") != "op_uri"
+            or descriptor.get("sdk_resolution_attempted") is not False
+            or descriptor.get("secret_value_persisted") is not False
+            or not isinstance(ref_sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", ref_sha256)
+            or not isinstance(ref_redacted, str)
+            or not ref_redacted.startswith("op://<redacted>/<redacted>/")
+        ):
+            raise ProgramOraclePublicationError(
+                "publication publisher_secret_refs must be redacted 1Password refs"
+            )
+        descriptors.append(descriptor)
+    return descriptors
 
 
 def _ensure_preflight_passed(
@@ -201,6 +247,7 @@ def _expected_publication_id(
     publisher_id: str,
     redaction_status: str,
     retention_class: str,
+    publisher_secret_refs: list[dict[str, Any]] | None = None,
 ) -> str:
     seed = {
         "schema_version": PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
@@ -212,6 +259,7 @@ def _expected_publication_id(
         "publisher_id": publisher_id,
         "redaction_status": redaction_status,
         "retention_class": retention_class,
+        "publisher_secret_refs": publisher_secret_refs or [],
     }
     return "prog-oracle-pub-" + _sha256_payload(seed)[:20]
 
@@ -274,6 +322,10 @@ def _validate_publication_contract(
         )
 
     planned_record = _safe_mapping(preflight.get("planned_record"))
+    secret_refs = _validate_publisher_secret_ref_descriptors(
+        publication.get("publisher_secret_refs")
+    )
+
     expected_planned = {
         "publication_label": label,
         "publication_label_class": expected_label_class,
@@ -282,6 +334,7 @@ def _validate_publication_contract(
         "authority_ref": authority_ref,
         "redaction_status": redaction_status,
         "retention_class": retention_class,
+        "publisher_secret_refs": secret_refs,
         "oracle_evidence_sha256": artifact_hashes["oracle_evidence_sha256"],
         "manifest_sha256": artifact_hashes["manifest_sha256"],
     }
@@ -315,6 +368,7 @@ def _validate_publication_contract(
         publisher_id=publisher_id,
         redaction_status=redaction_status,
         retention_class=retention_class,
+        publisher_secret_refs=secret_refs,
     )
     actual_publication_id = _required_text(
         preflight.get("publication_id"), field="publication_id"

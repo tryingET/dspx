@@ -482,6 +482,11 @@ def program_loop(
         "--authority-ref",
         help="Required for authority-mirror publication labels",
     ),
+    publisher_secret_ref: list[str] = typer.Option(
+        [],
+        "--publisher-secret-ref",
+        help="1Password op:// ref relevant to publisher custody; value is never resolved or persisted",
+    ),
     publication_preflight_out: Optional[Path] = typer.Option(
         None,
         "--publication-preflight-out",
@@ -519,6 +524,7 @@ def program_loop(
             redaction_status=redaction_status,
             retention_class=retention_class,
             authority_ref=authority_ref,
+            publisher_secret_refs=publisher_secret_ref,
             publication_preflight_out=publication_preflight_out,
             publication_receipt_out=publication_receipt_out,
         )

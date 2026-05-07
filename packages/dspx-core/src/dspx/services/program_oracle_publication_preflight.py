@@ -10,6 +10,11 @@ from dspx.services.program_oracle_index import (
     PROGRAM_ORACLE_EVIDENCE_SCHEMA,
     validate_program_oracle_evidence_non_authority,
 )
+from dspx.services.program_oracle_secret_policy import (
+    ProgramOracleSecretPolicyError,
+    build_onepassword_ref_descriptors,
+    validate_publisher_assertion_no_secret,
+)
 
 PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA = (
     "program-oracle-shared-publication-preflight-v1"
@@ -267,6 +272,7 @@ def _idempotency_key(
     publisher_id: str,
     redaction_status: str,
     retention_class: str,
+    publisher_secret_refs: list[dict[str, Any]] | None = None,
 ) -> str:
     seed = {
         "schema_version": PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
@@ -278,6 +284,7 @@ def _idempotency_key(
         "publisher_id": publisher_id,
         "redaction_status": redaction_status,
         "retention_class": retention_class,
+        "publisher_secret_refs": publisher_secret_refs or [],
     }
     return "prog-oracle-pub-" + _sha256_payload(seed)[:20]
 
@@ -293,6 +300,7 @@ def build_program_oracle_publication_preflight(
     redaction_status: str,
     retention_class: str,
     authority_ref: str | None = None,
+    publisher_secret_refs: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a local shared-Oracle publication preflight packet without shared writes."""
 
@@ -317,6 +325,13 @@ def build_program_oracle_publication_preflight(
     normalized_publisher_assertion = _required_text(
         publisher_assertion, field="publisher_assertion"
     )
+    try:
+        validate_publisher_assertion_no_secret(normalized_publisher_assertion)
+        normalized_secret_refs = build_onepassword_ref_descriptors(
+            publisher_secret_refs
+        )
+    except ProgramOracleSecretPolicyError as exc:
+        raise ProgramOraclePublicationPreflightError(str(exc)) from exc
     normalized_redaction_status = _required_text(
         redaction_status, field="redaction_status"
     )
@@ -371,6 +386,7 @@ def build_program_oracle_publication_preflight(
         publisher_id=normalized_publisher_id,
         redaction_status=normalized_redaction_status,
         retention_class=normalized_retention_class,
+        publisher_secret_refs=normalized_secret_refs,
     )
 
     return {
@@ -397,6 +413,8 @@ def build_program_oracle_publication_preflight(
             "publisher_id": normalized_publisher_id,
             "publisher_role": normalized_publisher_role,
             "publisher_assertion": normalized_publisher_assertion,
+            "publisher_secret_refs": normalized_secret_refs,
+            "publisher_secret_ref_policy": "1password_refs_only_values_never_persisted",
             "publisher_identity_kind": "declared_not_authenticated",
             "redaction_status": normalized_redaction_status,
             "redaction_status_kind": "declared_custody_assertion_not_dlp_proof",
@@ -436,6 +454,8 @@ def build_program_oracle_publication_preflight(
             "publication_label_class": label_class,
             "publisher_id": normalized_publisher_id,
             "publisher_role": normalized_publisher_role,
+            "publisher_secret_refs": normalized_secret_refs,
+            "publisher_secret_ref_policy": "1password_refs_only_values_never_persisted",
             "publisher_identity_kind": "declared_not_authenticated",
             "authority_ref": normalized_authority_ref,
             "authority_ref_kind": "opaque_reference_only"

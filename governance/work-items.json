@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-14",
+  "updated_at": "2026-05-07",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -2185,18 +2185,15 @@
         {
           "id": "AK-TASK-2607",
           "title": "Define secret/DLP policy for Oracle publication publisher assertions",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Define secret/DLP policy for Oracle publication publisher assertions (task #2607)",
-              "done": false
+              "done": true
             }
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
-          "labels": [
-            "deferred"
-          ],
-          "note": "Deferred:\n- reason: Atomic-completion deferral: preventing secrets in publisher_assertion needs a repo/governance policy decision to avoid false positives and operator-workflow breakage. Owner: DSPx/governance operator. Trigger: accepted policy decision defining DLP scope for declared custody text fields. Deadline: before enabling DS1621/shared Oracle production rollout. Blast radius if forgotten: publisher assertions may persist operator-supplied secrets in local receipts/preflight artifacts and possibly future shared records.\n- kind: until_decision\n- trigger_ref: oracle-publication-publisher-assertion-dlp-policy\n- review_at: 2026-05-14"
+          "completed_at": "2026-05-07"
         }
       ]
     }

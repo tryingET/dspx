@@ -99,6 +99,7 @@ def run_program_loop_from_intent_path(
     redaction_status: str | None = None,
     retention_class: str | None = None,
     authority_ref: str | None = None,
+    publisher_secret_refs: list[str] | None = None,
     publication_preflight_out: Path | None = None,
     publication_receipt_out: Path | None = None,
     shared_publication_store: CoordinateStore | None = None,
@@ -201,6 +202,7 @@ def run_program_loop_from_intent_path(
                 field="retention_class",
             ),
             authority_ref=authority_ref,
+            publisher_secret_refs=publisher_secret_refs,
         )
         publication_preflight_payload = write_program_oracle_publication_preflight(
             publication_preflight,
