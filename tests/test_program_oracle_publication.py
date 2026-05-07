@@ -253,3 +253,82 @@ def test_program_oracle_publish_cli_rejects_invalid_preflight_schema(
 
     assert result.exit_code == 2
     assert "preflight schema_version" in result.output
+
+
+def test_program_oracle_publish_rejects_tampered_publication_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["publication"]["redaction_status"] = "contains_sensitive_material"
+    preflight["planned_record"]["redaction_status"] = "contains_sensitive_material"
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramOraclePublicationError, match="redaction_status"):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_program_oracle_publish_rejects_tampered_publication_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["publication_id"] = "prog-oracle-pub-tampered"
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramOraclePublicationError, match="idempotency"):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_program_oracle_publish_rejects_widened_planned_record_non_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["planned_record"]["non_authority"]["oracle_promotion"] = True
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramOraclePublicationError, match="oracle_promotion"):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_program_oracle_publish_cli_rejects_ambient_database_url_without_oracle_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    monkeypatch.delenv("DSPX_ORACLE_STORE", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_POSTGRES_URL", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:password@example/db")
+    receipt_path = tmp_path / "receipt.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "program-evidence",
+            "publish",
+            "--preflight",
+            str(preflight_path),
+            "--receipt-out",
+            str(receipt_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "DSPX_ORACLE_STORE=postgres_pgvector" in result.output
+    assert not receipt_path.exists()

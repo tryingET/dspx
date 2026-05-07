@@ -24,6 +24,22 @@ from dspx.services.run_replay_service import check_run_receipt
 
 PROGRAM_LOOP_SCHEMA = "program-loop-workflow-v1"
 
+_FORBIDDEN_OUTPUT_NAMES = {
+    "manifest.json",
+    "manifest.json.meta.json",
+    "promotion_review.json",
+    "promotion_adjudication_request.json",
+    "promotion_decision_template.json",
+    "promotion_review_refined.json",
+    "promotion_decision_record.json",
+    "promotion_plan.json",
+    "jury_results.json",
+    "behavior_results.json",
+    "behavior_episode.json",
+    "oracle_evidence.json",
+    "execution_episode.json",
+}
+
 
 def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
@@ -45,6 +61,11 @@ def _required_text(value: object, *, field: str) -> str:
     if not text:
         raise ValueError(f"{field} is required when --publish-to-shared is set")
     return text
+
+
+def _validate_sidecar_output_path(path: Path, *, label: str) -> None:
+    if path.expanduser().resolve().name in _FORBIDDEN_OUTPUT_NAMES:
+        raise ValueError(f"{label} must not overwrite {path.name}")
 
 
 def write_program_loop_result(
@@ -128,6 +149,14 @@ def run_program_loop_from_intent_path(
         if publication_receipt_out
         else root / "program_oracle_publication_receipt.json"
     )
+    for label, path in (
+        ("oracle_report_out", resolved_oracle_report_out),
+        ("state_out", resolved_state_out),
+        ("workflow_out", resolved_workflow_out),
+        ("publication_preflight_out", resolved_publication_preflight_out),
+        ("publication_receipt_out", resolved_publication_receipt_out),
+    ):
+        _validate_sidecar_output_path(path, label=label)
 
     oracle_index_result: dict[str, Any] | None = None
     oracle_report: dict[str, Any] | None = None

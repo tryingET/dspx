@@ -30,6 +30,22 @@ PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA = (
 )
 PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 
+_FORBIDDEN_OUTPUT_NAMES = {
+    "manifest.json",
+    "manifest.json.meta.json",
+    "promotion_review.json",
+    "promotion_adjudication_request.json",
+    "promotion_decision_template.json",
+    "promotion_review_refined.json",
+    "promotion_decision_record.json",
+    "promotion_plan.json",
+    "jury_results.json",
+    "behavior_results.json",
+    "behavior_episode.json",
+    "oracle_evidence.json",
+    "execution_episode.json",
+}
+
 
 class ProgramCandidateStateError(ValueError):
     """Raised when local program candidate state inputs are invalid."""
@@ -1217,6 +1233,10 @@ def write_program_candidate_state(
     """Write the local candidate state sidecar."""
 
     target = out_path.expanduser().resolve()
+    if target.name in _FORBIDDEN_OUTPUT_NAMES:
+        raise ProgramCandidateStateError(
+            f"candidate state must not overwrite {target.name}"
+        )
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(state)
     effect = _safe_mapping(payload.get("effect"))

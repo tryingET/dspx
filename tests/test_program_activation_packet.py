@@ -561,3 +561,121 @@ def test_program_promote_activation_packet_reaches_rollout_preflight_only_after_
     assert payload["missing_required_evidence"] == []
     assert payload["rollout_owner"] == "softwareco-runtime-operator"
     assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_rejects_widened_jury_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, jury_path, review_path, decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    jury = json.loads(jury_path.read_text(encoding="utf-8"))
+    jury["non_authority"]["promotion_authority"] = True
+    jury_path.write_text(json.dumps(jury, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "jury_results widens non-authority flags" in result.output
+    assert "promotion_authority" in result.output
+
+
+def test_program_promote_activation_packet_rejects_evidence_missing_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, jury_path, review_path, decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    review.pop("identity", None)
+    review_path.write_text(json.dumps(review, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refined_review missing identity object" in result.output
+
+
+def test_program_promote_activation_packet_rejects_corrupt_behavior_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    (program_root / "behavior_results.json").write_text(
+        json.dumps({"schema_version": "wrong"}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "behavior_results.json schema_version" in result.output

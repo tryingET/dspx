@@ -14,6 +14,10 @@ from dspx.services.program_oracle_index import (
     load_program_oracle_evidence,
 )
 from dspx.services.program_oracle_publication_preflight import (
+    AUTHORITY_MIRROR_LABELS,
+    ELIGIBLE_REDACTION_STATUSES,
+    ELIGIBLE_RETENTION_CLASSES,
+    EMPIRICAL_LABELS,
     PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
     TARGETS,
 )
@@ -25,12 +29,17 @@ PROGRAM_ORACLE_PUBLICATION_RECORD_SCHEMA = "program-oracle-shared-publication-v1
 PROGRAM_ORACLE_PUBLICATION_RUN_KIND = "program-oracle-shared-publication"
 
 _POSTGRES_STORE_NAMES = {
-    "postgres",
     "postgres_pgvector",
     "pgvector",
-    "shared-postgres",
-    "shared_postgres",
 }
+
+_REQUIRED_FALSE_PUBLICATION_NON_AUTHORITY_FLAGS = (
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "governance_authority",
+    "external_mutation",
+)
 
 
 class ProgramOraclePublicationError(ValueError):
@@ -66,6 +75,12 @@ def _safe_mapping(value: object) -> dict[str, Any]:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _sha256_payload(payload: Mapping[str, Any]) -> str:
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def _required_text(value: object, *, field: str) -> str:
@@ -126,7 +141,9 @@ def _ensure_preflight_passed(
         )
 
 
-def _validate_preflight_hashes(preflight: Mapping[str, Any]) -> tuple[Path, str]:
+def _validate_preflight_hashes(
+    preflight: Mapping[str, Any],
+) -> tuple[Path, Path, dict[str, str]]:
     created_from = _safe_mapping(preflight.get("created_from"))
     artifact_hashes = _safe_mapping(preflight.get("artifact_hashes"))
     evidence_path = (
@@ -164,7 +181,149 @@ def _validate_preflight_hashes(preflight: Mapping[str, Any]) -> tuple[Path, str]
         raise ProgramOraclePublicationError(
             "program manifest hash no longer matches preflight packet"
         )
-    return evidence_path, actual_hash
+    return (
+        evidence_path,
+        manifest_path,
+        {
+            "manifest_sha256": expected_manifest_hash,
+            "oracle_evidence_sha256": actual_hash,
+        },
+    )
+
+
+def _expected_publication_id(
+    *,
+    target: str,
+    identity: Mapping[str, Any],
+    artifact_hashes: Mapping[str, str],
+    publication_label: str,
+    authority_ref: str | None,
+    publisher_id: str,
+    redaction_status: str,
+    retention_class: str,
+) -> str:
+    seed = {
+        "schema_version": PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
+        "target": target,
+        "identity": {key: value for key, value in sorted(identity.items()) if value},
+        "artifact_hashes": dict(sorted(artifact_hashes.items())),
+        "publication_label": publication_label,
+        "authority_ref": authority_ref,
+        "publisher_id": publisher_id,
+        "redaction_status": redaction_status,
+        "retention_class": retention_class,
+    }
+    return "prog-oracle-pub-" + _sha256_payload(seed)[:20]
+
+
+def _validate_publication_contract(
+    *,
+    preflight: Mapping[str, Any],
+    target_name: str,
+    evidence_identity: Mapping[str, Any],
+    artifact_hashes: Mapping[str, str],
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    preflight_identity = _safe_mapping(preflight.get("identity"))
+    if preflight_identity != dict(evidence_identity):
+        raise ProgramOraclePublicationError(
+            "preflight identity does not match program Oracle evidence identity"
+        )
+
+    publication = _safe_mapping(preflight.get("publication"))
+    label = _required_text(
+        publication.get("publication_label"), field="publication.publication_label"
+    )
+    if label not in EMPIRICAL_LABELS | AUTHORITY_MIRROR_LABELS:
+        raise ProgramOraclePublicationError(
+            "publication_label is not eligible for shared publication"
+        )
+    expected_label_class = (
+        "authority_mirror" if label in AUTHORITY_MIRROR_LABELS else "empirical"
+    )
+    if publication.get("publication_label_class") != expected_label_class:
+        raise ProgramOraclePublicationError(
+            "publication_label_class does not match publication_label"
+        )
+    authority_ref = str(publication.get("authority_ref") or "").strip() or None
+    if expected_label_class == "authority_mirror" and authority_ref is None:
+        raise ProgramOraclePublicationError(
+            "authority_ref is required for authority-mirror publication labels"
+        )
+    publisher_id = _required_text(
+        publication.get("publisher_id"), field="publication.publisher_id"
+    )
+    publisher_role = _required_text(
+        publication.get("publisher_role"), field="publication.publisher_role"
+    )
+    _required_text(
+        publication.get("publisher_assertion"), field="publication.publisher_assertion"
+    )
+    redaction_status = _required_text(
+        publication.get("redaction_status"), field="publication.redaction_status"
+    )
+    if redaction_status not in ELIGIBLE_REDACTION_STATUSES:
+        raise ProgramOraclePublicationError(
+            "publication.redaction_status is not eligible for shared publication"
+        )
+    retention_class = _required_text(
+        publication.get("retention_class"), field="publication.retention_class"
+    )
+    if retention_class not in ELIGIBLE_RETENTION_CLASSES:
+        raise ProgramOraclePublicationError(
+            "publication.retention_class is not eligible for shared publication"
+        )
+
+    planned_record = _safe_mapping(preflight.get("planned_record"))
+    expected_planned = {
+        "publication_label": label,
+        "publication_label_class": expected_label_class,
+        "publisher_id": publisher_id,
+        "publisher_role": publisher_role,
+        "authority_ref": authority_ref,
+        "redaction_status": redaction_status,
+        "retention_class": retention_class,
+        "oracle_evidence_sha256": artifact_hashes["oracle_evidence_sha256"],
+        "manifest_sha256": artifact_hashes["manifest_sha256"],
+    }
+    mismatched = [
+        key
+        for key, expected in expected_planned.items()
+        if planned_record.get(key) != expected
+    ]
+    if mismatched:
+        raise ProgramOraclePublicationError(
+            "planned_record does not match validated publication fields: "
+            + ", ".join(sorted(mismatched))
+        )
+    non_authority = _safe_mapping(planned_record.get("non_authority"))
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_PUBLICATION_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramOraclePublicationError(
+            "planned_record non_authority flags must be false: " + ", ".join(invalid)
+        )
+
+    expected_publication_id = _expected_publication_id(
+        target=target_name,
+        identity=evidence_identity,
+        artifact_hashes=artifact_hashes,
+        publication_label=label,
+        authority_ref=authority_ref,
+        publisher_id=publisher_id,
+        redaction_status=redaction_status,
+        retention_class=retention_class,
+    )
+    actual_publication_id = _required_text(
+        preflight.get("publication_id"), field="publication_id"
+    )
+    if actual_publication_id != expected_publication_id:
+        raise ProgramOraclePublicationError(
+            "publication_id does not match recomputed idempotency key"
+        )
+    return expected_publication_id, publication, planned_record
 
 
 def _publication_run_id(publication_id: str) -> str:
@@ -196,14 +355,26 @@ def _redacted_store_posture(
 
 def _open_configured_shared_store() -> CoordinateStore:
     target_store = str(os.getenv("DSPX_ORACLE_STORE") or "").strip().lower()
-    if target_store and target_store not in _POSTGRES_STORE_NAMES:
+    if target_store not in _POSTGRES_STORE_NAMES:
         raise ProgramOraclePublicationError(
-            "explicit shared Oracle publication requires DSPX_ORACLE_STORE=postgres_pgvector"
+            "explicit shared Oracle publication requires a configured and available "
+            "Postgres/pgvector Oracle backend: set DSPX_ORACLE_STORE=postgres_pgvector"
+        )
+    database_url = str(
+        os.getenv("DSPX_ORACLE_DATABASE_URL")
+        or os.getenv("DSPX_ORACLE_POSTGRES_URL")
+        or ""
+    ).strip()
+    if not database_url:
+        raise ProgramOraclePublicationError(
+            "explicit shared Oracle publication requires a configured and available "
+            "Postgres/pgvector Oracle backend: set DSPX_ORACLE_DATABASE_URL or "
+            "DSPX_ORACLE_POSTGRES_URL"
         )
     try:
         from dspx.coordinates.postgres_store import PostgresPgvectorCoordinateStore
 
-        return PostgresPgvectorCoordinateStore()
+        return PostgresPgvectorCoordinateStore(database_url=database_url)
     except Exception as exc:
         raise ProgramOraclePublicationError(
             "explicit shared Oracle publication requires a configured and available "
@@ -231,10 +402,10 @@ def publish_program_oracle_preflight(
     if target_name not in TARGETS:
         raise ProgramOraclePublicationError("preflight target is not supported")
 
-    publication_id = _required_text(
-        preflight.get("publication_id"), field="publication_id"
+    evidence_path, _manifest_path, artifact_hashes = _validate_preflight_hashes(
+        preflight
     )
-    evidence_path, evidence_hash = _validate_preflight_hashes(preflight)
+    evidence_hash = artifact_hashes["oracle_evidence_sha256"]
     evidence = load_program_oracle_evidence(evidence_path)
     if (
         evidence is None
@@ -245,16 +416,23 @@ def publish_program_oracle_preflight(
             + PROGRAM_ORACLE_EVIDENCE_SCHEMA
         )
 
+    evidence_identity = _safe_mapping(evidence.get("identity"))
+    publication_id, publication, planned_record = _validate_publication_contract(
+        preflight=preflight,
+        target_name=target_name,
+        evidence_identity=evidence_identity,
+        artifact_hashes=artifact_hashes,
+    )
     embedding = build_program_oracle_evidence_embedding(
         evidence,
         evidence_path=evidence_path,
         evidence_hash=evidence_hash,
     )
     run_id = _publication_run_id(publication_id)
-    publication = _safe_mapping(preflight.get("publication"))
-    planned_record = _safe_mapping(preflight.get("planned_record"))
+    base_metadata = dict(embedding.metadata)
+    base_metadata.pop("evidence_path", None)
     publication_metadata = {
-        **embedding.metadata,
+        **base_metadata,
         "schema_version": PROGRAM_ORACLE_PUBLICATION_RECORD_SCHEMA,
         "source_schema_version": PROGRAM_ORACLE_EVIDENCE_SCHEMA,
         "publication_id": publication_id,
@@ -269,7 +447,7 @@ def publish_program_oracle_preflight(
         "publisher_id": publication.get("publisher_id"),
         "publisher_role": publication.get("publisher_role"),
         "preflight": {
-            "path": str(source),
+            "file_name": source.name,
             "sha256": _sha256_file(source),
             "schema_version": preflight.get("schema_version"),
         },
@@ -283,7 +461,7 @@ def publish_program_oracle_preflight(
         run_kind=PROGRAM_ORACLE_PUBLICATION_RUN_KIND,
         provider="program-gen",
         template_version=PROGRAM_ORACLE_PUBLICATION_RECORD_SCHEMA,
-        source_path=str(evidence_path),
+        source_path=None,
         metadata=publication_metadata,
     )
 
@@ -304,10 +482,11 @@ def publish_program_oracle_preflight(
         "run_id": run_id,
         "target": _redacted_store_posture(shared_store, target),
         "source": {
-            "preflight_path": str(source),
+            "preflight_file": source.name,
             "preflight_sha256": _sha256_file(source),
-            "oracle_evidence_path": str(evidence_path),
+            "oracle_evidence_file": evidence_path.name,
             "oracle_evidence_sha256": evidence_hash,
+            "local_paths_omitted_from_shared_record": True,
         },
         "identity": _safe_mapping(preflight.get("identity")),
         "publication": publication,
@@ -363,6 +542,10 @@ def write_program_oracle_publication_receipt(
     target = out_path.expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(receipt)
+    if payload.get("schema_version") != PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA:
+        raise ProgramOraclePublicationError(
+            "program Oracle publication receipt schema_version is invalid"
+        )
     effect = _safe_mapping(payload.get("effect"))
     effect["local_receipt_written"] = True
     payload["effect"] = effect

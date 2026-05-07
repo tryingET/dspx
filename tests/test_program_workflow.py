@@ -313,3 +313,19 @@ def test_program_loop_publish_to_shared_requires_publisher_fields(
             retention_class="retained_behavior_memory",
             shared_publication_store=cast(CoordinateStore, FakeSharedOracleStore()),
         )
+
+
+def test_program_loop_rejects_output_path_overwriting_candidate_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+
+    with pytest.raises(ValueError, match="state_out must not overwrite manifest.json"):
+        run_program_loop_from_intent_path(
+            intent_path,
+            outdir=outdir,
+            state_out=outdir / "manifest.json",
+        )

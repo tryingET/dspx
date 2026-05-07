@@ -238,3 +238,31 @@ Recommended fix: document that assertions must not contain secrets, or add a lig
 ## Review conclusion
 
 The implementation phases are complete as product slices, but the review outcome is **hardening required before production/shared rollout**. The safest next AK work is not DS1621 live rollout; it is a bounded hardening task for Phase 2 publish revalidation/idempotency/backend explicitness, followed by activation-output guardrails.
+
+## Hardening pass resolution — 2026-05-07
+
+AK task `#2599 Fix Oracle publication hardening findings` resolved the review blockers that were in scope for this pass:
+
+- H1/H2/H3: Phase 2 publish now recomputes/revalidates publication semantics, idempotency key, planned-record non-authority flags, and requires explicit Oracle-specific Postgres/pgvector configuration for real shared publication.
+- H4/H5: candidate-state and program-loop sidecar writers reject output paths that would overwrite known generated program artifacts.
+- H6/M1/M2: activation packets now reject missing evidence identity, widened non-authority flags on gating evidence, and corrupt behavior evidence schemas.
+- M4/M5: shared publication metadata omits local absolute source paths from the shared coordinate record, and preflight backend posture uses Oracle-specific URL keys consistently.
+- M6/M7: pi-autoresearch adapter preflight validates more of the source packet contract and rejects duplicate record ids.
+- M9: program-loop failure semantics are now tested: missing backend fails closed before receipt/workflow output; local generation/preflight side effects remain local-only and non-authoritative.
+- L2: publisher-assertion DLP/secret scanning is explicitly deferred to AK task `#2607` because it needs a policy decision to avoid unsafe false positives in declared custody text fields.
+
+Validation for the hardening pass:
+
+```bash
+uv run pytest tests/test_program_oracle_publication.py tests/test_program_oracle_publication_preflight.py tests/test_program_oracle_autoresearch.py tests/test_program_activation_packet.py tests/test_program_candidate_state.py tests/test_program_workflow.py -q
+uv run ruff check packages/dspx-core/src/dspx/services/program_oracle_publication.py packages/dspx-core/src/dspx/services/program_oracle_publication_preflight.py packages/dspx-core/src/dspx/services/program_oracle_autoresearch.py packages/dspx-core/src/dspx/services/program_activation_packet.py packages/dspx-core/src/dspx/services/program_candidate_state.py packages/dspx-core/src/dspx/services/program_workflow.py tests/test_program_oracle_publication.py tests/test_program_oracle_autoresearch.py tests/test_program_activation_packet.py tests/test_program_candidate_state.py tests/test_program_workflow.py
+uv run ty check packages/dspx-core/src/dspx/services/program_oracle_publication.py packages/dspx-core/src/dspx/services/program_oracle_publication_preflight.py packages/dspx-core/src/dspx/services/program_oracle_autoresearch.py packages/dspx-core/src/dspx/services/program_activation_packet.py packages/dspx-core/src/dspx/services/program_candidate_state.py packages/dspx-core/src/dspx/services/program_workflow.py tests/test_program_oracle_publication.py tests/test_program_oracle_autoresearch.py tests/test_program_activation_packet.py tests/test_program_candidate_state.py tests/test_program_workflow.py
+```
+
+Observed results:
+
+- `62 passed`
+- `ruff`: passed
+- `ty`: passed
+
+Remaining live-readiness boundary: this hardening does not claim DS1621/shared Oracle production readiness. Live rollout still requires explicit DS1621 backend/backup evidence and live-gated publication smoke.

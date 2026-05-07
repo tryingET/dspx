@@ -25,6 +25,25 @@ AUTORESEARCH_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA = (
 )
 
 PUBLICATION_LABELS = EMPIRICAL_LABELS | AUTHORITY_MIRROR_LABELS
+_REQUIRED_TARGET_KINDS = {
+    "dspx_oracle",
+    "empirical_memory",
+    "evidence",
+    "adapter_source",
+}
+_REQUIRED_RECORD_FIELDS = (
+    "campaign",
+    "metricName",
+    "metricUnit",
+    "direction",
+    "runStatus",
+    "runKind",
+    "empiricalDecisionClass",
+    "metric",
+    "timestamp",
+    "description",
+    "checks",
+)
 
 
 class AutoresearchOraclePublicationPreflightError(ValueError):
@@ -120,14 +139,18 @@ def _validate_retention_class(value: str) -> None:
 
 def _redacted_backend_posture(target: str) -> dict[str, Any]:
     store = str(os.getenv("DSPX_ORACLE_STORE") or "").strip()
-    database_url_present = bool(
-        str(os.getenv("DSPX_ORACLE_DATABASE_URL") or "").strip()
-    )
+    configured_url_keys = [
+        key
+        for key in ("DSPX_ORACLE_DATABASE_URL", "DSPX_ORACLE_POSTGRES_URL")
+        if str(os.getenv(key) or "").strip()
+    ]
+    database_url_present = bool(configured_url_keys)
     schema = str(os.getenv("DSPX_ORACLE_SCHEMA") or "").strip() or None
     return {
         "target": target,
         "target_supported_by_preflight": target in TARGETS,
         "configured_store": store or None,
+        "configured_database_url_keys": configured_url_keys,
         "database_url_present": database_url_present,
         "database_url_redacted": "<redacted>" if database_url_present else None,
         "schema": schema,
@@ -146,7 +169,37 @@ def _validate_source_packet(packet: Mapping[str, Any]) -> list[dict[str, Any]]:
         raise AutoresearchOraclePublicationPreflightError(
             "autoresearch adapterContractVersion must be 1"
         )
+    target_kinds = packet.get("targetKinds")
+    if not isinstance(target_kinds, list) or not _REQUIRED_TARGET_KINDS.issubset(
+        {str(item) for item in target_kinds}
+    ):
+        raise AutoresearchOraclePublicationPreflightError(
+            "autoresearch targetKinds must include dspx_oracle, empirical_memory, evidence, and adapter_source"
+        )
+    source_artifacts = _safe_mapping(packet.get("sourceArtifacts"))
+    if source_artifacts.get("closeoutPacketKind") != "autoresearch.closeout.v1":
+        raise AutoresearchOraclePublicationPreflightError(
+            "autoresearch sourceArtifacts.closeoutPacketKind must be autoresearch.closeout.v1"
+        )
+    _required_text(
+        source_artifacts.get("receiptPath"), field="sourceArtifacts.receiptPath"
+    )
+    for field in ("adapterBoundary", "evidenceBoundary", "authorityBoundary"):
+        _required_text(packet.get(field), field=field)
+
     publication_preflight = _safe_mapping(packet.get("publicationPreflight"))
+    if publication_preflight.get("status") != "ready_for_dspx_owner_review":
+        raise AutoresearchOraclePublicationPreflightError(
+            "autoresearch publicationPreflight.status must be ready_for_dspx_owner_review"
+        )
+    if publication_preflight.get("target") != "dspx_oracle_postgres_pgvector":
+        raise AutoresearchOraclePublicationPreflightError(
+            "autoresearch publicationPreflight.target must be dspx_oracle_postgres_pgvector"
+        )
+    if publication_preflight.get("blockedReasons") != []:
+        raise AutoresearchOraclePublicationPreflightError(
+            "autoresearch publicationPreflight.blockedReasons must be empty"
+        )
     for field in (
         "sharedOracleMutated",
         "localCoordinatesDbMigrated",
@@ -166,6 +219,7 @@ def _validate_source_packet(packet: Mapping[str, Any]) -> list[dict[str, Any]]:
             "autoresearch records must contain at least one Oracle-ready record"
         )
     normalized_records: list[dict[str, Any]] = []
+    seen_record_ids: set[str] = set()
     for index, value in enumerate(records):
         if not isinstance(value, Mapping):
             raise AutoresearchOraclePublicationPreflightError(
@@ -177,8 +231,17 @@ def _validate_source_packet(packet: Mapping[str, Any]) -> list[dict[str, Any]]:
                 f"autoresearch records[{index}].recordKind must be "
                 + AUTORESEARCH_ORACLE_EVIDENCE_RECORD_SCHEMA
             )
-        _required_text(record.get("recordId"), field=f"records[{index}].recordId")
+        record_id = _required_text(
+            record.get("recordId"), field=f"records[{index}].recordId"
+        )
+        if record_id in seen_record_ids:
+            raise AutoresearchOraclePublicationPreflightError(
+                f"autoresearch records[{index}].recordId is duplicated"
+            )
+        seen_record_ids.add(record_id)
         _required_text(record.get("oracleText"), field=f"records[{index}].oracleText")
+        for field in _REQUIRED_RECORD_FIELDS:
+            _required_text(record.get(field), field=f"records[{index}].{field}")
         if record.get("nonAuthority") is not True:
             raise AutoresearchOraclePublicationPreflightError(
                 f"autoresearch records[{index}].nonAuthority must be true"
@@ -291,12 +354,23 @@ def build_autoresearch_oracle_publication_preflight(
         "publication_id": publication_id,
         "target": _redacted_backend_posture(normalized_target),
         "created_from": {
-            "packet_path": str(source_packet_file),
+            "packet_file": source_packet_file.name,
             "packet_kind": packet.get("packetKind"),
             "adapter_contract_version": packet.get("adapterContractVersion"),
-            "cwd": packet.get("cwd"),
+            "cwd_present": bool(str(packet.get("cwd") or "").strip()),
             "campaign": packet.get("campaign"),
-            "source_artifacts": packet.get("sourceArtifacts"),
+            "source_artifacts": {
+                "closeout_packet_kind": _safe_mapping(
+                    packet.get("sourceArtifacts")
+                ).get("closeoutPacketKind"),
+                "receipt_path_present": bool(
+                    str(
+                        _safe_mapping(packet.get("sourceArtifacts")).get("receiptPath")
+                        or ""
+                    ).strip()
+                ),
+            },
+            "local_paths_redacted": True,
         },
         "source_packet_hashes": {
             "packet_sha256": packet_hash,
@@ -407,6 +481,13 @@ def write_autoresearch_oracle_publication_preflight(
     target = out_path.expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
+    if (
+        payload.get("schema_version")
+        != AUTORESEARCH_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA
+    ):
+        raise AutoresearchOraclePublicationPreflightError(
+            "autoresearch preflight schema_version is invalid"
+        )
     effect = _safe_mapping(payload.get("effect"))
     effect["local_preflight_written"] = True
     payload["effect"] = effect

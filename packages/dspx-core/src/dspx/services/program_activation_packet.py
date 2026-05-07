@@ -177,6 +177,17 @@ def _load_optional_artifact(
     return payload, _artifact_ref(path, schema_version=expected_schema)
 
 
+def _validate_non_authority_false(
+    payload: Mapping[str, Any], *, label: str, keys: tuple[str, ...]
+) -> None:
+    non_authority = _safe_mapping(payload.get("non_authority"))
+    invalid = [key for key in keys if non_authority.get(key) is not False]
+    if invalid:
+        raise ProgramActivationPacketError(
+            f"{label} widens non-authority flags: " + ", ".join(invalid)
+        )
+
+
 def _identity_mismatch(
     candidate_identity: Mapping[str, Any],
     artifact_identity: Mapping[str, Any],
@@ -201,7 +212,7 @@ def _validate_artifact_identity(
         return
     artifact_identity = _safe_mapping(artifact.get("identity"))
     if not artifact_identity:
-        return
+        raise ProgramActivationPacketError(f"{label} missing identity object")
     mismatched = _identity_mismatch(candidate_identity, artifact_identity)
     if mismatched:
         raise ProgramActivationPacketError(
@@ -216,7 +227,15 @@ def _behavior_refs(root: Path) -> list[dict[str, Any]]:
         ("behavior_results.json", "program-behavior-results-v1"),
         ("behavior_episode.json", "program-behavior-episode-v1"),
     ):
-        ref = _artifact_ref(root / name, schema_version=schema)
+        path = root / name
+        if not path.exists():
+            continue
+        payload = _load_json_object(path, label=name)
+        if payload.get("schema_version") != schema:
+            raise ProgramActivationPacketError(
+                f"{name} schema_version must be {schema}"
+            )
+        ref = _artifact_ref(path, schema_version=schema)
         if ref is not None:
             refs.append(ref)
     return refs
@@ -234,6 +253,79 @@ def _decision_outcome(decision_record: Mapping[str, Any] | None) -> str | None:
         return None
     outcome = str(decision_record.get("outcome") or "").strip()
     return outcome or None
+
+
+def _validate_activation_evidence_boundaries(
+    *,
+    jury_results: Mapping[str, Any] | None,
+    refined_review: Mapping[str, Any] | None,
+    decision_record: Mapping[str, Any] | None,
+    promotion_plan: Mapping[str, Any] | None,
+) -> None:
+    if jury_results is not None:
+        _validate_non_authority_false(
+            jury_results,
+            label="jury_results",
+            keys=(
+                "automatic_promotion",
+                "winner_selection",
+                "candidate_ranking",
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "promotion_authority",
+                "governance_authority",
+                "external_mutation",
+            ),
+        )
+    if refined_review is not None:
+        _validate_non_authority_false(
+            refined_review,
+            label="refined_review",
+            keys=(
+                "automatic_promotion",
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "program_mutation",
+                "new_candidate_generation",
+                "promotion_authority",
+                "governance_authority",
+                "external_mutation",
+            ),
+        )
+    if decision_record is not None:
+        _validate_non_authority_false(
+            decision_record,
+            label="decision_record",
+            keys=(
+                "automatic_promotion",
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "program_mutation",
+                "refined_review_mutation",
+                "new_candidate_generation",
+                "governance_authority",
+                "external_mutation",
+            ),
+        )
+    if promotion_plan is not None:
+        _validate_non_authority_false(
+            promotion_plan,
+            label="promotion_plan",
+            keys=(
+                "automatic_promotion",
+                "apply_promotion",
+                "external_authority_export",
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "winner_selection",
+                "governance_authority",
+                "external_mutation",
+            ),
+        )
 
 
 def _validate_oracle_publication_receipt(
@@ -424,6 +516,12 @@ def build_generated_program_activation_packet(
     _validate_artifact_identity(identity, refined_review, label="refined_review")
     _validate_artifact_identity(identity, decision_record, label="decision_record")
     _validate_artifact_identity(identity, promotion_plan, label="promotion_plan")
+    _validate_activation_evidence_boundaries(
+        jury_results=jury_results,
+        refined_review=refined_review,
+        decision_record=decision_record,
+        promotion_plan=promotion_plan,
+    )
     _validate_oracle_publication_receipt(identity, oracle_publication_receipt)
 
     behavior_refs = _behavior_refs(root)
@@ -443,6 +541,7 @@ def build_generated_program_activation_packet(
         "schema_version": ACTIVATION_PACKET_SCHEMA,
         "transition_type": TRANSITION_TYPE,
         "status": status,
+        "status_kind": "advisory_evidence_packet_status_not_authority_state",
         "next_required_action": next_action,
         "governance_boundary_ref": GOVERNANCE_BOUNDARY_REF,
         "transition_passport_ref": TRANSITION_PASSPORT_REF,

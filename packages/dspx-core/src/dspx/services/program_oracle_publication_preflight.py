@@ -237,14 +237,18 @@ def _validate_retention_class(value: str) -> None:
 
 def _redacted_backend_posture(target: str) -> dict[str, Any]:
     store = str(os.getenv("DSPX_ORACLE_STORE") or "").strip()
-    database_url_present = bool(
-        str(os.getenv("DSPX_ORACLE_DATABASE_URL") or "").strip()
-    )
+    configured_url_keys = [
+        key
+        for key in ("DSPX_ORACLE_DATABASE_URL", "DSPX_ORACLE_POSTGRES_URL")
+        if str(os.getenv(key) or "").strip()
+    ]
+    database_url_present = bool(configured_url_keys)
     schema = str(os.getenv("DSPX_ORACLE_SCHEMA") or "").strip() or None
     return {
         "target": target,
         "target_supported_by_preflight": target in TARGETS,
         "configured_store": store or None,
+        "configured_database_url_keys": configured_url_keys,
         "database_url_present": database_url_present,
         "database_url_redacted": "<redacted>" if database_url_present else None,
         "schema": schema,
@@ -484,6 +488,10 @@ def write_program_oracle_publication_preflight(
     target = out_path.expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
+    if payload.get("schema_version") != PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA:
+        raise ProgramOraclePublicationPreflightError(
+            "program Oracle publication preflight schema_version is invalid"
+        )
     effect = _safe_mapping(payload.get("effect"))
     effect["local_preflight_written"] = True
     payload["effect"] = effect

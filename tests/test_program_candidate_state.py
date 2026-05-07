@@ -786,3 +786,42 @@ def test_program_candidate_state_fails_closed_on_widened_jury_authority(
             jury_results_path=bad_jury_path,
             comparison_path=paths["comparison"],
         )
+
+
+def test_program_candidate_state_rejects_output_path_overwriting_candidate_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="StateOverwriteGuardProgram",
+            objective="Answer a question.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "status",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--out",
+            str(program_root / "manifest.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not overwrite manifest.json" in result.output
+    assert (
+        json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))[
+            "schema_version"
+        ]
+        == "program-candidate-assembly-v1"
+    )

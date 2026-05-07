@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -89,7 +90,7 @@ def _write_packet(
     return path
 
 
-def _base_kwargs(packet: Path) -> dict[str, object]:
+def _base_kwargs(packet: Path) -> dict[str, Any]:
     return {
         "packet_path": packet,
         "target": "shared-postgres",
@@ -249,3 +250,56 @@ def test_autoresearch_oracle_publication_preflight_accepts_authority_ref(
     assert payload["publication"]["authority_ref_required"] is True
     assert payload["publication"]["authority_ref"] == "AK-1234"
     assert payload["planned_record"]["authority_ref_kind"] == "opaque_reference_only"
+
+
+def test_autoresearch_oracle_publication_preflight_rejects_blocked_source_packet(
+    tmp_path: Path,
+) -> None:
+    packet = _write_packet(tmp_path / "autoresearch_oracle_evidence.json")
+    payload = json.loads(packet.read_text(encoding="utf-8"))
+    payload["publicationPreflight"]["status"] = "blocked_no_campaign_evidence"
+    payload["publicationPreflight"]["blockedReasons"] = ["missing_closeout"]
+    packet.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(AutoresearchOraclePublicationPreflightError, match="status"):
+        build_autoresearch_oracle_publication_preflight(**_base_kwargs(packet))
+
+
+def test_autoresearch_oracle_publication_preflight_rejects_duplicate_record_ids(
+    tmp_path: Path,
+) -> None:
+    packet = _write_packet(tmp_path / "autoresearch_oracle_evidence.json")
+    payload = json.loads(packet.read_text(encoding="utf-8"))
+    duplicate = dict(payload["records"][0])
+    duplicate["oracleText"] = "different evidence with duplicate id"
+    payload["records"].append(duplicate)
+    packet.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(AutoresearchOraclePublicationPreflightError, match="duplicated"):
+        build_autoresearch_oracle_publication_preflight(**_base_kwargs(packet))
+
+
+def test_autoresearch_oracle_publication_preflight_rejects_missing_boundary_fields(
+    tmp_path: Path,
+) -> None:
+    packet = _write_packet(tmp_path / "autoresearch_oracle_evidence.json")
+    payload = json.loads(packet.read_text(encoding="utf-8"))
+    payload.pop("authorityBoundary")
+    packet.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        AutoresearchOraclePublicationPreflightError, match="authorityBoundary"
+    ):
+        build_autoresearch_oracle_publication_preflight(**_base_kwargs(packet))
+
+
+def test_autoresearch_oracle_publication_preflight_rejects_missing_run_fields(
+    tmp_path: Path,
+) -> None:
+    packet = _write_packet(tmp_path / "autoresearch_oracle_evidence.json")
+    payload = json.loads(packet.read_text(encoding="utf-8"))
+    payload["records"][0].pop("runStatus")
+    packet.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(AutoresearchOraclePublicationPreflightError, match="runStatus"):
+        build_autoresearch_oracle_publication_preflight(**_base_kwargs(packet))
