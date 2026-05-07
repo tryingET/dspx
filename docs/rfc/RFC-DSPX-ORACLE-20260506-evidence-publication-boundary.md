@@ -12,7 +12,7 @@ type: "rfc"
 ## 0) Metadata
 
 - RFC ID: `RFC-DSPX-ORACLE-20260506-evidence-publication-boundary`
-- Status: `draft`
+- Status: `draft; revised after review_outcome=revise_rfc`
 - Owner: `DSPx core`
 - Reviewers: `DSPx core reviewers`, `Agent Kernel/governance liaison`, `softwareco/infra DS1621 operator`
 - Created: `2026-05-06`
@@ -20,6 +20,7 @@ type: "rfc"
 - Related docs:
   - `docs/rfc/RFC-DSPX-ORACLE-20260505-shared-coordinate-backend.md`
   - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
+  - `docs/project/2026-05-06-review-oracle-evidence-publication-boundary-many-greats.md`
   - `docs/project/generated-program-activation-boundary.md`
   - `docs/project/program-gen-walkthrough.md`
   - `docs/project/product_posture.md`
@@ -52,6 +53,7 @@ This RFC defines the publication boundary: how curated Oracle-readable evidence 
   - AK/governance authority.
 - Define the target publication model from canonical candidate artifacts to shared Oracle records.
 - Define curation labels for winners, failures, near-misses, and activated candidates.
+- Define publisher identity, publisher responsibility, redaction status, retention class, and retraction posture for shared publication.
 - Define invariants for future `publish` / shared-index CLI work.
 
 ### Out of scope
@@ -69,6 +71,9 @@ This RFC defines the publication boundary: how curated Oracle-readable evidence 
 - Candidate-local `coordinates.db` files are scratch indexes/caches, not source-of-truth artifacts.
 - Shared publication re-indexes canonical artifacts (`oracle_evidence.json`, manifest, receipts, sidecars), not local DB files.
 - Shared Oracle publication is explicit, idempotent, provenance-preserving, and non-authoritative.
+- The first legal implementation slice is publication preflight only: no shared writes.
+- Missing or `unknown` redaction status fails closed for shared publication eligibility.
+- Authority-mirror labels require an explicit external authority ref; Oracle stores that ref only as a mirror/reference, never as authority truth.
 - No secret values, DB passwords, or full secret-bearing URLs are stored in RFC examples or shared records.
 
 ## 3) Current state evidence
@@ -78,6 +83,7 @@ This RFC defines the publication boundary: how curated Oracle-readable evidence 
 - `dspx oracle index --from-program-evidence` can explicitly index `oracle_evidence.json` files.
 - The shared Oracle Postgres/pgvector pilot exists behind explicit opt-in and is tracked by the shared coordinate backend RFC/ADR and DS1621 infra contract.
 - Generated-program activation packets remain blocked unless authority fields such as canonical binding ref, rollout owner, and rollback plan exist.
+- The first adversarial review attempt, `docs/project/2026-05-06-review-oracle-evidence-publication-boundary-many-greats.md`, returned `revise_rfc`: the central direction is strong, but the RFC needed stricter redaction, publisher responsibility, authority-mirror label, and retention/retraction semantics before ADR.
 
 ## 4) Option analysis
 
@@ -111,7 +117,7 @@ This RFC defines the publication boundary: how curated Oracle-readable evidence 
 
 ### Option C: Re-index curated canonical artifacts into shared Oracle Postgres
 
-- Design: future publication commands read canonical candidate artifacts and sidecars, validate non-authority flags and optional authority refs, then upsert curated records into shared Oracle Postgres.
+- Design: future publication commands read canonical candidate artifacts and sidecars, validate non-authority flags, publisher identity, redaction status, curation label class, retention class, retraction posture, and optional authority refs, then upsert curated records into shared Oracle Postgres.
 - Pros:
   - preserves source-of-truth lineage;
   - supports winners, failures, near-misses, and activated candidates without survivor bias;
@@ -128,11 +134,11 @@ This RFC defines the publication boundary: how curated Oracle-readable evidence 
 ## 5) Decision
 
 - Chosen target: `Option C`.
-- Decision status: `draft; pending review/ADR if accepted`.
+- Decision status: `draft revised after initial review; requires fresh re-review before ADR`.
 
 A dedicated Oracle Postgres DB makes sense because it is a shared empirical coordinate memory with vector/search workload, not a second society authority database.
 
-Candidate-local indexes remain correct for default product safety. Shared publication should not copy local DBs. It should re-index curated canonical candidate artifacts into shared Oracle Postgres with provenance, curation labels, hashes, and non-authority flags.
+Candidate-local indexes remain correct for default product safety. Shared publication should not copy local DBs. It should re-index curated canonical candidate artifacts into shared Oracle Postgres with provenance, curation labels, publisher identity, redaction status, retention class, hashes, and non-authority flags.
 
 ## 6) Target architecture
 
@@ -164,15 +170,27 @@ optional sidecars:
   program-promotion-plan-v1
   generated-cognition-program-production-activation-packet-v1
 optional AK/governance refs supplied by operator/current authority
-        -> validate hashes, identities, non-authority flags, curation label
-        -> upsert shared Oracle record(s)
+publication inputs supplied by the publisher:
+  publisher_id
+  publisher_role
+  publication_label
+  redaction_status
+  retention_class
+  optional retraction_ref / replacement_ref
+        -> validate hashes, identities, non-authority flags, label class, authority refs, redaction status, and retention posture
+        -> Phase 1: write preflight packet only
+        -> later phase only: upsert shared Oracle record(s)
 ```
 
 ### 6.3 Publication labels
 
 Shared Oracle should not store only winners. Otherwise it learns survivor bias.
 
-Target labels:
+Labels are split into two classes so Oracle can remain empirical while still mirroring authority-relevant lifecycle events.
+
+#### Empirical labels
+
+Empirical labels do not require an external authority ref. They describe evidence usefulness, uncertainty, or negative-space behavior.
 
 | Label | Meaning | Authority implication |
 |---|---|---|
@@ -180,12 +198,65 @@ Target labels:
 | `retained` | useful evidence retained for future search | none |
 | `request_more_evidence` | candidate or region needs more evaluation | none |
 | `rejected` | useful negative/failed evidence | none |
-| `accepted_for_review` | candidate entered a review path | review evidence only |
-| `promote_decision_recorded` | local/domain decision sidecar exists | reference only unless AK/governance binding exists |
-| `activated` | activation evidence exists with canonical binding ref | Oracle mirrors reference; AK/governance remains truth |
-| `rolled_back` | rollback evidence exists | Oracle mirrors reference; AK/governance remains truth |
 
-### 6.4 Idempotency key
+#### Authority-mirror labels
+
+Authority-mirror labels require an explicit `authority_ref`. Oracle does not create, validate as canonical, or own the authority state. It only mirrors the supplied ref for retrieval context.
+
+| Label | Required authority ref | Meaning | Oracle implication |
+|---|---|---|---|
+| `accepted_for_review` | review/adjudication ref | candidate entered a review path | mirrored reference only |
+| `promote_decision_recorded` | decision record / AK / governing-domain ref | local/domain decision sidecar or canonical decision exists | mirrored reference only |
+| `activated` | canonical activation binding ref | activation evidence exists with canonical binding ref | mirrored reference only; AK/governance remains truth |
+| `rolled_back` | rollback/deactivation ref | rollback evidence exists | mirrored reference only; AK/governance remains truth |
+
+A shared publication request using an authority-mirror label without `authority_ref` must fail closed.
+
+### 6.4 Publisher identity and responsibility
+
+Shared publication is a custody act. A publication request must include:
+
+| Field | Meaning | Requirement |
+|---|---|---|
+| `publisher_id` | explicit operator/agent/service identity initiating publication | required |
+| `publisher_role` | role such as `operator`, `domain_owner_delegate`, `dspx_tooling`, or `governance_delegate` | required |
+| `publisher_assertion` | short statement that the publisher is intentionally requesting shared empirical publication | required for shared publication |
+
+The first implementation may treat these as declared fields. Later implementation may validate them against AK/session identity or governing-domain policy. Until that validation exists, outputs must say publisher identity is declared, not authenticated authority.
+
+### 6.5 Redaction status
+
+Shared publication must declare redaction posture. Legal initial values:
+
+| Status | Shared publication eligibility | Meaning |
+|---|---|---|
+| `checked` | eligible | publisher asserts artifacts were checked for secrets/sensitive data under the current local checklist |
+| `not_required` | eligible only for clearly synthetic/non-sensitive fixtures | publisher asserts the evidence contains no sensitive source material by construction |
+| `redacted` | eligible | publisher asserts sensitive material was removed or transformed before publication |
+| `unknown` | not eligible | redaction posture is unknown |
+| `contains_sensitive_material` | not eligible | evidence is known to contain sensitive material and must not be shared |
+
+Missing redaction status must fail closed. `checked`, `not_required`, and `redacted` are not production-grade DLP claims; they are explicit custody assertions until deterministic redaction tooling exists.
+
+### 6.6 Retention and retraction posture
+
+Shared publication must include a retention class:
+
+| Retention class | Meaning |
+|---|---|
+| `ephemeral_review` | short-lived review support; eligible for early pruning |
+| `retained_behavior_memory` | useful behavioral memory retained for future Oracle retrieval |
+| `activation_evidence_reference` | activation/rollback-relevant evidence reference; retention follows authority/infra policy |
+| `do_not_publish` | preflight-only marker; not eligible for shared write |
+
+Retraction/deletion semantics:
+
+- shared records must be addressable by idempotency key and publication receipt id;
+- a later retraction should create an explicit retraction record or tombstone rather than silently deleting provenance;
+- physical deletion from Postgres and backups may require infra-owned retention/backup policy and may not be instantaneous;
+- retraction of Oracle records does not delete AK/governance authority records or source candidate artifacts.
+
+### 6.7 Idempotency key
 
 Publication should upsert, not append duplicates. A first deterministic key should include:
 
@@ -197,6 +268,9 @@ candidate_id
 oracle_evidence_sha256
 publication_label
 authority_ref, if supplied
+publisher_id
+redaction_status
+retention_class
 ```
 
 If the same evidence is published with a different label later, the record should either:
@@ -206,21 +280,42 @@ If the same evidence is published with a different label later, the record shoul
 
 The implementation choice should be explicit before the first shared publication CLI lands.
 
-### 6.5 Minimal CLI target shape
+### 6.8 Minimal CLI target shape
 
-Future commands should make shared publication explicit:
+The first legal command shape is preflight only:
+
+```bash
+dspx oracle program-evidence publish-preflight \
+  --manifest candidate/manifest.json \
+  --target shared-postgres \
+  --publication-label retained \
+  --publisher-id pi-session-... \
+  --publisher-role operator \
+  --publisher-assertion "share this synthetic behavior evidence for future Oracle retrieval" \
+  --redaction-status checked \
+  --retention-class retained_behavior_memory \
+  --out candidate/program_oracle_publication_preflight.json \
+  --json
+```
+
+Later shared-write commands should make shared publication explicit:
 
 ```bash
 dspx oracle program-evidence publish \
   --manifest candidate/manifest.json \
   --target shared-postgres \
   --publication-label retained \
-  --authority-ref AK-1234 \
+  --publisher-id pi-session-... \
+  --publisher-role operator \
   --redaction-status checked \
+  --retention-class retained_behavior_memory \
+  --authority-ref AK-1234 \
   --json
 ```
 
-or, as a convenience after explicit opt-in:
+For authority-mirror labels, `--authority-ref` is required. For empirical labels, it is optional.
+
+A future convenience path may exist only after standalone preflight and publish are proven:
 
 ```bash
 dspx program-loop \
@@ -230,9 +325,9 @@ dspx program-loop \
   --publish-to-shared retained
 ```
 
-`program-loop` should remain local by default. Any shared publication mode must be visibly opt-in.
+`program-loop` must remain local by default. Any shared publication mode must be visibly opt-in.
 
-### 6.6 Shared record metadata
+### 6.9 Shared record metadata
 
 Each shared Oracle record should carry at least:
 
@@ -246,9 +341,14 @@ Each shared Oracle record should carry at least:
   "oracle_evidence_sha256": "...",
   "manifest_sha256": "...",
   "publication_label": "retained",
+  "publication_label_class": "empirical",
+  "publisher_id": "pi-session-...",
+  "publisher_role": "operator",
+  "publisher_identity_kind": "declared_not_authenticated",
   "authority_ref": "AK-1234",
   "authority_ref_kind": "opaque_reference_only",
   "redaction_status": "checked",
+  "retention_class": "retained_behavior_memory",
   "non_authority": {
     "oracle_ranking": false,
     "oracle_pruning": false,
@@ -269,13 +369,17 @@ Each shared Oracle record should carry at least:
 
 ### Phase 1 — Publication preflight only
 
+This is the only legal first implementation slice.
+
 - Add a local preflight command that reads artifacts and emits a planned publication packet.
-- Validate identity, hashes, non-authority flags, label legality, redaction status, backend status, and idempotency key.
+- Validate identity, hashes, non-authority flags, label legality, authority-ref requirements, publisher fields, redaction status, retention class, backend status, and idempotency key.
 - Do not write to shared Oracle yet.
+- Do not add `program-loop --publish-to-shared` yet.
 
 ### Phase 2 — Explicit shared publication
 
 - Add an opt-in publish command behind explicit `DSPX_ORACLE_STORE=postgres_pgvector` / secret-ref configuration.
+- Require a passing preflight packet or equivalent validations.
 - Upsert publication records idempotently.
 - Return a receipt that includes backend identity without secret values.
 
@@ -308,7 +412,11 @@ Future implementation tests:
 
 - publish preflight rejects missing `oracle_evidence.json`;
 - publish preflight rejects widened non-authority flags;
-- publish preflight rejects missing/redaction-unknown status for shared publication;
+- publish preflight rejects missing or unknown publication labels;
+- publish preflight rejects authority-mirror labels without `authority_ref`;
+- publish preflight rejects missing publisher identity/responsibility fields;
+- publish preflight rejects missing, `unknown`, or `contains_sensitive_material` redaction status for shared publication;
+- publish preflight rejects missing or `do_not_publish` retention class for shared writes;
 - publish preflight computes stable idempotency keys;
 - shared publish writes only when explicit target/config is present;
 - shared publish redacts secret-bearing database URLs from output;
@@ -320,6 +428,8 @@ Future implementation tests:
 - Publication must check backend health and should fail closed when shared backend posture is not acceptable.
 - Publication must not require DS1621 availability for local program generation, replay, or candidate-local Oracle analysis.
 - Retention labels should support pruning local/noisy records while retaining useful failures and activation-relevant evidence.
+- Retraction should be modeled as explicit tombstone/retraction evidence; physical deletion from Postgres and backups is infra-governed and may lag logical retraction.
+- Publisher identity in the first implementation is declared custody context, not authenticated authority.
 
 ## 11) Risk register
 
@@ -330,19 +440,23 @@ Future implementation tests:
 | Shared DB pollution | `program-loop` auto-publishes every scratch run | local default; explicit publish only; redaction/status preflight | delete/retract publication records by idempotency key and label |
 | Secret leakage | full DB URL or secret value enters publication output | secret-ref-only config; redacted backend status | revoke/rotate secret and purge leaked records/logs |
 | Authority DB duplication | Oracle stores activation truth | store opaque refs/hashes only; AK/governance remains source | remove authority-like fields from Oracle schema |
+| Ambiguous redaction posture | publication proceeds with unknown or informal redaction status | legal redaction values; fail closed on missing/unknown/sensitive | retract record and rotate/purge if secrets leaked |
+| Authority-mirror label without authority ref | `activated`/rollback-like labels are published from Oracle-only claims | require authority refs for mirror labels | retract/tombstone mislabeled records |
 
 ## 12) Open questions
 
 1. Should publication events be modeled as separate records or as append-only events under one evidence identity?
-2. Which labels are mandatory for the first implementation: `retained`, `rejected`, `activated`, or a smaller subset?
-3. Should shared publication require an AK evidence/task/decision ref for all records, or only for activation-relevant labels?
-4. Should redaction status be operator-declared initially, or should DSPx add deterministic local redaction checks first?
+2. Which empirical labels are mandatory for the first implementation: `retained`, `rejected`, `request_more_evidence`, or a smaller subset?
+3. Should publisher identity remain declared-only for the first implementation, or must it bind to Pi/AK/session identity before shared writes?
+4. What deterministic redaction checks can DSPx add after the initial declared redaction-status model?
 5. Should the accepted shared coordinate backend ADR be amended, or should this RFC get its own ADR?
 
 ## 13) Execution checklist
 
 - [x] RFC draft created.
-- [ ] RFC reviewed by DSPx core.
+- [x] Initial adversarial review completed with outcome `revise_rfc`.
+- [x] RFC revised for redaction status, publisher responsibility, authority-mirror labels, retention/retraction, and preflight-only first implementation.
+- [ ] Fresh review attempt completed against the revised RFC.
 - [ ] AK/governance liaison confirms no authority duplication.
 - [ ] DS1621 infra owner confirms shared-publication operational assumptions.
 - [ ] Decision recorded: amend existing ADR or create a new ADR.
