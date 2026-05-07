@@ -2146,14 +2146,15 @@
         {
           "id": "AK-TASK-2585",
           "title": "Add program-loop shared publication opt-in",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Add program-loop shared publication opt-in (task #2585)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
