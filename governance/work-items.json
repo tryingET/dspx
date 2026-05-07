@@ -2107,14 +2107,15 @@
         {
           "id": "AK-TASK-2572",
           "title": "Add explicit Oracle program-evidence shared publication command",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Add explicit Oracle program-evidence shared publication command (task #2572)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
