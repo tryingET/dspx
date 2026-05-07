@@ -236,6 +236,23 @@ uv run -q python -m dspx.cli.dspx program-promote status \
 
 For activation packets, the same `--oracle-publication-receipt` flag adds an evidence ref only. It cannot satisfy the owning-domain decision, canonical binding, rollout owner, or rollback plan gates.
 
+`program-loop` can also run shared publication as an explicit opt-in after generation; the default remains candidate-local and service-free. The opt-in requires all custody fields and an explicitly configured shared Oracle backend:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-loop \
+  --intent "$TD/intent.yaml" \
+  --outdir "$TD/program-loop" \
+  --publish-to-shared retained \
+  --publisher-id local-operator \
+  --publisher-role operator \
+  --publisher-assertion "share this synthetic behavior evidence for future Oracle retrieval" \
+  --redaction-status not_required \
+  --retention-class retained_behavior_memory \
+  --json
+```
+
+With the flag, `program_loop.json` records an `oracle_publication` step and points to `program_oracle_publication_receipt.json`. Without the flag, no shared backend is contacted and the publication step remains `skipped`.
+
 ## 2. Generate the program candidate assembly
 
 ```bash

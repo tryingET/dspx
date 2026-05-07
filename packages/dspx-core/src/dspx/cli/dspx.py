@@ -447,6 +447,51 @@ def program_loop(
         "--skip-oracle-index",
         help="Skip local Oracle indexing/reporting and only write candidate state",
     ),
+    publish_to_shared: Optional[str] = typer.Option(
+        None,
+        "--publish-to-shared",
+        help="Explicitly publish program Oracle evidence to shared Oracle with this label",
+    ),
+    publisher_id: Optional[str] = typer.Option(
+        None,
+        "--publisher-id",
+        help="Required with --publish-to-shared: declared publisher/session identity",
+    ),
+    publisher_role: Optional[str] = typer.Option(
+        None,
+        "--publisher-role",
+        help="Required with --publish-to-shared: publisher role",
+    ),
+    publisher_assertion: Optional[str] = typer.Option(
+        None,
+        "--publisher-assertion",
+        help="Required with --publish-to-shared: custody assertion",
+    ),
+    redaction_status: Optional[str] = typer.Option(
+        None,
+        "--redaction-status",
+        help="Required with --publish-to-shared: checked, not_required, or redacted",
+    ),
+    retention_class: Optional[str] = typer.Option(
+        None,
+        "--retention-class",
+        help="Required with --publish-to-shared: retention class",
+    ),
+    authority_ref: Optional[str] = typer.Option(
+        None,
+        "--authority-ref",
+        help="Required for authority-mirror publication labels",
+    ),
+    publication_preflight_out: Optional[Path] = typer.Option(
+        None,
+        "--publication-preflight-out",
+        help="Path for the local shared-publication preflight sidecar",
+    ),
+    publication_receipt_out: Optional[Path] = typer.Option(
+        None,
+        "--publication-receipt-out",
+        help="Path for the local shared-publication receipt sidecar",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print workflow JSON"),
 ) -> None:
     """Run the coherent local one-intent program loop without authority effects."""
@@ -467,6 +512,15 @@ def program_loop(
             state_out=state_out,
             workflow_out=workflow_out,
             skip_oracle_index=skip_oracle_index,
+            publish_to_shared=publish_to_shared,
+            publisher_id=publisher_id,
+            publisher_role=publisher_role,
+            publisher_assertion=publisher_assertion,
+            redaction_status=redaction_status,
+            retention_class=retention_class,
+            authority_ref=authority_ref,
+            publication_preflight_out=publication_preflight_out,
+            publication_receipt_out=publication_receipt_out,
         )
     except Exception as exc:
         typer.echo(f"Error: program loop failed: {exc}", err=True)

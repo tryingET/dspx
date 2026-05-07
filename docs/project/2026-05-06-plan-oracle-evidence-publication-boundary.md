@@ -24,7 +24,8 @@ Status as of 2026-05-07:
 - Phase 2 explicit publish command is implemented by `dspx oracle program-evidence publish`; it is standalone, idempotent, and fails closed without an explicitly configured shared Postgres/pgvector backend.
 - Phase 3 evidence-ref surfacing is implemented for `program-promote status` and `program-promote activation-packet` through `--oracle-publication-receipt`; publication refs remain evidence only and cannot approve activation.
 - A DSPx-owner adapter preflight is implemented for `pi-autoresearch` packets via `dspx oracle autoresearch-evidence publish-preflight`; it validates `autoresearch.oracle_evidence.v1` as empirical memory input and writes no shared Oracle, AK, governance, MLflow, or program files.
-- Live shared-backend rollout remains gated by the DS1621/infra contract and optional live tests; no `program-loop` shared-publish convenience is enabled.
+- Phase 4 `program-loop` shared publication opt-in is implemented through `--publish-to-shared`; default `program-loop` remains candidate-local and service-free.
+- Live shared-backend rollout remains gated by the DS1621/infra contract and optional live tests.
 
 ## Phase 1 — Publication preflight only
 
@@ -162,17 +163,17 @@ Boundary:
 
 ## Next task to create
 
-Recommended next AK task after evidence-ref and adapter-preflight surfacing:
+Recommended next AK task after `program-loop` opt-in:
 
 ```text
-Add program-loop shared publication opt-in
+Run/live-gate shared Oracle publication rollout against the DS1621 backend contract
 ```
 
-Bound it to DSPx only:
+Bound it to explicit operator/backend readiness:
 
-- explicit `program-loop` flag that requires label, redaction status, publisher fields, retention class, and shared backend posture;
-- no shared mutation unless the flag is present;
-- output publication receipt path in `program_loop.json` as evidence only;
-- negative tests proving default `program-loop` remains candidate-local and service-free.
+- require DS1621 contract and secret references, not plaintext DB URLs;
+- run optional live Postgres/pgvector publication smoke only with explicit env gates;
+- verify receipt redaction, idempotency, and queryability;
+- keep local/default smoke paths service-free.
 
-Do not make shared publication the default local smoke path.
+Do not claim production readiness until DS1621 remote backup and authority gates are proven.

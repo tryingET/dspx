@@ -8,7 +8,16 @@ from dspx.services.program_candidate_state import (
     build_program_candidate_state,
     write_program_candidate_state,
 )
+from dspx.coordinates import CoordinateStore
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
+from dspx.services.program_oracle_publication import (
+    publish_program_oracle_preflight,
+    write_program_oracle_publication_receipt,
+)
+from dspx.services.program_oracle_publication_preflight import (
+    build_program_oracle_publication_preflight,
+    write_program_oracle_publication_preflight,
+)
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_service import run_generate_from_intent_path
 from dspx.services.run_replay_service import check_run_receipt
@@ -29,6 +38,13 @@ def _safe_rel(path: Path, root: Path) -> str:
         return path.resolve().relative_to(root.resolve()).as_posix()
     except Exception:
         return str(path)
+
+
+def _required_text(value: object, *, field: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        raise ValueError(f"{field} is required when --publish-to-shared is set")
+    return text
 
 
 def write_program_loop_result(
@@ -55,6 +71,16 @@ def run_program_loop_from_intent_path(
     state_out: Path | None = None,
     workflow_out: Path | None = None,
     skip_oracle_index: bool = False,
+    publish_to_shared: str | None = None,
+    publisher_id: str | None = None,
+    publisher_role: str | None = None,
+    publisher_assertion: str | None = None,
+    redaction_status: str | None = None,
+    retention_class: str | None = None,
+    authority_ref: str | None = None,
+    publication_preflight_out: Path | None = None,
+    publication_receipt_out: Path | None = None,
+    shared_publication_store: CoordinateStore | None = None,
 ) -> dict[str, Any]:
     """Run the coherent local one-intent DSPx program loop.
 
@@ -92,6 +118,16 @@ def run_program_loop_from_intent_path(
         if workflow_out
         else root / "program_loop.json"
     )
+    resolved_publication_preflight_out = (
+        publication_preflight_out.expanduser().resolve()
+        if publication_preflight_out
+        else root / "program_oracle_publication_preflight.json"
+    )
+    resolved_publication_receipt_out = (
+        publication_receipt_out.expanduser().resolve()
+        if publication_receipt_out
+        else root / "program_oracle_publication_receipt.json"
+    )
 
     oracle_index_result: dict[str, Any] | None = None
     oracle_report: dict[str, Any] | None = None
@@ -111,11 +147,53 @@ def run_program_loop_from_intent_path(
             _json_text(oracle_report), encoding="utf-8"
         )
 
+    publication_preflight_payload: dict[str, Any] | None = None
+    publication_receipt_payload: dict[str, Any] | None = None
+    if publish_to_shared is not None:
+        publication_preflight = build_program_oracle_publication_preflight(
+            manifest_path=manifest_path,
+            target="shared-postgres",
+            publication_label=_required_text(
+                publish_to_shared,
+                field="publish_to_shared",
+            ),
+            publisher_id=_required_text(publisher_id, field="publisher_id"),
+            publisher_role=_required_text(publisher_role, field="publisher_role"),
+            publisher_assertion=_required_text(
+                publisher_assertion,
+                field="publisher_assertion",
+            ),
+            redaction_status=_required_text(
+                redaction_status,
+                field="redaction_status",
+            ),
+            retention_class=_required_text(
+                retention_class,
+                field="retention_class",
+            ),
+            authority_ref=authority_ref,
+        )
+        publication_preflight_payload = write_program_oracle_publication_preflight(
+            publication_preflight,
+            resolved_publication_preflight_out,
+        )
+        publication_receipt = publish_program_oracle_preflight(
+            preflight_path=resolved_publication_preflight_out,
+            store=shared_publication_store,
+        )
+        publication_receipt_payload = write_program_oracle_publication_receipt(
+            publication_receipt,
+            resolved_publication_receipt_out,
+        )
+
     state = build_program_candidate_state(
         manifest_path=manifest_path,
         out_path=resolved_state_out,
         oracle_report_path=resolved_oracle_report_out
         if oracle_report is not None
+        else None,
+        oracle_publication_receipt_path=resolved_publication_receipt_out
+        if publication_receipt_payload is not None
         else None,
     )
     state_payload = write_program_candidate_state(state, resolved_state_out)
@@ -123,6 +201,10 @@ def run_program_loop_from_intent_path(
     generated_sidecars = [resolved_state_out]
     if oracle_report is not None:
         generated_sidecars.append(resolved_oracle_report_out)
+    if publication_preflight_payload is not None:
+        generated_sidecars.append(resolved_publication_preflight_out)
+    if publication_receipt_payload is not None:
+        generated_sidecars.append(resolved_publication_receipt_out)
 
     result: dict[str, Any] = {
         "schema_version": PROGRAM_LOOP_SCHEMA,
@@ -176,6 +258,27 @@ def run_program_loop_from_intent_path(
                 )
                 or [],
             },
+            "oracle_publication": {
+                "status": "skipped"
+                if publication_receipt_payload is None
+                else publication_receipt_payload.get("status"),
+                "preflight_path": str(resolved_publication_preflight_out)
+                if publication_preflight_payload is not None
+                else None,
+                "receipt_path": str(resolved_publication_receipt_out)
+                if publication_receipt_payload is not None
+                else None,
+                "publication_id": (publication_receipt_payload or {}).get(
+                    "publication_id"
+                ),
+                "publication_label": (publication_receipt_payload or {})
+                .get("publication", {})
+                .get("publication_label"),
+                "evidence_only": publication_receipt_payload is not None,
+                "scope": "explicit_shared_publication_opt_in"
+                if publication_receipt_payload is not None
+                else "none",
+            },
         },
         "next_actions": [
             "Inspect program_candidate_state.json for local truth and missing evidence.",
@@ -193,6 +296,14 @@ def run_program_loop_from_intent_path(
             else "none",
             "oracle_report_written": oracle_report is not None,
             "candidate_state_written": True,
+            "oracle_publication_preflight_written": publication_preflight_payload
+            is not None,
+            "oracle_publication_receipt_written": publication_receipt_payload
+            is not None,
+            "shared_oracle_mutated": publication_receipt_payload is not None,
+            "shared_oracle_publication_scope": "explicit opt-in"
+            if publication_receipt_payload is not None
+            else "none",
             "workflow_summary_written": False,
             "ak_called": False,
             "external_authority_mutated": False,
