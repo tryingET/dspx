@@ -175,6 +175,26 @@ PY
 
 Use `--skip-oracle-index` when you want generation/replay/state only and no CoordinateIndex mutation. Even without that flag, the default mutation is candidate-local under `--outdir`, not a production/shared Oracle authority action.
 
+## Optional: preflight shared Oracle publication without shared writes
+
+Shared Oracle publication starts with a local preflight packet. It validates the future shared-publication boundary but does not contact or mutate shared Oracle, AK, governance, MLflow, or generated program files:
+
+```bash
+uv run -q python -m dspx.cli.dspx oracle program-evidence publish-preflight \
+  --manifest "$TD/program-loop/manifest.json" \
+  --target shared-postgres \
+  --publication-label retained \
+  --publisher-id local-operator \
+  --publisher-role operator \
+  --publisher-assertion "share this synthetic behavior evidence for future Oracle retrieval" \
+  --redaction-status not_required \
+  --retention-class retained_behavior_memory \
+  --out "$TD/program-loop/program_oracle_publication_preflight.json" \
+  --json
+```
+
+The preflight output is a `program-oracle-shared-publication-preflight-v1` packet. It computes a stable publication id, validates non-authority flags and custody fields, redacts backend secret posture, and records `shared_oracle_mutated: false`.
+
 ## 2. Generate the program candidate assembly
 
 ```bash
