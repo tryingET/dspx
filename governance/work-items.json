@@ -2016,14 +2016,15 @@
         {
           "id": "AK-TASK-2548",
           "title": "Run many-of-the-greats review for Oracle publication RFC",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Run many-of-the-greats review for Oracle publication RFC (task #2548)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
