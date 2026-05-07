@@ -4,13 +4,13 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
-from dspx.coordinates import reset_embedding_engine
+from dspx.coordinates import CoordinateStore, ExecutionEmbedding, reset_embedding_engine
 from dspx.services.program_candidate_state import (
     ProgramCandidateStateError,
     build_program_candidate_state,
@@ -25,6 +25,14 @@ from dspx.services.program_jury_execution import (
     write_program_jury_execution_result,
 )
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
+from dspx.services.program_oracle_publication import (
+    publish_program_oracle_preflight,
+    write_program_oracle_publication_receipt,
+)
+from dspx.services.program_oracle_publication_preflight import (
+    build_program_oracle_publication_preflight,
+    write_program_oracle_publication_preflight,
+)
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
@@ -41,6 +49,20 @@ from dspx.services.program_refinement_workflow import (
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
+
+
+class FakeSharedOracleStore:
+    backend_name = "fake_shared_oracle"
+    redacted_database_url = (
+        "postgresql://dspx_oracle:<redacted>@example.invalid/dspx_oracle"
+    )
+
+    def __init__(self) -> None:
+        self.records: dict[str, ExecutionEmbedding] = {}
+
+    def upsert(self, embedding: ExecutionEmbedding) -> bool:
+        self.records[embedding.run_id] = embedding
+        return True
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -65,6 +87,27 @@ def _file_hashes(root: Path) -> dict[str, str]:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
+    preflight_path = out.parent / "oracle_publication_preflight.json"
+    preflight = build_program_oracle_publication_preflight(
+        manifest_path=root / "manifest.json",
+        target="shared-postgres",
+        publication_label="retained",
+        publisher_id="pi-test",
+        publisher_role="operator",
+        publisher_assertion="share synthetic behavior evidence for future Oracle retrieval",
+        redaction_status="checked",
+        retention_class="retained_behavior_memory",
+    )
+    write_program_oracle_publication_preflight(preflight, preflight_path)
+    receipt = publish_program_oracle_preflight(
+        preflight_path=preflight_path,
+        store=cast(CoordinateStore, FakeSharedOracleStore()),
+    )
+    write_program_oracle_publication_receipt(receipt, out)
+    return out
 
 
 def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -462,6 +505,105 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert (source_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_candidate_state_includes_oracle_publication_ref_as_evidence_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    out_path = tmp_path / "state" / "program_candidate_state_with_publication.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "status",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--source-manifest",
+            str(source_root / "manifest.json"),
+            "--oracle-report",
+            str(paths["oracle_report"]),
+            "--refinement-proposal",
+            str(paths["proposal"]),
+            "--review",
+            str(paths["review"]),
+            "--decision-record",
+            str(paths["decision"]),
+            "--jury-results",
+            str(paths["jury_results"]),
+            "--comparison",
+            str(paths["comparison"]),
+            "--promotion-plan",
+            str(paths["promotion_plan"]),
+            "--export-preflight",
+            str(paths["export_preflight"]),
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    publication = payload["evidence_state"]["oracle_publication_receipt"]
+    assert publication["present"] is True
+    assert publication["schema_version"] == (
+        "program-oracle-shared-publication-receipt-v1"
+    )
+    assert publication["status"] == "published"
+    assert publication["publication_id"].startswith("prog-oracle-pub-")
+    assert publication["publication_label"] == "retained"
+    assert publication["publication_label_class"] == "empirical"
+    assert publication["shared_oracle_mutated"] is True
+    assert publication["evidence_only"] is True
+    assert publication["ak_called"] is False
+    assert publication["governance_mutated"] is False
+    assert publication["promotion_state_changed"] is False
+    assert payload["truth_summary"]["oracle_publication_ref_present"] is True
+    assert payload["truth_summary"]["promotion_applied"] is False
+    assert payload["truth_summary"]["winner_selected"] is False
+    assert payload["shared_oracle_publication"] == {
+        "evidence_ref_present": True,
+        "evidence_only": True,
+        "activation_authority": False,
+        "promotion_authority": False,
+    }
+    assert payload["non_authority"]["promotion_authority"] is False
+    assert payload["non_authority"]["oracle_authority"] is False
+
+
+def test_program_candidate_state_rejects_publication_receipt_authority_widening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["non_authority"]["promotion_authority"] = True
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramCandidateStateError, match="promotion_authority"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            oracle_publication_receipt_path=receipt_path,
+        )
 
 
 def test_program_candidate_state_degrades_with_manifest_only(

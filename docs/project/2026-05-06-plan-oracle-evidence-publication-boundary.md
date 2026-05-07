@@ -22,6 +22,7 @@ Status as of 2026-05-07:
 
 - Phase 1 local preflight packet is implemented by `dspx oracle program-evidence publish-preflight`.
 - Phase 2 explicit publish command is implemented by `dspx oracle program-evidence publish`; it is standalone, idempotent, and fails closed without an explicitly configured shared Postgres/pgvector backend.
+- Phase 3 evidence-ref surfacing is implemented for `program-promote status` and `program-promote activation-packet` through `--oracle-publication-receipt`; publication refs remain evidence only and cannot approve activation.
 - Live shared-backend rollout remains gated by the DS1621/infra contract and optional live tests; no `program-loop` shared-publish convenience is enabled.
 
 ## Phase 1 — Publication preflight only
@@ -133,16 +134,17 @@ Exit gate:
 
 ## Next task to create
 
-Recommended next AK task after explicit shared publication:
+Recommended next AK task after evidence-ref surfacing:
 
 ```text
-Expose shared Oracle publication refs as candidate-state evidence only
+Add program-loop shared publication opt-in
 ```
 
 Bound it to DSPx only:
 
-- candidate-state/report surfaces that can cite a publication receipt/ref;
-- activation-packet evidence references if already locally available;
-- negative tests proving publication refs cannot approve activation, select winners, deploy, or satisfy canonical binding / rollout owner / rollback plan gates.
+- explicit `program-loop` flag that requires label, redaction status, publisher fields, retention class, and shared backend posture;
+- no shared mutation unless the flag is present;
+- output publication receipt path in `program_loop.json` as evidence only;
+- negative tests proving default `program-loop` remains candidate-local and service-free.
 
-Do not add `program-loop --publish-to-shared` until Phase 3 evidence-ref semantics are proven.
+Do not make shared publication the default local smoke path.

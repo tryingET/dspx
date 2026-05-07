@@ -25,6 +25,9 @@ PROGRAM_PROMOTION_PLAN_SCHEMA = "program-promotion-plan-v1"
 PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA = (
     "program-external-authority-export-preflight-v1"
 )
+PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA = (
+    "program-oracle-shared-publication-receipt-v1"
+)
 PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 
 
@@ -316,6 +319,7 @@ def _validate_optional_inputs(
     comparison: Mapping[str, Any] | None,
     promotion_plan: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
+    oracle_publication_receipt: Mapping[str, Any] | None,
 ) -> None:
     source_or_candidate = [candidate_identity]
     if source_identity is not None:
@@ -465,6 +469,47 @@ def _validate_optional_inputs(
                 "external_mutation",
             ),
         )
+
+    if oracle_publication_receipt is not None:
+        if oracle_publication_receipt.get("status") != "published":
+            raise ProgramCandidateStateError(
+                "Oracle publication receipt status must be published"
+            )
+        effect = _safe_mapping(oracle_publication_receipt.get("effect"))
+        if effect.get("shared_oracle_mutated") is not True:
+            raise ProgramCandidateStateError(
+                "Oracle publication receipt must record shared_oracle_mutated true"
+            )
+        forbidden_true = {
+            "ak_called": "Oracle publication receipt must not record AK mutation",
+            "governance_mutated": "Oracle publication receipt must not record governance mutation",
+            "mlflow_mutated": "Oracle publication receipt must not record MLflow mutation",
+            "program_files_mutated": "Oracle publication receipt must not record program file mutation",
+            "promotion_state_changed": "Oracle publication receipt must not record promotion state changes",
+        }
+        for key, message in forbidden_true.items():
+            if effect.get(key) is not False:
+                raise ProgramCandidateStateError(message)
+        _validate_non_authority_false(
+            oracle_publication_receipt,
+            label="Oracle publication receipt",
+            keys=(
+                "oracle_authority",
+                "promotion_authority",
+                "governance_authority",
+                "agent_kernel_mutation",
+                "winner_selection",
+                "automatic_promotion",
+            ),
+        )
+        receipt_identity = _safe_mapping(oracle_publication_receipt.get("identity"))
+        if not any(
+            _identity_exactly_matches(receipt_identity, item)
+            for item in source_or_candidate
+        ):
+            raise ProgramCandidateStateError(
+                "Oracle publication receipt identity does not match candidate/source identity"
+            )
 
     if export_preflight is not None:
         if export_preflight.get("status") not in {
@@ -726,6 +771,31 @@ def _export_preflight_summary(preflight: Mapping[str, Any] | None) -> dict[str, 
     }
 
 
+def _oracle_publication_receipt_summary(
+    receipt: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if receipt is None:
+        return {"present": False, "status": "missing"}
+    effect = _safe_mapping(receipt.get("effect"))
+    publication = _safe_mapping(receipt.get("publication"))
+    return {
+        "present": True,
+        "schema_version": receipt.get("schema_version"),
+        "status": receipt.get("status"),
+        "publication_id": receipt.get("publication_id"),
+        "run_id": receipt.get("run_id"),
+        "publication_label": publication.get("publication_label"),
+        "publication_label_class": publication.get("publication_label_class"),
+        "authority_ref": publication.get("authority_ref"),
+        "retention_class": publication.get("retention_class"),
+        "shared_oracle_mutated": effect.get("shared_oracle_mutated") is True,
+        "ak_called": effect.get("ak_called") is True,
+        "governance_mutated": effect.get("governance_mutated") is True,
+        "promotion_state_changed": effect.get("promotion_state_changed") is True,
+        "evidence_only": True,
+    }
+
+
 def _oracle_report_summary(report: Mapping[str, Any] | None) -> dict[str, Any]:
     if report is None:
         return {"present": False, "status": "missing"}
@@ -833,6 +903,7 @@ def build_program_candidate_state(
     comparison_path: Path | None = None,
     promotion_plan_path: Path | None = None,
     export_preflight_path: Path | None = None,
+    oracle_publication_receipt_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build one local truth-state artifact from existing program sidecars."""
 
@@ -910,6 +981,15 @@ def build_program_candidate_state(
             schema=PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA,
         )
     )
+    (
+        oracle_publication_receipt,
+        oracle_publication_receipt_file,
+        oracle_publication_receipt_hash,
+    ) = _load_optional_artifact(
+        oracle_publication_receipt_path,
+        label="Oracle publication receipt",
+        schema=PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA,
+    )
 
     _validate_optional_inputs(
         candidate_identity=candidate_identity,
@@ -920,6 +1000,7 @@ def build_program_candidate_state(
         comparison=comparison,
         promotion_plan=promotion_plan,
         export_preflight=export_preflight,
+        oracle_publication_receipt=oracle_publication_receipt,
     )
 
     manifest_hash = _sha256_file(manifest_path)
@@ -945,6 +1026,7 @@ def build_program_candidate_state(
         "comparison_sha256": comparison_hash,
         "promotion_plan_sha256": promotion_plan_hash,
         "export_preflight_sha256": export_preflight_hash,
+        "oracle_publication_receipt_sha256": oracle_publication_receipt_hash,
     }
     state_seed = {
         "schema_version": PROGRAM_CANDIDATE_STATE_SCHEMA,
@@ -1005,6 +1087,9 @@ def build_program_candidate_state(
             "export_preflight_path": str(export_preflight_file)
             if export_preflight_file is not None
             else None,
+            "oracle_publication_receipt_path": str(oracle_publication_receipt_file)
+            if oracle_publication_receipt_file is not None
+            else None,
         },
         "artifact_hashes": artifact_hashes,
         "candidate": {
@@ -1041,6 +1126,9 @@ def build_program_candidate_state(
             },
             "oracle_readability": oracle_readability,
             "oracle_report": _oracle_report_summary(oracle_report),
+            "oracle_publication_receipt": _oracle_publication_receipt_summary(
+                oracle_publication_receipt
+            ),
             "refinement_proposal": _proposal_summary(refinement_proposal),
         },
         "promotion_state": {
@@ -1068,6 +1156,7 @@ def build_program_candidate_state(
             "comparison_present": comparison is not None,
             "promotion_plan_present": promotion_plan is not None,
             "external_authority_preflight_present": export_preflight is not None,
+            "oracle_publication_ref_present": oracle_publication_receipt is not None,
             "promotion_applied": False,
             "external_authority_mutated": False,
             "governance_mutated": False,
@@ -1093,6 +1182,12 @@ def build_program_candidate_state(
             "external_authority_mutated": False,
             "governance_mutated": False,
             "promotion_state_changed": False,
+        },
+        "shared_oracle_publication": {
+            "evidence_ref_present": oracle_publication_receipt is not None,
+            "evidence_only": True,
+            "activation_authority": False,
+            "promotion_authority": False,
         },
         "non_authority": {
             "state_summary_only": True,

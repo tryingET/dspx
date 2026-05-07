@@ -3,18 +3,27 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
-from dspx.coordinates import reset_embedding_engine
+from dspx.coordinates import CoordinateStore, ExecutionEmbedding, reset_embedding_engine
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_jury_execution import (
     build_program_jury_execution_result,
     write_program_jury_execution_result,
 )
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
+from dspx.services.program_oracle_publication import (
+    publish_program_oracle_preflight,
+    write_program_oracle_publication_receipt,
+)
+from dspx.services.program_oracle_publication_preflight import (
+    build_program_oracle_publication_preflight,
+    write_program_oracle_publication_preflight,
+)
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
@@ -29,6 +38,20 @@ from dspx.services.program_service import materialize_program_from_intent
 runner = CliRunner()
 
 
+class FakeSharedOracleStore:
+    backend_name = "fake_shared_oracle"
+    redacted_database_url = (
+        "postgresql://dspx_oracle:<redacted>@example.invalid/dspx_oracle"
+    )
+
+    def __init__(self) -> None:
+        self.records: dict[str, ExecutionEmbedding] = {}
+
+    def upsert(self, embedding: ExecutionEmbedding) -> bool:
+        self.records[embedding.run_id] = embedding
+        return True
+
+
 def _file_hashes(root: Path) -> dict[str, str]:
     return {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -40,6 +63,27 @@ def _file_hashes(root: Path) -> dict[str, str]:
 def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
+    preflight_path = out.parent / "oracle_publication_preflight.json"
+    preflight = build_program_oracle_publication_preflight(
+        manifest_path=root / "manifest.json",
+        target="shared-postgres",
+        publication_label="retained",
+        publisher_id="pi-test",
+        publisher_role="operator",
+        publisher_assertion="share synthetic behavior evidence for future Oracle retrieval",
+        redaction_status="checked",
+        retention_class="retained_behavior_memory",
+    )
+    write_program_oracle_publication_preflight(preflight, preflight_path)
+    receipt = publish_program_oracle_preflight(
+        preflight_path=preflight_path,
+        store=cast(CoordinateStore, FakeSharedOracleStore()),
+    )
+    write_program_oracle_publication_receipt(receipt, out)
+    return out
 
 
 def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -168,6 +212,7 @@ def test_program_promote_activation_packet_blocks_without_required_evidence(
     assert payload["boundary_checks"] == {
         "mlflow_approval_authority": False,
         "oracle_promotion_authority": False,
+        "oracle_publication_activation_authority": False,
         "jury_promotion_authority": False,
         "dspx_activation_authority": False,
         "requires_domain_governing_body": True,
@@ -250,6 +295,155 @@ def test_program_promote_activation_packet_dogfoods_review_chain_without_activat
     }
     assert _file_hashes(program_root) == before_hashes
     assert not (program_root / "activation_packet.json").exists()
+
+
+def test_program_promote_activation_packet_includes_oracle_publication_ref_as_evidence_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, jury_path, review_path, decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    publication_ref = payload["evidence"]["oracle_publication_receipt"]
+    assert publication_ref["path"] == str(receipt_path.resolve())
+    assert publication_ref["schema_version"] == (
+        "program-oracle-shared-publication-receipt-v1"
+    )
+    assert publication_ref["publication_id"].startswith("prog-oracle-pub-")
+    assert publication_ref["publication_label"] == "retained"
+    assert publication_ref["evidence_only"] is True
+    assert publication_ref["activation_authority"] is False
+    assert publication_ref["promotion_authority"] is False
+    assert (
+        payload["boundary_checks"]["oracle_publication_activation_authority"] is False
+    )
+    assert payload["status"] == "blocked"
+    assert payload["missing_required_evidence"] == ["decision_outcome_not_promote"]
+    assert payload["effect"]["production_activation_applied"] is False
+    assert payload["non_authority"]["oracle_promotion"] is False
+
+
+def test_program_promote_activation_packet_publication_ref_cannot_approve_activation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["evidence"]["oracle_publication_receipt"]["evidence_only"] is True
+    assert payload["status"] == "blocked"
+    assert "oracle_report" in payload["missing_required_evidence"]
+    assert "jury_results" in payload["missing_required_evidence"]
+    assert "refined_promotion_review" in payload["missing_required_evidence"]
+    assert "rollout_owner" in payload["missing_required_evidence"]
+    assert "rollback_plan" in payload["missing_required_evidence"]
+    assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_rejects_publication_ref_authority_widening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["effect"]["promotion_state_changed"] = True
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "promotion_state_changed false" in result.output
 
 
 def test_program_promote_activation_packet_requires_rollout_owner_before_rollout(

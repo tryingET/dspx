@@ -206,6 +206,18 @@ uv run -q python -m dspx.cli.dspx oracle program-evidence publish \
 
 The publish command writes one idempotent shared Oracle coordinate record and a local `program-oracle-shared-publication-receipt-v1` receipt. The receipt is evidence only: it records `shared_oracle_mutated: true` while still recording `ak_called: false`, `governance_mutated: false`, and `promotion_state_changed: false`.
 
+You can cite that receipt in candidate-state and activation evidence packets without granting it promotion authority:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote status \
+  --manifest "$TD/program-loop/manifest.json" \
+  --oracle-publication-receipt "$TD/program-loop/program_oracle_publication_receipt.json" \
+  --out "$TD/program-loop/program_candidate_state.json" \
+  --json
+```
+
+For activation packets, the same `--oracle-publication-receipt` flag adds an evidence ref only. It cannot satisfy the owning-domain decision, canonical binding, rollout owner, or rollback plan gates.
+
 ## 2. Generate the program candidate assembly
 
 ```bash

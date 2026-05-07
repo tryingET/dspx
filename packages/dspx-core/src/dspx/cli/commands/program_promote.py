@@ -225,6 +225,11 @@ def activation_packet(
         "--promotion-plan",
         help="Optional program-promotion-plan-v1 JSON",
     ),
+    oracle_publication_receipt: Path | None = typer.Option(
+        None,
+        "--oracle-publication-receipt",
+        help="Optional program-oracle-shared-publication-receipt-v1 JSON evidence ref",
+    ),
     canonical_binding_ref: str | None = typer.Option(
         None,
         "--canonical-binding-ref",
@@ -260,6 +265,7 @@ def activation_packet(
             review_path=review,
             decision_record_path=decision_record,
             promotion_plan_path=promotion_plan,
+            oracle_publication_receipt_path=oracle_publication_receipt,
             canonical_binding_ref=canonical_binding_ref,
             rollout_owner=rollout_owner,
             rollback_plan=rollback_plan,
@@ -337,6 +343,11 @@ def status(
         "--export-preflight",
         help="Optional program-external-authority-export-preflight-v1 JSON",
     ),
+    oracle_publication_receipt: Path | None = typer.Option(
+        None,
+        "--oracle-publication-receipt",
+        help="Optional program-oracle-shared-publication-receipt-v1 JSON evidence ref",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print state JSON"),
 ) -> None:
     """Summarize the local truth state for one program candidate."""
@@ -359,6 +370,7 @@ def status(
             comparison_path=comparison,
             promotion_plan_path=promotion_plan,
             export_preflight_path=export_preflight,
+            oracle_publication_receipt_path=oracle_publication_receipt,
         )
         payload = write_program_candidate_state(state, out)
     except ProgramCandidateStateError as exc:

@@ -22,6 +22,7 @@ _EXPECTED_SCHEMAS = {
     "refined_review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
     "promotion_plan": "program-promotion-plan-v1",
+    "oracle_publication_receipt": "program-oracle-shared-publication-receipt-v1",
 }
 
 _FORBIDDEN_OUTPUT_NAMES = {
@@ -235,6 +236,79 @@ def _decision_outcome(decision_record: Mapping[str, Any] | None) -> str | None:
     return outcome or None
 
 
+def _validate_oracle_publication_receipt(
+    identity: Mapping[str, Any], receipt: Mapping[str, Any] | None
+) -> None:
+    if receipt is None:
+        return
+    if receipt.get("status") != "published":
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt status must be published"
+        )
+    _validate_artifact_identity(
+        identity,
+        receipt,
+        label="oracle_publication_receipt",
+    )
+    effect = _safe_mapping(receipt.get("effect"))
+    if effect.get("shared_oracle_mutated") is not True:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt must record shared_oracle_mutated true"
+        )
+    for key in (
+        "ak_called",
+        "governance_mutated",
+        "mlflow_mutated",
+        "program_files_mutated",
+        "promotion_state_changed",
+    ):
+        if effect.get(key) is not False:
+            raise ProgramActivationPacketError(
+                f"oracle_publication_receipt must record {key} false"
+            )
+    non_authority = _safe_mapping(receipt.get("non_authority"))
+    invalid = [
+        key
+        for key in (
+            "oracle_authority",
+            "promotion_authority",
+            "governance_authority",
+            "agent_kernel_mutation",
+            "winner_selection",
+            "automatic_promotion",
+        )
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt widens non-authority flags: "
+            + ", ".join(invalid)
+        )
+
+
+def _oracle_publication_ref(
+    receipt_ref: dict[str, Any] | None,
+    receipt: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if receipt_ref is None or receipt is None:
+        return None
+    publication = _safe_mapping(receipt.get("publication"))
+    effect = _safe_mapping(receipt.get("effect"))
+    return {
+        **receipt_ref,
+        "publication_id": receipt.get("publication_id"),
+        "run_id": receipt.get("run_id"),
+        "publication_label": publication.get("publication_label"),
+        "publication_label_class": publication.get("publication_label_class"),
+        "authority_ref": publication.get("authority_ref"),
+        "retention_class": publication.get("retention_class"),
+        "evidence_only": True,
+        "activation_authority": False,
+        "promotion_authority": False,
+        "shared_oracle_mutated": effect.get("shared_oracle_mutated") is True,
+    }
+
+
 def _status_and_missing(
     *,
     behavior_refs: list[dict[str, Any]],
@@ -287,6 +361,7 @@ def build_generated_program_activation_packet(
     review_path: Path | None = None,
     decision_record_path: Path | None = None,
     promotion_plan_path: Path | None = None,
+    oracle_publication_receipt_path: Path | None = None,
     canonical_binding_ref: str | None = None,
     rollout_owner: str | None = None,
     rollback_plan: str | None = None,
@@ -338,11 +413,18 @@ def build_generated_program_activation_packet(
         promotion_plan_path,
         label="promotion_plan",
     )
+    oracle_publication_receipt, oracle_publication_receipt_ref = (
+        _load_optional_artifact(
+            oracle_publication_receipt_path,
+            label="oracle_publication_receipt",
+        )
+    )
 
     _validate_artifact_identity(identity, jury_results, label="jury_results")
     _validate_artifact_identity(identity, refined_review, label="refined_review")
     _validate_artifact_identity(identity, decision_record, label="decision_record")
     _validate_artifact_identity(identity, promotion_plan, label="promotion_plan")
+    _validate_oracle_publication_receipt(identity, oracle_publication_receipt)
 
     behavior_refs = _behavior_refs(root)
     receipt = _receipt_ref(manifest_path)
@@ -384,6 +466,10 @@ def build_generated_program_activation_packet(
             "refined_review": review_ref,
             "decision_record": decision_ref,
             "promotion_plan": promotion_plan_ref,
+            "oracle_publication_receipt": _oracle_publication_ref(
+                oracle_publication_receipt_ref,
+                oracle_publication_receipt,
+            ),
         },
         "decision": {
             "outcome": _decision_outcome(decision_record),
@@ -400,6 +486,7 @@ def build_generated_program_activation_packet(
         "boundary_checks": {
             "mlflow_approval_authority": False,
             "oracle_promotion_authority": False,
+            "oracle_publication_activation_authority": False,
             "jury_promotion_authority": False,
             "dspx_activation_authority": False,
             "requires_domain_governing_body": True,
