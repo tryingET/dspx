@@ -1986,6 +1986,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-07"
+        },
+        {
+          "id": "AK-TASK-2543",
+          "title": "Advance Oracle evidence publication RFC through ADR workflow",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Advance Oracle evidence publication RFC through ADR workflow (task #2543)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
