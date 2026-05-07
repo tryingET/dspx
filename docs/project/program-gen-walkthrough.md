@@ -195,6 +195,17 @@ uv run -q python -m dspx.cli.dspx oracle program-evidence publish-preflight \
 
 The preflight output is a `program-oracle-shared-publication-preflight-v1` packet. It computes a stable publication id, validates non-authority flags and custody fields, redacts backend secret posture, and records `shared_oracle_mutated: false`.
 
+When a shared Oracle Postgres/pgvector backend is explicitly configured and you intend to publish the curated empirical record, run the standalone publish command. This is never automatic `program-loop` behavior:
+
+```bash
+uv run -q python -m dspx.cli.dspx oracle program-evidence publish \
+  --preflight "$TD/program-loop/program_oracle_publication_preflight.json" \
+  --receipt-out "$TD/program-loop/program_oracle_publication_receipt.json" \
+  --json
+```
+
+The publish command writes one idempotent shared Oracle coordinate record and a local `program-oracle-shared-publication-receipt-v1` receipt. The receipt is evidence only: it records `shared_oracle_mutated: true` while still recording `ak_called: false`, `governance_mutated: false`, and `promotion_state_changed: false`.
+
 ## 2. Generate the program candidate assembly
 
 ```bash

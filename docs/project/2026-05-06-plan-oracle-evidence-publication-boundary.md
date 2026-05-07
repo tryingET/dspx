@@ -18,6 +18,12 @@ Proceed in phases. Do not jump directly from ADR to shared Oracle writes.
 
 The first slice must be a local preflight packet that reads candidate artifacts, validates the future publication boundary, and writes no shared records.
 
+Status as of 2026-05-07:
+
+- Phase 1 local preflight packet is implemented by `dspx oracle program-evidence publish-preflight`.
+- Phase 2 explicit publish command is implemented by `dspx oracle program-evidence publish`; it is standalone, idempotent, and fails closed without an explicitly configured shared Postgres/pgvector backend.
+- Live shared-backend rollout remains gated by the DS1621/infra contract and optional live tests; no `program-loop` shared-publish convenience is enabled.
+
 ## Phase 1 — Publication preflight only
 
 Goal: prove DSPx can decide whether a candidate artifact set is eligible for shared Oracle publication without mutating shared Oracle, AK, governance, MLflow, or generated candidate files.
@@ -127,17 +133,16 @@ Exit gate:
 
 ## Next task to create
 
-Recommended next AK task:
+Recommended next AK task after explicit shared publication:
 
 ```text
-Add Oracle program-evidence publication preflight packet
+Expose shared Oracle publication refs as candidate-state evidence only
 ```
 
 Bound it to DSPx only:
 
-- service module for preflight packet;
-- CLI command under `oracle program-evidence`;
-- focused tests;
-- docs update for the preflight command.
+- candidate-state/report surfaces that can cite a publication receipt/ref;
+- activation-packet evidence references if already locally available;
+- negative tests proving publication refs cannot approve activation, select winners, deploy, or satisfy canonical binding / rollout owner / rollback plan gates.
 
-Do not implement shared Postgres publication in that first task.
+Do not add `program-loop --publish-to-shared` until Phase 3 evidence-ref semantics are proven.

@@ -147,6 +147,43 @@ def oracle_program_evidence_publish_preflight(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@program_evidence_app.command("publish")
+def oracle_program_evidence_publish(
+    preflight: Path = typer.Option(
+        ...,
+        "--preflight",
+        help="Path to program-oracle-shared-publication-preflight-v1 JSON",
+    ),
+    receipt_out: Path = typer.Option(
+        ...,
+        "--receipt-out",
+        help="Path where the local shared-publication receipt should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print receipt JSON"),
+) -> None:
+    """Explicitly publish preflighted program evidence to shared Oracle."""
+    from dspx.services.program_oracle_publication import (
+        ProgramOraclePublicationError,
+        publish_program_oracle_preflight,
+        write_program_oracle_publication_receipt,
+    )
+
+    try:
+        receipt = publish_program_oracle_preflight(preflight_path=preflight)
+        payload = write_program_oracle_publication_receipt(receipt, receipt_out)
+    except ProgramOraclePublicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program Oracle publication failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(receipt_out.expanduser().resolve()))
+
+
 @program_evidence_app.command("report")
 def oracle_program_evidence_report(
     index_path: Optional[Path] = typer.Option(
