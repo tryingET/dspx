@@ -2094,14 +2094,15 @@
         {
           "id": "AK-TASK-2568",
           "title": "Add Oracle program-evidence publication preflight packet",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Add Oracle program-evidence publication preflight packet (task #2568)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
