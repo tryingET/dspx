@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-06",
+  "updated_at": "2026-05-07",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -1973,6 +1973,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-06"
+        },
+        {
+          "id": "AK-TASK-2542",
+          "title": "Draft Oracle evidence publication boundary RFC",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Draft Oracle evidence publication boundary RFC (task #2542)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
