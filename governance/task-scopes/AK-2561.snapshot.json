@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-07T03:43:36.984551642+00:00",
+  "task_id": 2561,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/adr/20260506-oracle-evidence-publication-boundary.md",
+      "docs/adr/README.md",
+      "docs/project/2026-05-06-evidence-oracle-evidence-publication-boundary.md",
+      "docs/project/2026-05-06-plan-oracle-evidence-publication-boundary.md",
+      "docs/project/2026-05-06-problem-oracle-evidence-publication-boundary.md",
+      "docs/project/2026-05-06-validation-rollout-rollback-oracle-evidence-publication-boundary.md",
+      "docs/rfc/RFC-DSPX-ORACLE-20260506-evidence-publication-boundary.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/adr/20260506-oracle-evidence-publication-boundary.md",
+      "docs/adr/README.md",
+      "docs/project/2026-05-06-evidence-oracle-evidence-publication-boundary.md",
+      "docs/project/2026-05-06-plan-oracle-evidence-publication-boundary.md",
+      "docs/project/2026-05-06-validation-rollout-rollback-oracle-evidence-publication-boundary.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

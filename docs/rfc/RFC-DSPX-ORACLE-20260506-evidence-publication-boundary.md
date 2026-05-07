@@ -12,7 +12,7 @@ type: "rfc"
 ## 0) Metadata
 
 - RFC ID: `RFC-DSPX-ORACLE-20260506-evidence-publication-boundary`
-- Status: `draft; revised after review_outcome=revise_rfc`
+- Status: `review; accepted by ADR 20260506-oracle-evidence-publication-boundary`
 - Owner: `DSPx core`
 - Reviewers: `DSPx core reviewers`, `Agent Kernel/governance liaison`, `softwareco/infra DS1621 operator`
 - Created: `2026-05-06`
@@ -21,6 +21,12 @@ type: "rfc"
   - `docs/rfc/RFC-DSPX-ORACLE-20260505-shared-coordinate-backend.md`
   - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
   - `docs/project/2026-05-06-review-oracle-evidence-publication-boundary-many-greats.md`
+  - `docs/project/2026-05-06-review-oracle-evidence-publication-boundary-rereview.md`
+  - `docs/adr/20260506-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-problem-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-evidence-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-plan-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-validation-rollout-rollback-oracle-evidence-publication-boundary.md`
   - `docs/project/generated-program-activation-boundary.md`
   - `docs/project/program-gen-walkthrough.md`
   - `docs/project/product_posture.md`
@@ -134,7 +140,7 @@ This RFC defines the publication boundary: how curated Oracle-readable evidence 
 ## 5) Decision
 
 - Chosen target: `Option C`.
-- Decision status: `draft revised after initial review; requires fresh re-review before ADR`.
+- Decision status: `accepted by ADR 20260506-oracle-evidence-publication-boundary after revise_rfc and re-review`.
 
 A dedicated Oracle Postgres DB makes sense because it is a shared empirical coordinate memory with vector/search workload, not a second society authority database.
 
@@ -456,8 +462,8 @@ Future implementation tests:
 - [x] RFC draft created.
 - [x] Initial adversarial review completed with outcome `revise_rfc`.
 - [x] RFC revised for redaction status, publisher responsibility, authority-mirror labels, retention/retraction, and preflight-only first implementation.
-- [ ] Fresh review attempt completed against the revised RFC.
-- [ ] AK/governance liaison confirms no authority duplication.
-- [ ] DS1621 infra owner confirms shared-publication operational assumptions.
-- [ ] Decision recorded: amend existing ADR or create a new ADR.
+- [x] Fresh review attempt completed against the revised RFC.
+- [x] Decision recorded as `docs/adr/20260506-oracle-evidence-publication-boundary.md`.
+- [ ] AK/governance liaison confirms no authority duplication beyond the ADR/review evidence.
+- [ ] DS1621 infra owner confirms shared-publication operational assumptions before shared writes.
 - [ ] Phase 1 publication preflight task scoped.
