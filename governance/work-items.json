@@ -2068,7 +2068,7 @@
         {
           "id": "AK-TASK-2566",
           "title": "Retry Codex stream errors in program-gen behavior harness",
-          "state": "queued",
+          "state": "doing",
           "tasks": [
             {
               "text": "Retry Codex stream errors in program-gen behavior harness (task #2566)",
