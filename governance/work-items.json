@@ -2159,14 +2159,15 @@
         {
           "id": "AK-TASK-2589",
           "title": "Deep-review Oracle publication implementation phases",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Deep-review Oracle publication implementation phases (task #2589)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
