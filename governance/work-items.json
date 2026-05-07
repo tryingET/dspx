@@ -2051,6 +2051,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-07"
+        },
+        {
+          "id": "AK-TASK-2561",
+          "title": "Record Oracle publication boundary ADR pack",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Record Oracle publication boundary ADR pack (task #2561)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
+        },
+        {
+          "id": "AK-TASK-2566",
+          "title": "Retry Codex stream errors in program-gen behavior harness",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Retry Codex stream errors in program-gen behavior harness (task #2566)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
