@@ -23,6 +23,7 @@ Status as of 2026-05-07:
 - Phase 1 local preflight packet is implemented by `dspx oracle program-evidence publish-preflight`.
 - Phase 2 explicit publish command is implemented by `dspx oracle program-evidence publish`; it is standalone, idempotent, and fails closed without an explicitly configured shared Postgres/pgvector backend.
 - Phase 3 evidence-ref surfacing is implemented for `program-promote status` and `program-promote activation-packet` through `--oracle-publication-receipt`; publication refs remain evidence only and cannot approve activation.
+- A DSPx-owner adapter preflight is implemented for `pi-autoresearch` packets via `dspx oracle autoresearch-evidence publish-preflight`; it validates `autoresearch.oracle_evidence.v1` as empirical memory input and writes no shared Oracle, AK, governance, MLflow, or program files.
 - Live shared-backend rollout remains gated by the DS1621/infra contract and optional live tests; no `program-loop` shared-publish convenience is enabled.
 
 ## Phase 1 — Publication preflight only
@@ -132,9 +133,36 @@ Exit gate:
 - no shared mutation happens without explicit flag;
 - local dogfood behavior remains service-free by default.
 
+## pi-autoresearch adapter preflight
+
+Goal: let DSPx, not Pi, be the owner surface that validates `autoresearch.oracle_evidence.v1` packets before any future shared Oracle publication.
+
+Implemented command:
+
+```bash
+dspx oracle autoresearch-evidence publish-preflight \
+  --packet autoresearch_oracle_evidence.json \
+  --target shared-postgres \
+  --publication-label retained \
+  --publisher-id pi-session-... \
+  --publisher-role operator \
+  --publisher-assertion "share this bounded campaign behavior evidence for future Oracle retrieval" \
+  --redaction-status checked \
+  --retention-class retained_behavior_memory \
+  --out autoresearch_oracle_publication_preflight.json \
+  --json
+```
+
+Boundary:
+
+- validates packet kind, adapter-contract version, run-level record shape, non-authority flags, source closeout refs, publisher fields, label, redaction status, retention class, and redacted backend posture;
+- computes a stable idempotency key over packet and record hashes;
+- writes `autoresearch-oracle-shared-publication-preflight-v1` locally;
+- does not contact or mutate shared Oracle Postgres, candidate-local `coordinates.db`, AK, governance, MLflow, or program files.
+
 ## Next task to create
 
-Recommended next AK task after evidence-ref surfacing:
+Recommended next AK task after evidence-ref and adapter-preflight surfacing:
 
 ```text
 Add program-loop shared publication opt-in

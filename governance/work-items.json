@@ -2129,6 +2129,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-07"
+        },
+        {
+          "id": "AK-TASK-2584",
+          "title": "Add DSPx preflight for pi-autoresearch Oracle-ready evidence packets",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add DSPx preflight for pi-autoresearch Oracle-ready evidence packets (task #2584)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
+        },
+        {
+          "id": "AK-TASK-2585",
+          "title": "Add program-loop shared publication opt-in",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Add program-loop shared publication opt-in (task #2585)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

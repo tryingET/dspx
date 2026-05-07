@@ -23,10 +23,16 @@ if TYPE_CHECKING:
 
 app = typer.Typer(no_args_is_help=True)
 program_evidence_app = typer.Typer(no_args_is_help=True)
+autoresearch_evidence_app = typer.Typer(no_args_is_help=True)
 app.add_typer(
     program_evidence_app,
     name="program-evidence",
     help="Program Oracle evidence reports",
+)
+app.add_typer(
+    autoresearch_evidence_app,
+    name="autoresearch-evidence",
+    help="pi-autoresearch Oracle-ready evidence preflight",
 )
 
 
@@ -56,6 +62,96 @@ def oracle_backend_status(
     )
     typer.echo(status["summary"])
     typer.echo(f"Next: {status['next_required_action']}")
+
+
+@autoresearch_evidence_app.command("publish-preflight")
+def oracle_autoresearch_evidence_publish_preflight(
+    packet: Path = typer.Option(
+        ...,
+        "--packet",
+        help="Path to autoresearch.oracle_evidence.v1 JSON packet",
+    ),
+    target: str = typer.Option(
+        ...,
+        "--target",
+        help="Intended shared Oracle target, e.g. shared-postgres",
+    ),
+    publication_label: str = typer.Option(
+        ...,
+        "--publication-label",
+        help="Publication label such as retained, rejected, or request_more_evidence",
+    ),
+    publisher_id: str = typer.Option(
+        ...,
+        "--publisher-id",
+        help="Declared publisher/operator/session identity",
+    ),
+    publisher_role: str = typer.Option(
+        ...,
+        "--publisher-role",
+        help="Declared publisher role such as operator or dspx_tooling",
+    ),
+    publisher_assertion: str = typer.Option(
+        ...,
+        "--publisher-assertion",
+        help="Publisher custody assertion for the shared empirical publication request",
+    ),
+    redaction_status: str = typer.Option(
+        ...,
+        "--redaction-status",
+        help="Redaction posture: checked, not_required, redacted, unknown, or contains_sensitive_material",
+    ),
+    retention_class: str = typer.Option(
+        ...,
+        "--retention-class",
+        help="Retention class such as retained_behavior_memory",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local publication preflight packet should be written",
+    ),
+    authority_ref: str | None = typer.Option(
+        None,
+        "--authority-ref",
+        help="Required for authority-mirror labels; opaque ref only, not authority mutation",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print preflight JSON"),
+) -> None:
+    """Write a local preflight packet for pi-autoresearch Oracle evidence."""
+    from dspx.services.program_oracle_autoresearch import (
+        AutoresearchOraclePublicationPreflightError,
+        build_autoresearch_oracle_publication_preflight,
+        write_autoresearch_oracle_publication_preflight,
+    )
+
+    try:
+        preflight = build_autoresearch_oracle_publication_preflight(
+            packet_path=packet,
+            target=target,
+            publication_label=publication_label,
+            publisher_id=publisher_id,
+            publisher_role=publisher_role,
+            publisher_assertion=publisher_assertion,
+            redaction_status=redaction_status,
+            retention_class=retention_class,
+            authority_ref=authority_ref,
+        )
+        payload = write_autoresearch_oracle_publication_preflight(preflight, out)
+    except AutoresearchOraclePublicationPreflightError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: autoresearch Oracle publication preflight failed: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
 
 
 @program_evidence_app.command("publish-preflight")

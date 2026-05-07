@@ -195,6 +195,24 @@ uv run -q python -m dspx.cli.dspx oracle program-evidence publish-preflight \
 
 The preflight output is a `program-oracle-shared-publication-preflight-v1` packet. It computes a stable publication id, validates non-authority flags and custody fields, redacts backend secret posture, and records `shared_oracle_mutated: false`.
 
+DSPx also owns the adapter preflight for `pi-autoresearch` campaign evidence packets. If Pi emits an `autoresearch.oracle_evidence.v1` JSON packet, validate it here before any future shared Oracle publication:
+
+```bash
+uv run -q python -m dspx.cli.dspx oracle autoresearch-evidence publish-preflight \
+  --packet "$TD/autoresearch_oracle_evidence.json" \
+  --target shared-postgres \
+  --publication-label retained \
+  --publisher-id local-operator \
+  --publisher-role operator \
+  --publisher-assertion "share bounded campaign behavior evidence for future Oracle retrieval" \
+  --redaction-status checked \
+  --retention-class retained_behavior_memory \
+  --out "$TD/autoresearch_oracle_publication_preflight.json" \
+  --json
+```
+
+That adapter preflight writes `autoresearch-oracle-shared-publication-preflight-v1` locally, validates the `pi-autoresearch` packet/record non-authority flags, and records that no shared Oracle, local `coordinates.db`, AK, governance, MLflow, or program files were mutated.
+
 When a shared Oracle Postgres/pgvector backend is explicitly configured and you intend to publish the curated empirical record, run the standalone publish command. This is never automatic `program-loop` behavior:
 
 ```bash
