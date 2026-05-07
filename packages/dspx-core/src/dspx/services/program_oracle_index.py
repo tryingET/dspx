@@ -255,13 +255,15 @@ def index_program_oracle_evidence_path(
                 }
             )
 
+    resolved_index_path = getattr(index, "db_path", index_path or "")
+
     return {
         "scanned": scanned,
         "indexed": indexed,
         "skipped": skipped,
         "errors": errors,
         "error_details": error_details,
-        "index_path": str(index.db_path),
+        "index_path": str(resolved_index_path),
         "index_stats": index.stats(),
         "backend": engine.backend,
         "dimension": engine.dimension,

@@ -17,6 +17,47 @@ from dspx.services.run_replay_service import check_run_receipt
 runner = CliRunner()
 
 
+def test_behavior_results_retry_detects_codex_stream_errors() -> None:
+    payload = {
+        "summary": {"status": "error", "total": 2, "error": 2},
+        "examples": [
+            {
+                "status": "error",
+                "error": {
+                    "message": 'litellm.BadRequestError: OpenAIException - {"detail":"Stream must be set to true"}'
+                },
+            },
+            {
+                "status": "error",
+                "error": {"message": "OpenAIException - stream must be set to true"},
+            },
+        ],
+    }
+
+    assert program_service._behavior_results_has_retryable_codex_stream_error(payload)
+
+
+def test_behavior_results_retry_rejects_mixed_or_non_codex_errors() -> None:
+    assert not program_service._behavior_results_has_retryable_codex_stream_error(
+        {
+            "summary": {"status": "error"},
+            "examples": [
+                {"status": "error", "error": {"message": "Stream must be set to true"}},
+                {
+                    "status": "failed",
+                    "error": {"message": "Stream must be set to true"},
+                },
+            ],
+        }
+    )
+    assert not program_service._behavior_results_has_retryable_codex_stream_error(
+        {
+            "summary": {"status": "error"},
+            "examples": [{"status": "error", "error": {"message": "rate limit"}}],
+        }
+    )
+
+
 def test_program_service_materializes_candidate_assembly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
