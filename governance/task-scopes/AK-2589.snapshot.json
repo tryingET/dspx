@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-07T17:20:19.580359693+00:00",
+  "task_id": 2589,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-07-review-oracle-publication-phases-deep.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-07-review-oracle-publication-phases-deep.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
