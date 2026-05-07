@@ -12,7 +12,7 @@ type: "rfc"
 ## 0) Metadata
 
 - RFC ID: `RFC-DSPX-ORACLE-20260506-evidence-publication-boundary`
-- Status: `draft`
+- Status: `review; accepted by ADR 20260506-oracle-evidence-publication-boundary`
 - Owner: `DSPx core`
 - Reviewers: `DSPx core reviewers`, `Agent Kernel/governance liaison`, `softwareco/infra DS1621 operator`
 - Created: `2026-05-06`
@@ -20,6 +20,12 @@ type: "rfc"
 - Related docs:
   - `docs/rfc/RFC-DSPX-ORACLE-20260505-shared-coordinate-backend.md`
   - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
+  - `docs/adr/20260506-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-problem-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-evidence-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-review-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-plan-oracle-evidence-publication-boundary.md`
+  - `docs/project/2026-05-06-validation-rollout-rollback-oracle-evidence-publication-boundary.md`
   - `docs/project/generated-program-activation-boundary.md`
   - `docs/project/program-gen-walkthrough.md`
   - `docs/project/product_posture.md`
