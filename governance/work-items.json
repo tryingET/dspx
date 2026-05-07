@@ -1999,6 +1999,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-07"
+        },
+        {
+          "id": "AK-TASK-2545",
+          "title": "Rollback premature Oracle publication ADR workflow",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Rollback premature Oracle publication ADR workflow (task #2545)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

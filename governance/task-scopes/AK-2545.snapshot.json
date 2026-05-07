@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "exported_at": "2026-05-07T02:14:04.319424940+00:00",
-  "task_id": 2543,
-  "entity_version": 3,
+  "exported_at": "2026-05-07T02:31:59.441385920+00:00",
+  "task_id": 2545,
+  "entity_version": 2,
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
@@ -18,11 +18,8 @@
       "governance/work-items.json"
     ],
     "required_paths": [
-      "docs/adr/20260506-oracle-evidence-publication-boundary.md",
-      "docs/adr/README.md",
-      "docs/project/2026-05-06-plan-oracle-evidence-publication-boundary.md",
-      "docs/project/2026-05-06-review-oracle-evidence-publication-boundary.md",
-      "docs/project/2026-05-06-validation-rollout-rollback-oracle-evidence-publication-boundary.md"
+      "docs/rfc/RFC-DSPX-ORACLE-20260506-evidence-publication-boundary.md",
+      "governance/work-items.json"
     ],
     "forbidden_paths": []
   },
