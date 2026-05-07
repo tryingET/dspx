@@ -2042,14 +2042,15 @@
         {
           "id": "AK-TASK-2560",
           "title": "Re-review revised Oracle publication RFC",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Re-review revised Oracle publication RFC (task #2560)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-07"
         }
       ]
     }
