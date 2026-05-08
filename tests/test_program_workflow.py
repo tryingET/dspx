@@ -204,6 +204,11 @@ def test_program_loop_shared_publication_opt_in_writes_receipt_as_evidence_only(
     outdir = tmp_path / "candidate"
     _write_intent(intent_path)
     store = FakeSharedOracleStore()
+    monkeypatch.setenv("DSPX_ORACLE_STORE", "postgres_pgvector")
+    monkeypatch.setenv(
+        "DSPX_ORACLE_DATABASE_URL",
+        "postgresql://dspx_oracle:secret@example.invalid:55432/dspx_oracle",
+    )
 
     payload = run_program_loop_from_intent_path(
         intent_path,
@@ -228,6 +233,9 @@ def test_program_loop_shared_publication_opt_in_writes_receipt_as_evidence_only(
     assert payload["effect"]["oracle_publication_receipt_written"] is True
     assert payload["effect"]["shared_oracle_mutated"] is True
     assert payload["effect"]["ak_called"] is False
+    oracle_index_result = payload["steps"]["oracle_index"]["result"]
+    assert Path(oracle_index_result["index_path"]).exists()
+    assert "database_url" not in oracle_index_result["index_stats"]
     assert payload["effect"]["governance_mutated"] is False
     assert payload["effect"]["promotion_applied"] is False
     assert len(store.records) == 1

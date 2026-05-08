@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-08T12:18:14.691632507+00:00",
+  "task_id": 2615,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_oracle_index.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_report.py",
+      "tests/test_program_workflow.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_oracle_index.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_report.py",
+      "tests/test_program_workflow.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

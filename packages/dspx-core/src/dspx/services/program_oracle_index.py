@@ -211,10 +211,15 @@ def index_program_oracle_evidence_path(
     index_path: Path | None = None,
     limit: int | None = None,
 ) -> dict[str, Any]:
-    """Index program-gen Oracle-readable evidence into a local CoordinateIndex."""
+    """Index program-gen Oracle-readable evidence into a local CoordinateIndex.
+
+    Program evidence indexing is candidate-local by contract. Shared publication
+    has its own explicit publish path, so ambient ``DSPX_ORACLE_STORE`` must not
+    redirect this local indexing helper into a shared backend.
+    """
 
     engine = get_embedding_engine()
-    index = open_coordinate_store(db_path=index_path)
+    index = open_coordinate_store(store="sqlite", db_path=index_path)
     scanned = 0
     indexed = 0
     skipped = 0

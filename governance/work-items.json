@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-07",
+  "updated_at": "2026-05-08",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -2194,6 +2194,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-07"
+        },
+        {
+          "id": "AK-TASK-2615",
+          "title": "Fix program-loop local Oracle index isolation before backend dogfood",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Fix program-loop local Oracle index isolation before backend dogfood (task #2615)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-08"
         }
       ]
     }

@@ -82,7 +82,7 @@ def load_program_oracle_evidence_embeddings(
     db_path = _index_path_for_report(index_path)
     if not db_path.exists():
         return []
-    index = open_coordinate_store(db_path=db_path)
+    index = open_coordinate_store(store="sqlite", db_path=db_path)
     embeddings = index.list_all(run_kind=PROGRAM_ORACLE_RUN_KIND, limit=limit)
     return [emb for emb in embeddings if _metadata_has_expected_shape(emb.metadata)]
 
