@@ -20,6 +20,7 @@ It is deliberately local-first and non-authoritative:
 - does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run; `program-loop` uses a candidate-local Oracle index by default and reports that mutation explicitly
 - can optionally materialize deterministic local dataset split evidence when intent declares `dataset` or `datasets`
 - `program-gen` does not run a model jury or promotion adjudicator; explicit local deterministic jury execution is a separate `program-promote jury` sidecar command
+- target-sensitive meta-adjudication orchestration is proposed separately in `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md`; it is not part of the current `program-gen` or `program-loop` behavior
 - does not rank, select winners, prune, promote, run GEPA/search, export authority, or mutate governance state
 
 The goal is to see the current artifact contract clearly, not to claim a final product loop.
