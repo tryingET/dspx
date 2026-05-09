@@ -546,6 +546,118 @@ def program_loop(
                 typer.echo(f"- {item}")
 
 
+@app.command("program-run")
+def program_run(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to an existing generated program manifest.json",
+    ),
+    inputs: Path = typer.Option(
+        ...,
+        "--inputs",
+        help="JSON object, or {inputs: {...}}, for the generated program's declared inputs",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        "-o",
+        help="Directory where the runtime episode sidecars are written",
+    ),
+    contract_mode: str = typer.Option(
+        "none",
+        "--contract-mode",
+        help="Runtime contract gates: none or pdf_transition_review",
+    ),
+    skip_oracle_index: bool = typer.Option(
+        False,
+        "--skip-oracle-index",
+        help="Skip local runtime-episode Oracle indexing/reporting",
+    ),
+    publication_preflight_out: Optional[Path] = typer.Option(
+        None,
+        "--publication-preflight-out",
+        help="Optional shared-publication preflight sidecar path; no shared write is performed",
+    ),
+    publication_target: Optional[str] = typer.Option(
+        None,
+        "--publication-target",
+        help="Required with --publication-preflight-out: shared Oracle target",
+    ),
+    publication_label: Optional[str] = typer.Option(
+        None,
+        "--publication-label",
+        help="Required with --publication-preflight-out: publication label such as retained",
+    ),
+    publisher_id: Optional[str] = typer.Option(
+        None,
+        "--publisher-id",
+        help="Required with --publication-preflight-out: declared publisher/session identity",
+    ),
+    publisher_role: Optional[str] = typer.Option(
+        None,
+        "--publisher-role",
+        help="Required with --publication-preflight-out: publisher role",
+    ),
+    publisher_assertion: Optional[str] = typer.Option(
+        None,
+        "--publisher-assertion",
+        help="Required with --publication-preflight-out: custody assertion",
+    ),
+    redaction_status: Optional[str] = typer.Option(
+        None,
+        "--redaction-status",
+        help="Required with --publication-preflight-out: checked, not_required, or redacted",
+    ),
+    retention_class: Optional[str] = typer.Option(
+        None,
+        "--retention-class",
+        help="Required with --publication-preflight-out: retention class",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print runtime workflow JSON"),
+) -> None:
+    """Run an existing generated program on explicit runtime inputs."""
+    from dspx.services.program_runtime_episode import run_program_runtime_episode
+
+    if not manifest.exists():
+        typer.echo(f"Error: manifest file not found: {manifest}", err=True)
+        raise typer.Exit(code=2)
+    if not inputs.exists():
+        typer.echo(f"Error: inputs file not found: {inputs}", err=True)
+        raise typer.Exit(code=2)
+
+    ensure_env(None)
+
+    try:
+        payload = run_program_runtime_episode(
+            manifest_path=manifest,
+            inputs_path=inputs,
+            outdir=outdir,
+            contract_mode=contract_mode,
+            skip_oracle_index=skip_oracle_index,
+            publication_preflight_out=publication_preflight_out,
+            publication_target=publication_target,
+            publication_label=publication_label,
+            publisher_id=publisher_id,
+            publisher_role=publisher_role,
+            publisher_assertion=publisher_assertion,
+            redaction_status=redaction_status,
+            retention_class=retention_class,
+        )
+    except Exception as exc:
+        typer.echo(f"Error: program runtime episode failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(payload.get("runtime_root") or outdir))
+        runtime = (payload.get("steps") or {}).get("runtime_execution") or {}
+        typer.echo(f"runtime_execution: {runtime.get('status')}")
+        report = (payload.get("steps") or {}).get("oracle_report") or {}
+        typer.echo(f"oracle_report: {report.get('status')}")
+
+
 @app.command("codegen")
 def codegen(
     spec: str = typer.Argument(..., help="Codegen task description"),

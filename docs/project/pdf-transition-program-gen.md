@@ -103,6 +103,58 @@ The first command is the DSPx/meta adjudicator deciding that the generated-progr
 
 This is separate from other DSPx/meta-adjudication sidecars such as `target_profile.json`, `meta_jury_selection.json`, `program_adjudicator_verification.json`, and `adjudication_behavior_trace.json`.
 
+## Running an existing candidate on real PDF source-package input
+
+After a candidate exists, use `program-run` to run that generated program against explicit runtime inputs without mutating the candidate manifest or canonical notes:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx program-run \
+  --manifest "$CANDIDATE/manifest.json" \
+  --inputs "$RUN_ROOT/real_pdf_input.json" \
+  --outdir "$RUN_ROOT/runtime-episode" \
+  --contract-mode pdf_transition_review \
+  --publication-preflight-out "$RUN_ROOT/runtime-episode/program_oracle_publication_preflight.real_pdf.json" \
+  --publication-target shared-postgres \
+  --publication-label retained \
+  --publisher-id pi-session \
+  --publisher-role operator \
+  --publisher-assertion 'share checked real-PDF runtime episode behavior for future Oracle retrieval and GEPA analysis; no activation or canonical note authority is granted' \
+  --redaction-status checked \
+  --retention-class retained_behavior_memory \
+  --json
+```
+
+`real_pdf_input.json` may be either a direct input-field object or `{ "inputs": { ... } }` with the generated program's declared fields:
+
+```json
+{
+  "inputs": {
+    "source_package_manifest_json": "{...}\n",
+    "marker_markdown": "# Extracted Marker markdown...",
+    "existing_wiki_index_json": "{\"schema_version\":1,\"canonical_artifacts\":[]}",
+    "declared_output_root": "transition/doc:example"
+  }
+}
+```
+
+The runtime episode writes:
+
+```text
+manifest.json                                # runtime manifest copy; source candidate manifest is not mutated
+runtime_episode.json
+runtime_inputs.json
+behavior_results.json
+oracle_evidence.json
+oracle/coordinates.db
+program_oracle_report.json
+program_oracle_publication_preflight.real_pdf.json  # optional, preflight only
+section_units_json
+...
+artifact_contract_manifest_json
+```
+
+With `--contract-mode pdf_transition_review`, the runtime fails closed unless the generated outputs preserve review-only boundaries: `canonical_mutation_performed=false`, proposal `canonical_mutation_allowed=false`, and `review_required=true`.
+
 ## What this scenario does not do
 
 It does **not**:

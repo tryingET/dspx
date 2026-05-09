@@ -2402,6 +2402,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2696",
+          "title": "Add first-class generated program runtime episode path",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add first-class generated program runtime episode path (task #2696)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

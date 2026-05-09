@@ -96,6 +96,9 @@ def _identity(payload: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _run_id(identity: Mapping[str, Any]) -> str:
+    runtime_episode_id = str(identity.get("runtime_episode_id") or "").strip()
+    if runtime_episode_id:
+        return f"program-oracle-evidence:{runtime_episode_id}"
     receipt_bundle_id = str(identity.get("receipt_bundle_id") or "").strip()
     if receipt_bundle_id:
         return f"program-oracle-evidence:{receipt_bundle_id}"

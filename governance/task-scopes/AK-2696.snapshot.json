@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-09T19:31:58.101488858+00:00",
+  "task_id": 2696,
+  "entity_version": 5,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/pdf-transition-program-gen.md",
+      "governance/task-scopes/AK-2696.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/dspx.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_index.py",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "tests/test_program_runtime_episode.py"
+    ],
+    "required_paths": [],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
