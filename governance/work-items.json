@@ -2389,6 +2389,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2691",
+          "title": "Publish delegated adjudicator trace context to Oracle",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Publish delegated adjudicator trace context to Oracle (task #2691)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

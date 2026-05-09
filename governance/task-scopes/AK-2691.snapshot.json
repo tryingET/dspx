@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-09T19:05:51.312007866+00:00",
+  "task_id": 2691,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/program-gen-walkthrough.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_adjudication_publication.py",
+      "tests/test_program_adjudication_publication.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_adjudication_publication.py",
+      "tests/test_program_adjudication_publication.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

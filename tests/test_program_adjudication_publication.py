@@ -23,6 +23,7 @@ from dspx.services.program_adjudication_publication import (
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_meta_adjudication import (
     build_program_adjudication_behavior_trace,
+    build_program_adjudicator_delegation,
     build_program_adjudicator_formation,
     build_program_adjudicator_verification,
     build_program_evidence_adjudication,
@@ -30,12 +31,17 @@ from dspx.services.program_meta_adjudication import (
     build_program_jury_verification,
     build_program_meta_jury_selection,
     write_program_adjudication_behavior_trace,
+    write_program_adjudicator_delegation,
     write_program_adjudicator_formation,
     write_program_adjudicator_verification,
     write_program_evidence_adjudication,
     write_program_jury_requirements,
     write_program_jury_verification,
     write_program_meta_jury_selection,
+)
+from dspx.services.program_promotion_decision import (
+    build_generated_program_adjudicator_decision_record,
+    write_program_promotion_decision_record,
 )
 from dspx.services.program_service import materialize_program_from_intent
 
@@ -83,6 +89,9 @@ def _materialize_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> P
                 "outputs": {"urgency": "high"},
             }
         ],
+        promotion={
+            "adjudicator": {"kind": "ai_agent", "id": "dspx_program_adjudicator_v1"}
+        },
     )
     artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
     return Path(artifact.root_path)
@@ -116,7 +125,9 @@ def _write_trace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     jury_verification_path = tmp_path / "jury_verification.json"
     formation_path = tmp_path / "program_adjudicator_formation.json"
     adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+    delegation_path = tmp_path / "program_adjudicator_delegation.json"
     adjudication_path = tmp_path / "program_evidence_adjudication.json"
+    decision_path = tmp_path / "promotion_decision_record.json"
     trace_path = tmp_path / "adjudication_behavior_trace.json"
     activation_packet_path = root / "activation_packet.json"
 
@@ -140,6 +151,11 @@ def _write_trace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     write_program_adjudicator_verification(
         adjudicator_verification, adjudicator_verification_path
     )
+    delegation = build_program_adjudicator_delegation(
+        manifest_path=root / "manifest.json",
+        adjudicator_verification_path=adjudicator_verification_path,
+    )
+    write_program_adjudicator_delegation(delegation, delegation_path)
     _write_activation_packet(activation_packet_path)
     adjudication = build_program_evidence_adjudication(
         adjudicator_verification_path=adjudicator_verification_path,
@@ -147,8 +163,15 @@ def _write_trace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         activation_packet_path=activation_packet_path,
     )
     write_program_evidence_adjudication(adjudication, adjudication_path)
+    decision = build_generated_program_adjudicator_decision_record(
+        evidence_adjudication_path=adjudication_path,
+        adjudicator_delegation_path=delegation_path,
+    )
+    write_program_promotion_decision_record(decision, decision_path)
     trace = build_program_adjudication_behavior_trace(
-        evidence_adjudication_path=adjudication_path
+        evidence_adjudication_path=adjudication_path,
+        adjudicator_delegation_path=delegation_path,
+        decision_record_path=decision_path,
     )
     write_program_adjudication_behavior_trace(trace, trace_path)
     return trace_path
@@ -267,6 +290,22 @@ def test_adjudication_trace_publish_writes_shared_record_and_receipt(
     assert record.template_version == ADJUDICATION_TRACE_PUBLICATION_RECORD_SCHEMA
     assert record.metadata["publication_label"] == "adjudication_behavior_trace"
     assert record.metadata["non_authority"]["activation_authority"] is False
+    trace_summary = record.metadata["planned_record"]["trace_summary"]
+    assert trace_summary["has_program_adjudicator_delegation"] is True
+    assert trace_summary["has_generated_program_adjudicator_decision"] is True
+    assert trace_summary["meta_adjudicator_id"] == "dspx_meta_adjudicator_v1"
+    assert trace_summary["generated_program_adjudicator_id"] == (
+        "dspx_program_adjudicator_v1"
+    )
+    assert record.metadata["judging_behavior"]["generated_program_adjudicator_id"] == (
+        "dspx_program_adjudicator_v1"
+    )
+    assert "program_adjudicator_delegation" in record.metadata["linked_artifact_refs"]
+    assert (
+        "generated_program_adjudicator_decision"
+        in record.metadata["linked_artifact_refs"]
+    )
+    assert '"path"' not in json.dumps(record.metadata["linked_artifact_refs"])
     assert receipt_path.exists()
 
 

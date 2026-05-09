@@ -179,6 +179,50 @@ def _redacted_backend_posture(target: str) -> dict[str, Any]:
     }
 
 
+def _redact_local_paths(value: object) -> Any:
+    if isinstance(value, Mapping):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key)
+            if key_text == "path":
+                path_text = str(item or "")
+                if path_text:
+                    redacted["path_sha256"] = _sha256_payload({"path": path_text})
+                    redacted["file_name"] = Path(path_text).name
+                continue
+            redacted[key_text] = _redact_local_paths(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_local_paths(item) for item in value]
+    return value
+
+
+def _trace_publication_summary(trace: Mapping[str, Any]) -> dict[str, Any]:
+    judging = _safe_mapping(trace.get("judging_behavior"))
+    events = [
+        str(_safe_mapping(event).get("event"))
+        for event in _safe_list(trace.get("trace_events"))
+        if _safe_mapping(event).get("event")
+    ]
+    linked = _safe_mapping(trace.get("linked_artifacts"))
+    return {
+        "trace_event_names": events,
+        "has_program_adjudicator_delegation": bool(
+            linked.get("program_adjudicator_delegation")
+        ),
+        "has_generated_program_adjudicator_decision": bool(
+            linked.get("generated_program_adjudicator_decision")
+        ),
+        "meta_adjudicator_id": judging.get("meta_adjudicator_id"),
+        "generated_program_adjudicator_id": judging.get(
+            "generated_program_adjudicator_id"
+        ),
+        "generated_program_decision_outcome": judging.get(
+            "generated_program_decision_outcome"
+        ),
+    }
+
+
 def _validate_trace(trace: Mapping[str, Any], path: Path) -> None:
     if trace.get("schema_version") != ADJUDICATION_TRACE_SCHEMA:
         raise ProgramAdjudicationPublicationError(
@@ -314,6 +358,7 @@ def build_adjudication_trace_publication_preflight(
         **publication,
         "adjudication_trace_sha256": trace_sha256,
         "source_schema_version": trace.get("schema_version"),
+        "trace_summary": _trace_publication_summary(trace),
         "non_authority": {
             "oracle_ranking": False,
             "oracle_pruning": False,
@@ -567,6 +612,7 @@ def _trace_embedding(
     identity = _safe_mapping(trace.get("identity"))
     judging = _safe_mapping(trace.get("judging_behavior"))
     events = _safe_list(trace.get("trace_events"))
+    linked_artifacts = _redact_local_paths(_safe_mapping(trace.get("linked_artifacts")))
     run_id = _publication_run_id(publication_id)
     engine = get_embedding_engine()
     return engine.embed_execution(
@@ -608,6 +654,7 @@ def _trace_embedding(
             "identity": identity,
             "judging_behavior": judging,
             "trace_events": events,
+            "linked_artifact_refs": linked_artifacts,
             "non_authority": _safe_mapping(planned_record.get("non_authority")),
             "local_paths_omitted_from_shared_record": True,
             "source_path_hash": _sha256_payload({"path": str(trace_path)}),
