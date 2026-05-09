@@ -368,6 +368,96 @@ def jury_requirements(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("jury-panel")
+def jury_panel(
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-meta-jury-selection-v1 sidecar should be written",
+    ),
+    jury_requirements: Path | None = typer.Option(
+        None,
+        "--jury-requirements",
+        help="Optional program-jury-requirements-v1 JSON sidecar to consume",
+    ),
+    target_profile: Path | None = typer.Option(
+        None,
+        "--target-profile",
+        help="Optional program-target-profile-v1 JSON sidecar to derive requirements",
+    ),
+    manifest: Path | None = typer.Option(
+        None,
+        "--manifest",
+        help="Optional candidate manifest.json to derive requirements directly",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print jury panel JSON"),
+) -> None:
+    """Select a deterministic target-sensitive meta-jury panel."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_meta_jury_selection,
+        write_program_meta_jury_selection,
+    )
+
+    try:
+        selection = build_program_meta_jury_selection(
+            manifest_path=manifest,
+            target_profile_path=target_profile,
+            jury_requirements_path=jury_requirements,
+        )
+        payload = write_program_meta_jury_selection(selection, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: jury panel selection failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("verify-jury-panel")
+def verify_jury_panel(
+    jury_selection: Path = typer.Option(
+        ...,
+        "--jury-selection",
+        help="Path to program-meta-jury-selection-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-jury-verification-v1 sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print jury verification JSON"),
+) -> None:
+    """Verify a selected meta-jury panel without judging the program."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_jury_verification,
+        write_program_jury_verification,
+    )
+
+    try:
+        verification = build_program_jury_verification(
+            jury_selection_path=jury_selection,
+        )
+        payload = write_program_jury_verification(verification, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: jury panel verification failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("meta-adjudication-plan")
 def meta_adjudication_plan(
     manifest: Path = typer.Option(

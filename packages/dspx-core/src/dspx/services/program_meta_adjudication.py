@@ -13,6 +13,8 @@ from dspx.services.program_refinement import (
 PROGRAM_META_ADJUDICATION_PLAN_SCHEMA = "program-meta-adjudication-plan-v1"
 PROGRAM_TARGET_PROFILE_SCHEMA = "program-target-profile-v1"
 PROGRAM_JURY_REQUIREMENTS_SCHEMA = "program-jury-requirements-v1"
+PROGRAM_META_JURY_SELECTION_SCHEMA = "program-meta-jury-selection-v1"
+PROGRAM_JURY_VERIFICATION_SCHEMA = "program-jury-verification-v1"
 
 _EXPECTED_SIDECAR_SCHEMAS = {
     "behavior_results": "program-behavior-results-v1",
@@ -86,6 +88,13 @@ def _first_text(*values: object) -> str | None:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _slug(value: str) -> str:
+    slug = "".join(ch.lower() if ch.isalnum() else "_" for ch in value).strip("_")
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug or "unspecified"
 
 
 def _json_text(payload: Mapping[str, Any]) -> str:
@@ -416,9 +425,31 @@ def _next_commands(
     )
     commands.append(
         {
-            "step": "phase3_verify_jury_and_program_adjudicator",
+            "step": "select_meta_jury_panel",
+            "implemented": True,
+            "command": (
+                "dspx program-promote jury-panel "
+                f"--jury-requirements {root / 'jury_requirements.json'} "
+                f"--out {root / 'meta_jury_selection.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
+            "step": "verify_meta_jury_panel",
+            "implemented": True,
+            "command": (
+                "dspx program-promote verify-jury-panel "
+                f"--jury-selection {root / 'meta_jury_selection.json'} "
+                f"--out {root / 'jury_verification.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
+            "step": "phase4_form_and_verify_program_adjudicator",
             "implemented": False,
-            "command": "future: dspx program-promote adjudicate-setup --manifest <manifest> --target-profile <target_profile.json>",
+            "command": "future: dspx program-promote adjudicator-formation --jury-verification <jury_verification.json>",
         }
     )
     commands.append(
@@ -494,6 +525,235 @@ def write_program_jury_requirements(
     out = out_path.expanduser().resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(requirements)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
+def build_program_meta_jury_selection(
+    *,
+    manifest_path: Path | None = None,
+    target_profile_path: Path | None = None,
+    jury_requirements_path: Path | None = None,
+) -> dict[str, Any]:
+    """Build a deterministic meta-jury selection sidecar without model calls."""
+
+    requirements: dict[str, Any]
+    requirements_ref: dict[str, Any] | None = None
+    if jury_requirements_path is not None:
+        requirements = _load_json_object(
+            jury_requirements_path, label="jury requirements"
+        )
+        if requirements.get("schema_version") != PROGRAM_JURY_REQUIREMENTS_SCHEMA:
+            raise ProgramMetaAdjudicationError(
+                "jury requirements schema_version must be "
+                + PROGRAM_JURY_REQUIREMENTS_SCHEMA
+            )
+        requirements_ref = {
+            "path": str(jury_requirements_path.expanduser().resolve()),
+            "sha256": _sha256_file(jury_requirements_path.expanduser().resolve()),
+            "schema_version": requirements.get("schema_version"),
+        }
+    else:
+        requirements = build_program_jury_requirements(
+            manifest_path=manifest_path, target_profile_path=target_profile_path
+        )
+
+    required_perspectives = [
+        dict(item)
+        for item in _safe_list(requirements.get("required_perspectives"))
+        if isinstance(item, Mapping) and _first_text(item.get("perspective"))
+    ]
+    selected_jurors: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in required_perspectives:
+        perspective = str(item["perspective"])
+        if perspective in seen:
+            continue
+        seen.add(perspective)
+        selected_jurors.append(
+            {
+                "juror_id": f"meta_juror_{_slug(perspective)}",
+                "perspective": perspective,
+                "kind": "deterministic_role_juror",
+                "model_backed": False,
+                "provider": None,
+                "model": None,
+                "qualification": item.get("reason"),
+                "selection_reason": "selected to cover required target-risk perspective",
+                "authority": "advisory_evidence_only",
+            }
+        )
+
+    selected_perspectives = [str(juror["perspective"]) for juror in selected_jurors]
+    missing_perspectives = [
+        str(item["perspective"])
+        for item in required_perspectives
+        if str(item["perspective"]) not in selected_perspectives
+    ]
+    minimum_jurors = int(requirements.get("minimum_jurors") or 0)
+    status = (
+        "selected"
+        if len(selected_jurors) >= minimum_jurors and not missing_perspectives
+        else "selection_incomplete"
+    )
+    selection: dict[str, Any] = {
+        "schema_version": PROGRAM_META_JURY_SELECTION_SCHEMA,
+        "status": status,
+        "authority": "meta_jury_selection_evidence_only_non_authoritative",
+        "minimum_jurors": minimum_jurors,
+        "selected_jurors": selected_jurors,
+        "coverage": {
+            "required_perspectives": [
+                str(item["perspective"]) for item in required_perspectives
+            ],
+            "selected_perspectives": selected_perspectives,
+            "missing_perspectives": missing_perspectives,
+        },
+        "selection_constraints": _safe_mapping(
+            requirements.get("selection_constraints")
+        ),
+        "selection_method": "deterministic_required_perspective_coverage_v1",
+        "notes": [
+            "This sidecar selects deterministic role-jurors only.",
+            "No model/provider was called and no production authority was granted.",
+            "Model-backed juror nomination remains a future explicit phase.",
+        ],
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+    if requirements_ref is not None:
+        selection["jury_requirements"] = requirements_ref
+    if isinstance(requirements.get("identity"), Mapping):
+        selection["identity"] = dict(requirements["identity"])
+    return selection
+
+
+def write_program_meta_jury_selection(
+    selection: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if selection.get("schema_version") != PROGRAM_META_JURY_SELECTION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "meta jury selection schema_version must be "
+            + PROGRAM_META_JURY_SELECTION_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(selection)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
+def build_program_jury_verification(*, jury_selection_path: Path) -> dict[str, Any]:
+    """Verify a deterministic meta-jury selection without judging the program."""
+
+    selection = _load_json_object(jury_selection_path, label="meta jury selection")
+    if selection.get("schema_version") != PROGRAM_META_JURY_SELECTION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "meta jury selection schema_version must be "
+            + PROGRAM_META_JURY_SELECTION_SCHEMA
+        )
+    jurors = [
+        dict(item)
+        for item in _safe_list(selection.get("selected_jurors"))
+        if isinstance(item, Mapping)
+    ]
+    perspectives = [str(juror.get("perspective") or "") for juror in jurors]
+    perspective_set = {perspective for perspective in perspectives if perspective}
+    constraints = _safe_mapping(selection.get("selection_constraints"))
+    coverage = _safe_mapping(selection.get("coverage"))
+    required_perspectives = set(_string_list(coverage.get("required_perspectives")))
+    missing_perspectives = sorted(required_perspectives - perspective_set)
+    minimum_jurors = int(selection.get("minimum_jurors") or 0)
+    duplicate_perspectives = sorted(
+        perspective
+        for perspective in perspective_set
+        if perspectives.count(perspective) > 1
+    )
+    missing_provider_identity = [
+        str(juror.get("juror_id") or "unknown")
+        for juror in jurors
+        if juror.get("model_backed") is True
+        and (not juror.get("provider") or not juror.get("model"))
+    ]
+    checks = [
+        {
+            "check": "minimum_jurors_satisfied",
+            "ok": len(jurors) >= minimum_jurors,
+            "detail": f"selected={len(jurors)} minimum={minimum_jurors}",
+        },
+        {
+            "check": "required_perspective_coverage_complete",
+            "ok": not missing_perspectives,
+            "detail": ",".join(missing_perspectives) or "complete",
+        },
+        {
+            "check": "authority_boundary_present",
+            "ok": (
+                not constraints.get("require_authority_boundary_reviewer")
+                or "authority_boundary" in perspective_set
+            ),
+            "detail": "authority_boundary perspective required by selection constraints",
+        },
+        {
+            "check": "no_duplicate_perspectives",
+            "ok": not duplicate_perspectives,
+            "detail": ",".join(duplicate_perspectives) or "none",
+        },
+        {
+            "check": "model_backed_jurors_have_provider_identity",
+            "ok": not missing_provider_identity,
+            "detail": ",".join(missing_provider_identity)
+            or "not_applicable_or_complete",
+        },
+        {
+            "check": "selection_has_no_authority_effect",
+            "ok": _safe_mapping(selection.get("non_authority")).get(
+                "activation_authority"
+            )
+            is False
+            and _safe_mapping(selection.get("effect")).get("provider_called") is False,
+            "detail": "selection must be evidence-only and local in this phase",
+        },
+    ]
+    failed_checks = [str(check["check"]) for check in checks if not check["ok"]]
+    verified = not failed_checks
+    return {
+        "schema_version": PROGRAM_JURY_VERIFICATION_SCHEMA,
+        "status": "verified" if verified else "revise_jury_selection",
+        "authority": "jury_verification_evidence_only_non_authoritative",
+        "dspx_adjudicator": {
+            "id": "dspx_meta_adjudicator_v1",
+            "mode": "deterministic_contract_check",
+            "scope": "judge_jury_fitness_not_program_promotion_or_activation",
+            "model_backed": False,
+        },
+        "jury_selection": {
+            "path": str(jury_selection_path.expanduser().resolve()),
+            "sha256": _sha256_file(jury_selection_path.expanduser().resolve()),
+            "schema_version": selection.get("schema_version"),
+        },
+        "checks": checks,
+        "failed_checks": failed_checks,
+        "approved_for_program_adjudicator_formation": verified,
+        "next_required_action": (
+            "form_program_adjudicator" if verified else "revise_jury_selection"
+        ),
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+
+
+def write_program_jury_verification(
+    verification: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if verification.get("schema_version") != PROGRAM_JURY_VERIFICATION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "jury verification schema_version must be "
+            + PROGRAM_JURY_VERIFICATION_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(verification)
     out.write_text(_json_text(payload), encoding="utf-8")
     return payload
 

@@ -267,10 +267,13 @@ Implementation evidence: `docs/project/2026-05-09-meta-adjudication-planner-impl
 - Emit `program-target-profile-v1` and `program-jury-requirements-v1`.
 - Add tests for Obsidian/PDF risk discovery: source grounding, review-only adapter, Wiki/Atlas mutation boundary, rollout/rollback.
 
-### Phase 3 — model-backed jury/adjudicator proposal behind explicit provider flag
+### Phase 3 — jury-panel selection and verification
 
-- Add provider-backed proposal commands for jury selection and program adjudicator formation.
-- Require provider health receipts, model identity, budget controls, and privacy/redaction posture.
+Implementation evidence for deterministic Phase 3a: `docs/project/2026-05-09-meta-adjudication-planner-implementation.md`.
+
+- Add deterministic jury-panel selection and DSPx-adjudicator verification sidecars first.
+- Add provider-backed proposal commands for jury selection and program adjudicator formation only behind explicit provider flags later.
+- Require provider health receipts, model identity, budget controls, and privacy/redaction posture before model-backed phases.
 - Keep deterministic baseline jurors as guardrails.
 
 ### Phase 4 — Oracle/Postgres behavior publication

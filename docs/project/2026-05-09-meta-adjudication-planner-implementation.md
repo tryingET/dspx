@@ -1,8 +1,8 @@
 ---
-summary: "Implementation evidence for Phase 1-2 of the DSPx meta-adjudication orchestration RFC: local non-authoritative planner, target profile, and jury requirements sidecars."
+summary: "Implementation evidence for Phase 1-3a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, and jury verification sidecars."
 read_when:
-  - "You are checking the shipped Phase 1-2 meta-adjudication planner sidecars."
-  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, or `jury-requirements`."
+  - "You are checking the shipped Phase 1-3a meta-adjudication sidecars."
+  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, or `verify-jury-panel`."
 type: "evidence"
 ---
 
@@ -10,7 +10,7 @@ type: "evidence"
 
 ## Result
 
-Phase 1-2 from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
+Phase 1-3a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
 
 Planner command:
 
@@ -50,6 +50,27 @@ schema_version=program-target-profile-v1
 schema_version=program-jury-requirements-v1
 ```
 
+Deterministic jury-panel commands:
+
+```bash
+dspx program-promote jury-panel \
+  --jury-requirements <candidate>/jury_requirements.json \
+  --out <candidate>/meta_jury_selection.json \
+  --json
+
+dspx program-promote verify-jury-panel \
+  --jury-selection <candidate>/meta_jury_selection.json \
+  --out <candidate>/jury_verification.json \
+  --json
+```
+
+Those commands write:
+
+```text
+schema_version=program-meta-jury-selection-v1
+schema_version=program-jury-verification-v1
+```
+
 ## What it does
 
 The planner reads an existing generated-program `manifest.json` plus optional sidecars and emits:
@@ -65,7 +86,7 @@ The planner reads an existing generated-program `manifest.json` plus optional si
 - GEPA improvement-lane posture;
 - non-authority and no-mutation effect flags.
 
-The first-class sidecar commands materialize the embedded target profile and jury requirements as standalone JSON artifacts so later phases can consume them without re-running the full planner.
+The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, and DSPx adjudicator jury verification as standalone JSON artifacts so later phases can consume them without re-running the full planner.
 
 ## What it does not do
 
@@ -73,7 +94,7 @@ It does **not**:
 
 - call a model/provider;
 - select a model-backed jury;
-- verify a jury;
+- verify a jury with model-backed adjudication;
 - form or verify a program-specific adjudicator;
 - publish to shared Oracle/Postgres;
 - mutate AK/governance;
@@ -123,7 +144,7 @@ uv run --package dspx-core -q python -m dspx.cli.dspx program-promote jury-requi
   --json
 ```
 
-Observed sidecar summary:
+Observed target/requirements sidecar summary:
 
 ```text
 target_profile_schema=program-target-profile-v1
@@ -133,6 +154,36 @@ profile_provider_called=false
 jury_requirements_schema=program-jury-requirements-v1
 required_perspectives=behavior_evidence,target_domain,authority_boundary,source_grounding,canonical_mutation_safety,review_surface,rollout_rollback
 requirements_provider_called=false
+activation_authority=false
+```
+
+The deterministic jury-panel sidecars were also dogfooded against the same candidate:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote jury-panel \
+  --jury-requirements /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/jury_requirements.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/meta_jury_selection.json \
+  --json
+
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote verify-jury-panel \
+  --jury-selection /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/meta_jury_selection.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/jury_verification.json \
+  --json
+```
+
+Observed jury-panel summary:
+
+```text
+jury_selection_schema=program-meta-jury-selection-v1
+jury_selection_status=selected
+selected_count=7
+missing_perspectives=
+selection_provider_called=false
+jury_verification_schema=program-jury-verification-v1
+jury_verification_status=verified
+approved_for_program_adjudicator_formation=true
+failed_checks=
+verification_provider_called=false
 activation_authority=false
 ```
 
@@ -154,9 +205,9 @@ Observed:
 
 ```text
 All checks passed!
-6 passed
+9 passed
 ```
 
 ## Next phase
 
-The next implementation phase should add deterministic jury-panel selection and DSPx-adjudicator jury verification sidecars, still without model calls, shared Oracle writes, or activation authority.
+The next implementation phase should add deterministic program-adjudicator formation and verification sidecars, still without model calls, shared Oracle writes, or activation authority.
