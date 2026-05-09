@@ -1,8 +1,8 @@
 ---
-summary: "Implementation evidence for Phase 1-4a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, jury verification, program adjudicator formation, and program adjudicator verification sidecars."
+summary: "Implementation evidence for Phase 1-5a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, jury verification, program adjudicator formation, program adjudicator verification, program evidence adjudication, and adjudication behavior trace sidecars."
 read_when:
-  - "You are checking the shipped Phase 1-4a meta-adjudication sidecars."
-  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, or `verify-program-adjudicator`."
+  - "You are checking the shipped Phase 1-5a meta-adjudication sidecars."
+  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, or `adjudication-behavior-trace`."
 type: "evidence"
 ---
 
@@ -10,7 +10,7 @@ type: "evidence"
 
 ## Result
 
-Phase 1-4a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
+Phase 1-5a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
 
 Planner command:
 
@@ -92,6 +92,28 @@ schema_version=program-adjudicator-formation-v1
 schema_version=program-adjudicator-verification-v1
 ```
 
+Deterministic evidence-adjudication and behavior-trace commands:
+
+```bash
+dspx program-promote evidence-adjudication \
+  --manifest <candidate>/manifest.json \
+  --adjudicator-verification <candidate>/program_adjudicator_verification.json \
+  --out <candidate>/program_evidence_adjudication.json \
+  --json
+
+dspx program-promote adjudication-behavior-trace \
+  --evidence-adjudication <candidate>/program_evidence_adjudication.json \
+  --out <candidate>/adjudication_behavior_trace.json \
+  --json
+```
+
+Those commands write:
+
+```text
+schema_version=program-evidence-adjudication-v1
+schema_version=program-adjudication-behavior-trace-v1
+```
+
 ## What it does
 
 The planner reads an existing generated-program `manifest.json` plus optional sidecars and emits:
@@ -107,7 +129,7 @@ The planner reads an existing generated-program `manifest.json` plus optional si
 - GEPA improvement-lane posture;
 - non-authority and no-mutation effect flags.
 
-The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, DSPx adjudicator jury verification, deterministic program-adjudicator formation, and DSPx adjudicator program-adjudicator verification as standalone JSON artifacts so later phases can consume them without re-running the full planner.
+The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, DSPx adjudicator jury verification, deterministic program-adjudicator formation, DSPx adjudicator program-adjudicator verification, deterministic program evidence adjudication, and local adjudication behavior tracing as standalone JSON artifacts so later phases can consume them without re-running the full planner.
 
 ## What it does not do
 
@@ -116,7 +138,6 @@ It does **not**:
 - call a model/provider;
 - select a model-backed jury;
 - verify a jury with model-backed adjudication;
-- judge program evidence with the formed program-specific adjudicator;
 - publish to shared Oracle/Postgres;
 - mutate AK/governance;
 - activate, deploy, promote, rank, or select a winner.
@@ -146,7 +167,8 @@ Observed planner summary:
 schema_version=program-meta-adjudication-plan-v1
 status=planned_not_executed
 risk_ids=behavior_quality,authority_boundary,source_grounding,canonical_mutation_boundary,review_queue_boundary
-missing_count=6
+missing_count=2
+evidence_sidecar_commands=adjudicate_program_evidence,write_adjudication_behavior_trace
 provider_called=false
 activation_authority=false
 ```
@@ -237,6 +259,35 @@ verification_provider_called=false
 activation_authority=false
 ```
 
+The deterministic evidence adjudication and trace sidecars were also dogfooded against the same candidate:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote evidence-adjudication \
+  --manifest /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/manifest.json \
+  --adjudicator-verification /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/program_adjudicator_verification.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/program_evidence_adjudication.json \
+  --json
+
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote adjudication-behavior-trace \
+  --evidence-adjudication /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/program_evidence_adjudication.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/adjudication_behavior_trace.json \
+  --json
+```
+
+Observed evidence-adjudication and trace summary:
+
+```text
+evidence_adjudication_schema=program-evidence-adjudication-v1
+evidence_adjudication_status=evidence_adjudicated
+ready_for_domain_decision=true
+activation_approved=false
+evidence_provider_called=false
+trace_schema=program-adjudication-behavior-trace-v1
+trace_status=trace_ready_for_publication_preflight
+shared_oracle_write_performed=false
+trace_activation_authority=false
+```
+
 ## Validation
 
 Focused checks passed:
@@ -255,9 +306,9 @@ Observed:
 
 ```text
 All checks passed!
-24 passed
+27 passed
 ```
 
 ## Next phase
 
-The next implementation phase should add deterministic program evidence adjudication and adjudication behavior trace sidecars, still without model calls, shared Oracle writes, or activation authority.
+The next implementation phase should add an explicit Oracle/Postgres publication preflight/publish path for adjudication behavior traces, still separated from activation authority and guarded by redaction/retention/publisher checks.

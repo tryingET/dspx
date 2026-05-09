@@ -2272,6 +2272,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2658",
+          "title": "Implement program evidence adjudication and trace sidecars",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement program evidence adjudication and trace sidecars (task #2658)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

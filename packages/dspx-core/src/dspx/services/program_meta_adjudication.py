@@ -17,6 +17,8 @@ PROGRAM_META_JURY_SELECTION_SCHEMA = "program-meta-jury-selection-v1"
 PROGRAM_JURY_VERIFICATION_SCHEMA = "program-jury-verification-v1"
 PROGRAM_ADJUDICATOR_FORMATION_SCHEMA = "program-adjudicator-formation-v1"
 PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA = "program-adjudicator-verification-v1"
+PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
+PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA = "program-adjudication-behavior-trace-v1"
 
 _EXPECTED_SIDECAR_SCHEMAS = {
     "behavior_results": "program-behavior-results-v1",
@@ -33,6 +35,8 @@ _EXPECTED_SIDECAR_SCHEMAS = {
     "jury_verification": PROGRAM_JURY_VERIFICATION_SCHEMA,
     "program_adjudicator_formation": PROGRAM_ADJUDICATOR_FORMATION_SCHEMA,
     "program_adjudicator_verification": PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
+    "program_evidence_adjudication": PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
+    "adjudication_behavior_trace": PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA,
 }
 
 _DEFAULT_SIDECAR_FILES = {
@@ -50,6 +54,8 @@ _DEFAULT_SIDECAR_FILES = {
     "jury_verification": "jury_verification.json",
     "program_adjudicator_formation": "program_adjudicator_formation.json",
     "program_adjudicator_verification": "program_adjudicator_verification.json",
+    "program_evidence_adjudication": "program_evidence_adjudication.json",
+    "adjudication_behavior_trace": "adjudication_behavior_trace.json",
 }
 
 _NON_AUTHORITY = {
@@ -420,6 +426,8 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
         ("jury_verification", "jury_panel_verification"),
         ("program_adjudicator_formation", "program_adjudicator_formation"),
         ("program_adjudicator_verification", "program_adjudicator_verification"),
+        ("program_evidence_adjudication", "program_evidence_adjudication"),
+        ("adjudication_behavior_trace", "adjudication_behavior_trace"),
     ):
         if not sidecars[key].get("present"):
             missing.append(label)
@@ -522,7 +530,30 @@ def _next_commands(
     )
     commands.append(
         {
-            "step": "phase5_publish_adjudication_trace",
+            "step": "adjudicate_program_evidence",
+            "implemented": True,
+            "command": (
+                "dspx program-promote evidence-adjudication "
+                f"--manifest {manifest_arg} "
+                f"--adjudicator-verification {root / 'program_adjudicator_verification.json'} "
+                f"--out {root / 'program_evidence_adjudication.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
+            "step": "write_adjudication_behavior_trace",
+            "implemented": True,
+            "command": (
+                "dspx program-promote adjudication-behavior-trace "
+                f"--evidence-adjudication {root / 'program_evidence_adjudication.json'} "
+                f"--out {root / 'adjudication_behavior_trace.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
+            "step": "phase6_publish_adjudication_trace",
             "implemented": False,
             "command": "future: dspx oracle program-evidence publish --include-adjudication-trace <trace.json>",
         }
@@ -1129,6 +1160,467 @@ def write_program_adjudicator_verification(
     return payload
 
 
+def _artifact_ref(path: Path, *, schema_version: str | None = None) -> dict[str, Any]:
+    resolved = path.expanduser().resolve()
+    return {
+        "path": str(resolved),
+        "sha256": _sha256_file(resolved),
+        **({"schema_version": schema_version} if schema_version else {}),
+    }
+
+
+def _default_existing_path(
+    manifest_path: Path, *, explicit_path: Path | None, default_name: str
+) -> Path | None:
+    if explicit_path is not None:
+        return explicit_path.expanduser().resolve()
+    candidate = _manifest_root(manifest_path) / default_name
+    return candidate if candidate.exists() else None
+
+
+def _load_expected_sidecar(path: Path, *, key: str, label: str) -> dict[str, Any]:
+    payload = _load_json_object(path, label=label)
+    expected_schema = _EXPECTED_SIDECAR_SCHEMAS[key]
+    if payload.get("schema_version") != expected_schema:
+        raise ProgramMetaAdjudicationError(
+            f"{label} schema_version must be {expected_schema}"
+        )
+    return payload
+
+
+def _behavior_summary(behavior: Mapping[str, Any] | None) -> dict[str, Any]:
+    if behavior is None:
+        return {
+            "present": False,
+            "status": "missing",
+            "passed": 0,
+            "failed": 0,
+            "error": 0,
+            "total": 0,
+        }
+    summary = _safe_mapping(behavior.get("summary"))
+    return {
+        "present": True,
+        "status": _first_text(summary.get("status"), behavior.get("status"), "unknown"),
+        "passed": int(summary.get("passed") or 0),
+        "failed": int(summary.get("failed") or 0),
+        "error": int(summary.get("error") or 0),
+        "degraded": int(summary.get("degraded") or 0),
+        "total": int(
+            summary.get("total") or len(_safe_list(behavior.get("examples"))) or 0
+        ),
+    }
+
+
+def _role_judgment(
+    *,
+    role: Mapping[str, Any],
+    manifest_text: str,
+    behavior_summary: Mapping[str, Any],
+    oracle_report: Mapping[str, Any] | None,
+    activation_packet: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    perspective = str(role.get("perspective") or "unspecified")
+    status = "supports_domain_review"
+    missing_evidence: list[str] = []
+    rationale = "deterministic evidence contract check passed for this perspective"
+
+    behavior_present = behavior_summary.get("present") is True
+    behavior_passed = behavior_summary.get("status") == "passed"
+    activation_effect = (
+        _safe_mapping(activation_packet.get("effect")) if activation_packet else {}
+    )
+    activation_boundary = (
+        _safe_mapping(activation_packet.get("boundary_checks"))
+        if activation_packet
+        else {}
+    )
+
+    if perspective == "behavior_evidence":
+        if not behavior_present:
+            status = "needs_more_evidence"
+            missing_evidence.append("behavior_results.json or behavior_episode.json")
+            rationale = "no behavior evidence sidecar was available"
+        elif not behavior_passed:
+            status = "withhold"
+            rationale = "behavior evidence did not report passed status"
+    elif perspective == "authority_boundary":
+        authority_boundary_values = [
+            value for key, value in activation_boundary.items() if "authority" in key
+        ]
+        if activation_packet and any(
+            value is True for value in authority_boundary_values
+        ):
+            status = "withhold"
+            rationale = "activation packet boundary checks report authority drift"
+        elif (
+            activation_packet
+            and activation_effect.get("production_activation_applied") is True
+        ):
+            status = "withhold"
+            rationale = (
+                "activation packet reports production activation already applied"
+            )
+        else:
+            rationale = "DSPx evidence remains non-authoritative and activation remains outside DSPx"
+    elif perspective == "source_grounding":
+        if not any(
+            token in manifest_text
+            for token in ("source", "zotero", "citation", "marker", "rag")
+        ):
+            status = "needs_more_evidence"
+            missing_evidence.append("source grounding declaration")
+            rationale = "target does not expose deterministic source-grounding cues"
+        elif oracle_report is None:
+            status = "supports_domain_review_with_caveat"
+            missing_evidence.append("program_oracle_report.json")
+            rationale = "source-sensitive target has behavior evidence but no Oracle report sidecar"
+    elif perspective == "canonical_mutation_safety":
+        if not any(
+            token in manifest_text
+            for token in ("review", "proposal", "canonical", "wiki", "atlas")
+        ):
+            status = "needs_more_evidence"
+            missing_evidence.append("canonical mutation boundary declaration")
+            rationale = "canonical mutation safety could not be established from target declaration"
+        elif activation_effect.get("production_activation_applied") is True:
+            status = "withhold"
+            rationale = "activation effect reports production activation"
+        else:
+            rationale = "target declares review/canonical boundary and no activation effect is reported"
+    elif perspective == "review_surface":
+        if not any(
+            token in manifest_text for token in ("review", "proposal", "human", "queue")
+        ):
+            status = "needs_more_evidence"
+            missing_evidence.append("review surface declaration")
+            rationale = "review/proposal surface is not deterministically declared"
+        else:
+            rationale = "review/proposal surface is deterministically declared"
+    elif perspective == "rollout_rollback":
+        if activation_packet is None:
+            status = "needs_more_evidence"
+            missing_evidence.append("activation_packet.json")
+            rationale = "rollout/rollback posture requires an activation packet before domain decision"
+        elif activation_packet.get("canonical_binding_ref") in {None, ""}:
+            status = "supports_domain_review_with_caveat"
+            missing_evidence.append("canonical binding ref before rollout")
+            rationale = "packet is ready for domain decision but not rollout/activation"
+        else:
+            rationale = "activation packet includes a canonical binding ref"
+    elif perspective == "target_domain":
+        if not behavior_present:
+            status = "needs_more_evidence"
+            missing_evidence.append("behavior evidence")
+            rationale = "target-domain judgment needs behavior evidence"
+        else:
+            rationale = "target objective and behavior evidence are available for domain-owner review"
+
+    return {
+        "role_id": role.get("role_id"),
+        "source_juror_id": role.get("source_juror_id"),
+        "perspective": perspective,
+        "judgment": status,
+        "rationale": rationale,
+        "missing_evidence": missing_evidence,
+        "activation_authority": False,
+        "model_backed": False,
+        "provider_called": False,
+    }
+
+
+def build_program_evidence_adjudication(
+    *,
+    adjudicator_verification_path: Path,
+    manifest_path: Path,
+    behavior_results_path: Path | None = None,
+    behavior_episode_path: Path | None = None,
+    oracle_report_path: Path | None = None,
+    activation_packet_path: Path | None = None,
+) -> dict[str, Any]:
+    """Judge program evidence with the verified deterministic program adjudicator."""
+
+    adjudicator_verification = _load_expected_sidecar(
+        adjudicator_verification_path,
+        key="program_adjudicator_verification",
+        label="program adjudicator verification",
+    )
+    if (
+        adjudicator_verification.get("status") != "verified"
+        or adjudicator_verification.get("approved_for_program_evidence_adjudication")
+        is not True
+    ):
+        raise ProgramMetaAdjudicationError(
+            "program adjudicator verification must be verified before evidence adjudication"
+        )
+    formation_ref_ok, formation_ref_detail, formation = _load_hash_bound_ref(
+        adjudicator_verification.get("program_adjudicator_formation"),
+        expected_schema=PROGRAM_ADJUDICATOR_FORMATION_SCHEMA,
+        label="program adjudicator formation ref",
+    )
+    if not formation_ref_ok or formation is None:
+        raise ProgramMetaAdjudicationError(
+            "program adjudicator verification must hash-bind a valid formation sidecar: "
+            + formation_ref_detail
+        )
+
+    manifest = load_program_manifest(manifest_path)
+    manifest_text = _manifest_text(manifest)
+    behavior_path = _default_existing_path(
+        manifest_path,
+        explicit_path=behavior_results_path,
+        default_name="behavior_results.json",
+    )
+    behavior_episode_ref = _default_existing_path(
+        manifest_path,
+        explicit_path=behavior_episode_path,
+        default_name="behavior_episode.json",
+    )
+    behavior_payload: dict[str, Any] | None = None
+    behavior_ref: dict[str, Any] | None = None
+    if behavior_path is not None:
+        behavior_payload = _load_expected_sidecar(
+            behavior_path, key="behavior_results", label="behavior results"
+        )
+        behavior_ref = _artifact_ref(
+            behavior_path, schema_version="program-behavior-results-v1"
+        )
+    elif behavior_episode_ref is not None:
+        behavior_payload = _load_expected_sidecar(
+            behavior_episode_ref, key="behavior_episode", label="behavior episode"
+        )
+        behavior_ref = _artifact_ref(
+            behavior_episode_ref, schema_version="program-behavior-episode-v1"
+        )
+
+    resolved_oracle_report_path = _default_existing_path(
+        manifest_path,
+        explicit_path=oracle_report_path,
+        default_name="program_oracle_report.json",
+    )
+    oracle_report = None
+    oracle_ref = None
+    if resolved_oracle_report_path is not None:
+        oracle_report = _load_expected_sidecar(
+            resolved_oracle_report_path, key="oracle_report", label="oracle report"
+        )
+        oracle_ref = _artifact_ref(
+            resolved_oracle_report_path,
+            schema_version="program-oracle-evidence-report-v1",
+        )
+
+    resolved_activation_packet_path = _default_existing_path(
+        manifest_path,
+        explicit_path=activation_packet_path,
+        default_name="activation_packet.json",
+    )
+    activation_packet = None
+    activation_ref = None
+    if resolved_activation_packet_path is not None:
+        activation_packet = _load_expected_sidecar(
+            resolved_activation_packet_path,
+            key="activation_packet",
+            label="activation packet",
+        )
+        activation_ref = _artifact_ref(
+            resolved_activation_packet_path,
+            schema_version="generated-cognition-program-production-activation-packet-v1",
+        )
+
+    adjudicator = _safe_mapping(formation.get("program_adjudicator"))
+    roles = [
+        dict(role)
+        for role in _safe_list(adjudicator.get("roles"))
+        if isinstance(role, Mapping)
+    ]
+    summary = _behavior_summary(behavior_payload)
+    role_judgments = [
+        _role_judgment(
+            role=role,
+            manifest_text=manifest_text,
+            behavior_summary=summary,
+            oracle_report=oracle_report,
+            activation_packet=activation_packet,
+        )
+        for role in roles
+    ]
+    judgment_counts: dict[str, int] = {}
+    missing_evidence = sorted(
+        {
+            str(item)
+            for judgment in role_judgments
+            for item in _safe_list(judgment.get("missing_evidence"))
+        }
+    )
+    for judgment in role_judgments:
+        key = str(judgment.get("judgment"))
+        judgment_counts[key] = judgment_counts.get(key, 0) + 1
+    blocking_judgments = [
+        judgment
+        for judgment in role_judgments
+        if judgment.get("judgment") in {"withhold", "needs_more_evidence"}
+    ]
+    ready_for_domain_decision = behavior_ref is not None and not blocking_judgments
+    recommendation = (
+        "ready_for_domain_decision_not_activation"
+        if ready_for_domain_decision
+        else "revise_or_collect_missing_evidence"
+    )
+    return {
+        "schema_version": PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
+        "status": "evidence_adjudicated",
+        "authority": "program_evidence_adjudication_evidence_only_non_authoritative",
+        "identity": _identity_from_manifest(manifest),
+        "manifest": _artifact_ref(
+            manifest_path, schema_version=manifest.get("schema_version")
+        ),
+        "program_adjudicator_verification": _artifact_ref(
+            adjudicator_verification_path,
+            schema_version=PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
+        ),
+        "program_adjudicator_formation": adjudicator_verification.get(
+            "program_adjudicator_formation"
+        ),
+        "evidence_refs": {
+            "behavior": behavior_ref,
+            "oracle_report": oracle_ref,
+            "activation_packet": activation_ref,
+        },
+        "behavior_summary": summary,
+        "role_judgments": role_judgments,
+        "aggregate": {
+            "recommendation": recommendation,
+            "ready_for_domain_decision": ready_for_domain_decision,
+            "activation_approved": False,
+            "judgment_counts": judgment_counts,
+            "missing_evidence": missing_evidence,
+            "blocking_perspectives": [
+                str(judgment.get("perspective")) for judgment in blocking_judgments
+            ],
+        },
+        "next_required_action": (
+            "write_adjudication_behavior_trace"
+            if ready_for_domain_decision
+            else "collect_missing_evidence_or_revise_candidate"
+        ),
+        "notes": [
+            "This sidecar adjudicates evidence only; it is not production activation.",
+            "Rollout still requires domain/governance authority and canonical binding.",
+        ],
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+
+
+def write_program_evidence_adjudication(
+    adjudication: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if adjudication.get("schema_version") != PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "program evidence adjudication schema_version must be "
+            + PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(adjudication)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
+def build_program_adjudication_behavior_trace(
+    *, evidence_adjudication_path: Path
+) -> dict[str, Any]:
+    """Build a local behavior trace for later explicit Oracle/Postgres publication."""
+
+    adjudication = _load_expected_sidecar(
+        evidence_adjudication_path,
+        key="program_evidence_adjudication",
+        label="program evidence adjudication",
+    )
+    if adjudication.get("status") != "evidence_adjudicated":
+        raise ProgramMetaAdjudicationError(
+            "program evidence adjudication must be evidence_adjudicated before tracing"
+        )
+    aggregate = _safe_mapping(adjudication.get("aggregate"))
+    role_judgments = [
+        dict(item)
+        for item in _safe_list(adjudication.get("role_judgments"))
+        if isinstance(item, Mapping)
+    ]
+    return {
+        "schema_version": PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA,
+        "status": "trace_ready_for_publication_preflight",
+        "authority": "adjudication_behavior_trace_empirical_memory_only_non_authoritative",
+        "identity": _safe_mapping(adjudication.get("identity")),
+        "source_adjudication": _artifact_ref(
+            evidence_adjudication_path,
+            schema_version=PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
+        ),
+        "linked_artifacts": {
+            "manifest": _safe_mapping(adjudication.get("manifest")),
+            "program_adjudicator_verification": _safe_mapping(
+                adjudication.get("program_adjudicator_verification")
+            ),
+            "program_adjudicator_formation": _safe_mapping(
+                adjudication.get("program_adjudicator_formation")
+            ),
+            "evidence_refs": _safe_mapping(adjudication.get("evidence_refs")),
+        },
+        "trace_events": [
+            {
+                "event": "program_evidence_adjudicated",
+                "status": adjudication.get("status"),
+                "recommendation": aggregate.get("recommendation"),
+                "ready_for_domain_decision": aggregate.get("ready_for_domain_decision"),
+            },
+            {
+                "event": "authority_boundary_preserved",
+                "activation_approved": False,
+                "shared_oracle_write_performed": False,
+            },
+        ],
+        "judging_behavior": {
+            "adjudicator_id": "program_adjudicator_from_verified_meta_jury_v1",
+            "mode": "deterministic_contract_check",
+            "role_judgment_count": len(role_judgments),
+            "judgment_counts": _safe_mapping(aggregate.get("judgment_counts")),
+            "missing_evidence": _safe_list(aggregate.get("missing_evidence")),
+        },
+        "oracle_postgres_publication": {
+            "publication_label": "adjudication_behavior_trace",
+            "shared_oracle_write_performed": False,
+            "eligible_for_publication_preflight": True,
+            "redaction_status": "not_reviewed",
+            "retention_class": "retained_when_published",
+            "authority_ref_required": False,
+            "activation_authority": False,
+        },
+        "gepa_improvement_lane": {
+            "candidate_example_schema": "program-adjudication-gepa-example-v1",
+            "eligible_after_publication_and_labeling": True,
+            "requires_later_domain_outcome_label": True,
+            "activation_authority": False,
+        },
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+
+
+def write_program_adjudication_behavior_trace(
+    trace: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if trace.get("schema_version") != PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "program adjudication behavior trace schema_version must be "
+            + PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(trace)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
 def build_program_meta_adjudication_plan(
     *,
     manifest_path: Path,
@@ -1192,6 +1684,12 @@ def build_program_meta_adjudication_plan(
         ),
         "program_adjudicator_verification": _sidecar_status(
             manifest_path, key="program_adjudicator_verification", explicit_path=None
+        ),
+        "program_evidence_adjudication": _sidecar_status(
+            manifest_path, key="program_evidence_adjudication", explicit_path=None
+        ),
+        "adjudication_behavior_trace": _sidecar_status(
+            manifest_path, key="adjudication_behavior_trace", explicit_path=None
         ),
     }
     profile = _target_profile(manifest, manifest_path=manifest_path)

@@ -14,15 +14,19 @@ from dspx.services.program_jury_execution import (
     write_program_jury_execution_result,
 )
 from dspx.services.program_meta_adjudication import (
+    build_program_adjudication_behavior_trace,
     build_program_adjudicator_formation,
     build_program_adjudicator_verification,
+    build_program_evidence_adjudication,
     build_program_jury_requirements,
     build_program_jury_verification,
     build_program_meta_adjudication_plan,
     build_program_meta_jury_selection,
     build_program_target_profile,
+    write_program_adjudication_behavior_trace,
     write_program_adjudicator_formation,
     write_program_adjudicator_verification,
+    write_program_evidence_adjudication,
     write_program_jury_requirements,
     write_program_jury_verification,
     write_program_meta_adjudication_plan,
@@ -491,6 +495,233 @@ def test_program_adjudicator_formation_and_verification_cli_write_json(
     )
     assert verification_payload["status"] == "verified"
     assert adjudicator_verification_out.exists()
+
+
+def _write_minimal_activation_packet(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "generated-cognition-program-production-activation-packet-v1",
+                "canonical_binding_ref": None,
+                "boundary_checks": {
+                    "dspx_activation_authority": False,
+                    "jury_promotion_authority": False,
+                    "oracle_promotion_authority": False,
+                },
+                "effect": {
+                    "production_activation_applied": False,
+                    "ak_mutated": False,
+                    "external_authority_mutated": False,
+                },
+                "non_authority": {"governance_authority": False},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_program_evidence_adjudication_and_behavior_trace_sidecars(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    requirements_path = tmp_path / "jury_requirements.json"
+    selection_path = tmp_path / "meta_jury_selection.json"
+    jury_verification_path = tmp_path / "jury_verification.json"
+    formation_path = tmp_path / "program_adjudicator_formation.json"
+    adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+    activation_packet_path = candidate_root / "activation_packet.json"
+    evidence_adjudication_path = tmp_path / "program_evidence_adjudication.json"
+    trace_path = tmp_path / "adjudication_behavior_trace.json"
+
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    write_program_jury_requirements(requirements, requirements_path)
+    selection = build_program_meta_jury_selection(
+        jury_requirements_path=requirements_path
+    )
+    write_program_meta_jury_selection(selection, selection_path)
+    jury_verification = build_program_jury_verification(
+        jury_selection_path=selection_path
+    )
+    write_program_jury_verification(jury_verification, jury_verification_path)
+    formation = build_program_adjudicator_formation(
+        jury_verification_path=jury_verification_path
+    )
+    write_program_adjudicator_formation(formation, formation_path)
+    adjudicator_verification = build_program_adjudicator_verification(
+        adjudicator_formation_path=formation_path
+    )
+    write_program_adjudicator_verification(
+        adjudicator_verification, adjudicator_verification_path
+    )
+    _write_minimal_activation_packet(activation_packet_path)
+
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+        activation_packet_path=activation_packet_path,
+    )
+    write_program_evidence_adjudication(adjudication, evidence_adjudication_path)
+    trace = build_program_adjudication_behavior_trace(
+        evidence_adjudication_path=evidence_adjudication_path
+    )
+    write_program_adjudication_behavior_trace(trace, trace_path)
+
+    assert adjudication["schema_version"] == "program-evidence-adjudication-v1"
+    assert adjudication["status"] == "evidence_adjudicated"
+    assert adjudication["non_authority"]["activation_authority"] is False
+    assert adjudication["effect"]["provider_called"] is False
+    assert adjudication["aggregate"]["activation_approved"] is False
+    assert isinstance(adjudication["aggregate"]["ready_for_domain_decision"], bool)
+    assert {item["perspective"] for item in adjudication["role_judgments"]} >= {
+        "behavior_evidence",
+        "authority_boundary",
+    }
+
+    assert trace["schema_version"] == "program-adjudication-behavior-trace-v1"
+    assert trace["status"] == "trace_ready_for_publication_preflight"
+    assert (
+        trace["oracle_postgres_publication"]["shared_oracle_write_performed"] is False
+    )
+    assert trace["gepa_improvement_lane"]["activation_authority"] is False
+    assert trace_path.exists()
+
+
+def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    requirements_out = tmp_path / "jury-requirements.json"
+    selection_out = tmp_path / "meta-jury-selection.json"
+    jury_verification_out = tmp_path / "jury-verification.json"
+    formation_out = tmp_path / "adjudicator-formation.json"
+    adjudicator_verification_out = tmp_path / "adjudicator-verification.json"
+    activation_packet_path = candidate_root / "activation_packet.json"
+    evidence_out = tmp_path / "evidence-adjudication.json"
+    trace_out = tmp_path / "adjudication-trace.json"
+    _write_minimal_activation_packet(activation_packet_path)
+
+    for args in (
+        [
+            "program-promote",
+            "jury-requirements",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--out",
+            str(requirements_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "jury-panel",
+            "--jury-requirements",
+            str(requirements_out),
+            "--out",
+            str(selection_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "verify-jury-panel",
+            "--jury-selection",
+            str(selection_out),
+            "--out",
+            str(jury_verification_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "adjudicator-formation",
+            "--jury-verification",
+            str(jury_verification_out),
+            "--out",
+            str(formation_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "verify-program-adjudicator",
+            "--adjudicator-formation",
+            str(formation_out),
+            "--out",
+            str(adjudicator_verification_out),
+            "--json",
+        ],
+    ):
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0, result.output
+
+    adjudication_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "evidence-adjudication",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--adjudicator-verification",
+            str(adjudicator_verification_out),
+            "--activation-packet",
+            str(activation_packet_path),
+            "--out",
+            str(evidence_out),
+            "--json",
+        ],
+    )
+    assert adjudication_result.exit_code == 0, adjudication_result.output
+    adjudication_payload = json.loads(adjudication_result.output)
+    assert adjudication_payload["schema_version"] == "program-evidence-adjudication-v1"
+    assert adjudication_payload["aggregate"]["activation_approved"] is False
+
+    trace_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "adjudication-behavior-trace",
+            "--evidence-adjudication",
+            str(evidence_out),
+            "--out",
+            str(trace_out),
+            "--json",
+        ],
+    )
+    assert trace_result.exit_code == 0, trace_result.output
+    trace_payload = json.loads(trace_result.output)
+    assert trace_payload["schema_version"] == "program-adjudication-behavior-trace-v1"
+    assert (
+        trace_payload["oracle_postgres_publication"]["shared_oracle_write_performed"]
+        is False
+    )
+    assert trace_out.exists()
+
+
+def test_program_evidence_adjudication_rejects_unverified_adjudicator(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = tmp_path / "bad-adjudicator-verification.json"
+    adjudicator_verification_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-adjudicator-verification-v1",
+                "status": "revise_program_adjudicator",
+                "approved_for_program_evidence_adjudication": False,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must be verified"):
+        build_program_evidence_adjudication(
+            adjudicator_verification_path=adjudicator_verification_path,
+            manifest_path=candidate_root / "manifest.json",
+        )
 
 
 def test_program_adjudicator_formation_rejects_unverified_selection_mismatch(

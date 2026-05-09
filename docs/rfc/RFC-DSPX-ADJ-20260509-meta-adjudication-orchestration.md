@@ -284,12 +284,21 @@ Implementation evidence for deterministic Phase 4a: `docs/project/2026-05-09-met
 - Have the DSPx adjudicator verify that program-adjudicator contract before it is allowed to judge program evidence.
 - Keep this phase sidecar-only: no model calls, no shared Oracle writes, and no activation authority.
 
-### Phase 5 — Oracle/Postgres behavior publication
+### Phase 5 — program evidence adjudication and local behavior trace
+
+Implementation evidence for deterministic Phase 5a: `docs/project/2026-05-09-meta-adjudication-planner-implementation.md`.
+
+- Judge generated-program evidence with the verified deterministic program adjudicator.
+- Emit `program-evidence-adjudication-v1` with role judgments, missing evidence, and a non-authoritative ready-for-domain-decision recommendation.
+- Emit `program-adjudication-behavior-trace-v1` as a local empirical-memory trace for later publication preflight.
+- Keep this phase sidecar-only: no model calls, no shared Oracle writes, and no activation authority.
+
+### Phase 6 — Oracle/Postgres behavior publication
 
 - Extend publication preflight/publish to include adjudication trace sidecars.
 - Publish failures, revisions, and withholds as first-class empirical memory, not only promoted candidates.
 
-### Phase 6 — GEPA optimization pilot
+### Phase 7 — GEPA optimization pilot
 
 - Derive curated `program-adjudication-gepa-example-v1` datasets.
 - Optimize one judging module using `dspy.GEPA` with separate train/validation sets.

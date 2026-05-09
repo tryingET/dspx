@@ -546,6 +546,116 @@ def verify_program_adjudicator(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("evidence-adjudication")
+def evidence_adjudication(
+    adjudicator_verification: Path = typer.Option(
+        ...,
+        "--adjudicator-verification",
+        help="Path to program-adjudicator-verification-v1 JSON",
+    ),
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to candidate manifest.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-evidence-adjudication-v1 sidecar should be written",
+    ),
+    behavior_results: Path | None = typer.Option(
+        None,
+        "--behavior-results",
+        help="Optional program-behavior-results-v1 JSON",
+    ),
+    behavior_episode: Path | None = typer.Option(
+        None,
+        "--behavior-episode",
+        help="Optional program-behavior-episode-v1 JSON fallback",
+    ),
+    oracle_report: Path | None = typer.Option(
+        None,
+        "--oracle-report",
+        help="Optional program-oracle-evidence-report-v1 JSON",
+    ),
+    activation_packet: Path | None = typer.Option(
+        None,
+        "--activation-packet",
+        help="Optional generated-cognition-program activation packet JSON",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print evidence adjudication JSON"
+    ),
+) -> None:
+    """Adjudicate program evidence with a verified deterministic program adjudicator."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_evidence_adjudication,
+        write_program_evidence_adjudication,
+    )
+
+    try:
+        adjudication = build_program_evidence_adjudication(
+            adjudicator_verification_path=adjudicator_verification,
+            manifest_path=manifest,
+            behavior_results_path=behavior_results,
+            behavior_episode_path=behavior_episode,
+            oracle_report_path=oracle_report,
+            activation_packet_path=activation_packet,
+        )
+        payload = write_program_evidence_adjudication(adjudication, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program evidence adjudication failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("adjudication-behavior-trace")
+def adjudication_behavior_trace(
+    evidence_adjudication: Path = typer.Option(
+        ...,
+        "--evidence-adjudication",
+        help="Path to program-evidence-adjudication-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-adjudication-behavior-trace-v1 sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print behavior trace JSON"),
+) -> None:
+    """Write a local adjudication behavior trace for later explicit publication."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_adjudication_behavior_trace,
+        write_program_adjudication_behavior_trace,
+    )
+
+    try:
+        trace = build_program_adjudication_behavior_trace(
+            evidence_adjudication_path=evidence_adjudication,
+        )
+        payload = write_program_adjudication_behavior_trace(trace, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: adjudication behavior trace failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("meta-adjudication-plan")
 def meta_adjudication_plan(
     manifest: Path = typer.Option(
