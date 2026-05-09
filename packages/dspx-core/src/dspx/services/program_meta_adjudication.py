@@ -19,6 +19,7 @@ PROGRAM_ADJUDICATOR_FORMATION_SCHEMA = "program-adjudicator-formation-v1"
 PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA = "program-adjudicator-verification-v1"
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
 PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA = "program-adjudication-behavior-trace-v1"
+PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA = "program-adjudication-gepa-example-v1"
 
 _EXPECTED_SIDECAR_SCHEMAS = {
     "behavior_results": "program-behavior-results-v1",
@@ -37,6 +38,7 @@ _EXPECTED_SIDECAR_SCHEMAS = {
     "program_adjudicator_verification": PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
     "program_evidence_adjudication": PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
     "adjudication_behavior_trace": PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA,
+    "adjudication_gepa_example": PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA,
 }
 
 _DEFAULT_SIDECAR_FILES = {
@@ -56,6 +58,7 @@ _DEFAULT_SIDECAR_FILES = {
     "program_adjudicator_verification": "program_adjudicator_verification.json",
     "program_evidence_adjudication": "program_evidence_adjudication.json",
     "adjudication_behavior_trace": "adjudication_behavior_trace.json",
+    "adjudication_gepa_example": "adjudication_gepa_example.json",
 }
 
 _NON_AUTHORITY = {
@@ -428,6 +431,7 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
         ("program_adjudicator_verification", "program_adjudicator_verification"),
         ("program_evidence_adjudication", "program_evidence_adjudication"),
         ("adjudication_behavior_trace", "adjudication_behavior_trace"),
+        ("adjudication_gepa_example", "adjudication_gepa_example"),
     ):
         if not sidecars[key].get("present"):
             missing.append(label)
@@ -553,9 +557,28 @@ def _next_commands(
     )
     commands.append(
         {
+            "step": "write_adjudication_gepa_example",
+            "implemented": True,
+            "command": (
+                "dspx program-promote adjudication-gepa-example "
+                f"--trace {root / 'adjudication_behavior_trace.json'} "
+                f"--out {root / 'adjudication_gepa_example.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
             "step": "phase6_publish_adjudication_trace",
-            "implemented": False,
-            "command": "future: dspx oracle program-evidence publish --include-adjudication-trace <trace.json>",
+            "implemented": True,
+            "command": (
+                "dspx oracle adjudication-trace publish-preflight "
+                f"--trace {root / 'adjudication_behavior_trace.json'} "
+                "--target shared-postgres --publication-label adjudication_behavior_trace "
+                "--publisher-id <publisher> --publisher-role <role> "
+                "--publisher-assertion <checked-custody-assertion> "
+                "--redaction-status checked --retention-class retained_behavior_memory "
+                f"--out {root / 'adjudication_trace_publication_preflight.json'} --json"
+            ),
         }
     )
     return commands
@@ -1691,6 +1714,9 @@ def build_program_meta_adjudication_plan(
         "adjudication_behavior_trace": _sidecar_status(
             manifest_path, key="adjudication_behavior_trace", explicit_path=None
         ),
+        "adjudication_gepa_example": _sidecar_status(
+            manifest_path, key="adjudication_gepa_example", explicit_path=None
+        ),
     }
     profile = _target_profile(manifest, manifest_path=manifest_path)
     requirements = _jury_requirements(profile)
@@ -1726,6 +1752,106 @@ def build_program_meta_adjudication_plan(
         "non_authority": dict(_NON_AUTHORITY),
         "effect": dict(_EFFECT),
     }
+
+
+def build_program_adjudication_gepa_example(
+    *,
+    trace_path: Path,
+    outcome_label: str | None = None,
+    feedback: str | None = None,
+) -> dict[str, Any]:
+    """Build a deterministic GEPA example from an adjudication behavior trace."""
+
+    trace = _load_expected_sidecar(
+        trace_path, key="adjudication_behavior_trace", label="adjudication trace"
+    )
+    if trace.get("status") != "trace_ready_for_publication_preflight":
+        raise ProgramMetaAdjudicationError(
+            "adjudication trace must be trace_ready_for_publication_preflight"
+        )
+    linked_artifacts = _safe_mapping(trace.get("linked_artifacts"))
+    evidence_refs = _safe_mapping(linked_artifacts.get("evidence_refs"))
+    judging_behavior = _safe_mapping(trace.get("judging_behavior"))
+    trace_events = [
+        dict(item)
+        for item in _safe_list(trace.get("trace_events"))
+        if isinstance(item, Mapping)
+    ]
+    primary_event = trace_events[0] if trace_events else {}
+    label = _first_text(outcome_label, "pending_domain_outcome")
+    feedback_text = _first_text(
+        feedback,
+        "Await later human/domain outcome before using this example for GEPA training.",
+    )
+    trainable = label != "pending_domain_outcome"
+    return {
+        "schema_version": PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA,
+        "status": "curated_pending_outcome_label"
+        if not trainable
+        else "curated_with_outcome_label",
+        "authority": "adjudication_gepa_example_optimization_input_only_non_authoritative",
+        "identity": _safe_mapping(trace.get("identity")),
+        "source_trace": _artifact_ref(
+            trace_path, schema_version=PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA
+        ),
+        "input": {
+            "manifest": _safe_mapping(linked_artifacts.get("manifest")),
+            "program_adjudicator_verification": _safe_mapping(
+                linked_artifacts.get("program_adjudicator_verification")
+            ),
+            "program_adjudicator_formation": _safe_mapping(
+                linked_artifacts.get("program_adjudicator_formation")
+            ),
+            "evidence_refs": evidence_refs,
+            "judging_behavior": judging_behavior,
+        },
+        "expected_output": {
+            "recommendation": primary_event.get("recommendation"),
+            "ready_for_domain_decision": primary_event.get("ready_for_domain_decision"),
+            "activation_authority": False,
+            "missing_evidence": _safe_list(judging_behavior.get("missing_evidence")),
+        },
+        "label": {
+            "outcome_label": label,
+            "label_source": "operator_or_domain_outcome" if trainable else "pending",
+            "feedback": feedback_text,
+            "usable_for_gepa_training": trainable,
+            "usable_for_gepa_validation": trainable,
+        },
+        "metric_hint": {
+            "score_field": "judgment_quality_score",
+            "feedback_field": "feedback",
+            "optimize_for": [
+                "risk_detection",
+                "authority_boundary_preservation",
+                "missing_evidence_precision",
+                "domain_outcome_alignment",
+            ],
+        },
+        "gepa_improvement_lane": {
+            "candidate_module": "EvidenceAdjudicationModule",
+            "requires_train_validation_split": True,
+            "requires_multiple_labeled_examples": True,
+            "activation_authority": False,
+        },
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+
+
+def write_program_adjudication_gepa_example(
+    example: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if example.get("schema_version") != PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "program adjudication GEPA example schema_version must be "
+            + PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(example)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
 
 
 def write_program_meta_adjudication_plan(

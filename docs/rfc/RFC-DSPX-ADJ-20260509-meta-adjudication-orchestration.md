@@ -303,8 +303,11 @@ Implementation evidence for deterministic Phase 6a: `docs/project/2026-05-09-met
 
 ### Phase 7 — GEPA optimization pilot
 
+Implementation evidence for deterministic Phase 7a GEPA example curation: `docs/project/2026-05-09-meta-adjudication-planner-implementation.md`.
+
 - Derive curated `program-adjudication-gepa-example-v1` datasets.
-- Optimize one judging module using `dspy.GEPA` with separate train/validation sets.
+- Keep examples without later domain outcomes in `curated_pending_outcome_label` state so they cannot silently train GEPA.
+- Optimize one judging module using `dspy.GEPA` with separate train/validation sets once enough labeled examples exist.
 - Emit optimized policy sidecars with lineage and non-authority labels.
 
 ## 9) Validation plan

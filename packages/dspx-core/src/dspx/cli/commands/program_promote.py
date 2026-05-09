@@ -656,6 +656,59 @@ def adjudication_behavior_trace(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("adjudication-gepa-example")
+def adjudication_gepa_example(
+    trace: Path = typer.Option(
+        ...,
+        "--trace",
+        help="Path to program-adjudication-behavior-trace-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-adjudication-gepa-example-v1 sidecar should be written",
+    ),
+    outcome_label: str | None = typer.Option(
+        None,
+        "--outcome-label",
+        help="Optional later human/domain outcome label; omit to keep example pending",
+    ),
+    feedback: str | None = typer.Option(
+        None,
+        "--feedback",
+        help="Optional feedback for GEPA metric training/validation",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print GEPA example JSON"),
+) -> None:
+    """Create a non-authoritative GEPA example from an adjudication trace."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_adjudication_gepa_example,
+        write_program_adjudication_gepa_example,
+    )
+
+    try:
+        example = build_program_adjudication_gepa_example(
+            trace_path=trace,
+            outcome_label=outcome_label,
+            feedback=feedback,
+        )
+        payload = write_program_adjudication_gepa_example(example, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: adjudication GEPA example generation failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("meta-adjudication-plan")
 def meta_adjudication_plan(
     manifest: Path = typer.Option(

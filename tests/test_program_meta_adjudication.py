@@ -15,6 +15,7 @@ from dspx.services.program_jury_execution import (
 )
 from dspx.services.program_meta_adjudication import (
     build_program_adjudication_behavior_trace,
+    build_program_adjudication_gepa_example,
     build_program_adjudicator_formation,
     build_program_adjudicator_verification,
     build_program_evidence_adjudication,
@@ -24,6 +25,7 @@ from dspx.services.program_meta_adjudication import (
     build_program_meta_jury_selection,
     build_program_target_profile,
     write_program_adjudication_behavior_trace,
+    write_program_adjudication_gepa_example,
     write_program_adjudicator_formation,
     write_program_adjudicator_verification,
     write_program_evidence_adjudication,
@@ -696,6 +698,175 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
         is False
     )
     assert trace_out.exists()
+
+
+def test_program_adjudication_gepa_example_sidecar(tmp_path: Path, monkeypatch) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    requirements_path = tmp_path / "jury_requirements.json"
+    selection_path = tmp_path / "meta_jury_selection.json"
+    jury_verification_path = tmp_path / "jury_verification.json"
+    formation_path = tmp_path / "program_adjudicator_formation.json"
+    adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+    activation_packet_path = candidate_root / "activation_packet.json"
+    evidence_adjudication_path = tmp_path / "program_evidence_adjudication.json"
+    trace_path = tmp_path / "adjudication_behavior_trace.json"
+    gepa_example_path = tmp_path / "adjudication_gepa_example.json"
+
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    write_program_jury_requirements(requirements, requirements_path)
+    selection = build_program_meta_jury_selection(
+        jury_requirements_path=requirements_path
+    )
+    write_program_meta_jury_selection(selection, selection_path)
+    jury_verification = build_program_jury_verification(
+        jury_selection_path=selection_path
+    )
+    write_program_jury_verification(jury_verification, jury_verification_path)
+    formation = build_program_adjudicator_formation(
+        jury_verification_path=jury_verification_path
+    )
+    write_program_adjudicator_formation(formation, formation_path)
+    adjudicator_verification = build_program_adjudicator_verification(
+        adjudicator_formation_path=formation_path
+    )
+    write_program_adjudicator_verification(
+        adjudicator_verification, adjudicator_verification_path
+    )
+    _write_minimal_activation_packet(activation_packet_path)
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+        activation_packet_path=activation_packet_path,
+    )
+    write_program_evidence_adjudication(adjudication, evidence_adjudication_path)
+    trace = build_program_adjudication_behavior_trace(
+        evidence_adjudication_path=evidence_adjudication_path
+    )
+    write_program_adjudication_behavior_trace(trace, trace_path)
+
+    example = build_program_adjudication_gepa_example(trace_path=trace_path)
+    write_program_adjudication_gepa_example(example, gepa_example_path)
+
+    assert example["schema_version"] == "program-adjudication-gepa-example-v1"
+    assert example["status"] == "curated_pending_outcome_label"
+    assert example["label"]["usable_for_gepa_training"] is False
+    assert example["expected_output"]["activation_authority"] is False
+    assert example["gepa_improvement_lane"]["activation_authority"] is False
+    assert gepa_example_path.exists()
+
+
+def test_program_adjudication_gepa_example_cli_write_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    requirements_out = tmp_path / "jury-requirements.json"
+    selection_out = tmp_path / "meta-jury-selection.json"
+    jury_verification_out = tmp_path / "jury-verification.json"
+    formation_out = tmp_path / "adjudicator-formation.json"
+    adjudicator_verification_out = tmp_path / "adjudicator-verification.json"
+    activation_packet_path = candidate_root / "activation_packet.json"
+    evidence_out = tmp_path / "evidence-adjudication.json"
+    trace_out = tmp_path / "adjudication-trace.json"
+    gepa_example_out = tmp_path / "adjudication-gepa-example.json"
+    _write_minimal_activation_packet(activation_packet_path)
+
+    for args in (
+        [
+            "program-promote",
+            "jury-requirements",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--out",
+            str(requirements_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "jury-panel",
+            "--jury-requirements",
+            str(requirements_out),
+            "--out",
+            str(selection_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "verify-jury-panel",
+            "--jury-selection",
+            str(selection_out),
+            "--out",
+            str(jury_verification_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "adjudicator-formation",
+            "--jury-verification",
+            str(jury_verification_out),
+            "--out",
+            str(formation_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "verify-program-adjudicator",
+            "--adjudicator-formation",
+            str(formation_out),
+            "--out",
+            str(adjudicator_verification_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "evidence-adjudication",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--adjudicator-verification",
+            str(adjudicator_verification_out),
+            "--activation-packet",
+            str(activation_packet_path),
+            "--out",
+            str(evidence_out),
+            "--json",
+        ],
+        [
+            "program-promote",
+            "adjudication-behavior-trace",
+            "--evidence-adjudication",
+            str(evidence_out),
+            "--out",
+            str(trace_out),
+            "--json",
+        ],
+    ):
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0, result.output
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "adjudication-gepa-example",
+            "--trace",
+            str(trace_out),
+            "--out",
+            str(gepa_example_out),
+            "--outcome-label",
+            "domain_accepted_for_review",
+            "--feedback",
+            "Good authority boundary preservation.",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["schema_version"] == "program-adjudication-gepa-example-v1"
+    assert payload["status"] == "curated_with_outcome_label"
+    assert payload["label"]["usable_for_gepa_training"] is True
+    assert gepa_example_out.exists()
 
 
 def test_program_evidence_adjudication_rejects_unverified_adjudicator(

@@ -2298,6 +2298,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2667",
+          "title": "Implement adjudication GEPA example sidecar",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement adjudication GEPA example sidecar (task #2667)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

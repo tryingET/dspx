@@ -1,8 +1,8 @@
 ---
-summary: "Implementation evidence for Phase 1-6a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, jury verification, program adjudicator formation, program adjudicator verification, program evidence adjudication, adjudication behavior trace sidecars, and adjudication trace Oracle publication preflight/publish commands."
+summary: "Implementation evidence for Phase 1-7a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, jury verification, program adjudicator formation, program adjudicator verification, program evidence adjudication, adjudication behavior trace sidecars, and adjudication trace Oracle publication preflight/publish commands, and adjudication GEPA example curation."
 read_when:
-  - "You are checking the shipped Phase 1-6a meta-adjudication sidecars."
-  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, `adjudication-behavior-trace`, or `oracle adjudication-trace publish-preflight|publish`."
+  - "You are checking the shipped Phase 1-7a meta-adjudication sidecars."
+  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, `adjudication-behavior-trace`, or `oracle adjudication-trace publish-preflight|publish`, or `adjudication-gepa-example`."
 type: "evidence"
 ---
 
@@ -10,7 +10,7 @@ type: "evidence"
 
 ## Result
 
-Phase 1-6a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
+Phase 1-7a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
 
 Planner command:
 
@@ -144,6 +144,23 @@ schema_version=program-adjudication-trace-publication-receipt-v1
 
 `publish` performs the shared Oracle/Postgres mutation only when `DSPX_ORACLE_STORE=postgres_pgvector` and `DSPX_ORACLE_DATABASE_URL` or `DSPX_ORACLE_POSTGRES_URL` are configured at runtime.
 
+GEPA example curation command:
+
+```bash
+dspx program-promote adjudication-gepa-example \
+  --trace <candidate>/adjudication_behavior_trace.json \
+  --out <candidate>/adjudication_gepa_example.json \
+  --json
+```
+
+That command writes:
+
+```text
+schema_version=program-adjudication-gepa-example-v1
+```
+
+Examples without a later domain outcome label are marked `curated_pending_outcome_label` and are not usable for GEPA training/validation yet.
+
 ## What it does
 
 The planner reads an existing generated-program `manifest.json` plus optional sidecars and emits:
@@ -159,7 +176,7 @@ The planner reads an existing generated-program `manifest.json` plus optional si
 - GEPA improvement-lane posture;
 - non-authority and no-mutation effect flags.
 
-The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, DSPx adjudicator jury verification, deterministic program-adjudicator formation, DSPx adjudicator program-adjudicator verification, deterministic program evidence adjudication, local adjudication behavior tracing, and explicit adjudication-trace publication preflight/publish as standalone JSON artifacts so later phases can consume them without re-running the full planner.
+The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, DSPx adjudicator jury verification, deterministic program-adjudicator formation, DSPx adjudicator program-adjudicator verification, deterministic program evidence adjudication, local adjudication behavior tracing, and explicit adjudication-trace publication preflight/publish, and non-authoritative GEPA example curation as standalone JSON artifacts so later phases can consume them without re-running the full planner.
 
 ## What it does not do
 
@@ -360,6 +377,27 @@ receipt_written=false
 
 The publish path itself is covered by tests using an injected fake shared Oracle store, proving one shared coordinate record and a local receipt without requiring secrets in the test environment.
 
+The GEPA example curation sidecar was dogfooded against the same candidate:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote adjudication-gepa-example \
+  --trace /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/adjudication_behavior_trace.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/adjudication_gepa_example.json \
+  --json
+```
+
+Observed GEPA example summary:
+
+```text
+gepa_example_schema=program-adjudication-gepa-example-v1
+gepa_example_status=curated_pending_outcome_label
+outcome_label=pending_domain_outcome
+usable_for_gepa_training=false
+candidate_module=EvidenceAdjudicationModule
+activation_authority=false
+provider_called=false
+```
+
 ## Validation
 
 Focused checks passed:
@@ -381,9 +419,9 @@ Observed:
 
 ```text
 All checks passed!
-32 passed
+34 passed
 ```
 
 ## Next phase
 
-The next phase is a live configured publication run once the operator supplies a runtime shared-Oracle environment/secret reference, followed by GEPA example curation from published traces plus later domain outcomes.
+The next phase is a live configured publication run once the operator supplies a runtime shared-Oracle environment/secret reference, then collecting real domain outcome labels so GEPA examples become train/validation eligible.
