@@ -261,6 +261,8 @@ Implementation evidence: `docs/project/2026-05-09-meta-adjudication-planner-impl
 
 ### Phase 2 — deterministic target profile and jury requirements
 
+Implementation evidence: `docs/project/2026-05-09-meta-adjudication-planner-implementation.md`.
+
 - Build deterministic target profile from intent, manifest, behavior evidence, declared external systems, and docs refs.
 - Emit `program-target-profile-v1` and `program-jury-requirements-v1`.
 - Add tests for Obsidian/PDF risk discovery: source grounding, review-only adapter, Wiki/Atlas mutation boundary, rollout/rollback.

@@ -11,6 +11,8 @@ from dspx.services.program_refinement import (
 )
 
 PROGRAM_META_ADJUDICATION_PLAN_SCHEMA = "program-meta-adjudication-plan-v1"
+PROGRAM_TARGET_PROFILE_SCHEMA = "program-target-profile-v1"
+PROGRAM_JURY_REQUIREMENTS_SCHEMA = "program-jury-requirements-v1"
 
 _EXPECTED_SIDECAR_SCHEMAS = {
     "behavior_results": "program-behavior-results-v1",
@@ -197,7 +199,9 @@ def _manifest_text(manifest: Mapping[str, Any]) -> str:
     return "\n".join(parts).lower()
 
 
-def _target_profile(manifest: Mapping[str, Any]) -> dict[str, Any]:
+def _target_profile(
+    manifest: Mapping[str, Any], *, manifest_path: Path | None = None
+) -> dict[str, Any]:
     intent = _safe_mapping(manifest.get("intent"))
     request = _safe_mapping(manifest.get("request"))
     text = _manifest_text(manifest)
@@ -243,9 +247,10 @@ def _target_profile(manifest: Mapping[str, Any]) -> dict[str, Any]:
                 "reason": "target mentions deployment/activation/production rollout",
             }
         )
-    return {
-        "schema_version": "program-target-profile-v1",
+    profile: dict[str, Any] = {
+        "schema_version": PROGRAM_TARGET_PROFILE_SCHEMA,
         "status": "derived_from_manifest",
+        "authority": "target_profile_evidence_only_non_authoritative",
         "intent_name": _first_text(intent.get("name")),
         "objective": _first_text(intent.get("objective"), request.get("goal")),
         "task_type": _first_text(intent.get("task_type")),
@@ -255,7 +260,18 @@ def _target_profile(manifest: Mapping[str, Any]) -> dict[str, Any]:
         "declared_constraints": _string_list(intent.get("constraints")),
         "intent_source": _first_text(request.get("intent_source")),
         "risks": risks,
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
     }
+    if manifest_path is not None:
+        resolved_manifest = manifest_path.expanduser().resolve()
+        profile["identity"] = _identity_from_manifest(manifest)
+        profile["manifest"] = {
+            "path": str(resolved_manifest),
+            "sha256": _sha256_file(resolved_manifest),
+            "schema_version": manifest.get("schema_version"),
+        }
+    return profile
 
 
 def _jury_requirements(profile: Mapping[str, Any]) -> dict[str, Any]:
@@ -306,8 +322,9 @@ def _jury_requirements(profile: Mapping[str, Any]) -> dict[str, Any]:
         }
     )
     return {
-        "schema_version": "program-jury-requirements-v1",
+        "schema_version": PROGRAM_JURY_REQUIREMENTS_SCHEMA,
         "status": "planned_not_executed",
+        "authority": "jury_requirements_evidence_only_non_authoritative",
         "minimum_jurors": min(3, len(perspectives)),
         "required_perspectives": perspectives,
         "selection_constraints": {
@@ -316,6 +333,8 @@ def _jury_requirements(profile: Mapping[str, Any]) -> dict[str, Any]:
             "require_provider_identity_when_model_backed": True,
             "require_conflict_overlap_check": True,
         },
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
     }
 
 
@@ -377,9 +396,22 @@ def _next_commands(
         )
     commands.append(
         {
-            "step": "phase2_target_profile_and_jury_requirements",
-            "implemented": False,
-            "command": "future: dspx program-promote target-profile --manifest <manifest> --out <target_profile.json>",
+            "step": "write_target_profile",
+            "implemented": True,
+            "command": (
+                "dspx program-promote target-profile "
+                f"--manifest {manifest_arg} --out {root / 'target_profile.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
+            "step": "write_jury_requirements",
+            "implemented": True,
+            "command": (
+                "dspx program-promote jury-requirements "
+                f"--manifest {manifest_arg} --out {root / 'jury_requirements.json'} --json"
+            ),
         }
     )
     commands.append(
@@ -397,6 +429,73 @@ def _next_commands(
         }
     )
     return commands
+
+
+def build_program_target_profile(*, manifest_path: Path) -> dict[str, Any]:
+    """Build a first-class target profile sidecar without model calls."""
+
+    try:
+        manifest = load_program_manifest(manifest_path)
+    except ProgramRefinementError as exc:
+        raise ProgramMetaAdjudicationError(str(exc)) from exc
+    return _target_profile(manifest, manifest_path=manifest_path)
+
+
+def write_program_target_profile(
+    profile: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if profile.get("schema_version") != PROGRAM_TARGET_PROFILE_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "target profile schema_version must be " + PROGRAM_TARGET_PROFILE_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(profile)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
+def build_program_jury_requirements(
+    *, manifest_path: Path | None = None, target_profile_path: Path | None = None
+) -> dict[str, Any]:
+    """Build first-class jury requirements from a target profile or manifest."""
+
+    if target_profile_path is not None:
+        profile = _load_json_object(target_profile_path, label="target profile")
+        if profile.get("schema_version") != PROGRAM_TARGET_PROFILE_SCHEMA:
+            raise ProgramMetaAdjudicationError(
+                "target profile schema_version must be " + PROGRAM_TARGET_PROFILE_SCHEMA
+            )
+        requirements = _jury_requirements(profile)
+        requirements["target_profile"] = {
+            "path": str(target_profile_path.expanduser().resolve()),
+            "sha256": _sha256_file(target_profile_path.expanduser().resolve()),
+            "schema_version": profile.get("schema_version"),
+        }
+        if isinstance(profile.get("identity"), Mapping):
+            requirements["identity"] = dict(profile["identity"])
+        return requirements
+    if manifest_path is None:
+        raise ProgramMetaAdjudicationError(
+            "either manifest_path or target_profile_path is required"
+        )
+    profile = build_program_target_profile(manifest_path=manifest_path)
+    return _jury_requirements(profile)
+
+
+def write_program_jury_requirements(
+    requirements: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if requirements.get("schema_version") != PROGRAM_JURY_REQUIREMENTS_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "jury requirements schema_version must be "
+            + PROGRAM_JURY_REQUIREMENTS_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(requirements)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
 
 
 def build_program_meta_adjudication_plan(
@@ -446,7 +545,7 @@ def build_program_meta_adjudication_plan(
             manifest_path, key="activation_packet", explicit_path=activation_packet_path
         ),
     }
-    profile = _target_profile(manifest)
+    profile = _target_profile(manifest, manifest_path=manifest_path)
     requirements = _jury_requirements(profile)
     missing = _missing_evidence(sidecars)
     return {

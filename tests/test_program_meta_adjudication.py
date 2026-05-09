@@ -13,8 +13,12 @@ from dspx.services.program_jury_execution import (
     write_program_jury_execution_result,
 )
 from dspx.services.program_meta_adjudication import (
+    build_program_jury_requirements,
     build_program_meta_adjudication_plan,
+    build_program_target_profile,
+    write_program_jury_requirements,
     write_program_meta_adjudication_plan,
+    write_program_target_profile,
 )
 from dspx.services.program_service import materialize_program_from_intent
 
@@ -103,6 +107,85 @@ def test_meta_adjudication_plan_derives_target_sensitive_jury_requirements(
         cmd["step"] == "run_deterministic_jury_baseline"
         for cmd in plan["next_commands"]
     )
+
+
+def test_target_profile_and_jury_requirements_write_first_class_sidecars(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    profile_path = tmp_path / "target_profile.json"
+    requirements_path = tmp_path / "jury_requirements.json"
+
+    profile = build_program_target_profile(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    write_program_target_profile(profile, profile_path)
+    requirements = build_program_jury_requirements(target_profile_path=profile_path)
+    write_program_jury_requirements(requirements, requirements_path)
+
+    assert profile["schema_version"] == "program-target-profile-v1"
+    assert profile["identity"]["candidate_id"]
+    assert profile["manifest"]["path"] == str(candidate_root / "manifest.json")
+    assert profile["effect"]["provider_called"] is False
+    assert profile["non_authority"]["activation_authority"] is False
+    risk_ids = {risk["risk_id"] for risk in profile["risks"]}
+    assert "canonical_mutation_boundary" in risk_ids
+
+    assert requirements["schema_version"] == "program-jury-requirements-v1"
+    assert requirements["target_profile"]["path"] == str(profile_path.resolve())
+    assert requirements["effect"]["provider_called"] is False
+    perspectives = {
+        item["perspective"] for item in requirements["required_perspectives"]
+    }
+    assert "canonical_mutation_safety" in perspectives
+    assert "review_surface" in perspectives
+
+    written_profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    written_requirements = json.loads(requirements_path.read_text(encoding="utf-8"))
+    assert written_profile["schema_version"] == "program-target-profile-v1"
+    assert written_requirements["schema_version"] == "program-jury-requirements-v1"
+
+
+def test_target_profile_and_jury_requirements_cli_write_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    profile_out = tmp_path / "target-profile.json"
+    requirements_out = tmp_path / "jury-requirements.json"
+
+    profile_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "target-profile",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--out",
+            str(profile_out),
+            "--json",
+        ],
+    )
+    assert profile_result.exit_code == 0, profile_result.output
+    profile_payload = json.loads(profile_result.output)
+    assert profile_payload["schema_version"] == "program-target-profile-v1"
+
+    requirements_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "jury-requirements",
+            "--target-profile",
+            str(profile_out),
+            "--out",
+            str(requirements_out),
+            "--json",
+        ],
+    )
+    assert requirements_result.exit_code == 0, requirements_result.output
+    requirements_payload = json.loads(requirements_result.output)
+    assert requirements_payload["schema_version"] == "program-jury-requirements-v1"
+    assert requirements_payload["target_profile"]["path"] == str(profile_out.resolve())
+    assert requirements_out.exists()
 
 
 def test_meta_adjudication_plan_tracks_present_sidecars(

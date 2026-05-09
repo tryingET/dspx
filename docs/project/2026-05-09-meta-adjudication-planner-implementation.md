@@ -1,8 +1,8 @@
 ---
-summary: "Implementation evidence for Phase 1 of the DSPx meta-adjudication orchestration RFC: a local non-authoritative planner sidecar."
+summary: "Implementation evidence for Phase 1-2 of the DSPx meta-adjudication orchestration RFC: local non-authoritative planner, target profile, and jury requirements sidecars."
 read_when:
-  - "You are checking the shipped Phase 1 meta-adjudication planner."
-  - "You need the command shape for `program-promote meta-adjudication-plan`."
+  - "You are checking the shipped Phase 1-2 meta-adjudication planner sidecars."
+  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, or `jury-requirements`."
 type: "evidence"
 ---
 
@@ -10,9 +10,9 @@ type: "evidence"
 
 ## Result
 
-Phase 1 from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` is implemented as a local, non-authoritative planning sidecar.
+Phase 1-2 from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
 
-Command:
+Planner command:
 
 ```bash
 dspx program-promote meta-adjudication-plan \
@@ -21,12 +21,33 @@ dspx program-promote meta-adjudication-plan \
   --json
 ```
 
-The command writes:
+The planner command writes:
 
 ```text
 schema_version=program-meta-adjudication-plan-v1
 status=planned_not_executed
 lifecycle_state=meta_adjudication_plan_ready
+```
+
+First-class target/jury sidecar commands:
+
+```bash
+dspx program-promote target-profile \
+  --manifest <candidate>/manifest.json \
+  --out <candidate>/target_profile.json \
+  --json
+
+dspx program-promote jury-requirements \
+  --target-profile <candidate>/target_profile.json \
+  --out <candidate>/jury_requirements.json \
+  --json
+```
+
+Those commands write:
+
+```text
+schema_version=program-target-profile-v1
+schema_version=program-jury-requirements-v1
 ```
 
 ## What it does
@@ -43,6 +64,8 @@ The planner reads an existing generated-program `manifest.json` plus optional si
 - Oracle/Postgres behavior-memory posture;
 - GEPA improvement-lane posture;
 - non-authority and no-mutation effect flags.
+
+The first-class sidecar commands materialize the embedded target profile and jury requirements as standalone JSON artifacts so later phases can consume them without re-running the full planner.
 
 ## What it does not do
 
@@ -75,7 +98,7 @@ uv run --package dspx-core -q python -m dspx.cli.dspx program-promote meta-adjud
   --json
 ```
 
-Observed summary:
+Observed planner summary:
 
 ```text
 schema_version=program-meta-adjudication-plan-v1
@@ -83,6 +106,33 @@ status=planned_not_executed
 risk_ids=behavior_quality,authority_boundary,source_grounding,canonical_mutation_boundary,review_queue_boundary
 missing_count=6
 provider_called=false
+activation_authority=false
+```
+
+The first-class sidecars were also dogfooded against the same candidate:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote target-profile \
+  --manifest /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/manifest.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/target_profile.json \
+  --json
+
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote jury-requirements \
+  --target-profile /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/target_profile.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/jury_requirements.json \
+  --json
+```
+
+Observed sidecar summary:
+
+```text
+target_profile_schema=program-target-profile-v1
+target_profile_status=derived_from_manifest
+risk_ids=behavior_quality,authority_boundary,source_grounding,canonical_mutation_boundary,review_queue_boundary
+profile_provider_called=false
+jury_requirements_schema=program-jury-requirements-v1
+required_perspectives=behavior_evidence,target_domain,authority_boundary,source_grounding,canonical_mutation_safety,review_surface,rollout_rollback
+requirements_provider_called=false
 activation_authority=false
 ```
 
@@ -97,15 +147,16 @@ uv run ruff check \
   tests/test_program_meta_adjudication.py
 
 uv run pytest tests/test_program_meta_adjudication.py -q
+uv run ty check packages/dspx-core/src/dspx/services/program_meta_adjudication.py tests/test_program_meta_adjudication.py
 ```
 
 Observed:
 
 ```text
 All checks passed!
-4 passed
+6 passed
 ```
 
 ## Next phase
 
-The next implementation phase should build deterministic `program-target-profile-v1` and `program-jury-requirements-v1` sidecars as first-class files, then dogfood them on the Obsidian/PDF transition candidate before introducing any model-backed juror/adjudicator proposal behavior.
+The next implementation phase should add deterministic jury-panel selection and DSPx-adjudicator jury verification sidecars, still without model calls, shared Oracle writes, or activation authority.

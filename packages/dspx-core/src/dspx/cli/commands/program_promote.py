@@ -286,6 +286,88 @@ def activation_packet(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("target-profile")
+def target_profile(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to candidate program-candidate-assembly-v1 manifest.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-target-profile-v1 sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print target profile JSON"),
+) -> None:
+    """Write a deterministic target profile sidecar without model calls."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_target_profile,
+        write_program_target_profile,
+    )
+
+    try:
+        profile = build_program_target_profile(manifest_path=manifest)
+        payload = write_program_target_profile(profile, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: target profile generation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("jury-requirements")
+def jury_requirements(
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-jury-requirements-v1 sidecar should be written",
+    ),
+    manifest: Path | None = typer.Option(
+        None,
+        "--manifest",
+        help="Path to candidate manifest.json when deriving requirements directly",
+    ),
+    target_profile: Path | None = typer.Option(
+        None,
+        "--target-profile",
+        help="Optional program-target-profile-v1 JSON sidecar to consume",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print jury requirements JSON"),
+) -> None:
+    """Write deterministic jury requirements from a target profile or manifest."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_jury_requirements,
+        write_program_jury_requirements,
+    )
+
+    try:
+        requirements = build_program_jury_requirements(
+            manifest_path=manifest,
+            target_profile_path=target_profile,
+        )
+        payload = write_program_jury_requirements(requirements, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: jury requirements generation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("meta-adjudication-plan")
 def meta_adjudication_plan(
     manifest: Path = typer.Option(
