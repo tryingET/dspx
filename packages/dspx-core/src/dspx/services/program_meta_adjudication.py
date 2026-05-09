@@ -1681,7 +1681,10 @@ def write_program_evidence_adjudication(
 
 
 def build_program_adjudication_behavior_trace(
-    *, evidence_adjudication_path: Path
+    *,
+    evidence_adjudication_path: Path,
+    adjudicator_delegation_path: Path | None = None,
+    decision_record_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build a local behavior trace for later explicit Oracle/Postgres publication."""
 
@@ -1700,6 +1703,95 @@ def build_program_adjudication_behavior_trace(
         for item in _safe_list(adjudication.get("role_judgments"))
         if isinstance(item, Mapping)
     ]
+    delegation = None
+    delegation_ref = None
+    if adjudicator_delegation_path is not None:
+        delegation = _load_expected_sidecar(
+            adjudicator_delegation_path,
+            key="program_adjudicator_delegation",
+            label="program adjudicator delegation",
+        )
+        delegation_ref = _artifact_ref(
+            adjudicator_delegation_path,
+            schema_version=PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA,
+        )
+    decision_record = None
+    decision_ref = None
+    if decision_record_path is not None:
+        decision_record = _load_expected_sidecar(
+            decision_record_path,
+            key="decision_record",
+            label="program promotion decision record",
+        )
+        decision_ref = _artifact_ref(
+            decision_record_path,
+            schema_version="program-promotion-decision-record-v1",
+        )
+    delegation_generated_adjudicator = _safe_mapping(
+        _safe_mapping(delegation or {}).get("generated_program_adjudicator")
+    )
+    decision_delegation = _safe_mapping(
+        _safe_mapping(decision_record or {}).get("adjudicator_delegation")
+    )
+    trace_events = [
+        {
+            "event": "program_evidence_adjudicated",
+            "status": adjudication.get("status"),
+            "recommendation": aggregate.get("recommendation"),
+            "ready_for_domain_decision": aggregate.get("ready_for_domain_decision"),
+        }
+    ]
+    if delegation is not None:
+        trace_events.append(
+            {
+                "event": "dspx_meta_adjudicator_delegated_generated_program_adjudicator",
+                "status": delegation.get("status"),
+                "delegated_by": _safe_mapping(
+                    delegation.get("dspx_meta_adjudicator")
+                ).get("id"),
+                "generated_program_adjudicator": delegation_generated_adjudicator.get(
+                    "id"
+                ),
+                "approved_to_decide": delegation_generated_adjudicator.get(
+                    "approved_to_decide"
+                )
+                is True,
+            }
+        )
+    if decision_record is not None:
+        trace_events.append(
+            {
+                "event": "generated_program_adjudicator_decided",
+                "status": decision_record.get("status"),
+                "outcome": decision_record.get("outcome"),
+                "decided_by": decision_record.get("decided_by"),
+                "delegated_by": decision_delegation.get("decided_by"),
+                "promotion_state_after_decision": decision_record.get(
+                    "promotion_state_after_decision"
+                ),
+            }
+        )
+    trace_events.append(
+        {
+            "event": "authority_boundary_preserved",
+            "activation_approved": False,
+            "shared_oracle_write_performed": False,
+        }
+    )
+    linked_artifacts = {
+        "manifest": _safe_mapping(adjudication.get("manifest")),
+        "program_adjudicator_verification": _safe_mapping(
+            adjudication.get("program_adjudicator_verification")
+        ),
+        "program_adjudicator_formation": _safe_mapping(
+            adjudication.get("program_adjudicator_formation")
+        ),
+        "evidence_refs": _safe_mapping(adjudication.get("evidence_refs")),
+    }
+    if delegation_ref is not None:
+        linked_artifacts["program_adjudicator_delegation"] = delegation_ref
+    if decision_ref is not None:
+        linked_artifacts["generated_program_adjudicator_decision"] = decision_ref
     return {
         "schema_version": PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA,
         "status": "trace_ready_for_publication_preflight",
@@ -1709,31 +1801,17 @@ def build_program_adjudication_behavior_trace(
             evidence_adjudication_path,
             schema_version=PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
         ),
-        "linked_artifacts": {
-            "manifest": _safe_mapping(adjudication.get("manifest")),
-            "program_adjudicator_verification": _safe_mapping(
-                adjudication.get("program_adjudicator_verification")
-            ),
-            "program_adjudicator_formation": _safe_mapping(
-                adjudication.get("program_adjudicator_formation")
-            ),
-            "evidence_refs": _safe_mapping(adjudication.get("evidence_refs")),
-        },
-        "trace_events": [
-            {
-                "event": "program_evidence_adjudicated",
-                "status": adjudication.get("status"),
-                "recommendation": aggregate.get("recommendation"),
-                "ready_for_domain_decision": aggregate.get("ready_for_domain_decision"),
-            },
-            {
-                "event": "authority_boundary_preserved",
-                "activation_approved": False,
-                "shared_oracle_write_performed": False,
-            },
-        ],
+        "linked_artifacts": linked_artifacts,
+        "trace_events": trace_events,
         "judging_behavior": {
             "adjudicator_id": "program_adjudicator_from_verified_meta_jury_v1",
+            "meta_adjudicator_id": "dspx_meta_adjudicator_v1",
+            "generated_program_adjudicator_id": delegation_generated_adjudicator.get(
+                "id"
+            ),
+            "generated_program_decision_outcome": _safe_mapping(
+                decision_record or {}
+            ).get("outcome"),
             "mode": "deterministic_contract_check",
             "role_judgment_count": len(role_judgments),
             "judgment_counts": _safe_mapping(aggregate.get("judgment_counts")),
@@ -1937,6 +2015,12 @@ def build_program_adjudication_gepa_example(
             ),
             "program_adjudicator_formation": _safe_mapping(
                 linked_artifacts.get("program_adjudicator_formation")
+            ),
+            "program_adjudicator_delegation": _safe_mapping(
+                linked_artifacts.get("program_adjudicator_delegation")
+            ),
+            "generated_program_adjudicator_decision": _safe_mapping(
+                linked_artifacts.get("generated_program_adjudicator_decision")
             ),
             "evidence_refs": evidence_refs,
             "judging_behavior": judging_behavior,

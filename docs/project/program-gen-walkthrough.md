@@ -616,6 +616,17 @@ uv run -q python -m dspx.cli.dspx program-promote generated-adjudicator-decision
 
 This writes the same `program-promotion-decision-record-v1` shape, but its `created_from` points at both `program-evidence-adjudication-v1` and `program-adjudicator-delegation-v1`. `adjudicator_delegation.decided_by` records the DSPx/meta adjudicator, while `decided_by` records the generated-program adjudicator. It is still local and non-authoritative: it cannot record `promote`, cannot activate production, and cannot mutate AK/governance/Oracle authority.
 
+When writing the adjudication behavior trace, pass the delegation and decision sidecars so future Oracle/GEPA analysis sees the full two-adjudicator behavior, not only the evidence-adjudication step:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote adjudication-behavior-trace \
+  --evidence-adjudication "$TD/program-loop/program_evidence_adjudication.json" \
+  --adjudicator-delegation "$TD/program-loop/program_adjudicator_delegation.json" \
+  --decision-record "$TD/program-loop/promotion_decision_record.json" \
+  --out "$TD/program-loop/adjudication_behavior_trace.json" \
+  --json
+```
+
 ## 14. Optional explicit second candidate from request-more-evidence
 
 If the local decision outcome is `request_more_evidence`, you can materialize one bounded local second candidate from the proposal patch:

@@ -640,8 +640,16 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
         activation_packet_path=activation_packet_path,
     )
     write_program_evidence_adjudication(adjudication, evidence_adjudication_path)
+    decision_path = tmp_path / "promotion_decision_record.json"
+    decision = build_generated_program_adjudicator_decision_record(
+        evidence_adjudication_path=evidence_adjudication_path,
+        adjudicator_delegation_path=delegation_path,
+    )
+    write_program_promotion_decision_record(decision, decision_path)
     trace = build_program_adjudication_behavior_trace(
-        evidence_adjudication_path=evidence_adjudication_path
+        evidence_adjudication_path=evidence_adjudication_path,
+        adjudicator_delegation_path=delegation_path,
+        decision_record_path=decision_path,
     )
     write_program_adjudication_behavior_trace(trace, trace_path)
 
@@ -662,14 +670,44 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
         trace["oracle_postgres_publication"]["shared_oracle_write_performed"] is False
     )
     assert trace["gepa_improvement_lane"]["activation_authority"] is False
-    assert trace_path.exists()
-
-    decision_path = tmp_path / "promotion_decision_record.json"
-    decision = build_generated_program_adjudicator_decision_record(
-        evidence_adjudication_path=evidence_adjudication_path,
-        adjudicator_delegation_path=delegation_path,
+    assert (
+        trace["linked_artifacts"]["program_adjudicator_delegation"]["schema_version"]
+        == "program-adjudicator-delegation-v1"
     )
-    write_program_promotion_decision_record(decision, decision_path)
+    assert (
+        trace["linked_artifacts"]["generated_program_adjudicator_decision"][
+            "schema_version"
+        ]
+        == "program-promotion-decision-record-v1"
+    )
+    assert any(
+        event["event"]
+        == "dspx_meta_adjudicator_delegated_generated_program_adjudicator"
+        for event in trace["trace_events"]
+    )
+    assert any(
+        event["event"] == "generated_program_adjudicator_decided"
+        for event in trace["trace_events"]
+    )
+    assert trace["judging_behavior"]["generated_program_adjudicator_id"] == (
+        "dspx_program_adjudicator_v1"
+    )
+    assert (
+        trace["judging_behavior"]["generated_program_decision_outcome"]
+        == (decision["outcome"])
+    )
+    assert trace_path.exists()
+    gepa_example = build_program_adjudication_gepa_example(trace_path=trace_path)
+    assert (
+        gepa_example["input"]["program_adjudicator_delegation"]["schema_version"]
+        == "program-adjudicator-delegation-v1"
+    )
+    assert (
+        gepa_example["input"]["generated_program_adjudicator_decision"][
+            "schema_version"
+        ]
+        == "program-promotion-decision-record-v1"
+    )
 
     assert decision["schema_version"] == "program-promotion-decision-record-v1"
     assert decision["status"] == "recorded"
@@ -870,27 +908,6 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
     assert adjudication_payload["schema_version"] == "program-evidence-adjudication-v1"
     assert adjudication_payload["aggregate"]["activation_approved"] is False
 
-    trace_result = runner.invoke(
-        app,
-        [
-            "program-promote",
-            "adjudication-behavior-trace",
-            "--evidence-adjudication",
-            str(evidence_out),
-            "--out",
-            str(trace_out),
-            "--json",
-        ],
-    )
-    assert trace_result.exit_code == 0, trace_result.output
-    trace_payload = json.loads(trace_result.output)
-    assert trace_payload["schema_version"] == "program-adjudication-behavior-trace-v1"
-    assert (
-        trace_payload["oracle_postgres_publication"]["shared_oracle_write_performed"]
-        is False
-    )
-    assert trace_out.exists()
-
     decision_out = tmp_path / "generated-adjudicator-decision.json"
     decision_result = runner.invoke(
         app,
@@ -925,6 +942,41 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
     )
     assert decision_payload["non_authority"]["promotion_authority"] is False
     assert decision_out.exists()
+
+    trace_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "adjudication-behavior-trace",
+            "--evidence-adjudication",
+            str(evidence_out),
+            "--adjudicator-delegation",
+            str(delegation_out),
+            "--decision-record",
+            str(decision_out),
+            "--out",
+            str(trace_out),
+            "--json",
+        ],
+    )
+    assert trace_result.exit_code == 0, trace_result.output
+    trace_payload = json.loads(trace_result.output)
+    assert trace_payload["schema_version"] == "program-adjudication-behavior-trace-v1"
+    assert (
+        trace_payload["oracle_postgres_publication"]["shared_oracle_write_performed"]
+        is False
+    )
+    assert (
+        trace_payload["linked_artifacts"]["program_adjudicator_delegation"][
+            "schema_version"
+        ]
+        == "program-adjudicator-delegation-v1"
+    )
+    assert (
+        trace_payload["judging_behavior"]["generated_program_decision_outcome"]
+        == decision_payload["outcome"]
+    )
+    assert trace_out.exists()
 
 
 def test_program_adjudication_gepa_example_sidecar(tmp_path: Path, monkeypatch) -> None:

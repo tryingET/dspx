@@ -2376,6 +2376,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2688",
+          "title": "Trace delegated generated-program adjudicator behavior",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Trace delegated generated-program adjudicator behavior (task #2688)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

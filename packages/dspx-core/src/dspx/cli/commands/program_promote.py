@@ -676,6 +676,16 @@ def adjudication_behavior_trace(
         "--out",
         help="Path where the program-adjudication-behavior-trace-v1 sidecar should be written",
     ),
+    adjudicator_delegation: Path | None = typer.Option(
+        None,
+        "--adjudicator-delegation",
+        help="Optional program-adjudicator-delegation-v1 JSON",
+    ),
+    decision_record: Path | None = typer.Option(
+        None,
+        "--decision-record",
+        help="Optional generated-program adjudicator decision record JSON",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print behavior trace JSON"),
 ) -> None:
     """Write a local adjudication behavior trace for later explicit publication."""
@@ -688,6 +698,8 @@ def adjudication_behavior_trace(
     try:
         trace = build_program_adjudication_behavior_trace(
             evidence_adjudication_path=evidence_adjudication,
+            adjudicator_delegation_path=adjudicator_delegation,
+            decision_record_path=decision_record,
         )
         payload = write_program_adjudication_behavior_trace(trace, out)
     except ProgramMetaAdjudicationError as exc:
