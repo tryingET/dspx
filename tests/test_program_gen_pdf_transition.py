@@ -160,6 +160,31 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert set(manifest["intent"]["outputs"]) == set(intent_payload["outputs"])
     assert manifest["program_promotion_review"]["promotion_state"] == "not_promoted"
     assert manifest["program_promotion_review"]["candidate_status"] == "exploratory"
+    program_jury = json.loads((outdir / "jury.json").read_text(encoding="utf-8"))
+    jury_selection = json.loads(
+        (outdir / "jury_selection.json").read_text(encoding="utf-8")
+    )
+    jury_rubric = json.loads((outdir / "jury_rubric.json").read_text(encoding="utf-8"))
+    assert program_jury["perspectives"] == [
+        "source_grounding",
+        "authority_boundaries",
+        "transition_artifact_quality",
+    ]
+    assert jury_selection["selected_perspectives"] == [
+        "source_grounding",
+        "authority_boundaries",
+        "transition_artifact_quality",
+    ]
+    assert [item["source"] for item in jury_selection["selected_jurors"]] == [
+        "explicit_perspective",
+        "explicit_perspective",
+        "explicit_perspective",
+    ]
+    assert [item["criteria"] for item in jury_rubric["juror_rubrics"]] == [
+        ["source_refs_preserved", "source_identity_not_invented"],
+        ["canonical_mutation_forbidden", "review_authority_explicit"],
+        ["artifact_family_clarity", "proposal_reviewability"],
+    ]
 
     expected_outputs = example_payload["outputs"]
     section_units = _load_json_text(expected_outputs["section_units_json"])

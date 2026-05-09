@@ -1373,6 +1373,91 @@ def test_program_replay_detects_program_evidence_declaration_mismatch(
     )
 
 
+def test_program_gen_cli_materializes_explicit_perspectives_without_bound_jurors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent_path = tmp_path / "intent.yaml"
+    intent_path.write_text(
+        "\n".join(
+            [
+                "name: ReviewProgram",
+                "objective: Create review-only transition artifacts from source text.",
+                "inputs:",
+                "  - source_text",
+                "outputs:",
+                "  - review_packet_json",
+                "jury:",
+                "  selection_model: perspective_balanced_explicit_pool",
+                "  minimum_jurors: 3",
+                "  perspectives:",
+                "    - source_grounding",
+                "    - authority_boundaries",
+                "    - transition_artifact_quality",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "candidate"
+
+    result = runner.invoke(
+        app,
+        ["program-gen", "--intent", str(intent_path), "--outdir", str(outdir)],
+    )
+
+    assert result.exit_code == 0, result.output
+    jury = json.loads((outdir / "jury.json").read_text(encoding="utf-8"))
+    assert jury["perspectives"] == [
+        "source_grounding",
+        "authority_boundaries",
+        "transition_artifact_quality",
+    ]
+    assert jury["pool"]["explicit_juror_count"] == 0
+    assert jury["pool"]["explicit_perspective_count"] == 3
+    assert jury["pool"]["explicit_perspective_juror_count"] == 3
+    assert jury["jurors"][:3] == [
+        {
+            "id": "explicit_source_grounding",
+            "model": None,
+            "perspective": "source_grounding",
+            "source": "explicit_perspective",
+            "reason": "declared in jury.perspectives without a bound juror model",
+        },
+        {
+            "id": "explicit_authority_boundaries",
+            "model": None,
+            "perspective": "authority_boundaries",
+            "source": "explicit_perspective",
+            "reason": "declared in jury.perspectives without a bound juror model",
+        },
+        {
+            "id": "explicit_transition_artifact_quality",
+            "model": None,
+            "perspective": "transition_artifact_quality",
+            "source": "explicit_perspective",
+            "reason": "declared in jury.perspectives without a bound juror model",
+        },
+    ]
+    selection = json.loads((outdir / "jury_selection.json").read_text(encoding="utf-8"))
+    assert selection["selected_perspectives"] == [
+        "source_grounding",
+        "authority_boundaries",
+        "transition_artifact_quality",
+    ]
+    assert [item["id"] for item in selection["selected_jurors"]] == [
+        "explicit_source_grounding",
+        "explicit_authority_boundaries",
+        "explicit_transition_artifact_quality",
+    ]
+    rubric = json.loads((outdir / "jury_rubric.json").read_text(encoding="utf-8"))
+    assert [item["criteria"] for item in rubric["juror_rubrics"]] == [
+        ["source_refs_preserved", "source_identity_not_invented"],
+        ["canonical_mutation_forbidden", "review_authority_explicit"],
+        ["artifact_family_clarity", "proposal_reviewability"],
+    ]
+
+
 def test_program_gen_cli_carries_explicit_jury_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

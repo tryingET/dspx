@@ -98,6 +98,16 @@ def inferred_juror(perspective: str, reason: str) -> dict[str, Any]:
     }
 
 
+def explicit_perspective_juror(perspective: str) -> dict[str, Any]:
+    return {
+        "id": f"explicit_{_sanitize_ident(perspective).lower()}",
+        "model": None,
+        "perspective": perspective,
+        "source": "explicit_perspective",
+        "reason": "declared in jury.perspectives without a bound juror model",
+    }
+
+
 def infer_program_jury_pool(intent: Any) -> list[dict[str, Any]]:
     """Infer a program-specific jury pool from deterministic intent features."""
 
@@ -172,9 +182,21 @@ def merge_jury_pool(
 def jury_plan_defaults(intent: Any) -> dict[str, Any]:
     options = jury_options(intent)
     explicit_jurors = normalize_jurors(options.get("jurors"))
-    inferred_jurors = infer_program_jury_pool(intent)
-    jurors = merge_jury_pool(explicit_jurors, inferred_jurors)
     explicit_perspectives = string_list(options.get("perspectives"))
+    explicit_juror_perspectives = {
+        str(juror.get("perspective") or "")
+        for juror in explicit_jurors
+        if str(juror.get("perspective") or "").strip()
+    }
+    explicit_perspective_jurors = [
+        explicit_perspective_juror(perspective)
+        for perspective in explicit_perspectives
+        if perspective not in explicit_juror_perspectives
+    ]
+    inferred_jurors = infer_program_jury_pool(intent)
+    jurors = merge_jury_pool(
+        [*explicit_jurors, *explicit_perspective_jurors], inferred_jurors
+    )
     juror_perspectives = [
         str(juror["perspective"])
         for juror in jurors
@@ -199,6 +221,8 @@ def jury_plan_defaults(intent: Any) -> dict[str, Any]:
         "pool": {
             "scope": "program",
             "explicit_juror_count": len(explicit_jurors),
+            "explicit_perspective_count": len(explicit_perspectives),
+            "explicit_perspective_juror_count": len(explicit_perspective_jurors),
             "inferred_juror_count": len(inferred_jurors),
             "merged_juror_count": len(jurors),
             "inference_basis": [
@@ -336,6 +360,27 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
         "adversarial_questions": [
             "Which claim is unsupported by the supplied context?",
             "Are citations or source references faithful?",
+        ],
+    },
+    "source_grounding": {
+        "criteria": ["source_refs_preserved", "source_identity_not_invented"],
+        "adversarial_questions": [
+            "Does every transition artifact preserve source references?",
+            "Does the program invent Zotero, Marker, or source-package authority?",
+        ],
+    },
+    "authority_boundaries": {
+        "criteria": ["canonical_mutation_forbidden", "review_authority_explicit"],
+        "adversarial_questions": [
+            "Could this output be mistaken for an accepted Wiki or Atlas mutation?",
+            "Are review-only boundaries and required human decisions explicit?",
+        ],
+    },
+    "transition_artifact_quality": {
+        "criteria": ["artifact_family_clarity", "proposal_reviewability"],
+        "adversarial_questions": [
+            "Are transition, proposal, review, and canonical artifact families distinct?",
+            "Would a reviewer have enough provenance and uncertainty to act?",
         ],
     },
     "constraint_adherence": {

@@ -71,6 +71,20 @@ The fixture includes one tiny PDF-like Marker markdown excerpt about close readi
 | review | Human/operator review packets only. |
 | canonical | Wiki/Atlas notes only after explicit review outside `program-gen`. |
 
+## Generated-program jury and adjudicator layer
+
+This scenario declares a generated-program-level jury contract in `intent.yaml`:
+
+```text
+source_grounding
+authority_boundaries
+transition_artifact_quality
+```
+
+`program-gen` materializes those explicit perspectives into `jury.json`, `jury_selection.json`, and `jury_rubric.json` even when the intent does not bind concrete juror models. They are candidate-local evaluation contracts for the generated DSPy program. The generated-program-level promotion adjudicator remains the declared `human_operator` (`obsidian_pdf_transition_reviewer`) and stays pending until a real review decision exists.
+
+This is separate from DSPx/meta-adjudication sidecars such as `target_profile.json`, `meta_jury_selection.json`, `program_adjudicator_verification.json`, and `adjudication_behavior_trace.json`.
+
 ## What this scenario does not do
 
 It does **not**:
@@ -125,6 +139,9 @@ eval_behavior.py
 behavior_episode.json
 oracle_evidence.json
 execution_episode.json
+jury.json
+jury_selection.json
+jury_rubric.json
 promotion_review.json
 promotion_adjudication_request.json
 promotion_decision_template.json
@@ -172,6 +189,7 @@ It proves:
 - `program-gen` materializes the PDF transition intent with the stub/offline provider
 - the scenario preserves source/transition/proposal/review/canonical artifact-family distinctions
 - expected outputs include section-unit candidates, distillation frames, evidence cards, merge/create proposals, a review packet, and an artifact contract manifest
+- generated-program jury selection honors the explicit PDF-transition perspectives: `source_grounding`, `authority_boundaries`, and `transition_artifact_quality`
 - no fake canonical Wiki note is mutated
 - no transition files are written outside the DSPx output directory during `program-gen`
 - replay metadata is inspectable and `dspx run replay --check-only` passes

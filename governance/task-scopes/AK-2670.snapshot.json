@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-09T12:58:40.124454149+00:00",
+  "task_id": 2670,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/pdf-transition-program-gen.md",
+      "docs/project/program-gen-walkthrough.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_jury.py",
+      "tests/test_program_gen_pdf_transition.py",
+      "tests/test_program_service.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_jury.py",
+      "tests/test_program_gen_pdf_transition.py",
+      "tests/test_program_service.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

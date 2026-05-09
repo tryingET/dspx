@@ -2311,6 +2311,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2670",
+          "title": "Honor explicit generated-program jury perspectives",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Honor explicit generated-program jury perspectives (task #2670)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

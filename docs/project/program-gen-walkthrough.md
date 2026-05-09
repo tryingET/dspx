@@ -20,7 +20,7 @@ It is deliberately local-first and non-authoritative:
 - does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run; `program-loop` uses a candidate-local Oracle index by default and reports that mutation explicitly
 - can optionally materialize deterministic local dataset split evidence when intent declares `dataset` or `datasets`
 - `program-gen` does not run a model jury or promotion adjudicator; explicit local deterministic jury execution is a separate `program-promote jury` sidecar command
-- target-sensitive meta-adjudication orchestration is proposed separately in `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md`; Phase 1-5a local sidecars are available via `dspx program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, `adjudication-behavior-trace`, and `adjudication-gepa-example`, but they are not part of the current `program-gen` or `program-loop` behavior
+- target-sensitive meta-adjudication orchestration is proposed separately in `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md`; Phase 1-7a local sidecars are available via `dspx program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, `adjudication-behavior-trace`, and `adjudication-gepa-example`, but they are not part of the current `program-gen` or `program-loop` behavior
 - does not rank, select winners, prune, promote, run GEPA/search, export authority, or mutate governance state
 
 The goal is to see the current artifact contract clearly, not to claim a final product loop.
@@ -79,7 +79,7 @@ A concrete Obsidian/PDF-transition `program-gen` fixture now exists for the flow
 PDF -> source package -> section units -> evidence cards -> merge/create -> review -> canonical notes
 ```
 
-Read `docs/project/pdf-transition-program-gen.md` for the scenario intent, fixture paths, authority boundaries, and test command. The scenario generates reviewable transition/proposal artifacts only; it does not mutate canonical Wiki/Atlas notes.
+Read `docs/project/pdf-transition-program-gen.md` for the scenario intent, fixture paths, authority boundaries, and test command. The scenario generates reviewable transition/proposal artifacts only; it does not mutate canonical Wiki/Atlas notes. Its generated-program jury contract is distinct from the DSPx/meta-adjudication layer: the generated program declares `source_grounding`, `authority_boundaries`, and `transition_artifact_quality` perspectives, while DSPx/meta sidecars separately verify broader target/profile/jury/adjudicator/evidence behavior.
 
 ## 1. Prepare a temp workspace
 
