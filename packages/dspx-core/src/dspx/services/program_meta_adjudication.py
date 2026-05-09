@@ -432,6 +432,7 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
         ("jury_verification", "jury_panel_verification"),
         ("program_adjudicator_formation", "program_adjudicator_formation"),
         ("program_adjudicator_verification", "program_adjudicator_verification"),
+        ("program_adjudicator_delegation", "program_adjudicator_delegation"),
         ("program_evidence_adjudication", "program_evidence_adjudication"),
         ("adjudication_behavior_trace", "adjudication_behavior_trace"),
         ("adjudication_gepa_example", "adjudication_gepa_example"),
@@ -537,6 +538,18 @@ def _next_commands(
     )
     commands.append(
         {
+            "step": "delegate_generated_program_adjudicator",
+            "implemented": True,
+            "command": (
+                "dspx program-promote adjudicator-delegation "
+                f"--manifest {manifest_arg} "
+                f"--adjudicator-verification {root / 'program_adjudicator_verification.json'} "
+                f"--out {root / 'program_adjudicator_delegation.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
             "step": "adjudicate_program_evidence",
             "implemented": True,
             "command": (
@@ -544,6 +557,18 @@ def _next_commands(
                 f"--manifest {manifest_arg} "
                 f"--adjudicator-verification {root / 'program_adjudicator_verification.json'} "
                 f"--out {root / 'program_evidence_adjudication.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
+            "step": "generated_program_adjudicator_decision",
+            "implemented": True,
+            "command": (
+                "dspx program-promote generated-adjudicator-decision "
+                f"--evidence-adjudication {root / 'program_evidence_adjudication.json'} "
+                f"--adjudicator-delegation {root / 'program_adjudicator_delegation.json'} "
+                f"--out {root / 'promotion_decision_record.json'} --json"
             ),
         }
     )
@@ -1760,6 +1785,7 @@ def build_program_meta_adjudication_plan(
     review_path: Path | None = None,
     decision_record_path: Path | None = None,
     activation_packet_path: Path | None = None,
+    program_adjudicator_delegation_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build a local meta-adjudication plan without model calls or authority effects."""
 
@@ -1812,6 +1838,11 @@ def build_program_meta_adjudication_plan(
         ),
         "program_adjudicator_verification": _sidecar_status(
             manifest_path, key="program_adjudicator_verification", explicit_path=None
+        ),
+        "program_adjudicator_delegation": _sidecar_status(
+            manifest_path,
+            key="program_adjudicator_delegation",
+            explicit_path=program_adjudicator_delegation_path,
         ),
         "program_evidence_adjudication": _sidecar_status(
             manifest_path, key="program_evidence_adjudication", explicit_path=None

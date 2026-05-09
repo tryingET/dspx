@@ -808,6 +808,11 @@ def meta_adjudication_plan(
         "--activation-packet",
         help="Optional generated-cognition-program activation packet JSON",
     ),
+    program_adjudicator_delegation: Path | None = typer.Option(
+        None,
+        "--program-adjudicator-delegation",
+        help="Optional program-adjudicator-delegation-v1 JSON",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print plan JSON"),
 ) -> None:
     """Plan target-sensitive jury/adjudicator orchestration without authority effects."""
@@ -828,6 +833,7 @@ def meta_adjudication_plan(
             review_path=review,
             decision_record_path=decision_record,
             activation_packet_path=activation_packet,
+            program_adjudicator_delegation_path=program_adjudicator_delegation,
         )
         payload = write_program_meta_adjudication_plan(plan_payload, out)
     except ProgramMetaAdjudicationError as exc:

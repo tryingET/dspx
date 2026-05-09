@@ -2363,6 +2363,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2685",
+          "title": "Integrate adjudicator delegation into meta-adjudication plan",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Integrate adjudicator delegation into meta-adjudication plan (task #2685)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

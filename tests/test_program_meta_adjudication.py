@@ -127,8 +127,17 @@ def test_meta_adjudication_plan_derives_target_sensitive_jury_requirements(
     assert "authority_boundary" in perspectives
     assert "program_jury_results" in plan["missing_evidence"]
     assert "jury_panel_verification" in plan["missing_evidence"]
+    assert "program_adjudicator_delegation" in plan["missing_evidence"]
     assert any(
         cmd["step"] == "run_deterministic_jury_baseline"
+        for cmd in plan["next_commands"]
+    )
+    assert any(
+        cmd["step"] == "delegate_generated_program_adjudicator"
+        for cmd in plan["next_commands"]
+    )
+    assert any(
+        cmd["step"] == "generated_program_adjudicator_decision"
         for cmd in plan["next_commands"]
     )
 
@@ -1328,17 +1337,57 @@ def test_meta_adjudication_plan_tracks_present_sidecars(
     )
     jury_path = candidate_root / "jury_results.json"
     write_program_jury_execution_result(jury, jury_path)
+    requirements_path = tmp_path / "jury_requirements.json"
+    selection_path = tmp_path / "meta_jury_selection.json"
+    jury_verification_path = tmp_path / "jury_verification.json"
+    formation_path = tmp_path / "program_adjudicator_formation.json"
+    adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+    delegation_path = tmp_path / "program_adjudicator_delegation.json"
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    write_program_jury_requirements(requirements, requirements_path)
+    selection = build_program_meta_jury_selection(
+        jury_requirements_path=requirements_path
+    )
+    write_program_meta_jury_selection(selection, selection_path)
+    jury_verification = build_program_jury_verification(
+        jury_selection_path=selection_path
+    )
+    write_program_jury_verification(jury_verification, jury_verification_path)
+    formation = build_program_adjudicator_formation(
+        jury_verification_path=jury_verification_path
+    )
+    write_program_adjudicator_formation(formation, formation_path)
+    adjudicator_verification = build_program_adjudicator_verification(
+        adjudicator_formation_path=formation_path
+    )
+    write_program_adjudicator_verification(
+        adjudicator_verification, adjudicator_verification_path
+    )
+    delegation = build_program_adjudicator_delegation(
+        manifest_path=candidate_root / "manifest.json",
+        adjudicator_verification_path=adjudicator_verification_path,
+    )
+    write_program_adjudicator_delegation(delegation, delegation_path)
 
     plan = build_program_meta_adjudication_plan(
         manifest_path=candidate_root / "manifest.json",
         jury_results_path=jury_path,
+        program_adjudicator_delegation_path=delegation_path,
     )
 
     assert plan["sidecars"]["jury_results"]["status"] == "present"
     assert (
         plan["sidecars"]["jury_results"]["schema_version"] == "program-jury-results-v1"
     )
+    assert plan["sidecars"]["program_adjudicator_delegation"]["status"] == "present"
+    assert (
+        plan["sidecars"]["program_adjudicator_delegation"]["schema_version"]
+        == "program-adjudicator-delegation-v1"
+    )
     assert "program_jury_results" not in plan["missing_evidence"]
+    assert "program_adjudicator_delegation" not in plan["missing_evidence"]
 
 
 def test_meta_adjudication_plan_cli_writes_json(tmp_path: Path, monkeypatch) -> None:
