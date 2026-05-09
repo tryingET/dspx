@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
+PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
 
 ALLOWED_PROGRAM_PROMOTION_DECISION_OUTCOMES = (
     "withhold",
@@ -169,6 +170,67 @@ def _promotion_state_after_decision(outcome: str) -> str:
     return "not_promoted"
 
 
+def _load_program_evidence_adjudication(path: Path) -> dict[str, Any]:
+    adjudication = _load_json_object(path, label="program evidence adjudication")
+    if adjudication.get("schema_version") != PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA:
+        raise ProgramPromotionDecisionError(
+            "program evidence adjudication schema_version must be "
+            + PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA
+        )
+    if adjudication.get("status") != "evidence_adjudicated":
+        raise ProgramPromotionDecisionError(
+            "program evidence adjudication must have status evidence_adjudicated"
+        )
+    non_authority = _safe_mapping(adjudication.get("non_authority"))
+    for key in (
+        "activation_authority",
+        "governance_authority",
+        "oracle_authority",
+        "promotion_authority",
+    ):
+        if non_authority.get(key) is not False:
+            raise ProgramPromotionDecisionError(
+                f"program evidence adjudication must record non_authority.{key}=false"
+            )
+    for key in ("automatic_promotion", "winner_selection"):
+        if key in non_authority and non_authority.get(key) is not False:
+            raise ProgramPromotionDecisionError(
+                f"program evidence adjudication must not widen non_authority.{key}"
+            )
+    return adjudication
+
+
+def _dspx_adjudicator_outcome(aggregate: Mapping[str, Any]) -> str:
+    missing_evidence = _safe_string_list(aggregate.get("missing_evidence"))
+    recommendation = str(aggregate.get("recommendation") or "").strip()
+    if missing_evidence or recommendation == "revise_or_collect_missing_evidence":
+        return "request_more_evidence"
+    if aggregate.get("ready_for_domain_decision") is True:
+        return "withhold"
+    return "withhold"
+
+
+def _dspx_adjudicator_rationale(adjudication: Mapping[str, Any], outcome: str) -> str:
+    aggregate = _safe_mapping(adjudication.get("aggregate"))
+    missing = _safe_string_list(aggregate.get("missing_evidence"))
+    counts = _safe_mapping(aggregate.get("judgment_counts"))
+    parts = [
+        "DSPx adjudicator recorded a local generated-program decision from verified meta-adjudication evidence.",
+        f"Outcome is {outcome}; activation_approved remains false.",
+    ]
+    if missing:
+        parts.append("Missing evidence: " + ", ".join(missing) + ".")
+    if counts:
+        rendered_counts = ", ".join(
+            f"{key}={value}" for key, value in sorted(counts.items())
+        )
+        parts.append("Role judgments: " + rendered_counts + ".")
+    parts.append(
+        "This is evidence-only and does not mutate AK, governance, Oracle authority, or production activation."
+    )
+    return " ".join(parts)
+
+
 def _review_snapshot(refined_review: Mapping[str, Any]) -> dict[str, Any]:
     readiness = _safe_mapping(refined_review.get("review_readiness"))
     return {
@@ -234,6 +296,69 @@ def build_program_promotion_decision_record(
             "This is a local adjudicator decision record sidecar only.",
             "It does not mutate generated program artifacts or the refined review packet.",
             "It does not export external authority, update governance, or make Oracle authoritative.",
+        ],
+    }
+
+
+def build_dspx_adjudicator_decision_record(
+    *,
+    evidence_adjudication_path: Path,
+    decided_by: str = "dspx_program_adjudicator_v1",
+    decided_at: str | None = None,
+) -> dict[str, Any]:
+    """Build a local decision sidecar from DSPx meta-adjudication evidence."""
+
+    evidence_adjudication_path = evidence_adjudication_path.expanduser().resolve()
+    adjudication = _load_program_evidence_adjudication(evidence_adjudication_path)
+    aggregate = _safe_mapping(adjudication.get("aggregate"))
+    outcome = _dspx_adjudicator_outcome(aggregate)
+    normalized_decided_by = str(decided_by or "").strip()
+    if not normalized_decided_by:
+        raise ProgramPromotionDecisionError(
+            "DSPx adjudicator decision requires decided_by"
+        )
+    rationale = _dspx_adjudicator_rationale(adjudication, outcome)
+    missing_required_evidence = _safe_string_list(aggregate.get("missing_evidence"))
+    return {
+        "schema_version": PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA,
+        "status": "recorded",
+        "outcome": outcome,
+        "promotion_state_after_decision": _promotion_state_after_decision(outcome),
+        "decided_by": normalized_decided_by,
+        "decided_at": decided_at or _utc_now_iso(),
+        "rationale": rationale,
+        "identity": _safe_mapping(adjudication.get("identity")),
+        "created_from": {
+            "program_evidence_adjudication_path": str(evidence_adjudication_path),
+            "program_evidence_adjudication_schema_version": adjudication.get(
+                "schema_version"
+            ),
+        },
+        "review_snapshot": {
+            "review_status": "dspx_adjudicated_from_program_evidence",
+            "promotion_state": "not_promoted",
+            "candidate_status": "exploratory",
+            "ready_for_adjudicator_review": aggregate.get("ready_for_domain_decision")
+            is True,
+            "missing_required_evidence": missing_required_evidence,
+        },
+        "decision_constraints": {
+            "allowed_outcomes": ["withhold", "reject", "request_more_evidence"],
+            "promote_requires_ready_review": True,
+            "promote_allowed_by_review": False,
+            "external_authority_exported": False,
+            "source": "dspx_program_evidence_adjudication",
+        },
+        "effect": dict(_DECISION_RECORD_EFFECT),
+        "non_authority": {
+            **_DECISION_RECORD_NON_AUTHORITY,
+            "dspx_adjudicator_evidence_only": True,
+            "promotion_authority": False,
+        },
+        "notes": [
+            "This is a local DSPx adjudicator decision record sidecar only.",
+            "It is generated from program-evidence adjudication and does not call a human operator.",
+            "It does not export external authority, update governance, or activate production.",
         ],
     }
 

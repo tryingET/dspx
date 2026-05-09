@@ -160,6 +160,12 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert set(manifest["intent"]["outputs"]) == set(intent_payload["outputs"])
     assert manifest["program_promotion_review"]["promotion_state"] == "not_promoted"
     assert manifest["program_promotion_review"]["candidate_status"] == "exploratory"
+    assert manifest["program_promotion_review"]["adjudicator"] == {
+        "kind": "ai_agent",
+        "id": "dspx_program_adjudicator_v1",
+        "authority": "required_for_promotion",
+        "status": "pending",
+    }
     program_jury = json.loads((outdir / "jury.json").read_text(encoding="utf-8"))
     jury_selection = json.loads(
         (outdir / "jury_selection.json").read_text(encoding="utf-8")

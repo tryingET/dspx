@@ -898,6 +898,53 @@ def status(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("dspx-adjudicator-decision")
+def dspx_adjudicator_decision(
+    evidence_adjudication: Path = typer.Option(
+        ...,
+        "--evidence-adjudication",
+        help="Path to program-evidence-adjudication-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local DSPx adjudicator decision sidecar should be written",
+    ),
+    decided_by: str = typer.Option(
+        "dspx_program_adjudicator_v1",
+        "--decided-by",
+        help="DSPx adjudicator identifier for the local decision record",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print decision record JSON"),
+) -> None:
+    """Record a local DSPx adjudicator decision without promotion authority."""
+    from dspx.services.program_promotion_decision import (
+        ProgramPromotionDecisionError,
+        build_dspx_adjudicator_decision_record,
+        write_program_promotion_decision_record,
+    )
+
+    try:
+        record = build_dspx_adjudicator_decision_record(
+            evidence_adjudication_path=evidence_adjudication,
+            decided_by=decided_by,
+        )
+        payload = write_program_promotion_decision_record(record, out)
+    except ProgramPromotionDecisionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: DSPx adjudicator decision recording failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("decide")
 def decide(
     review: Path = typer.Option(

@@ -43,7 +43,7 @@ The current `program-gen` loop proves:
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 10. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
 11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and already-generated behavior evidence (`behavior_results.json` when present, otherwise bounded `behavior_episode.json`) to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
-12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; it is not external authority, activation, or automatic promotion.
+12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; `program-promote dspx-adjudicator-decision` can instead derive a local decision record from `program-evidence-adjudication-v1` when the generated-program adjudicator is the DSPx adjudicator. Neither path is external authority, activation, or automatic promotion.
 13. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
 14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over already-generated `behavior_episode.json` evidence plus example-backed `behavior_results.json` when present.
 15. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
@@ -79,7 +79,7 @@ A concrete Obsidian/PDF-transition `program-gen` fixture now exists for the flow
 PDF -> source package -> section units -> evidence cards -> merge/create -> review -> canonical notes
 ```
 
-Read `docs/project/pdf-transition-program-gen.md` for the scenario intent, fixture paths, authority boundaries, and test command. The scenario generates reviewable transition/proposal artifacts only; it does not mutate canonical Wiki/Atlas notes. Its generated-program jury contract is distinct from the DSPx/meta-adjudication layer: the generated program declares `source_grounding`, `authority_boundaries`, and `transition_artifact_quality` perspectives, while DSPx/meta sidecars separately verify broader target/profile/jury/adjudicator/evidence behavior.
+Read `docs/project/pdf-transition-program-gen.md` for the scenario intent, fixture paths, authority boundaries, and test command. The scenario generates reviewable transition/proposal artifacts only; it does not mutate canonical Wiki/Atlas notes. Its generated-program jury/adjudicator contract is distinct from the DSPx/meta-adjudication layer: the generated program declares `source_grounding`, `authority_boundaries`, and `transition_artifact_quality` perspectives plus `dspx_program_adjudicator_v1` as the generated-program promotion adjudicator, while DSPx/meta sidecars separately verify broader target/profile/jury/adjudicator/evidence behavior.
 
 ## 1. Prepare a temp workspace
 
@@ -593,6 +593,17 @@ Expected JSON facts:
 - `effect` and `non_authority` confirm local-only/no mutation behavior
 
 The command writes only the requested decision sidecar. It does not mutate generated program artifacts, `promotion_review_refined.json`, Oracle indexes, AK, governance, external authority, or candidate code. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; there is no override flag in this wave, and top-level `status: review_packet_ready` is not sufficient.
+
+When the generated program declares the DSPx adjudicator and you want DSPx to decide from its own evidence-adjudication sidecar instead of asking the operator to decide, use:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote dspx-adjudicator-decision \
+  --evidence-adjudication "$TD/program-loop/program_evidence_adjudication.json" \
+  --out "$TD/program-loop/promotion_decision_record.json" \
+  --json
+```
+
+This writes the same `program-promotion-decision-record-v1` shape, but its `created_from` points at `program-evidence-adjudication-v1` and `decided_by` defaults to `dspx_program_adjudicator_v1`. It is still local and non-authoritative: it cannot record `promote`, cannot activate production, and cannot mutate AK/governance/Oracle authority.
 
 ## 14. Optional explicit second candidate from request-more-evidence
 

@@ -2324,6 +2324,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2673",
+          "title": "Let DSPx adjudicator record generated-program decisions",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Let DSPx adjudicator record generated-program decisions (task #2673)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

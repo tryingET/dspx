@@ -13,6 +13,10 @@ from dspx.services.program_jury_execution import (
     build_program_jury_execution_result,
     write_program_jury_execution_result,
 )
+from dspx.services.program_promotion_decision import (
+    build_dspx_adjudicator_decision_record,
+    write_program_promotion_decision_record,
+)
 from dspx.services.program_meta_adjudication import (
     build_program_adjudication_behavior_trace,
     build_program_adjudication_gepa_example,
@@ -592,6 +596,21 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     assert trace["gepa_improvement_lane"]["activation_authority"] is False
     assert trace_path.exists()
 
+    decision_path = tmp_path / "promotion_decision_record.json"
+    decision = build_dspx_adjudicator_decision_record(
+        evidence_adjudication_path=evidence_adjudication_path
+    )
+    write_program_promotion_decision_record(decision, decision_path)
+
+    assert decision["schema_version"] == "program-promotion-decision-record-v1"
+    assert decision["status"] == "recorded"
+    assert decision["decided_by"] == "dspx_program_adjudicator_v1"
+    assert decision["outcome"] in {"request_more_evidence", "withhold"}
+    assert decision["non_authority"]["dspx_adjudicator_evidence_only"] is True
+    assert decision["non_authority"]["promotion_authority"] is False
+    assert decision["effect"]["governance_mutated"] is False
+    assert decision_path.exists()
+
 
 def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
     tmp_path: Path, monkeypatch
@@ -698,6 +717,27 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
         is False
     )
     assert trace_out.exists()
+
+    decision_out = tmp_path / "dspx-adjudicator-decision.json"
+    decision_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "dspx-adjudicator-decision",
+            "--evidence-adjudication",
+            str(evidence_out),
+            "--out",
+            str(decision_out),
+            "--json",
+        ],
+    )
+    assert decision_result.exit_code == 0, decision_result.output
+    decision_payload = json.loads(decision_result.output)
+    assert decision_payload["schema_version"] == "program-promotion-decision-record-v1"
+    assert decision_payload["decided_by"] == "dspx_program_adjudicator_v1"
+    assert decision_payload["outcome"] in {"request_more_evidence", "withhold"}
+    assert decision_payload["non_authority"]["promotion_authority"] is False
+    assert decision_out.exists()
 
 
 def test_program_adjudication_gepa_example_sidecar(tmp_path: Path, monkeypatch) -> None:

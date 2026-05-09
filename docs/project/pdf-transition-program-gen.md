@@ -81,7 +81,18 @@ authority_boundaries
 transition_artifact_quality
 ```
 
-`program-gen` materializes those explicit perspectives into `jury.json`, `jury_selection.json`, and `jury_rubric.json` even when the intent does not bind concrete juror models. They are candidate-local evaluation contracts for the generated DSPy program. The generated-program-level promotion adjudicator remains the declared `human_operator` (`obsidian_pdf_transition_reviewer`) and stays pending until a real review decision exists.
+`program-gen` materializes those explicit perspectives into `jury.json`, `jury_selection.json`, and `jury_rubric.json` even when the intent does not bind concrete juror models. They are candidate-local evaluation contracts for the generated DSPy program. The generated-program-level promotion adjudicator is the declared DSPx AI agent (`dspx_program_adjudicator_v1`) and starts pending.
+
+To see the DSPx adjudicator act without making the operator the judge, run the meta-adjudication sidecar chain through `program_evidence_adjudication.json`, then write a local decision record with:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote dspx-adjudicator-decision \
+  --evidence-adjudication "$TD/pdf-transition-program/program_evidence_adjudication.json" \
+  --out "$TD/pdf-transition-program/promotion_decision_record.json" \
+  --json
+```
+
+That decision record is generated from DSPx evidence adjudication. It is still non-authoritative: it does not activate production, mutate the Obsidian vault, update AK/governance, or grant Oracle promotion authority.
 
 This is separate from DSPx/meta-adjudication sidecars such as `target_profile.json`, `meta_jury_selection.json`, `program_adjudicator_verification.json`, and `adjudication_behavior_trace.json`.
 

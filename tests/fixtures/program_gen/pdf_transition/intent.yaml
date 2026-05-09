@@ -71,8 +71,8 @@ jury:
     - transition_artifact_quality
 promotion:
   adjudicator:
-    kind: human_operator
-    id: obsidian_pdf_transition_reviewer
+    kind: ai_agent
+    id: dspx_program_adjudicator_v1
   external_authority:
     refs:
       - system: obsidian_wiki_review_queue
