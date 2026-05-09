@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-09T15:24:35.257257119+00:00",
+  "task_id": 2676,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-09-more-evidence-many-greats-dspx-adjudicator.md",
+      "docs/project/pdf-transition-program-gen.md",
+      "docs/project/program-gen-walkthrough.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_promotion_decision.py",
+      "tests/test_program_meta_adjudication.py"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-09-more-evidence-many-greats-dspx-adjudicator.md",
+      "packages/dspx-core/src/dspx/services/program_promotion_decision.py",
+      "tests/test_program_meta_adjudication.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -201,12 +201,11 @@ def _load_program_evidence_adjudication(path: Path) -> dict[str, Any]:
 
 
 def _dspx_adjudicator_outcome(aggregate: Mapping[str, Any]) -> str:
-    missing_evidence = _safe_string_list(aggregate.get("missing_evidence"))
     recommendation = str(aggregate.get("recommendation") or "").strip()
-    if missing_evidence or recommendation == "revise_or_collect_missing_evidence":
-        return "request_more_evidence"
     if aggregate.get("ready_for_domain_decision") is True:
         return "withhold"
+    if recommendation == "revise_or_collect_missing_evidence":
+        return "request_more_evidence"
     return "withhold"
 
 

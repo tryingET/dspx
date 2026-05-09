@@ -605,11 +605,64 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     assert decision["schema_version"] == "program-promotion-decision-record-v1"
     assert decision["status"] == "recorded"
     assert decision["decided_by"] == "dspx_program_adjudicator_v1"
-    assert decision["outcome"] in {"request_more_evidence", "withhold"}
+    expected_outcome = (
+        "withhold"
+        if adjudication["aggregate"]["ready_for_domain_decision"] is True
+        else "request_more_evidence"
+    )
+    assert decision["outcome"] == expected_outcome
+    assert decision["review_snapshot"]["ready_for_adjudicator_review"] is (
+        adjudication["aggregate"]["ready_for_domain_decision"] is True
+    )
     assert decision["non_authority"]["dspx_adjudicator_evidence_only"] is True
     assert decision["non_authority"]["promotion_authority"] is False
     assert decision["effect"]["governance_mutated"] is False
     assert decision_path.exists()
+
+
+def test_dspx_adjudicator_decision_withholds_when_ready_for_domain_decision(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / "program_evidence_adjudication.json"
+    evidence_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-evidence-adjudication-v1",
+                "status": "evidence_adjudicated",
+                "identity": {"candidate_id": "prog-cand-ready"},
+                "aggregate": {
+                    "recommendation": "ready_for_domain_decision_not_activation",
+                    "ready_for_domain_decision": True,
+                    "activation_approved": False,
+                    "missing_evidence": ["canonical binding ref before rollout"],
+                    "judgment_counts": {"supports_domain_review": 7},
+                },
+                "non_authority": {
+                    "activation_authority": False,
+                    "governance_authority": False,
+                    "oracle_authority": False,
+                    "promotion_authority": False,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    decision = build_dspx_adjudicator_decision_record(
+        evidence_adjudication_path=evidence_path
+    )
+
+    assert decision["outcome"] == "withhold"
+    assert decision["decided_by"] == "dspx_program_adjudicator_v1"
+    assert decision["review_snapshot"]["ready_for_adjudicator_review"] is True
+    assert (
+        "canonical binding ref before rollout"
+        in decision["review_snapshot"]["missing_required_evidence"]
+    )
+    assert decision["non_authority"]["promotion_authority"] is False
 
 
 def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
@@ -735,7 +788,15 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
     decision_payload = json.loads(decision_result.output)
     assert decision_payload["schema_version"] == "program-promotion-decision-record-v1"
     assert decision_payload["decided_by"] == "dspx_program_adjudicator_v1"
-    assert decision_payload["outcome"] in {"request_more_evidence", "withhold"}
+    expected_outcome = (
+        "withhold"
+        if adjudication_payload["aggregate"]["ready_for_domain_decision"] is True
+        else "request_more_evidence"
+    )
+    assert decision_payload["outcome"] == expected_outcome
+    assert decision_payload["review_snapshot"]["ready_for_adjudicator_review"] is (
+        adjudication_payload["aggregate"]["ready_for_domain_decision"] is True
+    )
     assert decision_payload["non_authority"]["promotion_authority"] is False
     assert decision_out.exists()
 
