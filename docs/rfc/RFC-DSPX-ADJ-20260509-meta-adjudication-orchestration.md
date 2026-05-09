@@ -295,8 +295,11 @@ Implementation evidence for deterministic Phase 5a: `docs/project/2026-05-09-met
 
 ### Phase 6 — Oracle/Postgres behavior publication
 
+Implementation evidence for deterministic Phase 6a: `docs/project/2026-05-09-meta-adjudication-planner-implementation.md`.
+
 - Extend publication preflight/publish to include adjudication trace sidecars.
 - Publish failures, revisions, and withholds as first-class empirical memory, not only promoted candidates.
+- Require explicit runtime shared-backend configuration for the mutation step; preflight remains local and non-mutating.
 
 ### Phase 7 — GEPA optimization pilot
 

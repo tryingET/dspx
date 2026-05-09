@@ -1,8 +1,8 @@
 ---
-summary: "Implementation evidence for Phase 1-5a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, jury verification, program adjudicator formation, program adjudicator verification, program evidence adjudication, and adjudication behavior trace sidecars."
+summary: "Implementation evidence for Phase 1-6a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, jury verification, program adjudicator formation, program adjudicator verification, program evidence adjudication, adjudication behavior trace sidecars, and adjudication trace Oracle publication preflight/publish commands."
 read_when:
-  - "You are checking the shipped Phase 1-5a meta-adjudication sidecars."
-  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, or `adjudication-behavior-trace`."
+  - "You are checking the shipped Phase 1-6a meta-adjudication sidecars."
+  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, `adjudication-behavior-trace`, or `oracle adjudication-trace publish-preflight|publish`."
 type: "evidence"
 ---
 
@@ -10,7 +10,7 @@ type: "evidence"
 
 ## Result
 
-Phase 1-5a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
+Phase 1-6a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
 
 Planner command:
 
@@ -114,6 +114,36 @@ schema_version=program-evidence-adjudication-v1
 schema_version=program-adjudication-behavior-trace-v1
 ```
 
+Explicit adjudication-trace publication commands:
+
+```bash
+dspx oracle adjudication-trace publish-preflight \
+  --trace <candidate>/adjudication_behavior_trace.json \
+  --target shared-postgres \
+  --publication-label adjudication_behavior_trace \
+  --publisher-id <publisher> \
+  --publisher-role <role> \
+  --publisher-assertion <checked-custody-assertion> \
+  --redaction-status checked \
+  --retention-class retained_behavior_memory \
+  --out <candidate>/adjudication_trace_publication_preflight.json \
+  --json
+
+dspx oracle adjudication-trace publish \
+  --preflight <candidate>/adjudication_trace_publication_preflight.json \
+  --receipt-out <candidate>/adjudication_trace_publication_receipt.json \
+  --json
+```
+
+Those commands write:
+
+```text
+schema_version=program-adjudication-trace-publication-preflight-v1
+schema_version=program-adjudication-trace-publication-receipt-v1
+```
+
+`publish` performs the shared Oracle/Postgres mutation only when `DSPX_ORACLE_STORE=postgres_pgvector` and `DSPX_ORACLE_DATABASE_URL` or `DSPX_ORACLE_POSTGRES_URL` are configured at runtime.
+
 ## What it does
 
 The planner reads an existing generated-program `manifest.json` plus optional sidecars and emits:
@@ -129,7 +159,7 @@ The planner reads an existing generated-program `manifest.json` plus optional si
 - GEPA improvement-lane posture;
 - non-authority and no-mutation effect flags.
 
-The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, DSPx adjudicator jury verification, deterministic program-adjudicator formation, DSPx adjudicator program-adjudicator verification, deterministic program evidence adjudication, and local adjudication behavior tracing as standalone JSON artifacts so later phases can consume them without re-running the full planner.
+The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, DSPx adjudicator jury verification, deterministic program-adjudicator formation, DSPx adjudicator program-adjudicator verification, deterministic program evidence adjudication, local adjudication behavior tracing, and explicit adjudication-trace publication preflight/publish as standalone JSON artifacts so later phases can consume them without re-running the full planner.
 
 ## What it does not do
 
@@ -138,7 +168,7 @@ It does **not**:
 - call a model/provider;
 - select a model-backed jury;
 - verify a jury with model-backed adjudication;
-- publish to shared Oracle/Postgres;
+- publish to shared Oracle/Postgres unless `oracle adjudication-trace publish` is explicitly run with a configured shared backend;
 - mutate AK/governance;
 - activate, deploy, promote, rank, or select a winner.
 
@@ -146,8 +176,11 @@ It does **not**:
 
 ```text
 packages/dspx-core/src/dspx/services/program_meta_adjudication.py
+packages/dspx-core/src/dspx/services/program_adjudication_publication.py
 packages/dspx-core/src/dspx/cli/commands/program_promote.py
+packages/dspx-core/src/dspx/cli/commands/oracle.py
 tests/test_program_meta_adjudication.py
+tests/test_program_adjudication_publication.py
 ```
 
 ## Dogfood
@@ -288,6 +321,45 @@ shared_oracle_write_performed=false
 trace_activation_authority=false
 ```
 
+The adjudication-trace publication preflight was dogfooded against the same candidate:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx oracle adjudication-trace publish-preflight \
+  --trace /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/adjudication_behavior_trace.json \
+  --target shared-postgres \
+  --publication-label adjudication_behavior_trace \
+  --publisher-id pi-session \
+  --publisher-role operator \
+  --publisher-assertion 'share checked adjudication trace for future Oracle retrieval and GEPA analysis; no activation authority is granted' \
+  --redaction-status checked \
+  --retention-class retained_behavior_memory \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/adjudication_trace_publication_preflight.json \
+  --json
+```
+
+Observed publication-preflight summary:
+
+```text
+trace_publication_preflight_schema=program-adjudication-trace-publication-preflight-v1
+trace_publication_preflight_status=ready_not_published
+publication_label=adjudication_behavior_trace
+ready_for_shared_publication=true
+blocking_reasons=
+shared_oracle_mutated=false
+activation_authority=false
+database_url_present=false
+```
+
+A live publish attempt correctly failed closed in this shell because no shared Oracle backend env was present:
+
+```text
+publish_exit_code=2
+Error: explicit adjudication trace publication requires a configured and available Postgres/pgvector Oracle backend: set DSPX_ORACLE_STORE=postgres_pgvector
+receipt_written=false
+```
+
+The publish path itself is covered by tests using an injected fake shared Oracle store, proving one shared coordinate record and a local receipt without requiring secrets in the test environment.
+
 ## Validation
 
 Focused checks passed:
@@ -295,20 +367,23 @@ Focused checks passed:
 ```bash
 uv run ruff check \
   packages/dspx-core/src/dspx/services/program_meta_adjudication.py \
+  packages/dspx-core/src/dspx/services/program_adjudication_publication.py \
   packages/dspx-core/src/dspx/cli/commands/program_promote.py \
-  tests/test_program_meta_adjudication.py
+  packages/dspx-core/src/dspx/cli/commands/oracle.py \
+  tests/test_program_meta_adjudication.py \
+  tests/test_program_adjudication_publication.py
 
-uv run pytest tests/test_program_meta_adjudication.py tests/test_program_candidate_state.py -q
-uv run ty check packages/dspx-core/src/dspx/services/program_meta_adjudication.py tests/test_program_meta_adjudication.py
+uv run pytest tests/test_program_meta_adjudication.py tests/test_program_candidate_state.py tests/test_program_adjudication_publication.py -q
+uv run ty check packages/dspx-core/src/dspx/services/program_meta_adjudication.py packages/dspx-core/src/dspx/services/program_adjudication_publication.py tests/test_program_meta_adjudication.py tests/test_program_adjudication_publication.py
 ```
 
 Observed:
 
 ```text
 All checks passed!
-27 passed
+32 passed
 ```
 
 ## Next phase
 
-The next implementation phase should add an explicit Oracle/Postgres publication preflight/publish path for adjudication behavior traces, still separated from activation authority and guarded by redaction/retention/publisher checks.
+The next phase is a live configured publication run once the operator supplies a runtime shared-Oracle environment/secret reference, followed by GEPA example curation from published traces plus later domain outcomes.

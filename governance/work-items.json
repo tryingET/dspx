@@ -2285,6 +2285,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2664",
+          "title": "Implement adjudication trace Oracle publication path",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement adjudication trace Oracle publication path (task #2664)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

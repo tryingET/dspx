@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 app = typer.Typer(no_args_is_help=True)
 program_evidence_app = typer.Typer(no_args_is_help=True)
 autoresearch_evidence_app = typer.Typer(no_args_is_help=True)
+adjudication_trace_app = typer.Typer(no_args_is_help=True)
 app.add_typer(
     program_evidence_app,
     name="program-evidence",
@@ -33,6 +34,11 @@ app.add_typer(
     autoresearch_evidence_app,
     name="autoresearch-evidence",
     help="pi-autoresearch Oracle-ready evidence preflight",
+)
+app.add_typer(
+    adjudication_trace_app,
+    name="adjudication-trace",
+    help="Program adjudication behavior trace publication",
 )
 
 
@@ -158,6 +164,139 @@ def oracle_autoresearch_evidence_publish_preflight(
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         typer.echo(str(out.expanduser().resolve()))
+
+
+@adjudication_trace_app.command("publish-preflight")
+def oracle_adjudication_trace_publish_preflight(
+    trace: Path = typer.Option(
+        ...,
+        "--trace",
+        help="Path to program-adjudication-behavior-trace-v1 JSON",
+    ),
+    target: str = typer.Option(
+        ...,
+        "--target",
+        help="Intended shared Oracle target, e.g. shared-postgres",
+    ),
+    publication_label: str = typer.Option(
+        "adjudication_behavior_trace",
+        "--publication-label",
+        help="Publication label such as adjudication_behavior_trace or retained",
+    ),
+    publisher_id: str = typer.Option(
+        ...,
+        "--publisher-id",
+        help="Declared publisher/operator/session identity",
+    ),
+    publisher_role: str = typer.Option(
+        ...,
+        "--publisher-role",
+        help="Declared publisher role such as operator or dspx_tooling",
+    ),
+    publisher_assertion: str = typer.Option(
+        ...,
+        "--publisher-assertion",
+        help="Publisher custody assertion for adjudication trace publication",
+    ),
+    redaction_status: str = typer.Option(
+        ...,
+        "--redaction-status",
+        help="Redaction posture: checked, not_required, redacted, unknown, or contains_sensitive_material",
+    ),
+    retention_class: str = typer.Option(
+        "retained_behavior_memory",
+        "--retention-class",
+        help="Retention class such as retained_behavior_memory",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local adjudication trace publication preflight should be written",
+    ),
+    authority_ref: str | None = typer.Option(
+        None,
+        "--authority-ref",
+        help="Required for authority-mirror labels; opaque ref only, not authority mutation",
+    ),
+    publisher_secret_ref: list[str] = typer.Option(
+        [],
+        "--publisher-secret-ref",
+        help="1Password op:// ref relevant to publisher custody; value is never resolved or persisted",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print preflight JSON"),
+) -> None:
+    """Write a local preflight packet for adjudication-trace publication."""
+    from dspx.services.program_adjudication_publication import (
+        ProgramAdjudicationPublicationError,
+        build_adjudication_trace_publication_preflight,
+        write_adjudication_trace_publication_preflight,
+    )
+
+    try:
+        packet = build_adjudication_trace_publication_preflight(
+            trace_path=trace,
+            target=target,
+            publication_label=publication_label,
+            publisher_id=publisher_id,
+            publisher_role=publisher_role,
+            publisher_assertion=publisher_assertion,
+            redaction_status=redaction_status,
+            retention_class=retention_class,
+            authority_ref=authority_ref,
+            publisher_secret_refs=publisher_secret_ref,
+        )
+        payload = write_adjudication_trace_publication_preflight(packet, out)
+    except ProgramAdjudicationPublicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: adjudication trace publication preflight failed: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
+@adjudication_trace_app.command("publish")
+def oracle_adjudication_trace_publish(
+    preflight: Path = typer.Option(
+        ...,
+        "--preflight",
+        help="Path to program-adjudication-trace-publication-preflight-v1 JSON",
+    ),
+    receipt_out: Path = typer.Option(
+        ...,
+        "--receipt-out",
+        help="Path where the local adjudication trace publication receipt should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print receipt JSON"),
+) -> None:
+    """Explicitly publish preflighted adjudication traces to shared Oracle."""
+    from dspx.services.program_adjudication_publication import (
+        ProgramAdjudicationPublicationError,
+        publish_adjudication_trace_preflight,
+        write_adjudication_trace_publication_receipt,
+    )
+
+    try:
+        receipt = publish_adjudication_trace_preflight(preflight_path=preflight)
+        payload = write_adjudication_trace_publication_receipt(receipt, receipt_out)
+    except ProgramAdjudicationPublicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: adjudication trace publication failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(receipt_out.expanduser().resolve()))
 
 
 @program_evidence_app.command("publish-preflight")
