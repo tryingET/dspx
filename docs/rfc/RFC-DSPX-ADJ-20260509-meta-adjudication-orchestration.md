@@ -253,6 +253,8 @@ GEPA outputs versioned judging policies/rubrics/prompts. They do not mutate acti
 
 ### Phase 1 — local meta-adjudication plan
 
+Implementation evidence: `docs/project/2026-05-09-meta-adjudication-planner-implementation.md`.
+
 - Add a local planner service/CLI that reads `manifest.json` and known sidecars.
 - Emits `program-meta-adjudication-plan-v1` with target, required sidecars, missing evidence, and exact next commands.
 - No model calls, no Oracle writes, no AK/governance mutation.

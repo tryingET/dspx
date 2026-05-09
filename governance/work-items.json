@@ -2220,6 +2220,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2646",
+          "title": "Implement local meta-adjudication planner",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement local meta-adjudication planner (task #2646)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

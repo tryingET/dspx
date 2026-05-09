@@ -286,6 +286,93 @@ def activation_packet(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("meta-adjudication-plan")
+def meta_adjudication_plan(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to candidate program-candidate-assembly-v1 manifest.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local meta-adjudication plan should be written",
+    ),
+    behavior_results: Path | None = typer.Option(
+        None,
+        "--behavior-results",
+        help="Optional program-behavior-results-v1 JSON",
+    ),
+    behavior_episode: Path | None = typer.Option(
+        None,
+        "--behavior-episode",
+        help="Optional program-behavior-episode-v1 JSON",
+    ),
+    oracle_report: Path | None = typer.Option(
+        None,
+        "--oracle-report",
+        help="Optional program-oracle-evidence-report-v1 JSON",
+    ),
+    oracle_publication_receipt: Path | None = typer.Option(
+        None,
+        "--oracle-publication-receipt",
+        help="Optional program-oracle-shared-publication-receipt-v1 JSON evidence ref",
+    ),
+    jury_results: Path | None = typer.Option(
+        None,
+        "--jury-results",
+        help="Optional program-jury-results-v1 JSON",
+    ),
+    review: Path | None = typer.Option(
+        None,
+        "--review",
+        help="Optional program-promotion-review-refined-v1 JSON",
+    ),
+    decision_record: Path | None = typer.Option(
+        None,
+        "--decision-record",
+        help="Optional program-promotion-decision-record-v1 JSON",
+    ),
+    activation_packet: Path | None = typer.Option(
+        None,
+        "--activation-packet",
+        help="Optional generated-cognition-program activation packet JSON",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print plan JSON"),
+) -> None:
+    """Plan target-sensitive jury/adjudicator orchestration without authority effects."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_meta_adjudication_plan,
+        write_program_meta_adjudication_plan,
+    )
+
+    try:
+        plan_payload = build_program_meta_adjudication_plan(
+            manifest_path=manifest,
+            behavior_results_path=behavior_results,
+            behavior_episode_path=behavior_episode,
+            oracle_report_path=oracle_report,
+            oracle_publication_receipt_path=oracle_publication_receipt,
+            jury_results_path=jury_results,
+            review_path=review,
+            decision_record_path=decision_record,
+            activation_packet_path=activation_packet,
+        )
+        payload = write_program_meta_adjudication_plan(plan_payload, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: meta-adjudication planning failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("status")
 def status(
     manifest: Path = typer.Option(
