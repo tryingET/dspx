@@ -276,12 +276,20 @@ Implementation evidence for deterministic Phase 3a: `docs/project/2026-05-09-met
 - Require provider health receipts, model identity, budget controls, and privacy/redaction posture before model-backed phases.
 - Keep deterministic baseline jurors as guardrails.
 
-### Phase 4 — Oracle/Postgres behavior publication
+### Phase 4 — program-adjudicator formation and verification
+
+Implementation evidence for deterministic Phase 4a: `docs/project/2026-05-09-meta-adjudication-planner-implementation.md`.
+
+- Form a deterministic program-specific adjudicator from the verified meta-jury.
+- Have the DSPx adjudicator verify that program-adjudicator contract before it is allowed to judge program evidence.
+- Keep this phase sidecar-only: no model calls, no shared Oracle writes, and no activation authority.
+
+### Phase 5 — Oracle/Postgres behavior publication
 
 - Extend publication preflight/publish to include adjudication trace sidecars.
 - Publish failures, revisions, and withholds as first-class empirical memory, not only promoted candidates.
 
-### Phase 5 — GEPA optimization pilot
+### Phase 6 — GEPA optimization pilot
 
 - Derive curated `program-adjudication-gepa-example-v1` datasets.
 - Optimize one judging module using `dspy.GEPA` with separate train/validation sets.

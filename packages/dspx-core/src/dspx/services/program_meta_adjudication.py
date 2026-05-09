@@ -15,6 +15,8 @@ PROGRAM_TARGET_PROFILE_SCHEMA = "program-target-profile-v1"
 PROGRAM_JURY_REQUIREMENTS_SCHEMA = "program-jury-requirements-v1"
 PROGRAM_META_JURY_SELECTION_SCHEMA = "program-meta-jury-selection-v1"
 PROGRAM_JURY_VERIFICATION_SCHEMA = "program-jury-verification-v1"
+PROGRAM_ADJUDICATOR_FORMATION_SCHEMA = "program-adjudicator-formation-v1"
+PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA = "program-adjudicator-verification-v1"
 
 _EXPECTED_SIDECAR_SCHEMAS = {
     "behavior_results": "program-behavior-results-v1",
@@ -25,6 +27,12 @@ _EXPECTED_SIDECAR_SCHEMAS = {
     "review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
     "activation_packet": "generated-cognition-program-production-activation-packet-v1",
+    "target_profile": PROGRAM_TARGET_PROFILE_SCHEMA,
+    "jury_requirements": PROGRAM_JURY_REQUIREMENTS_SCHEMA,
+    "meta_jury_selection": PROGRAM_META_JURY_SELECTION_SCHEMA,
+    "jury_verification": PROGRAM_JURY_VERIFICATION_SCHEMA,
+    "program_adjudicator_formation": PROGRAM_ADJUDICATOR_FORMATION_SCHEMA,
+    "program_adjudicator_verification": PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
 }
 
 _DEFAULT_SIDECAR_FILES = {
@@ -36,6 +44,12 @@ _DEFAULT_SIDECAR_FILES = {
     "review": "promotion_review_refined.json",
     "decision_record": "promotion_decision_record.json",
     "activation_packet": "activation_packet.json",
+    "target_profile": "target_profile.json",
+    "jury_requirements": "jury_requirements.json",
+    "meta_jury_selection": "meta_jury_selection.json",
+    "jury_verification": "jury_verification.json",
+    "program_adjudicator_formation": "program_adjudicator_formation.json",
+    "program_adjudicator_verification": "program_adjudicator_verification.json",
 }
 
 _NON_AUTHORITY = {
@@ -115,6 +129,43 @@ def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
             f"{label} must contain a JSON object: {path}"
         )
     return payload
+
+
+def _load_hash_bound_ref(
+    ref: object, *, expected_schema: str, label: str
+) -> tuple[bool, str, dict[str, Any] | None]:
+    ref_map = _safe_mapping(ref)
+    raw_path = _first_text(ref_map.get("path"))
+    expected_sha256 = _first_text(ref_map.get("sha256"))
+    ref_schema = _first_text(ref_map.get("schema_version"))
+    missing = []
+    if not raw_path:
+        missing.append("path")
+    if not expected_sha256:
+        missing.append("sha256")
+    if ref_schema != expected_schema:
+        missing.append("schema_version")
+    if missing:
+        return False, "missing_or_invalid_" + ",".join(missing), None
+    assert raw_path is not None
+    assert expected_sha256 is not None
+
+    path = Path(raw_path).expanduser()
+    try:
+        payload = _load_json_object(path, label=label)
+        actual_sha256 = _sha256_file(path)
+    except ProgramMetaAdjudicationError as exc:
+        return False, str(exc), None
+    if actual_sha256 != expected_sha256:
+        return False, "sha256_mismatch", None
+    if payload.get("schema_version") != expected_schema:
+        return False, "payload_schema_mismatch", None
+    return True, "complete", payload
+
+
+def _all_declared_false(payload: object, keys: Mapping[str, bool]) -> bool:
+    payload_map = _safe_mapping(payload)
+    return all(payload_map.get(key) is False for key in keys)
 
 
 def _manifest_root(manifest_path: Path) -> Path:
@@ -362,15 +413,17 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
     ):
         if not sidecars[key].get("present"):
             missing.append(label)
-    missing.extend(
-        [
-            "target_discovery_review",
-            "jury_panel_verification",
-            "program_adjudicator_formation",
-            "program_adjudicator_verification",
-            "adjudication_behavior_trace_publication",
-        ]
-    )
+    for key, label in (
+        ("target_profile", "target_profile"),
+        ("jury_requirements", "jury_requirements"),
+        ("meta_jury_selection", "meta_jury_selection"),
+        ("jury_verification", "jury_panel_verification"),
+        ("program_adjudicator_formation", "program_adjudicator_formation"),
+        ("program_adjudicator_verification", "program_adjudicator_verification"),
+    ):
+        if not sidecars[key].get("present"):
+            missing.append(label)
+    missing.append("adjudication_behavior_trace_publication")
     return missing
 
 
@@ -447,14 +500,29 @@ def _next_commands(
     )
     commands.append(
         {
-            "step": "phase4_form_and_verify_program_adjudicator",
-            "implemented": False,
-            "command": "future: dspx program-promote adjudicator-formation --jury-verification <jury_verification.json>",
+            "step": "form_program_adjudicator",
+            "implemented": True,
+            "command": (
+                "dspx program-promote adjudicator-formation "
+                f"--jury-verification {root / 'jury_verification.json'} "
+                f"--out {root / 'program_adjudicator_formation.json'} --json"
+            ),
         }
     )
     commands.append(
         {
-            "step": "phase4_publish_adjudication_trace",
+            "step": "verify_program_adjudicator",
+            "implemented": True,
+            "command": (
+                "dspx program-promote verify-program-adjudicator "
+                f"--adjudicator-formation {root / 'program_adjudicator_formation.json'} "
+                f"--out {root / 'program_adjudicator_verification.json'} --json"
+            ),
+        }
+    )
+    commands.append(
+        {
+            "step": "phase5_publish_adjudication_trace",
             "implemented": False,
             "command": "future: dspx oracle program-evidence publish --include-adjudication-trace <trace.json>",
         }
@@ -758,6 +826,309 @@ def write_program_jury_verification(
     return payload
 
 
+def build_program_adjudicator_formation(
+    *, jury_verification_path: Path, jury_selection_path: Path | None = None
+) -> dict[str, Any]:
+    """Form a deterministic program-specific adjudicator from a verified jury."""
+
+    verification = _load_json_object(jury_verification_path, label="jury verification")
+    if verification.get("schema_version") != PROGRAM_JURY_VERIFICATION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "jury verification schema_version must be "
+            + PROGRAM_JURY_VERIFICATION_SCHEMA
+        )
+    if (
+        verification.get("status") != "verified"
+        or verification.get("approved_for_program_adjudicator_formation") is not True
+    ):
+        raise ProgramMetaAdjudicationError(
+            "jury verification must be verified before forming a program adjudicator"
+        )
+
+    selection_path = jury_selection_path
+    if selection_path is None:
+        verification_selection = _safe_mapping(verification.get("jury_selection"))
+        raw_path = _first_text(verification_selection.get("path"))
+        if raw_path:
+            selection_path = Path(raw_path)
+    if selection_path is None:
+        raise ProgramMetaAdjudicationError(
+            "jury selection path is required when verification does not reference it"
+        )
+    resolved_selection_path = selection_path.expanduser().resolve()
+    selection = _load_json_object(resolved_selection_path, label="meta jury selection")
+    if selection.get("schema_version") != PROGRAM_META_JURY_SELECTION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "meta jury selection schema_version must be "
+            + PROGRAM_META_JURY_SELECTION_SCHEMA
+        )
+    selection_sha256 = _sha256_file(resolved_selection_path)
+    verification_selection = _safe_mapping(verification.get("jury_selection"))
+    if (
+        verification_selection.get("schema_version")
+        != PROGRAM_META_JURY_SELECTION_SCHEMA
+    ):
+        raise ProgramMetaAdjudicationError(
+            "jury verification must reference a program-meta-jury-selection-v1 sidecar"
+        )
+    verification_selection_sha256 = _first_text(verification_selection.get("sha256"))
+    if not verification_selection_sha256:
+        raise ProgramMetaAdjudicationError(
+            "jury verification must bind the verified jury selection sha256"
+        )
+    if verification_selection_sha256 != selection_sha256:
+        raise ProgramMetaAdjudicationError(
+            "meta jury selection does not match the verified jury selection hash"
+        )
+
+    jurors = [
+        dict(item)
+        for item in _safe_list(selection.get("selected_jurors"))
+        if isinstance(item, Mapping)
+    ]
+    perspectives = [str(juror.get("perspective")) for juror in jurors]
+    adjudicator_roles = [
+        {
+            "role_id": f"program_adjudicator_{_slug(perspective)}",
+            "source_juror_id": juror.get("juror_id"),
+            "perspective": perspective,
+            "responsibility": "judge program evidence for this perspective and report missing evidence",
+            "model_backed": False,
+        }
+        for juror, perspective in zip(jurors, perspectives, strict=False)
+        if perspective and perspective != "None"
+    ]
+    required_inputs = [
+        "manifest.json",
+        "behavior_results.json or behavior_episode.json",
+        "program_oracle_report.json when available",
+        "program-meta-jury-selection-v1",
+        "program-jury-verification-v1",
+    ]
+    if "canonical_mutation_safety" in perspectives:
+        required_inputs.append(
+            "canonical mutation / review-only adapter receipt when target writes review artifacts"
+        )
+    if "rollout_rollback" in perspectives:
+        required_inputs.append(
+            "rollout owner, canonical binding ref, and rollback plan before activation"
+        )
+
+    return {
+        "schema_version": PROGRAM_ADJUDICATOR_FORMATION_SCHEMA,
+        "status": "formed",
+        "authority": "program_adjudicator_formation_evidence_only_non_authoritative",
+        "program_adjudicator": {
+            "id": "program_adjudicator_from_verified_meta_jury_v1",
+            "formation_method": "deterministic_verified_jury_perspective_composition_v1",
+            "model_backed": False,
+            "roles": adjudicator_roles,
+            "decision_scope": "judge_program_evidence_not_activation_authority",
+            "allowed_outputs": [
+                "program evidence judgment",
+                "missing evidence requests",
+                "risk-specific rationale",
+                "recommendation for domain decision packet",
+            ],
+            "forbidden_outputs": [
+                "production activation",
+                "canonical target mutation",
+                "AK/governance mutation",
+                "Oracle promotion authority",
+            ],
+            "required_inputs": required_inputs,
+        },
+        "jury_verification": {
+            "path": str(jury_verification_path.expanduser().resolve()),
+            "sha256": _sha256_file(jury_verification_path.expanduser().resolve()),
+            "schema_version": verification.get("schema_version"),
+        },
+        "jury_selection": {
+            "path": str(resolved_selection_path),
+            "sha256": selection_sha256,
+            "schema_version": selection.get("schema_version"),
+        },
+        "next_required_action": "verify_program_adjudicator",
+        "notes": [
+            "The verified deterministic jury forms a deterministic program adjudicator contract only.",
+            "No program evidence has been judged by this formation sidecar.",
+            "Production activation authority remains outside DSPx.",
+        ],
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+
+
+def write_program_adjudicator_formation(
+    formation: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if formation.get("schema_version") != PROGRAM_ADJUDICATOR_FORMATION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "program adjudicator formation schema_version must be "
+            + PROGRAM_ADJUDICATOR_FORMATION_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(formation)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
+def build_program_adjudicator_verification(
+    *, adjudicator_formation_path: Path
+) -> dict[str, Any]:
+    """Verify a formed program adjudicator contract without judging program evidence."""
+
+    formation = _load_json_object(
+        adjudicator_formation_path, label="program adjudicator formation"
+    )
+    if formation.get("schema_version") != PROGRAM_ADJUDICATOR_FORMATION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "program adjudicator formation schema_version must be "
+            + PROGRAM_ADJUDICATOR_FORMATION_SCHEMA
+        )
+    adjudicator = _safe_mapping(formation.get("program_adjudicator"))
+    roles = [
+        dict(item)
+        for item in _safe_list(adjudicator.get("roles"))
+        if isinstance(item, Mapping)
+    ]
+    role_perspectives = {
+        str(role.get("perspective")) for role in roles if role.get("perspective")
+    }
+    forbidden_outputs = set(_string_list(adjudicator.get("forbidden_outputs")))
+    required_forbidden = {
+        "production activation",
+        "canonical target mutation",
+        "AK/governance mutation",
+        "Oracle promotion authority",
+    }
+    jury_ref_ok, jury_ref_detail, jury_verification = _load_hash_bound_ref(
+        formation.get("jury_verification"),
+        expected_schema=PROGRAM_JURY_VERIFICATION_SCHEMA,
+        label="jury verification ref",
+    )
+    selection_ref_ok, selection_ref_detail, _selection = _load_hash_bound_ref(
+        formation.get("jury_selection"),
+        expected_schema=PROGRAM_META_JURY_SELECTION_SCHEMA,
+        label="jury selection ref",
+    )
+    formation_selection_sha256 = _first_text(
+        _safe_mapping(formation.get("jury_selection")).get("sha256")
+    )
+    verified_selection_sha256 = None
+    jury_verification_approves_formation = False
+    if jury_verification is not None:
+        verified_selection_sha256 = _first_text(
+            _safe_mapping(jury_verification.get("jury_selection")).get("sha256")
+        )
+        jury_verification_approves_formation = (
+            jury_verification.get("status") == "verified"
+            and jury_verification.get("approved_for_program_adjudicator_formation")
+            is True
+        )
+    checks = [
+        {
+            "check": "formation_status_is_formed",
+            "ok": formation.get("status") == "formed",
+            "detail": str(formation.get("status")),
+        },
+        {
+            "check": "roles_present",
+            "ok": bool(roles),
+            "detail": f"role_count={len(roles)}",
+        },
+        {
+            "check": "authority_boundary_role_present",
+            "ok": "authority_boundary" in role_perspectives,
+            "detail": "authority_boundary role required",
+        },
+        {
+            "check": "model_backed_roles_have_provider_identity",
+            "ok": not [
+                role.get("role_id")
+                for role in roles
+                if role.get("model_backed") is True
+                and (not role.get("provider") or not role.get("model"))
+            ],
+            "detail": "model-backed roles require provider/model identity",
+        },
+        {
+            "check": "forbidden_outputs_preserve_authority_boundary",
+            "ok": required_forbidden.issubset(forbidden_outputs),
+            "detail": ",".join(sorted(required_forbidden - forbidden_outputs))
+            or "complete",
+        },
+        {
+            "check": "verified_jury_provenance_present_and_hash_bound",
+            "ok": jury_ref_ok and jury_verification_approves_formation,
+            "detail": "complete"
+            if jury_ref_ok and jury_verification_approves_formation
+            else ("jury_verification_not_approved" if jury_ref_ok else jury_ref_detail),
+        },
+        {
+            "check": "jury_selection_provenance_present_and_hash_bound",
+            "ok": selection_ref_ok,
+            "detail": selection_ref_detail,
+        },
+        {
+            "check": "formation_selection_matches_verified_jury",
+            "ok": bool(formation_selection_sha256)
+            and formation_selection_sha256 == verified_selection_sha256,
+            "detail": "complete"
+            if formation_selection_sha256 == verified_selection_sha256
+            else "selection_sha256_mismatch",
+        },
+        {
+            "check": "formation_has_no_authority_effect",
+            "ok": _all_declared_false(formation.get("non_authority"), _NON_AUTHORITY)
+            and _all_declared_false(formation.get("effect"), _EFFECT),
+            "detail": "formation must be evidence-only and local in this phase",
+        },
+    ]
+    failed_checks = [str(check["check"]) for check in checks if not check["ok"]]
+    verified = not failed_checks
+    return {
+        "schema_version": PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
+        "status": "verified" if verified else "revise_program_adjudicator",
+        "authority": "program_adjudicator_verification_evidence_only_non_authoritative",
+        "dspx_adjudicator": {
+            "id": "dspx_meta_adjudicator_v1",
+            "mode": "deterministic_contract_check",
+            "scope": "judge_program_adjudicator_fitness_not_program_promotion_or_activation",
+            "model_backed": False,
+        },
+        "program_adjudicator_formation": {
+            "path": str(adjudicator_formation_path.expanduser().resolve()),
+            "sha256": _sha256_file(adjudicator_formation_path.expanduser().resolve()),
+            "schema_version": formation.get("schema_version"),
+        },
+        "checks": checks,
+        "failed_checks": failed_checks,
+        "approved_for_program_evidence_adjudication": verified,
+        "next_required_action": (
+            "adjudicate_program_evidence" if verified else "revise_program_adjudicator"
+        ),
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+
+
+def write_program_adjudicator_verification(
+    verification: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if verification.get("schema_version") != PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "program adjudicator verification schema_version must be "
+            + PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(verification)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
 def build_program_meta_adjudication_plan(
     *,
     manifest_path: Path,
@@ -803,6 +1174,24 @@ def build_program_meta_adjudication_plan(
         ),
         "activation_packet": _sidecar_status(
             manifest_path, key="activation_packet", explicit_path=activation_packet_path
+        ),
+        "target_profile": _sidecar_status(
+            manifest_path, key="target_profile", explicit_path=None
+        ),
+        "jury_requirements": _sidecar_status(
+            manifest_path, key="jury_requirements", explicit_path=None
+        ),
+        "meta_jury_selection": _sidecar_status(
+            manifest_path, key="meta_jury_selection", explicit_path=None
+        ),
+        "jury_verification": _sidecar_status(
+            manifest_path, key="jury_verification", explicit_path=None
+        ),
+        "program_adjudicator_formation": _sidecar_status(
+            manifest_path, key="program_adjudicator_formation", explicit_path=None
+        ),
+        "program_adjudicator_verification": _sidecar_status(
+            manifest_path, key="program_adjudicator_verification", explicit_path=None
         ),
     }
     profile = _target_profile(manifest, manifest_path=manifest_path)

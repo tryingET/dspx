@@ -458,6 +458,94 @@ def verify_jury_panel(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("adjudicator-formation")
+def adjudicator_formation(
+    jury_verification: Path = typer.Option(
+        ...,
+        "--jury-verification",
+        help="Path to program-jury-verification-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-adjudicator-formation-v1 sidecar should be written",
+    ),
+    jury_selection: Path | None = typer.Option(
+        None,
+        "--jury-selection",
+        help="Optional program-meta-jury-selection-v1 JSON if not referenced by verification",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print adjudicator formation JSON"
+    ),
+) -> None:
+    """Form a deterministic program adjudicator from a verified jury panel."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_adjudicator_formation,
+        write_program_adjudicator_formation,
+    )
+
+    try:
+        formation = build_program_adjudicator_formation(
+            jury_verification_path=jury_verification,
+            jury_selection_path=jury_selection,
+        )
+        payload = write_program_adjudicator_formation(formation, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program adjudicator formation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("verify-program-adjudicator")
+def verify_program_adjudicator(
+    adjudicator_formation: Path = typer.Option(
+        ...,
+        "--adjudicator-formation",
+        help="Path to program-adjudicator-formation-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-adjudicator-verification-v1 sidecar should be written",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print adjudicator verification JSON"
+    ),
+) -> None:
+    """Verify a program adjudicator contract without judging program evidence."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_adjudicator_verification,
+        write_program_adjudicator_verification,
+    )
+
+    try:
+        verification = build_program_adjudicator_verification(
+            adjudicator_formation_path=adjudicator_formation,
+        )
+        payload = write_program_adjudicator_verification(verification, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program adjudicator verification failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("meta-adjudication-plan")
 def meta_adjudication_plan(
     manifest: Path = typer.Option(

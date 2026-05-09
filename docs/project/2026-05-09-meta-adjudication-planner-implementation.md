@@ -1,8 +1,8 @@
 ---
-summary: "Implementation evidence for Phase 1-3a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, and jury verification sidecars."
+summary: "Implementation evidence for Phase 1-4a of the DSPx meta-adjudication orchestration RFC: local planner, target profile, jury requirements, deterministic jury panel, jury verification, program adjudicator formation, and program adjudicator verification sidecars."
 read_when:
-  - "You are checking the shipped Phase 1-3a meta-adjudication sidecars."
-  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, or `verify-jury-panel`."
+  - "You are checking the shipped Phase 1-4a meta-adjudication sidecars."
+  - "You need the command shape for `program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, or `verify-program-adjudicator`."
 type: "evidence"
 ---
 
@@ -10,7 +10,7 @@ type: "evidence"
 
 ## Result
 
-Phase 1-3a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
+Phase 1-4a from `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md` are implemented as local, non-authoritative sidecars.
 
 Planner command:
 
@@ -71,6 +71,27 @@ schema_version=program-meta-jury-selection-v1
 schema_version=program-jury-verification-v1
 ```
 
+Deterministic program-adjudicator commands:
+
+```bash
+dspx program-promote adjudicator-formation \
+  --jury-verification <candidate>/jury_verification.json \
+  --out <candidate>/program_adjudicator_formation.json \
+  --json
+
+dspx program-promote verify-program-adjudicator \
+  --adjudicator-formation <candidate>/program_adjudicator_formation.json \
+  --out <candidate>/program_adjudicator_verification.json \
+  --json
+```
+
+Those commands write:
+
+```text
+schema_version=program-adjudicator-formation-v1
+schema_version=program-adjudicator-verification-v1
+```
+
 ## What it does
 
 The planner reads an existing generated-program `manifest.json` plus optional sidecars and emits:
@@ -86,7 +107,7 @@ The planner reads an existing generated-program `manifest.json` plus optional si
 - GEPA improvement-lane posture;
 - non-authority and no-mutation effect flags.
 
-The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, and DSPx adjudicator jury verification as standalone JSON artifacts so later phases can consume them without re-running the full planner.
+The first-class sidecar commands materialize the embedded target profile, jury requirements, deterministic meta-jury selection, DSPx adjudicator jury verification, deterministic program-adjudicator formation, and DSPx adjudicator program-adjudicator verification as standalone JSON artifacts so later phases can consume them without re-running the full planner.
 
 ## What it does not do
 
@@ -95,7 +116,7 @@ It does **not**:
 - call a model/provider;
 - select a model-backed jury;
 - verify a jury with model-backed adjudication;
-- form or verify a program-specific adjudicator;
+- judge program evidence with the formed program-specific adjudicator;
 - publish to shared Oracle/Postgres;
 - mutate AK/governance;
 - activate, deploy, promote, rank, or select a winner.
@@ -187,6 +208,35 @@ verification_provider_called=false
 activation_authority=false
 ```
 
+The deterministic program-adjudicator sidecars were also dogfooded against the same candidate:
+
+```bash
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote adjudicator-formation \
+  --jury-verification /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/jury_verification.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/program_adjudicator_formation.json \
+  --json
+
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote verify-program-adjudicator \
+  --adjudicator-formation /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/program_adjudicator_formation.json \
+  --out /tmp/dspx-obsidian-pdf-transition-live.9QA9Nv/pdf-transition-program/program_adjudicator_verification.json \
+  --json
+```
+
+Observed program-adjudicator summary:
+
+```text
+adjudicator_formation_schema=program-adjudicator-formation-v1
+adjudicator_formation_status=formed
+role_count=7
+formation_provider_called=false
+adjudicator_verification_schema=program-adjudicator-verification-v1
+adjudicator_verification_status=verified
+approved_for_program_evidence_adjudication=true
+failed_checks=
+verification_provider_called=false
+activation_authority=false
+```
+
 ## Validation
 
 Focused checks passed:
@@ -197,7 +247,7 @@ uv run ruff check \
   packages/dspx-core/src/dspx/cli/commands/program_promote.py \
   tests/test_program_meta_adjudication.py
 
-uv run pytest tests/test_program_meta_adjudication.py -q
+uv run pytest tests/test_program_meta_adjudication.py tests/test_program_candidate_state.py -q
 uv run ty check packages/dspx-core/src/dspx/services/program_meta_adjudication.py tests/test_program_meta_adjudication.py
 ```
 
@@ -205,9 +255,9 @@ Observed:
 
 ```text
 All checks passed!
-9 passed
+24 passed
 ```
 
 ## Next phase
 
-The next implementation phase should add deterministic program-adjudicator formation and verification sidecars, still without model calls, shared Oracle writes, or activation authority.
+The next implementation phase should add deterministic program evidence adjudication and adjudication behavior trace sidecars, still without model calls, shared Oracle writes, or activation authority.

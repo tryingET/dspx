@@ -2259,6 +2259,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2654",
+          "title": "Implement program adjudicator formation and verification sidecars",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement program adjudicator formation and verification sidecars (task #2654)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }
