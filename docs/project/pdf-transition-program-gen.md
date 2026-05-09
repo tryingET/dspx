@@ -83,18 +83,25 @@ transition_artifact_quality
 
 `program-gen` materializes those explicit perspectives into `jury.json`, `jury_selection.json`, and `jury_rubric.json` even when the intent does not bind concrete juror models. They are candidate-local evaluation contracts for the generated DSPy program. The generated-program-level promotion adjudicator is the declared DSPx AI agent (`dspx_program_adjudicator_v1`) and starts pending.
 
-To see the DSPx adjudicator act without making the operator the judge, run the meta-adjudication sidecar chain through `program_evidence_adjudication.json`, then write a local decision record with:
+To see both adjudicator layers without making the operator the judge, run the meta-adjudication sidecar chain through `program_adjudicator_verification.json`, let the DSPx/meta adjudicator delegate local decision scope to the generated-program adjudicator, then let that generated-program adjudicator decide:
 
 ```bash
-uv run --package dspx-core -q python -m dspx.cli.dspx program-promote dspx-adjudicator-decision \
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote adjudicator-delegation \
+  --manifest "$TD/pdf-transition-program/manifest.json" \
+  --adjudicator-verification "$TD/pdf-transition-program/program_adjudicator_verification.json" \
+  --out "$TD/pdf-transition-program/program_adjudicator_delegation.json" \
+  --json
+
+uv run --package dspx-core -q python -m dspx.cli.dspx program-promote generated-adjudicator-decision \
   --evidence-adjudication "$TD/pdf-transition-program/program_evidence_adjudication.json" \
+  --adjudicator-delegation "$TD/pdf-transition-program/program_adjudicator_delegation.json" \
   --out "$TD/pdf-transition-program/promotion_decision_record.json" \
   --json
 ```
 
-That decision record is generated from DSPx evidence adjudication. It is still non-authoritative: it does not activate production, mutate the Obsidian vault, update AK/governance, or grant Oracle promotion authority.
+The first command is the DSPx/meta adjudicator deciding that the generated-program adjudicator is fit to decide. The second command is the generated-program adjudicator's local decision. Both remain non-authoritative: they do not activate production, mutate the Obsidian vault, update AK/governance, or grant Oracle promotion authority.
 
-This is separate from DSPx/meta-adjudication sidecars such as `target_profile.json`, `meta_jury_selection.json`, `program_adjudicator_verification.json`, and `adjudication_behavior_trace.json`.
+This is separate from other DSPx/meta-adjudication sidecars such as `target_profile.json`, `meta_jury_selection.json`, `program_adjudicator_verification.json`, and `adjudication_behavior_trace.json`.
 
 ## What this scenario does not do
 

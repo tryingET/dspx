@@ -14,12 +14,13 @@ from dspx.services.program_jury_execution import (
     write_program_jury_execution_result,
 )
 from dspx.services.program_promotion_decision import (
-    build_dspx_adjudicator_decision_record,
+    build_generated_program_adjudicator_decision_record,
     write_program_promotion_decision_record,
 )
 from dspx.services.program_meta_adjudication import (
     build_program_adjudication_behavior_trace,
     build_program_adjudication_gepa_example,
+    build_program_adjudicator_delegation,
     build_program_adjudicator_formation,
     build_program_adjudicator_verification,
     build_program_evidence_adjudication,
@@ -30,6 +31,7 @@ from dspx.services.program_meta_adjudication import (
     build_program_target_profile,
     write_program_adjudication_behavior_trace,
     write_program_adjudication_gepa_example,
+    write_program_adjudicator_delegation,
     write_program_adjudicator_formation,
     write_program_adjudicator_verification,
     write_program_evidence_adjudication,
@@ -83,6 +85,9 @@ def _materialize_obsidian_like_candidate(tmp_path: Path, monkeypatch) -> Path:
                 },
             }
         ],
+        promotion={
+            "adjudicator": {"kind": "ai_agent", "id": "dspx_program_adjudicator_v1"}
+        },
     )
     artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
     return Path(artifact.root_path)
@@ -365,6 +370,7 @@ def test_program_adjudicator_formation_and_verification_sidecars(
     jury_verification_path = tmp_path / "jury_verification.json"
     formation_path = tmp_path / "program_adjudicator_formation.json"
     adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+    delegation_path = tmp_path / "program_adjudicator_delegation.json"
 
     requirements = build_program_jury_requirements(
         manifest_path=candidate_root / "manifest.json"
@@ -389,6 +395,11 @@ def test_program_adjudicator_formation_and_verification_sidecars(
     write_program_adjudicator_verification(
         adjudicator_verification, adjudicator_verification_path
     )
+    delegation = build_program_adjudicator_delegation(
+        manifest_path=candidate_root / "manifest.json",
+        adjudicator_verification_path=adjudicator_verification_path,
+    )
+    write_program_adjudicator_delegation(delegation, delegation_path)
 
     assert formation["schema_version"] == "program-adjudicator-formation-v1"
     assert formation["status"] == "formed"
@@ -413,6 +424,23 @@ def test_program_adjudicator_formation_and_verification_sidecars(
     assert adjudicator_verification["effect"]["provider_called"] is False
     assert all(check["ok"] is True for check in adjudicator_verification["checks"])
 
+    assert delegation["schema_version"] == "program-adjudicator-delegation-v1"
+    assert delegation["status"] == "delegated"
+    assert delegation["dspx_meta_adjudicator"]["id"] == "dspx_meta_adjudicator_v1"
+    assert delegation["generated_program_adjudicator"] == {
+        "id": "dspx_program_adjudicator_v1",
+        "kind": "ai_agent",
+        "authority": "required_for_promotion",
+        "status": "pending",
+        "approved_to_decide": True,
+        "decision_scope": "generated_program_local_promotion_decision_only",
+        "promotion_authority": False,
+        "activation_authority": False,
+        "source": "manifest.program_promotion_review.adjudicator",
+    }
+    assert delegation["non_authority"]["promotion_authority"] is False
+    assert delegation["effect"]["governance_mutated"] is False
+
     written_formation = json.loads(formation_path.read_text(encoding="utf-8"))
     written_verification = json.loads(
         adjudicator_verification_path.read_text(encoding="utf-8")
@@ -432,6 +460,7 @@ def test_program_adjudicator_formation_and_verification_cli_write_json(
     jury_verification_out = tmp_path / "jury-verification.json"
     formation_out = tmp_path / "adjudicator-formation.json"
     adjudicator_verification_out = tmp_path / "adjudicator-verification.json"
+    delegation_out = tmp_path / "adjudicator-delegation.json"
 
     for args in (
         [
@@ -502,6 +531,30 @@ def test_program_adjudicator_formation_and_verification_cli_write_json(
     assert verification_payload["status"] == "verified"
     assert adjudicator_verification_out.exists()
 
+    delegation_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "adjudicator-delegation",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--adjudicator-verification",
+            str(adjudicator_verification_out),
+            "--out",
+            str(delegation_out),
+            "--json",
+        ],
+    )
+    assert delegation_result.exit_code == 0, delegation_result.output
+    delegation_payload = json.loads(delegation_result.output)
+    assert delegation_payload["schema_version"] == "program-adjudicator-delegation-v1"
+    assert delegation_payload["status"] == "delegated"
+    assert (
+        delegation_payload["generated_program_adjudicator"]["id"]
+        == "dspx_program_adjudicator_v1"
+    )
+    assert delegation_out.exists()
+
 
 def _write_minimal_activation_packet(path: Path) -> None:
     path.write_text(
@@ -538,6 +591,7 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     jury_verification_path = tmp_path / "jury_verification.json"
     formation_path = tmp_path / "program_adjudicator_formation.json"
     adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+    delegation_path = tmp_path / "program_adjudicator_delegation.json"
     activation_packet_path = candidate_root / "activation_packet.json"
     evidence_adjudication_path = tmp_path / "program_evidence_adjudication.json"
     trace_path = tmp_path / "adjudication_behavior_trace.json"
@@ -564,6 +618,11 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     write_program_adjudicator_verification(
         adjudicator_verification, adjudicator_verification_path
     )
+    delegation = build_program_adjudicator_delegation(
+        manifest_path=candidate_root / "manifest.json",
+        adjudicator_verification_path=adjudicator_verification_path,
+    )
+    write_program_adjudicator_delegation(delegation, delegation_path)
     _write_minimal_activation_packet(activation_packet_path)
 
     adjudication = build_program_evidence_adjudication(
@@ -597,14 +656,18 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     assert trace_path.exists()
 
     decision_path = tmp_path / "promotion_decision_record.json"
-    decision = build_dspx_adjudicator_decision_record(
-        evidence_adjudication_path=evidence_adjudication_path
+    decision = build_generated_program_adjudicator_decision_record(
+        evidence_adjudication_path=evidence_adjudication_path,
+        adjudicator_delegation_path=delegation_path,
     )
     write_program_promotion_decision_record(decision, decision_path)
 
     assert decision["schema_version"] == "program-promotion-decision-record-v1"
     assert decision["status"] == "recorded"
     assert decision["decided_by"] == "dspx_program_adjudicator_v1"
+    assert (
+        decision["adjudicator_delegation"]["decided_by"] == "dspx_meta_adjudicator_v1"
+    )
     expected_outcome = (
         "withhold"
         if adjudication["aggregate"]["ready_for_domain_decision"] is True
@@ -620,10 +683,11 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     assert decision_path.exists()
 
 
-def test_dspx_adjudicator_decision_withholds_when_ready_for_domain_decision(
+def test_generated_program_adjudicator_decision_uses_dspx_meta_delegation(
     tmp_path: Path,
 ) -> None:
     evidence_path = tmp_path / "program_evidence_adjudication.json"
+    delegation_path = tmp_path / "program_adjudicator_delegation.json"
     evidence_path.write_text(
         json.dumps(
             {
@@ -651,12 +715,42 @@ def test_dspx_adjudicator_decision_withholds_when_ready_for_domain_decision(
         encoding="utf-8",
     )
 
-    decision = build_dspx_adjudicator_decision_record(
-        evidence_adjudication_path=evidence_path
+    delegation_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-adjudicator-delegation-v1",
+                "status": "delegated",
+                "dspx_meta_adjudicator": {"id": "dspx_meta_adjudicator_v1"},
+                "generated_program_adjudicator": {
+                    "id": "dspx_program_adjudicator_v1",
+                    "kind": "ai_agent",
+                    "approved_to_decide": True,
+                    "decision_scope": "generated_program_local_promotion_decision_only",
+                },
+                "non_authority": {
+                    "activation_authority": False,
+                    "governance_authority": False,
+                    "oracle_authority": False,
+                    "promotion_authority": False,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    decision = build_generated_program_adjudicator_decision_record(
+        evidence_adjudication_path=evidence_path,
+        adjudicator_delegation_path=delegation_path,
     )
 
     assert decision["outcome"] == "withhold"
     assert decision["decided_by"] == "dspx_program_adjudicator_v1"
+    assert (
+        decision["adjudicator_delegation"]["decided_by"] == "dspx_meta_adjudicator_v1"
+    )
     assert decision["review_snapshot"]["ready_for_adjudicator_review"] is True
     assert (
         "canonical binding ref before rollout"
@@ -674,6 +768,7 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
     jury_verification_out = tmp_path / "jury-verification.json"
     formation_out = tmp_path / "adjudicator-formation.json"
     adjudicator_verification_out = tmp_path / "adjudicator-verification.json"
+    delegation_out = tmp_path / "adjudicator-delegation.json"
     activation_packet_path = candidate_root / "activation_packet.json"
     evidence_out = tmp_path / "evidence-adjudication.json"
     trace_out = tmp_path / "adjudication-trace.json"
@@ -729,6 +824,22 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
         result = runner.invoke(app, args)
         assert result.exit_code == 0, result.output
 
+    delegation_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "adjudicator-delegation",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--adjudicator-verification",
+            str(adjudicator_verification_out),
+            "--out",
+            str(delegation_out),
+            "--json",
+        ],
+    )
+    assert delegation_result.exit_code == 0, delegation_result.output
+
     adjudication_result = runner.invoke(
         app,
         [
@@ -771,14 +882,16 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
     )
     assert trace_out.exists()
 
-    decision_out = tmp_path / "dspx-adjudicator-decision.json"
+    decision_out = tmp_path / "generated-adjudicator-decision.json"
     decision_result = runner.invoke(
         app,
         [
             "program-promote",
-            "dspx-adjudicator-decision",
+            "generated-adjudicator-decision",
             "--evidence-adjudication",
             str(evidence_out),
+            "--adjudicator-delegation",
+            str(delegation_out),
             "--out",
             str(decision_out),
             "--json",
@@ -788,6 +901,10 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
     decision_payload = json.loads(decision_result.output)
     assert decision_payload["schema_version"] == "program-promotion-decision-record-v1"
     assert decision_payload["decided_by"] == "dspx_program_adjudicator_v1"
+    assert (
+        decision_payload["adjudicator_delegation"]["decided_by"]
+        == "dspx_meta_adjudicator_v1"
+    )
     expected_outcome = (
         "withhold"
         if adjudication_payload["aggregate"]["ready_for_domain_decision"] is True

@@ -43,7 +43,7 @@ The current `program-gen` loop proves:
 9. `program-refine propose` can be run explicitly over the manifest, declared behavior evidence, and the Oracle report to write a local proposal artifact only; it is not part of `program-gen`.
 10. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
 11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and already-generated behavior evidence (`behavior_results.json` when present, otherwise bounded `behavior_episode.json`) to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
-12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar; `program-promote dspx-adjudicator-decision` can instead derive a local decision record from `program-evidence-adjudication-v1` when the generated-program adjudicator is the DSPx adjudicator. Neither path is external authority, activation, or automatic promotion.
+12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar. For the two-adjudicator path, `program-promote adjudicator-delegation` first lets the DSPx/meta adjudicator approve the generated-program adjudicator, then `program-promote generated-adjudicator-decision` records the generated-program adjudicator's local decision from `program-evidence-adjudication-v1`. Neither path is external authority, activation, or automatic promotion.
 13. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
 14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over already-generated `behavior_episode.json` evidence plus example-backed `behavior_results.json` when present.
 15. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
@@ -594,16 +594,27 @@ Expected JSON facts:
 
 The command writes only the requested decision sidecar. It does not mutate generated program artifacts, `promotion_review_refined.json`, Oracle indexes, AK, governance, external authority, or candidate code. `promote` fails closed unless `review_readiness.ready_for_adjudicator_review` is explicitly true; there is no override flag in this wave, and top-level `status: review_packet_ready` is not sufficient.
 
-When the generated program declares the DSPx adjudicator and you want DSPx to decide from its own evidence-adjudication sidecar instead of asking the operator to decide, use:
+When the generated program declares a generated-program adjudicator and you want both adjudicator layers explicit, first let the DSPx/meta adjudicator delegate local decision scope:
 
 ```bash
-uv run -q python -m dspx.cli.dspx program-promote dspx-adjudicator-decision \
+uv run -q python -m dspx.cli.dspx program-promote adjudicator-delegation \
+  --manifest "$TD/program-loop/manifest.json" \
+  --adjudicator-verification "$TD/program-loop/program_adjudicator_verification.json" \
+  --out "$TD/program-loop/program_adjudicator_delegation.json" \
+  --json
+```
+
+Then let the generated-program adjudicator decide:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote generated-adjudicator-decision \
   --evidence-adjudication "$TD/program-loop/program_evidence_adjudication.json" \
+  --adjudicator-delegation "$TD/program-loop/program_adjudicator_delegation.json" \
   --out "$TD/program-loop/promotion_decision_record.json" \
   --json
 ```
 
-This writes the same `program-promotion-decision-record-v1` shape, but its `created_from` points at `program-evidence-adjudication-v1` and `decided_by` defaults to `dspx_program_adjudicator_v1`. It is still local and non-authoritative: it cannot record `promote`, cannot activate production, and cannot mutate AK/governance/Oracle authority.
+This writes the same `program-promotion-decision-record-v1` shape, but its `created_from` points at both `program-evidence-adjudication-v1` and `program-adjudicator-delegation-v1`. `adjudicator_delegation.decided_by` records the DSPx/meta adjudicator, while `decided_by` records the generated-program adjudicator. It is still local and non-authoritative: it cannot record `promote`, cannot activate production, and cannot mutate AK/governance/Oracle authority.
 
 ## 14. Optional explicit second candidate from request-more-evidence
 

@@ -546,6 +546,53 @@ def verify_program_adjudicator(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("adjudicator-delegation")
+def adjudicator_delegation(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to candidate manifest.json",
+    ),
+    adjudicator_verification: Path = typer.Option(
+        ...,
+        "--adjudicator-verification",
+        help="Path to program-adjudicator-verification-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-adjudicator-delegation-v1 sidecar should be written",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print adjudicator delegation JSON"
+    ),
+) -> None:
+    """Let DSPx/meta approve the generated-program adjudicator to decide locally."""
+    from dspx.services.program_meta_adjudication import (
+        ProgramMetaAdjudicationError,
+        build_program_adjudicator_delegation,
+        write_program_adjudicator_delegation,
+    )
+
+    try:
+        delegation = build_program_adjudicator_delegation(
+            manifest_path=manifest,
+            adjudicator_verification_path=adjudicator_verification,
+        )
+        payload = write_program_adjudicator_delegation(delegation, out)
+    except ProgramMetaAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program adjudicator delegation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("evidence-adjudication")
 def evidence_adjudication(
     adjudicator_verification: Path = typer.Option(
@@ -889,6 +936,54 @@ def status(
     except Exception as exc:
         typer.echo(
             f"Error: program candidate state summarization failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("generated-adjudicator-decision")
+def generated_adjudicator_decision(
+    evidence_adjudication: Path = typer.Option(
+        ...,
+        "--evidence-adjudication",
+        help="Path to program-evidence-adjudication-v1 JSON",
+    ),
+    adjudicator_delegation: Path = typer.Option(
+        ...,
+        "--adjudicator-delegation",
+        help="Path to program-adjudicator-delegation-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local generated-program adjudicator decision sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print decision record JSON"),
+) -> None:
+    """Record the generated-program adjudicator decision after DSPx/meta delegation."""
+    from dspx.services.program_promotion_decision import (
+        ProgramPromotionDecisionError,
+        build_generated_program_adjudicator_decision_record,
+        write_program_promotion_decision_record,
+    )
+
+    try:
+        record = build_generated_program_adjudicator_decision_record(
+            evidence_adjudication_path=evidence_adjudication,
+            adjudicator_delegation_path=adjudicator_delegation,
+        )
+        payload = write_program_promotion_decision_record(record, out)
+    except ProgramPromotionDecisionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: generated-program adjudicator decision recording failed: {exc}",
+            err=True,
         )
         raise typer.Exit(code=2) from exc
 

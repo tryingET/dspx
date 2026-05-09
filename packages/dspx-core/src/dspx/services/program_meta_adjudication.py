@@ -17,6 +17,7 @@ PROGRAM_META_JURY_SELECTION_SCHEMA = "program-meta-jury-selection-v1"
 PROGRAM_JURY_VERIFICATION_SCHEMA = "program-jury-verification-v1"
 PROGRAM_ADJUDICATOR_FORMATION_SCHEMA = "program-adjudicator-formation-v1"
 PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA = "program-adjudicator-verification-v1"
+PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA = "program-adjudicator-delegation-v1"
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
 PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA = "program-adjudication-behavior-trace-v1"
 PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA = "program-adjudication-gepa-example-v1"
@@ -36,6 +37,7 @@ _EXPECTED_SIDECAR_SCHEMAS = {
     "jury_verification": PROGRAM_JURY_VERIFICATION_SCHEMA,
     "program_adjudicator_formation": PROGRAM_ADJUDICATOR_FORMATION_SCHEMA,
     "program_adjudicator_verification": PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
+    "program_adjudicator_delegation": PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA,
     "program_evidence_adjudication": PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
     "adjudication_behavior_trace": PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA,
     "adjudication_gepa_example": PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA,
@@ -56,6 +58,7 @@ _DEFAULT_SIDECAR_FILES = {
     "jury_verification": "jury_verification.json",
     "program_adjudicator_formation": "program_adjudicator_formation.json",
     "program_adjudicator_verification": "program_adjudicator_verification.json",
+    "program_adjudicator_delegation": "program_adjudicator_delegation.json",
     "program_evidence_adjudication": "program_evidence_adjudication.json",
     "adjudication_behavior_trace": "adjudication_behavior_trace.json",
     "adjudication_gepa_example": "adjudication_gepa_example.json",
@@ -1179,6 +1182,108 @@ def write_program_adjudicator_verification(
     out = out_path.expanduser().resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(verification)
+    out.write_text(_json_text(payload), encoding="utf-8")
+    return payload
+
+
+def build_program_adjudicator_delegation(
+    *, manifest_path: Path, adjudicator_verification_path: Path
+) -> dict[str, Any]:
+    """Let the DSPx/meta adjudicator delegate local decision scope to the generated-program adjudicator."""
+
+    try:
+        manifest = load_program_manifest(manifest_path)
+    except ProgramRefinementError as exc:
+        raise ProgramMetaAdjudicationError(str(exc)) from exc
+    verification = _load_expected_sidecar(
+        adjudicator_verification_path,
+        key="program_adjudicator_verification",
+        label="program adjudicator verification",
+    )
+    promotion_review = _safe_mapping(manifest.get("program_promotion_review"))
+    adjudicator = _safe_mapping(promotion_review.get("adjudicator"))
+    adjudicator_id = _first_text(adjudicator.get("id"))
+    adjudicator_kind = _first_text(adjudicator.get("kind"))
+    checks = [
+        {
+            "check": "generated_program_adjudicator_declared",
+            "ok": bool(adjudicator_id and adjudicator_kind),
+            "detail": adjudicator_id or "missing",
+        },
+        {
+            "check": "dspx_meta_adjudicator_verified_program_adjudicator",
+            "ok": verification.get("status") == "verified"
+            and verification.get("approved_for_program_evidence_adjudication") is True,
+            "detail": str(verification.get("status")),
+        },
+        {
+            "check": "generated_program_adjudicator_kind_can_decide_locally",
+            "ok": adjudicator_kind
+            in {"ai_agent", "ai_council", "hybrid", "policy_gate"},
+            "detail": adjudicator_kind or "missing",
+        },
+        {
+            "check": "verification_has_no_authority_effect",
+            "ok": _all_declared_false(verification.get("non_authority"), _NON_AUTHORITY)
+            and _all_declared_false(verification.get("effect"), _EFFECT),
+            "detail": "verification must be evidence-only and local",
+        },
+    ]
+    failed_checks = [str(check["check"]) for check in checks if not check["ok"]]
+    delegated = not failed_checks
+    return {
+        "schema_version": PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA,
+        "status": "delegated" if delegated else "revise_generated_program_adjudicator",
+        "authority": "program_adjudicator_delegation_evidence_only_non_authoritative",
+        "dspx_meta_adjudicator": {
+            "id": "dspx_meta_adjudicator_v1",
+            "decision": "approve_generated_program_adjudicator_to_record_local_decision"
+            if delegated
+            else "revise_generated_program_adjudicator",
+            "scope": "judge_generated_program_adjudicator_fitness_not_program_promotion_or_activation",
+            "model_backed": False,
+        },
+        "generated_program_adjudicator": {
+            "id": adjudicator_id,
+            "kind": adjudicator_kind,
+            "authority": adjudicator.get("authority"),
+            "status": adjudicator.get("status"),
+            "approved_to_decide": delegated,
+            "decision_scope": "generated_program_local_promotion_decision_only",
+            "promotion_authority": False,
+            "activation_authority": False,
+            "source": "manifest.program_promotion_review.adjudicator",
+        },
+        "manifest": _artifact_ref(
+            manifest_path, schema_version="program-candidate-assembly-v1"
+        ),
+        "program_adjudicator_verification": _artifact_ref(
+            adjudicator_verification_path,
+            schema_version=PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
+        ),
+        "checks": checks,
+        "failed_checks": failed_checks,
+        "next_required_action": (
+            "generated_program_adjudicator_decide"
+            if delegated
+            else "revise_generated_program_adjudicator"
+        ),
+        "non_authority": dict(_NON_AUTHORITY),
+        "effect": dict(_EFFECT),
+    }
+
+
+def write_program_adjudicator_delegation(
+    delegation: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    if delegation.get("schema_version") != PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA:
+        raise ProgramMetaAdjudicationError(
+            "program adjudicator delegation schema_version must be "
+            + PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA
+        )
+    out = out_path.expanduser().resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(delegation)
     out.write_text(_json_text(payload), encoding="utf-8")
     return payload
 

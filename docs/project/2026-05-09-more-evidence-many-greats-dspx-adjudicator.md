@@ -14,7 +14,7 @@ Prompt template applied: `/home/tryinget/.pi/agent/prompts/many-of-the-greats.md
 
 ## QUESTION
 
-What evidence should be collected after `dspx_program_adjudicator_v1` records `request_more_evidence` for the Obsidian/PDF generated DSPy program, if the goal is to see DSPx adjudication live while preserving activation authority boundaries?
+What evidence should be collected after the generated-program adjudicator records `request_more_evidence` for the Obsidian/PDF generated DSPy program, if the goal is to see both the DSPx/meta adjudicator and generated-program adjudicator live while preserving activation authority boundaries?
 
 ## MODE 1 — MANY OF THE GREATS
 
@@ -34,9 +34,9 @@ What evidence should be collected after `dspx_program_adjudicator_v1` records `r
 
 ### School 3: Product dogfood pragmatism
 
-- Core claim: Use the DSPx adjudicator itself, not the operator, so the product path is visible end to end.
-- Premises: The operator asked not to be the adjudicator. A dogfood run should exercise generated-program jury, DSPx/meta jury, DSPx adjudicator, and local decision-record generation.
-- Strongest case: The command path should be: generate candidate, run generated-program jury, build DSPx meta-adjudication sidecars, write activation evidence packet, rerun evidence adjudication, then let `dspx_program_adjudicator_v1` record the decision.
+- Core claim: Use the DSPx/meta adjudicator to approve the generated-program adjudicator, then let the generated-program adjudicator decide, so the product path is visible end to end.
+- Premises: The operator asked not to be the adjudicator, and there are two adjudicator layers. A dogfood run should exercise generated-program jury, DSPx/meta jury, DSPx/meta adjudicator delegation, and generated-program adjudicator decision-record generation.
+- Strongest case: The command path should be: generate candidate, run generated-program jury, build DSPx meta-adjudication sidecars, write activation evidence packet, rerun evidence adjudication, let DSPx/meta write `program_adjudicator_delegation.json`, then let `dspx_program_adjudicator_v1` record the generated-program decision.
 - What it sees that others miss: A theoretically correct architecture is still unfinished if the intended actor cannot act in the CLI.
 
 ### School 4: Anti-recursion minimalism
@@ -50,11 +50,11 @@ What evidence should be collected after `dspx_program_adjudicator_v1` records `r
 
 ### Clash 1: Governance constitutionalism vs product dogfood pragmatism
 
-- Fundamental contradiction: Product dogfood wants the DSPx adjudicator to decide; governance constitutionalism refuses to let that decision activate production.
-- Incompatible assumptions: Product dogfood treats the local adjudicator as the right actor for this candidate; governance treats production authority as external to DSPx.
+- Fundamental contradiction: Product dogfood wants the generated-program adjudicator to decide after DSPx/meta delegation; governance constitutionalism refuses to let that decision activate production.
+- Incompatible assumptions: Product dogfood treats the local generated-program adjudicator as the right actor for this candidate decision; governance treats production authority as external to DSPx and the generated program.
 - What governance explains better: Why even a successful DSPx decision cannot mutate Obsidian canonical notes or AK authority.
 - What product dogfood explains better: Why a human-only adjudicator path fails to test the intended DSPx capability.
-- Residual tension: DSPx can adjudicate locally but cannot be the final production judge.
+- Residual tension: DSPx/meta can delegate and the generated-program adjudicator can decide locally, but neither can be the final production judge.
 
 ### Clash 2: Empirical runtime intelligence vs anti-recursion minimalism
 
@@ -67,10 +67,10 @@ What evidence should be collected after `dspx_program_adjudicator_v1` records `r
 ## MODE 3 — INTEGRATION OR DECISION
 
 - Chosen path: Contextual Dominance
-- Result: Collect the smallest complete activation-evidence chain: `refinement_proposal.json`, `promotion_review_refined.json`, and `activation_packet.json`; rerun `program-evidence-adjudication`; then let `dspx_program_adjudicator_v1` write `promotion_decision_record.json` from that updated adjudication.
+- Result: Collect the smallest complete activation-evidence chain: `refinement_proposal.json`, `promotion_review_refined.json`, and `activation_packet.json`; rerun `program-evidence-adjudication`; write `program_adjudicator_delegation.json` from the DSPx/meta adjudicator; then let `dspx_program_adjudicator_v1` write `promotion_decision_record.json` as the generated-program adjudicator.
 - Why this path is justified: Governance dominates activation, product dogfood dominates actor selection, empirical runtime intelligence dominates traceability, and anti-recursion minimalism dominates artifact scope.
 - What remains unresolved: Canonical binding, production rollout owner, rollback approval, and owning-domain activation authority remain outside this dogfood packet.
 
 ## PRACTICAL CONSEQUENCE
 
-The correct next evidence is not an operator decision and not production activation. It is a non-authoritative refined review plus activation evidence packet followed by a fresh DSPx adjudicator decision. After the packet exists and is internally ready for domain adjudication, absence of canonical binding is a rollout caveat, not the same `request_more_evidence` blocker. The DSPx adjudicator should therefore move from `request_more_evidence` to a non-promoting `withhold` decision when the packet is present but no external binding exists.
+The correct next evidence is not an operator decision and not production activation. It is a non-authoritative refined review plus activation evidence packet, followed by DSPx/meta adjudicator delegation, followed by a generated-program adjudicator decision. After the packet exists and is internally ready for domain adjudication, absence of canonical binding is a rollout caveat, not the same `request_more_evidence` blocker. The generated-program adjudicator should therefore move from `request_more_evidence` to a non-promoting `withhold` decision when DSPx/meta has delegated decision scope and the packet is present but no external binding exists.

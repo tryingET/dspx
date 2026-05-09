@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
+PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA = "program-adjudicator-delegation-v1"
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
 
 ALLOWED_PROGRAM_PROMOTION_DECISION_OUTCOMES = (
@@ -209,6 +210,42 @@ def _dspx_adjudicator_outcome(aggregate: Mapping[str, Any]) -> str:
     return "withhold"
 
 
+def _load_program_adjudicator_delegation(path: Path) -> dict[str, Any]:
+    delegation = _load_json_object(path, label="program adjudicator delegation")
+    if delegation.get("schema_version") != PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA:
+        raise ProgramPromotionDecisionError(
+            "program adjudicator delegation schema_version must be "
+            + PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA
+        )
+    if delegation.get("status") != "delegated":
+        raise ProgramPromotionDecisionError(
+            "program adjudicator delegation must have status delegated"
+        )
+    generated_adjudicator = _safe_mapping(
+        delegation.get("generated_program_adjudicator")
+    )
+    if generated_adjudicator.get("approved_to_decide") is not True:
+        raise ProgramPromotionDecisionError(
+            "generated program adjudicator must be approved_to_decide"
+        )
+    if not str(generated_adjudicator.get("id") or "").strip():
+        raise ProgramPromotionDecisionError(
+            "program adjudicator delegation must name generated_program_adjudicator.id"
+        )
+    non_authority = _safe_mapping(delegation.get("non_authority"))
+    for key in (
+        "activation_authority",
+        "governance_authority",
+        "oracle_authority",
+        "promotion_authority",
+    ):
+        if non_authority.get(key) is not False:
+            raise ProgramPromotionDecisionError(
+                f"program adjudicator delegation must record non_authority.{key}=false"
+            )
+    return delegation
+
+
 def _dspx_adjudicator_rationale(adjudication: Mapping[str, Any], outcome: str) -> str:
     aggregate = _safe_mapping(adjudication.get("aggregate"))
     missing = _safe_string_list(aggregate.get("missing_evidence"))
@@ -299,13 +336,89 @@ def build_program_promotion_decision_record(
     }
 
 
+def build_generated_program_adjudicator_decision_record(
+    *,
+    evidence_adjudication_path: Path,
+    adjudicator_delegation_path: Path,
+    decided_at: str | None = None,
+) -> dict[str, Any]:
+    """Build a local generated-program adjudicator decision after DSPx/meta delegation."""
+
+    evidence_adjudication_path = evidence_adjudication_path.expanduser().resolve()
+    adjudicator_delegation_path = adjudicator_delegation_path.expanduser().resolve()
+    adjudication = _load_program_evidence_adjudication(evidence_adjudication_path)
+    delegation = _load_program_adjudicator_delegation(adjudicator_delegation_path)
+    generated_adjudicator = _safe_mapping(
+        delegation.get("generated_program_adjudicator")
+    )
+    aggregate = _safe_mapping(adjudication.get("aggregate"))
+    outcome = _dspx_adjudicator_outcome(aggregate)
+    decided_by = str(generated_adjudicator.get("id") or "").strip()
+    rationale = _dspx_adjudicator_rationale(adjudication, outcome)
+    missing_required_evidence = _safe_string_list(aggregate.get("missing_evidence"))
+    return {
+        "schema_version": PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA,
+        "status": "recorded",
+        "outcome": outcome,
+        "promotion_state_after_decision": _promotion_state_after_decision(outcome),
+        "decided_by": decided_by,
+        "decided_at": decided_at or _utc_now_iso(),
+        "rationale": rationale,
+        "identity": _safe_mapping(adjudication.get("identity")),
+        "created_from": {
+            "program_evidence_adjudication_path": str(evidence_adjudication_path),
+            "program_evidence_adjudication_schema_version": adjudication.get(
+                "schema_version"
+            ),
+            "program_adjudicator_delegation_path": str(adjudicator_delegation_path),
+            "program_adjudicator_delegation_schema_version": delegation.get(
+                "schema_version"
+            ),
+        },
+        "adjudicator_delegation": {
+            "decided_by": _safe_mapping(delegation.get("dspx_meta_adjudicator")).get(
+                "id"
+            ),
+            "generated_program_adjudicator": generated_adjudicator,
+            "delegation_status": delegation.get("status"),
+        },
+        "review_snapshot": {
+            "review_status": "generated_program_adjudicator_decided_from_delegated_dspx_evidence",
+            "promotion_state": "not_promoted",
+            "candidate_status": "exploratory",
+            "ready_for_adjudicator_review": aggregate.get("ready_for_domain_decision")
+            is True,
+            "missing_required_evidence": missing_required_evidence,
+        },
+        "decision_constraints": {
+            "allowed_outcomes": ["withhold", "reject", "request_more_evidence"],
+            "promote_requires_ready_review": True,
+            "promote_allowed_by_review": False,
+            "external_authority_exported": False,
+            "source": "program_adjudicator_delegation_and_program_evidence_adjudication",
+        },
+        "effect": dict(_DECISION_RECORD_EFFECT),
+        "non_authority": {
+            **_DECISION_RECORD_NON_AUTHORITY,
+            "dspx_adjudicator_evidence_only": True,
+            "delegated_generated_program_adjudicator_only": True,
+            "promotion_authority": False,
+        },
+        "notes": [
+            "The DSPx/meta adjudicator delegated local decision scope to the generated-program adjudicator.",
+            "This record is the generated-program adjudicator decision, not the DSPx/meta delegation decision.",
+            "It does not export external authority, update governance, or activate production.",
+        ],
+    }
+
+
 def build_dspx_adjudicator_decision_record(
     *,
     evidence_adjudication_path: Path,
     decided_by: str = "dspx_program_adjudicator_v1",
     decided_at: str | None = None,
 ) -> dict[str, Any]:
-    """Build a local decision sidecar from DSPx meta-adjudication evidence."""
+    """Build a legacy direct DSPx adjudicator decision sidecar without delegation."""
 
     evidence_adjudication_path = evidence_adjudication_path.expanduser().resolve()
     adjudication = _load_program_evidence_adjudication(evidence_adjudication_path)
@@ -355,8 +468,8 @@ def build_dspx_adjudicator_decision_record(
             "promotion_authority": False,
         },
         "notes": [
-            "This is a local DSPx adjudicator decision record sidecar only.",
-            "It is generated from program-evidence adjudication and does not call a human operator.",
+            "This is a legacy direct DSPx adjudicator decision record sidecar only.",
+            "Prefer generated-program-adjudicator-decision with a program-adjudicator-delegation sidecar when modeling both adjudicator layers.",
             "It does not export external authority, update governance, or activate production.",
         ],
     }

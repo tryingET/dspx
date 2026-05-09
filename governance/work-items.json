@@ -2350,6 +2350,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2679",
+          "title": "Separate DSPx adjudicator delegation from generated-program adjudicator decision",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Separate DSPx adjudicator delegation from generated-program adjudicator decision (task #2679)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }
