@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-08",
+  "updated_at": "2026-05-09",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -2207,6 +2207,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-08"
+        },
+        {
+          "id": "AK-TASK-2633",
+          "title": "Dogfood generated-program authority gate after Oracle backend and backup evidence",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Dogfood generated-program authority gate after Oracle backend and backup evidence (task #2633)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-09"
         }
       ]
     }

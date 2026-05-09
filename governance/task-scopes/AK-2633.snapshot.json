@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-09T04:27:24.912726934+00:00",
+  "task_id": 2633,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-09-oracle-production-readiness-gates-dogfood.md",
+      "docs/project/generated-program-activation-boundary.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-09-oracle-production-readiness-gates-dogfood.md",
+      "docs/project/generated-program-activation-boundary.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
