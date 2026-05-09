@@ -177,8 +177,52 @@ It proves:
 - replay metadata is inspectable and `dspx run replay --check-only` passes
 - no default Oracle index is created
 
+## Obsidian review-only adapter
+
+The production review/proposal materialization surface is the Obsidian adapter:
+
+```text
+/home/tryinget/Documents/Obsidian/_System/pdf-pipeline/scripts/materialize_dspy_transition_review.py
+```
+
+It consumes either:
+
+- direct generated output files named after the DSPx output fields; or
+- a DSPx generated-program candidate root containing `behavior_results.json` with `observed_outputs`.
+
+Example live-provider flow:
+
+```bash
+export TD="$(mktemp -d)"
+export DSPX_PROVIDER=dspy-lm-auth
+export DSPX_LM_AUTH_MODEL=codex/gpt-5.5
+export MLFLOW_ENABLE=0
+export DSPX_CACHE_DIR="$TD/cache"
+export DSPX_CACHE_ENABLE=1
+export DSPX_ORACLE_EMBEDDING_BACKEND=mock
+
+uv run --package dspx-core -q python -m dspx.cli.dspx program-loop \
+  --intent tests/fixtures/program_gen/pdf_transition/intent.yaml \
+  --outdir "$TD/pdf-transition-program" \
+  --json
+
+python /home/tryinget/Documents/Obsidian/_System/pdf-pipeline/scripts/materialize_dspy_transition_review.py \
+  --input-dir "$TD/pdf-transition-program" \
+  --json
+```
+
+The adapter writes only to the approved review/proposal surface:
+
+```text
+_System/review/proposals/pdf-transition/<doc-id>/
+```
+
+It refuses generated bundles that do not declare `canonical_mutation_performed=false`, `canonical_mutation_allowed=false`, and `review_required=true`. Its receipt records `wiki_mutation_performed=false`, `atlas_mutation_performed=false`, `zotero_mutation_performed=false`, `source_package_mutation_performed=false`, and `puzzle_register_mutation_performed=false`.
+
+Latest dogfood evidence: `docs/project/2026-05-09-obsidian-pdf-transition-live-adapter-dogfood.md`.
+
 ## Current limitation
 
-This is a **program-gen scenario and fixture**, not a full Obsidian runtime adapter.
+This is now a generated-program scenario plus a review-only Obsidian materialization adapter, not a canonical Wiki/Atlas activation path.
 
-The generated program currently exposes transition artifacts as declared JSON output fields and behavior evidence, not as a filesystem writer for Obsidian transition queues. A future explicit adapter could write these JSON outputs into an Obsidian review queue, but that must remain separate from canonical Wiki mutation and must carry its own review/authority contract.
+The adapter can materialize provider-backed generated transition/proposal artifacts for review. It still does **not** accept proposals, write canonical notes, bind production authority, or replace the owning domain/governance decision path.

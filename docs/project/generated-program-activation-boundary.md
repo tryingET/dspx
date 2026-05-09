@@ -48,3 +48,5 @@ If `rollout_owner` is missing, the packet stays `blocked` even if decision and c
 Oracle production-adjacent readiness on DS1621 improves the evidence substrate. It does not change the activation judge. A generated program still needs a domain-governed decision, canonical binding, rollout owner, and rollback plan before any production activation can be claimed.
 
 Dogfood evidence for the DS1621 Oracle backend, backup, and authority gates is recorded in `docs/project/2026-05-09-oracle-production-readiness-gates-dogfood.md`. The authority dogfood intentionally remained blocked even with a shared Oracle publication receipt because review evidence, rollout owner, rollback plan, and canonical activation binding were not present.
+
+Obsidian/PDF live-provider adapter dogfood is recorded in `docs/project/2026-05-09-obsidian-pdf-transition-live-adapter-dogfood.md`. That run used `dspy-lm-auth/codex/gpt-5.5` for generated behavior and materialized review-only proposal artifacts through the Obsidian adapter, but it still did not perform canonical production activation or mutate `Wiki/` / `Atlas/`.
