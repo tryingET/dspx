@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T03:50:32.340499591+00:00",
+  "task_id": 2716,
+  "entity_version": 3,
+  "commit_sha": "32efc6f6bab46ec364106ca02cb337bc3bdb4fc0",
+  "scope": {
+    "allowed_paths": [
+      "docs/adr/20260510-target-protocol-fidelity-gates.md",
+      "docs/adr/README.md",
+      "governance/task-scopes/**",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/adr/20260510-target-protocol-fidelity-gates.md",
+      "docs/adr/README.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

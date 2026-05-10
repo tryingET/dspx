@@ -2441,6 +2441,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2716",
+          "title": "Record ADR for DSPx target-protocol fidelity gates",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Record ADR for DSPx target-protocol fidelity gates (task #2716)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
