@@ -2506,6 +2506,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2730",
+          "title": "Update target-fidelity product posture and run next PDF readout",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Update target-fidelity product posture and run next PDF readout (task #2730)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

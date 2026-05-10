@@ -29,6 +29,44 @@ Use this file only when a product-wide maturity snapshot helps strategy. Do not 
 
 > DSPx already has mature local-first signature/module generation, receipts, replay, Oracle behavioral primitives, and a first `program-gen` composition path over signature/module/program surfaces plus standalone `program-module-surfaces-v1` / `program-module-surface-v1` contracts, deterministic plan/jury/promotion artifacts, typed/described field specs, explicit declared topology preservation/validation without topology inference, narrow explicit `pipeline` topology rendering for `Predict`/`ChainOfThought` modules with simple equality routing, deterministic inline/example-file binding, optional deterministic local dataset split materialization (`dataset_manifest.json`, split JSONL files, split eval harnesses, split behavior results), bounded `eval_behavior.py` orchestration with `behavior_episode.json`, a standalone execution-episode contract artifact with source-indexed evaluation evidence summaries, local behavior-result evidence over inline examples / `examples_path` / dataset splits, source-aware Oracle-readable evidence over those local behavior sources, explicit non-authoritative Oracle evidence indexing into a local CoordinateIndex, explicit non-authoritative Oracle program-evidence reporting over those indexed records, explicit bounded source-aware local refinement proposals over a manifest plus behavior evidence plus Oracle report, explicit local promotion-review refinement packets over behavior/report/proposal evidence, explicit local deterministic jury-results sidecars over planned jury artifacts plus already-generated behavior results or behavior episodes, explicit local adjudicator decision-record sidecars against refined review packets, explicit request-more-evidence second-candidate materialization from bounded refinement proposals, explicit local source-vs-second-candidate behavior comparison sidecars over existing candidate manifests, explicit local candidate truth-state summaries (`program-candidate-state-v1`) over manifests plus sidecars including optional local jury-results evidence, an explicit local `program-refine optimize-gepa` sidecar seam over existing candidate manifests, opaque external-authority refs, and a local Agent Kernel export-preflight packet seam that binds manifest/decision/comparison evidence to an opaque external ref without calling or mutating AK; it is converging toward one-intent generation of full runnable DSPy program assemblies, but the main maturity gap is that `program-gen` still performs narrow deterministic materialization and bounded example/dataset behavior capture rather than broad topology inference/execution, arbitrary custom module import/execution, full evaluation episodes, automatic optimization, automatic closed-loop Oracle interpretation feedback, broader accepted-proposal regeneration policy, external authority apply, or a complete promotion-governance product loop.
 
+## Target-fidelity gate posture — 2026-05-10
+
+The target-protocol fidelity gate is now partly shipped for `program-gen` and the Obsidian/PDF review adapter.
+
+Shipped in DSPx:
+
+- `program-gen target-contract` writes `gen-target-contract-v1`.
+- `program-gen fitness-suite` writes `gen-fitness-suite-v1`.
+- `program-gen verify-generation-gate` writes `gen-generation-gate-preflight-v1` and can block candidate creation.
+- `program-gen --generation-gate-preflight` requires a successful gate before materializing a candidate when supplied.
+- `program-gen traceability` writes `gen-traceability-v1` after generation.
+- `program-gen fitness-results` writes `gen-fitness-results-v1` after generation.
+- `fitness_passed` is rendered only as `eligible_for_downstream_evidence_review`.
+
+Shipped in the Obsidian/PDF adapter:
+
+- pre-target-fidelity DSPy review outputs are quarantined, not active review evidence;
+- active DSPy PDF review materialization requires `generation_fitness_results.json`;
+- missing, failed, or unsafe target-fitness results are rejected;
+- the review page keeps hover/focus artifact previews but does not synthesize deterministic Wiki note text;
+- canonical `Wiki/` / `Atlas/` mutation remains out of scope.
+
+Still not shipped:
+
+- automatic semantic proof that the generated program truly implements the target workflow;
+- full integration of target-fidelity sidecars into DSPx/meta adjudication and generated-program adjudication;
+- GEPA curation from target-fidelity outcomes;
+- production activation or owner acceptance for Obsidian PDF transition outputs.
+
+Current interpretation:
+
+```text
+generation_allowed -> candidate may be created
+fitness_passed / eligible_for_downstream_evidence_review -> candidate may be inspected downstream
+owner/domain acceptance -> not claimed by DSPx or the adapter
+canonical mutation -> still forbidden without a separate owner acceptance path
+```
+
 ## Product maturity map
 
 | Area | Current posture | Target posture | Main gap | Proof of closure |
