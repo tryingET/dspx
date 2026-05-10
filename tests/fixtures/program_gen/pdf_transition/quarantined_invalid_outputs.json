@@ -1,0 +1,153 @@
+{
+  "purpose": "Prevent pre-target-fidelity Obsidian/PDF DSPy review artifacts from being treated as review-ready or semantically accepted.",
+  "records": [
+    {
+      "adapter_receipt_sha256": "edb482e3c5f74e876b3ab7b32dea8dda45a861a58737adfc183bb2e2dd7bc2af",
+      "artifact_sha256": "8e9df15a432e6b69db4ffd6b69d5a247178f78fcb866be2402918b8145f90f6a",
+      "classification": "quarantined_invalid_or_untrusted",
+      "doc_id": "doc:46c8f2bb",
+      "expected_adjudication_judgment": "needs_more_evidence",
+      "expected_generation_fitness_status": "target_fidelity_unknown",
+      "expected_missing_evidence": [
+        "generation_fitness_results.json"
+      ],
+      "file_count": 9,
+      "missing_required_generation_sidecars": [
+        "generation_target_contract.json",
+        "generation_fitness_suite.json",
+        "generation_gate_preflight.json",
+        "generation_traceability.json",
+        "generation_fitness_results.json"
+      ],
+      "negative_labels": [
+        "pre_target_fidelity_output",
+        "missing_generation_fitness_results",
+        "quarantined_invalid_or_untrusted"
+      ],
+      "non_authority": {
+        "canonical_acceptance": false,
+        "domain_approval": false,
+        "gepa_training_ready": false,
+        "production_activation": false
+      },
+      "quarantine_path": "_System/review/quarantine/pdf-transition-dspy/2026-05-10/doc:46c8f2bb",
+      "review_html_sha256": "4836db98c9df95b04c09e7c9c875289e89802c947103fd69c3b65842e795102b",
+      "source_active_path": "_System/review/proposals/pdf-transition/doc:46c8f2bb"
+    },
+    {
+      "adapter_receipt_sha256": "3ebfcf3b1bba6145a7ff1c7ad9a987a6219cb3036e4ba492c659623f07716b08",
+      "artifact_sha256": "54d3b50d18623e58c70416459aa5f6203e4a6badafce5b87b83fabb4dc1c8a43",
+      "classification": "quarantined_invalid_or_untrusted",
+      "doc_id": "doc:deddff66",
+      "expected_adjudication_judgment": "needs_more_evidence",
+      "expected_generation_fitness_status": "target_fidelity_unknown",
+      "expected_missing_evidence": [
+        "generation_fitness_results.json"
+      ],
+      "file_count": 8,
+      "missing_required_generation_sidecars": [
+        "generation_target_contract.json",
+        "generation_fitness_suite.json",
+        "generation_gate_preflight.json",
+        "generation_traceability.json",
+        "generation_fitness_results.json"
+      ],
+      "negative_labels": [
+        "pre_target_fidelity_output",
+        "missing_generation_fitness_results",
+        "quarantined_invalid_or_untrusted"
+      ],
+      "non_authority": {
+        "canonical_acceptance": false,
+        "domain_approval": false,
+        "gepa_training_ready": false,
+        "production_activation": false
+      },
+      "quarantine_path": "_System/review/quarantine/pdf-transition-dspy/2026-05-10/doc:deddff66",
+      "review_html_sha256": null,
+      "source_active_path": "_System/review/proposals/pdf-transition/doc:deddff66"
+    },
+    {
+      "adapter_receipt_sha256": "c538de8bc26a522a3a32ba33cdfaadc0cc37c5073236cadee5008728afd0dd11",
+      "artifact_sha256": "7fe3e2b157d56f4a2dae1cfd3c83511c490afe3f0397fcb93c6ebced5dc74aef",
+      "classification": "quarantined_invalid_or_untrusted",
+      "doc_id": "doc:f7cf59ed",
+      "expected_adjudication_judgment": "needs_more_evidence",
+      "expected_generation_fitness_status": "target_fidelity_unknown",
+      "expected_missing_evidence": [
+        "generation_fitness_results.json"
+      ],
+      "file_count": 9,
+      "missing_required_generation_sidecars": [
+        "generation_target_contract.json",
+        "generation_fitness_suite.json",
+        "generation_gate_preflight.json",
+        "generation_traceability.json",
+        "generation_fitness_results.json"
+      ],
+      "negative_labels": [
+        "pre_target_fidelity_output",
+        "missing_generation_fitness_results",
+        "quarantined_invalid_or_untrusted"
+      ],
+      "non_authority": {
+        "canonical_acceptance": false,
+        "domain_approval": false,
+        "gepa_training_ready": false,
+        "production_activation": false
+      },
+      "quarantine_path": "_System/review/quarantine/pdf-transition-dspy/2026-05-10/doc:f7cf59ed",
+      "review_html_sha256": "d5327453cdd427c6a527f58420d3fef67a7cc297a81a465dec13590af46bc485",
+      "source_active_path": "_System/review/proposals/pdf-transition/doc:f7cf59ed"
+    },
+    {
+      "adapter_receipt_sha256": "56363e834379d6747fe2ac741cf25620b517c471086a307119961ccb4faf99a8",
+      "artifact_sha256": "da1f95411a8090062bb87970a21fb82e6d252ebe7eff91809656299ac80c9532",
+      "classification": "quarantined_invalid_or_untrusted",
+      "doc_id": "doc:pdf-transition-demo",
+      "expected_adjudication_judgment": "needs_more_evidence",
+      "expected_generation_fitness_status": "target_fidelity_unknown",
+      "expected_missing_evidence": [
+        "generation_fitness_results.json"
+      ],
+      "file_count": 4,
+      "missing_required_generation_sidecars": [
+        "generation_target_contract.json",
+        "generation_fitness_suite.json",
+        "generation_gate_preflight.json",
+        "generation_traceability.json",
+        "generation_fitness_results.json"
+      ],
+      "negative_labels": [
+        "pre_target_fidelity_output",
+        "missing_generation_fitness_results",
+        "quarantined_invalid_or_untrusted"
+      ],
+      "non_authority": {
+        "canonical_acceptance": false,
+        "domain_approval": false,
+        "gepa_training_ready": false,
+        "production_activation": false
+      },
+      "quarantine_path": "_System/review/quarantine/pdf-transition-dspy/2026-05-10/doc:pdf-transition-demo",
+      "review_html_sha256": null,
+      "source_active_path": "_System/review/proposals/pdf-transition/doc:pdf-transition-demo"
+    }
+  ],
+  "required_rejection_contract": {
+    "activation_authority": false,
+    "canonical_obsidian_mutation_allowed": false,
+    "fitness_failed_judgment": "withhold",
+    "fitness_passed_rendering_required": "eligible_for_downstream_evidence_review",
+    "generation_fitness_results_required_for_downstream_review": true,
+    "missing_generation_fitness_results_judgment": "needs_more_evidence"
+  },
+  "schema_version": "gen-target-fidelity-negative-fixtures-v1",
+  "source": {
+    "captured_at": "2026-05-10T04:25:33.493971+00:00",
+    "kind": "obsidian_quarantine_manifest",
+    "manifest_custody": "external_obsidian_vault_quarantine_manifest_hash_only",
+    "manifest_path": "obsidian://_System/review/quarantine/pdf-transition-dspy/2026-05-10-quarantine-manifest.json",
+    "manifest_sha256": "12c13785e7049c7dd186f0812a883b678c5576970ef790fa28d4b55b0345309b"
+  }
+}

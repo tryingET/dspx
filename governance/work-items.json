@@ -2532,6 +2532,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2743",
+          "title": "Codify quarantined PDF outputs as target-fidelity negative fixtures",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Codify quarantined PDF outputs as target-fidelity negative fixtures (task #2743)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

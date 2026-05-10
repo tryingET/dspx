@@ -44,6 +44,13 @@ from dspx.services.program_meta_adjudication import (
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
+QUARANTINED_NEGATIVE_FIXTURE = Path(
+    "tests/fixtures/program_gen/pdf_transition/quarantined_invalid_outputs.json"
+)
+
+
+def _quarantined_negative_fixture() -> dict:
+    return json.loads(QUARANTINED_NEGATIVE_FIXTURE.read_text(encoding="utf-8"))
 
 
 def _setup_env(tmp_path: Path, monkeypatch) -> None:
@@ -698,6 +705,74 @@ def test_meta_adjudication_plan_tracks_target_fidelity_sidecars(
     assert "--manifest" not in commands["write_jury_requirements"]
     assert "--generation-traceability" in commands["adjudicate_program_evidence"]
     assert "--generation-fitness-results" in commands["adjudicate_program_evidence"]
+
+
+def test_quarantined_pdf_outputs_need_more_evidence_in_meta_adjudication(
+    tmp_path: Path, monkeypatch
+) -> None:
+    fixture = _quarantined_negative_fixture()
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    requirements_path = tmp_path / "jury_requirements.json"
+    selection_path = tmp_path / "meta_jury_selection.json"
+    jury_verification_path = tmp_path / "jury_verification.json"
+    formation_path = tmp_path / "program_adjudicator_formation.json"
+    adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    requirements["required_perspectives"].append(
+        {
+            "perspective": "target_protocol_fidelity",
+            "reason": "quarantined pre-target-fidelity PDF outputs must not pass without generation fitness results",
+        }
+    )
+    write_program_jury_requirements(requirements, requirements_path)
+    selection = build_program_meta_jury_selection(
+        jury_requirements_path=requirements_path
+    )
+    write_program_meta_jury_selection(selection, selection_path)
+    jury_verification = build_program_jury_verification(
+        jury_selection_path=selection_path
+    )
+    write_program_jury_verification(jury_verification, jury_verification_path)
+    formation = build_program_adjudicator_formation(
+        jury_verification_path=jury_verification_path
+    )
+    write_program_adjudicator_formation(formation, formation_path)
+    adjudicator_verification = build_program_adjudicator_verification(
+        adjudicator_formation_path=formation_path
+    )
+    write_program_adjudicator_verification(
+        adjudicator_verification, adjudicator_verification_path
+    )
+
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+    )
+
+    assert adjudication["aggregate"]["ready_for_domain_decision"] is False
+    assert (
+        "target_protocol_fidelity" in adjudication["aggregate"]["blocking_perspectives"]
+    )
+    target_judgment = next(
+        item
+        for item in adjudication["role_judgments"]
+        if item["perspective"] == "target_protocol_fidelity"
+    )
+    assert (
+        target_judgment["judgment"]
+        == fixture["required_rejection_contract"][
+            "missing_generation_fitness_results_judgment"
+        ]
+    )
+    assert target_judgment["missing_evidence"] == ["generation_fitness_results.json"]
+    for record in fixture["records"]:
+        assert record["expected_adjudication_judgment"] == target_judgment["judgment"]
+        assert (
+            record["expected_missing_evidence"] == target_judgment["missing_evidence"]
+        )
 
 
 def test_program_evidence_adjudication_withholds_failed_target_fitness(

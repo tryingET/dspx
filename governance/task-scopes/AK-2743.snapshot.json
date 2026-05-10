@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T06:15:10.909029149+00:00",
+  "task_id": 2743,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-dogfood-target-fidelity-negative-fixtures.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_generation_contract.py",
+      "packages/dspx-core/src/dspx/services/program_meta_adjudication.py",
+      "tests/fixtures/program_gen/pdf_transition/quarantined_invalid_outputs.json",
+      "tests/test_program_generation_contract.py",
+      "tests/test_program_meta_adjudication.py"
+    ],
+    "required_paths": [
+      "tests/fixtures/program_gen/pdf_transition/quarantined_invalid_outputs.json",
+      "tests/test_program_generation_contract.py",
+      "tests/test_program_meta_adjudication.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from dspx.services.program_generation_contract import (
@@ -14,6 +15,15 @@ from dspx.services.program_generation_contract import (
     validate_generation_traceability,
     write_generation_gate_preflight,
 )
+
+
+QUARANTINED_NEGATIVE_FIXTURE = Path(
+    "tests/fixtures/program_gen/pdf_transition/quarantined_invalid_outputs.json"
+)
+
+
+def _quarantined_negative_fixture() -> dict:
+    return json.loads(QUARANTINED_NEGATIVE_FIXTURE.read_text(encoding="utf-8"))
 
 
 def _base_contract(**overrides):
@@ -269,15 +279,84 @@ def test_build_traceability_and_fitness_results_are_safe_review_eligible() -> No
     assert validate_generation_fitness_results(results)["status"] == "valid"
 
 
+def test_quarantined_pdf_outputs_are_negative_target_fidelity_fixtures() -> None:
+    fixture = _quarantined_negative_fixture()
+
+    assert fixture["schema_version"] == "gen-target-fidelity-negative-fixtures-v1"
+    assert (
+        fixture["required_rejection_contract"][
+            "generation_fitness_results_required_for_downstream_review"
+        ]
+        is True
+    )
+    assert (
+        fixture["required_rejection_contract"]["canonical_obsidian_mutation_allowed"]
+        is False
+    )
+    assert {record["doc_id"] for record in fixture["records"]} == {
+        "doc:46c8f2bb",
+        "doc:deddff66",
+        "doc:f7cf59ed",
+        "doc:pdf-transition-demo",
+    }
+    for record in fixture["records"]:
+        assert record["classification"] == "quarantined_invalid_or_untrusted"
+        assert "missing_generation_fitness_results" in record["negative_labels"]
+        assert (
+            "generation_fitness_results.json"
+            in record["missing_required_generation_sidecars"]
+        )
+        assert record["expected_generation_fitness_status"] == (
+            "target_fidelity_unknown"
+        )
+        assert record["non_authority"]["canonical_acceptance"] is False
+        assert record["non_authority"]["production_activation"] is False
+
+
 def test_missing_traceability_keeps_fitness_unknown_not_approved() -> None:
+    fixture = _quarantined_negative_fixture()
     results = build_generation_fitness_results(
         candidate_manifest={"schema_version": "program-candidate-assembly-v1"},
         target_contract=_base_contract(),
         fitness_suite=_base_suite(),
     )
 
+    assert all(
+        record["expected_generation_fitness_status"] == results["status"]
+        for record in fixture["records"]
+    )
     assert results["status"] == "target_fidelity_unknown"
     assert results["rendered_state"] == "target_fidelity_unknown"
+    assert validate_generation_fitness_results(results)["status"] == "valid"
+
+
+def test_uncovered_traceability_fails_target_fitness() -> None:
+    traceability = {
+        "schema_version": "gen-traceability-v1",
+        "identity": {
+            "candidate_manifest_sha256": "manifest-sha",
+            "target_contract_sha256": "contract-sha",
+        },
+        "requirements": [
+            {
+                "requirement_id": "merge-before-create",
+                "generated_surfaces": ["module.py"],
+                "evidence_refs": ["generation_fitness_results.json"],
+                "status": "uncovered",
+            }
+        ],
+    }
+
+    results = build_generation_fitness_results(
+        candidate_manifest={"schema_version": "program-candidate-assembly-v1"},
+        target_contract=_base_contract(),
+        fitness_suite=_base_suite(),
+        traceability=traceability,
+    )
+
+    assert validate_generation_traceability(traceability)["status"] == "valid"
+    assert results["status"] == "fitness_failed"
+    assert results["rendered_state"] == "withheld_for_target_protocol_failure"
     assert validate_generation_fitness_results(results)["status"] == "valid"
 
 
