@@ -178,17 +178,21 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "transition_artifact_quality",
         "language_fidelity",
         "zotero_footnote_linkage",
+        "zotero_identity_derivation",
         "wiki_link_key_concepts",
     ]
+    assert program_jury["minimum_jurors"] == 7
     assert jury_selection["selected_perspectives"] == [
         "source_grounding",
         "authority_boundaries",
         "transition_artifact_quality",
         "language_fidelity",
         "zotero_footnote_linkage",
+        "zotero_identity_derivation",
         "wiki_link_key_concepts",
     ]
     assert [item["source"] for item in jury_selection["selected_jurors"]] == [
+        "explicit_perspective",
         "explicit_perspective",
         "explicit_perspective",
         "explicit_perspective",
@@ -202,8 +206,20 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         ["artifact_family_clarity", "proposal_reviewability"],
         ["source_language_preserved", "review_text_language_consistent"],
         ["zotero_refs_preferred", "source_provenance_footnotes_only"],
+        [
+            "zotero_uris_derived_from_manifest_keys",
+            "package_folder_not_renamed_to_zotero_key",
+        ],
         ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
     ]
+
+    example_inputs = example_payload["inputs"]
+    source_manifest = _load_json_text(example_inputs["source_package_manifest_json"])
+    assert source_manifest["doc_id"] == "doc:pdf-transition-demo"
+    assert source_manifest["package_root"].endswith("/doc:pdf-transition-demo")
+    assert source_manifest["item_key"] == "DEMO2026"
+    assert "zotero_item_uri" not in source_manifest
+    assert "zotero_attachment_uri" not in source_manifest
 
     expected_outputs = example_payload["outputs"]
     section_units = _load_json_text(expected_outputs["section_units_json"])
@@ -244,6 +260,14 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         wiki_note_drafts[0]["footnotes"][0]["zotero_item_uri"]
         == "zotero://select/items/DEMO2026"
     )
+    assert (
+        wiki_note_drafts[0]["footnotes"][0]["link_derivation"]
+        == "derived_from_item_key_and_attachment_record_id"
+    )
+    assert wiki_note_drafts[0]["footnotes"][0]["package_root"].endswith(
+        "/doc:pdf-transition-demo"
+    )
+    assert "citekey: `demoCloseReading2026`" in wiki_note_drafts[0]["markdown"]
     assert review_packet["artifact_family"] == "review"
     assert review_packet["canonical_mutation_performed"] is False
     assert review_packet["source_language"] == "en"
@@ -265,6 +289,8 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "wikilink_key_concepts": True,
         "source_provenance_location": "footnotes_only",
         "prefer_zotero_links": True,
+        "derive_zotero_uris_from_manifest_keys": True,
+        "package_folder_semantics": "doc_id_hash_keyed_not_zotero_keyed",
         "forbid_source_heading_block": True,
     }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]

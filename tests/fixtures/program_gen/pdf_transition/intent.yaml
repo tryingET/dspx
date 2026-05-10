@@ -23,7 +23,7 @@ outputs:
 input_fields:
   - name: source_package_manifest_json
     type: str
-    desc: JSON source-package manifest derived from Zotero/Marker package authority, including source language and Zotero item/attachment refs when available.
+    desc: JSON source-package manifest derived from Zotero/Marker package authority, including source language, doc_id/package paths, item_key/citekey, attachment_record_id, and Zotero item/attachment refs when available. When explicit Zotero URIs are absent, the generated program should derive review links from item_key and attachment_record_id without changing source identity.
   - name: marker_markdown
     type: str
     desc: Raw Marker markdown or section text from a PDF-like source artifact.
@@ -66,7 +66,8 @@ constraints:
   - Wiki note drafts are preview artifacts only; they must not claim accepted canonical status or write files.
   - Wiki note drafts must use Obsidian wikilinks for durable key concepts, methods, frameworks, and sibling candidate notes, while avoiding overlinking ordinary words.
   - Wiki note draft source provenance must be carried in footnotes or footnote_refs, not in a separate source/provenance heading block.
-  - Footnotes must prefer Zotero item/attachment links or refs when present, and include page/section/marker references plus exact or explicitly approximate quotes.
+  - Footnotes must prefer Zotero item/attachment links or refs when present, derive Zotero item/PDF links from item_key and zotero-attachment attachment_record_id when explicit URI fields are absent, and include citekey/page/section/marker references plus exact or explicitly approximate quotes.
+  - "Preserve package-folder semantics: package roots are doc_id/hash keyed (for example packages/doc:a6112bfb), while Zotero item keys/citekeys remain source identity metadata inside the manifest and footnotes."
   - Review packets are review artifacts only and do not approve canonicalization.
   - Canonical Wiki or Atlas artifacts may be mentioned as targets but must not be created, overwritten, accepted, or mutated.
   - Preserve source_refs/provenance on every transition, proposal, evidence, draft, or review artifact.
@@ -74,13 +75,14 @@ constraints:
   - External filesystem mutation is forbidden except for declared DSPx program-gen output artifacts.
 jury:
   selection_model: perspective_balanced_explicit_pool
-  minimum_jurors: 6
+  minimum_jurors: 7
   perspectives:
     - source_grounding
     - authority_boundaries
     - transition_artifact_quality
     - language_fidelity
     - zotero_footnote_linkage
+    - zotero_identity_derivation
     - wiki_link_key_concepts
 promotion:
   adjudicator:
@@ -118,6 +120,7 @@ options:
     - merge/create proposals
     - language-consistent Wiki note draft previews
     - Zotero/source footnotes
+    - derived Zotero item/PDF links from manifest keys when explicit URI fields are absent
     - wikilinked key concept candidates
     - review packets
     - replay/receipt metadata
@@ -130,5 +133,6 @@ options:
     - Marker extraction authority
     - source-language translation unless explicitly requested
     - separate source/provenance heading block inside note drafts
+    - package folder rename to Zotero key or citekey
     - external filesystem mutation beyond declared DSPx output artifacts
     - promotion from proposal to accepted note

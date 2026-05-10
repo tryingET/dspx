@@ -19,7 +19,7 @@ It is grounded in the Obsidian architecture:
 - `/home/tryinget/Documents/Obsidian/_System/architecture/source-semantic-scaffold-architecture.md`
 - `/home/tryinget/Documents/Obsidian/_System/pdf-pipeline/workflow-profiles.md`
 
-The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, and wikilinked durable key concepts in draft previews.
+The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, wikilinked durable key concepts, and Zotero review-link derivation from real source-package keys when explicit URI fields are absent.
 
 Canonical flow:
 
@@ -83,6 +83,7 @@ authority_boundaries
 transition_artifact_quality
 language_fidelity
 zotero_footnote_linkage
+zotero_identity_derivation
 wiki_link_key_concepts
 ```
 
@@ -160,6 +161,18 @@ artifact_contract_manifest_json
 
 With `--contract-mode pdf_transition_review`, the runtime fails closed unless the generated outputs preserve review-only boundaries: `canonical_mutation_performed=false`, proposal `canonical_mutation_allowed=false`, and `review_required=true`.
 
+For Zotero-bound source packages, the program contract treats the package path and Zotero identity as separate facts:
+
+```text
+package_root: _System/pdf-pipeline/packages/doc:<hash-prefix>
+source_id: zotero:user:<library>/<item_key>
+item_key: <Zotero parent item key>
+attachment_record_id: zotero-attachment:user:<library>/<attachment_key>
+citekey: <Better BibTeX citekey when present>
+```
+
+If `zotero_item_uri` / `zotero_attachment_uri` are absent, draft footnotes should derive review links from manifest keys, for example `zotero://select/items/RBPICNTS` and `zotero://open-pdf/library/items/92FBZPLS`. This derivation does not rename the package folder and does not create source identity; it only formats already-bound Zotero identity for review.
+
 ## What this scenario does not do
 
 It does **not**:
@@ -172,6 +185,7 @@ It does **not**:
 - write external filesystem artifacts beyond the declared DSPx `program-gen` output directory
 - promote a proposal to an accepted note
 - translate source-language note drafts unless explicitly requested
+- rename doc-id/hash-keyed source package folders to Zotero item keys or citekeys
 - put source/provenance material into a separate note-draft source heading instead of footnotes
 - call AK
 - invoke Oracle indexing automatically

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T15:08:07.961963742+00:00",
+  "task_id": 2798,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-adjust-pdf-program-zotero-bound-dogfood.md",
+      "docs/project/2026-05-10-dogfood-how-to-read-zotero-bound-source-package.md",
+      "docs/project/pdf-transition-program-gen.md",
+      "governance/task-scopes/AK-2798.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_jury.py",
+      "tests/fixtures/program_gen/pdf_transition/examples.yaml",
+      "tests/fixtures/program_gen/pdf_transition/intent.yaml",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-adjust-pdf-program-zotero-bound-dogfood.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

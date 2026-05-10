@@ -397,6 +397,16 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
             "Did source/provenance material leak into a separate heading block instead of footnotes?",
         ],
     },
+    "zotero_identity_derivation": {
+        "criteria": [
+            "zotero_uris_derived_from_manifest_keys",
+            "package_folder_not_renamed_to_zotero_key",
+        ],
+        "adversarial_questions": [
+            "If explicit Zotero URIs are absent, did the draft derive review links from item_key and attachment_record_id without inventing source identity?",
+            "Did the output preserve doc_id/hash-keyed package paths instead of treating Zotero keys or citekeys as package folders?",
+        ],
+    },
     "wiki_link_key_concepts": {
         "criteria": ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
         "adversarial_questions": [

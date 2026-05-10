@@ -6,14 +6,18 @@
         "state": "extracted",
         "doc_id": "doc:pdf-transition-demo",
         "source_id": "zotero:user:demo/DEMO2026",
+        "library_scope": "user:demo",
+        "item_key": "DEMO2026",
+        "citekey": "demoCloseReading2026",
         "attachment_id": "sha256:demo",
         "attachment_record_id": "zotero-attachment:user:demo/ATTACH2026",
-        "zotero_item_uri": "zotero://select/items/DEMO2026",
-        "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
         "source_language": "en",
         "title": "Five Levels of Close Reading",
         "package_root": "_System/pdf-pipeline/packages/doc:pdf-transition-demo",
-        "marker_markdown_path": "marker/document.md",
+        "source_pdf_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/source.pdf",
+        "marker": {
+          "document_markdown_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md"
+        },
         "content_profile": "article_report",
         "extraction_engine": "marker"
       }
@@ -55,7 +59,9 @@
               "zotero_item_uri": "zotero://select/items/DEMO2026",
               "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
               "section": "Five Levels of Close Reading",
-              "marker_markdown_path": "marker/document.md",
+              "marker_markdown_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md",
+              "citekey": "demoCloseReading2026",
+              "link_derivation": "derived_from_item_key_and_attachment_record_id",
               "page_markers": ["{12}"]
             }
           ],
@@ -119,6 +125,7 @@
               "zotero_item_uri": "zotero://select/items/DEMO2026",
               "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
               "section": "Five Levels of Close Reading",
+              "citekey": "demoCloseReading2026",
               "page_markers": ["{12}"],
               "quote": "Close reading is not just copying sentences."
             }
@@ -158,7 +165,7 @@
             "[[Thesis Extraction]]",
             "[[Logic Analysis]]"
           ],
-          "markdown": "---\nartifact_type: wiki_note\nstate: operator_review_seed\nreview_seed: true\nsource_language: en\n---\n# Close Reading\n\n> [!warning] Review Seed\n> This draft is a generated preview for review. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); section: `Five Levels of Close Reading`; Marker path: `marker/document.md`; quote: \"Close reading is not just copying sentences.\"",
+          "markdown": "---\nartifact_type: wiki_note\nstate: operator_review_seed\nreview_seed: true\nsource_language: en\n---\n# Close Reading\n\n> [!warning] Review Seed\n> This draft is a generated preview for review. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); citekey: `demoCloseReading2026`; package: `_System/pdf-pipeline/packages/doc:pdf-transition-demo`; section: `Five Levels of Close Reading`; Marker path: `_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md`; quote: \"Close reading is not just copying sentences.\"",
           "footnotes": [
             {
               "id": "close-reading-demo",
@@ -166,8 +173,11 @@
               "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
               "source_id": "zotero:user:demo/DEMO2026",
               "attachment_record_id": "zotero-attachment:user:demo/ATTACH2026",
+              "citekey": "demoCloseReading2026",
+              "package_root": "_System/pdf-pipeline/packages/doc:pdf-transition-demo",
               "section": "Five Levels of Close Reading",
-              "marker_markdown_path": "marker/document.md",
+              "marker_markdown_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md",
+              "link_derivation": "derived_from_item_key_and_attachment_record_id",
               "quote": "Close reading is not just copying sentences."
             }
           ],
@@ -208,6 +218,8 @@
           "wikilink_key_concepts": true,
           "source_provenance_location": "footnotes_only",
           "prefer_zotero_links": true,
+          "derive_zotero_uris_from_manifest_keys": true,
+          "package_folder_semantics": "doc_id_hash_keyed_not_zotero_keyed",
           "forbid_source_heading_block": true
         },
         "forbidden_effects": [
@@ -217,6 +229,7 @@
           "marker_extraction_mutation",
           "promotion_to_accepted_note",
           "source_language_translation_without_request",
-          "separate_source_heading_block_in_note_draft"
+          "separate_source_heading_block_in_note_draft",
+          "package_folder_rename_to_zotero_key"
         ]
       }

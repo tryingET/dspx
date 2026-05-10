@@ -2675,6 +2675,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2798",
+          "title": "Adjust Obsidian PDF generated DSPy program from Zotero-bound dogfood",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Adjust Obsidian PDF generated DSPy program from Zotero-bound dogfood (task #2798)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
