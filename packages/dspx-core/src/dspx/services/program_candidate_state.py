@@ -29,6 +29,9 @@ PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA = (
     "program-oracle-shared-publication-receipt-v1"
 )
 PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
+GEN_GENERATION_GATE_PREFLIGHT_SCHEMA = "gen-generation-gate-preflight-v1"
+GEN_FITNESS_RESULTS_SCHEMA = "gen-fitness-results-v1"
+PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
 
 _FORBIDDEN_OUTPUT_NAMES = {
     "manifest.json",
@@ -827,6 +830,132 @@ def _oracle_report_summary(report: Mapping[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _generation_gate_summary(preflight: Mapping[str, Any] | None) -> dict[str, Any]:
+    if preflight is None:
+        return {"present": False, "status": "missing", "generation_allowed": False}
+    return {
+        "present": True,
+        "schema_version": preflight.get("schema_version"),
+        "status": preflight.get("status"),
+        "generation_allowed": preflight.get("generation_allowed") is True,
+        "fail_closed_reasons": _string_list(preflight.get("fail_closed_reasons")),
+    }
+
+
+def _generation_fitness_summary(results: Mapping[str, Any] | None) -> dict[str, Any]:
+    if results is None:
+        return {
+            "present": False,
+            "schema_version": None,
+            "status": "missing",
+            "rendered_state": None,
+            "eligible_for_downstream_evidence_review": False,
+        }
+    eligible = (
+        results.get("status") == "fitness_passed"
+        and results.get("rendered_state") == "eligible_for_downstream_evidence_review"
+    )
+    return {
+        "present": True,
+        "schema_version": results.get("schema_version"),
+        "status": results.get("status"),
+        "rendered_state": results.get("rendered_state"),
+        "eligible_for_downstream_evidence_review": eligible,
+        "case_count": len(_safe_list(results.get("cases"))),
+    }
+
+
+def _target_protocol_judgment(
+    adjudication: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if adjudication is None:
+        return {
+            "present": False,
+            "judgment": "missing",
+            "blocking": True,
+            "missing_evidence": ["program_evidence_adjudication.json"],
+            "rationale": "target-protocol fidelity has not been adjudicated",
+        }
+    for item in _safe_list(adjudication.get("role_judgments")):
+        role = _safe_mapping(item)
+        if role.get("perspective") == "target_protocol_fidelity":
+            judgment = str(role.get("judgment") or "unknown")
+            return {
+                "present": True,
+                "judgment": judgment,
+                "blocking": judgment != "supports_domain_review",
+                "missing_evidence": _string_list(role.get("missing_evidence")),
+                "rationale": role.get("rationale"),
+            }
+    return {
+        "present": False,
+        "judgment": "missing_target_protocol_fidelity_perspective",
+        "blocking": True,
+        "missing_evidence": ["target_protocol_fidelity role judgment"],
+        "rationale": "program evidence adjudication did not include target_protocol_fidelity",
+    }
+
+
+def _evidence_adjudication_summary(
+    adjudication: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if adjudication is None:
+        return {"present": False, "status": "missing"}
+    aggregate = _safe_mapping(adjudication.get("aggregate"))
+    return {
+        "present": True,
+        "schema_version": adjudication.get("schema_version"),
+        "status": adjudication.get("status"),
+        "recommendation": aggregate.get("recommendation"),
+        "ready_for_domain_decision": aggregate.get("ready_for_domain_decision") is True,
+        "blocking_perspectives": _string_list(aggregate.get("blocking_perspectives")),
+        "missing_evidence": _string_list(aggregate.get("missing_evidence")),
+    }
+
+
+def _target_fidelity_summary(
+    *,
+    generation_gate_preflight: Mapping[str, Any] | None,
+    generation_fitness_results: Mapping[str, Any] | None,
+    program_evidence_adjudication: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    gate = _generation_gate_summary(generation_gate_preflight)
+    fitness = _generation_fitness_summary(generation_fitness_results)
+    adjudication = _evidence_adjudication_summary(program_evidence_adjudication)
+    target_judgment = _target_protocol_judgment(program_evidence_adjudication)
+    adapter_allowed = (
+        fitness["eligible_for_downstream_evidence_review"] is True
+        and target_judgment["judgment"] == "supports_domain_review"
+    )
+    blockers: list[str] = []
+    if gate["present"] and gate["generation_allowed"] is not True:
+        blockers.append("generation_gate_blocked")
+    if not fitness["present"]:
+        blockers.append("missing_generation_fitness_results")
+    elif fitness["eligible_for_downstream_evidence_review"] is not True:
+        blockers.append("generation_fitness_not_review_eligible")
+    if target_judgment["judgment"] != "supports_domain_review":
+        blockers.append("target_protocol_fidelity_not_supported_by_adjudicator")
+    return {
+        "generation_gate_preflight": gate,
+        "generation_fitness_results": fitness,
+        "program_evidence_adjudication": adjudication,
+        "target_protocol_fidelity_judgment": target_judgment,
+        "downstream_evidence_review_eligible": fitness[
+            "eligible_for_downstream_evidence_review"
+        ],
+        "obsidian_review_adapter_materialization_allowed": adapter_allowed,
+        "production_or_domain_activation_allowed": False,
+        "canonical_mutation_allowed": False,
+        "blockers": blockers,
+        "interpretation": (
+            "target_fidelity_supported_for_review_only"
+            if adapter_allowed
+            else "target_fidelity_not_ready_for_review_materialization"
+        ),
+    }
+
+
 def _proposal_summary(proposal: Mapping[str, Any] | None) -> dict[str, Any]:
     if proposal is None:
         return {"present": False, "status": "missing"}
@@ -920,6 +1049,9 @@ def build_program_candidate_state(
     promotion_plan_path: Path | None = None,
     export_preflight_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
+    generation_gate_preflight_path: Path | None = None,
+    generation_fitness_results_path: Path | None = None,
+    program_evidence_adjudication_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build one local truth-state artifact from existing program sidecars."""
 
@@ -1006,6 +1138,33 @@ def build_program_candidate_state(
         label="Oracle publication receipt",
         schema=PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA,
     )
+    (
+        generation_gate_preflight,
+        generation_gate_preflight_file,
+        generation_gate_preflight_hash,
+    ) = _load_optional_artifact(
+        generation_gate_preflight_path,
+        label="generation gate preflight",
+        schema=GEN_GENERATION_GATE_PREFLIGHT_SCHEMA,
+    )
+    (
+        generation_fitness_results,
+        generation_fitness_results_file,
+        generation_fitness_results_hash,
+    ) = _load_optional_artifact(
+        generation_fitness_results_path,
+        label="generation fitness results",
+        schema=GEN_FITNESS_RESULTS_SCHEMA,
+    )
+    (
+        program_evidence_adjudication,
+        program_evidence_adjudication_file,
+        program_evidence_adjudication_hash,
+    ) = _load_optional_artifact(
+        program_evidence_adjudication_path,
+        label="program evidence adjudication",
+        schema=PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
+    )
 
     _validate_optional_inputs(
         candidate_identity=candidate_identity,
@@ -1043,6 +1202,9 @@ def build_program_candidate_state(
         "promotion_plan_sha256": promotion_plan_hash,
         "export_preflight_sha256": export_preflight_hash,
         "oracle_publication_receipt_sha256": oracle_publication_receipt_hash,
+        "generation_gate_preflight_sha256": generation_gate_preflight_hash,
+        "generation_fitness_results_sha256": generation_fitness_results_hash,
+        "program_evidence_adjudication_sha256": program_evidence_adjudication_hash,
     }
     state_seed = {
         "schema_version": PROGRAM_CANDIDATE_STATE_SCHEMA,
@@ -1106,6 +1268,17 @@ def build_program_candidate_state(
             "oracle_publication_receipt_path": str(oracle_publication_receipt_file)
             if oracle_publication_receipt_file is not None
             else None,
+            "generation_gate_preflight_path": str(generation_gate_preflight_file)
+            if generation_gate_preflight_file is not None
+            else None,
+            "generation_fitness_results_path": str(generation_fitness_results_file)
+            if generation_fitness_results_file is not None
+            else None,
+            "program_evidence_adjudication_path": str(
+                program_evidence_adjudication_file
+            )
+            if program_evidence_adjudication_file is not None
+            else None,
         },
         "artifact_hashes": artifact_hashes,
         "candidate": {
@@ -1147,6 +1320,11 @@ def build_program_candidate_state(
             ),
             "refinement_proposal": _proposal_summary(refinement_proposal),
         },
+        "target_fidelity_state": _target_fidelity_summary(
+            generation_gate_preflight=generation_gate_preflight,
+            generation_fitness_results=generation_fitness_results,
+            program_evidence_adjudication=program_evidence_adjudication,
+        ),
         "promotion_state": {
             "review": _review_summary(review),
             "decision": _decision_summary(decision),
@@ -1173,6 +1351,14 @@ def build_program_candidate_state(
             "promotion_plan_present": promotion_plan is not None,
             "external_authority_preflight_present": export_preflight is not None,
             "oracle_publication_ref_present": oracle_publication_receipt is not None,
+            "target_fidelity_evidence_present": generation_fitness_results is not None,
+            "target_protocol_adjudication_present": program_evidence_adjudication
+            is not None,
+            "obsidian_review_adapter_materialization_allowed": _target_fidelity_summary(
+                generation_gate_preflight=generation_gate_preflight,
+                generation_fitness_results=generation_fitness_results,
+                program_evidence_adjudication=program_evidence_adjudication,
+            )["obsidian_review_adapter_materialization_allowed"],
             "promotion_applied": False,
             "external_authority_mutated": False,
             "governance_mutated": False,

@@ -42,6 +42,9 @@ Shipped in DSPx:
 - `program-gen traceability` writes `gen-traceability-v1` after generation.
 - `program-gen fitness-results` writes `gen-fitness-results-v1` after generation.
 - `fitness_passed` is rendered only as `eligible_for_downstream_evidence_review`.
+- DSPx/meta adjudication consumes generation target-fidelity sidecars and adds a `target_protocol_fidelity` judgment.
+- `program-promote status` can summarize generation gate, fitness result, target-protocol adjudication, and Obsidian review-adapter admission readiness in `target_fidelity_state`.
+- quarantined pre-target-fidelity Obsidian/PDF DSPy outputs are codified as negative fixtures and must fail/ask for more evidence.
 
 Shipped in the Obsidian/PDF adapter:
 
@@ -54,15 +57,17 @@ Shipped in the Obsidian/PDF adapter:
 Still not shipped:
 
 - automatic semantic proof that the generated program truly implements the target workflow;
-- full integration of target-fidelity sidecars into DSPx/meta adjudication and generated-program adjudication;
 - GEPA curation from target-fidelity outcomes;
-- production activation or owner acceptance for Obsidian PDF transition outputs.
+- production activation or owner acceptance for Obsidian PDF transition outputs;
+- one-command `program-loop` execution of the entire generation/adjudication/review-admission chain.
 
 Current interpretation:
 
 ```text
 generation_allowed -> candidate may be created
 fitness_passed / eligible_for_downstream_evidence_review -> candidate may be inspected downstream
+target_protocol_fidelity supports_domain_review -> DSPx adjudication does not block review-adapter admission
+program-promote status target_fidelity_state.obsidian_review_adapter_materialization_allowed -> review packet may be materialized, not canonicalized
 owner/domain acceptance -> not claimed by DSPx or the adapter
 canonical mutation -> still forbidden without a separate owner acceptance path
 ```

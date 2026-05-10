@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T06:32:57.168078256+00:00",
+  "task_id": 2748,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-dogfood-target-aware-candidate-status.md",
+      "docs/project/product_posture.md",
+      "docs/project/program-gen-walkthrough.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_promote.py",
+      "packages/dspx-core/src/dspx/services/program_candidate_state.py",
+      "tests/test_program_candidate_state.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/cli/commands/program_promote.py",
+      "packages/dspx-core/src/dspx/services/program_candidate_state.py",
+      "tests/test_program_candidate_state.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

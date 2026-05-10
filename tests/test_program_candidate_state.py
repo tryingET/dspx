@@ -77,6 +77,91 @@ def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
             fh.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def _write_generation_gate_preflight(path: Path, *, allowed: bool = True) -> Path:
+    _write_json(
+        path,
+        {
+            "schema_version": "gen-generation-gate-preflight-v1",
+            "status": "generation_allowed" if allowed else "generation_blocked",
+            "generation_allowed": allowed,
+            "fail_closed_reasons": [] if allowed else ["insufficient_target_contract"],
+        },
+    )
+    return path
+
+
+def _write_generation_fitness_results(
+    path: Path, *, status: str = "fitness_passed"
+) -> Path:
+    _write_json(
+        path,
+        {
+            "schema_version": "gen-fitness-results-v1",
+            "status": status,
+            "rendered_state": "eligible_for_downstream_evidence_review"
+            if status == "fitness_passed"
+            else "withheld_for_target_protocol_failure",
+            "identity": {
+                "candidate_manifest_sha256": "candidate-sha",
+                "target_contract_sha256": "contract-sha",
+                "fitness_suite_sha256": "suite-sha",
+            },
+            "cases": [
+                {
+                    "case_id": "target-protocol-fidelity",
+                    "status": "passed" if status == "fitness_passed" else "failed",
+                    "evidence_refs": ["generation_traceability.json"],
+                }
+            ],
+            "non_authority": {
+                "activation_authority": False,
+                "promotion_authority": False,
+                "oracle_authority": False,
+                "governance_authority": False,
+                "external_mutation": False,
+            },
+            "effect": {
+                "candidate_files_mutated": False,
+                "canonical_target_mutated": False,
+                "ak_mutated": False,
+                "governance_mutated": False,
+            },
+        },
+    )
+    return path
+
+
+def _write_program_evidence_adjudication(
+    path: Path, *, judgment: str = "supports_domain_review"
+) -> Path:
+    _write_json(
+        path,
+        {
+            "schema_version": "program-evidence-adjudication-v1",
+            "status": "evidence_adjudicated",
+            "aggregate": {
+                "ready_for_domain_decision": False,
+                "recommendation": "revise_or_collect_missing_evidence",
+                "blocking_perspectives": []
+                if judgment == "supports_domain_review"
+                else ["target_protocol_fidelity"],
+                "missing_evidence": [],
+            },
+            "role_judgments": [
+                {
+                    "perspective": "target_protocol_fidelity",
+                    "judgment": judgment,
+                    "missing_evidence": []
+                    if judgment == "supports_domain_review"
+                    else ["generation_fitness_results.json"],
+                    "rationale": "target-fidelity result permits downstream evidence review only, not approval or activation",
+                }
+            ],
+        },
+    )
+    return path
+
+
 def _file_hashes(root: Path) -> dict[str, str]:
     return {
         str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -505,6 +590,96 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert (source_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_promote_status_reports_target_fidelity_admission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    gate_path = _write_generation_gate_preflight(
+        tmp_path / "target" / "generation_gate_preflight.json"
+    )
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json"
+    )
+    out_path = tmp_path / "state" / "program_candidate_state_target_ready.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "status",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--generation-gate-preflight",
+            str(gate_path),
+            "--generation-fitness-results",
+            str(fitness_path),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    target = payload["target_fidelity_state"]
+    assert target["generation_gate_preflight"]["generation_allowed"] is True
+    assert target["generation_fitness_results"]["status"] == "fitness_passed"
+    assert (
+        target["generation_fitness_results"]["eligible_for_downstream_evidence_review"]
+        is True
+    )
+    assert (
+        target["target_protocol_fidelity_judgment"]["judgment"]
+        == "supports_domain_review"
+    )
+    assert target["downstream_evidence_review_eligible"] is True
+    assert target["obsidian_review_adapter_materialization_allowed"] is True
+    assert target["production_or_domain_activation_allowed"] is False
+    assert target["canonical_mutation_allowed"] is False
+    assert payload["truth_summary"]["target_fidelity_evidence_present"] is True
+    assert payload["truth_summary"]["target_protocol_adjudication_present"] is True
+    assert (
+        payload["truth_summary"]["obsidian_review_adapter_materialization_allowed"]
+        is True
+    )
+
+
+def test_program_promote_status_blocks_adapter_admission_without_target_adjudication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    out_path = tmp_path / "state" / "program_candidate_state_target_missing_adj.json"
+
+    state = build_program_candidate_state(
+        manifest_path=candidate_root / "manifest.json",
+        out_path=out_path,
+        generation_fitness_results_path=fitness_path,
+    )
+
+    target = state["target_fidelity_state"]
+    assert target["generation_fitness_results"]["status"] == "fitness_passed"
+    assert target["target_protocol_fidelity_judgment"]["judgment"] == "missing"
+    assert target["obsidian_review_adapter_materialization_allowed"] is False
+    assert "target_protocol_fidelity_not_supported_by_adjudicator" in target["blockers"]
+    assert state["truth_summary"]["target_protocol_adjudication_present"] is False
 
 
 def test_program_candidate_state_includes_oracle_publication_ref_as_evidence_only(

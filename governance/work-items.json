@@ -2545,6 +2545,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2748",
+          "title": "Expose target-fidelity adjudication in candidate status",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Expose target-fidelity adjudication in candidate status (task #2748)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

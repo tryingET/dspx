@@ -997,6 +997,21 @@ def status(
         "--oracle-publication-receipt",
         help="Optional program-oracle-shared-publication-receipt-v1 JSON evidence ref",
     ),
+    generation_gate_preflight: Path | None = typer.Option(
+        None,
+        "--generation-gate-preflight",
+        help="Optional gen-generation-gate-preflight-v1 JSON sidecar",
+    ),
+    generation_fitness_results: Path | None = typer.Option(
+        None,
+        "--generation-fitness-results",
+        help="Optional gen-fitness-results-v1 JSON sidecar",
+    ),
+    program_evidence_adjudication: Path | None = typer.Option(
+        None,
+        "--program-evidence-adjudication",
+        help="Optional program-evidence-adjudication-v1 JSON sidecar",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print state JSON"),
 ) -> None:
     """Summarize the local truth state for one program candidate."""
@@ -1020,6 +1035,9 @@ def status(
             promotion_plan_path=promotion_plan,
             export_preflight_path=export_preflight,
             oracle_publication_receipt_path=oracle_publication_receipt,
+            generation_gate_preflight_path=generation_gate_preflight,
+            generation_fitness_results_path=generation_fitness_results,
+            program_evidence_adjudication_path=program_evidence_adjudication,
         )
         payload = write_program_candidate_state(state, out)
     except ProgramCandidateStateError as exc:

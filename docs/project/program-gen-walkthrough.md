@@ -20,7 +20,7 @@ It is deliberately local-first and non-authoritative:
 - does not invoke Oracle indexing or interpretation during `program-gen` or mutate Oracle DBs unless the optional explicit temp-dir indexing step is run; `program-loop` uses a candidate-local Oracle index by default and reports that mutation explicitly
 - can optionally materialize deterministic local dataset split evidence when intent declares `dataset` or `datasets`
 - `program-gen` does not run a model jury or promotion adjudicator; explicit local deterministic jury execution is a separate `program-promote jury` sidecar command
-- target-sensitive meta-adjudication orchestration is proposed separately in `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md`; Phase 1-7a local sidecars are available via `dspx program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, `adjudication-behavior-trace`, and `adjudication-gepa-example`, but they are not part of the current `program-gen` or `program-loop` behavior
+- target-sensitive meta-adjudication sidecars are available via `dspx program-promote meta-adjudication-plan`, `target-profile`, `jury-requirements`, `jury-panel`, `verify-jury-panel`, `adjudicator-formation`, `verify-program-adjudicator`, `evidence-adjudication`, `adjudication-behavior-trace`, and `adjudication-gepa-example`; `program-promote status` can now summarize the generation gate, target-fitness result, target-protocol adjudication, and review-adapter admission readiness, but the whole chain is still not automatic `program-gen` or `program-loop` behavior
 - does not rank, select winners, prune, promote, run GEPA/search, export authority, or mutate governance state
 
 The goal is to see the current artifact contract clearly, not to claim a final product loop.
@@ -44,16 +44,17 @@ The current `program-gen` loop proves:
 10. `program-promote review` can be run explicitly over the manifest, original generated promotion shell artifacts, behavior evidence, Oracle report, and refinement proposal to write a local refined promotion-review packet sidecar; it is not part of `program-gen` and is not promotion approval.
 11. `program-promote jury` can be run explicitly over the manifest, planned jury artifacts, and already-generated behavior evidence (`behavior_results.json` when present, otherwise bounded `behavior_episode.json`) to write a local deterministic jury-results sidecar; it is not part of `program-gen` and is not promotion approval.
 12. `program-promote decide` can be run explicitly over that refined packet plus operator/adjudicator input to write a local decision-record sidecar. For the two-adjudicator path, `program-promote adjudicator-delegation` first lets the DSPx/meta adjudicator approve the generated-program adjudicator, then `program-promote generated-adjudicator-decision` records the generated-program adjudicator's local decision from `program-evidence-adjudication-v1`. Neither path is external authority, activation, or automatic promotion.
-13. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
+13. `program-promote status` can consume `--generation-gate-preflight`, `--generation-fitness-results`, and `--program-evidence-adjudication` to expose a `target_fidelity_state` readout. For Obsidian/PDF review, `obsidian_review_adapter_materialization_allowed=true` means only that a review packet may be materialized; `production_or_domain_activation_allowed` and `canonical_mutation_allowed` remain false.
+14. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
 14. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over already-generated `behavior_episode.json` evidence plus example-backed `behavior_results.json` when present.
 15. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
 16. `program-promote plan` can be run explicitly over an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan sidecar.
 17. `adapters authority agent-kernel-export-preflight` can be run explicitly over a manifest, opaque AK ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet that is preflighted/planned/not applied.
 18. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
-19. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
-20. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-19. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
-20. Promotion and authority remain explicitly pending / non-authoritative.
+20. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
+21. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
+22. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+23. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
