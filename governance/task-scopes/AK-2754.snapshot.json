@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T07:48:27.911999659+00:00",
+  "task_id": 2754,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-dogfood-obsidian-pdf-activation-blockers-resolved.md",
+      "docs/project/2026-05-10-dogfood-obsidian-pdf-activation-packet.md",
+      "docs/project/generated-program-activation-boundary.md",
+      "docs/project/product_posture.md",
+      "governance/task-scopes/AK-2754.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-dogfood-obsidian-pdf-activation-blockers-resolved.md",
+      "governance/task-scopes/AK-2754.snapshot.json"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -2571,6 +2571,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2754",
+          "title": "Resolve Obsidian PDF generated-program activation evidence blockers",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Resolve Obsidian PDF generated-program activation evidence blockers (task #2754)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

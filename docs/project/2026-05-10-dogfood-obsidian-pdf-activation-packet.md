@@ -143,6 +143,8 @@ The next safe sequence is:
 4. bind the accepted decision into AK/current authority;
 5. only then run a rollout preflight for the generated-program runtime route.
 
+Follow-up evidence: `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-blockers-resolved.md` completed steps 1 and 2 and moved the packet to `ready_for_domain_adjudication`. The remaining blockers are now the domain decision record and real canonical binding ref.
+
 Until those are complete, the only allowed Obsidian effect remains the review/proposal packet under:
 
 ```text

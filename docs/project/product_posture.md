@@ -70,6 +70,7 @@ fitness_passed / eligible_for_downstream_evidence_review -> candidate may be ins
 target_protocol_fidelity supports_domain_review -> DSPx adjudication does not block review-adapter admission
 program-promote status target_fidelity_state.obsidian_review_adapter_materialization_allowed -> review packet may be materialized, not canonicalized
 program-promote activation-packet target_review_admission=review_admitted -> review admission is evidenced, not runtime activation
+program-promote activation-packet with jury/review evidence -> ready_for_domain_adjudication, still not activation
 owner/domain acceptance -> not claimed by DSPx or the adapter
 canonical binding / rollout preflight -> still required before generated-program runtime activation
 canonical mutation -> still forbidden without a separate owner acceptance path
