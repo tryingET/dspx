@@ -19,7 +19,7 @@ It is grounded in the Obsidian architecture:
 - `/home/tryinget/Documents/Obsidian/_System/architecture/source-semantic-scaffold-architecture.md`
 - `/home/tryinget/Documents/Obsidian/_System/pdf-pipeline/workflow-profiles.md`
 
-The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, wikilinked durable key concepts, and Zotero review-link derivation from real source-package keys when explicit URI fields are absent.
+The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, wikilinked durable key concepts, Zotero review-link derivation from real source-package keys when explicit URI fields are absent, and role-separated frontmatter for review artifacts, proposed notes, and source/work candidates.
 
 Canonical flow:
 
@@ -56,7 +56,8 @@ The intent asks the generated DSPy program to produce JSON-string outputs for th
 | `distillation_frames_json` | transition | Close-reading frames with `paraphrase`, `thesis`, `logic`, `evaluation`, and `application`. |
 | `evidence_cards_json` | transition | Source-grounded evidence cards for later Wiki/Atlas decisions. |
 | `merge_create_proposals_json` | proposal | Merge/create candidates such as `enrich`, `create`, `board-only`, `ignore`, or `review`. |
-| `wiki_note_drafts_json` | draft | Review-only Wiki note draft previews with source-language text, wikilinked key concepts, and footnote-only Zotero/source provenance. |
+| `frontmatter_plans_json` | frontmatter_plan | Role-separated frontmatter candidates for review artifacts, proposed Wiki/Atlas notes, and source/work notes. |
+| `wiki_note_drafts_json` | draft | Review-only Wiki note draft previews with source-language text, wikilinked key concepts, proposed note frontmatter, and footnote-only Zotero/source provenance. |
 | `review_packet_json` | review | Review packet with confidence, uncertainty, provenance, draft quality, and review needs. |
 | `artifact_contract_manifest_json` | review / contract | Declares source/transition/proposal/draft/review/canonical boundaries and forbidden effects. |
 
@@ -69,7 +70,8 @@ The fixture includes one tiny PDF-like Marker markdown excerpt about close readi
 | source | Raw extraction/source package artifact. Zotero/source package identity remains authoritative outside DSPx. |
 | transition | Regenerable section units, distillation frames, and evidence cards. |
 | proposal | Merge/create candidates only; not accepted notes. |
-| draft | Wiki note draft previews for review; source-language, wikilink, and footnote rules are target-fidelity constraints, not acceptance. |
+| frontmatter_plan | Separates review artifact metadata, proposed canonical note frontmatter, and source/work frontmatter. |
+| draft | Wiki note draft previews for review; source-language, wikilink, proposed-frontmatter, and footnote rules are target-fidelity constraints, not acceptance. |
 | review | Human/operator review packets only. |
 | canonical | Wiki/Atlas notes only after explicit review/apply outside `program-gen`. |
 
@@ -84,6 +86,7 @@ transition_artifact_quality
 language_fidelity
 zotero_footnote_linkage
 zotero_identity_derivation
+ontological_role_separation
 wiki_link_key_concepts
 ```
 
@@ -173,6 +176,16 @@ citekey: <Better BibTeX citekey when present>
 
 If `zotero_item_uri` / `zotero_attachment_uri` are absent, draft footnotes should derive review links from manifest keys, for example `zotero://select/items/RBPICNTS` and `zotero://open-pdf/library/items/92FBZPLS`. This derivation does not rename the package folder and does not create source identity; it only formats already-bound Zotero identity for review.
 
+Frontmatter must stay ontologically separated:
+
+| Role | Belongs where | Example fields |
+| --- | --- | --- |
+| Review artifact | `frontmatter_plans_json.review_artifacts[]` and per-draft `review_artifact_frontmatter` | `artifact_type`, `state`, `review_status`, `generated_by`, `canonical_mutation_performed` |
+| Proposed note | `frontmatter_plans_json.proposed_notes[]` and per-draft `proposed_note_frontmatter` | `space`, `domain`, `kind`, `state`, `confidence`, `needs_review`, `source_ids`, `citekeys`, `doc_ids` |
+| Source/work | `frontmatter_plans_json.source_work_candidates[]` | `space: atlas`, `kind: source`, `work_id`, `title`, `authors`, `work_type`, `primary_source_id`, `source_ids`, `citekeys` |
+
+Source material type such as `guide`, `book`, `paper`, `article`, `report`, `chapter`, `transcript`, or `webpage` is not the same as proposed note kind. One PDF source may yield a source/work note plus many concept, method, or framework note drafts.
+
 ## What this scenario does not do
 
 It does **not**:
@@ -186,6 +199,8 @@ It does **not**:
 - promote a proposal to an accepted note
 - translate source-language note drafts unless explicitly requested
 - rename doc-id/hash-keyed source package folders to Zotero item keys or citekeys
+- collapse review status, proposed note identity, and source/work identity into one ambiguous frontmatter blob
+- treat source material type as identical to target note kind
 - put source/provenance material into a separate note-draft source heading instead of footnotes
 - call AK
 - invoke Oracle indexing automatically

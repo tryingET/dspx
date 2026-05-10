@@ -3,9 +3,10 @@ name: PdfTransitionProgram
 objective: >-
   Transform raw PDF/Marker markdown plus source-package context into source-grounded,
   reviewable Obsidian Wiki transition artifacts and language-consistent Wiki note
-  draft previews: section-unit candidates, close-reading distillation frames,
-  evidence cards, merge/create proposals, footnoted wikilinked note drafts,
-  review packets, and an artifact contract manifest.
+  draft previews with ontologically separated frontmatter roles: section-unit
+  candidates, close-reading distillation frames, evidence cards, merge/create
+  proposals, typed frontmatter plans, footnoted wikilinked note drafts, review
+  packets, and an artifact contract manifest.
 task_type: single_module
 inputs:
   - source_package_manifest_json
@@ -17,6 +18,7 @@ outputs:
   - distillation_frames_json
   - evidence_cards_json
   - merge_create_proposals_json
+  - frontmatter_plans_json
   - wiki_note_drafts_json
   - review_packet_json
   - artifact_contract_manifest_json
@@ -46,6 +48,9 @@ output_fields:
   - name: merge_create_proposals_json
     type: str
     desc: JSON array of proposal-family merge/create candidates; proposals only, not canonical note writes.
+  - name: frontmatter_plans_json
+    type: str
+    desc: JSON object separating review artifact frontmatter, proposed canonical note frontmatter, and source/work frontmatter candidates. It must choose note kind from content role and source material type without collapsing review status, source identity, and canonical note identity into one blob.
   - name: wiki_note_drafts_json
     type: str
     desc: JSON array of review-only Wiki note draft previews with source-language text, wikilinked key concepts, and footnote-only source/Zotero provenance.
@@ -64,6 +69,11 @@ constraints:
   - Section units, distillation frames, and evidence cards are transition artifacts only.
   - Merge/create outputs are proposal artifacts only and must include review_required when targeting Wiki or Atlas.
   - Wiki note drafts are preview artifacts only; they must not claim accepted canonical status or write files.
+  - "Separate ontological roles: review artifact metadata belongs to review_artifact_frontmatter, proposed Wiki/Atlas note identity belongs to proposed_note_frontmatter, and Zotero/source-work identity belongs to source_work_frontmatter; do not merge them into one ambiguous frontmatter blob."
+  - "Select proposed note kind from the role of the content, not from file format alone: concept, framework, method, scenario, source, project, log, reflection, lesson-asset, person, or board. A PDF source may yield a source/work note plus multiple concept/method/framework notes."
+  - "Preserve source material type separately as source_material_type or work_type, such as guide, book, paper, article, report, chapter, transcript, webpage, or unknown; do not confuse source type with target note kind."
+  - "Proposed canonical note frontmatter should follow the vault target core where applicable: space, domain, kind, state, confidence, and needs_review, plus source_ids/citekeys/doc_ids when source-derived."
+  - "Source/work frontmatter candidates should follow the work-note contract when enough metadata is present: space=atlas, kind=source, state=reference, work_id, title, authors, year, primary_source_id, source_ids, citekeys, confidence, needs_review."
   - Wiki note drafts must use Obsidian wikilinks for durable key concepts, methods, frameworks, and sibling candidate notes, while avoiding overlinking ordinary words.
   - Wiki note draft source provenance must be carried in footnotes or footnote_refs, not in a separate source/provenance heading block.
   - Footnotes must prefer Zotero item/attachment links or refs when present, derive Zotero item/PDF links from item_key and zotero-attachment attachment_record_id when explicit URI fields are absent, and include citekey/page/section/marker references plus exact or explicitly approximate quotes.
@@ -75,7 +85,7 @@ constraints:
   - External filesystem mutation is forbidden except for declared DSPx program-gen output artifacts.
 jury:
   selection_model: perspective_balanced_explicit_pool
-  minimum_jurors: 7
+  minimum_jurors: 8
   perspectives:
     - source_grounding
     - authority_boundaries
@@ -83,6 +93,7 @@ jury:
     - language_fidelity
     - zotero_footnote_linkage
     - zotero_identity_derivation
+    - ontological_role_separation
     - wiki_link_key_concepts
 promotion:
   adjudicator:
@@ -110,6 +121,7 @@ options:
     source: raw extraction/source package artifact
     transition: section units, distillation frames, and evidence cards
     proposal: merge/create candidates
+    frontmatter_plan: separated review artifact, proposed note, and source/work frontmatter candidates
     draft: footnoted wikilinked Wiki note previews for review only
     review: review packet
     canonical: Wiki/Atlas note only after explicit review/apply outside program-gen
@@ -121,6 +133,8 @@ options:
     - language-consistent Wiki note draft previews
     - Zotero/source footnotes
     - derived Zotero item/PDF links from manifest keys when explicit URI fields are absent
+    - role-separated frontmatter plans for review artifacts, proposed notes, and source/work candidates
+    - source-material-type-aware note kind selection
     - wikilinked key concept candidates
     - review packets
     - replay/receipt metadata
@@ -134,5 +148,6 @@ options:
     - source-language translation unless explicitly requested
     - separate source/provenance heading block inside note drafts
     - package folder rename to Zotero key or citekey
+    - collapsing review artifact status, canonical note identity, and source/work identity into one ambiguous frontmatter block
     - external filesystem mutation beyond declared DSPx output artifacts
     - promotion from proposal to accepted note

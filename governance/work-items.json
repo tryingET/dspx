@@ -2688,6 +2688,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2807",
+          "title": "Separate review/source/note frontmatter in PDF generated program",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Separate review/source/note frontmatter in PDF generated program (task #2807)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

@@ -407,6 +407,16 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
             "Did the output preserve doc_id/hash-keyed package paths instead of treating Zotero keys or citekeys as package folders?",
         ],
     },
+    "ontological_role_separation": {
+        "criteria": [
+            "review_note_source_roles_separated",
+            "source_material_type_not_confused_with_note_kind",
+        ],
+        "adversarial_questions": [
+            "Did review artifact metadata, proposed note identity, and source/work identity stay in separate structures?",
+            "Did the program choose note kind from content role instead of treating PDF/source material type as the note kind?",
+        ],
+    },
     "wiki_link_key_concepts": {
         "criteria": ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
         "adversarial_questions": [

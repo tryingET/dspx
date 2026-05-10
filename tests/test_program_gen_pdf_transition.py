@@ -154,6 +154,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "source": "raw extraction/source package artifact",
         "transition": "section units, distillation frames, and evidence cards",
         "proposal": "merge/create candidates",
+        "frontmatter_plan": "separated review artifact, proposed note, and source/work frontmatter candidates",
         "draft": "footnoted wikilinked Wiki note previews for review only",
         "review": "review packet",
         "canonical": "Wiki/Atlas note only after explicit review/apply outside program-gen",
@@ -179,9 +180,10 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "language_fidelity",
         "zotero_footnote_linkage",
         "zotero_identity_derivation",
+        "ontological_role_separation",
         "wiki_link_key_concepts",
     ]
-    assert program_jury["minimum_jurors"] == 7
+    assert program_jury["minimum_jurors"] == 8
     assert jury_selection["selected_perspectives"] == [
         "source_grounding",
         "authority_boundaries",
@@ -189,9 +191,11 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "language_fidelity",
         "zotero_footnote_linkage",
         "zotero_identity_derivation",
+        "ontological_role_separation",
         "wiki_link_key_concepts",
     ]
     assert [item["source"] for item in jury_selection["selected_jurors"]] == [
+        "explicit_perspective",
         "explicit_perspective",
         "explicit_perspective",
         "explicit_perspective",
@@ -210,6 +214,10 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
             "zotero_uris_derived_from_manifest_keys",
             "package_folder_not_renamed_to_zotero_key",
         ],
+        [
+            "review_note_source_roles_separated",
+            "source_material_type_not_confused_with_note_kind",
+        ],
         ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
     ]
 
@@ -218,6 +226,8 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert source_manifest["doc_id"] == "doc:pdf-transition-demo"
     assert source_manifest["package_root"].endswith("/doc:pdf-transition-demo")
     assert source_manifest["item_key"] == "DEMO2026"
+    assert source_manifest["source_material_type"] == "guide"
+    assert source_manifest["work_type"] == "guide"
     assert "zotero_item_uri" not in source_manifest
     assert "zotero_attachment_uri" not in source_manifest
 
@@ -226,6 +236,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     distillation_frames = _load_json_text(expected_outputs["distillation_frames_json"])
     evidence_cards = _load_json_text(expected_outputs["evidence_cards_json"])
     merge_create = _load_json_text(expected_outputs["merge_create_proposals_json"])
+    frontmatter_plans = _load_json_text(expected_outputs["frontmatter_plans_json"])
     wiki_note_drafts = _load_json_text(expected_outputs["wiki_note_drafts_json"])
     review_packet = _load_json_text(expected_outputs["review_packet_json"])
     contract = _load_json_text(expected_outputs["artifact_contract_manifest_json"])
@@ -248,10 +259,37 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert merge_create[0]["canonical_mutation_allowed"] is False
     assert merge_create[0]["review_required"] is True
     assert merge_create[0]["draft_ref"] == "draft:doc-pdf-transition-demo:close-reading"
+    assert frontmatter_plans["artifact_family"] == "frontmatter_plan"
+    assert frontmatter_plans["role_separation_policy"] == (
+        "review_artifact_vs_proposed_note_vs_source_work"
+    )
+    assert frontmatter_plans["source_material_type"] == "guide"
+    assert frontmatter_plans["review_artifacts"][0]["artifact_type"] == (
+        "wiki_note_draft_preview"
+    )
+    assert frontmatter_plans["review_artifacts"][0]["review_status"] == "pending"
+    proposed_note_fm = frontmatter_plans["proposed_notes"][0]["frontmatter"]
+    assert proposed_note_fm["space"] == "wiki"
+    assert proposed_note_fm["kind"] == "concept"
+    assert proposed_note_fm["state"] == "seed"
+    assert proposed_note_fm["needs_review"] is True
+    source_work_fm = frontmatter_plans["source_work_candidates"][0]["frontmatter"]
+    assert source_work_fm["space"] == "atlas"
+    assert source_work_fm["kind"] == "source"
+    assert source_work_fm["work_type"] == "guide"
+    assert source_work_fm["primary_source_id"] == "zotero:user:demo/DEMO2026"
     assert wiki_note_drafts[0]["artifact_family"] == "draft"
-    assert wiki_note_drafts[0]["state"] == "review_seed"
+    assert wiki_note_drafts[0]["state"] == "proposed"
     assert wiki_note_drafts[0]["source_language"] == "en"
     assert wiki_note_drafts[0]["language_policy"] == "match_source_language"
+    assert wiki_note_drafts[0]["review_artifact_frontmatter"]["review_status"] == (
+        "pending"
+    )
+    assert wiki_note_drafts[0]["proposed_note_frontmatter"]["kind"] == "concept"
+    assert wiki_note_drafts[0]["proposed_note_frontmatter"]["needs_review"] is True
+    assert "space: wiki" in wiki_note_drafts[0]["markdown"]
+    assert "kind: concept" in wiki_note_drafts[0]["markdown"]
+    assert "artifact_type: wiki_note" not in wiki_note_drafts[0]["markdown"]
     assert "[[Close Reading]]" in wiki_note_drafts[0]["markdown"]
     assert "## Source" not in wiki_note_drafts[0]["markdown"]
     assert "## Quelle" not in wiki_note_drafts[0]["markdown"]
@@ -279,6 +317,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "source": "raw extraction/source package authority",
         "transition": "regenerable source-grounded transition artifacts",
         "proposal": "merge/create proposal artifacts only",
+        "frontmatter_plan": "separated review artifact, proposed note, and source/work frontmatter candidates",
         "draft": "review-only Wiki note draft previews with source-language text, wikilinks, and footnote provenance",
         "review": "human/operator review artifacts",
         "canonical": "Wiki/Atlas artifacts only after explicit review",
@@ -291,6 +330,8 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "prefer_zotero_links": True,
         "derive_zotero_uris_from_manifest_keys": True,
         "package_folder_semantics": "doc_id_hash_keyed_not_zotero_keyed",
+        "frontmatter_role_separation": "review_artifact_vs_proposed_note_vs_source_work",
+        "source_material_type_separate_from_note_kind": True,
         "forbid_source_heading_block": True,
     }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]

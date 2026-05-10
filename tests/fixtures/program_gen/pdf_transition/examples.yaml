@@ -13,6 +13,10 @@
         "attachment_record_id": "zotero-attachment:user:demo/ATTACH2026",
         "source_language": "en",
         "title": "Five Levels of Close Reading",
+        "authors": ["Example Author"],
+        "year": 2026,
+        "work_type": "guide",
+        "source_material_type": "guide",
         "package_root": "_System/pdf-pipeline/packages/doc:pdf-transition-demo",
         "source_pdf_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/source.pdf",
         "marker": {
@@ -148,24 +152,108 @@
           "rationale": "An existing Wiki note is present, so propose enrichment rather than creating or mutating the note."
         }
       ]
+    frontmatter_plans_json: |
+      {
+        "artifact_family": "frontmatter_plan",
+        "state": "proposed",
+        "doc_id": "doc:pdf-transition-demo",
+        "source_material_type": "guide",
+        "role_separation_policy": "review_artifact_vs_proposed_note_vs_source_work",
+        "review_artifacts": [
+          {
+            "artifact_type": "wiki_note_draft_preview",
+            "state": "proposed",
+            "review_status": "pending",
+            "canonical_mutation_performed": false,
+            "generated_by": "dspx-pdf-transition-program-gen",
+            "draft_id": "draft:doc-pdf-transition-demo:close-reading",
+            "doc_id": "doc:pdf-transition-demo",
+            "source_id": "zotero:user:demo/DEMO2026"
+          }
+        ],
+        "proposed_notes": [
+          {
+            "target_path": "Wiki/Close Reading.md",
+            "frontmatter": {
+              "space": "wiki",
+              "domain": "reading",
+              "kind": "concept",
+              "state": "seed",
+              "title": "Close Reading",
+              "source_language": "en",
+              "source_ids": ["zotero:user:demo/DEMO2026"],
+              "citekeys": ["demoCloseReading2026"],
+              "doc_ids": ["doc:pdf-transition-demo"],
+              "confidence": 0.82,
+              "needs_review": true
+            },
+            "kind_selection_rationale": "Close Reading is a reusable concept/method candidate extracted from a guide; the source material type does not make the Wiki note itself a source note."
+          }
+        ],
+        "source_work_candidates": [
+          {
+            "target_space": "Atlas",
+            "frontmatter": {
+              "space": "atlas",
+              "domain": "reading",
+              "kind": "source",
+              "state": "reference",
+              "work_id": "work:demo-close-reading-2026",
+              "title": "Five Levels of Close Reading",
+              "authors": ["Example Author"],
+              "year": 2026,
+              "work_type": "guide",
+              "primary_source_id": "zotero:user:demo/DEMO2026",
+              "source_ids": ["zotero:user:demo/DEMO2026"],
+              "citekeys": ["demoCloseReading2026"],
+              "confidence": 0.78,
+              "needs_review": true
+            }
+          }
+        ]
+      }
     wiki_note_drafts_json: |
       [
         {
           "artifact_family": "draft",
           "artifact_type": "wiki_note_draft_preview",
-          "state": "review_seed",
+          "state": "proposed",
           "draft_id": "draft:doc-pdf-transition-demo:close-reading",
           "target_path": "Wiki/Close Reading.md",
           "source_language": "en",
           "language_policy": "match_source_language",
           "title": "Close Reading",
+          "review_artifact_frontmatter": {
+            "artifact_type": "wiki_note_draft_preview",
+            "state": "proposed",
+            "review_status": "pending",
+            "canonical_mutation_performed": false,
+            "generated_by": "dspx-pdf-transition-program-gen",
+            "draft_id": "draft:doc-pdf-transition-demo:close-reading",
+            "doc_id": "doc:pdf-transition-demo",
+            "source_id": "zotero:user:demo/DEMO2026"
+          },
+          "proposed_note_frontmatter": {
+            "space": "wiki",
+            "domain": "reading",
+            "kind": "concept",
+            "state": "seed",
+            "title": "Close Reading",
+            "source_language": "en",
+            "source_ids": ["zotero:user:demo/DEMO2026"],
+            "citekeys": ["demoCloseReading2026"],
+            "doc_ids": ["doc:pdf-transition-demo"],
+            "confidence": 0.82,
+            "needs_review": true
+          },
+          "source_work_ref": "work:demo-close-reading-2026",
           "wikilinked_key_concepts": [
             "[[Close Reading]]",
             "[[Paraphrase]]",
             "[[Thesis Extraction]]",
             "[[Logic Analysis]]"
           ],
-          "markdown": "---\nartifact_type: wiki_note\nstate: operator_review_seed\nreview_seed: true\nsource_language: en\n---\n# Close Reading\n\n> [!warning] Review Seed\n> This draft is a generated preview for review. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); citekey: `demoCloseReading2026`; package: `_System/pdf-pipeline/packages/doc:pdf-transition-demo`; section: `Five Levels of Close Reading`; Marker path: `_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md`; quote: \"Close reading is not just copying sentences.\"",
+          "markdown": "---\nspace: wiki\ndomain: reading\nkind: concept\nstate: seed\ntitle: Close Reading\nsource_language: en\nsource_ids:\n  - zotero:user:demo/DEMO2026\ncitekeys:\n  - demoCloseReading2026\ndoc_ids:\n  - doc:pdf-transition-demo\nconfidence: 0.82\nneeds_review: true\n---\n# Close Reading\n\n> [!warning] Review Draft\n> This is a generated preview of proposed note content. Review artifact status is tracked separately from the proposed note frontmatter. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); citekey: `demoCloseReading2026`; package: `_System/pdf-pipeline/packages/doc:pdf-transition-demo`; section: `Five Levels of Close Reading`; Marker path: `_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md`; quote: \"Close reading is not just copying sentences.\"",
           "footnotes": [
             {
               "id": "close-reading-demo",
@@ -181,6 +269,7 @@
               "quote": "Close reading is not just copying sentences."
             }
           ],
+          "frontmatter_roles_separated": true,
           "forbidden_blocks_absent": ["Source", "Quelle", "Provenance", "Quelle und Beleg"]
         }
       ]
@@ -197,7 +286,8 @@
         "review_needs": [
           "Verify source grounding against Marker markdown and Zotero attachment.",
           "Decide whether Wiki/Close Reading.md should be enriched.",
-          "Check that draft note language matches the English source and that source linkage appears only in footnotes."
+          "Check that draft note language matches the English source and that source linkage appears only in footnotes.",
+          "Check that review artifact metadata, proposed note frontmatter, and source/work frontmatter are separated before any apply step."
         ]
       }
     artifact_contract_manifest_json: |
@@ -207,6 +297,7 @@
           "source": "raw extraction/source package authority",
           "transition": "regenerable source-grounded transition artifacts",
           "proposal": "merge/create proposal artifacts only",
+          "frontmatter_plan": "separated review artifact, proposed note, and source/work frontmatter candidates",
           "draft": "review-only Wiki note draft previews with source-language text, wikilinks, and footnote provenance",
           "review": "human/operator review artifacts",
           "canonical": "Wiki/Atlas artifacts only after explicit review"
@@ -220,6 +311,8 @@
           "prefer_zotero_links": true,
           "derive_zotero_uris_from_manifest_keys": true,
           "package_folder_semantics": "doc_id_hash_keyed_not_zotero_keyed",
+          "frontmatter_role_separation": "review_artifact_vs_proposed_note_vs_source_work",
+          "source_material_type_separate_from_note_kind": true,
           "forbid_source_heading_block": true
         },
         "forbidden_effects": [
@@ -230,6 +323,7 @@
           "promotion_to_accepted_note",
           "source_language_translation_without_request",
           "separate_source_heading_block_in_note_draft",
-          "package_folder_rename_to_zotero_key"
+          "package_folder_rename_to_zotero_key",
+          "collapsed_frontmatter_roles"
         ]
       }
