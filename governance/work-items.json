@@ -2584,6 +2584,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2760",
+          "title": "Harden generated-program activation authority gates",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Harden generated-program activation authority gates (task #2760)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

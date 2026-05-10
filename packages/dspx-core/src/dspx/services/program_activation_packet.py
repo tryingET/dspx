@@ -223,11 +223,110 @@ def _validate_artifact_identity(
         )
 
 
-def _behavior_refs(root: Path) -> list[dict[str, Any]]:
+def _declared_behavior_result_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    request = _safe_mapping(manifest.get("request"))
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    behavior_results = _safe_mapping(execution_episode.get("behavior_results"))
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    receipt_evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    hashes: dict[str, str] = {}
+    for label, value in (
+        ("request.behavior_results_hash", request.get("behavior_results_hash")),
+        (
+            "execution_episode.behavior_results.content_hash",
+            behavior_results.get("content_hash"),
+        ),
+        (
+            "receipt_bundle.evidence.behavior_results_hash",
+            receipt_evidence.get("behavior_results_hash"),
+        ),
+    ):
+        text = _first_text(value)
+        if text:
+            hashes[label] = text
+    candidate = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate.get("surfaces")):
+        if (
+            not isinstance(surface, Mapping)
+            or surface.get("kind") != "behavior_results"
+        ):
+            continue
+        text = _first_text(surface.get("content_hash"))
+        if text:
+            hashes["candidate_assembly.surfaces.behavior_results.content_hash"] = text
+    return hashes
+
+
+def _declared_behavior_episode_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
+    request = _safe_mapping(manifest.get("request"))
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    orchestration = _safe_mapping(execution_episode.get("behavior_orchestration"))
+    episode_artifact = _safe_mapping(manifest.get("behavior_episode_artifact"))
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    receipt_evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    hashes: dict[str, str] = {}
+    for label, value in (
+        ("request.behavior_episode_hash", request.get("behavior_episode_hash")),
+        (
+            "execution_episode.behavior_orchestration.result_hash",
+            orchestration.get("result_hash"),
+        ),
+        (
+            "manifest.behavior_episode_artifact.content_hash",
+            episode_artifact.get("content_hash"),
+        ),
+        (
+            "receipt_bundle.evidence.behavior_episode_hash",
+            receipt_evidence.get("behavior_episode_hash"),
+        ),
+    ):
+        text = _first_text(value)
+        if text:
+            hashes[label] = text
+    candidate = _safe_mapping(manifest.get("candidate_assembly"))
+    for surface in _safe_list(candidate.get("surfaces")):
+        if (
+            not isinstance(surface, Mapping)
+            or surface.get("kind") != "behavior_episode"
+        ):
+            continue
+        text = _first_text(surface.get("content_hash"))
+        if text:
+            hashes["candidate_assembly.surfaces.behavior_episode.content_hash"] = text
+    return hashes
+
+
+def _validate_declared_hashes(
+    *,
+    actual_hash: str,
+    declared_hashes: Mapping[str, str],
+    label: str,
+) -> None:
+    mismatched = [
+        name
+        for name, declared_hash in declared_hashes.items()
+        if declared_hash != actual_hash
+    ]
+    if mismatched:
+        raise ProgramActivationPacketError(
+            f"{label} hash does not match manifest declaration(s): "
+            + ", ".join(sorted(mismatched))
+        )
+
+
+def _behavior_refs(root: Path, manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
     refs: list[dict[str, Any]] = []
-    for name, schema in (
-        ("behavior_results.json", "program-behavior-results-v1"),
-        ("behavior_episode.json", "program-behavior-episode-v1"),
+    for name, schema, declared_hashes in (
+        (
+            "behavior_results.json",
+            "program-behavior-results-v1",
+            _declared_behavior_result_hashes(manifest),
+        ),
+        (
+            "behavior_episode.json",
+            "program-behavior-episode-v1",
+            _declared_behavior_episode_hashes(manifest),
+        ),
     ):
         path = root / name
         if not path.exists():
@@ -237,6 +336,12 @@ def _behavior_refs(root: Path) -> list[dict[str, Any]]:
             raise ProgramActivationPacketError(
                 f"{name} schema_version must be {schema}"
             )
+        actual_hash = _sha256_file(path)
+        _validate_declared_hashes(
+            actual_hash=actual_hash,
+            declared_hashes=declared_hashes,
+            label=name,
+        )
         ref = _artifact_ref(path, schema_version=schema)
         if ref is not None:
             refs.append(ref)
@@ -255,6 +360,18 @@ def _decision_outcome(decision_record: Mapping[str, Any] | None) -> str | None:
         return None
     outcome = str(decision_record.get("outcome") or "").strip()
     return outcome or None
+
+
+def _validate_decision_authority_owner(
+    decision_record: Mapping[str, Any] | None, *, authority_owner: str
+) -> None:
+    if decision_record is None:
+        return
+    decided_by = str(decision_record.get("decided_by") or "").strip()
+    if decided_by != authority_owner:
+        raise ProgramActivationPacketError(
+            "decision_record decided_by must match activation authority_owner"
+        )
 
 
 def _validate_activation_evidence_boundaries(
@@ -380,6 +497,31 @@ def _validate_oracle_publication_receipt(
         )
 
 
+def _validate_oracle_report_identity(
+    identity: Mapping[str, Any], oracle_report: Mapping[str, Any] | None
+) -> None:
+    if oracle_report is None:
+        return
+    records = _safe_list(oracle_report.get("records"))
+    for record in records:
+        if not isinstance(record, Mapping):
+            continue
+        record_identity = _safe_mapping(record.get("identity"))
+        if not record_identity:
+            continue
+        if not _identity_mismatch(identity, record_identity):
+            matched_keys = [
+                key
+                for key, value in identity.items()
+                if value not in {None, ""} and record_identity.get(key) == value
+            ]
+            if matched_keys:
+                return
+    raise ProgramActivationPacketError(
+        "oracle_report does not contain a record matching candidate identity"
+    )
+
+
 def _oracle_publication_ref(
     receipt_ref: dict[str, Any] | None,
     receipt: Mapping[str, Any] | None,
@@ -450,6 +592,24 @@ def _validate_candidate_state(
                 "candidate_state target_fidelity_state must record "
                 "canonical_mutation_allowed false"
             )
+        judgment = _safe_mapping(
+            target_fidelity.get("target_protocol_fidelity_judgment")
+        )
+        if judgment.get("present") is not True:
+            raise ProgramActivationPacketError(
+                "candidate_state target_fidelity_state must include present "
+                "target_protocol_fidelity_judgment"
+            )
+        if judgment.get("blocking") is not False:
+            raise ProgramActivationPacketError(
+                "candidate_state target_protocol_fidelity_judgment must record "
+                "blocking false"
+            )
+        if judgment.get("judgment") != "supports_domain_review":
+            raise ProgramActivationPacketError(
+                "candidate_state target_protocol_fidelity_judgment must be "
+                "supports_domain_review"
+            )
 
 
 def _validate_obsidian_review_adapter_receipt(
@@ -517,6 +677,12 @@ def _target_review_admission(
             blockers.append("candidate_state_does_not_deny_domain_activation")
         if target_fidelity.get("canonical_mutation_allowed") is not False:
             blockers.append("candidate_state_does_not_deny_canonical_mutation")
+        if target_judgment.get("present") is not True:
+            blockers.append("target_protocol_fidelity_judgment_missing")
+        if target_judgment.get("blocking") is not False:
+            blockers.append("target_protocol_fidelity_judgment_blocking")
+        if target_judgment.get("judgment") != "supports_domain_review":
+            blockers.append("target_protocol_fidelity_judgment_not_supported")
     else:
         blockers.append("target_fidelity_state_missing")
     if obsidian_receipt is None:
@@ -573,6 +739,8 @@ def _remaining_activation_blockers(
         blockers.append("decision_outcome_not_promote")
     if not str(canonical_binding_ref or "").strip():
         blockers.append("canonical_binding_ref")
+    else:
+        blockers.append("canonical_binding_verification")
     if not str(rollout_owner or "").strip():
         blockers.append("rollout_owner")
     if not str(rollback_plan or "").strip():
@@ -624,7 +792,11 @@ def _status_and_missing(
             [],
             "bind_decision_into_ak_or_current_authority",
         )
-    return "ready_for_rollout_preflight", [], "run_owner_approved_rollout_preflight"
+    return (
+        "ready_for_canonical_binding_verification",
+        [],
+        "verify_canonical_binding_ref_before_rollout_preflight",
+    )
 
 
 def build_generated_program_activation_packet(
@@ -720,6 +892,11 @@ def build_generated_program_activation_packet(
         decision_record=decision_record,
         promotion_plan=promotion_plan,
     )
+    _validate_decision_authority_owner(
+        decision_record,
+        authority_owner=normalized_authority_owner,
+    )
+    _validate_oracle_report_identity(identity, oracle_report)
     _validate_oracle_publication_receipt(identity, oracle_publication_receipt)
     _validate_candidate_state(identity, candidate_state)
     _validate_obsidian_review_adapter_receipt(
@@ -727,7 +904,7 @@ def build_generated_program_activation_packet(
         candidate_state_ref=candidate_state_ref,
     )
 
-    behavior_refs = _behavior_refs(root)
+    behavior_refs = _behavior_refs(root, manifest)
     receipt = _receipt_ref(manifest_path)
     target_review_admission = _target_review_admission(
         candidate_state=candidate_state,

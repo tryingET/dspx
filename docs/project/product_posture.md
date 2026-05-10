@@ -44,7 +44,7 @@ Shipped in DSPx:
 - `fitness_passed` is rendered only as `eligible_for_downstream_evidence_review`.
 - DSPx/meta adjudication consumes generation target-fidelity sidecars and adds a `target_protocol_fidelity` judgment.
 - `program-promote status` can summarize generation gate, fitness result, target-protocol adjudication, and Obsidian review-adapter admission readiness in `target_fidelity_state`.
-- `program-promote activation-packet` can consume target-aware candidate status plus the Obsidian review-adapter receipt, prove review-only admission, and list remaining generated-program runtime activation blockers without applying activation.
+- `program-promote activation-packet` can consume target-aware candidate status plus the Obsidian review-adapter receipt, prove review-only admission, validate Oracle/behavior/decision/admission boundaries, and list remaining generated-program runtime activation blockers without applying activation.
 - quarantined pre-target-fidelity Obsidian/PDF DSPy outputs are codified as negative fixtures and must fail/ask for more evidence.
 
 Shipped in the Obsidian/PDF adapter:
@@ -72,7 +72,7 @@ program-promote status target_fidelity_state.obsidian_review_adapter_materializa
 program-promote activation-packet target_review_admission=review_admitted -> review admission is evidenced, not runtime activation
 program-promote activation-packet with jury/review evidence -> ready_for_domain_adjudication, still not activation
 owner/domain acceptance -> not claimed by DSPx or the adapter
-canonical binding / rollout preflight -> still required before generated-program runtime activation
+verified canonical binding / rollout preflight -> still required before generated-program runtime activation
 canonical mutation -> still forbidden without a separate owner acceptance path
 ```
 

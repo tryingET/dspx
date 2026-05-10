@@ -43,6 +43,8 @@ A packet may reach `ready_for_rollout_preflight` only when all activation author
 
 If `rollout_owner` is missing, the packet stays `blocked` even if decision and canonical binding refs are present.
 
+A non-empty `canonical_binding_ref` is not sufficient to claim rollout preflight. Until an AK/current-authority verifier confirms the binding, the packet may only reach `ready_for_canonical_binding_verification`, not `ready_for_rollout_preflight`.
+
 For Obsidian/PDF generated-program runtime activation, pass `--require-obsidian-review-adapter` with both target-aware candidate status and the Obsidian review-adapter receipt:
 
 ```bash
@@ -65,4 +67,4 @@ Obsidian/PDF live-provider adapter dogfood is recorded in `docs/project/2026-05-
 
 The proposed next evidence layer is documented in `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md`: a DSPx meta-adjudication layer that researches a generated program's target, selects and verifies a suitable jury, forms and verifies a program-specific adjudicator, publishes judging behavior to Oracle/Postgres as empirical memory, and later uses GEPA to improve judging behavior. That layer is still evidence-producing; it does not replace the domain/governance activation decision.
 
-Current Obsidian/PDF dogfood evidence is recorded in `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-packet.md` and `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-blockers-resolved.md`. The follow-up resolved the generated-program jury and refined-review evidence blockers and moved the candidate to `ready_for_domain_adjudication`; production remains blocked on an explicit domain decision record and a real AK/current-authority canonical binding ref.
+Current Obsidian/PDF dogfood evidence is recorded in `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-packet.md`, `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-blockers-resolved.md`, and `docs/project/2026-05-10-review-bounded-obsidian-pdf-activation-many-greats.md`. The follow-up resolved the generated-program jury and refined-review evidence blockers and moved the candidate to `ready_for_domain_adjudication`; production remains blocked on an explicit domain decision record and a verified AK/current-authority canonical binding.
