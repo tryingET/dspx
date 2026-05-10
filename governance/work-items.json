@@ -2519,6 +2519,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2735",
+          "title": "Integrate target-fidelity sidecars into meta-adjudication",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Integrate target-fidelity sidecars into meta-adjudication (task #2735)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

@@ -31,6 +31,11 @@ _EXPECTED_SIDECAR_SCHEMAS = {
     "review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
     "activation_packet": "generated-cognition-program-production-activation-packet-v1",
+    "generation_target_contract": "gen-target-contract-v1",
+    "generation_fitness_suite": "gen-fitness-suite-v1",
+    "generation_gate_preflight": "gen-generation-gate-preflight-v1",
+    "generation_traceability": "gen-traceability-v1",
+    "generation_fitness_results": "gen-fitness-results-v1",
     "target_profile": PROGRAM_TARGET_PROFILE_SCHEMA,
     "jury_requirements": PROGRAM_JURY_REQUIREMENTS_SCHEMA,
     "meta_jury_selection": PROGRAM_META_JURY_SELECTION_SCHEMA,
@@ -52,6 +57,11 @@ _DEFAULT_SIDECAR_FILES = {
     "review": "promotion_review_refined.json",
     "decision_record": "promotion_decision_record.json",
     "activation_packet": "activation_packet.json",
+    "generation_target_contract": "generation_target_contract.json",
+    "generation_fitness_suite": "generation_fitness_suite.json",
+    "generation_gate_preflight": "generation_gate_preflight.json",
+    "generation_traceability": "generation_traceability.json",
+    "generation_fitness_results": "generation_fitness_results.json",
     "target_profile": "target_profile.json",
     "jury_requirements": "jury_requirements.json",
     "meta_jury_selection": "meta_jury_selection.json",
@@ -243,6 +253,8 @@ def _sidecar_status(
             "status": "present" if schema == required_schema else "schema_mismatch",
             "schema_version": schema,
             "sha256": _sha256_file(path),
+            "payload_status": payload.get("status"),
+            "rendered_state": payload.get("rendered_state"),
         }
     )
     if schema != required_schema:
@@ -272,7 +284,10 @@ def _manifest_text(manifest: Mapping[str, Any]) -> str:
 
 
 def _target_profile(
-    manifest: Mapping[str, Any], *, manifest_path: Path | None = None
+    manifest: Mapping[str, Any],
+    *,
+    manifest_path: Path | None = None,
+    target_fidelity_sidecars: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     intent = _safe_mapping(manifest.get("intent"))
     request = _safe_mapping(manifest.get("request"))
@@ -319,6 +334,19 @@ def _target_profile(
                 "reason": "target mentions deployment/activation/production rollout",
             }
         )
+    target_sidecars = target_fidelity_sidecars or {}
+    present_target_sidecars = sorted(
+        key for key, status in target_sidecars.items() if status.get("present")
+    )
+    if present_target_sidecars or any(
+        token in text for token in ("target", "fidelity", "fitness", "protocol")
+    ):
+        risks.append(
+            {
+                "risk_id": "target_protocol_fidelity",
+                "reason": "target-fidelity contract/fitness evidence must distinguish runnable success from target-protocol success",
+            }
+        )
     profile: dict[str, Any] = {
         "schema_version": PROGRAM_TARGET_PROFILE_SCHEMA,
         "status": "derived_from_manifest",
@@ -332,6 +360,18 @@ def _target_profile(
         "declared_constraints": _string_list(intent.get("constraints")),
         "intent_source": _first_text(request.get("intent_source")),
         "risks": risks,
+        "target_fidelity_evidence": {
+            "present_sidecars": present_target_sidecars,
+            "fitness_results_status": _safe_mapping(
+                target_sidecars.get("generation_fitness_results")
+            ).get("payload_status"),
+            "fitness_results_rendered_state": _safe_mapping(
+                target_sidecars.get("generation_fitness_results")
+            ).get("rendered_state"),
+            "fitness_results_schema": _safe_mapping(
+                target_sidecars.get("generation_fitness_results")
+            ).get("schema_version"),
+        },
         "non_authority": dict(_NON_AUTHORITY),
         "effect": dict(_EFFECT),
     }
@@ -387,6 +427,13 @@ def _jury_requirements(profile: Mapping[str, Any]) -> dict[str, Any]:
                 "reason": "verify generated artifacts remain review/proposal-only",
             }
         )
+    if "target_protocol_fidelity" in risk_ids:
+        perspectives.append(
+            {
+                "perspective": "target_protocol_fidelity",
+                "reason": "verify target-fidelity sidecars distinguish runnable success from target-protocol evidence review eligibility",
+            }
+        )
     perspectives.append(
         {
             "perspective": "rollout_rollback",
@@ -426,6 +473,11 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
         if not sidecars[key].get("present"):
             missing.append(label)
     for key, label in (
+        ("generation_target_contract", "generation_target_contract"),
+        ("generation_fitness_suite", "generation_fitness_suite"),
+        ("generation_gate_preflight", "generation_gate_preflight"),
+        ("generation_traceability", "generation_traceability"),
+        ("generation_fitness_results", "generation_fitness_results"),
         ("target_profile", "target_profile"),
         ("jury_requirements", "jury_requirements"),
         ("meta_jury_selection", "meta_jury_selection"),
@@ -443,11 +495,66 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
     return missing
 
 
+def _sidecar_command_option(
+    sidecars: Mapping[str, Mapping[str, Any]], *, key: str, option: str
+) -> str:
+    sidecar = _safe_mapping(sidecars.get(key))
+    if not sidecar.get("present"):
+        return ""
+    path = _first_text(sidecar.get("path"))
+    if path is None:
+        return ""
+    return f" {option} {path}"
+
+
 def _next_commands(
     manifest_path: Path, sidecars: Mapping[str, Mapping[str, Any]]
 ) -> list[dict[str, Any]]:
     manifest_arg = str(manifest_path.expanduser().resolve())
     root = _manifest_root(manifest_path)
+    generation_target_profile_args = "".join(
+        [
+            _sidecar_command_option(
+                sidecars,
+                key="generation_target_contract",
+                option="--generation-target-contract",
+            ),
+            _sidecar_command_option(
+                sidecars,
+                key="generation_fitness_suite",
+                option="--generation-fitness-suite",
+            ),
+            _sidecar_command_option(
+                sidecars,
+                key="generation_gate_preflight",
+                option="--generation-gate-preflight",
+            ),
+            _sidecar_command_option(
+                sidecars,
+                key="generation_traceability",
+                option="--generation-traceability",
+            ),
+            _sidecar_command_option(
+                sidecars,
+                key="generation_fitness_results",
+                option="--generation-fitness-results",
+            ),
+        ]
+    )
+    generation_evidence_args = "".join(
+        [
+            _sidecar_command_option(
+                sidecars,
+                key="generation_traceability",
+                option="--generation-traceability",
+            ),
+            _sidecar_command_option(
+                sidecars,
+                key="generation_fitness_results",
+                option="--generation-fitness-results",
+            ),
+        ]
+    )
     commands: list[dict[str, Any]] = []
     if not sidecars["jury_results"].get("present"):
         commands.append(
@@ -478,7 +585,8 @@ def _next_commands(
             "implemented": True,
             "command": (
                 "dspx program-promote target-profile "
-                f"--manifest {manifest_arg} --out {root / 'target_profile.json'} --json"
+                f"--manifest {manifest_arg}{generation_target_profile_args} "
+                f"--out {root / 'target_profile.json'} --json"
             ),
         }
     )
@@ -488,7 +596,8 @@ def _next_commands(
             "implemented": True,
             "command": (
                 "dspx program-promote jury-requirements "
-                f"--manifest {manifest_arg} --out {root / 'jury_requirements.json'} --json"
+                f"--target-profile {root / 'target_profile.json'} "
+                f"--out {root / 'jury_requirements.json'} --json"
             ),
         }
     )
@@ -555,7 +664,8 @@ def _next_commands(
             "command": (
                 "dspx program-promote evidence-adjudication "
                 f"--manifest {manifest_arg} "
-                f"--adjudicator-verification {root / 'program_adjudicator_verification.json'} "
+                f"--adjudicator-verification {root / 'program_adjudicator_verification.json'}"
+                f"{generation_evidence_args} "
                 f"--out {root / 'program_evidence_adjudication.json'} --json"
             ),
         }
@@ -612,14 +722,53 @@ def _next_commands(
     return commands
 
 
-def build_program_target_profile(*, manifest_path: Path) -> dict[str, Any]:
+def build_program_target_profile(
+    *,
+    manifest_path: Path,
+    generation_target_contract_path: Path | None = None,
+    generation_fitness_suite_path: Path | None = None,
+    generation_gate_preflight_path: Path | None = None,
+    generation_traceability_path: Path | None = None,
+    generation_fitness_results_path: Path | None = None,
+) -> dict[str, Any]:
     """Build a first-class target profile sidecar without model calls."""
 
     try:
         manifest = load_program_manifest(manifest_path)
     except ProgramRefinementError as exc:
         raise ProgramMetaAdjudicationError(str(exc)) from exc
-    return _target_profile(manifest, manifest_path=manifest_path)
+    sidecars = {
+        "generation_target_contract": _sidecar_status(
+            manifest_path,
+            key="generation_target_contract",
+            explicit_path=generation_target_contract_path,
+        ),
+        "generation_fitness_suite": _sidecar_status(
+            manifest_path,
+            key="generation_fitness_suite",
+            explicit_path=generation_fitness_suite_path,
+        ),
+        "generation_gate_preflight": _sidecar_status(
+            manifest_path,
+            key="generation_gate_preflight",
+            explicit_path=generation_gate_preflight_path,
+        ),
+        "generation_traceability": _sidecar_status(
+            manifest_path,
+            key="generation_traceability",
+            explicit_path=generation_traceability_path,
+        ),
+        "generation_fitness_results": _sidecar_status(
+            manifest_path,
+            key="generation_fitness_results",
+            explicit_path=generation_fitness_results_path,
+        ),
+    }
+    return _target_profile(
+        manifest,
+        manifest_path=manifest_path,
+        target_fidelity_sidecars=sidecars,
+    )
 
 
 def write_program_target_profile(
@@ -1372,6 +1521,7 @@ def _role_judgment(
     behavior_summary: Mapping[str, Any],
     oracle_report: Mapping[str, Any] | None,
     activation_packet: Mapping[str, Any] | None,
+    generation_fitness_results: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     perspective = str(role.get("perspective") or "unspecified")
     status = "supports_domain_review"
@@ -1450,6 +1600,21 @@ def _role_judgment(
             rationale = "review/proposal surface is not deterministically declared"
         else:
             rationale = "review/proposal surface is deterministically declared"
+    elif perspective == "target_protocol_fidelity":
+        if generation_fitness_results is None:
+            status = "needs_more_evidence"
+            missing_evidence.append("generation_fitness_results.json")
+            rationale = "target-bound evidence needs generation fitness results before downstream review"
+        elif generation_fitness_results.get("status") != "fitness_passed":
+            status = "withhold"
+            rationale = "generation fitness results do not report fitness_passed"
+        elif generation_fitness_results.get("rendered_state") != (
+            "eligible_for_downstream_evidence_review"
+        ):
+            status = "withhold"
+            rationale = "fitness_passed is not rendered as eligible_for_downstream_evidence_review"
+        else:
+            rationale = "target-fidelity result permits downstream evidence review only, not approval or activation"
     elif perspective == "rollout_rollback":
         if activation_packet is None:
             status = "needs_more_evidence"
@@ -1490,6 +1655,8 @@ def build_program_evidence_adjudication(
     behavior_episode_path: Path | None = None,
     oracle_report_path: Path | None = None,
     activation_packet_path: Path | None = None,
+    generation_fitness_results_path: Path | None = None,
+    generation_traceability_path: Path | None = None,
 ) -> dict[str, Any]:
     """Judge program evidence with the verified deterministic program adjudicator."""
 
@@ -1580,6 +1747,41 @@ def build_program_evidence_adjudication(
             schema_version="generated-cognition-program-production-activation-packet-v1",
         )
 
+    resolved_generation_fitness_results_path = _default_existing_path(
+        manifest_path,
+        explicit_path=generation_fitness_results_path,
+        default_name="generation_fitness_results.json",
+    )
+    generation_fitness_results = None
+    generation_fitness_results_ref = None
+    if resolved_generation_fitness_results_path is not None:
+        generation_fitness_results = _load_expected_sidecar(
+            resolved_generation_fitness_results_path,
+            key="generation_fitness_results",
+            label="generation fitness results",
+        )
+        generation_fitness_results_ref = _artifact_ref(
+            resolved_generation_fitness_results_path,
+            schema_version="gen-fitness-results-v1",
+        )
+
+    resolved_generation_traceability_path = _default_existing_path(
+        manifest_path,
+        explicit_path=generation_traceability_path,
+        default_name="generation_traceability.json",
+    )
+    generation_traceability_ref = None
+    if resolved_generation_traceability_path is not None:
+        _load_expected_sidecar(
+            resolved_generation_traceability_path,
+            key="generation_traceability",
+            label="generation traceability",
+        )
+        generation_traceability_ref = _artifact_ref(
+            resolved_generation_traceability_path,
+            schema_version="gen-traceability-v1",
+        )
+
     adjudicator = _safe_mapping(formation.get("program_adjudicator"))
     roles = [
         dict(role)
@@ -1594,6 +1796,7 @@ def build_program_evidence_adjudication(
             behavior_summary=summary,
             oracle_report=oracle_report,
             activation_packet=activation_packet,
+            generation_fitness_results=generation_fitness_results,
         )
         for role in roles
     ]
@@ -1638,6 +1841,8 @@ def build_program_evidence_adjudication(
             "behavior": behavior_ref,
             "oracle_report": oracle_ref,
             "activation_packet": activation_ref,
+            "generation_traceability": generation_traceability_ref,
+            "generation_fitness_results": generation_fitness_results_ref,
         },
         "behavior_summary": summary,
         "role_judgments": role_judgments,
@@ -1863,6 +2068,11 @@ def build_program_meta_adjudication_plan(
     review_path: Path | None = None,
     decision_record_path: Path | None = None,
     activation_packet_path: Path | None = None,
+    generation_target_contract_path: Path | None = None,
+    generation_fitness_suite_path: Path | None = None,
+    generation_gate_preflight_path: Path | None = None,
+    generation_traceability_path: Path | None = None,
+    generation_fitness_results_path: Path | None = None,
     program_adjudicator_delegation_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build a local meta-adjudication plan without model calls or authority effects."""
@@ -1899,6 +2109,31 @@ def build_program_meta_adjudication_plan(
         "activation_packet": _sidecar_status(
             manifest_path, key="activation_packet", explicit_path=activation_packet_path
         ),
+        "generation_target_contract": _sidecar_status(
+            manifest_path,
+            key="generation_target_contract",
+            explicit_path=generation_target_contract_path,
+        ),
+        "generation_fitness_suite": _sidecar_status(
+            manifest_path,
+            key="generation_fitness_suite",
+            explicit_path=generation_fitness_suite_path,
+        ),
+        "generation_gate_preflight": _sidecar_status(
+            manifest_path,
+            key="generation_gate_preflight",
+            explicit_path=generation_gate_preflight_path,
+        ),
+        "generation_traceability": _sidecar_status(
+            manifest_path,
+            key="generation_traceability",
+            explicit_path=generation_traceability_path,
+        ),
+        "generation_fitness_results": _sidecar_status(
+            manifest_path,
+            key="generation_fitness_results",
+            explicit_path=generation_fitness_results_path,
+        ),
         "target_profile": _sidecar_status(
             manifest_path, key="target_profile", explicit_path=None
         ),
@@ -1932,7 +2167,20 @@ def build_program_meta_adjudication_plan(
             manifest_path, key="adjudication_gepa_example", explicit_path=None
         ),
     }
-    profile = _target_profile(manifest, manifest_path=manifest_path)
+    profile = _target_profile(
+        manifest,
+        manifest_path=manifest_path,
+        target_fidelity_sidecars={
+            key: sidecars[key]
+            for key in (
+                "generation_target_contract",
+                "generation_fitness_suite",
+                "generation_gate_preflight",
+                "generation_traceability",
+                "generation_fitness_results",
+            )
+        },
+    )
     requirements = _jury_requirements(profile)
     missing = _missing_evidence(sidecars)
     return {

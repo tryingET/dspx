@@ -591,6 +591,175 @@ def _write_minimal_activation_packet(path: Path) -> None:
     )
 
 
+def _write_generation_fitness_results(
+    path: Path, *, status: str = "fitness_passed"
+) -> None:
+    rendered_state = (
+        "eligible_for_downstream_evidence_review"
+        if status == "fitness_passed"
+        else "withheld_for_target_protocol_failure"
+    )
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "gen-fitness-results-v1",
+                "identity": {
+                    "candidate_manifest_sha256": "candidate-sha",
+                    "target_contract_sha256": "contract-sha",
+                    "fitness_suite_sha256": "suite-sha",
+                },
+                "status": status,
+                "rendered_state": rendered_state,
+                "cases": [
+                    {
+                        "case_id": "target-protocol-fidelity",
+                        "status": "passed" if status == "fitness_passed" else "failed",
+                        "evidence_refs": ["generation_traceability.json"],
+                    }
+                ],
+                "non_authority": {
+                    "activation_authority": False,
+                    "promotion_authority": False,
+                    "oracle_authority": False,
+                    "governance_authority": False,
+                    "external_mutation": False,
+                },
+                "effect": {
+                    "candidate_files_mutated": False,
+                    "canonical_target_mutated": False,
+                    "ak_mutated": False,
+                    "governance_mutated": False,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_generation_traceability(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "gen-traceability-v1",
+                "identity": {
+                    "candidate_manifest_sha256": "candidate-sha",
+                    "target_contract_sha256": "contract-sha",
+                },
+                "requirements": [
+                    {
+                        "requirement_id": "review-boundary",
+                        "generated_surfaces": ["program.py", "module.py"],
+                        "evidence_refs": ["generation_fitness_results.json"],
+                        "status": "covered",
+                    }
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_meta_adjudication_plan_tracks_target_fidelity_sidecars(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    traceability_path = candidate_root / "generation_traceability.json"
+    fitness_results_path = candidate_root / "generation_fitness_results.json"
+    _write_generation_traceability(traceability_path)
+    _write_generation_fitness_results(fitness_results_path)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json"
+    )
+
+    assert plan["sidecars"]["generation_traceability"]["status"] == "present"
+    assert plan["sidecars"]["generation_fitness_results"]["status"] == "present"
+    assert (
+        plan["target_profile"]["target_fidelity_evidence"]["fitness_results_status"]
+        == "fitness_passed"
+    )
+    risk_ids = {risk["risk_id"] for risk in plan["target_profile"]["risks"]}
+    assert "target_protocol_fidelity" in risk_ids
+    perspectives = {
+        item["perspective"]
+        for item in plan["jury_requirements"]["required_perspectives"]
+    }
+    assert "target_protocol_fidelity" in perspectives
+    commands = {item["step"]: item["command"] for item in plan["next_commands"]}
+    assert "--generation-traceability" in commands["write_target_profile"]
+    assert "--generation-fitness-results" in commands["write_target_profile"]
+    assert "--target-profile" in commands["write_jury_requirements"]
+    assert "--manifest" not in commands["write_jury_requirements"]
+    assert "--generation-traceability" in commands["adjudicate_program_evidence"]
+    assert "--generation-fitness-results" in commands["adjudicate_program_evidence"]
+
+
+def test_program_evidence_adjudication_withholds_failed_target_fitness(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    requirements_path = tmp_path / "jury_requirements.json"
+    selection_path = tmp_path / "meta_jury_selection.json"
+    jury_verification_path = tmp_path / "jury_verification.json"
+    formation_path = tmp_path / "program_adjudicator_formation.json"
+    adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+    fitness_results_path = candidate_root / "generation_fitness_results.json"
+    _write_generation_fitness_results(fitness_results_path, status="fitness_failed")
+
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    requirements["required_perspectives"].append(
+        {
+            "perspective": "target_protocol_fidelity",
+            "reason": "verify target-fidelity fitness before domain review",
+        }
+    )
+    write_program_jury_requirements(requirements, requirements_path)
+    selection = build_program_meta_jury_selection(
+        jury_requirements_path=requirements_path
+    )
+    write_program_meta_jury_selection(selection, selection_path)
+    jury_verification = build_program_jury_verification(
+        jury_selection_path=selection_path
+    )
+    write_program_jury_verification(jury_verification, jury_verification_path)
+    formation = build_program_adjudicator_formation(
+        jury_verification_path=jury_verification_path
+    )
+    write_program_adjudicator_formation(formation, formation_path)
+    adjudicator_verification = build_program_adjudicator_verification(
+        adjudicator_formation_path=formation_path
+    )
+    write_program_adjudicator_verification(
+        adjudicator_verification, adjudicator_verification_path
+    )
+
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+        generation_fitness_results_path=fitness_results_path,
+    )
+
+    assert adjudication["aggregate"]["ready_for_domain_decision"] is False
+    assert (
+        "target_protocol_fidelity" in adjudication["aggregate"]["blocking_perspectives"]
+    )
+    assert adjudication["evidence_refs"]["generation_fitness_results"] is not None
+    target_judgment = next(
+        item
+        for item in adjudication["role_judgments"]
+        if item["perspective"] == "target_protocol_fidelity"
+    )
+    assert target_judgment["judgment"] == "withhold"
+
+
 def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     tmp_path: Path, monkeypatch
 ) -> None:

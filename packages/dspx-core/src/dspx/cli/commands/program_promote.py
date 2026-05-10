@@ -298,6 +298,31 @@ def target_profile(
         "--out",
         help="Path where the program-target-profile-v1 sidecar should be written",
     ),
+    generation_target_contract: Path | None = typer.Option(
+        None,
+        "--generation-target-contract",
+        help="Optional gen-target-contract-v1 JSON sidecar",
+    ),
+    generation_fitness_suite: Path | None = typer.Option(
+        None,
+        "--generation-fitness-suite",
+        help="Optional gen-fitness-suite-v1 JSON sidecar",
+    ),
+    generation_gate_preflight: Path | None = typer.Option(
+        None,
+        "--generation-gate-preflight",
+        help="Optional gen-generation-gate-preflight-v1 JSON sidecar",
+    ),
+    generation_traceability: Path | None = typer.Option(
+        None,
+        "--generation-traceability",
+        help="Optional gen-traceability-v1 JSON sidecar",
+    ),
+    generation_fitness_results: Path | None = typer.Option(
+        None,
+        "--generation-fitness-results",
+        help="Optional gen-fitness-results-v1 JSON sidecar",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print target profile JSON"),
 ) -> None:
     """Write a deterministic target profile sidecar without model calls."""
@@ -308,7 +333,14 @@ def target_profile(
     )
 
     try:
-        profile = build_program_target_profile(manifest_path=manifest)
+        profile = build_program_target_profile(
+            manifest_path=manifest,
+            generation_target_contract_path=generation_target_contract,
+            generation_fitness_suite_path=generation_fitness_suite,
+            generation_gate_preflight_path=generation_gate_preflight,
+            generation_traceability_path=generation_traceability,
+            generation_fitness_results_path=generation_fitness_results,
+        )
         payload = write_program_target_profile(profile, out)
     except ProgramMetaAdjudicationError as exc:
         typer.echo(f"Error: {exc}", err=True)
@@ -630,6 +662,16 @@ def evidence_adjudication(
         "--activation-packet",
         help="Optional generated-cognition-program activation packet JSON",
     ),
+    generation_traceability: Path | None = typer.Option(
+        None,
+        "--generation-traceability",
+        help="Optional gen-traceability-v1 JSON sidecar",
+    ),
+    generation_fitness_results: Path | None = typer.Option(
+        None,
+        "--generation-fitness-results",
+        help="Optional gen-fitness-results-v1 JSON sidecar",
+    ),
     json_out: bool = typer.Option(
         False, "--json", help="Print evidence adjudication JSON"
     ),
@@ -649,6 +691,8 @@ def evidence_adjudication(
             behavior_episode_path=behavior_episode,
             oracle_report_path=oracle_report,
             activation_packet_path=activation_packet,
+            generation_traceability_path=generation_traceability,
+            generation_fitness_results_path=generation_fitness_results,
         )
         payload = write_program_evidence_adjudication(adjudication, out)
     except ProgramMetaAdjudicationError as exc:
@@ -820,6 +864,31 @@ def meta_adjudication_plan(
         "--activation-packet",
         help="Optional generated-cognition-program activation packet JSON",
     ),
+    generation_target_contract: Path | None = typer.Option(
+        None,
+        "--generation-target-contract",
+        help="Optional gen-target-contract-v1 JSON sidecar",
+    ),
+    generation_fitness_suite: Path | None = typer.Option(
+        None,
+        "--generation-fitness-suite",
+        help="Optional gen-fitness-suite-v1 JSON sidecar",
+    ),
+    generation_gate_preflight: Path | None = typer.Option(
+        None,
+        "--generation-gate-preflight",
+        help="Optional gen-generation-gate-preflight-v1 JSON sidecar",
+    ),
+    generation_traceability: Path | None = typer.Option(
+        None,
+        "--generation-traceability",
+        help="Optional gen-traceability-v1 JSON sidecar",
+    ),
+    generation_fitness_results: Path | None = typer.Option(
+        None,
+        "--generation-fitness-results",
+        help="Optional gen-fitness-results-v1 JSON sidecar",
+    ),
     program_adjudicator_delegation: Path | None = typer.Option(
         None,
         "--program-adjudicator-delegation",
@@ -845,6 +914,11 @@ def meta_adjudication_plan(
             review_path=review,
             decision_record_path=decision_record,
             activation_packet_path=activation_packet,
+            generation_target_contract_path=generation_target_contract,
+            generation_fitness_suite_path=generation_fitness_suite,
+            generation_gate_preflight_path=generation_gate_preflight,
+            generation_traceability_path=generation_traceability,
+            generation_fitness_results_path=generation_fitness_results,
             program_adjudicator_delegation_path=program_adjudicator_delegation,
         )
         payload = write_program_meta_adjudication_plan(plan_payload, out)
