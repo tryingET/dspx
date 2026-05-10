@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T03:55:03.658336459+00:00",
+  "task_id": 2717,
+  "entity_version": 3,
+  "commit_sha": "ec16f56639dd0fce770ec6a87478b4027f483112",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-validation-rollout-rollback-target-protocol-fidelity-gates.md",
+      "governance/task-scopes/**",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-validation-rollout-rollback-target-protocol-fidelity-gates.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

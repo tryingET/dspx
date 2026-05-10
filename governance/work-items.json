@@ -2454,6 +2454,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2717",
+          "title": "Add post-ADR validation rollout rollback for target fidelity gates",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add post-ADR validation rollout rollback for target fidelity gates (task #2717)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
