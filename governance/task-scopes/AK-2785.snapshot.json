@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T13:02:25.590502272+00:00",
+  "task_id": 2785,
+  "entity_version": 5,
+  "commit_sha": "cd52209d2d73f0fdbbf245416702820d2550fea2",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/**",
+      "governance/task-scopes/**",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-dogfood-how-to-read-paragraph-canonical-transition.md",
+      "governance/task-scopes/AK-2785.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

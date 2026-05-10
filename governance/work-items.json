@@ -2623,6 +2623,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2785",
+          "title": "Dogfood How to Read a Paragraph canonical Wiki/Atlas transition preflight",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Dogfood How to Read a Paragraph canonical Wiki/Atlas transition preflight (task #2785)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
