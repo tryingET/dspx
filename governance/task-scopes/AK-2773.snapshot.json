@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T09:26:53.550064551+00:00",
+  "task_id": 2773,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-dogfood-obsidian-pdf-canonical-binding.md",
+      "docs/project/generated-program-activation-boundary.md",
+      "docs/project/product_posture.md",
+      "governance/task-scopes/AK-2773.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_promote.py",
+      "packages/dspx-core/src/dspx/services/program_activation_packet.py",
+      "tests/test_program_activation_packet.py"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-dogfood-obsidian-pdf-canonical-binding.md",
+      "governance/task-scopes/AK-2773.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_promote.py",
+      "packages/dspx-core/src/dspx/services/program_activation_packet.py",
+      "tests/test_program_activation_packet.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

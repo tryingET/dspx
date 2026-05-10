@@ -173,6 +173,63 @@ def plan(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("canonical-binding-verification")
+def canonical_binding_verification(
+    canonical_binding_ref: str = typer.Option(
+        ...,
+        "--canonical-binding-ref",
+        help="AK/current-authority binding ref, e.g. ak://decision/40#accepted",
+    ),
+    decision_record: Path = typer.Option(
+        ...,
+        "--decision-record",
+        help="Path to program-promotion-decision-record-v1 JSON",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the canonical binding verification sidecar should be written",
+    ),
+    ak_bin: Path = typer.Option(
+        Path("ak"),
+        "--ak-bin",
+        help="AK binary to use for read-only decision verification",
+    ),
+    ak_db: Path | None = typer.Option(
+        None,
+        "--ak-db",
+        help="Optional AK database path",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print verification JSON"),
+) -> None:
+    """Verify an AK/current-authority binding ref without applying rollout."""
+    from dspx.services.program_activation_packet import (
+        ProgramActivationPacketError,
+        build_canonical_binding_verification,
+        write_canonical_binding_verification,
+    )
+
+    try:
+        verification = build_canonical_binding_verification(
+            canonical_binding_ref=canonical_binding_ref,
+            decision_record_path=decision_record,
+            ak_bin=ak_bin,
+            ak_db=ak_db,
+        )
+        payload = write_canonical_binding_verification(verification, out)
+    except ProgramActivationPacketError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: canonical binding verification failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("activation-packet")
 def activation_packet(
     manifest: Path = typer.Option(
@@ -240,6 +297,11 @@ def activation_packet(
         "--obsidian-review-adapter-receipt",
         help="Optional dspy-pdf-transition review-adapter receipt JSON",
     ),
+    canonical_binding_verification: Path | None = typer.Option(
+        None,
+        "--canonical-binding-verification",
+        help="Optional program-canonical-binding-verification-v1 JSON",
+    ),
     require_obsidian_review_adapter: bool = typer.Option(
         False,
         "--require-obsidian-review-adapter",
@@ -283,6 +345,7 @@ def activation_packet(
             oracle_publication_receipt_path=oracle_publication_receipt,
             candidate_state_path=candidate_state,
             obsidian_review_adapter_receipt_path=obsidian_review_adapter_receipt,
+            canonical_binding_verification_path=canonical_binding_verification,
             require_obsidian_review_adapter=require_obsidian_review_adapter,
             canonical_binding_ref=canonical_binding_ref,
             rollout_owner=rollout_owner,

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+import subprocess
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -25,7 +27,11 @@ _EXPECTED_SCHEMAS = {
     "oracle_publication_receipt": "program-oracle-shared-publication-receipt-v1",
     "candidate_state": "program-candidate-state-v1",
     "obsidian_review_adapter_receipt": "dspy-pdf-transition-review-adapter-receipt-v1",
+    "canonical_binding_verification": "program-canonical-binding-verification-v1",
 }
+
+CANONICAL_BINDING_VERIFICATION_SCHEMA = "program-canonical-binding-verification-v1"
+_AK_DECISION_REF_RE = re.compile(r"^ak://decision/(?P<id>[0-9]+)#accepted$")
 
 _FORBIDDEN_OUTPUT_NAMES = {
     "manifest.json",
@@ -362,6 +368,10 @@ def _decision_outcome(decision_record: Mapping[str, Any] | None) -> str | None:
     return outcome or None
 
 
+def _decision_record_ref(path: Path | None) -> dict[str, Any] | None:
+    return _artifact_ref(path, schema_version="program-promotion-decision-record-v1")
+
+
 def _validate_decision_authority_owner(
     decision_record: Mapping[str, Any] | None, *, authority_owner: str
 ) -> None:
@@ -495,6 +505,190 @@ def _validate_oracle_publication_receipt(
             "oracle_publication_receipt widens non-authority flags: "
             + ", ".join(invalid)
         )
+
+
+def _parse_ak_decision_ref(canonical_binding_ref: str) -> int:
+    match = _AK_DECISION_REF_RE.fullmatch(str(canonical_binding_ref or "").strip())
+    if match is None:
+        raise ProgramActivationPacketError(
+            "canonical_binding_ref must match ak://decision/<id>#accepted"
+        )
+    return int(match.group("id"))
+
+
+def _ak_decision_payload(envelope: Mapping[str, Any]) -> Mapping[str, Any]:
+    decision = envelope.get("decision")
+    if isinstance(decision, Mapping):
+        return decision
+    return envelope
+
+
+def _validate_canonical_binding_verification(
+    *,
+    verification: Mapping[str, Any] | None,
+    canonical_binding_ref: str | None,
+    decision_record_ref: Mapping[str, Any] | None,
+) -> None:
+    if verification is None:
+        return
+    if not str(canonical_binding_ref or "").strip():
+        raise ProgramActivationPacketError(
+            "canonical_binding_verification requires canonical_binding_ref"
+        )
+    if verification.get("status") != "verified":
+        raise ProgramActivationPacketError(
+            "canonical_binding_verification status must be verified"
+        )
+    if verification.get("canonical_binding_ref") != canonical_binding_ref:
+        raise ProgramActivationPacketError(
+            "canonical_binding_verification canonical_binding_ref does not match"
+        )
+    if verification.get("binding_kind") != "ak_decision":
+        raise ProgramActivationPacketError(
+            "canonical_binding_verification binding_kind must be ak_decision"
+        )
+    if verification.get("ak_decision_outcome") != "accepted":
+        raise ProgramActivationPacketError(
+            "canonical_binding_verification ak_decision_outcome must be accepted"
+        )
+    if verification.get("ak_decision_state") not in {"adr_recorded", "unblocked"}:
+        raise ProgramActivationPacketError(
+            "canonical_binding_verification ak_decision_state must be adr_recorded or unblocked"
+        )
+    if decision_record_ref is not None:
+        expected_hash = decision_record_ref.get("sha256")
+        actual_hash = verification.get("decision_record_sha256")
+        if expected_hash and actual_hash and expected_hash != actual_hash:
+            raise ProgramActivationPacketError(
+                "canonical_binding_verification decision_record_sha256 does not match"
+            )
+
+
+def _canonical_binding_verified(verification: Mapping[str, Any] | None) -> bool:
+    return (
+        verification is not None
+        and verification.get("schema_version") == CANONICAL_BINDING_VERIFICATION_SCHEMA
+        and verification.get("status") == "verified"
+    )
+
+
+def build_canonical_binding_verification(
+    *,
+    canonical_binding_ref: str,
+    decision_record_path: Path,
+    ak_bin: Path | str = "ak",
+    ak_db: Path | None = None,
+    timeout_seconds: float = 10.0,
+) -> dict[str, Any]:
+    normalized_ref = str(canonical_binding_ref or "").strip()
+    decision_id = _parse_ak_decision_ref(normalized_ref)
+    decision_record_path = decision_record_path.expanduser().resolve()
+    decision_record = _load_json_object(decision_record_path, label="decision_record")
+    if decision_record.get("schema_version") != "program-promotion-decision-record-v1":
+        raise ProgramActivationPacketError(
+            "decision_record schema_version must be program-promotion-decision-record-v1"
+        )
+    created_from = _safe_mapping(decision_record.get("created_from"))
+    if created_from.get("ak_decision_ref") != normalized_ref:
+        raise ProgramActivationPacketError(
+            "decision_record created_from.ak_decision_ref must match canonical_binding_ref"
+        )
+    if decision_record.get("outcome") != "promote":
+        raise ProgramActivationPacketError("decision_record outcome must be promote")
+
+    command = [
+        str(Path(ak_bin).expanduser()),
+        "decision",
+        "get",
+        str(decision_id),
+        "-F",
+        "json",
+    ]
+    if ak_db is not None:
+        command.extend(["--db", str(ak_db.expanduser())])
+    try:
+        proc = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as exc:
+        raise ProgramActivationPacketError(
+            f"canonical binding verification could not read AK decision {decision_id}: {exc}"
+        ) from exc
+    if proc.returncode != 0:
+        raise ProgramActivationPacketError(
+            "canonical binding verification AK lookup failed: " + proc.stderr.strip()
+        )
+    try:
+        envelope = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise ProgramActivationPacketError(
+            "canonical binding verification AK lookup did not return JSON"
+        ) from exc
+    if not isinstance(envelope, Mapping):
+        raise ProgramActivationPacketError(
+            "canonical binding verification AK lookup must return a JSON object"
+        )
+    decision = _ak_decision_payload(envelope)
+    if int(decision.get("id") or -1) != decision_id:
+        raise ProgramActivationPacketError("AK decision id does not match binding ref")
+    if decision.get("outcome") != "accepted":
+        raise ProgramActivationPacketError("AK decision outcome must be accepted")
+    if decision.get("state") not in {"adr_recorded", "unblocked"}:
+        raise ProgramActivationPacketError(
+            "AK decision state must be adr_recorded or unblocked"
+        )
+    if decision.get("adr_ref") != created_from.get("decision_doc"):
+        raise ProgramActivationPacketError(
+            "AK decision adr_ref must match decision_record created_from.decision_doc"
+        )
+
+    return {
+        "schema_version": CANONICAL_BINDING_VERIFICATION_SCHEMA,
+        "status": "verified",
+        "canonical_binding_ref": normalized_ref,
+        "binding_kind": "ak_decision",
+        "decision_id": decision_id,
+        "decision_record": _decision_record_ref(decision_record_path),
+        "decision_record_sha256": _sha256_file(decision_record_path),
+        "ak_decision_state": decision.get("state"),
+        "ak_decision_outcome": decision.get("outcome"),
+        "ak_decision_title": decision.get("title"),
+        "ak_decision_rfc_ref": decision.get("rfc_ref"),
+        "ak_decision_adr_ref": decision.get("adr_ref"),
+        "ak_decision_evidence_ref": decision.get("evidence_ref"),
+        "authority_owner": decision_record.get("decided_by"),
+        "effect": {
+            "ak_read_only": True,
+            "ak_mutated": False,
+            "program_files_mutated": False,
+            "external_authority_mutated": False,
+            "production_activation_applied": False,
+        },
+        "non_authority": {
+            "binding_verification_only": True,
+            "production_activation_authority": False,
+            "rollout_preflight_authority": False,
+            "external_mutation": False,
+        },
+    }
+
+
+def write_canonical_binding_verification(
+    verification: Mapping[str, Any], out_path: Path
+) -> dict[str, Any]:
+    out_path = out_path.expanduser().resolve()
+    if out_path.name in _FORBIDDEN_OUTPUT_NAMES:
+        raise ProgramActivationPacketError(
+            f"canonical binding verification must not overwrite {out_path.name}"
+        )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(verification)
+    out_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return payload
 
 
 def _validate_oracle_report_identity(
@@ -715,6 +909,7 @@ def _remaining_activation_blockers(
     refined_review: Mapping[str, Any] | None,
     decision_record: Mapping[str, Any] | None,
     canonical_binding_ref: str | None,
+    canonical_binding_verification: Mapping[str, Any] | None,
     rollout_owner: str | None,
     rollback_plan: str | None,
     require_obsidian_review_adapter: bool,
@@ -739,7 +934,7 @@ def _remaining_activation_blockers(
         blockers.append("decision_outcome_not_promote")
     if not str(canonical_binding_ref or "").strip():
         blockers.append("canonical_binding_ref")
-    else:
+    elif not _canonical_binding_verified(canonical_binding_verification):
         blockers.append("canonical_binding_verification")
     if not str(rollout_owner or "").strip():
         blockers.append("rollout_owner")
@@ -756,6 +951,7 @@ def _status_and_missing(
     refined_review: Mapping[str, Any] | None,
     decision_record: Mapping[str, Any] | None,
     canonical_binding_ref: str | None,
+    canonical_binding_verification: Mapping[str, Any] | None,
     rollout_owner: str | None,
     rollback_plan: str | None,
     require_obsidian_review_adapter: bool,
@@ -792,11 +988,13 @@ def _status_and_missing(
             [],
             "bind_decision_into_ak_or_current_authority",
         )
-    return (
-        "ready_for_canonical_binding_verification",
-        [],
-        "verify_canonical_binding_ref_before_rollout_preflight",
-    )
+    if not _canonical_binding_verified(canonical_binding_verification):
+        return (
+            "ready_for_canonical_binding_verification",
+            [],
+            "verify_canonical_binding_ref_before_rollout_preflight",
+        )
+    return "ready_for_rollout_preflight", [], "run_owner_approved_rollout_preflight"
 
 
 def build_generated_program_activation_packet(
@@ -813,6 +1011,7 @@ def build_generated_program_activation_packet(
     oracle_publication_receipt_path: Path | None = None,
     candidate_state_path: Path | None = None,
     obsidian_review_adapter_receipt_path: Path | None = None,
+    canonical_binding_verification_path: Path | None = None,
     require_obsidian_review_adapter: bool = False,
     canonical_binding_ref: str | None = None,
     rollout_owner: str | None = None,
@@ -881,6 +1080,12 @@ def build_generated_program_activation_packet(
             label="obsidian_review_adapter_receipt",
         )
     )
+    canonical_binding_verification, canonical_binding_verification_ref = (
+        _load_optional_artifact(
+            canonical_binding_verification_path,
+            label="canonical_binding_verification",
+        )
+    )
 
     _validate_artifact_identity(identity, jury_results, label="jury_results")
     _validate_artifact_identity(identity, refined_review, label="refined_review")
@@ -899,6 +1104,16 @@ def build_generated_program_activation_packet(
     _validate_oracle_report_identity(identity, oracle_report)
     _validate_oracle_publication_receipt(identity, oracle_publication_receipt)
     _validate_candidate_state(identity, candidate_state)
+    decision_ref_for_binding = (
+        _decision_record_ref(decision_record_path)
+        if decision_record_path is not None
+        else None
+    )
+    _validate_canonical_binding_verification(
+        verification=canonical_binding_verification,
+        canonical_binding_ref=canonical_binding_ref,
+        decision_record_ref=decision_ref_for_binding,
+    )
     _validate_obsidian_review_adapter_receipt(
         obsidian_review_adapter_receipt,
         candidate_state_ref=candidate_state_ref,
@@ -919,6 +1134,7 @@ def build_generated_program_activation_packet(
         refined_review=refined_review,
         decision_record=decision_record,
         canonical_binding_ref=canonical_binding_ref,
+        canonical_binding_verification=canonical_binding_verification,
         rollout_owner=rollout_owner,
         rollback_plan=rollback_plan,
         require_obsidian_review_adapter=require_obsidian_review_adapter,
@@ -931,6 +1147,7 @@ def build_generated_program_activation_packet(
         refined_review=refined_review,
         decision_record=decision_record,
         canonical_binding_ref=canonical_binding_ref,
+        canonical_binding_verification=canonical_binding_verification,
         rollout_owner=rollout_owner,
         rollback_plan=rollback_plan,
         require_obsidian_review_adapter=require_obsidian_review_adapter,
@@ -971,6 +1188,7 @@ def build_generated_program_activation_packet(
             ),
             "candidate_state": candidate_state_ref,
             "obsidian_review_adapter_receipt": obsidian_review_adapter_receipt_ref,
+            "canonical_binding_verification": canonical_binding_verification_ref,
         },
         "target_review_admission": target_review_admission,
         "decision": {

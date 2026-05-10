@@ -43,7 +43,7 @@ A packet may reach `ready_for_rollout_preflight` only when all activation author
 
 If `rollout_owner` is missing, the packet stays `blocked` even if decision and canonical binding refs are present.
 
-A non-empty `canonical_binding_ref` is not sufficient to claim rollout preflight. Until an AK/current-authority verifier confirms the binding, the packet may only reach `ready_for_canonical_binding_verification`, not `ready_for_rollout_preflight`.
+A non-empty `canonical_binding_ref` is not sufficient to claim rollout preflight. Until `dspx program-promote canonical-binding-verification` confirms the binding, the packet may only reach `ready_for_canonical_binding_verification`, not `ready_for_rollout_preflight`.
 
 For Obsidian/PDF generated-program runtime activation, pass `--require-obsidian-review-adapter` with both target-aware candidate status and the Obsidian review-adapter receipt:
 
@@ -67,4 +67,4 @@ Obsidian/PDF live-provider adapter dogfood is recorded in `docs/project/2026-05-
 
 The proposed next evidence layer is documented in `docs/rfc/RFC-DSPX-ADJ-20260509-meta-adjudication-orchestration.md`: a DSPx meta-adjudication layer that researches a generated program's target, selects and verifies a suitable jury, forms and verifies a program-specific adjudicator, publishes judging behavior to Oracle/Postgres as empirical memory, and later uses GEPA to improve judging behavior. That layer is still evidence-producing; it does not replace the domain/governance activation decision.
 
-Current Obsidian/PDF dogfood evidence is recorded in `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-packet.md`, `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-blockers-resolved.md`, `docs/project/2026-05-10-review-bounded-obsidian-pdf-activation-many-greats.md`, and `docs/project/2026-05-10-dogfood-obsidian-pdf-domain-decision.md`. The follow-up resolved the generated-program jury and refined-review evidence blockers, then recorded AK decision `#40` and a matching domain decision sidecar, moving the candidate to `ready_for_canonical_binding`; production remains blocked on a verified AK/current-authority canonical binding.
+Current Obsidian/PDF dogfood evidence is recorded in `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-packet.md`, `docs/project/2026-05-10-dogfood-obsidian-pdf-activation-blockers-resolved.md`, `docs/project/2026-05-10-review-bounded-obsidian-pdf-activation-many-greats.md`, `docs/project/2026-05-10-dogfood-obsidian-pdf-domain-decision.md`, and `docs/project/2026-05-10-dogfood-obsidian-pdf-canonical-binding.md`. The follow-up resolved the generated-program jury and refined-review evidence blockers, recorded AK decision `#40` and a matching domain decision sidecar, then verified the canonical binding and moved the packet to `ready_for_rollout_preflight`. Production remains unapplied until an explicit rollout preflight and rollout receipt are completed.

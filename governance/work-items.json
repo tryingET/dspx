@@ -2610,6 +2610,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2773",
+          "title": "Verify Obsidian PDF generated-runtime canonical binding",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Verify Obsidian PDF generated-runtime canonical binding (task #2773)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
