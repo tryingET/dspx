@@ -5,7 +5,9 @@ from pathlib import Path
 from dspx.services.program_generation_contract import (
     GEN_GENERATION_GATE_PREFLIGHT_SCHEMA,
     GEN_TARGET_CONTRACT_SCHEMA,
+    build_generation_fitness_results,
     build_generation_gate_preflight,
+    build_generation_traceability,
     validate_generation_fitness_results,
     validate_generation_fitness_suite,
     validate_generation_target_contract,
@@ -232,6 +234,51 @@ def test_traceability_requires_requirements_and_evidence_refs() -> None:
     )
 
     assert result["status"] == "valid"
+
+
+def test_build_traceability_and_fitness_results_are_safe_review_eligible() -> None:
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "candidate_assembly": {
+            "surfaces": [
+                {"kind": "program", "path": "program.py"},
+                {"kind": "module", "path": "module.py"},
+                {"kind": "jury_rubric", "path": "jury_rubric.json"},
+            ]
+        },
+        "program_plan": {
+            "evaluation_strategy": {"jurors": [{"perspective": "source_grounding"}]}
+        },
+    }
+    traceability = build_generation_traceability(
+        target_contract=_base_contract(), candidate_manifest=manifest
+    )
+
+    trace_validation = validate_generation_traceability(traceability)
+    results = build_generation_fitness_results(
+        candidate_manifest=manifest,
+        target_contract=_base_contract(),
+        fitness_suite=_base_suite(),
+        traceability=traceability,
+    )
+
+    assert trace_validation["status"] == "valid"
+    assert traceability["requirements"][0]["status"] == "covered"
+    assert results["status"] == "fitness_passed"
+    assert results["rendered_state"] == "eligible_for_downstream_evidence_review"
+    assert validate_generation_fitness_results(results)["status"] == "valid"
+
+
+def test_missing_traceability_keeps_fitness_unknown_not_approved() -> None:
+    results = build_generation_fitness_results(
+        candidate_manifest={"schema_version": "program-candidate-assembly-v1"},
+        target_contract=_base_contract(),
+        fitness_suite=_base_suite(),
+    )
+
+    assert results["status"] == "target_fidelity_unknown"
+    assert results["rendered_state"] == "target_fidelity_unknown"
+    assert validate_generation_fitness_results(results)["status"] == "valid"
 
 
 def test_fitness_passed_requires_command_safe_rendering() -> None:

@@ -19,6 +19,8 @@ def test_program_gen_target_fidelity_cli_preflight_and_gated_generation(
     suite = tmp_path / "generation_fitness_suite.json"
     preflight = tmp_path / "generation_gate_preflight.json"
     outdir = tmp_path / "program"
+    traceability = tmp_path / "generation_traceability.json"
+    fitness_results = tmp_path / "generation_fitness_results.json"
 
     result = runner.invoke(
         app,
@@ -98,6 +100,55 @@ def test_program_gen_target_fidelity_cli_preflight_and_gated_generation(
     manifest = json.loads(result.stdout)
     assert manifest["schema_version"] == "program-candidate-assembly-v1"
     assert outdir.joinpath("manifest.json").exists()
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "traceability",
+            "--manifest",
+            str(outdir / "manifest.json"),
+            "--target-contract",
+            str(contract),
+            "--out",
+            str(traceability),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    traceability_payload = json.loads(result.stdout)
+    assert traceability_payload["schema_version"] == "gen-traceability-v1"
+    assert traceability_payload["requirements"]
+    assert traceability.exists()
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "fitness-results",
+            "--manifest",
+            str(outdir / "manifest.json"),
+            "--target-contract",
+            str(contract),
+            "--fitness-suite",
+            str(suite),
+            "--traceability",
+            str(traceability),
+            "--out",
+            str(fitness_results),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    fitness_payload = json.loads(result.stdout)
+    assert fitness_payload["schema_version"] == "gen-fitness-results-v1"
+    assert fitness_payload["status"] == "fitness_passed"
+    assert (
+        fitness_payload["rendered_state"] == "eligible_for_downstream_evidence_review"
+    )
+    assert fitness_results.exists()
 
 
 def test_program_gen_blocks_candidate_creation_when_preflight_blocks(

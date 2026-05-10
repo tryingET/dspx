@@ -580,6 +580,227 @@ def load_generation_gate_preflight(path: Path) -> dict[str, Any]:
     return _load_json_or_yaml_mapping(path)
 
 
+def load_generation_traceability(path: Path) -> dict[str, Any]:
+    return _load_json_or_yaml_mapping(path)
+
+
+def load_candidate_manifest(path: Path) -> dict[str, Any]:
+    return _load_json_or_yaml_mapping(path)
+
+
+def _candidate_manifest_sha256(candidate_manifest: Mapping[str, Any]) -> str:
+    return _sha256_payload(candidate_manifest)
+
+
+def _candidate_surface_paths(candidate_manifest: Mapping[str, Any]) -> list[str]:
+    assembly = _safe_mapping(candidate_manifest.get("candidate_assembly"))
+    surfaces = _safe_list(assembly.get("surfaces"))
+    paths: list[str] = []
+    for surface in surfaces:
+        path = _first_text(_safe_mapping(surface).get("path"))
+        if path and path not in paths:
+            paths.append(path)
+    for fallback in ("program.py", "module.py", "signature.py", "manifest.json"):
+        if fallback not in paths:
+            paths.append(fallback)
+    return paths
+
+
+def _candidate_jury_coverage(candidate_manifest: Mapping[str, Any]) -> list[str]:
+    plan = _safe_mapping(candidate_manifest.get("program_plan"))
+    strategy = _safe_mapping(plan.get("evaluation_strategy"))
+    jurors = _safe_list(strategy.get("jurors"))
+    coverage: list[str] = []
+    for juror in jurors:
+        perspective = _first_text(_safe_mapping(juror).get("perspective"))
+        if perspective and perspective not in coverage:
+            coverage.append(perspective)
+    return coverage
+
+
+def _requirement_id(value: object, index: int) -> str:
+    return f"req-{index + 1}-{_slug(value, default='target-stage')}"
+
+
+def build_generation_traceability(
+    *, target_contract: Mapping[str, Any], candidate_manifest: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Build post-generation traceability from target requirements to surfaces."""
+
+    contract_sha = (
+        _first_text(
+            _safe_mapping(target_contract.get("identity")).get("contract_sha256")
+        )
+        or ""
+    )
+    required_stages = _string_list(
+        _safe_mapping(target_contract.get("protocol")).get("required_stages")
+    )
+    surfaces = _candidate_surface_paths(candidate_manifest)
+    jury_coverage = _candidate_jury_coverage(candidate_manifest)
+    requirements = []
+    for index, stage in enumerate(required_stages or ["target_protocol_declared"]):
+        requirements.append(
+            {
+                "requirement_id": _requirement_id(stage, index),
+                "target_stage": stage,
+                "generated_surfaces": surfaces,
+                "evidence_refs": ["manifest.json", "generation_fitness_results.json"],
+                "juror_adjudicator_coverage": jury_coverage,
+                "status": "covered" if surfaces else "uncovered",
+            }
+        )
+    payload: dict[str, Any] = {
+        "schema_version": GEN_TRACEABILITY_SCHEMA,
+        "identity": {
+            "candidate_manifest_sha256": _candidate_manifest_sha256(candidate_manifest),
+            "target_contract_sha256": contract_sha,
+            "validator": "dspx.gen_traceability.v1",
+            "validator_version": "v1",
+        },
+        "requirements": requirements,
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+            "provider_called": False,
+            "shared_oracle_mutated": False,
+        },
+        "verifier_guarantee": "traceability_shape_and_declared_surface_coverage_only",
+        "verifier_non_guarantee": "semantic_truth_of_target_protocol",
+    }
+    return payload
+
+
+def _traceability_status(traceability: Mapping[str, Any]) -> str:
+    validation = validate_generation_traceability(traceability)
+    if validation.get("status") != "valid":
+        return "target_fidelity_unknown"
+    requirements = [
+        _safe_mapping(item) for item in _safe_list(traceability.get("requirements"))
+    ]
+    if not requirements:
+        return "target_fidelity_unknown"
+    if any(_first_text(item.get("status")) != "covered" for item in requirements):
+        return "fitness_failed"
+    return "fitness_passed"
+
+
+def build_generation_fitness_results(
+    *,
+    candidate_manifest: Mapping[str, Any],
+    target_contract: Mapping[str, Any],
+    fitness_suite: Mapping[str, Any],
+    traceability: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build post-generation mechanical target-fitness results.
+
+    These results are local evidence. Passing means only eligible for downstream
+    evidence review; it is not approval, promotion, activation, or domain acceptance.
+    """
+
+    candidate_sha = _candidate_manifest_sha256(candidate_manifest)
+    contract_sha = (
+        _first_text(
+            _safe_mapping(target_contract.get("identity")).get("contract_sha256")
+        )
+        or ""
+    )
+    suite_sha = (
+        _first_text(_safe_mapping(fitness_suite.get("identity")).get("suite_sha256"))
+        or ""
+    )
+    suite_validation = validate_generation_fitness_suite(
+        fitness_suite, target_contract=target_contract
+    )
+    trace_status = (
+        _traceability_status(traceability)
+        if traceability is not None
+        else "target_fidelity_unknown"
+    )
+    if suite_validation.get("status") != "valid":
+        status = "fitness_failed"
+    else:
+        status = trace_status
+    if status == "fitness_passed":
+        rendered_state = "eligible_for_downstream_evidence_review"
+    elif status == "fitness_failed":
+        rendered_state = "withheld_for_target_protocol_failure"
+    else:
+        rendered_state = "target_fidelity_unknown"
+
+    case_status = "passed" if status == "fitness_passed" else "failed"
+    if status == "target_fidelity_unknown":
+        case_status = "unknown"
+    cases = []
+    for raw_case in _safe_list(fitness_suite.get("cases")):
+        case = _safe_mapping(raw_case)
+        case_id = _first_text(case.get("case_id")) or "target-fitness-case"
+        cases.append(
+            {
+                "case_id": case_id,
+                "status": case_status,
+                "evidence_refs": ["generation_traceability.json", "manifest.json"],
+                "mechanical_check": _first_text(
+                    case.get("validator"), case.get("command")
+                ),
+                "expected_failure_label": _first_text(
+                    case.get("expected_failure_label"), case.get("expected_status")
+                ),
+            }
+        )
+    if not cases:
+        cases.append(
+            {
+                "case_id": "missing-fitness-suite-case",
+                "status": "failed",
+                "evidence_refs": ["generation_fitness_suite.json"],
+            }
+        )
+        status = "fitness_failed"
+        rendered_state = "withheld_for_target_protocol_failure"
+
+    payload: dict[str, Any] = {
+        "schema_version": GEN_FITNESS_RESULTS_SCHEMA,
+        "identity": {
+            "candidate_manifest_sha256": candidate_sha,
+            "target_contract_sha256": contract_sha,
+            "fitness_suite_sha256": suite_sha,
+            "validator": "dspx.gen_fitness_results.v1",
+            "validator_version": "v1",
+        },
+        "status": status,
+        "rendered_state": rendered_state,
+        "cases": cases,
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+            "provider_called": False,
+            "shared_oracle_mutated": False,
+        },
+        "verifier_guarantee": "mechanical_traceability_and_suite_result_shape_only",
+        "verifier_non_guarantee": "semantic_truth_domain_acceptance_or_activation",
+    }
+    return payload
+
+
 def build_generation_gate_preflight(
     *, target_contract: Mapping[str, Any], fitness_suite: Mapping[str, Any]
 ) -> dict[str, Any]:

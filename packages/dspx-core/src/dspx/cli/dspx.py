@@ -612,6 +612,123 @@ def program_gen_verify_generation_gate(
         raise typer.Exit(code=2)
 
 
+@program_gen_app.command("traceability")
+def program_gen_traceability(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to generated program manifest.json",
+    ),
+    target_contract: Path = typer.Option(
+        ...,
+        "--target-contract",
+        help="Path to generation_target_contract.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Write generation_traceability.json here",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print traceability JSON"),
+) -> None:
+    """Write gen-traceability-v1 for a generated candidate."""
+    from dspx.services.program_generation_contract import (
+        build_generation_traceability,
+        load_candidate_manifest,
+        load_generation_target_contract,
+        validate_generation_traceability,
+        write_generation_json,
+    )
+
+    missing = [str(path) for path in (manifest, target_contract) if not path.exists()]
+    if missing:
+        typer.echo(f"Error: required file(s) not found: {', '.join(missing)}", err=True)
+        raise typer.Exit(code=2)
+    try:
+        manifest_payload = load_candidate_manifest(manifest)
+        contract_payload = load_generation_target_contract(target_contract)
+        traceability = build_generation_traceability(
+            target_contract=contract_payload, candidate_manifest=manifest_payload
+        )
+        validation = validate_generation_traceability(traceability)
+        write_generation_json(traceability, out)
+    except Exception as exc:
+        typer.echo(f"Error: traceability generation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_generation_payload(traceability, json_out=json_out, out=out)
+    if validation.get("status") != "valid":
+        raise typer.Exit(code=2)
+
+
+@program_gen_app.command("fitness-results")
+def program_gen_fitness_results(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to generated program manifest.json",
+    ),
+    target_contract: Path = typer.Option(
+        ...,
+        "--target-contract",
+        help="Path to generation_target_contract.json",
+    ),
+    fitness_suite: Path = typer.Option(
+        ...,
+        "--fitness-suite",
+        help="Path to generation_fitness_suite.json",
+    ),
+    traceability: Path = typer.Option(
+        ...,
+        "--traceability",
+        help="Path to generation_traceability.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Write generation_fitness_results.json here",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print fitness results JSON"),
+) -> None:
+    """Write gen-fitness-results-v1 after candidate generation."""
+    from dspx.services.program_generation_contract import (
+        build_generation_fitness_results,
+        load_candidate_manifest,
+        load_generation_fitness_suite,
+        load_generation_target_contract,
+        load_generation_traceability,
+        validate_generation_fitness_results,
+        write_generation_json,
+    )
+
+    missing = [
+        str(path)
+        for path in (manifest, target_contract, fitness_suite, traceability)
+        if not path.exists()
+    ]
+    if missing:
+        typer.echo(f"Error: required file(s) not found: {', '.join(missing)}", err=True)
+        raise typer.Exit(code=2)
+    try:
+        manifest_payload = load_candidate_manifest(manifest)
+        contract_payload = load_generation_target_contract(target_contract)
+        suite_payload = load_generation_fitness_suite(fitness_suite)
+        trace_payload = load_generation_traceability(traceability)
+        fitness_results = build_generation_fitness_results(
+            candidate_manifest=manifest_payload,
+            target_contract=contract_payload,
+            fitness_suite=suite_payload,
+            traceability=trace_payload,
+        )
+        validation = validate_generation_fitness_results(fitness_results)
+        write_generation_json(fitness_results, out)
+    except Exception as exc:
+        typer.echo(f"Error: fitness results generation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_generation_payload(fitness_results, json_out=json_out, out=out)
+    if validation.get("status") != "valid":
+        raise typer.Exit(code=2)
+
+
 @app.command("program-loop")
 def program_loop(
     intent: Path = typer.Option(

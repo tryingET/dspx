@@ -2493,6 +2493,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2721",
+          "title": "Implement program-gen target traceability and fitness results wave 3",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement program-gen target traceability and fitness results wave 3 (task #2721)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
