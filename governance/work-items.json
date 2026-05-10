@@ -2662,6 +2662,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2795",
+          "title": "Dogfood real Zotero-bound How to Read source package for refined PDF program",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Dogfood real Zotero-bound How to Read source package for refined PDF program (task #2795)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T14:40:38.687579028+00:00",
+  "task_id": 2795,
+  "entity_version": 4,
+  "commit_sha": "d7290374c696164e4429e66fcce8987d8dbb8ff2",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/**",
+      "governance/task-scopes/**",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-dogfood-how-to-read-zotero-bound-source-package.md",
+      "governance/task-scopes/AK-2795.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
