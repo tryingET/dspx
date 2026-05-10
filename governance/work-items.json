@@ -2636,6 +2636,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2788",
+          "title": "Materialize all How to Read generated Wiki notes for operator review",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Materialize all How to Read generated Wiki notes for operator review (task #2788)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

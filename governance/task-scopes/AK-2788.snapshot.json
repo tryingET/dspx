@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T13:44:24.637896899+00:00",
+  "task_id": 2788,
+  "entity_version": 4,
+  "commit_sha": "effbdaa781b8a36256f69d10ba58c6f4dbe99e73",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/**",
+      "governance/task-scopes/**",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-dogfood-how-to-read-all-wiki-notes.md",
+      "governance/task-scopes/AK-2788.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
