@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T03:43:43.584856242+00:00",
+  "task_id": 2714,
+  "entity_version": 3,
+  "commit_sha": "2962ea59cdb8e15aeb205f02f7f50b6abd59d0ab",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-rereview-target-protocol-fidelity-gates.md",
+      "docs/project/2026-05-10-review-target-protocol-fidelity-gates-multi.md",
+      "docs/rfc/RFC-DSPX-GEN-20260509-target-protocol-fidelity-gates.md",
+      "governance/task-scopes/**",
+      "governance/work-items.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-review-target-protocol-fidelity-gates-multi.md",
+      "docs/rfc/RFC-DSPX-GEN-20260509-target-protocol-fidelity-gates.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

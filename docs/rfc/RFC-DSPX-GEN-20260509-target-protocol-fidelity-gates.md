@@ -45,7 +45,8 @@ This is a repo-wide generation problem, not an Obsidian adapter problem. Any `*-
 - Define adversarial fitness suites before promotion evidence is accepted.
 - Define traceability from target requirements to generated surfaces and evidence.
 - Integrate the contract with existing meta-adjudication, Oracle/Postgres behavior memory, and future GEPA curation.
-- Start implementation with `program-gen`, then generalize to `signature-gen`, `module-gen`, and future `*-gen` surfaces by risk tier.
+- Adopt a repo-wide `*-gen` invariant: target-bound generation needs an explicit target-protocol contract and fitness evidence.
+- Make the ADR basis concrete for `program-gen` first; `signature-gen`, `module-gen`, and future `*-gen` adoption must pass per-surface rollout gates before enforcement.
 
 ### Out of scope
 
@@ -136,7 +137,17 @@ intent/prose/docs
 
 The first implementation target should be `program-gen`, because it has the clearest target-protocol risk and the strongest current failure evidence.
 
+ADR scope should be interpreted as:
+
+```text
+committed now: shared invariant + program-gen first implementation path
+not committed now: automatic enforcement across every existing *-gen surface
+future gates: per-surface RFC/ADR follow-through or post-ADR rollout acceptance for signature-gen/module-gen
+```
+
 The pre-generation verifier is a DSPx/meta verifier, not the generated-program adjudicator. The generated-program adjudicator does not exist until after candidate creation. Therefore the first gate must be deterministic and local: it validates target-contract completeness, fitness-suite completeness, identity/hash binding, non-authority flags, and risk-tier classification before `program-gen` is allowed to materialize a target-bound candidate.
+
+The deterministic verifier does **not** prove semantic truth by itself. It proves that a declared target contract and adversarial suite are complete enough to constrain generation. Semantic target fitness is then tested through fitness execution, traceability, adjudication, dogfood, and later domain outcomes.
 
 ## 6) Target architecture
 
@@ -176,7 +187,45 @@ dspx program-gen verify-generation-gate \
 
 Target-bound `program-gen` must require either an explicit successful `generation_gate_preflight.json` or enough explicit inputs to run the same deterministic verifier inline. The verifier outputs `generation_allowed` or `generation_blocked` with fail-closed reasons.
 
-### 6.3 Minimum target contract shape
+### 6.3 Target-contract authorship, custody, and trust
+
+`generation_target_contract.json` is not magical authority. It is a DSPx evidence artifact about the target protocol. The trust model is explicit:
+
+| Contract source | Allowed use | Required custody |
+| --- | --- | --- |
+| hand-authored by operator/domain owner | strongest local evidence for target-bound generation | owner id, reviewed docs refs, hash, timestamp |
+| generated from structured intent fields | allowed only when intent declares target owner, refs, stages, forbidden shortcuts, and risk tier | intent hash and generator version |
+| generated from docs/prose | draft only until deterministic verifier and operator/domain confirmation mark it usable | source doc hashes and confirmation field |
+| inferred from objective alone | not sufficient for target-bound generation | must block with `insufficient_target_contract` |
+
+The verifier may accept a hybrid contract only when `contract_source`, `owner_refs`, `confirmation_status`, `source_hashes`, and `validator_version` are present. If target docs are machine-local paths, publication to Oracle/Postgres or GEPA datasets must redact or hash paths before leaving the local machine.
+
+### 6.4 Shared core vs target profile extensions
+
+`gen-target-contract-v1` has a shared core plus optional target profile extensions.
+
+Shared core fields are mandatory across target-bound `program-gen`:
+
+```text
+schema_version
+identity
+target.id
+target.owner
+target.owner_refs
+contract_source
+confirmation_status
+risk_tier
+protocol.required_stages
+protocol.artifact_families
+protocol.forbidden_shortcuts
+fitness.required_adversarial_cases
+non_authority
+effect
+```
+
+Target profile extensions may add aliases, domain vocabulary, owner-specific stage names, and adapter-specific refusal rules. They must not redefine the shared core semantics. Obsidian/PDF aliases such as `chapter_reading` and `chapter_synthesis_check` therefore live in a profile extension, while validators still check the normalized required stages.
+
+### 6.5 Minimum target contract shape
 
 ```json
 {
@@ -184,14 +233,19 @@ Target-bound `program-gen` must require either an explicit successful `generatio
   "identity": {
     "intent_sha256": "...",
     "contract_sha256": "...",
-    "validator": "dspx.gen_target_contract.v1"
+    "validator": "dspx.gen_target_contract.v1",
+    "validator_version": "v1"
   },
   "target": {
     "id": "obsidian_pdf_transition",
     "owner": "obsidian/_System",
     "owner_refs": ["/home/tryinget/Documents/Obsidian/_System/architecture/pdf-transition-architecture.md"],
-    "owner_ref_custody": "local_path_reference_not_publishable_without_redaction"
+    "owner_ref_custody": "local_path_reference_not_publishable_without_redaction",
+    "source_hashes": {"pdf-transition-architecture.md": "sha256:..."}
   },
+  "contract_source": "hand_authored_or_confirmed_generated",
+  "confirmation_status": "operator_confirmed_for_generation_gate",
+  "risk_tier": "authority_adjacent",
   "protocol": {
     "required_stages": [
       "source_package",
@@ -239,7 +293,7 @@ Target-bound `program-gen` must require either an explicit successful `generatio
 
 The Obsidian/PDF profile distinguishes canonical normalized stages from target-specific aliases. Validators must check the normalized required stages while preserving aliases so domain wording such as `chapter_reading`, `passage_reading`, and `chapter_synthesis_check` is not lost.
 
-### 6.4 State values
+### 6.6 State values
 
 ```text
 contract_missing
@@ -257,7 +311,7 @@ eligible_for_meta_adjudication
 
 `fitness_passed` only means the candidate is eligible for downstream adjudication/promotion evidence. It does not mean ready for domain decision, production activation, external mutation, or canonical owner acceptance.
 
-### 6.5 Fail-closed reasons
+### 6.7 Fail-closed reasons
 
 ```text
 insufficient_target_contract
@@ -271,7 +325,7 @@ missing_source_language_policy
 missing_identity_or_hash_binding
 ```
 
-### 6.6 Risk-tier classification
+### 6.8 Risk-tier classification
 
 DSPx should classify generation risk deterministically before applying gates:
 
@@ -283,6 +337,47 @@ DSPx should classify generation risk deterministically before applying gates:
 | external mutation capable | any future generator can mutate owner surfaces | explicit owner/governance activation gate required before mutation |
 
 If classification is ambiguous, DSPx must choose the stricter tier or block with `generation_blocked: insufficient_target_contract`.
+
+Tutorial/local mode is not a bypass. It is disallowed when any of these are present:
+
+- external owner refs;
+- adapter materialization target;
+- external authority refs;
+- canonical/proposal/review artifact families;
+- shared Oracle publication request;
+- promotion/export/activation evidence request.
+
+When tutorial/local mode is used, `program-gen` must emit `tutorial_contract_profile_used=true`, `target_protocol_fidelity_claimed=false`, and `adapter_materialization_allowed=false`.
+
+### 6.9 Command/state transition rules
+
+| Operation | Required state/input | Allowed output | Authority posture |
+| --- | --- | --- | --- |
+| target-bound candidate creation | `generation_gate_preflight.status=generation_allowed` | candidate + manifest + traceability placeholder | local evidence only |
+| generation refusal | missing/insufficient contract or suite | `generation_gate_preflight.status=generation_blocked` | local evidence only |
+| adapter materialization | `generation_fitness_results.status=fitness_passed` | normal review/proposal queue packet | review-only, non-canonical |
+| adapter refusal | `fitness_failed` or missing target-fitness results | failure-only/withheld packet | no normal review queue |
+| meta-adjudication | generated candidate + traceability/fitness sidecars | adjudication evidence | non-authoritative |
+| Oracle publication preflight | redacted contract/fitness/adjudication summaries | preflight packet | no shared mutation |
+| Oracle publication | explicit configured shared backend + redaction/custody fields | empirical memory record | not authority |
+| GEPA curation | later outcome label or explicit negative-example label | trainable or pending example | not authority |
+
+`fitness_passed` is command-safe only as `eligible_for_downstream_evidence_review`; it must not be rendered as `promoted`, `approved`, `activated`, or `ready_for_domain_decision`.
+
+### 6.10 Adversarial suite acceptance criteria
+
+A `gen-fitness-suite-v1` is insufficient if it only lists names. It must include executable or mechanically checkable cases with:
+
+- input fixture or fixture reference;
+- expected allowed artifact families;
+- forbidden outputs/effects;
+- source/provenance/language assertions;
+- target stage assertions;
+- expected failure label for historical bad behavior;
+- command that executes or validates the case;
+- hash/provenance binding to the target contract.
+
+For Obsidian/PDF, the minimum suite must include the historical bad pattern: plausible section/procedural heading inflated into Wiki create/draft, source language drift, missing synthesis gate, and missing merge-before-create conservatism.
 
 ## 7) Integration with existing meta-adjudication
 
@@ -297,6 +392,17 @@ New integration points:
 - behavior traces should preserve target-contract and fitness failure summaries for Oracle/Postgres and GEPA curation.
 
 For target-bound flows, adapter materialization must require `fitness_passed` or write an explicitly withheld/failure-only packet. Review/proposal adapters must not turn failed target-fidelity outputs into normal review queues.
+
+GEPA examples derived from target-fidelity traces must use explicit label states:
+
+```text
+curated_pending_outcome_label
+curated_negative_failure_example
+curated_positive_after_domain_outcome
+quarantined_invalid_or_untrusted
+```
+
+Only `curated_positive_after_domain_outcome` and explicitly reviewed `curated_negative_failure_example` may be used for training/validation. Raw invalid dogfood defaults to `curated_pending_outcome_label` or `quarantined_invalid_or_untrusted`.
 
 ## 8) Rollout plan
 
@@ -322,7 +428,7 @@ Turn the current bad Obsidian/PDF outputs into adversarial failure fixtures. Reg
 
 ### Phase 5 — widen by risk tier
 
-Apply the contract model to `signature-gen`, `module-gen`, and future `*-gen` surfaces based on risk tier.
+Apply the invariant to `signature-gen`, `module-gen`, and future `*-gen` surfaces based on risk tier only after `program-gen` has working schemas, gate preflight, traceability, fitness results, and dogfood evidence. Each non-`program-gen` surface needs a per-surface acceptance note defining its minimal contract, tutorial/local profile, and failure fixtures before enforcement.
 
 ### Phase 6 — Oracle/Postgres and GEPA
 
@@ -331,8 +437,10 @@ Publish curated target-fidelity traces as empirical memory only. Mark examples w
 ## 9) Compatibility and migration
 
 - Existing local examples should keep working through a low-risk tutorial profile during migration.
+- Tutorial/local mode cannot be used when owner refs, adapter materialization, authority refs, canonical/proposal/review artifact families, or publication requests are present.
 - Existing candidate sidecars remain readable.
 - Existing meta-adjudication sidecars remain useful and should gain optional inputs rather than being replaced.
+- Partially migrated candidate assemblies must read back as `target_fidelity_unknown` unless all required contract/fitness/traceability sidecars are present.
 - Old bad dogfood should be relabeled as failure evidence, not deleted from learning context.
 
 ## 10) Validation plan
@@ -360,8 +468,12 @@ Negative implementation tests:
 - missing forbidden shortcut list blocks target-bound generation;
 - missing source/provenance/language policy blocks target-bound generation;
 - missing identity/hash binding blocks target-bound generation;
+- generated-from-docs contract without operator/domain confirmation blocks target-bound generation;
+- tutorial/local mode is rejected when owner refs, adapter materialization, authority refs, or publication requests are present;
 - runnable/schema-valid candidate can still fail target fitness;
-- adapter materialization refuses failed-fitness target-bound candidates unless writing a failure-only packet.
+- adversarial suite without executable/checkable cases is insufficient;
+- adapter materialization refuses failed-fitness target-bound candidates unless writing a failure-only packet;
+- GEPA curation refuses unlabeled invalid dogfood as a positive example.
 
 Dogfood gate:
 

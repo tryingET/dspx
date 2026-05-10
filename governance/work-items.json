@@ -2428,6 +2428,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2714",
+          "title": "Review and revise target-protocol fidelity gates RFC",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Review and revise target-protocol fidelity gates RFC (task #2714)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
