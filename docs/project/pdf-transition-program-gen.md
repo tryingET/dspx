@@ -19,7 +19,7 @@ It is grounded in the Obsidian architecture:
 - `/home/tryinget/Documents/Obsidian/_System/architecture/source-semantic-scaffold-architecture.md`
 - `/home/tryinget/Documents/Obsidian/_System/pdf-pipeline/workflow-profiles.md`
 
-The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts**, not canonical notes.
+The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, and wikilinked durable key concepts in draft previews.
 
 Canonical flow:
 
@@ -56,8 +56,9 @@ The intent asks the generated DSPy program to produce JSON-string outputs for th
 | `distillation_frames_json` | transition | Close-reading frames with `paraphrase`, `thesis`, `logic`, `evaluation`, and `application`. |
 | `evidence_cards_json` | transition | Source-grounded evidence cards for later Wiki/Atlas decisions. |
 | `merge_create_proposals_json` | proposal | Merge/create candidates such as `enrich`, `create`, `board-only`, `ignore`, or `review`. |
-| `review_packet_json` | review | Review packet with confidence, uncertainty, provenance, and review needs. |
-| `artifact_contract_manifest_json` | review / contract | Declares source/transition/proposal/review/canonical boundaries and forbidden effects. |
+| `wiki_note_drafts_json` | draft | Review-only Wiki note draft previews with source-language text, wikilinked key concepts, and footnote-only Zotero/source provenance. |
+| `review_packet_json` | review | Review packet with confidence, uncertainty, provenance, draft quality, and review needs. |
+| `artifact_contract_manifest_json` | review / contract | Declares source/transition/proposal/draft/review/canonical boundaries and forbidden effects. |
 
 The fixture includes one tiny PDF-like Marker markdown excerpt about close reading and expected transition/proposal/review outputs.
 
@@ -68,8 +69,9 @@ The fixture includes one tiny PDF-like Marker markdown excerpt about close readi
 | source | Raw extraction/source package artifact. Zotero/source package identity remains authoritative outside DSPx. |
 | transition | Regenerable section units, distillation frames, and evidence cards. |
 | proposal | Merge/create candidates only; not accepted notes. |
+| draft | Wiki note draft previews for review; source-language, wikilink, and footnote rules are target-fidelity constraints, not acceptance. |
 | review | Human/operator review packets only. |
-| canonical | Wiki/Atlas notes only after explicit review outside `program-gen`. |
+| canonical | Wiki/Atlas notes only after explicit review/apply outside `program-gen`. |
 
 ## Generated-program jury and adjudicator layer
 
@@ -79,6 +81,9 @@ This scenario declares a generated-program-level jury contract in `intent.yaml`:
 source_grounding
 authority_boundaries
 transition_artifact_quality
+language_fidelity
+zotero_footnote_linkage
+wiki_link_key_concepts
 ```
 
 `program-gen` materializes those explicit perspectives into `jury.json`, `jury_selection.json`, and `jury_rubric.json` even when the intent does not bind concrete juror models. They are candidate-local evaluation contracts for the generated DSPy program. The generated-program-level promotion adjudicator is the declared DSPx AI agent (`dspx_program_adjudicator_v1`) and starts pending.
@@ -166,6 +171,8 @@ It does **not**:
 - claim Marker extraction authority
 - write external filesystem artifacts beyond the declared DSPx `program-gen` output directory
 - promote a proposal to an accepted note
+- translate source-language note drafts unless explicitly requested
+- put source/provenance material into a separate note-draft source heading instead of footnotes
 - call AK
 - invoke Oracle indexing automatically
 - rank, select winners, approve, or deploy

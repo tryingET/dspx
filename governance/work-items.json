@@ -2649,6 +2649,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2792",
+          "title": "Refine Obsidian PDF DSPy target contract for language, Zotero footnotes, and wikilinks",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Refine Obsidian PDF DSPy target contract for language, Zotero footnotes, and wikilinks (task #2792)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }

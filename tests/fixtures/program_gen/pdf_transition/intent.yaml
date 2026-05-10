@@ -2,8 +2,9 @@ schema_version: program-intent-v2
 name: PdfTransitionProgram
 objective: >-
   Transform raw PDF/Marker markdown plus source-package context into source-grounded,
-  reviewable Obsidian Wiki transition artifacts: section-unit candidates,
-  close-reading distillation frames, evidence cards, merge/create proposals,
+  reviewable Obsidian Wiki transition artifacts and language-consistent Wiki note
+  draft previews: section-unit candidates, close-reading distillation frames,
+  evidence cards, merge/create proposals, footnoted wikilinked note drafts,
   review packets, and an artifact contract manifest.
 task_type: single_module
 inputs:
@@ -16,12 +17,13 @@ outputs:
   - distillation_frames_json
   - evidence_cards_json
   - merge_create_proposals_json
+  - wiki_note_drafts_json
   - review_packet_json
   - artifact_contract_manifest_json
 input_fields:
   - name: source_package_manifest_json
     type: str
-    desc: JSON source-package manifest derived from Zotero/Marker package authority.
+    desc: JSON source-package manifest derived from Zotero/Marker package authority, including source language and Zotero item/attachment refs when available.
   - name: marker_markdown
     type: str
     desc: Raw Marker markdown or section text from a PDF-like source artifact.
@@ -44,31 +46,42 @@ output_fields:
   - name: merge_create_proposals_json
     type: str
     desc: JSON array of proposal-family merge/create candidates; proposals only, not canonical note writes.
+  - name: wiki_note_drafts_json
+    type: str
+    desc: JSON array of review-only Wiki note draft previews with source-language text, wikilinked key concepts, and footnote-only source/Zotero provenance.
   - name: review_packet_json
     type: str
-    desc: JSON review-family packet summarizing confidence, uncertainty, provenance, and review needs.
+    desc: JSON review-family packet summarizing confidence, uncertainty, provenance, draft quality, and review needs.
   - name: artifact_contract_manifest_json
     type: str
-    desc: JSON manifest declaring source/transition/proposal/review/canonical artifact families and forbidden effects.
+    desc: JSON manifest declaring source/transition/proposal/review/draft/canonical artifact families and forbidden effects.
 examples_path: examples.yaml
 metric: exact_match
 constraints:
   - Treat Zotero/source package metadata as source identity authority; do not invent or mutate source identity.
   - Treat Marker markdown as extraction/source artifact input; do not claim Marker extraction authority.
+  - Detect and preserve the dominant source language; when the supplied source text is English, all generated draft note prose, headings, labels, and review-facing text should be English unless quoting non-English source text.
   - Section units, distillation frames, and evidence cards are transition artifacts only.
   - Merge/create outputs are proposal artifacts only and must include review_required when targeting Wiki or Atlas.
+  - Wiki note drafts are preview artifacts only; they must not claim accepted canonical status or write files.
+  - Wiki note drafts must use Obsidian wikilinks for durable key concepts, methods, frameworks, and sibling candidate notes, while avoiding overlinking ordinary words.
+  - Wiki note draft source provenance must be carried in footnotes or footnote_refs, not in a separate source/provenance heading block.
+  - Footnotes must prefer Zotero item/attachment links or refs when present, and include page/section/marker references plus exact or explicitly approximate quotes.
   - Review packets are review artifacts only and do not approve canonicalization.
   - Canonical Wiki or Atlas artifacts may be mentioned as targets but must not be created, overwritten, accepted, or mutated.
-  - Preserve source_refs/provenance on every transition or proposal artifact.
-  - Explain confidence, uncertainty, and review needs explicitly.
+  - Preserve source_refs/provenance on every transition, proposal, evidence, draft, or review artifact.
+  - Explain confidence, uncertainty, source-grounding gaps, language decisions, and review needs explicitly.
   - External filesystem mutation is forbidden except for declared DSPx program-gen output artifacts.
 jury:
   selection_model: perspective_balanced_explicit_pool
-  minimum_jurors: 3
+  minimum_jurors: 6
   perspectives:
     - source_grounding
     - authority_boundaries
     - transition_artifact_quality
+    - language_fidelity
+    - zotero_footnote_linkage
+    - wiki_link_key_concepts
 promotion:
   adjudicator:
     kind: ai_agent
@@ -85,17 +98,27 @@ options:
     - /home/tryinget/Documents/Obsidian/_System/architecture/distillation-method-architecture.md
     - /home/tryinget/Documents/Obsidian/_System/architecture/source-semantic-scaffold-architecture.md
     - /home/tryinget/Documents/Obsidian/_System/pdf-pipeline/workflow-profiles.md
+    - /home/tryinget/Documents/Obsidian/_System/architecture/merge-before-create-architecture.md
+    - /home/tryinget/Documents/Obsidian/_System/architecture/atlas-access-policy.md
+  refinement_source:
+    source_run: /tmp/dspx-how-to-read-run.DTXiRz/runtime
+    review_packet: /home/tryinget/Documents/Obsidian/_System/review/proposals/pdf-transition/doc:a6112bfb/dspy-review-packet.md
+    all_12_review_seed_receipt: /home/tryinget/Documents/Obsidian/_System/review/proposals/pdf-transition/doc:a6112bfb/canonical-apply-receipt.all-12.json
   authority_model:
     source: raw extraction/source package artifact
     transition: section units, distillation frames, and evidence cards
     proposal: merge/create candidates
+    draft: footnoted wikilinked Wiki note previews for review only
     review: review packet
-    canonical: Wiki/Atlas note only after explicit review
+    canonical: Wiki/Atlas note only after explicit review/apply outside program-gen
   expected_artifact_family:
     - section-unit candidates
     - distillation frames
     - evidence cards
     - merge/create proposals
+    - language-consistent Wiki note draft previews
+    - Zotero/source footnotes
+    - wikilinked key concept candidates
     - review packets
     - replay/receipt metadata
     - artifact contract manifest
@@ -103,7 +126,9 @@ options:
     - canonical Wiki mutation
     - final acceptance
     - Atlas/Wiki authority decision without review
-    - Zotero/source identity authority
+    - Zotero/source identity authority mutation
     - Marker extraction authority
+    - source-language translation unless explicitly requested
+    - separate source/provenance heading block inside note drafts
     - external filesystem mutation beyond declared DSPx output artifacts
     - promotion from proposal to accepted note

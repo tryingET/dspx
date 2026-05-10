@@ -7,6 +7,11 @@
         "doc_id": "doc:pdf-transition-demo",
         "source_id": "zotero:user:demo/DEMO2026",
         "attachment_id": "sha256:demo",
+        "attachment_record_id": "zotero-attachment:user:demo/ATTACH2026",
+        "zotero_item_uri": "zotero://select/items/DEMO2026",
+        "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
+        "source_language": "en",
+        "title": "Five Levels of Close Reading",
         "package_root": "_System/pdf-pipeline/packages/doc:pdf-transition-demo",
         "marker_markdown_path": "marker/document.md",
         "content_profile": "article_report",
@@ -42,11 +47,16 @@
           "doc_id": "doc:pdf-transition-demo",
           "unit_id": "sec-0001",
           "section_title": "Five Levels of Close Reading",
+          "source_language": "en",
           "source_refs": [
             {
               "source_id": "zotero:user:demo/DEMO2026",
+              "attachment_record_id": "zotero-attachment:user:demo/ATTACH2026",
+              "zotero_item_uri": "zotero://select/items/DEMO2026",
+              "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
               "section": "Five Levels of Close Reading",
-              "marker_markdown_path": "marker/document.md"
+              "marker_markdown_path": "marker/document.md",
+              "page_markers": ["{12}"]
             }
           ],
           "raw_text_excerpt": "Close reading is not just copying sentences..."
@@ -59,11 +69,12 @@
           "artifact_type": "distillation_frame",
           "state": "distilled",
           "unit_id": "sec-0001",
-          "paraphrase": "The passage says close reading moves through restatement, thesis extraction, logic analysis, evaluation, and application before notes become permanent.",
+          "source_language": "en",
+          "paraphrase": "The passage says [[Close Reading]] moves through restatement, thesis extraction, logic analysis, evaluation, and application before notes become permanent.",
           "thesis": {
-            "main": "Close reading is a staged method for making interpretation reviewable.",
+            "main": "[[Close Reading]] is a staged method for making interpretation reviewable.",
             "subclaims": [
-              "Paraphrase is only the first step.",
+              "[[Paraphrase]] is only the first step.",
               "Evaluation and application are required before canonicalization."
             ]
           },
@@ -84,7 +95,7 @@
           },
           "application": {
             "uses": ["Use as a transition artifact schema for PDF distillation."],
-            "note_implications": ["Enrich existing Wiki/Close Reading.md after review."],
+            "note_implications": ["Enrich existing [[Close Reading]] after review."],
             "board_implications": ["Show staged close-reading passes on an Atlas board after review."]
           }
         }
@@ -99,11 +110,17 @@
           "candidate_title": "Close Reading",
           "candidate_space": "wiki",
           "candidate_state": "distilled",
-          "summary": "Close reading is represented as a staged reviewable method rather than immediate note creation.",
+          "source_language": "en",
+          "summary": "[[Close Reading]] is represented as a staged reviewable method rather than immediate note creation.",
           "source_refs": [
             {
               "source_id": "zotero:user:demo/DEMO2026",
-              "section": "Five Levels of Close Reading"
+              "attachment_record_id": "zotero-attachment:user:demo/ATTACH2026",
+              "zotero_item_uri": "zotero://select/items/DEMO2026",
+              "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
+              "section": "Five Levels of Close Reading",
+              "page_markers": ["{12}"],
+              "quote": "Close reading is not just copying sentences."
             }
           ],
           "confidence": 0.82
@@ -120,7 +137,41 @@
           "target_path": "Wiki/Close Reading.md",
           "canonical_mutation_allowed": false,
           "review_required": true,
+          "draft_ref": "draft:doc-pdf-transition-demo:close-reading",
           "rationale": "An existing Wiki note is present, so propose enrichment rather than creating or mutating the note."
+        }
+      ]
+    wiki_note_drafts_json: |
+      [
+        {
+          "artifact_family": "draft",
+          "artifact_type": "wiki_note_draft_preview",
+          "state": "review_seed",
+          "draft_id": "draft:doc-pdf-transition-demo:close-reading",
+          "target_path": "Wiki/Close Reading.md",
+          "source_language": "en",
+          "language_policy": "match_source_language",
+          "title": "Close Reading",
+          "wikilinked_key_concepts": [
+            "[[Close Reading]]",
+            "[[Paraphrase]]",
+            "[[Thesis Extraction]]",
+            "[[Logic Analysis]]"
+          ],
+          "markdown": "---\nartifact_type: wiki_note\nstate: operator_review_seed\nreview_seed: true\nsource_language: en\n---\n# Close Reading\n\n> [!warning] Review Seed\n> This draft is a generated preview for review. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); section: `Five Levels of Close Reading`; Marker path: `marker/document.md`; quote: \"Close reading is not just copying sentences.\"",
+          "footnotes": [
+            {
+              "id": "close-reading-demo",
+              "zotero_item_uri": "zotero://select/items/DEMO2026",
+              "zotero_attachment_uri": "zotero://open-pdf/library/items/ATTACH2026?page=12",
+              "source_id": "zotero:user:demo/DEMO2026",
+              "attachment_record_id": "zotero-attachment:user:demo/ATTACH2026",
+              "section": "Five Levels of Close Reading",
+              "marker_markdown_path": "marker/document.md",
+              "quote": "Close reading is not just copying sentences."
+            }
+          ],
+          "forbidden_blocks_absent": ["Source", "Quelle", "Provenance", "Quelle und Beleg"]
         }
       ]
     review_packet_json: |
@@ -129,11 +180,14 @@
         "artifact_type": "pdf_transition_review_packet",
         "state": "needs_review",
         "doc_id": "doc:pdf-transition-demo",
+        "source_language": "en",
         "proposal_refs": ["ev:doc-pdf-transition-demo:sec-0001:close-reading"],
+        "draft_refs": ["draft:doc-pdf-transition-demo:close-reading"],
         "canonical_mutation_performed": false,
         "review_needs": [
-          "Verify source grounding against Marker markdown.",
-          "Decide whether Wiki/Close Reading.md should be enriched."
+          "Verify source grounding against Marker markdown and Zotero attachment.",
+          "Decide whether Wiki/Close Reading.md should be enriched.",
+          "Check that draft note language matches the English source and that source linkage appears only in footnotes."
         ]
       }
     artifact_contract_manifest_json: |
@@ -143,16 +197,26 @@
           "source": "raw extraction/source package authority",
           "transition": "regenerable source-grounded transition artifacts",
           "proposal": "merge/create proposal artifacts only",
+          "draft": "review-only Wiki note draft previews with source-language text, wikilinks, and footnote provenance",
           "review": "human/operator review artifacts",
           "canonical": "Wiki/Atlas artifacts only after explicit review"
         },
         "declared_output_root": "transition/pdf-transition-demo",
         "canonical_mutation_performed": false,
+        "draft_requirements": {
+          "language_fidelity": "match_source_language",
+          "wikilink_key_concepts": true,
+          "source_provenance_location": "footnotes_only",
+          "prefer_zotero_links": true,
+          "forbid_source_heading_block": true
+        },
         "forbidden_effects": [
           "canonical_wiki_mutation",
           "atlas_authority_decision",
           "zotero_identity_mutation",
           "marker_extraction_mutation",
-          "promotion_to_accepted_note"
+          "promotion_to_accepted_note",
+          "source_language_translation_without_request",
+          "separate_source_heading_block_in_note_draft"
         ]
       }

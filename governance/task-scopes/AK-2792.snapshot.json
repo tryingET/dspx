@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T14:19:32.957755848+00:00",
+  "task_id": 2792,
+  "entity_version": 6,
+  "commit_sha": "d6ba48fce7356830abe7cbef6fa9482fd65ab221",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/**",
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_jury.py",
+      "tests/fixtures/program_gen/pdf_transition/**",
+      "tests/test_program_gen_pdf_transition.py"
+    ],
+    "required_paths": [
+      "docs/project/2026-05-10-refinement-spec-how-to-read-language-zotero-wikilinks.md",
+      "governance/task-scopes/AK-2792.snapshot.json",
+      "governance/work-items.json"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

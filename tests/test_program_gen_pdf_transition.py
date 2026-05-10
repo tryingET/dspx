@@ -154,8 +154,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "source": "raw extraction/source package artifact",
         "transition": "section units, distillation frames, and evidence cards",
         "proposal": "merge/create candidates",
+        "draft": "footnoted wikilinked Wiki note previews for review only",
         "review": "review packet",
-        "canonical": "Wiki/Atlas note only after explicit review",
+        "canonical": "Wiki/Atlas note only after explicit review/apply outside program-gen",
     }
     assert set(manifest["intent"]["outputs"]) == set(intent_payload["outputs"])
     assert manifest["program_promotion_review"]["promotion_state"] == "not_promoted"
@@ -175,13 +176,22 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "source_grounding",
         "authority_boundaries",
         "transition_artifact_quality",
+        "language_fidelity",
+        "zotero_footnote_linkage",
+        "wiki_link_key_concepts",
     ]
     assert jury_selection["selected_perspectives"] == [
         "source_grounding",
         "authority_boundaries",
         "transition_artifact_quality",
+        "language_fidelity",
+        "zotero_footnote_linkage",
+        "wiki_link_key_concepts",
     ]
     assert [item["source"] for item in jury_selection["selected_jurors"]] == [
+        "explicit_perspective",
+        "explicit_perspective",
+        "explicit_perspective",
         "explicit_perspective",
         "explicit_perspective",
         "explicit_perspective",
@@ -190,6 +200,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         ["source_refs_preserved", "source_identity_not_invented"],
         ["canonical_mutation_forbidden", "review_authority_explicit"],
         ["artifact_family_clarity", "proposal_reviewability"],
+        ["source_language_preserved", "review_text_language_consistent"],
+        ["zotero_refs_preferred", "source_provenance_footnotes_only"],
+        ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
     ]
 
     expected_outputs = example_payload["outputs"]
@@ -197,6 +210,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     distillation_frames = _load_json_text(expected_outputs["distillation_frames_json"])
     evidence_cards = _load_json_text(expected_outputs["evidence_cards_json"])
     merge_create = _load_json_text(expected_outputs["merge_create_proposals_json"])
+    wiki_note_drafts = _load_json_text(expected_outputs["wiki_note_drafts_json"])
     review_packet = _load_json_text(expected_outputs["review_packet_json"])
     contract = _load_json_text(expected_outputs["artifact_contract_manifest_json"])
 
@@ -217,18 +231,46 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert merge_create[0]["target_path"] == "Wiki/Close Reading.md"
     assert merge_create[0]["canonical_mutation_allowed"] is False
     assert merge_create[0]["review_required"] is True
+    assert merge_create[0]["draft_ref"] == "draft:doc-pdf-transition-demo:close-reading"
+    assert wiki_note_drafts[0]["artifact_family"] == "draft"
+    assert wiki_note_drafts[0]["state"] == "review_seed"
+    assert wiki_note_drafts[0]["source_language"] == "en"
+    assert wiki_note_drafts[0]["language_policy"] == "match_source_language"
+    assert "[[Close Reading]]" in wiki_note_drafts[0]["markdown"]
+    assert "## Source" not in wiki_note_drafts[0]["markdown"]
+    assert "## Quelle" not in wiki_note_drafts[0]["markdown"]
+    assert "[^close-reading-demo]: Zotero item:" in wiki_note_drafts[0]["markdown"]
+    assert (
+        wiki_note_drafts[0]["footnotes"][0]["zotero_item_uri"]
+        == "zotero://select/items/DEMO2026"
+    )
     assert review_packet["artifact_family"] == "review"
     assert review_packet["canonical_mutation_performed"] is False
+    assert review_packet["source_language"] == "en"
+    assert review_packet["draft_refs"] == [
+        "draft:doc-pdf-transition-demo:close-reading"
+    ]
     assert contract["schema_version"] == "pdf-transition-artifact-contract-v1"
     assert contract["artifact_family_authority"] == {
         "source": "raw extraction/source package authority",
         "transition": "regenerable source-grounded transition artifacts",
         "proposal": "merge/create proposal artifacts only",
+        "draft": "review-only Wiki note draft previews with source-language text, wikilinks, and footnote provenance",
         "review": "human/operator review artifacts",
         "canonical": "Wiki/Atlas artifacts only after explicit review",
     }
     assert contract["canonical_mutation_performed"] is False
+    assert contract["draft_requirements"] == {
+        "language_fidelity": "match_source_language",
+        "wikilink_key_concepts": True,
+        "source_provenance_location": "footnotes_only",
+        "prefer_zotero_links": True,
+        "forbid_source_heading_block": True,
+    }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]
+    assert (
+        "source_language_translation_without_request" in contract["forbidden_effects"]
+    )
 
     module_spec = importlib.util.spec_from_file_location(
         "pdf_transition_generated_module", outdir / "module.py"

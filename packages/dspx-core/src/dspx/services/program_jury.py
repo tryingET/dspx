@@ -383,6 +383,27 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
             "Would a reviewer have enough provenance and uncertainty to act?",
         ],
     },
+    "language_fidelity": {
+        "criteria": ["source_language_preserved", "review_text_language_consistent"],
+        "adversarial_questions": [
+            "Does the generated draft switch languages without an explicit request?",
+            "Are headings, labels, and review-facing note text in the source language?",
+        ],
+    },
+    "zotero_footnote_linkage": {
+        "criteria": ["zotero_refs_preferred", "source_provenance_footnotes_only"],
+        "adversarial_questions": [
+            "Does provenance prefer Zotero item/attachment refs when available?",
+            "Did source/provenance material leak into a separate heading block instead of footnotes?",
+        ],
+    },
+    "wiki_link_key_concepts": {
+        "criteria": ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
+        "adversarial_questions": [
+            "Are reusable concepts, methods, and sibling candidates emitted as Obsidian wikilinks?",
+            "Is the draft overlinking generic words or underlinking durable concepts?",
+        ],
+    },
     "constraint_adherence": {
         "criteria": ["constraint_satisfaction", "forbidden_behavior_detection"],
         "adversarial_questions": [
