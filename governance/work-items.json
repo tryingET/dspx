@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-09",
+  "updated_at": "2026-05-10",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -2415,6 +2415,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-09"
+        },
+        {
+          "id": "AK-TASK-2712",
+          "title": "Define DSPx-wide target-protocol fidelity gates for gen flows",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Define DSPx-wide target-protocol fidelity gates for gen flows (task #2712)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
