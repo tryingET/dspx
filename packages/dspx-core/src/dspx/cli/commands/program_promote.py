@@ -230,6 +230,21 @@ def activation_packet(
         "--oracle-publication-receipt",
         help="Optional program-oracle-shared-publication-receipt-v1 JSON evidence ref",
     ),
+    candidate_state: Path | None = typer.Option(
+        None,
+        "--candidate-state",
+        help="Optional program-candidate-state-v1 JSON status/admission evidence",
+    ),
+    obsidian_review_adapter_receipt: Path | None = typer.Option(
+        None,
+        "--obsidian-review-adapter-receipt",
+        help="Optional dspy-pdf-transition review-adapter receipt JSON",
+    ),
+    require_obsidian_review_adapter: bool = typer.Option(
+        False,
+        "--require-obsidian-review-adapter",
+        help="Require target-aware Obsidian review-adapter evidence before rollout readiness",
+    ),
     canonical_binding_ref: str | None = typer.Option(
         None,
         "--canonical-binding-ref",
@@ -266,6 +281,9 @@ def activation_packet(
             decision_record_path=decision_record,
             promotion_plan_path=promotion_plan,
             oracle_publication_receipt_path=oracle_publication_receipt,
+            candidate_state_path=candidate_state,
+            obsidian_review_adapter_receipt_path=obsidian_review_adapter_receipt,
+            require_obsidian_review_adapter=require_obsidian_review_adapter,
             canonical_binding_ref=canonical_binding_ref,
             rollout_owner=rollout_owner,
             rollback_plan=rollback_plan,

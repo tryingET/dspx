@@ -65,6 +65,79 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def _candidate_identity(root: Path) -> dict[str, str | None]:
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    candidate = manifest["candidate_assembly"]
+    execution_episode = manifest["execution_episode"]
+    receipt_bundle = manifest["receipt_bundle"]
+    return {
+        "request_id": candidate.get("request_id"),
+        "candidate_id": candidate.get("candidate_id"),
+        "assembly_id": candidate.get("assembly_id"),
+        "episode_id": execution_episode.get("episode_id"),
+        "receipt_bundle_id": receipt_bundle.get("receipt_bundle_id"),
+    }
+
+
+def _write_target_aware_candidate_state(root: Path, out: Path) -> Path:
+    _write_json(
+        out,
+        {
+            "schema_version": "program-candidate-state-v1",
+            "status": "not_promoted_materialized",
+            "candidate_identity": _candidate_identity(root),
+            "target_fidelity_state": {
+                "obsidian_review_adapter_materialization_allowed": True,
+                "production_or_domain_activation_allowed": False,
+                "canonical_mutation_allowed": False,
+                "target_protocol_fidelity_judgment": {
+                    "present": True,
+                    "blocking": False,
+                    "judgment": "supports_domain_review",
+                },
+            },
+            "non_authority": {
+                "agent_kernel_mutation": False,
+                "apply_promotion": False,
+                "automatic_promotion": False,
+                "external_apply": False,
+                "governance_authority": False,
+                "oracle_authority": False,
+                "promotion_authority": False,
+                "winner_selection": False,
+            },
+        },
+    )
+    return out
+
+
+def _write_obsidian_adapter_receipt(candidate_state_path: Path, out: Path) -> Path:
+    _write_json(
+        out,
+        {
+            "schema_version": "dspy-pdf-transition-review-adapter-receipt-v1",
+            "status": "materialized",
+            "doc_id": "doc:test",
+            "program_candidate_state_path": str(candidate_state_path.resolve()),
+            "program_candidate_state_hash": "sha256:"
+            + hashlib.sha256(candidate_state_path.read_bytes()).hexdigest(),
+            "obsidian_review_adapter_materialization_allowed": True,
+            "target_protocol_fidelity_judgment": "supports_domain_review",
+            "canonical_mutation_performed": False,
+            "wiki_mutation_performed": False,
+            "atlas_mutation_performed": False,
+            "zotero_mutation_performed": False,
+            "source_package_mutation_performed": False,
+            "puzzle_register_mutation_performed": False,
+            "external_mutation_performed": False,
+            "written_files": [
+                "_System/review/proposals/pdf-transition/doc:test/review.html"
+            ],
+        },
+    )
+    return out
+
+
 def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
     preflight_path = out.parent / "oracle_publication_preflight.json"
     preflight = build_program_oracle_publication_preflight(
@@ -219,11 +292,199 @@ def test_program_promote_activation_packet_blocks_without_required_evidence(
         "requires_rollout_owner_before_rollout": True,
         "requires_rollback_plan_before_rollout": True,
         "requires_canonical_binding_before_rollout": True,
+        "requires_obsidian_review_adapter_when_requested": False,
     }
     assert payload["non_authority"]["activation_packet_only"] is True
     assert payload["effect"]["production_activation_applied"] is False
     assert _file_hashes(program_root) == before_hashes
     assert not (program_root / "activation_packet.json").exists()
+
+
+def test_program_promote_activation_packet_requires_obsidian_review_adapter_when_requested(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--require-obsidian-review-adapter",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked"
+    assert (
+        "target_aware_candidate_state_missing" in payload["missing_required_evidence"]
+    )
+    assert (
+        "obsidian_review_adapter_receipt_missing"
+        in payload["missing_required_evidence"]
+    )
+    assert payload["target_review_admission"] == {
+        "candidate_state": None,
+        "obsidian_review_adapter_receipt": None,
+        "target_protocol_fidelity_judgment": None,
+        "review_adapter_materialization_allowed": False,
+        "review_packet_materialized": False,
+        "review_only": True,
+        "production_activation_authority": False,
+        "canonical_mutation_authority": False,
+        "canonical_mutation_allowed": False,
+        "status": "blocked",
+        "blockers": [
+            "target_aware_candidate_state_missing",
+            "obsidian_review_adapter_receipt_missing",
+        ],
+    }
+    assert "domain_decision_record" in payload["remaining_activation_blockers"]
+    assert "canonical_binding_ref" in payload["remaining_activation_blockers"]
+    assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_records_obsidian_review_admission_without_activation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    candidate_state_path = _write_target_aware_candidate_state(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+    )
+    adapter_receipt_path = _write_obsidian_adapter_receipt(
+        candidate_state_path,
+        tmp_path / "activation" / "adapter-receipt.json",
+    )
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--obsidian-review-adapter-receipt",
+            str(adapter_receipt_path),
+            "--require-obsidian-review-adapter",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked"
+    assert (
+        "target_aware_candidate_state_missing"
+        not in payload["missing_required_evidence"]
+    )
+    assert (
+        "obsidian_review_adapter_receipt_missing"
+        not in payload["missing_required_evidence"]
+    )
+    assert payload["target_review_admission"]["status"] == "review_admitted"
+    assert (
+        payload["target_review_admission"]["target_protocol_fidelity_judgment"]
+        == "supports_domain_review"
+    )
+    assert (
+        payload["target_review_admission"]["review_adapter_materialization_allowed"]
+        is True
+    )
+    assert payload["target_review_admission"]["review_packet_materialized"] is True
+    assert (
+        payload["target_review_admission"]["production_activation_authority"] is False
+    )
+    assert payload["target_review_admission"]["canonical_mutation_authority"] is False
+    assert payload["target_review_admission"]["blockers"] == []
+    assert (
+        "target_aware_candidate_state_missing"
+        not in payload["remaining_activation_blockers"]
+    )
+    assert (
+        "obsidian_review_adapter_receipt_missing"
+        not in payload["remaining_activation_blockers"]
+    )
+    assert "domain_decision_record" in payload["remaining_activation_blockers"]
+    assert "canonical_binding_ref" in payload["remaining_activation_blockers"]
+    assert payload["evidence"]["candidate_state"]["path"] == str(
+        candidate_state_path.resolve()
+    )
+    assert payload["evidence"]["obsidian_review_adapter_receipt"]["path"] == str(
+        adapter_receipt_path.resolve()
+    )
+    assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_rejects_obsidian_adapter_authority_widening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    candidate_state_path = _write_target_aware_candidate_state(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+    )
+    adapter_receipt_path = _write_obsidian_adapter_receipt(
+        candidate_state_path,
+        tmp_path / "activation" / "adapter-receipt.json",
+    )
+    receipt = json.loads(adapter_receipt_path.read_text(encoding="utf-8"))
+    receipt["wiki_mutation_performed"] = True
+    adapter_receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--obsidian-review-adapter-receipt",
+            str(adapter_receipt_path),
+            "--require-obsidian-review-adapter",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "wiki_mutation_performed false" in result.output
 
 
 def test_program_promote_activation_packet_dogfoods_review_chain_without_activation(

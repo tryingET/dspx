@@ -2558,6 +2558,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2750",
+          "title": "Expose Obsidian PDF DSPy production activation packet blockers",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Expose Obsidian PDF DSPy production activation packet blockers (task #2750)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
