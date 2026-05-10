@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T04:03:10.659034922+00:00",
+  "task_id": 2719,
+  "entity_version": 2,
+  "commit_sha": "b6e353e1f44c6a12fe6cae4278acdcfbb5f4fa52",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-dogfood-program-gen-target-fidelity-wave2.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/dspx.py",
+      "packages/dspx-core/src/dspx/services/program_generation_contract.py",
+      "tests/test_program_generation_contract.py",
+      "tests/test_program_generation_contract_cli.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/cli/dspx.py",
+      "packages/dspx-core/src/dspx/services/program_generation_contract.py",
+      "tests/test_program_generation_contract_cli.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

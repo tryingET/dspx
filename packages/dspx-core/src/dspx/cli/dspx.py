@@ -86,6 +86,13 @@ app.add_typer(
     oracle_app, name="oracle", help="Behavioral oracle (semantic coordinates)"
 )
 
+program_gen_app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    help="Generate DSPy program candidates and target-fidelity preflight sidecars",
+)
+app.add_typer(program_gen_app, name="program-gen")
+
 
 # =============================================================================
 # Inline Commands (single commands kept inline for simplicity)
@@ -365,10 +372,36 @@ def _log_program_artifact_to_mlflow(artifact: Any) -> None:
         return
 
 
-@app.command("program-gen")
+def _echo_generation_payload(
+    payload: dict[str, Any], *, json_out: bool, out: Path | None
+) -> None:
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    elif out is not None:
+        typer.echo(str(out.expanduser().resolve()))
+    else:
+        typer.echo(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+
+
+def _load_allowed_generation_gate(path: Path) -> dict[str, Any]:
+    from dspx.services.program_generation_contract import load_generation_gate_preflight
+
+    if not path.exists():
+        raise FileNotFoundError(f"generation gate preflight not found: {path}")
+    payload = load_generation_gate_preflight(path)
+    if payload.get("schema_version") != "gen-generation-gate-preflight-v1":
+        raise ValueError("invalid generation gate preflight schema_version")
+    if payload.get("generation_allowed") is not True:
+        reasons = payload.get("fail_closed_reasons") or []
+        raise ValueError(f"generation gate blocked candidate creation: {reasons}")
+    return payload
+
+
+@program_gen_app.callback(invoke_without_command=True)
 def program_gen(
-    intent: Path = typer.Option(
-        ...,
+    ctx: typer.Context,
+    intent: Optional[Path] = typer.Option(
+        None,
         "--intent",
         "-i",
         help="Path to a JSON/YAML one-intent program specification",
@@ -384,13 +417,32 @@ def program_gen(
         "--print-manifest",
         help="Print the generated manifest JSON instead of only the output directory",
     ),
+    generation_gate_preflight: Optional[Path] = typer.Option(
+        None,
+        "--generation-gate-preflight",
+        help="Require a successful gen-generation-gate-preflight-v1 sidecar before candidate creation",
+    ),
 ) -> None:
     """Generate a program-shaped DSPy candidate assembly from one intent."""
+    if ctx.invoked_subcommand is not None:
+        return
     from dspx.services.program_service import run_generate_from_intent_path
 
+    if intent is None:
+        typer.echo(
+            "Error: --intent is required when program-gen has no subcommand", err=True
+        )
+        raise typer.Exit(code=2)
     if not intent.exists():
         typer.echo(f"Error: intent file not found: {intent}", err=True)
         raise typer.Exit(code=2)
+
+    if generation_gate_preflight is not None:
+        try:
+            _load_allowed_generation_gate(generation_gate_preflight)
+        except Exception as exc:
+            typer.echo(f"Error: generation gate preflight failed: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
 
     ensure_env(None)
 
@@ -406,6 +458,158 @@ def program_gen(
         typer.echo(json.dumps(artifact.manifest, indent=2, sort_keys=True))
     else:
         typer.echo(artifact.root_path)
+
+
+@program_gen_app.command("target-contract")
+def program_gen_target_contract(
+    intent: Path = typer.Option(
+        ...,
+        "--intent",
+        "-i",
+        help="Path to a JSON/YAML one-intent program specification",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Write generation_target_contract.json here",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print target contract JSON"),
+) -> None:
+    """Build and validate a gen-target-contract-v1 sidecar from structured intent."""
+    from dspx.services.program_generation_contract import (
+        build_generation_target_contract_from_intent,
+        validate_generation_target_contract,
+        write_generation_json,
+    )
+
+    if not intent.exists():
+        typer.echo(f"Error: intent file not found: {intent}", err=True)
+        raise typer.Exit(code=2)
+    try:
+        payload = build_generation_target_contract_from_intent(intent)
+        validation = validate_generation_target_contract(payload)
+        write_generation_json(payload, out)
+    except Exception as exc:
+        typer.echo(f"Error: target contract generation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_generation_payload(payload, json_out=json_out, out=out)
+    if validation.get("status") != "valid":
+        raise typer.Exit(code=2)
+
+
+@program_gen_app.command("fitness-suite")
+def program_gen_fitness_suite(
+    target_contract: Path = typer.Option(
+        ...,
+        "--target-contract",
+        help="Path to generation_target_contract.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Write generation_fitness_suite.json here",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print fitness suite JSON"),
+) -> None:
+    """Build and validate a gen-fitness-suite-v1 sidecar."""
+    from dspx.services.program_generation_contract import (
+        build_generation_fitness_suite_from_target_contract,
+        load_generation_target_contract,
+        validate_generation_fitness_suite,
+        write_generation_json,
+    )
+
+    if not target_contract.exists():
+        typer.echo(
+            f"Error: target contract file not found: {target_contract}", err=True
+        )
+        raise typer.Exit(code=2)
+    try:
+        contract_payload = load_generation_target_contract(target_contract)
+        payload = build_generation_fitness_suite_from_target_contract(contract_payload)
+        validation = validate_generation_fitness_suite(
+            payload, target_contract=contract_payload
+        )
+        write_generation_json(payload, out)
+    except Exception as exc:
+        typer.echo(f"Error: fitness suite generation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_generation_payload(payload, json_out=json_out, out=out)
+    if validation.get("status") != "valid":
+        raise typer.Exit(code=2)
+
+
+@program_gen_app.command("verify-generation-gate")
+def program_gen_verify_generation_gate(
+    intent: Path = typer.Option(
+        ...,
+        "--intent",
+        "-i",
+        help="Path to the intent bound by the target contract",
+    ),
+    target_contract: Path = typer.Option(
+        ...,
+        "--target-contract",
+        help="Path to generation_target_contract.json",
+    ),
+    fitness_suite: Path = typer.Option(
+        ...,
+        "--fitness-suite",
+        help="Path to generation_fitness_suite.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Write generation_gate_preflight.json here",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print preflight JSON"),
+) -> None:
+    """Verify deterministic generation preflight before program candidate creation."""
+    from dspx.services.program_generation_contract import (
+        build_generation_gate_preflight,
+        load_generation_fitness_suite,
+        load_generation_target_contract,
+        write_generation_gate_preflight,
+    )
+
+    missing = [
+        str(path)
+        for path in (intent, target_contract, fitness_suite)
+        if not path.exists()
+    ]
+    if missing:
+        typer.echo(f"Error: required file(s) not found: {', '.join(missing)}", err=True)
+        raise typer.Exit(code=2)
+    try:
+        contract_payload = load_generation_target_contract(target_contract)
+        suite_payload = load_generation_fitness_suite(fitness_suite)
+        preflight = build_generation_gate_preflight(
+            target_contract=contract_payload, fitness_suite=suite_payload
+        )
+        contract_intent_sha = (
+            (contract_payload.get("identity") or {}).get("intent_sha256")
+            if isinstance(contract_payload.get("identity"), dict)
+            else None
+        )
+        if contract_intent_sha:
+            import hashlib
+
+            actual_intent_sha = hashlib.sha256(
+                intent.expanduser().resolve().read_bytes()
+            ).hexdigest()
+            if actual_intent_sha != contract_intent_sha:
+                preflight["status"] = "generation_blocked"
+                preflight["generation_allowed"] = False
+                reasons = set(preflight.get("fail_closed_reasons") or [])
+                reasons.add("intent_sha256_mismatch")
+                preflight["fail_closed_reasons"] = sorted(reasons)
+        write_generation_gate_preflight(preflight, out)
+    except Exception as exc:
+        typer.echo(f"Error: generation gate verification failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_generation_payload(preflight, json_out=json_out, out=out)
+    if preflight.get("generation_allowed") is not True:
+        raise typer.Exit(code=2)
 
 
 @app.command("program-loop")

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Mapping
+
+import yaml
 
 GEN_TARGET_CONTRACT_SCHEMA = "gen-target-contract-v1"
 GEN_FITNESS_SUITE_SCHEMA = "gen-fitness-suite-v1"
@@ -76,6 +79,82 @@ def _sha256_payload(payload: Mapping[str, Any]) -> str:
 
 def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _load_json_or_yaml_mapping(path: Path) -> dict[str, Any]:
+    source = path.expanduser().resolve()
+    text = source.read_text(encoding="utf-8")
+    payload = (
+        json.loads(text) if source.suffix.lower() == ".json" else yaml.safe_load(text)
+    )
+    if not isinstance(payload, Mapping):
+        raise ProgramGenerationContractError(
+            f"generation contract input must be a mapping/object: {source}"
+        )
+    return {str(key): item for key, item in payload.items()}
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.expanduser().resolve().read_bytes()).hexdigest()
+
+
+def _slug(value: object, *, default: str = "case") -> str:
+    text = re.sub(r"[^a-zA-Z0-9_.-]+", "-", str(value or "").strip().lower())
+    return text.strip(".-_") or default
+
+
+def _payload_with_identity_hash(
+    payload: dict[str, Any], *, identity_key: str
+) -> dict[str, Any]:
+    data = json.loads(json.dumps(payload))
+    identity = _safe_mapping(data.get("identity"))
+    identity[identity_key] = ""
+    data["identity"] = identity
+    payload.setdefault("identity", {})[identity_key] = _sha256_payload(data)
+    return payload
+
+
+def _normalise_refs(value: object) -> list[str]:
+    refs: list[str] = []
+    for item in _safe_list(value):
+        text = str(item or "").strip()
+        if text and text not in refs:
+            refs.append(text)
+    return refs
+
+
+def _owner_from_refs(owner_refs: list[str], fallback: str) -> str:
+    for ref in owner_refs:
+        if "/Obsidian/_System/" in ref or ref.endswith("/Obsidian/_System"):
+            return "obsidian/_System"
+        if "_System/" in ref:
+            return "owner/_System"
+    return fallback
+
+
+def _authority_model_stages(authority_model: Mapping[str, Any]) -> list[str]:
+    stages: list[str] = []
+    for key in authority_model:
+        normalized = str(key).strip().lower().replace("-", "_")
+        if normalized == "source":
+            stages.append("source_package")
+        elif normalized == "transition":
+            stages.extend(["section_units", "distillation_frames", "evidence_cards"])
+        elif normalized == "proposal":
+            stages.append("merge_before_create")
+        elif normalized == "canonical":
+            stages.append("canonical_notes_after_acceptance")
+        else:
+            stages.append(normalized)
+    out: list[str] = []
+    for stage in stages:
+        if stage and stage not in out:
+            out.append(stage)
+    return out
+
+
+def _case_id(value: object, index: int) -> str:
+    return f"case-{index + 1}-{_slug(value, default='adversarial')}"
 
 
 def _false_fields_missing(payload: object, required: set[str]) -> list[str]:
@@ -277,6 +356,230 @@ def validate_generation_fitness_suite(
     )
 
 
+def build_generation_target_contract_from_intent(
+    intent_path: Path,
+) -> dict[str, Any]:
+    """Build a deterministic target-fidelity contract from structured intent fields.
+
+    This builder intentionally does not infer a target protocol from objective text.
+    Target-bound fields must be present in explicit intent options, promotion refs,
+    constraints, or declared artifacts; otherwise the result is a tutorial/local
+    contract and cannot claim target-protocol fidelity.
+    """
+
+    from dspx.services.program_intent import load_program_intent
+
+    source = intent_path.expanduser().resolve()
+    intent = load_program_intent(source)
+    options = _safe_mapping(intent.options)
+    promotion = _safe_mapping(intent.promotion)
+    external_authority = _safe_mapping(promotion.get("external_authority"))
+
+    owner_refs = _normalise_refs(
+        [
+            options.get("primary_architecture"),
+            *_safe_list(options.get("related_architectures")),
+            *_safe_list(options.get("owner_refs")),
+            *_safe_list(options.get("target_owner_refs")),
+        ]
+    )
+    authority_refs = _safe_list(external_authority.get("refs")) + _safe_list(
+        options.get("authority_refs")
+    )
+    target_bound = bool(owner_refs or authority_refs)
+    expected_families = _string_list(options.get("expected_artifact_family"))
+    authority_model = _safe_mapping(options.get("authority_model"))
+    artifact_families = list(
+        dict.fromkeys([*authority_model.keys(), *expected_families])
+    )
+    forbidden_shortcuts = list(
+        dict.fromkeys(
+            [
+                *_string_list(options.get("forbidden_effects")),
+                *[item for item in intent.constraints if "forbidden" in item.lower()],
+            ]
+        )
+    )
+    required_stages = _string_list(
+        _safe_mapping(options.get("target_protocol")).get("required_stages")
+    ) or _authority_model_stages(authority_model)
+    if not required_stages and target_bound:
+        required_stages = ["target_protocol_review"]
+
+    requested_review_or_proposal = any(
+        "review" in family.lower() or "proposal" in family.lower()
+        for family in artifact_families
+    ) or any("review" in output.lower() for output in intent.outputs)
+    promotion_or_activation_requested = bool(authority_refs or promotion)
+    risk_tier = str(options.get("risk_tier") or "").strip()
+    if risk_tier not in RISK_TIERS:
+        if promotion_or_activation_requested or requested_review_or_proposal:
+            risk_tier = "authority_adjacent"
+        elif target_bound:
+            risk_tier = "protocol_bound"
+        else:
+            risk_tier = TUTORIAL_RISK_TIER
+
+    adversarial_cases = _string_list(
+        _safe_mapping(options.get("fitness")).get("required_adversarial_cases")
+    )
+    if not adversarial_cases:
+        adversarial_cases = forbidden_shortcuts[:]
+    if not adversarial_cases and target_bound:
+        adversarial_cases = ["target_protocol_shortcut_regression"]
+
+    target_owner = str(options.get("target_owner") or "").strip()
+    if not target_owner:
+        target_owner = _owner_from_refs(
+            owner_refs,
+            str(
+                _safe_mapping(authority_refs[0]).get("system")
+                if authority_refs and isinstance(authority_refs[0], Mapping)
+                else "local"
+            ),
+        )
+
+    payload: dict[str, Any] = {
+        "schema_version": GEN_TARGET_CONTRACT_SCHEMA,
+        "identity": {
+            "intent_sha256": _sha256_file(source),
+            "contract_sha256": "",
+            "validator": "dspx.gen_target_contract.v1",
+            "validator_version": "v1",
+        },
+        "target": {
+            "id": str(options.get("scenario_name") or intent.name),
+            "owner": target_owner,
+            "owner_refs": owner_refs,
+            "owner_ref_custody": "local_path_reference_not_publishable_without_redaction"
+            if owner_refs
+            else "none",
+            "authority_refs": authority_refs,
+        },
+        "contract_source": "generated_from_structured_intent"
+        if target_bound
+        else "tutorial_local_embedded_profile",
+        "confirmation_status": "structured_intent_fields_declared"
+        if target_bound
+        else "not_required_for_tutorial_local",
+        "risk_tier": risk_tier,
+        "protocol": {
+            "required_stages": required_stages,
+            "artifact_families": artifact_families or ["local_example"],
+            "forbidden_shortcuts": forbidden_shortcuts
+            or (["skip_declared_target_protocol"] if target_bound else []),
+        },
+        "source_policy": {
+            "provenance_required": target_bound,
+            "language_policy": str(
+                options.get("language_policy") or "preserve_source_language"
+            ),
+        },
+        "fitness": {"required_adversarial_cases": adversarial_cases},
+        "requests": {
+            "adapter_materialization": bool(requested_review_or_proposal),
+            "shared_oracle_publication": False,
+            "promotion_evidence": bool(promotion_or_activation_requested),
+            "export_evidence": False,
+            "activation_evidence": False,
+        },
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+            "provider_called": False,
+            "shared_oracle_mutated": False,
+        },
+        "profile_extension": {
+            "intent_name": intent.name,
+            "task_type": intent.task_type,
+            "inputs": intent.inputs,
+            "outputs": intent.outputs,
+        },
+    }
+    return _payload_with_identity_hash(payload, identity_key="contract_sha256")
+
+
+def build_generation_fitness_suite_from_target_contract(
+    target_contract: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build a deterministic, mechanical adversarial suite skeleton."""
+
+    contract_identity = _safe_mapping(target_contract.get("identity"))
+    target_contract_sha = _first_text(contract_identity.get("contract_sha256")) or ""
+    required_cases = _string_list(
+        _safe_mapping(target_contract.get("fitness")).get("required_adversarial_cases")
+    )
+    protocol = _safe_mapping(target_contract.get("protocol"))
+    allowed_families = _string_list(protocol.get("artifact_families")) or [
+        "local_example"
+    ]
+    forbidden = _string_list(protocol.get("forbidden_shortcuts")) or [
+        "skip_declared_target_protocol"
+    ]
+    cases = []
+    for index, case_name in enumerate(required_cases or ["target_protocol_regression"]):
+        cases.append(
+            {
+                "case_id": _case_id(case_name, index),
+                "fixture_ref": f"declared://{_slug(case_name, default='target-protocol-regression')}",
+                "allowed_artifact_families": allowed_families,
+                "forbidden_outputs_or_effects": forbidden,
+                "source_provenance_assertions": ["source_refs_present"],
+                "target_stage_assertions": _string_list(protocol.get("required_stages"))
+                or ["target_protocol_stage_declared"],
+                "expected_failure_label": "withheld_for_target_protocol_failure",
+                "validator": "dspx.gen_fitness_suite.declared_mechanical_check.v1",
+            }
+        )
+    payload: dict[str, Any] = {
+        "schema_version": GEN_FITNESS_SUITE_SCHEMA,
+        "identity": {
+            "target_contract_sha256": target_contract_sha,
+            "suite_sha256": "",
+            "validator": "dspx.gen_fitness_suite.v1",
+            "validator_version": "v1",
+        },
+        "cases": cases,
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+            "provider_called": False,
+            "shared_oracle_mutated": False,
+        },
+    }
+    return _payload_with_identity_hash(payload, identity_key="suite_sha256")
+
+
+def load_generation_target_contract(path: Path) -> dict[str, Any]:
+    return _load_json_or_yaml_mapping(path)
+
+
+def load_generation_fitness_suite(path: Path) -> dict[str, Any]:
+    return _load_json_or_yaml_mapping(path)
+
+
+def load_generation_gate_preflight(path: Path) -> dict[str, Any]:
+    return _load_json_or_yaml_mapping(path)
+
+
 def build_generation_gate_preflight(
     *, target_contract: Mapping[str, Any], fitness_suite: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -406,11 +709,15 @@ def validate_generation_fitness_results(payload: Mapping[str, Any]) -> dict[str,
     )
 
 
-def write_generation_gate_preflight(
-    payload: Mapping[str, Any], out: Path
-) -> dict[str, Any]:
+def write_generation_json(payload: Mapping[str, Any], out: Path) -> dict[str, Any]:
     out_path = out.expanduser().resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     data = dict(payload)
     out_path.write_text(_json_text(data), encoding="utf-8")
     return data
+
+
+def write_generation_gate_preflight(
+    payload: Mapping[str, Any], out: Path
+) -> dict[str, Any]:
+    return write_generation_json(payload, out)

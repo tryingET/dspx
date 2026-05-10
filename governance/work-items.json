@@ -2480,6 +2480,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2719",
+          "title": "Implement program-gen target fidelity preflight CLI wave 2",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement program-gen target fidelity preflight CLI wave 2 (task #2719)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
