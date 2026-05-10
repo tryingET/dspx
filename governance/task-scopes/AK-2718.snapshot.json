@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-10T03:57:24.534237103+00:00",
+  "task_id": 2718,
+  "entity_version": 3,
+  "commit_sha": "d6340d031de4dc8a77adfca358ea5c00a69edaf2",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-05-10-validation-rollout-rollback-target-protocol-fidelity-gates.md",
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/services/program_generation_contract.py",
+      "tests/test_program_generation_contract.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_generation_contract.py",
+      "tests/test_program_generation_contract.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

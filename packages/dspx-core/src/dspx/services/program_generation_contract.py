@@ -1,0 +1,416 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+from typing import Any, Mapping
+
+GEN_TARGET_CONTRACT_SCHEMA = "gen-target-contract-v1"
+GEN_FITNESS_SUITE_SCHEMA = "gen-fitness-suite-v1"
+GEN_GENERATION_GATE_PREFLIGHT_SCHEMA = "gen-generation-gate-preflight-v1"
+GEN_TRACEABILITY_SCHEMA = "gen-traceability-v1"
+GEN_FITNESS_RESULTS_SCHEMA = "gen-fitness-results-v1"
+
+GEN_TARGET_CONTRACT_VALIDATION_SCHEMA = "gen-target-contract-validation-v1"
+GEN_FITNESS_SUITE_VALIDATION_SCHEMA = "gen-fitness-suite-validation-v1"
+GEN_TRACEABILITY_VALIDATION_SCHEMA = "gen-traceability-validation-v1"
+GEN_FITNESS_RESULTS_VALIDATION_SCHEMA = "gen-fitness-results-validation-v1"
+
+TARGET_BOUND_RISK_TIERS = {
+    "protocol_bound",
+    "authority_adjacent",
+    "external_mutation_capable",
+}
+TUTORIAL_RISK_TIER = "tutorial_local"
+RISK_TIERS = {TUTORIAL_RISK_TIER, *TARGET_BOUND_RISK_TIERS}
+
+_TUTORIAL_FORBIDDEN_ARTIFACT_FAMILIES = {"proposal", "review", "canonical"}
+_REQUIRED_NON_AUTHORITY_FALSE = {
+    "activation_authority",
+    "promotion_authority",
+    "oracle_authority",
+    "governance_authority",
+    "external_mutation",
+}
+_REQUIRED_EFFECT_FALSE = {
+    "candidate_files_mutated",
+    "canonical_target_mutated",
+    "ak_mutated",
+    "governance_mutated",
+}
+
+
+class ProgramGenerationContractError(ValueError):
+    """Raised when generation target-fidelity contract inputs are invalid."""
+
+
+def _safe_mapping(value: object) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def _safe_list(value: object) -> list[Any]:
+    return list(value) if isinstance(value, list) else []
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
+
+
+def _first_text(*values: object) -> str | None:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return None
+
+
+def _sha256_payload(payload: Mapping[str, Any]) -> str:
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _json_text(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _false_fields_missing(payload: object, required: set[str]) -> list[str]:
+    mapping = _safe_mapping(payload)
+    return sorted(key for key in required if mapping.get(key) is not False)
+
+
+def _validation_payload(
+    *, schema_version: str, status: str, reasons: list[str]
+) -> dict[str, Any]:
+    return {
+        "schema_version": schema_version,
+        "status": status,
+        "valid": status == "valid",
+        "fail_closed_reasons": reasons,
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+            "provider_called": False,
+            "shared_oracle_mutated": False,
+        },
+    }
+
+
+def validate_generation_target_contract(contract: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate declared sufficiency of a generation target contract.
+
+    This is a deterministic preflight validator. It verifies completeness and
+    guardrail shape; it does not prove semantic truth of the target protocol.
+    """
+
+    reasons: list[str] = []
+    if contract.get("schema_version") != GEN_TARGET_CONTRACT_SCHEMA:
+        reasons.append("invalid_schema_version")
+
+    identity = _safe_mapping(contract.get("identity"))
+    if not _first_text(identity.get("intent_sha256")):
+        reasons.append("missing_intent_sha256")
+    if not _first_text(identity.get("contract_sha256")):
+        reasons.append("missing_contract_sha256")
+    if not _first_text(identity.get("validator_version"), identity.get("validator")):
+        reasons.append("missing_validator_version")
+
+    risk_tier = _first_text(contract.get("risk_tier"))
+    if risk_tier not in RISK_TIERS:
+        reasons.append("ambiguous_risk_tier")
+
+    target = _safe_mapping(contract.get("target"))
+    owner_refs = _string_list(target.get("owner_refs"))
+    artifact_families = set(
+        _string_list(_safe_mapping(contract.get("protocol")).get("artifact_families"))
+    )
+    requests = _safe_mapping(contract.get("requests"))
+    has_authority_refs = bool(_safe_list(requests.get("authority_refs"))) or bool(
+        _safe_list(target.get("authority_refs"))
+    )
+    adapter_materialization_requested = requests.get("adapter_materialization") is True
+    publication_requested = requests.get("shared_oracle_publication") is True
+    promotion_or_activation_requested = any(
+        requests.get(key) is True
+        for key in ("promotion_evidence", "export_evidence", "activation_evidence")
+    )
+
+    tutorial_escape_hatch_used = risk_tier == TUTORIAL_RISK_TIER
+    if tutorial_escape_hatch_used:
+        if owner_refs:
+            reasons.append("tutorial_profile_disallows_owner_refs")
+        if adapter_materialization_requested:
+            reasons.append("tutorial_profile_disallows_adapter_materialization")
+        if has_authority_refs:
+            reasons.append("tutorial_profile_disallows_authority_refs")
+        if publication_requested:
+            reasons.append("tutorial_profile_disallows_publication")
+        if promotion_or_activation_requested:
+            reasons.append("tutorial_profile_disallows_promotion_export_activation")
+        if artifact_families & _TUTORIAL_FORBIDDEN_ARTIFACT_FAMILIES:
+            reasons.append("tutorial_profile_disallows_target_artifact_families")
+    elif risk_tier in TARGET_BOUND_RISK_TIERS:
+        if not _first_text(target.get("owner")):
+            reasons.append("missing_target_owner")
+        if not owner_refs:
+            reasons.append("missing_target_owner_ref")
+        protocol = _safe_mapping(contract.get("protocol"))
+        if not _string_list(protocol.get("required_stages")):
+            reasons.append("missing_required_protocol_stage")
+        if not artifact_families:
+            reasons.append("missing_artifact_family_boundary")
+        if not _string_list(protocol.get("forbidden_shortcuts")):
+            reasons.append("missing_forbidden_shortcut_list")
+        source_policy = _safe_mapping(contract.get("source_policy"))
+        if source_policy.get("provenance_required") is not True:
+            reasons.append("missing_source_provenance_policy")
+        if not _first_text(source_policy.get("language_policy")):
+            reasons.append("missing_source_language_policy")
+        contract_source = _first_text(contract.get("contract_source"))
+        confirmation_status = _first_text(contract.get("confirmation_status"))
+        if contract_source in {None, "objective_only", "inferred_from_objective"}:
+            reasons.append("insufficient_target_contract")
+        if contract_source == "generated_from_docs" and confirmation_status not in {
+            "operator_confirmed_for_generation_gate",
+            "domain_confirmed_for_generation_gate",
+        }:
+            reasons.append("generated_from_docs_requires_confirmation")
+        fitness = _safe_mapping(contract.get("fitness"))
+        if not _string_list(fitness.get("required_adversarial_cases")):
+            reasons.append("missing_adversarial_fitness_case")
+
+    non_authority_missing = _false_fields_missing(
+        contract.get("non_authority"), _REQUIRED_NON_AUTHORITY_FALSE
+    )
+    if non_authority_missing:
+        reasons.append("missing_non_authority_flags:" + ",".join(non_authority_missing))
+    effect_missing = _false_fields_missing(
+        contract.get("effect"), _REQUIRED_EFFECT_FALSE
+    )
+    if effect_missing:
+        reasons.append("missing_effect_flags:" + ",".join(effect_missing))
+
+    status = "blocked" if reasons else "valid"
+    payload = _validation_payload(
+        schema_version=GEN_TARGET_CONTRACT_VALIDATION_SCHEMA,
+        status=status,
+        reasons=sorted(set(reasons)),
+    )
+    payload.update(
+        {
+            "risk_tier": risk_tier,
+            "tutorial_contract_profile_used": tutorial_escape_hatch_used,
+            "target_protocol_fidelity_claimed": status == "valid"
+            and not tutorial_escape_hatch_used,
+            "adapter_materialization_allowed": status == "valid"
+            and not tutorial_escape_hatch_used,
+            "verifier_guarantee": "declared_contract_sufficiency_only",
+            "verifier_non_guarantee": "semantic_truth_of_target_protocol",
+        }
+    )
+    return payload
+
+
+def validate_generation_fitness_suite(
+    suite: Mapping[str, Any], *, target_contract: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """Validate that an adversarial fitness suite is mechanically checkable."""
+
+    reasons: list[str] = []
+    if suite.get("schema_version") != GEN_FITNESS_SUITE_SCHEMA:
+        reasons.append("invalid_schema_version")
+
+    identity = _safe_mapping(suite.get("identity"))
+    suite_contract_sha = _first_text(identity.get("target_contract_sha256"))
+    if not suite_contract_sha:
+        reasons.append("missing_target_contract_sha256")
+    if not _first_text(identity.get("suite_sha256")):
+        reasons.append("missing_suite_sha256")
+    if target_contract is not None:
+        contract_sha = _first_text(
+            _safe_mapping(target_contract.get("identity")).get("contract_sha256")
+        )
+        if contract_sha and suite_contract_sha and contract_sha != suite_contract_sha:
+            reasons.append("target_contract_sha256_mismatch")
+
+    cases = _safe_list(suite.get("cases"))
+    if not cases:
+        reasons.append("missing_adversarial_fitness_case")
+    for index, raw_case in enumerate(cases):
+        case = _safe_mapping(raw_case)
+        prefix = f"case_{index}"
+        if not _first_text(case.get("input_fixture"), case.get("fixture_ref")):
+            reasons.append(f"{prefix}:missing_fixture_ref")
+        if not _string_list(case.get("allowed_artifact_families")):
+            reasons.append(f"{prefix}:missing_allowed_artifact_families")
+        if not _string_list(case.get("forbidden_outputs_or_effects")):
+            reasons.append(f"{prefix}:missing_forbidden_outputs_or_effects")
+        if not _safe_list(case.get("source_provenance_assertions")):
+            reasons.append(f"{prefix}:missing_source_provenance_assertions")
+        if not _safe_list(case.get("target_stage_assertions")):
+            reasons.append(f"{prefix}:missing_target_stage_assertions")
+        if not _first_text(
+            case.get("expected_failure_label"), case.get("expected_status")
+        ):
+            reasons.append(f"{prefix}:missing_expected_failure_label")
+        if not _first_text(case.get("command"), case.get("validator")):
+            reasons.append(f"{prefix}:missing_executable_or_mechanical_check")
+
+    status = "blocked" if reasons else "valid"
+    return _validation_payload(
+        schema_version=GEN_FITNESS_SUITE_VALIDATION_SCHEMA,
+        status=status,
+        reasons=sorted(set(reasons)),
+    )
+
+
+def build_generation_gate_preflight(
+    *, target_contract: Mapping[str, Any], fitness_suite: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Build a non-mutating generation gate preflight packet."""
+
+    contract_validation = validate_generation_target_contract(target_contract)
+    suite_validation = validate_generation_fitness_suite(
+        fitness_suite, target_contract=target_contract
+    )
+    reasons = sorted(
+        set(contract_validation["fail_closed_reasons"])
+        | set(suite_validation["fail_closed_reasons"])
+    )
+    allowed = not reasons
+    return {
+        "schema_version": GEN_GENERATION_GATE_PREFLIGHT_SCHEMA,
+        "status": "generation_allowed" if allowed else "generation_blocked",
+        "generation_allowed": allowed,
+        "fail_closed_reasons": reasons,
+        "target_contract_validation": contract_validation,
+        "fitness_suite_validation": suite_validation,
+        "identity": {
+            "target_contract_sha256": _first_text(
+                _safe_mapping(target_contract.get("identity")).get("contract_sha256")
+            ),
+            "fitness_suite_sha256": _first_text(
+                _safe_mapping(fitness_suite.get("identity")).get("suite_sha256")
+            ),
+            "preflight_sha256": _sha256_payload(
+                {
+                    "target_contract": target_contract,
+                    "fitness_suite": fitness_suite,
+                }
+            ),
+        },
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+            "provider_called": False,
+            "shared_oracle_mutated": False,
+        },
+        "verifier_guarantee": "declared_contract_and_suite_sufficiency_only",
+        "verifier_non_guarantee": "semantic_truth_of_target_protocol",
+    }
+
+
+def validate_generation_traceability(payload: Mapping[str, Any]) -> dict[str, Any]:
+    reasons: list[str] = []
+    if payload.get("schema_version") != GEN_TRACEABILITY_SCHEMA:
+        reasons.append("invalid_schema_version")
+    identity = _safe_mapping(payload.get("identity"))
+    if not _first_text(identity.get("candidate_manifest_sha256")):
+        reasons.append("missing_candidate_manifest_sha256")
+    if not _first_text(identity.get("target_contract_sha256")):
+        reasons.append("missing_target_contract_sha256")
+    entries = _safe_list(payload.get("requirements"))
+    if not entries:
+        reasons.append("missing_requirement_traceability")
+    for index, raw_entry in enumerate(entries):
+        entry = _safe_mapping(raw_entry)
+        prefix = f"requirement_{index}"
+        if not _first_text(entry.get("requirement_id")):
+            reasons.append(f"{prefix}:missing_requirement_id")
+        if not _string_list(entry.get("generated_surfaces")):
+            reasons.append(f"{prefix}:missing_generated_surface")
+        if not _string_list(entry.get("evidence_refs")):
+            reasons.append(f"{prefix}:missing_evidence_ref")
+        if not _first_text(entry.get("status")):
+            reasons.append(f"{prefix}:missing_status")
+    status = "blocked" if reasons else "valid"
+    return _validation_payload(
+        schema_version=GEN_TRACEABILITY_VALIDATION_SCHEMA,
+        status=status,
+        reasons=sorted(set(reasons)),
+    )
+
+
+def validate_generation_fitness_results(payload: Mapping[str, Any]) -> dict[str, Any]:
+    reasons: list[str] = []
+    if payload.get("schema_version") != GEN_FITNESS_RESULTS_SCHEMA:
+        reasons.append("invalid_schema_version")
+    identity = _safe_mapping(payload.get("identity"))
+    for key in (
+        "candidate_manifest_sha256",
+        "target_contract_sha256",
+        "fitness_suite_sha256",
+    ):
+        if not _first_text(identity.get(key)):
+            reasons.append(f"missing_{key}")
+    status_value = _first_text(payload.get("status"))
+    if status_value not in {
+        "fitness_passed",
+        "fitness_failed",
+        "target_fidelity_unknown",
+    }:
+        reasons.append("invalid_fitness_status")
+    if status_value == "fitness_passed" and payload.get("rendered_state") != (
+        "eligible_for_downstream_evidence_review"
+    ):
+        reasons.append("fitness_passed_requires_command_safe_rendering")
+    cases = _safe_list(payload.get("cases"))
+    if not cases:
+        reasons.append("missing_fitness_case_results")
+    for index, raw_case in enumerate(cases):
+        case = _safe_mapping(raw_case)
+        prefix = f"case_{index}"
+        if not _first_text(case.get("case_id")):
+            reasons.append(f"{prefix}:missing_case_id")
+        if not _first_text(case.get("status")):
+            reasons.append(f"{prefix}:missing_status")
+        if not _string_list(case.get("evidence_refs")):
+            reasons.append(f"{prefix}:missing_evidence_ref")
+    status = "blocked" if reasons else "valid"
+    return _validation_payload(
+        schema_version=GEN_FITNESS_RESULTS_VALIDATION_SCHEMA,
+        status=status,
+        reasons=sorted(set(reasons)),
+    )
+
+
+def write_generation_gate_preflight(
+    payload: Mapping[str, Any], out: Path
+) -> dict[str, Any]:
+    out_path = out.expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    data = dict(payload)
+    out_path.write_text(_json_text(data), encoding="utf-8")
+    return data

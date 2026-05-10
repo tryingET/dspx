@@ -2467,6 +2467,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2718",
+          "title": "Implement pure generation target-fidelity contract validators",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement pure generation target-fidelity contract validators (task #2718)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
