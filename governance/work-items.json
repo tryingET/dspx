@@ -2597,6 +2597,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-2769",
+          "title": "Record Obsidian PDF generated-runtime domain decision",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Record Obsidian PDF generated-runtime domain decision (task #2769)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-10"
         }
       ]
     }
