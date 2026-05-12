@@ -19,7 +19,7 @@ It is grounded in the Obsidian architecture:
 - `/home/tryinget/Documents/Obsidian/_System/architecture/source-semantic-scaffold-architecture.md`
 - `/home/tryinget/Documents/Obsidian/_System/pdf-pipeline/workflow-profiles.md`
 
-The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, wikilinked durable key concepts, Zotero review-link derivation from real source-package keys when explicit URI fields are absent, and role-separated frontmatter for review artifacts, proposed notes, and source/work candidates.
+The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, wikilinked durable key concepts and known source authors, Zotero review-link derivation from real source-package keys when explicit URI fields are absent, and role-separated frontmatter for review artifacts, proposed notes, and source/work candidates.
 
 Canonical flow:
 
@@ -181,10 +181,10 @@ Frontmatter must stay ontologically separated:
 | Role | Belongs where | Example fields |
 | --- | --- | --- |
 | Review artifact | `frontmatter_plans_json.review_artifacts[]` and per-draft `review_artifact_frontmatter` | `artifact_type`, `state`, `review_status`, `generated_by`, `canonical_mutation_performed` |
-| Proposed note | `frontmatter_plans_json.proposed_notes[]` and per-draft `proposed_note_frontmatter` | `space`, `domain`, `kind`, `state`, `confidence`, `needs_review`, `source_ids`, `citekeys`, `doc_ids` |
-| Source/work | `frontmatter_plans_json.source_work_candidates[]` | `space: atlas`, `kind: source`, `work_id`, `title`, `authors`, `work_type`, `primary_source_id`, `source_ids`, `citekeys` |
+| Proposed note | `frontmatter_plans_json.proposed_notes[]` and per-draft `proposed_note_frontmatter` | `space`, `domain`, `kind`, `state`, `confidence`, `needs_review`, `source_ids`, `citekeys`, `doc_ids`, `source_authors` as Obsidian wikilinks when known |
+| Source/work | `frontmatter_plans_json.source_work_candidates[]` | `space: atlas`, `kind: source`, `work_id`, `title`, `authors` as Obsidian wikilinks when known, `work_type`, `primary_source_id`, `source_ids`, `citekeys` |
 
-Source material type such as `guide`, `book`, `paper`, `article`, `report`, `chapter`, `transcript`, or `webpage` is not the same as proposed note kind. One PDF source may yield a source/work note plus many concept, method, or framework note drafts.
+Source material type such as `guide`, `book`, `paper`, `article`, `report`, `chapter`, `transcript`, or `webpage` is not the same as proposed note kind. One PDF source may yield a source/work note plus many concept, method, or framework note drafts. When the source manifest includes authors/creators, generated concept/method/framework draft frontmatter should preserve citekeys/source IDs and add author navigation through `source_authors`, for example `[[Richard Paul]]` and `[[Linda Elder]]`; source/work candidates use wikilinked `authors`.
 
 ## What this scenario does not do
 

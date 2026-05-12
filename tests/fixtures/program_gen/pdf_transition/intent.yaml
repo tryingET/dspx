@@ -25,7 +25,7 @@ outputs:
 input_fields:
   - name: source_package_manifest_json
     type: str
-    desc: JSON source-package manifest derived from Zotero/Marker package authority, including source language, doc_id/package paths, item_key/citekey, attachment_record_id, and Zotero item/attachment refs when available. When explicit Zotero URIs are absent, the generated program should derive review links from item_key and attachment_record_id without changing source identity.
+    desc: JSON source-package manifest derived from Zotero/Marker package authority, including source language, doc_id/package paths, authors/creators when available, item_key/citekey, attachment_record_id, and Zotero item/attachment refs when available. When explicit Zotero URIs are absent, the generated program should derive review links from item_key and attachment_record_id without changing source identity.
   - name: marker_markdown
     type: str
     desc: Raw Marker markdown or section text from a PDF-like source artifact.
@@ -72,8 +72,8 @@ constraints:
   - "Separate ontological roles: review artifact metadata belongs to review_artifact_frontmatter, proposed Wiki/Atlas note identity belongs to proposed_note_frontmatter, and Zotero/source-work identity belongs to source_work_frontmatter; do not merge them into one ambiguous frontmatter blob."
   - "Select proposed note kind from the role of the content, not from file format alone: concept, framework, method, scenario, source, project, log, reflection, lesson-asset, person, or board. A PDF source may yield a source/work note plus multiple concept/method/framework notes."
   - "Preserve source material type separately as source_material_type or work_type, such as guide, book, paper, article, report, chapter, transcript, webpage, or unknown; do not confuse source type with target note kind."
-  - "Proposed canonical note frontmatter should follow the vault target core where applicable: space, domain, kind, state, confidence, and needs_review, plus source_ids/citekeys/doc_ids when source-derived."
-  - "Source/work frontmatter candidates should follow the work-note contract when enough metadata is present: space=atlas, kind=source, state=reference, work_id, title, authors, year, primary_source_id, source_ids, citekeys, confidence, needs_review."
+  - "Proposed canonical note frontmatter should follow the vault target core where applicable: space, domain, kind, state, confidence, and needs_review, plus source_ids/citekeys/doc_ids when source-derived. When source authors/creators are present, include them as Obsidian author wikilinks in source_authors (for example [[Richard Paul]]), without replacing citekeys or source_ids."
+  - "Source/work frontmatter candidates should follow the work-note contract when enough metadata is present: space=atlas, kind=source, state=reference, work_id, title, authors, year, primary_source_id, source_ids, citekeys, confidence, needs_review. Authors should be emitted as Obsidian wikilinks when creator names are known."
   - Wiki note drafts must use Obsidian wikilinks for durable key concepts, methods, frameworks, and sibling candidate notes, while avoiding overlinking ordinary words.
   - Wiki note draft source provenance must be carried in footnotes or footnote_refs, not in a separate source/provenance heading block.
   - Footnotes must prefer Zotero item/attachment links or refs when present, derive Zotero item/PDF links from item_key and zotero-attachment attachment_record_id when explicit URI fields are absent, and include citekey/page/section/marker references plus exact or explicitly approximate quotes.

@@ -218,7 +218,11 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
             "review_note_source_roles_separated",
             "source_material_type_not_confused_with_note_kind",
         ],
-        ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
+        [
+            "durable_concepts_wikilinked",
+            "source_authors_wikilinked_in_frontmatter",
+            "ordinary_words_not_overlinked",
+        ],
     ]
 
     example_inputs = example_payload["inputs"]
@@ -273,10 +277,12 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert proposed_note_fm["kind"] == "concept"
     assert proposed_note_fm["state"] == "seed"
     assert proposed_note_fm["needs_review"] is True
+    assert proposed_note_fm["source_authors"] == ["[[Example Author]]"]
     source_work_fm = frontmatter_plans["source_work_candidates"][0]["frontmatter"]
     assert source_work_fm["space"] == "atlas"
     assert source_work_fm["kind"] == "source"
     assert source_work_fm["work_type"] == "guide"
+    assert source_work_fm["authors"] == ["[[Example Author]]"]
     assert source_work_fm["primary_source_id"] == "zotero:user:demo/DEMO2026"
     assert wiki_note_drafts[0]["artifact_family"] == "draft"
     assert wiki_note_drafts[0]["state"] == "proposed"
@@ -287,8 +293,12 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     )
     assert wiki_note_drafts[0]["proposed_note_frontmatter"]["kind"] == "concept"
     assert wiki_note_drafts[0]["proposed_note_frontmatter"]["needs_review"] is True
+    assert wiki_note_drafts[0]["proposed_note_frontmatter"]["source_authors"] == [
+        "[[Example Author]]"
+    ]
     assert "space: wiki" in wiki_note_drafts[0]["markdown"]
     assert "kind: concept" in wiki_note_drafts[0]["markdown"]
+    assert '  - "[[Example Author]]"' in wiki_note_drafts[0]["markdown"]
     assert "artifact_type: wiki_note" not in wiki_note_drafts[0]["markdown"]
     assert "[[Close Reading]]" in wiki_note_drafts[0]["markdown"]
     assert "## Source" not in wiki_note_drafts[0]["markdown"]
@@ -332,6 +342,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "package_folder_semantics": "doc_id_hash_keyed_not_zotero_keyed",
         "frontmatter_role_separation": "review_artifact_vs_proposed_note_vs_source_work",
         "source_material_type_separate_from_note_kind": True,
+        "source_author_wikilinks_in_frontmatter": True,
         "forbid_source_heading_block": True,
     }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]

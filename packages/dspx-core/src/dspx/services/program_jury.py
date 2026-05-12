@@ -418,10 +418,14 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
         ],
     },
     "wiki_link_key_concepts": {
-        "criteria": ["durable_concepts_wikilinked", "ordinary_words_not_overlinked"],
+        "criteria": [
+            "durable_concepts_wikilinked",
+            "source_authors_wikilinked_in_frontmatter",
+            "ordinary_words_not_overlinked",
+        ],
         "adversarial_questions": [
-            "Are reusable concepts, methods, and sibling candidates emitted as Obsidian wikilinks?",
-            "Is the draft overlinking generic words or underlinking durable concepts?",
+            "Are reusable concepts, methods, sibling candidates, and known source authors emitted as Obsidian wikilinks in the appropriate fields?",
+            "Is the draft overlinking generic words or underlinking durable concepts/authors?",
         ],
     },
     "constraint_adherence": {
