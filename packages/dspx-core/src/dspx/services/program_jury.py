@@ -452,11 +452,15 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
     "how_to_read_concept_enrichment": {
         "criteria": [
             "relevant_how_to_read_concepts_applied",
+            "applied_and_weak_absent_sets_disjoint",
+            "elements_of_thought_presence_consistent",
             "concept_absence_or_weak_fit_explained",
             "source_value_enriched_beyond_summary",
         ],
         "adversarial_questions": [
             "Did the artifact use the relevant How-to-Read concepts to extract more value from the source material?",
+            "Are applied_concepts and weak_or_absent_concepts disjoint for every artifact and review packet?",
+            "If an artifact exposes a populated elements_of_thought structure, is Elements of Thought classified as applied rather than weak or absent?",
             "Does it avoid forcing irrelevant concepts while explaining weak or absent concept fit as review uncertainty?",
             "Is the output more useful than a section summary because it exposes purpose, structure, action, or logic?",
         ],

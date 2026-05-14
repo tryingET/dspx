@@ -217,6 +217,8 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         ["uncertainty_visible", "grounding_status_distinguished"],
         [
             "relevant_how_to_read_concepts_applied",
+            "applied_and_weak_absent_sets_disjoint",
+            "elements_of_thought_presence_consistent",
             "concept_absence_or_weak_fit_explained",
             "source_value_enriched_beyond_summary",
         ],
@@ -270,6 +272,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
             "applied_concepts": [
                 "Purpose-Driven Reading",
                 "Authorial Purpose in Reading",
+                "Elements of Thought",
                 "Structural Reading",
                 "Active Annotation",
                 "Analyzing the Logic of an Article",
@@ -281,6 +284,14 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
             "enrichment_value": "Turns the excerpt into a reviewable method artifact with purpose, authorial intent, structure, action, and logic instead of a plain summary.",
         },
     }
+    enrichment = distillation_frames[0]["close_reading_program_rubric"][
+        "how_to_read_concept_enrichment"
+    ]
+    assert set(enrichment["applied_concepts"]).isdisjoint(
+        enrichment["weak_or_absent_concepts"]
+    )
+    assert "Elements of Thought" in enrichment["applied_concepts"]
+    assert "Elements of Thought" not in enrichment["weak_or_absent_concepts"]
     assert evidence_cards[0]["artifact_family"] == "transition"
     assert evidence_cards[0]["source_refs"]
     assert evidence_cards[0]["source_grounding_status"] == (
@@ -337,6 +348,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     }
     assert "space: wiki" in wiki_note_drafts[0]["markdown"]
     assert "kind: concept" in wiki_note_drafts[0]["markdown"]
+    assert "state: seed" in wiki_note_drafts[0]["markdown"]
+    assert "state: accepted" not in wiki_note_drafts[0]["markdown"]
+    assert "accepted: true" not in wiki_note_drafts[0]["markdown"]
     assert '  - "[[Example Author]]"' in wiki_note_drafts[0]["markdown"]
     assert "artifact_type: wiki_note" not in wiki_note_drafts[0]["markdown"]
     assert "[[Close Reading]]" in wiki_note_drafts[0]["markdown"]
@@ -368,6 +382,8 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "metacognitive_uncertainty_visible": True,
         "puzzle_fit_visible": True,
         "how_to_read_concept_enrichment_visible": True,
+        "how_to_read_applied_and_weak_absent_sets_disjoint": True,
+        "elements_of_thought_presence_consistent": True,
     }
     assert review_packet["how_to_read_concept_enrichment"][
         "Purpose-Driven Reading"
@@ -403,6 +419,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "metacognitive_uncertainty_visible": True,
         "puzzle_fit_visible": True,
         "how_to_read_concept_enrichment_visible": True,
+        "how_to_read_applied_and_weak_absent_sets_disjoint": True,
+        "elements_of_thought_presence_consistent": True,
+        "accepted_canonical_status_not_copied_into_review_draft": True,
     }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]
     assert (

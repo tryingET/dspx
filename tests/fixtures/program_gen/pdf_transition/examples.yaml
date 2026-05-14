@@ -123,6 +123,7 @@
               "applied_concepts": [
                 "Purpose-Driven Reading",
                 "Authorial Purpose in Reading",
+                "Elements of Thought",
                 "Structural Reading",
                 "Active Annotation",
                 "Analyzing the Logic of an Article"
@@ -337,7 +338,9 @@
           "structure_role_visible": true,
           "metacognitive_uncertainty_visible": true,
           "puzzle_fit_visible": true,
-          "how_to_read_concept_enrichment_visible": true
+          "how_to_read_concept_enrichment_visible": true,
+          "how_to_read_applied_and_weak_absent_sets_disjoint": true,
+          "elements_of_thought_presence_consistent": true
         },
         "how_to_read_concept_enrichment": {
           "Purpose-Driven Reading": "Each artifact should state the purpose it serves.",
@@ -384,7 +387,10 @@
           "structure_role_visible": true,
           "metacognitive_uncertainty_visible": true,
           "puzzle_fit_visible": true,
-          "how_to_read_concept_enrichment_visible": true
+          "how_to_read_concept_enrichment_visible": true,
+          "how_to_read_applied_and_weak_absent_sets_disjoint": true,
+          "elements_of_thought_presence_consistent": true,
+          "accepted_canonical_status_not_copied_into_review_draft": true
         },
         "forbidden_effects": [
           "canonical_wiki_mutation",
