@@ -19,7 +19,7 @@ DSPX_PROVIDER=dspy-lm-auth
 DSPX_LM_AUTH_MODEL=codex/gpt-5.5
 ```
 
-The replay reuses the accepted `[[Purpose-Driven Reading]]` note as the purpose-framing standard for a bounded `Reading For a Purpose` section input.
+The replay reuses the accepted `[[Purpose-Driven Reading]]` note as the purpose-framing standard while preserving the core PDF-transition concept: Marker/source-package artifacts remain the source input to the DSPy program; accepted/reviewed Wiki notes are context for merge-before-create and output-quality enrichment, not a substitute source layer.
 
 ## Inputs
 
@@ -97,7 +97,7 @@ This is positive evidence that the model-backed run used `Purpose-Driven Reading
 - it attached strong puzzle fit to teaching + systems;
 - it exposed uncertainty for weaker/overextended candidates.
 
-This is not yet full production activation. It is a bounded replay on the `Reading For a Purpose` section, not the full Marker document.
+This is not production activation. It is a bounded replay on the `Reading For a Purpose` section that checks whether accepted Purpose-Driven Reading improves output quality while Marker text remains the source input.
 
 ## Boundary
 
@@ -115,6 +115,6 @@ shared_oracle_mutated: false
 
 The next useful comparison is not "did it output more notes?" but:
 
-> Did Purpose-Driven Reading make the generated program a better close reader by making purpose, authorial intent, uncertainty, and puzzle fit visible with less operator QA?
+> Did the How-to-Read concept rubric make the generated program extract higher-value transition artifacts from the Marker/source-package input by making purpose, authorial intent, uncertainty, structure, action, and puzzle fit visible with less operator QA?
 
-Current answer: **partly yes for the purpose-focused section; full-document comparison still pending.**
+Current answer: **yes for the purpose-focused section; the next improvement is to apply the full 12-concept rubric to the program contract and compare output quality, not to replace Marker input with Wiki notes.**

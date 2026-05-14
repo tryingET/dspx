@@ -449,6 +449,18 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
             "Does the review packet expose weak evidence and next review needs instead of hiding them?",
         ],
     },
+    "how_to_read_concept_enrichment": {
+        "criteria": [
+            "relevant_how_to_read_concepts_applied",
+            "concept_absence_or_weak_fit_explained",
+            "source_value_enriched_beyond_summary",
+        ],
+        "adversarial_questions": [
+            "Did the artifact use the relevant How-to-Read concepts to extract more value from the source material?",
+            "Does it avoid forcing irrelevant concepts while explaining weak or absent concept fit as review uncertainty?",
+            "Is the output more useful than a section summary because it exposes purpose, structure, action, or logic?",
+        ],
+    },
     "constraint_adherence": {
         "criteria": ["constraint_satisfaction", "forbidden_behavior_detection"],
         "adversarial_questions": [

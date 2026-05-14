@@ -86,10 +86,13 @@ constraints:
   - "Purpose framing: each proposed note or section should say what work/reading purpose it serves, not only summarize source text."
   - "Authorial-purpose and structural reading: infer why the author wrote the section and preserve the section's role in the source's argument or method."
   - "Metacognitive uncertainty: distinguish verified source-grounded claims from inferred interpretation, review needs, and weak evidence."
+  - "Use all How to Read a Paragraph concept outputs as an enrichment rubric, not as automatically accepted notes: Purpose-Driven Reading, Authorial Purpose in Reading, Map of Knowledge, Reflective Reading, Metacognitive Reading, Elements of Thought, Five Levels of Close Reading, Structural Reading, How to Read a Paragraph, Reading Within Disciplines, Active Annotation, and Analyzing the Logic of an Article."
+  - "For each generated artifact, enrich value by making the relevant How-to-Read concept role explicit when inferable: purpose, authorial intent, knowledge-map placement, reflective question, metacognitive uncertainty, elements-of-thought structure, close-reading depth, structural location, paragraph-level evidence, disciplinary context, annotation/action, and article-logic analysis."
+  - "Do not force every How-to-Read concept onto every source section; choose the relevant concepts and explain absent or weak concepts as review uncertainty."
   - External filesystem mutation is forbidden except for declared DSPx program-gen output artifacts.
 jury:
   selection_model: perspective_balanced_explicit_pool
-  minimum_jurors: 11
+  minimum_jurors: 12
   perspectives:
     - source_grounding
     - authority_boundaries
@@ -102,6 +105,7 @@ jury:
     - purpose_framing
     - authorial_purpose_and_structure
     - metacognitive_uncertainty
+    - how_to_read_concept_enrichment
 promotion:
   adjudicator:
     kind: ai_agent

@@ -118,7 +118,21 @@
               "concepts": ["[[Close Reading]]", "[[Paraphrase]]", "[[Logic Analysis]]"],
               "implications": ["Canonicalization should wait until interpretation has been inspected."]
             },
-            "metacognitive_status": "source_grounded_with_review_needed"
+            "metacognitive_status": "source_grounded_with_review_needed",
+            "how_to_read_concept_enrichment": {
+              "applied_concepts": [
+                "Purpose-Driven Reading",
+                "Authorial Purpose in Reading",
+                "Structural Reading",
+                "Active Annotation",
+                "Analyzing the Logic of an Article"
+              ],
+              "weak_or_absent_concepts": [
+                "Reading Within Disciplines",
+                "Map of Knowledge"
+              ],
+              "enrichment_value": "Turns the excerpt into a reviewable method artifact with purpose, authorial intent, structure, action, and logic instead of a plain summary."
+            }
           }
         }
       ]
@@ -322,7 +336,22 @@
           "authorial_purpose_visible": true,
           "structure_role_visible": true,
           "metacognitive_uncertainty_visible": true,
-          "puzzle_fit_visible": true
+          "puzzle_fit_visible": true,
+          "how_to_read_concept_enrichment_visible": true
+        },
+        "how_to_read_concept_enrichment": {
+          "Purpose-Driven Reading": "Each artifact should state the purpose it serves.",
+          "Authorial Purpose in Reading": "Artifacts should preserve what the author is trying to teach or cause the reader to do.",
+          "Map of Knowledge": "Artifacts should say when the source contributes to a larger conceptual map and when it does not.",
+          "Reflective Reading": "Review questions should invite reflection without treating uncertainty as failure.",
+          "Metacognitive Reading": "Artifacts should distinguish confidence, uncertainty, and source-grounding status.",
+          "Elements of Thought": "Distillation should expose purpose, question, concepts, assumptions, implications, and point of view when present.",
+          "Five Levels of Close Reading": "Artifacts should make reading depth or effort level visible when relevant.",
+          "Structural Reading": "Artifacts should preserve section role and document structure.",
+          "How to Read a Paragraph": "Evidence should stay connected to paragraph-scale claims and whole-source purpose.",
+          "Reading Within Disciplines": "Artifacts should note discipline/context fit when inferable and mark absence when not.",
+          "Active Annotation": "Artifacts should include next review/action annotations when useful.",
+          "Analyzing the Logic of an Article": "Argumentative sources should expose claim/reason/implication structure."
         }
       }
     artifact_contract_manifest_json: |
@@ -354,7 +383,8 @@
           "authorial_purpose_visible": true,
           "structure_role_visible": true,
           "metacognitive_uncertainty_visible": true,
-          "puzzle_fit_visible": true
+          "puzzle_fit_visible": true,
+          "how_to_read_concept_enrichment_visible": true
         },
         "forbidden_effects": [
           "canonical_wiki_mutation",

@@ -185,9 +185,10 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "purpose_framing",
         "authorial_purpose_and_structure",
         "metacognitive_uncertainty",
+        "how_to_read_concept_enrichment",
     ]
     assert program_jury["perspectives"] == expected_perspectives
-    assert program_jury["minimum_jurors"] == 11
+    assert program_jury["minimum_jurors"] == 12
     assert jury_selection["selected_perspectives"] == expected_perspectives
     assert [item["source"] for item in jury_selection["selected_jurors"]] == [
         "explicit_perspective" for _ in expected_perspectives
@@ -214,6 +215,11 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         ["reading_purpose_explicit", "note_usefulness_purpose_clear"],
         ["authorial_purpose_inferred", "argument_structure_preserved"],
         ["uncertainty_visible", "grounding_status_distinguished"],
+        [
+            "relevant_how_to_read_concepts_applied",
+            "concept_absence_or_weak_fit_explained",
+            "source_value_enriched_beyond_summary",
+        ],
     ]
 
     example_inputs = example_payload["inputs"]
@@ -260,6 +266,20 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
             ],
         },
         "metacognitive_status": "source_grounded_with_review_needed",
+        "how_to_read_concept_enrichment": {
+            "applied_concepts": [
+                "Purpose-Driven Reading",
+                "Authorial Purpose in Reading",
+                "Structural Reading",
+                "Active Annotation",
+                "Analyzing the Logic of an Article",
+            ],
+            "weak_or_absent_concepts": [
+                "Reading Within Disciplines",
+                "Map of Knowledge",
+            ],
+            "enrichment_value": "Turns the excerpt into a reviewable method artifact with purpose, authorial intent, structure, action, and logic instead of a plain summary.",
+        },
     }
     assert evidence_cards[0]["artifact_family"] == "transition"
     assert evidence_cards[0]["source_refs"]
@@ -347,7 +367,14 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "structure_role_visible": True,
         "metacognitive_uncertainty_visible": True,
         "puzzle_fit_visible": True,
+        "how_to_read_concept_enrichment_visible": True,
     }
+    assert review_packet["how_to_read_concept_enrichment"][
+        "Purpose-Driven Reading"
+    ] == ("Each artifact should state the purpose it serves.")
+    assert review_packet["how_to_read_concept_enrichment"][
+        "Analyzing the Logic of an Article"
+    ] == ("Argumentative sources should expose claim/reason/implication structure.")
     assert contract["schema_version"] == "pdf-transition-artifact-contract-v1"
     assert contract["artifact_family_authority"] == {
         "source": "raw extraction/source package authority",
@@ -375,6 +402,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "structure_role_visible": True,
         "metacognitive_uncertainty_visible": True,
         "puzzle_fit_visible": True,
+        "how_to_read_concept_enrichment_visible": True,
     }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]
     assert (
