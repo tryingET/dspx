@@ -82,10 +82,14 @@ constraints:
   - Canonical Wiki or Atlas artifacts may be mentioned as targets but must not be created, overwritten, accepted, or mutated.
   - Preserve source_refs/provenance on every transition, proposal, evidence, draft, or review artifact.
   - Explain confidence, uncertainty, source-grounding gaps, language decisions, and review needs explicitly.
+  - "Use the How to Read a Paragraph close-reading rubric as program-quality guidance: generated artifacts should expose reading purpose, authorial purpose, document/argument structure, elements of thought, paragraph-scale evidence linkage, source-grounding uncertainty, and puzzle-fit/merge-before-create rationale where inferable."
+  - "Purpose framing: each proposed note or section should say what work/reading purpose it serves, not only summarize source text."
+  - "Authorial-purpose and structural reading: infer why the author wrote the section and preserve the section's role in the source's argument or method."
+  - "Metacognitive uncertainty: distinguish verified source-grounded claims from inferred interpretation, review needs, and weak evidence."
   - External filesystem mutation is forbidden except for declared DSPx program-gen output artifacts.
 jury:
   selection_model: perspective_balanced_explicit_pool
-  minimum_jurors: 8
+  minimum_jurors: 11
   perspectives:
     - source_grounding
     - authority_boundaries
@@ -95,6 +99,9 @@ jury:
     - zotero_identity_derivation
     - ontological_role_separation
     - wiki_link_key_concepts
+    - purpose_framing
+    - authorial_purpose_and_structure
+    - metacognitive_uncertainty
 promotion:
   adjudicator:
     kind: ai_agent

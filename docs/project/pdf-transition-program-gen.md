@@ -21,6 +21,8 @@ It is grounded in the Obsidian architecture:
 
 The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, wikilinked durable key concepts and known source authors, Zotero review-link derivation from real source-package keys when explicit URI fields are absent, and role-separated frontmatter for review artifacts, proposed notes, and source/work candidates.
 
+The current How-to-Read dogfood also uses *How to Read a Paragraph* as a program-quality rubric for the generated PDF-to-notes program. Reviewable artifacts should expose reading purpose, authorial purpose, document/argument structure, elements of thought, paragraph-scale evidence linkage, source-grounding uncertainty, and puzzle-fit / merge-before-create rationale where inferable.
+
 Canonical flow:
 
 ```text
@@ -88,6 +90,9 @@ zotero_footnote_linkage
 zotero_identity_derivation
 ontological_role_separation
 wiki_link_key_concepts
+purpose_framing
+authorial_purpose_and_structure
+metacognitive_uncertainty
 ```
 
 `program-gen` materializes those explicit perspectives into `jury.json`, `jury_selection.json`, and `jury_rubric.json` even when the intent does not bind concrete juror models. They are candidate-local evaluation contracts for the generated DSPy program. The generated-program-level promotion adjudicator is the declared DSPx AI agent (`dspx_program_adjudicator_v1`) and starts pending.
@@ -295,7 +300,8 @@ It proves:
 - `program-gen` materializes the PDF transition intent with the stub/offline provider
 - the scenario preserves source/transition/proposal/review/canonical artifact-family distinctions
 - expected outputs include section-unit candidates, distillation frames, evidence cards, merge/create proposals, a review packet, and an artifact contract manifest
-- generated-program jury selection honors the explicit PDF-transition perspectives: `source_grounding`, `authority_boundaries`, and `transition_artifact_quality`
+- generated-program jury selection honors the explicit PDF-transition perspectives, including the How-to-Read improvement perspectives `purpose_framing`, `authorial_purpose_and_structure`, and `metacognitive_uncertainty`
+- expected outputs carry the improvement rubric through distillation frames, evidence cards, merge/create proposals, Wiki drafts, review packets, and artifact-contract requirements
 - no fake canonical Wiki note is mutated
 - no transition files are written outside the DSPx output directory during `program-gen`
 - replay metadata is inspectable and `dspx run replay --check-only` passes

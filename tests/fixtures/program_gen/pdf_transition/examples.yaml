@@ -107,6 +107,18 @@
             "uses": ["Use as a transition artifact schema for PDF distillation."],
             "note_implications": ["Enrich existing [[Close Reading]] after review."],
             "board_implications": ["Show staged close-reading passes on an Atlas board after review."]
+          },
+          "close_reading_program_rubric": {
+            "reading_purpose": "Make interpretation reviewable before canonical note mutation.",
+            "authorial_purpose": "Teach a staged method for close reading rather than merely naming a concept.",
+            "structure_role": "method_overview",
+            "elements_of_thought": {
+              "purpose": "reviewable interpretation",
+              "question": "How should a reader move from passage to accepted understanding?",
+              "concepts": ["[[Close Reading]]", "[[Paraphrase]]", "[[Logic Analysis]]"],
+              "implications": ["Canonicalization should wait until interpretation has been inspected."]
+            },
+            "metacognitive_status": "source_grounded_with_review_needed"
           }
         }
       ]
@@ -134,6 +146,9 @@
               "quote": "Close reading is not just copying sentences."
             }
           ],
+          "source_grounding_status": "quote_verified_from_marker_excerpt",
+          "uncertainty": ["The excerpt does not provide full acceptance criteria for canonical notes."],
+          "purpose_served": "Evaluate whether close-reading stages should enrich an existing Wiki concept note.",
           "confidence": 0.82
         }
       ]
@@ -149,7 +164,11 @@
           "canonical_mutation_allowed": false,
           "review_required": true,
           "draft_ref": "draft:doc-pdf-transition-demo:close-reading",
-          "rationale": "An existing Wiki note is present, so propose enrichment rather than creating or mutating the note."
+          "rationale": "An existing Wiki note is present, so propose enrichment rather than creating or mutating the note.",
+          "puzzle_fit": {
+            "status": "candidate_context_needed",
+            "why_it_matters": "Close reading is useful when a puzzle or output needs more reliable interpretation rather than more source accumulation."
+          }
         }
       ]
     frontmatter_plans_json: |
@@ -255,6 +274,12 @@
             "[[Thesis Extraction]]",
             "[[Logic Analysis]]"
           ],
+          "program_improvement_criteria": {
+            "reading_purpose": "Help a reviewer decide whether to enrich an existing close-reading note.",
+            "authorial_purpose": "Preserve the source's instructional intent: make interpretation staged and reviewable.",
+            "structure_role": "method_overview",
+            "review_question_role": "Expose remaining merge/link decisions without implying canonical acceptance."
+          },
           "markdown": "---\nspace: wiki\ndomain: reading\nkind: concept\nstate: seed\ntitle: Close Reading\nsource_language: en\nsource_ids:\n  - zotero:user:demo/DEMO2026\ncitekeys:\n  - demoCloseReading2026\ndoc_ids:\n  - doc:pdf-transition-demo\nsource_authors:\n  - \"[[Example Author]]\"\nconfidence: 0.82\nneeds_review: true\n---\n# Close Reading\n\n> [!warning] Review Draft\n> This is a generated preview of proposed note content. Review artifact status is tracked separately from the proposed note frontmatter. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); citekey: `demoCloseReading2026`; package: `_System/pdf-pipeline/packages/doc:pdf-transition-demo`; section: `Five Levels of Close Reading`; Marker path: `_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md`; quote: \"Close reading is not just copying sentences.\"",
           "footnotes": [
             {
@@ -289,8 +314,16 @@
           "Verify source grounding against Marker markdown and Zotero attachment.",
           "Decide whether Wiki/Close Reading.md should be enriched.",
           "Check that draft note language matches the English source and that source linkage appears only in footnotes.",
-          "Check that review artifact metadata, proposed note frontmatter, and source/work frontmatter are separated before any apply step."
-        ]
+          "Check that review artifact metadata, proposed note frontmatter, and source/work frontmatter are separated before any apply step.",
+          "Check whether the generated artifacts make reading purpose, authorial purpose, structure role, uncertainty, and puzzle-fit visible enough for low-friction review."
+        ],
+        "program_improvement_rubric": {
+          "reading_purpose_visible": true,
+          "authorial_purpose_visible": true,
+          "structure_role_visible": true,
+          "metacognitive_uncertainty_visible": true,
+          "puzzle_fit_visible": true
+        }
       }
     artifact_contract_manifest_json: |
       {
@@ -316,7 +349,12 @@
           "frontmatter_role_separation": "review_artifact_vs_proposed_note_vs_source_work",
           "source_material_type_separate_from_note_kind": true,
           "source_author_wikilinks_in_frontmatter": true,
-          "forbid_source_heading_block": true
+          "forbid_source_heading_block": true,
+          "reading_purpose_visible": true,
+          "authorial_purpose_visible": true,
+          "structure_role_visible": true,
+          "metacognitive_uncertainty_visible": true,
+          "puzzle_fit_visible": true
         },
         "forbidden_effects": [
           "canonical_wiki_mutation",

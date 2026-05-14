@@ -173,7 +173,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         (outdir / "jury_selection.json").read_text(encoding="utf-8")
     )
     jury_rubric = json.loads((outdir / "jury_rubric.json").read_text(encoding="utf-8"))
-    assert program_jury["perspectives"] == [
+    expected_perspectives = [
         "source_grounding",
         "authority_boundaries",
         "transition_artifact_quality",
@@ -182,27 +182,15 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "zotero_identity_derivation",
         "ontological_role_separation",
         "wiki_link_key_concepts",
+        "purpose_framing",
+        "authorial_purpose_and_structure",
+        "metacognitive_uncertainty",
     ]
-    assert program_jury["minimum_jurors"] == 8
-    assert jury_selection["selected_perspectives"] == [
-        "source_grounding",
-        "authority_boundaries",
-        "transition_artifact_quality",
-        "language_fidelity",
-        "zotero_footnote_linkage",
-        "zotero_identity_derivation",
-        "ontological_role_separation",
-        "wiki_link_key_concepts",
-    ]
+    assert program_jury["perspectives"] == expected_perspectives
+    assert program_jury["minimum_jurors"] == 11
+    assert jury_selection["selected_perspectives"] == expected_perspectives
     assert [item["source"] for item in jury_selection["selected_jurors"]] == [
-        "explicit_perspective",
-        "explicit_perspective",
-        "explicit_perspective",
-        "explicit_perspective",
-        "explicit_perspective",
-        "explicit_perspective",
-        "explicit_perspective",
-        "explicit_perspective",
+        "explicit_perspective" for _ in expected_perspectives
     ]
     assert [item["criteria"] for item in jury_rubric["juror_rubrics"]] == [
         ["source_refs_preserved", "source_identity_not_invented"],
@@ -223,6 +211,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
             "source_authors_wikilinked_in_frontmatter",
             "ordinary_words_not_overlinked",
         ],
+        ["reading_purpose_explicit", "note_usefulness_purpose_clear"],
+        ["authorial_purpose_inferred", "argument_structure_preserved"],
+        ["uncertainty_visible", "grounding_status_distinguished"],
     ]
 
     example_inputs = example_payload["inputs"]
@@ -254,15 +245,37 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "logic",
         "evaluation",
         "application",
+        "close_reading_program_rubric",
+    }
+    assert distillation_frames[0]["close_reading_program_rubric"] == {
+        "reading_purpose": "Make interpretation reviewable before canonical note mutation.",
+        "authorial_purpose": "Teach a staged method for close reading rather than merely naming a concept.",
+        "structure_role": "method_overview",
+        "elements_of_thought": {
+            "purpose": "reviewable interpretation",
+            "question": "How should a reader move from passage to accepted understanding?",
+            "concepts": ["[[Close Reading]]", "[[Paraphrase]]", "[[Logic Analysis]]"],
+            "implications": [
+                "Canonicalization should wait until interpretation has been inspected."
+            ],
+        },
+        "metacognitive_status": "source_grounded_with_review_needed",
     }
     assert evidence_cards[0]["artifact_family"] == "transition"
     assert evidence_cards[0]["source_refs"]
+    assert evidence_cards[0]["source_grounding_status"] == (
+        "quote_verified_from_marker_excerpt"
+    )
+    assert evidence_cards[0]["purpose_served"] == (
+        "Evaluate whether close-reading stages should enrich an existing Wiki concept note."
+    )
     assert merge_create[0]["artifact_family"] == "proposal"
     assert merge_create[0]["proposed_action"] == "enrich"
     assert merge_create[0]["target_path"] == "Wiki/Close Reading.md"
     assert merge_create[0]["canonical_mutation_allowed"] is False
     assert merge_create[0]["review_required"] is True
     assert merge_create[0]["draft_ref"] == "draft:doc-pdf-transition-demo:close-reading"
+    assert merge_create[0]["puzzle_fit"]["status"] == "candidate_context_needed"
     assert frontmatter_plans["artifact_family"] == "frontmatter_plan"
     assert frontmatter_plans["role_separation_policy"] == (
         "review_artifact_vs_proposed_note_vs_source_work"
@@ -296,6 +309,12 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert wiki_note_drafts[0]["proposed_note_frontmatter"]["source_authors"] == [
         "[[Example Author]]"
     ]
+    assert wiki_note_drafts[0]["program_improvement_criteria"] == {
+        "reading_purpose": "Help a reviewer decide whether to enrich an existing close-reading note.",
+        "authorial_purpose": "Preserve the source's instructional intent: make interpretation staged and reviewable.",
+        "structure_role": "method_overview",
+        "review_question_role": "Expose remaining merge/link decisions without implying canonical acceptance.",
+    }
     assert "space: wiki" in wiki_note_drafts[0]["markdown"]
     assert "kind: concept" in wiki_note_drafts[0]["markdown"]
     assert '  - "[[Example Author]]"' in wiki_note_drafts[0]["markdown"]
@@ -322,6 +341,13 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert review_packet["draft_refs"] == [
         "draft:doc-pdf-transition-demo:close-reading"
     ]
+    assert review_packet["program_improvement_rubric"] == {
+        "reading_purpose_visible": True,
+        "authorial_purpose_visible": True,
+        "structure_role_visible": True,
+        "metacognitive_uncertainty_visible": True,
+        "puzzle_fit_visible": True,
+    }
     assert contract["schema_version"] == "pdf-transition-artifact-contract-v1"
     assert contract["artifact_family_authority"] == {
         "source": "raw extraction/source package authority",
@@ -344,6 +370,11 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "source_material_type_separate_from_note_kind": True,
         "source_author_wikilinks_in_frontmatter": True,
         "forbid_source_heading_block": True,
+        "reading_purpose_visible": True,
+        "authorial_purpose_visible": True,
+        "structure_role_visible": True,
+        "metacognitive_uncertainty_visible": True,
+        "puzzle_fit_visible": True,
     }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]
     assert (

@@ -428,6 +428,27 @@ PERSPECTIVE_RUBRICS: dict[str, dict[str, list[str]]] = {
             "Is the draft overlinking generic words or underlinking durable concepts/authors?",
         ],
     },
+    "purpose_framing": {
+        "criteria": ["reading_purpose_explicit", "note_usefulness_purpose_clear"],
+        "adversarial_questions": [
+            "Does each proposed note or section explain what reading/work purpose it serves?",
+            "Could a reviewer tell why this artifact matters beyond summarizing text?",
+        ],
+    },
+    "authorial_purpose_and_structure": {
+        "criteria": ["authorial_purpose_inferred", "argument_structure_preserved"],
+        "adversarial_questions": [
+            "Does the output infer why the author wrote this section without overstating evidence?",
+            "Does the artifact preserve the section's role in the source's argument or method?",
+        ],
+    },
+    "metacognitive_uncertainty": {
+        "criteria": ["uncertainty_visible", "grounding_status_distinguished"],
+        "adversarial_questions": [
+            "Are inferred interpretations distinguished from verified source-grounded claims?",
+            "Does the review packet expose weak evidence and next review needs instead of hiding them?",
+        ],
+    },
     "constraint_adherence": {
         "criteria": ["constraint_satisfaction", "forbidden_behavior_detection"],
         "adversarial_questions": [
