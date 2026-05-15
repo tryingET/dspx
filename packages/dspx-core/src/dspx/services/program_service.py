@@ -49,6 +49,7 @@ from dspx.services.program_surfaces import (
     render_eval_promotion,
     render_eval_smoke,
     render_module_surface,
+    render_direct_run_code,
     render_program_code,
     render_signature_surface,
 )
@@ -264,6 +265,7 @@ def build_program_plan(
         {"kind": "signature", "path": "signature.py", "generator": "signature-gen"},
         {"kind": "module", "path": "module.py", "generator": "module-gen"},
         {"kind": "program", "path": "program.py", "generator": "program-gen"},
+        {"kind": "direct_runner", "path": "direct_run.py", "generator": "program-gen"},
         {"kind": "smoke_harness", "path": "eval_smoke.py", "generator": "program-gen"},
         {"kind": "jury_harness", "path": "eval_jury.py", "generator": "program-gen"},
         {
@@ -1381,6 +1383,7 @@ def materialize_program_from_intent(
     signature_code, signature_metadata = render_signature_surface(intent)
     module_code, module_metadata = render_module_surface(intent)
     program_code = render_program_code(intent)
+    direct_run_code = render_direct_run_code(intent)
     eval_smoke_code = render_eval_smoke(intent)
     eval_jury_code = render_eval_jury()
     eval_promotion_code = render_eval_promotion()
@@ -1443,6 +1446,7 @@ def materialize_program_from_intent(
         signature_code,
         module_code,
         program_code,
+        direct_run_code,
         eval_smoke_code,
         eval_jury_code,
         eval_promotion_code,
@@ -1470,6 +1474,7 @@ def materialize_program_from_intent(
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
+        "direct_run.py": sha256_text(direct_run_code),
         "eval_smoke.py": sha256_text(eval_smoke_code),
         "eval_jury.py": sha256_text(eval_jury_code),
         "eval_promotion.py": sha256_text(eval_promotion_code),
@@ -1487,6 +1492,7 @@ def materialize_program_from_intent(
         "signature.py": signature_code,
         "module.py": module_code,
         "program.py": program_code,
+        "direct_run.py": direct_run_code,
         "eval_smoke.py": eval_smoke_code,
         "eval_jury.py": eval_jury_code,
         "eval_promotion.py": eval_promotion_code,
@@ -1821,6 +1827,7 @@ def materialize_program_from_intent(
             "signature",
             "module",
             "program",
+            "direct_runner",
             "eval_harness",
             "jury_harness",
             "promotion_harness",
@@ -1920,6 +1927,12 @@ def materialize_program_from_intent(
                 "path": "program.py",
                 "generator": "program-gen",
                 "content_hash": surface_hashes["program.py"],
+            },
+            {
+                "kind": "direct_runner",
+                "path": "direct_run.py",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["direct_run.py"],
             },
             {
                 "kind": "eval_harness",
@@ -2059,6 +2072,7 @@ def materialize_program_from_intent(
                 "signature": "signature-gen",
                 "module": "module-gen",
                 "program": "program-gen",
+                "direct_runner": "program-gen",
                 "eval_harness": "program-gen",
                 "jury_harness": "program-gen",
                 "promotion_harness": "program-gen",

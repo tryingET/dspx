@@ -455,6 +455,15 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "source_language_translation_without_request" in contract["forbidden_effects"]
     )
 
+    direct_run_text = (outdir / "direct_run.py").read_text(encoding="utf-8")
+    assert "generated-dspy-direct-run-v1" in direct_run_text
+    assert "dspx_program_run_wrapper_used" in direct_run_text
+    assert "from program import build_program, io_spec" in direct_run_text
+    assert any(
+        surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
+        for surface in manifest["candidate_assembly"]["surfaces"]
+    )
+
     module_text = (outdir / "module.py").read_text(encoding="utf-8")
     assert "FocusedPdfTransitionProgramModuleBundleSignature" in module_text
     assert "note_bundle_json" in module_text

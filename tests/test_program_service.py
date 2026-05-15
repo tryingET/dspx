@@ -450,6 +450,15 @@ def test_program_gen_cli_materializes_from_yaml(
         payload["candidate_assembly"]["surfaces"][8]["path"] == "execution_episode.json"
     )
     assert payload["candidate_assembly"]["surfaces"][9]["path"] == "signature.py"
+    assert any(
+        surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
+        for surface in payload["candidate_assembly"]["surfaces"]
+    )
+    assert "direct_run.py" in payload["receipt_bundle"]["evidence"]["generated_files"]
+    assert (
+        payload["receipt_bundle"]["evidence"]["surface_generation"]["direct_runner"]
+        == "program-gen"
+    )
     assert (outdir / "plan.json").exists()
     assert (outdir / "jury.json").exists()
     assert (outdir / "jury_selection.json").exists()
@@ -462,6 +471,7 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
+    assert (outdir / "direct_run.py").exists()
     assert (outdir / "eval_jury.py").exists()
     assert (outdir / "eval_promotion.py").exists()
     assert (outdir / "manifest.json.meta.json").exists()
