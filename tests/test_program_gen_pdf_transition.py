@@ -457,6 +457,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
 
     direct_run_text = (outdir / "direct_run.py").read_text(encoding="utf-8")
     assert "generated-dspy-direct-run-v1" in direct_run_text
+    assert "generated-dspy-direct-batch-run-v1" in direct_run_text
+    assert "--inputs-root" in direct_run_text
+    assert "direct_batch_receipt.json" in direct_run_text
     assert "dspx_program_run_wrapper_used" in direct_run_text
     assert "from program import build_program, io_spec" in direct_run_text
     assert any(

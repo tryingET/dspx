@@ -52,7 +52,7 @@ tests/fixtures/program_gen/pdf_transition/examples.yaml
 
 For latency-sensitive PDF-transition drafting, the scenario enables `focused_json_bundle_runtime`: the generated module asks the LM for one focused note bundle and deterministically expands that bundle back into the historical eight JSON-string output files. This preserves downstream compatibility while avoiding one giant multi-output call during direct generated-DSPy execution.
 
-Every generated program candidate also includes `direct_run.py`, a standard lightweight direct runner for executing the generated DSPy program from JSON inputs without the heavier `dspx program-run` runtime sidecar/evidence workflow. Use `dspx program-run` when an audited DSPx runtime episode is the goal; use `direct_run.py` when the goal is fast local generated-program execution for review artifacts.
+Every generated program candidate also includes `direct_run.py`, a standard lightweight direct runner for executing the generated DSPy program from JSON inputs without the heavier `dspx program-run` runtime sidecar/evidence workflow. It supports both single inputs (`--inputs ... --outdir ...`) and built-in bounded batch execution (`--inputs-root ... --out-root ... --parallel N --retries N`) so callers do not need ad-hoc wrapper scripts. Use `dspx program-run` when an audited DSPx runtime episode is the goal; use `direct_run.py` when the goal is fast local generated-program execution for review artifacts.
 
 The intent asks the generated DSPy program to produce JSON-string outputs for this artifact family:
 

@@ -471,6 +471,10 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
+    direct_run_text = (outdir / "direct_run.py").read_text(encoding="utf-8")
+    assert "--inputs-root" in direct_run_text
+    assert "direct_batch_receipt.json" in direct_run_text
+    assert "ThreadPoolExecutor" in direct_run_text
     assert (outdir / "direct_run.py").exists()
     assert (outdir / "eval_jury.py").exists()
     assert (outdir / "eval_promotion.py").exists()
