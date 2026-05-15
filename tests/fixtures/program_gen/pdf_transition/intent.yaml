@@ -31,20 +31,20 @@ input_fields:
     desc: Raw Marker markdown or section text from a PDF-like source artifact.
   - name: existing_wiki_index_json
     type: str
-    desc: Read-only summary of existing canonical Wiki/Atlas candidates for merge-before-create decisions.
+    desc: Read-only summary of existing canonical Wiki/Atlas candidates for merge-before-create decisions. It may also include review seed context and source figure inventory rows for image-aware review drafts.
   - name: declared_output_root
     type: str
     desc: Declared transition artifact root; generated program outputs describe artifacts for this root but must not mutate Wiki notes.
 output_fields:
   - name: section_units_json
     type: str
-    desc: JSON array of transition-family section-unit candidates with source references.
+    desc: JSON array of transition-family section-unit candidates with source references and relevant Marker figure_refs/image_refs when supplied.
   - name: distillation_frames_json
     type: str
-    desc: JSON array of close-reading distillation frames containing paraphrase, thesis, logic, evaluation, and application fields.
+    desc: JSON array of close-reading distillation frames containing paraphrase, thesis, logic, evaluation, application fields, and image/figure implications when relevant.
   - name: evidence_cards_json
     type: str
-    desc: JSON array of source-grounded transition-family evidence cards.
+    desc: JSON array of source-grounded transition-family evidence cards, including figure_refs/image_refs for relevant Marker figures when supplied.
   - name: merge_create_proposals_json
     type: str
     desc: JSON array of proposal-family merge/create candidates; proposals only, not canonical note writes.
@@ -53,10 +53,10 @@ output_fields:
     desc: JSON object separating review artifact frontmatter, proposed canonical note frontmatter, and source/work frontmatter candidates. It must choose note kind from content role and source material type without collapsing review status, source identity, and canonical note identity into one blob.
   - name: wiki_note_drafts_json
     type: str
-    desc: JSON array of review-only Wiki note draft previews with source-language text, wikilinked key concepts, and footnote-only source/Zotero provenance.
+    desc: JSON array of review-only Wiki note draft previews with source-language text, wikilinked key concepts, image_refs/review-only embeds for relevant Marker figures, and footnote-only source/Zotero provenance.
   - name: review_packet_json
     type: str
-    desc: JSON review-family packet summarizing confidence, uncertainty, provenance, draft quality, and review needs.
+    desc: JSON review-family packet summarizing confidence, uncertainty, provenance, draft quality, image/figure handling, and review needs.
   - name: artifact_contract_manifest_json
     type: str
     desc: JSON manifest declaring source/transition/proposal/review/draft/canonical artifact families and forbidden effects.
@@ -77,6 +77,7 @@ constraints:
   - "Source/work frontmatter candidates should follow the work-note contract when enough metadata is present: space=atlas, kind=source, state=reference, work_id, title, authors, year, primary_source_id, source_ids, citekeys, confidence, needs_review. Authors should be emitted as Obsidian wikilinks when creator names are known."
   - Wiki note drafts must use Obsidian wikilinks for durable key concepts, methods, frameworks, and sibling candidate notes, while avoiding overlinking ordinary words.
   - Wiki note draft source provenance must be carried in footnotes or footnote_refs, not in a separate source/provenance heading block.
+  - "Preserve relevant Marker figure evidence when present: read figure inventory rows from source_package_manifest_json or existing_wiki_index_json, attach figure_refs/image_refs to section units, evidence cards, review packets, and note drafts, and include review-only Obsidian embeds or image reference lines for figures whose page/section matches the generated note. Do not invent captions; use figure_id, page, image_path, and source_ref when caption is absent."
   - Footnotes must prefer Zotero item/attachment links or refs when present, derive Zotero item/PDF links from item_key and zotero-attachment attachment_record_id when explicit URI fields are absent, and include citekey/page/section/marker references plus exact or explicitly approximate quotes.
   - "Preserve package-folder semantics: package roots are doc_id/hash keyed (for example packages/doc:a6112bfb), while Zotero item keys/citekeys remain source identity metadata inside the manifest and footnotes."
   - Review packets are review artifacts only and do not approve canonicalization.
@@ -119,6 +120,7 @@ promotion:
         role: optional_review_target_not_applied
 options:
   scenario_name: pdf-transition-program-gen
+  focused_json_bundle_runtime: true
   primary_architecture: /home/tryinget/Documents/Obsidian/_System/architecture/pdf-transition-architecture.md
   related_architectures:
     - /home/tryinget/Documents/Obsidian/_System/architecture/distillation-method-architecture.md

@@ -21,7 +21,7 @@ It is grounded in the Obsidian architecture:
 
 The scenario turns raw PDF/Marker-derived source text plus source-package context into **reviewable transition/proposal artifacts and note-draft previews**, not canonical notes. The refined target contract requires source-language fidelity, Zotero/source footnotes, wikilinked durable key concepts and known source authors, Zotero review-link derivation from real source-package keys when explicit URI fields are absent, and role-separated frontmatter for review artifacts, proposed notes, and source/work candidates.
 
-The current How-to-Read dogfood also uses *How to Read a Paragraph* as a program-quality rubric for the generated PDF-to-notes program. Reviewable artifacts should expose reading purpose, authorial purpose, document/argument structure, elements of thought, paragraph-scale evidence linkage, source-grounding uncertainty, and puzzle-fit / merge-before-create rationale where inferable. Concept-fit labels must be internally consistent: if an artifact exposes a populated elements-of-thought structure, `Elements of Thought` is applied, not weak or absent, and applied concepts must be disjoint from weak/absent concepts. Existing accepted-note status is merge context, not draft status: review-only drafts must not copy `state: accepted` or `review.accepted: true` into proposed-note frontmatter. The point is not to replace Marker input with Wiki notes: Marker/source-package artifacts remain the source input, while accepted/reviewed How-to-Read concepts enrich the program's output rubric so the same source material yields higher-value transition artifacts than plain summaries.
+The current How-to-Read dogfood also uses *How to Read a Paragraph* as a program-quality rubric for the generated PDF-to-notes program. Reviewable artifacts should expose reading purpose, authorial purpose, document/argument structure, elements of thought, paragraph-scale evidence linkage, relevant Marker figure/image references, source-grounding uncertainty, and puzzle-fit / merge-before-create rationale where inferable. Concept-fit labels must be internally consistent: if an artifact exposes a populated elements-of-thought structure, `Elements of Thought` is applied, not weak or absent, and applied concepts must be disjoint from weak/absent concepts. Existing accepted-note status is merge context, not draft status: review-only drafts must not copy `state: accepted` or `review.accepted: true` into proposed-note frontmatter. The point is not to replace Marker input with Wiki notes: Marker/source-package artifacts remain the source input, while accepted/reviewed How-to-Read concepts enrich the program's output rubric so the same source material yields higher-value transition artifacts than plain summaries.
 
 Canonical flow:
 
@@ -50,6 +50,8 @@ tests/fixtures/program_gen/pdf_transition/examples.yaml
 
 ## What the generated program is intended to produce
 
+For latency-sensitive PDF-transition drafting, the scenario enables `focused_json_bundle_runtime`: the generated module asks the LM for one focused note bundle and deterministically expands that bundle back into the historical eight JSON-string output files. This preserves downstream compatibility while avoiding one giant multi-output call during direct generated-DSPy execution.
+
 The intent asks the generated DSPy program to produce JSON-string outputs for this artifact family:
 
 | Output field | Artifact family | Meaning |
@@ -59,7 +61,7 @@ The intent asks the generated DSPy program to produce JSON-string outputs for th
 | `evidence_cards_json` | transition | Source-grounded evidence cards for later Wiki/Atlas decisions. |
 | `merge_create_proposals_json` | proposal | Merge/create candidates such as `enrich`, `create`, `board-only`, `ignore`, or `review`. |
 | `frontmatter_plans_json` | frontmatter_plan | Role-separated frontmatter candidates for review artifacts, proposed Wiki/Atlas notes, and source/work notes. |
-| `wiki_note_drafts_json` | draft | Review-only Wiki note draft previews with source-language text, wikilinked key concepts, proposed note frontmatter, and footnote-only Zotero/source provenance. |
+| `wiki_note_drafts_json` | draft | Review-only Wiki note draft previews with source-language text, wikilinked key concepts, proposed note frontmatter, footnote-only Zotero/source provenance, and review-only image refs/embeds when Marker figures are relevant. |
 | `review_packet_json` | review | Review packet with confidence, uncertainty, provenance, draft quality, and review needs. |
 | `artifact_contract_manifest_json` | review / contract | Declares source/transition/proposal/draft/review/canonical boundaries and forbidden effects. |
 

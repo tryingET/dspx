@@ -231,6 +231,12 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert source_manifest["item_key"] == "DEMO2026"
     assert source_manifest["source_material_type"] == "guide"
     assert source_manifest["work_type"] == "guide"
+    assert source_manifest["figure_inventory_rows"][0]["figure_id"] == (
+        "fig:doc:pdf-transition-demo:0001"
+    )
+    assert source_manifest["figure_inventory_rows"][0]["image_path"].endswith(
+        "page_12_close_reading.jpeg"
+    )
     assert "zotero_item_uri" not in source_manifest
     assert "zotero_attachment_uri" not in source_manifest
 
@@ -246,6 +252,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
 
     assert section_units[0]["artifact_family"] == "transition"
     assert section_units[0]["artifact_type"] == "section_unit_candidate"
+    assert section_units[0]["figure_refs"][0]["figure_id"] == (
+        "fig:doc:pdf-transition-demo:0001"
+    )
     assert distillation_frames[0]["artifact_family"] == "transition"
     assert set(distillation_frames[0]) >= {
         "paraphrase",
@@ -297,6 +306,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert evidence_cards[0]["source_grounding_status"] == (
         "quote_verified_from_marker_excerpt"
     )
+    assert evidence_cards[0]["figure_refs"][0]["image_path"].endswith(
+        "page_12_close_reading.jpeg"
+    )
     assert evidence_cards[0]["purpose_served"] == (
         "Evaluate whether close-reading stages should enrich an existing Wiki concept note."
     )
@@ -340,6 +352,12 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert wiki_note_drafts[0]["proposed_note_frontmatter"]["source_authors"] == [
         "[[Example Author]]"
     ]
+    assert wiki_note_drafts[0]["image_refs"][0]["figure_id"] == (
+        "fig:doc:pdf-transition-demo:0001"
+    )
+    assert wiki_note_drafts[0]["image_refs"][0]["embed"] == (
+        "![[how-to-read-a-paragraph-page-12-close-reading.jpeg]]"
+    )
     assert wiki_note_drafts[0]["program_improvement_criteria"] == {
         "reading_purpose": "Help a reviewer decide whether to enrich an existing close-reading note.",
         "authorial_purpose": "Preserve the source's instructional intent: make interpretation staged and reviewable.",
@@ -354,6 +372,13 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert '  - "[[Example Author]]"' in wiki_note_drafts[0]["markdown"]
     assert "artifact_type: wiki_note" not in wiki_note_drafts[0]["markdown"]
     assert "[[Close Reading]]" in wiki_note_drafts[0]["markdown"]
+    assert (
+        "![[how-to-read-a-paragraph-page-12-close-reading.jpeg]]"
+        in wiki_note_drafts[0]["markdown"]
+    )
+    assert (
+        "figure: `fig:doc:pdf-transition-demo:0001`" in wiki_note_drafts[0]["markdown"]
+    )
     assert "## Source" not in wiki_note_drafts[0]["markdown"]
     assert "## Quelle" not in wiki_note_drafts[0]["markdown"]
     assert "[^close-reading-demo]: Zotero item:" in wiki_note_drafts[0]["markdown"]
@@ -384,6 +409,7 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "how_to_read_concept_enrichment_visible": True,
         "how_to_read_applied_and_weak_absent_sets_disjoint": True,
         "elements_of_thought_presence_consistent": True,
+        "image_refs_visible_when_marker_figures_present": True,
     }
     assert review_packet["how_to_read_concept_enrichment"][
         "Purpose-Driven Reading"
@@ -422,11 +448,18 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "how_to_read_applied_and_weak_absent_sets_disjoint": True,
         "elements_of_thought_presence_consistent": True,
         "accepted_canonical_status_not_copied_into_review_draft": True,
+        "image_refs_visible_when_marker_figures_present": True,
     }
     assert "canonical_wiki_mutation" in contract["forbidden_effects"]
     assert (
         "source_language_translation_without_request" in contract["forbidden_effects"]
     )
+
+    module_text = (outdir / "module.py").read_text(encoding="utf-8")
+    assert "FocusedPdfTransitionProgramModuleBundleSignature" in module_text
+    assert "note_bundle_json" in module_text
+    assert "_collect_image_refs" in module_text
+    assert "dspy.Prediction(section_units_json=" in module_text
 
     module_spec = importlib.util.spec_from_file_location(
         "pdf_transition_generated_module", outdir / "module.py"

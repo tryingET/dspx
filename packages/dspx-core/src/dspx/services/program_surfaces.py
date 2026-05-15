@@ -69,6 +69,9 @@ def render_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
                 "output_field_specs": intent_field_specs(intent, role="output"),
                 "inline_examples": list(intent.examples or []),
                 "demo_input_fields": list(intent.inputs or ["context"]),
+                "focused_json_bundle_runtime": bool(
+                    intent.options.get("focused_json_bundle_runtime")
+                ),
             },
         ),
         use_signature=True,

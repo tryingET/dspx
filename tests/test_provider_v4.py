@@ -475,6 +475,33 @@ def test_ensure_default_providers_preserves_custom_vllm_local(
         provider_registry._REGISTRY.update(saved_registry)
 
 
+def test_dspy_lm_auth_factory_accepts_codex_reasoning_effort_without_max_tokens(
+    monkeypatch,
+) -> None:
+    from dspx.providers_register_dspy_lm_auth import _factory
+
+    monkeypatch.setenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.5")
+    monkeypatch.setenv("DSPX_LM_AUTH_REASONING_EFFORT", "low")
+    monkeypatch.setenv("DSPX_LM_AUTH_MAX_TOKENS", "2048")
+
+    lm = _factory()
+
+    assert lm.kwargs["reasoning_effort"] == "low"
+    assert "max_tokens" not in lm.kwargs
+
+
+def test_dspy_lm_auth_factory_rejects_invalid_codex_reasoning_effort(
+    monkeypatch,
+) -> None:
+    from dspx.providers_register_dspy_lm_auth import _factory
+
+    monkeypatch.setenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.5")
+    monkeypatch.setenv("DSPX_LM_AUTH_REASONING_EFFORT", "minimal")
+
+    with pytest.raises(ValueError, match="DSPX_LM_AUTH_REASONING_EFFORT"):
+        _factory()
+
+
 def test_run_receipt_includes_redacted_provider_details(
     monkeypatch, tmp_path: Path
 ) -> None:

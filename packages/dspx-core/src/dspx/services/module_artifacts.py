@@ -100,6 +100,10 @@ def module_cache_key(
         payload["inline_examples"] = options["inline_examples"]
     if options.get("demo_input_fields"):
         payload["demo_input_fields"] = options["demo_input_fields"]
+    if options.get("focused_json_bundle_runtime"):
+        payload["focused_json_bundle_runtime"] = bool(
+            options["focused_json_bundle_runtime"]
+        )
     if options.get("input_field_specs"):
         payload["input_field_specs"] = options["input_field_specs"]
     if options.get("output_field_specs"):
@@ -232,6 +236,7 @@ def render_seed_module_code(
         demo_input_fields=options.get("demo_input_fields")
         if isinstance(options.get("demo_input_fields"), list)
         else None,
+        focused_json_bundle_runtime=bool(options.get("focused_json_bundle_runtime")),
     )
 
 

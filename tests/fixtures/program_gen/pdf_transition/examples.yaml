@@ -23,7 +23,18 @@
           "document_markdown_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md"
         },
         "content_profile": "article_report",
-        "extraction_engine": "marker"
+        "extraction_engine": "marker",
+        "figure_inventory_rows": [
+          {
+            "artifact_type": "figure_inventory_row",
+            "figure_id": "fig:doc:pdf-transition-demo:0001",
+            "image_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/figures/page_12_close_reading.jpeg",
+            "media_type": "image/jpeg",
+            "page": 12,
+            "caption": null,
+            "source_ref": {"source_id": "zotero:user:demo/DEMO2026", "pages": "12"}
+          }
+        ]
       }
     marker_markdown: |
       # Five Levels of Close Reading
@@ -69,7 +80,15 @@
               "page_markers": ["{12}"]
             }
           ],
-          "raw_text_excerpt": "Close reading is not just copying sentences..."
+          "raw_text_excerpt": "Close reading is not just copying sentences...",
+          "figure_refs": [
+            {
+              "figure_id": "fig:doc:pdf-transition-demo:0001",
+              "image_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/figures/page_12_close_reading.jpeg",
+              "page": 12,
+              "caption": null
+            }
+          ]
         }
       ]
     distillation_frames_json: |
@@ -162,6 +181,14 @@
             }
           ],
           "source_grounding_status": "quote_verified_from_marker_excerpt",
+          "figure_refs": [
+            {
+              "figure_id": "fig:doc:pdf-transition-demo:0001",
+              "image_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/figures/page_12_close_reading.jpeg",
+              "page": 12,
+              "caption": null
+            }
+          ],
           "uncertainty": ["The excerpt does not provide full acceptance criteria for canonical notes."],
           "purpose_served": "Evaluate whether close-reading stages should enrich an existing Wiki concept note.",
           "confidence": 0.82
@@ -289,13 +316,22 @@
             "[[Thesis Extraction]]",
             "[[Logic Analysis]]"
           ],
+          "image_refs": [
+            {
+              "figure_id": "fig:doc:pdf-transition-demo:0001",
+              "image_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/figures/page_12_close_reading.jpeg",
+              "page": 12,
+              "caption": null,
+              "embed": "![[how-to-read-a-paragraph-page-12-close-reading.jpeg]]"
+            }
+          ],
           "program_improvement_criteria": {
             "reading_purpose": "Help a reviewer decide whether to enrich an existing close-reading note.",
             "authorial_purpose": "Preserve the source's instructional intent: make interpretation staged and reviewable.",
             "structure_role": "method_overview",
             "review_question_role": "Expose remaining merge/link decisions without implying canonical acceptance."
           },
-          "markdown": "---\nspace: wiki\ndomain: reading\nkind: concept\nstate: seed\ntitle: Close Reading\nsource_language: en\nsource_ids:\n  - zotero:user:demo/DEMO2026\ncitekeys:\n  - demoCloseReading2026\ndoc_ids:\n  - doc:pdf-transition-demo\nsource_authors:\n  - \"[[Example Author]]\"\nconfidence: 0.82\nneeds_review: true\n---\n# Close Reading\n\n> [!warning] Review Draft\n> This is a generated preview of proposed note content. Review artifact status is tracked separately from the proposed note frontmatter. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); citekey: `demoCloseReading2026`; package: `_System/pdf-pipeline/packages/doc:pdf-transition-demo`; section: `Five Levels of Close Reading`; Marker path: `_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md`; quote: \"Close reading is not just copying sentences.\"",
+          "markdown": "---\nspace: wiki\ndomain: reading\nkind: concept\nstate: seed\ntitle: Close Reading\nsource_language: en\nsource_ids:\n  - zotero:user:demo/DEMO2026\ncitekeys:\n  - demoCloseReading2026\ndoc_ids:\n  - doc:pdf-transition-demo\nsource_authors:\n  - \"[[Example Author]]\"\nconfidence: 0.82\nneeds_review: true\n---\n# Close Reading\n\n> [!warning] Review Draft\n> This is a generated preview of proposed note content. Review artifact status is tracked separately from the proposed note frontmatter. It is not an accepted canonical mutation.\n\n## Core Idea\n\n[[Close Reading]] is a staged method for making interpretation inspectable before it becomes a permanent note. A reader first creates a [[Paraphrase]], then identifies the thesis, explains the logic, evaluates limits, and only then proposes applications.[^close-reading-demo]\n\n![[how-to-read-a-paragraph-page-12-close-reading.jpeg]]\n\n## Review Questions\n\n- Should this enrich the existing [[Close Reading]] note?\n- Are the linked concepts durable enough to remain as Wiki links?\n\n[^close-reading-demo]: Zotero item: [DEMO2026](zotero://select/items/DEMO2026); attachment: [PDF page 12](zotero://open-pdf/library/items/ATTACH2026?page=12); citekey: `demoCloseReading2026`; package: `_System/pdf-pipeline/packages/doc:pdf-transition-demo`; section: `Five Levels of Close Reading`; Marker path: `_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md`; figure: `fig:doc:pdf-transition-demo:0001`; image: `_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/figures/page_12_close_reading.jpeg`; quote: \"Close reading is not just copying sentences.\"",
           "footnotes": [
             {
               "id": "close-reading-demo",
@@ -308,6 +344,8 @@
               "section": "Five Levels of Close Reading",
               "marker_markdown_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/document.md",
               "link_derivation": "derived_from_item_key_and_attachment_record_id",
+              "figure_id": "fig:doc:pdf-transition-demo:0001",
+              "image_path": "_System/pdf-pipeline/packages/doc:pdf-transition-demo/marker/figures/page_12_close_reading.jpeg",
               "quote": "Close reading is not just copying sentences."
             }
           ],
@@ -329,6 +367,7 @@
           "Verify source grounding against Marker markdown and Zotero attachment.",
           "Decide whether Wiki/Close Reading.md should be enriched.",
           "Check that draft note language matches the English source and that source linkage appears only in footnotes.",
+          "Check relevant Marker figures are carried as review-only image_refs/embeds and not treated as new source authority.",
           "Check that review artifact metadata, proposed note frontmatter, and source/work frontmatter are separated before any apply step.",
           "Check whether the generated artifacts make reading purpose, authorial purpose, structure role, uncertainty, and puzzle-fit visible enough for low-friction review."
         ],
@@ -340,7 +379,8 @@
           "puzzle_fit_visible": true,
           "how_to_read_concept_enrichment_visible": true,
           "how_to_read_applied_and_weak_absent_sets_disjoint": true,
-          "elements_of_thought_presence_consistent": true
+          "elements_of_thought_presence_consistent": true,
+          "image_refs_visible_when_marker_figures_present": true
         },
         "how_to_read_concept_enrichment": {
           "Purpose-Driven Reading": "Each artifact should state the purpose it serves.",
@@ -390,7 +430,8 @@
           "how_to_read_concept_enrichment_visible": true,
           "how_to_read_applied_and_weak_absent_sets_disjoint": true,
           "elements_of_thought_presence_consistent": true,
-          "accepted_canonical_status_not_copied_into_review_draft": true
+          "accepted_canonical_status_not_copied_into_review_draft": true,
+          "image_refs_visible_when_marker_figures_present": true
         },
         "forbidden_effects": [
           "canonical_wiki_mutation",
