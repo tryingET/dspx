@@ -12,6 +12,11 @@ Canonical lane docs live in `engineering-core` (do not vendor/copy here):
 - list lanes: `uv tool run engineering-core list`
 - print python lane: `uv tool run engineering-core show py`
 - show path: `uv tool run engineering-core path py --prefer-repo`
+- catalog: `uv tool -n run --from ~/ai-society/core/engineering-core engineering-core catalog --pretty`
+- list disciplines: `uv tool -n run --from ~/ai-society/core/engineering-core engineering-core list-disciplines`
+- list templates: `uv tool -n run --from ~/ai-society/core/engineering-core engineering-core list-templates`
+
+Machine-readable recognition lives in `policy/engineering-lane.json`.
 
 Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
