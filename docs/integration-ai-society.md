@@ -35,7 +35,7 @@ Integrating DSPx into ai-society's `softwareco/owned/` structure would:
 1. **Bring KES infrastructure** — `docs/learnings/`, TIPs, cognitive tools
 2. **Enable cross-project propagation** — learnings from DSPx could inform other owned repos
 3. **Unify crystallization** — behavioral (Oracle) + process (KES) in one place
-4. **Shared tooling** — `docs-list.sh`, `tech-stack.sh`, cognitive tools in AGENTS.md
+4. **Shared tooling** — `docs-list.sh`, `engineering.sh`, cognitive tools in AGENTS.md
 
 ## Integration Options
 
@@ -86,7 +86,7 @@ Create new repo from template, migrate code + history
 - DSPx is active development → minimize disruption
 - Git history must be preserved
 - Existing CI/docs should continue working
-- Should work with ai-society's `docs-list`, `tech-stack` tooling
+- Should work with ai-society's `docs-list`, `engineering` tooling
 
 ## Decision Points
 

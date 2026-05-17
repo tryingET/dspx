@@ -96,7 +96,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     )
     _write(
         tmp_path,
-        "docs/tech-stack.local.md",
+        "docs/engineering.local.md",
         "docs/project/developer_workflow.md\n"
         "just hooks-install\n"
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
@@ -200,7 +200,7 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         "README.md",
         "changed manifest path, or next_session checkpoint\n",
     )
-    _write(tmp_path, "docs/tech-stack.local.md", "")
+    _write(tmp_path, "docs/engineering.local.md", "")
     _write(tmp_path, "next_session_prompt.md", "Active/deferred work contract\n")
     _write(
         tmp_path,
@@ -306,7 +306,7 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
     )
     _write(
         tmp_path,
-        "docs/tech-stack.local.md",
+        "docs/engineering.local.md",
         "docs/project/developer_workflow.md\n"
         "just hooks-install\n"
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"

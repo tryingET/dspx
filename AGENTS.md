@@ -53,8 +53,8 @@ just forge ...        # Run Forge pipeline
 # Docs discovery
 node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --task "<task>" --top 8
 
-# Tech stack
-uv tool run --from ~/ai-society/core/tech-stack-core tech-stack-core show py
+# Engineering guidance
+uv tool run --from ~/ai-society/core/engineering-core engineering-core show py
 
 # Cognitive triggers
 ~/steve/prompts/triggers/nexus.md

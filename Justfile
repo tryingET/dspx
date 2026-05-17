@@ -1,6 +1,6 @@
 # DSPx Justfile — standardized command surface + repo-local workflow helpers
 # Contract: /home/tryinget/ai-society/softwareco/owned/docs/project/standardized-justfile-contract.md
-# Lane addendum: /home/tryinget/ai-society/core/tech-stack-core/src/tech_stack_core/lanes/tech-stack-py.justfile.md
+# Lane addendum: /home/tryinget/ai-society/core/engineering-core/src/engineering_core/lanes/engineering-py.justfile.md
 set shell := ["bash", "-uc"]
 set dotenv-load := true
 set export

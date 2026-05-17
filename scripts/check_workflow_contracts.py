@@ -176,7 +176,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 "transitional legacy manifest",
             ],
         },
-        "docs/tech-stack.local.md": {
+        "docs/engineering.local.md": {
             "required": [
                 "docs/project/developer_workflow.md",
                 "just hooks-install",

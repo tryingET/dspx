@@ -34,8 +34,8 @@ DSPx has:
 # Docs discovery
 node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --task "<task>" --top 8
 
-# Tech stack
-uv tool run --from ~/ai-society/core/tech-stack-core tech-stack-core show py --prefer-repo
+# Engineering guidance
+uv tool run --from ~/ai-society/core/engineering-core engineering-core show py --prefer-repo
 ```
 
 ## Cognitive Triggers

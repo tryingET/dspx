@@ -12,11 +12,11 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        files: ^(AGENTS\.md|CONTRIBUTING\.md|README\.md|next_session_prompt\.md|Justfile|\.pre-commit-config\.yaml|\.gitignore|docs/project/(developer_workflow|mission|tactical_goals)\.md|docs/tech-stack\.local\.md|governance/.*|diary/.*|scripts/.*|packages/.*\.py|apps/.*\.py|tests/.*\.py)$
+        files: ^(AGENTS\.md|CONTRIBUTING\.md|README\.md|next_session_prompt\.md|Justfile|\.pre-commit-config\.yaml|\.gitignore|docs/project/(developer_workflow|mission|tactical_goals)\.md|docs/engineering\.local\.md|governance/.*|diary/.*|scripts/.*|packages/.*\.py|apps/.*\.py|tests/.*\.py)$
       - id: end-of-file-fixer
-        files: ^(AGENTS\.md|CONTRIBUTING\.md|README\.md|next_session_prompt\.md|Justfile|\.pre-commit-config\.yaml|\.gitignore|docs/project/(developer_workflow|mission|tactical_goals)\.md|docs/tech-stack\.local\.md|governance/.*|diary/.*|scripts/.*|packages/.*\.py|apps/.*\.py|tests/.*\.py)$
+        files: ^(AGENTS\.md|CONTRIBUTING\.md|README\.md|next_session_prompt\.md|Justfile|\.pre-commit-config\.yaml|\.gitignore|docs/project/(developer_workflow|mission|tactical_goals)\.md|docs/engineering\.local\.md|governance/.*|diary/.*|scripts/.*|packages/.*\.py|apps/.*\.py|tests/.*\.py)$
       - id: check-merge-conflict
-        files: ^(AGENTS\.md|CONTRIBUTING\.md|README\.md|next_session_prompt\.md|Justfile|\.pre-commit-config\.yaml|\.gitignore|docs/project/(developer_workflow|mission|tactical_goals)\.md|docs/tech-stack\.local\.md|governance/.*|diary/.*|scripts/.*|packages/.*\.py|apps/.*\.py|tests/.*\.py)$
+        files: ^(AGENTS\.md|CONTRIBUTING\.md|README\.md|next_session_prompt\.md|Justfile|\.pre-commit-config\.yaml|\.gitignore|docs/project/(developer_workflow|mission|tactical_goals)\.md|docs/engineering\.local\.md|governance/.*|diary/.*|scripts/.*|packages/.*\.py|apps/.*\.py|tests/.*\.py)$
 
   - repo: local
     hooks:

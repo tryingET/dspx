@@ -122,7 +122,7 @@ The following docs must stay aligned with this file:
 - `AGENTS.md`
 - `CONTRIBUTING.md`
 - `README.md` (workflow snippets)
-- `docs/tech-stack.local.md`
+- `docs/engineering.local.md`
 - `next_session_prompt.md`
 
 Any command referenced in those files must resolve to a real script or `just` recipe.
