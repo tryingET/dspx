@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "fed3623fb54ff8f6a4ae1fd201b2abe7c04f016b"
-created_at: "2026-05-18T18:18:03Z"
+created_at: "2026-05-18T18:18:40Z"
 intent: "Rename product_posture.md to product-posture.md and update all cross-references"
 files:
   - "docs/project/product_posture.md"
@@ -32,7 +32,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-full"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
