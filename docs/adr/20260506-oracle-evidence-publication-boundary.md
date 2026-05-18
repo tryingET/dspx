@@ -51,7 +51,7 @@ system4d:
   - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
   - `docs/project/generated-program-activation-boundary.md`
   - `docs/project/program-gen-walkthrough.md`
-  - `docs/project/product_posture.md`
+  - `docs/project/product-posture.md`
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/transition-passports/generated-cognition-program-production-activation.md`
   - `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`

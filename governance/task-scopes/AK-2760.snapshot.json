@@ -8,7 +8,7 @@
     "allowed_paths": [
       "docs/project/2026-05-10-review-bounded-obsidian-pdf-activation-many-greats.md",
       "docs/project/generated-program-activation-boundary.md",
-      "docs/project/product_posture.md",
+      "docs/project/product-posture.md",
       "governance/task-scopes/AK-2760.snapshot.json",
       "governance/work-items.json",
       "packages/dspx-core/src/dspx/cli/commands/program_promote.py",

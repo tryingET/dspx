@@ -7,7 +7,7 @@
   "scope": {
     "allowed_paths": [
       "docs/project/boundary-contract-matrix.md",
-      "docs/project/product_posture.md",
+      "docs/project/product-posture.md",
       "docs/project/program-gen-walkthrough.md",
       "docs/project/program-synthesis-boundary.md",
       "governance/task-scopes/AK-*.snapshot.json",

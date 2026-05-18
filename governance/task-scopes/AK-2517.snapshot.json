@@ -6,7 +6,7 @@
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
-      "docs/project/product_posture.md",
+      "docs/project/product-posture.md",
       "docs/project/program-gen-walkthrough.md",
       "governance/task-scopes/AK-*.snapshot.json",
       "governance/work-items.json",

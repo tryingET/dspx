@@ -8,7 +8,7 @@
     "allowed_paths": [
       "docs/project/2026-05-10-dogfood-obsidian-pdf-canonical-binding.md",
       "docs/project/generated-program-activation-boundary.md",
-      "docs/project/product_posture.md",
+      "docs/project/product-posture.md",
       "governance/task-scopes/AK-2773.snapshot.json",
       "governance/work-items.json",
       "packages/dspx-core/src/dspx/cli/commands/program_promote.py",

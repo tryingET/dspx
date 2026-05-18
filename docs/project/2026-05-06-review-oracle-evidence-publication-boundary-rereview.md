@@ -31,7 +31,7 @@ read_when:
   - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
   - `docs/project/generated-program-activation-boundary.md`
   - `docs/project/program-gen-walkthrough.md`
-  - `docs/project/product_posture.md`
+  - `docs/project/product-posture.md`
   - `~/ai-society/holdingco/governance-kernel/docs/dev/decision-lifecycle.md`
 - required lifecycle artifacts present:
   - initial RFC draft;

@@ -7,13 +7,13 @@
   "scope": {
     "allowed_paths": [
       "docs/project/2026-05-10-target-fidelity-current-state-and-next-pdf.md",
-      "docs/project/product_posture.md",
+      "docs/project/product-posture.md",
       "governance/task-scopes/AK-*.snapshot.json",
       "governance/work-items.json"
     ],
     "required_paths": [
       "docs/project/2026-05-10-target-fidelity-current-state-and-next-pdf.md",
-      "docs/project/product_posture.md"
+      "docs/project/product-posture.md"
     ],
     "forbidden_paths": []
   },
