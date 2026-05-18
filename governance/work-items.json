@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-10",
+  "updated_at": "2026-05-18",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -2701,6 +2701,32 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-10"
+        },
+        {
+          "id": "AK-TASK-3125",
+          "title": "Review DesignMD visual-dossier DSPx requirements packet boundary",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Review DesignMD visual-dossier DSPx requirements packet boundary (task #3125)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-18"
+        },
+        {
+          "id": "AK-TASK-3130",
+          "title": "Author DSPx target-protocol contract for DesignMD visual dossiers",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Author DSPx target-protocol contract for DesignMD visual dossiers (task #3130)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-18"
         }
       ]
     }
