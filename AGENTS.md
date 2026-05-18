@@ -13,7 +13,7 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 
 ## Guardrails
 - No secrets in git.
-- Never push to `main`; MRs only.
+- Follow the workspace/company main-first workflow unless the operator explicitly asks for a review gate.
 - Keep `docs/_core/**` as immutable reference.
 - Canonical local workflow: `docs/project/developer_workflow.md`.
 - Run `just hooks-install` after cloning.
