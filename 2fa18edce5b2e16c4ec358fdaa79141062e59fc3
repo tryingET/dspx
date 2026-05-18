@@ -1,0 +1,20 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "2fa18edce5b2e16c4ec358fdaa79141062e59fc3"
+created_at: "2026-05-18T19:02:21Z"
+intent: "Remove outdated DSPx MR-only agent rule and align with workspace main-first policy"
+files:
+  - "AGENTS.md"
+validation:
+  fast_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+  full_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "Operator identified MR-only rule as outdated"
