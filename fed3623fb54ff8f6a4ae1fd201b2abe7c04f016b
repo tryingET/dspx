@@ -1,0 +1,39 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "fed3623fb54ff8f6a4ae1fd201b2abe7c04f016b"
+created_at: "2026-05-18T18:18:03Z"
+intent: "Rename product_posture.md to product-posture.md and update all cross-references"
+files:
+  - "docs/project/product_posture.md"
+  - "docs/project/product-posture.md"
+  - "docs/adr/20260506-oracle-evidence-publication-boundary.md"
+  - "docs/project/2026-05-06-review-oracle-evidence-publication-boundary-rereview.md"
+  - "docs/rfc/RFC-DSPX-ORACLE-20260506-evidence-publication-boundary.md"
+  - "governance/task-scopes/AK-2096.snapshot.json"
+  - "governance/task-scopes/AK-2100.snapshot.json"
+  - "governance/task-scopes/AK-2110.snapshot.json"
+  - "governance/task-scopes/AK-2119.snapshot.json"
+  - "governance/task-scopes/AK-2130.snapshot.json"
+  - "governance/task-scopes/AK-2174.snapshot.json"
+  - "governance/task-scopes/AK-2182.snapshot.json"
+  - "governance/task-scopes/AK-2517.snapshot.json"
+  - "governance/task-scopes/AK-2730.snapshot.json"
+  - "governance/task-scopes/AK-2748.snapshot.json"
+  - "governance/task-scopes/AK-2750.snapshot.json"
+  - "governance/task-scopes/AK-2754.snapshot.json"
+  - "governance/task-scopes/AK-2760.snapshot.json"
+  - "governance/task-scopes/AK-2769.snapshot.json"
+  - "governance/task-scopes/AK-2773.snapshot.json"
+validation:
+  fast_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "Single cohesive rename touching docs and governance snapshots"
