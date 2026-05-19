@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "ceea0ef379a96cca2285ee741af65d75b0812ae3"
+created_at: "2026-05-19T03:53:20Z"
+intent: "Seed AK-native strategy for DesignMD visual-source dossier product integration"
+files:
+  - "docs/project/operational_goals.md"
+  - "next_session_prompt.md"
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json && ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Create direction rows for discovery/research/design/plan/implementation waves and align handoff docs with the first ready discovery task."
+links:
+  task_ids:
+    - 3162
+    - 3169
