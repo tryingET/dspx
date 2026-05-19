@@ -2766,6 +2766,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3147",
+          "title": "Fix DesignMD requirements freshness validation false stale match",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Fix DesignMD requirements freshness validation false stale match (task #3147)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

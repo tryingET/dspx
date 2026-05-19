@@ -966,8 +966,12 @@ def validate_designmd_visual_dossier_requirements_packet(
     if not freshness:
         reasons.append("missing_freshness")
     else:
-        freshness_text = json.dumps(freshness, sort_keys=True).lower()
-        if "stale" in freshness_text:
+        stale_reasons = _safe_list(freshness.get("staleReasons"))
+        if freshness.get("freshAgainstSource") is False:
+            reasons.append("stale_source_index")
+        if freshness.get("freshAgainstDesign") is False:
+            reasons.append("stale_design_md")
+        if stale_reasons:
             reasons.append("stale_input_refs")
 
     required_lists = {

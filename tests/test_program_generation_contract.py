@@ -183,6 +183,32 @@ def test_designmd_visual_dossier_requirements_intake_builds_native_gate_artifact
     )
 
 
+def test_designmd_visual_dossier_requirements_freshness_ignores_empty_stale_reasons() -> (
+    None
+):
+    packet = _designmd_requirements_packet(
+        inputRefs={
+            "sourceIndexSchema": "designmd.visual-source-index.v1",
+            "analysisRunSchema": "designmd.analysis-run.v1",
+            "dossierDraftSchema": "designmd.dossier-draft.v1",
+            "sourceIndexSha256": "source-sha",
+            "designMdSha256": "design-sha",
+            "designMdCurrentSha256": "design-sha",
+            "freshness": {
+                "freshAgainstSource": True,
+                "freshAgainstDesign": True,
+                "staleReasons": [],
+                "statement": "Fresh against current source index and DESIGN.md hash.",
+            },
+        }
+    )
+
+    validation = validate_designmd_visual_dossier_requirements_packet(packet)
+
+    assert validation["status"] == "valid"
+    assert "stale_input_refs" not in validation["fail_closed_reasons"]
+
+
 def test_designmd_visual_dossier_requirements_intake_blocks_incomplete_packet() -> None:
     packet = _designmd_requirements_packet(
         inputRefs={"sourceIndexSchema": "designmd.visual-source-index.v1"},
