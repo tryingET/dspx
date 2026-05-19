@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "ceb97fd368f0465bf6d0365950057b70bd7fa503"
+created_at: "2026-05-19T05:50:03Z"
+intent: "Complete discovery map for DesignMD visual dossier integration seams"
+files:
+  - "docs/project/2026-05-19-designmd-visual-dossier-integration-discovery.md"
+  - "docs/project/operational_goals.md"
+  - "next_session_prompt.md"
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict && ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json && ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Document current DesignMD UI/API and DSPx evidence seams, close discovery wave, and seed the next research task."
+links:
+  task_ids:
+    - 3164
