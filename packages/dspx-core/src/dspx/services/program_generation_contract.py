@@ -1120,6 +1120,14 @@ def build_designmd_visual_dossier_target_contract_from_requirements(
     return _payload_with_identity_hash(payload, identity_key="contract_sha256")
 
 
+def _program_identifier_part(value: object, *, default: str = "Source") -> str:
+    text = re.sub(r"\W+", "_", str(value or "").strip())
+    text = text.strip("_") or default
+    if text[0].isdigit():
+        text = f"_{text}"
+    return text
+
+
 def build_designmd_visual_dossier_program_intent_from_requirements(
     packet: Mapping[str, Any],
 ) -> dict[str, Any]:
@@ -1139,7 +1147,8 @@ def build_designmd_visual_dossier_program_intent_from_requirements(
     input_refs = _safe_mapping(packet.get("inputRefs"))
     source_id = _first_text(packet.get("sourceId")) or "designmd_visual_source"
     dossier_id = _first_text(packet.get("dossierDraftId")) or "designmd_dossier"
-    name = f"DesignmdVisualDossier{_slug(source_id, default='Source').replace('-', '_')}Program"
+    source_name_part = _program_identifier_part(source_id, default="Source")
+    name = f"DesignmdVisualDossier{source_name_part}Program"
     constraints = [
         "Consume DesignMD visual-dossier requirements as requirements intake only.",
         "Emit review evidence and proposal context only; never approve dossier guidance.",

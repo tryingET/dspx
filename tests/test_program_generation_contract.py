@@ -208,6 +208,15 @@ def test_designmd_visual_dossier_requirements_build_minimal_program_intent() -> 
     )
 
 
+def test_designmd_visual_dossier_program_intent_name_is_python_identifier() -> None:
+    intent = build_designmd_visual_dossier_program_intent_from_requirements(
+        _designmd_requirements_packet(sourceId="1779.vsrc-calicoach")
+    )
+
+    assert intent["name"] == "DesignmdVisualDossier_1779_vsrc_calicoachProgram"
+    assert intent["name"].isidentifier()
+
+
 def test_designmd_visual_dossier_requirements_freshness_ignores_empty_stale_reasons() -> (
     None
 ):

@@ -2818,6 +2818,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3154",
+          "title": "Harden DesignMD prepare generated intent names",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Harden DesignMD prepare generated intent names (task #3154)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }
