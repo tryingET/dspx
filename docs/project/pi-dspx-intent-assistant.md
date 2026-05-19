@@ -123,6 +123,8 @@ Current `ProgramIntent` supports:
 
 The model allows extra keys, but the skill should prefer the stable fields above.
 
+For dependency-intelligence review-program intents, the skill may preserve source-owner role hints under `options.dependency_intelligence.role_hints` or reference a `depdiet.dependency-role-hints.v1` file through owner refs. These hints should use broad lifecycle/tooling roles such as `runtime`, `dev-tooling`, `test-tooling`, `build-tooling`, `type-tooling`, `lint-format-tooling`, `docs-demo-tooling`, `platform-optional-binary`, `transitive-support`, and `unknown-review`. They are scenario-expectation hints, not DSPx-owned dependency classifications or dependency-change authority.
+
 For Pi authoring, the practical minimum is:
 
 ```yaml
@@ -148,7 +150,7 @@ Ask about or include these only when useful:
 - `jury.perspectives` — future evaluation criteria such as `correctness` or `robustness`; `program-gen` plans artifacts but does not call juror models.
 - `promotion.adjudicator` — default to pending `human_operator` / `local_operator` when promotion metadata is useful but unspecified.
 
-Do not infer `topology`, dataset splits, GEPA/search settings, external authority refs, juror pools, promotion decisions, or Oracle authority from generic prose.
+Do not infer `topology`, dataset splits, GEPA/search settings, external authority refs, juror pools, promotion decisions, dependency classifications, role truth, removal/replacement authority, or Oracle authority from generic prose.
 
 ## Clarification and normalization policy
 

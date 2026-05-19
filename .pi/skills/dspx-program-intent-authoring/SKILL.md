@@ -55,6 +55,40 @@ Current `ProgramIntent` accepts these fields and allows additional metadata:
 
 If `input_fields` or `output_fields` are present, they override `inputs` or `outputs` respectively during normalization. Keep both aligned if including both for readability.
 
+## Dependency-intelligence role-hint intents
+
+When authoring a dependency-intelligence review program intent, preserve owner-supplied lifecycle/tooling role hints as input metadata. Do not turn them into DSPx classifications.
+
+Recommended metadata shape under `options`:
+
+```yaml
+options:
+  dependency_intelligence:
+    role_hints:
+      - packageName: "@cucumber/cucumber"
+        role: test-tooling
+        appliesTo: direct-dependency-root
+        expectedScenarios:
+          - behavior-test
+        absenceFromRuntimeScenario: expected-unless-matching-lifecycle-scenario
+        source: source-owner
+        confidence: hint-only
+```
+
+Preferred roles are `runtime`, `dev-tooling`, `test-tooling`, `build-tooling`, `type-tooling`, `lint-format-tooling`, `docs-demo-tooling`, `platform-optional-binary`, `transitive-support`, and `unknown-review`.
+
+Add constraints such as:
+
+```yaml
+constraints:
+  - Treat dependency role hints as source-owner hints, not DSPx classifications.
+  - Use role hints only to interpret scenario expectations and next evidence actions.
+  - Do not infer that scenario-unobserved dependencies are unused.
+  - Do not approve dependency removal, replacement, remediation, exploitability, disclosure, merge, or release.
+```
+
+If a target repo provides a `depdiet.dependency-role-hints.v1` file, reference it from `options.owner_refs` or target-specific context rather than copying a large hint set into the intent. Keep the intent focused on direct roots / introducer families, not every transitive package.
+
 ## Clarification policy
 
 Ask clarifying questions only when needed to avoid an invalid or materially misleading intent.
