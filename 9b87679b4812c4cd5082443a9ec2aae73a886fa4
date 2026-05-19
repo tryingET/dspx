@@ -1,0 +1,32 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "9b87679b4812c4cd5082443a9ec2aae73a886fa4"
+created_at: "2026-05-19T16:51:20Z"
+intent: "Add DSPx multimodal image runtime support for DesignMD visual-dossier generated programs"
+files:
+  - "docs/project/2026-05-19-designmd-multimodal-program-run.md"
+  - "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
+  - "packages/dspx-core/src/dspx/providers_register_dspy_lm_auth.py"
+  - "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py"
+  - "packages/dspx-core/src/dspx/services/program_generation_contract.py"
+  - "tests/test_program_runtime_episode.py"
+  - "tests/test_provider_v4.py"
+  - "tests/test_program_generation_contract.py"
+  - "governance/task-scopes/AK-3229.snapshot.json"
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "uv run -q pytest tests/test_provider_v4.py tests/test_program_runtime_episode.py tests/test_program_generation_contract.py && uv run -q ruff check targeted files && node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict && ak direction check --repo . --format json && ak work-items check --repo ."
+    status: "pass"
+  full_gate:
+    command: "targeted DSPx multimodal/runtime tests plus dspy-lm-auth tests/test_lm.py; full verify-full not run"
+    status: "pending"
+group:
+  index: 2
+  total: 2
+  rationale: "DSPx runtime bridge after dspy-lm-auth conversion contract"
+links:
+  task_ids:
+    - 3229
