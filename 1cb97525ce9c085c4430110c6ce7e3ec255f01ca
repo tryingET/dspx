@@ -1,0 +1,22 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "1cb97525ce9c085c4430110c6ce7e3ec255f01ca"
+created_at: "2026-05-19T02:49:40Z"
+intent: "Document current DesignMD visual dossier prepare-to-program operator flow"
+files:
+  - "docs/project/designmd-visual-dossier-target-protocol-contract.md"
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Align target-protocol contract docs with implemented prepare --intent-out flow and non-authority boundary."
+links:
+  task_ids:
+    - 3151
