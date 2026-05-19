@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "b3be46df2d6b8c7429e216175be8dda525065ae4"
+created_at: "2026-05-19T03:25:43Z"
+intent: "Harden generation packet JSON safety for non-finite scalars"
+files:
+  - "governance/work-items.json"
+  - "packages/dspx-core/src/dspx/services/program_generation_contract.py"
+  - "tests/test_program_generation_contract.py"
+validation:
+  fast_gate:
+    command: "uv run pytest tests/test_program_generation_contract.py tests/test_program_generation_contract_cli.py -q && uv run ruff check packages/dspx-core/src/dspx/services/program_generation_contract.py tests/test_program_generation_contract.py tests/test_program_generation_contract_cli.py"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Complete packet normalization by preventing non-finite YAML/JSON scalars from leaking invalid JSON tokens into hashes or artifacts."
+links:
+  task_ids:
+    - 3157
