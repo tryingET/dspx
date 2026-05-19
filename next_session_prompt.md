@@ -32,9 +32,9 @@ Do not ask for permission to start.
 - Latest repo-local learning: `docs/learnings/2026-02-28-receipt-v2-phase-c.md`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Re-run the repo-scoped AK ready queue after `AK-1106`; if it is empty, wait for the next operator-directed or direction-to-execution materialization step before starting new implementation work.
-- Constraints (hard limits): Keep the completed `AK-593`, `AK-797`, `AK-798`, `AK-799`, `AK-800`, `AK-834`, `AK-835`, `AK-1047`, `AK-1085`, `AK-1093`, `AK-1094`, `AK-1101`, `AK-1102`, `AK-1105`, and `AK-1106` boundaries closed; keep any follow-on bounded to the `human_review_decisions` contract surface from `docs/adr/20260410-human-governed-review-decision-contract-v1.md`; do not widen live ranking, pruning, promotion, or policy-activation authority.
-- Assumptions (max 3): `AK-1106` is complete and committed; no next repo-scoped implementation slice is pinned yet; the repo-scoped ready queue may truthfully be empty.
+- Objective (one sentence): Claim `AK-3164` and continue discovery for the `SF-DESIGNMD-VDOS` DesignMD visual-source dossier integration strategy.
+- Constraints (hard limits): Keep DSPx outputs review-evidence-only; do not mutate DesignMD `DESIGN.md`, mark dossier guidance accepted, create AK/society authority from DSPx artifacts, or add an orchestration bridge before discovery/research/design settles custody and authority boundaries.
+- Assumptions (max 3): DSPx-side prepare/program-gen/traceability/fitness flow is executable; DesignMD currently exposes requirements packet generation but not UI/program-gen orchestration; `IW-DV-01-DISCOVERY` is the active next wave.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -52,7 +52,7 @@ Do not ask for permission to start.
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the repo-scoped ready queue with `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the ready queue is empty, do not guess a hidden governance backlog; wait for operator direction or the next explicit direction-to-execution materialization step.
+3. If the DesignMD dossier discovery task is no longer ready, re-check AK direction before selecting a follow-on; do not skip directly to orchestration.
 4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
 5. Execute at most one operating slice end-to-end.
 6. Validate truthfully with:
@@ -62,12 +62,12 @@ Do not ask for permission to start.
 7. Refresh source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-1106` — froze the first human-governed review-decision contract for nominated governance-only policy variants, closed `TG28`, and refreshed the bounded handoff/projection stack without guessing the post-contract implementation slice.
-- Outcome: `docs/adr/20260410-human-governed-review-decision-contract-v1.md` is now the bounded review-decision contract, `AK-1106` is complete in AK, and the repo-scoped ready queue is now empty instead of being backfilled with a speculative follow-on task.
-- Files changed: `diary/2026-04-10--freeze-human-review-decision-contract.md`, `docs/adr/20260410-human-governed-review-decision-contract-v1.md`, `docs/adr/README.md`, `docs/project/operational_goals.md`, `docs/project/tactical_goals.md`, `governance/task-scopes/AK-1106.snapshot.json`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ before completion (`AK-1106` only); `./scripts/ci/smoke.sh` ✅; `just task-scope-check task_id=1106 mode=working-tree` ✅; `just verify-full` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `ak task scope export 1106 > governance/task-scopes/AK-1106.snapshot.json` ✅; `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` ✅ after completion (`[]`).
-- Source-of-truth updates: completed `AK-1106` in AK with result evidence, added the new ADR + diary entry, refreshed `docs/project/tactical_goals.md` and `docs/project/operational_goals.md`, re-exported `governance/work-items.json`, exported `governance/task-scopes/AK-1106.snapshot.json`, and replaced the handoff with the post-contract idle-state checkpoint.
-- Next-session starting point: re-run the repo-scoped ready queue; if it is still empty, do not guess the post-`TG28` governance step.
+- Slice executed: `AK-3162` / `AK-3169` — created the AK-native DesignMD visual-source dossier integration strategy and refreshed the handoff docs to point at the new ready discovery slice.
+- Outcome: `SF-DESIGNMD-VDOS` is active, `IW-DV-01-DISCOVERY` is next, and `AK-3164` is the repo-scoped discovery execution task.
+- Files changed: `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` ✅ after handoff refresh.
+- Source-of-truth updates: created AK direction rows for discovery, research, design, implementation plan, and implementation waves; linked prior DSPx implementation anchors; seeded `AK-3164` as the first discovery task; refreshed the checked-in AK projection.
+- Next-session starting point: claim `AK-3164` and perform discovery across DesignMD UI/API and DSPx evidence surfaces before choosing research/design or implementation work.
 
 ## END-OF-SESSION
 Run `/commit` only if the repo is validation-clean and the handoff reflects the real checkpoint; otherwise preserve the truthful handoff and leave commit/closeout for the isolated slice.

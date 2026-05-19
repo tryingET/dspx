@@ -13,10 +13,11 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Active operating slices
 
-- No repo-scoped implementation slice is currently pinned in AK.
-- The operator-pulled `program-gen` foothold is complete and has been sharpened into a bounded deterministic composition path: DSPx can materialize `program-plan-v1`, standalone `jury.json`, deterministic `jury_selection.json`, deterministic `jury_rubric.json`, `promotion_review.json` with optional opaque non-exporting `external_authority` refs, `promotion_adjudication_request.json`, `promotion_decision_template.json`, explicit or per-program inferred planned `program-jury-v1` contracts, separate signature/module/program/eval surfaces including `eval_jury.py` and `eval_promotion.py`, typed/described field specs, and optional inline/example-file binding evidence from structured intent into a program-shaped candidate assembly; a separately invoked Agent Kernel authority adapter can now produce a receipted, non-mutating sidecar export plan from those artifacts.
-- `TG28` is closed by `docs/adr/20260410-human-governed-review-decision-contract-v1.md`, which freezes the bounded human-governed decision contract for nominated governance-only policy variants.
-- The first truthful follow-on is a bounded `human_review_decisions` receipt wave grounded in promotion-eligibility nominations, governed policy-evaluation receipts, runtime-spine provenance, and explicit human decision metadata, but it remains unmaterialized until a later direction-to-execution pass selects it.
+- AK-native direction now pins `SF-DESIGNMD-VDOS` as the active strategic frame for DesignMD visual-source dossier DSPx product integration.
+- The next work wave is `IW-DV-01-DISCOVERY`: map current DesignMD UI/API visual-source dossier flows, DSPx prepare/program-gen artifacts, execution outputs, authority boundaries, and missing seams before product design.
+- Live execution anchor: `AK-3164` — Discovery: map DesignMD visual dossier UI/API and DSPx evidence seams.
+- The current DSPx-side foothold is complete: `program-gen prepare --profile designmd-visual-dossier` can normalize a DesignMD requirements packet into native gate artifacts, optionally emit a `program-intent-v2`, materialize a bounded candidate assembly, and produce traceability / fitness-results evidence. These artifacts remain review evidence only and do not mutate DesignMD, AK/society authority, or production programs.
+- Later strategy waves are already staged in AK direction: `IW-DV-02-RESEARCH`, `IW-DV-03-DESIGN`, `IW-DV-04-PLAN`, `IW-DV-05-IMPLEMENT-PACKET-UX`, `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE`, and `IW-DV-07-IMPLEMENT-ORCHESTRATION`.
 
 ## Recently completed in this wave
 
@@ -38,8 +39,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `AK-1827` is complete, `AK-1106` is complete, `TG28` is complete, and no next repo-scoped implementation slice is pinned yet.
-- Do not invent the post-`TG28` implementation slice just to avoid an empty ready queue; let a later direction-to-execution pass or explicit operator pull pin the next bounded receipt wave.
+- `AK-3164` is the current repo-scoped ready discovery task for the DesignMD visual-source dossier integration strategy.
+- Do not skip discovery/research/design and jump straight to UI orchestration; the orchestration bridge remains optional until `IW-DV-02-RESEARCH` and `IW-DV-03-DESIGN` settle custody, security, and authority boundaries.
 - Do not treat repeated governed policy-evaluation receipts, repeated promotion-eligibility nominations, or repeated human review decisions as de facto live policy authority.
 - Keep the `AK-1085` candidate-assembly / execution-episode / receipt-bundle runtime semantics closed unless a smaller follow-up proves a regression or explicitly widens the contract.
 - Keep the `AK-835` config/runtime/policy/registry/refine/receipt/task-scope hardening boundaries closed unless a smaller follow-up explicitly proves a regression.

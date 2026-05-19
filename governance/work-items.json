@@ -2857,6 +2857,44 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3162",
+          "title": "Create AK strategy for DesignMD visual dossier UI integration",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Create AK strategy for DesignMD visual dossier UI integration (task #3162)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3164",
+          "title": "Discovery: map DesignMD visual dossier UI/API and DSPx evidence seams",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Discovery: map DesignMD visual dossier UI/API and DSPx evidence seams (task #3164)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
+        },
+        {
+          "id": "AK-TASK-3169",
+          "title": "Align DSPx handoff docs with DesignMD dossier AK strategy",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Align DSPx handoff docs with DesignMD dossier AK strategy (task #3169)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }
