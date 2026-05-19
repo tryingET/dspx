@@ -18,10 +18,11 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 - `IW-DV-02-RESEARCH` is complete; research artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-research.md`.
 - `IW-DV-03-DESIGN` is complete; design artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-design.md`.
 - `IW-DV-04-PLAN` is complete; implementation plan artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-plan.md`.
-- The next work wave is `IW-DV-05-IMPLEMENT-PACKET-UX`: implement packet export UX in DesignMD Foundry.
-- No repo-scoped implementation slice is currently pinned in AK for DSPx; create/claim the DesignMD Foundry task from `/home/tryinget/ai-society/softwareco/owned/designmd-foundry` before mutation.
+- `IW-DV-05-IMPLEMENT-PACKET-UX` is complete in DesignMD Foundry; commit `ab8e325` added the review-only DSPx requirements export panel.
+- The next work wave is `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE`: plan and implement an imported DSPx evidence viewer.
+- Live execution anchor: `AK-3176` — Plan imported DSPx visual dossier evidence viewer.
 - The current DSPx-side foothold is complete: `program-gen prepare --profile designmd-visual-dossier` can normalize a DesignMD requirements packet into native gate artifacts, optionally emit a `program-intent-v2`, materialize a bounded candidate assembly, and produce traceability / fitness-results evidence. These artifacts remain review evidence only and do not mutate DesignMD, AK/society authority, or production programs.
-- Later strategy waves are already staged in AK direction: `IW-DV-02-RESEARCH`, `IW-DV-03-DESIGN`, `IW-DV-04-PLAN`, `IW-DV-05-IMPLEMENT-PACKET-UX`, `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE`, and `IW-DV-07-IMPLEMENT-ORCHESTRATION`.
+- Remaining strategy waves are staged in AK direction: `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE` and `IW-DV-07-IMPLEMENT-ORCHESTRATION`.
 
 ## Recently completed in this wave
 

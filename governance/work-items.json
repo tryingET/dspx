@@ -2935,6 +2935,31 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3175",
+          "title": "Record DesignMD packet UX completion in visual dossier strategy",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Record DesignMD packet UX completion in visual dossier strategy (task #3175)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3176",
+          "title": "Plan imported DSPx visual dossier evidence viewer",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Plan imported DSPx visual dossier evidence viewer (task #3176)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
