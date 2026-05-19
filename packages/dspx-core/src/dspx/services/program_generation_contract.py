@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from datetime import date, datetime
 from pathlib import Path
@@ -63,7 +64,9 @@ def _json_safe(value: object) -> Any:
         return value.isoformat()
     if isinstance(value, date):
         return value.isoformat()
-    if value is None or isinstance(value, (str, int, float, bool)):
+    if isinstance(value, float):
+        return value if math.isfinite(value) else str(value)
+    if value is None or isinstance(value, (str, int, bool)):
         return value
     return str(value)
 

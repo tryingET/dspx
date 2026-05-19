@@ -2844,6 +2844,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3157",
+          "title": "Harden generation packet JSON safety for non-finite scalars",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Harden generation packet JSON safety for non-finite scalars (task #3157)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

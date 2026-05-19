@@ -228,6 +228,17 @@ def test_designmd_visual_dossier_program_intent_name_rejects_unicode_word_traps(
     assert intent["name"].isidentifier()
 
 
+def test_designmd_visual_dossier_requirements_intake_json_safes_non_finite_scalars() -> (
+    None
+):
+    artifacts = build_generation_requirements_intake_artifacts(
+        profile="designmd-visual-dossier",
+        requirements=_designmd_requirements_packet(authority={"value": float("nan")}),
+    )
+
+    assert artifacts["target_contract"]["identity"]["requirements_packet_sha256"]
+
+
 def test_designmd_visual_dossier_requirements_freshness_ignores_empty_stale_reasons() -> (
     None
 ):
