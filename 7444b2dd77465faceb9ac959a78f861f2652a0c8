@@ -1,0 +1,25 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "7444b2dd77465faceb9ac959a78f861f2652a0c8"
+created_at: "2026-05-19T02:44:47Z"
+intent: "Add optional DesignMD visual dossier prepare intent generation for native DSPx program-gen follow-on"
+files:
+  - "governance/work-items.json"
+  - "packages/dspx-core/src/dspx/cli/dspx.py"
+  - "packages/dspx-core/src/dspx/services/program_generation_contract.py"
+  - "tests/test_program_generation_contract.py"
+  - "tests/test_program_generation_contract_cli.py"
+validation:
+  fast_gate:
+    command: "uv run pytest tests/test_program_generation_contract.py tests/test_program_generation_contract_cli.py -q && uv run ruff check packages/dspx-core/src/dspx/services/program_generation_contract.py packages/dspx-core/src/dspx/cli/dspx.py tests/test_program_generation_contract.py tests/test_program_generation_contract_cli.py"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Bridge DesignMD requirements prepare to one-command intent creation without adding a separate review process."
+links:
+  task_ids:
+    - 3149
