@@ -78,6 +78,12 @@ rollout preflight / rollout receipt -> still required before generated-program r
 canonical mutation -> still forbidden without a separate owner acceptance path
 ```
 
+## Dependency-intelligence review-program posture
+
+DSPx's program-gen, target-contract, fitness-suite, execution-episode, receipt/replay, Oracle evidence, jury, review, decision-record, comparison, and status sidecar machinery is suitable for dependency-intelligence review-program generation when dependency evidence contracts are supplied by owner repos. DSPx's role is to materialize, run, evaluate, replay, and interpret generated review programs. It does not own dependency classifications, depmodel semantics, exploitability states, removal authority, remediation decisions, disclosure approval, merge approval, or release approval.
+
+A passed target-fidelity or fitness result for a dependency-intelligence review program means eligible for downstream evidence review only. It does not grant dependency truth or source-owner acceptance.
+
 ## Product maturity map
 
 | Area | Current posture | Target posture | Main gap | Proof of closure |

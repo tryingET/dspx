@@ -15,8 +15,11 @@ Its long-horizon product promise is simple:
 
 > A user should be able to state one intent and receive a runnable, evaluated, replayable DSPy program assembly whose behavior can be inspected, compared, improved, and governed.
 
+For dependency-intelligence work, this means DSPx may generate and evaluate rerunnable DSPy review programs that consume owner-supplied dependency evidence packets, target contracts, and fitness suites, then emit replayable review evidence. DSPx does not own dependency semantics, dependency-removal authority, exploitability claims, or remediation decisions.
+
 DSPx should be able to:
 - normalize a user intent into explicit candidate surfaces,
+- generate domain-bounded review programs, including dependency-intelligence review programs, from explicit target contracts and owner-supplied evidence schemas,
 - assemble signatures, modules, programs, prompts, configuration, and evaluation harnesses into runnable candidate assemblies,
 - execute those assemblies under explicit runtime and dataset conditions,
 - emit replayable receipts and traces by default,
@@ -65,6 +68,7 @@ DSPx is not:
 7. **Oracle interprets behavior, not authority** — Oracle may derive phenotypes, patterns, drift, territory, attractors, and frontiers from evidence, but it does not silently approve policy or promotion.
 8. **Governance stays explicit** — review, approval, activation, and promotion must remain separate and named.
 9. **Search engines are internal tools, not the architecture** — optimization/search mechanisms such as GEPA are replaceable; evidence and authority boundaries are not.
+10. **Domain semantics stay with their owners** — generated programs may operationalize owner-supplied contracts and evidence schemas, but DSPx must not redefine dependency classifications, visualization meaning, vulnerability applicability states, removal authority, or remediation policy.
 
 ## Architecture direction
 
@@ -87,6 +91,7 @@ Service boundaries should follow from those objects:
 - `program-gen` should become the candidate-assembly orchestrator for program-shaped systems rather than a permanent duplicate mini-generator,
 - `optimize`/GEPA should act as bounded search and reflection engines inside the runtime,
 - Oracle should interpret accumulated behavioral evidence without becoming governance authority.
+- dependency-intelligence review programs should consume dep-diet, dep-viz, dep-redteam, and runtime-trace-insights evidence contracts as inputs, while leaving dependency semantics and state transitions with those source-owner repos.
 
 ## What this implies right now
 
