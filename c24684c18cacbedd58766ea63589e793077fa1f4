@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "c24684c18cacbedd58766ea63589e793077fa1f4"
+created_at: "2026-05-19T05:59:49Z"
+intent: "Choose DesignMD/DSPx visual dossier evidence custody model"
+files:
+  - "docs/project/2026-05-19-designmd-visual-dossier-integration-research.md"
+  - "docs/project/operational_goals.md"
+  - "next_session_prompt.md"
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict && ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json && ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Select packet export plus imported evidence viewer as target path and seed review-only UI/API design task."
+links:
+  task_ids:
+    - 3170
