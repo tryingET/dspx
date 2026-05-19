@@ -2926,14 +2926,15 @@
         {
           "id": "AK-TASK-3173",
           "title": "Plan: split DesignMD DSPx visual dossier implementation tasks",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Plan: split DesignMD DSPx visual dossier implementation tasks (task #3173)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

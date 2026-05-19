@@ -17,8 +17,9 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 - `IW-DV-01-DISCOVERY` is complete; discovery artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-discovery.md`.
 - `IW-DV-02-RESEARCH` is complete; research artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-research.md`.
 - `IW-DV-03-DESIGN` is complete; design artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-design.md`.
-- The next work wave is `IW-DV-04-PLAN`: split DesignMD and DSPx owner implementation tasks.
-- Live execution anchor: `AK-3173` — Plan: split DesignMD DSPx visual dossier implementation tasks.
+- `IW-DV-04-PLAN` is complete; implementation plan artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-plan.md`.
+- The next work wave is `IW-DV-05-IMPLEMENT-PACKET-UX`: implement packet export UX in DesignMD Foundry.
+- No repo-scoped implementation slice is currently pinned in AK for DSPx; create/claim the DesignMD Foundry task from `/home/tryinget/ai-society/softwareco/owned/designmd-foundry` before mutation.
 - The current DSPx-side foothold is complete: `program-gen prepare --profile designmd-visual-dossier` can normalize a DesignMD requirements packet into native gate artifacts, optionally emit a `program-intent-v2`, materialize a bounded candidate assembly, and produce traceability / fitness-results evidence. These artifacts remain review evidence only and do not mutate DesignMD, AK/society authority, or production programs.
 - Later strategy waves are already staged in AK direction: `IW-DV-02-RESEARCH`, `IW-DV-03-DESIGN`, `IW-DV-04-PLAN`, `IW-DV-05-IMPLEMENT-PACKET-UX`, `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE`, and `IW-DV-07-IMPLEMENT-ORCHESTRATION`.
 
@@ -42,7 +43,7 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `AK-3173` is the current repo-scoped ready planning task for the DesignMD visual-source dossier integration strategy.
+- DSPx planning is complete through `IW-DV-04-PLAN`; next implementation is cross-repo in DesignMD Foundry, not a DSPx mutation.
 - Do not jump straight to UI orchestration; the orchestration bridge remains optional until a later explicit decision widens execution custody.
 - Do not treat repeated governed policy-evaluation receipts, repeated promotion-eligibility nominations, or repeated human review decisions as de facto live policy authority.
 - Keep the `AK-1085` candidate-assembly / execution-episode / receipt-bundle runtime semantics closed unless a smaller follow-up proves a regression or explicitly widens the contract.
