@@ -226,15 +226,62 @@ accepted_contract_truth
 production_activation
 ```
 
-## First implementation slice
+## Current operator flow
 
-The next implementation slice should not start with full program generation.
-It should implement the smallest DSPx-native pre-generation review path:
+The implemented flow is DSPx-native and intentionally keeps operator UX at
+"prepare generation" rather than exposing three separate pre-generation
+ceremonies.
 
-1. Parse or ingest a saved `designmd.dspx-visual-dossier-requirements.v1` packet.
-2. Validate required identity, freshness, role, fixture, and authority fields.
-3. Emit `generation_blocked: insufficient_target_contract` for incomplete packets.
-4. Emit a target-protocol review report when the packet is complete enough for fixture binding.
-5. Add the adversarial fixture manifest skeleton.
+```bash
+dspx program-gen prepare \
+  --profile designmd-visual-dossier \
+  --requirements /path/to/designmd-dspx-requirements.json \
+  --outdir /tmp/dspx-designmd-gate \
+  --intent-out /tmp/dspx-designmd-intent.yaml \
+  --json
+```
 
-Only after that slice passes should DSPx consider a generated candidate assembly.
+`prepare` ingests a saved `designmd.dspx-visual-dossier-requirements.v1`
+packet, validates required identity/freshness/role/fixture/authority fields,
+and writes DSPx-native gate artifacts:
+
+- `generation_target_contract.json`
+- `generation_fitness_suite.json`
+- `generation_gate_preflight.json`
+- optionally, with `--intent-out`, a minimal `program-intent-v2` YAML for the
+  follow-on native `program-gen` command
+
+Incomplete packets fail closed through the same native preflight surface:
+
+```text
+generation_blocked: insufficient_target_contract
+```
+
+When `generation_allowed: true`, follow-on candidate generation still goes
+through the normal DSPx program-gen path:
+
+```bash
+dspx program-gen \
+  --intent /tmp/dspx-designmd-intent.yaml \
+  --outdir /tmp/dspx-designmd-program \
+  --generation-gate-preflight /tmp/dspx-designmd-gate/generation_gate_preflight.json \
+  --print-manifest
+
+dspx program-gen traceability \
+  --manifest /tmp/dspx-designmd-program/manifest.json \
+  --target-contract /tmp/dspx-designmd-gate/generation_target_contract.json \
+  --out /tmp/dspx-designmd-gate/generation_traceability.json \
+  --json
+
+dspx program-gen fitness-results \
+  --manifest /tmp/dspx-designmd-program/manifest.json \
+  --target-contract /tmp/dspx-designmd-gate/generation_target_contract.json \
+  --fitness-suite /tmp/dspx-designmd-gate/generation_fitness_suite.json \
+  --traceability /tmp/dspx-designmd-gate/generation_traceability.json \
+  --out /tmp/dspx-designmd-gate/generation_fitness_results.json \
+  --json
+```
+
+These outputs remain review evidence only. They do not mutate DesignMD state,
+approve dossier guidance, create AK/society authority, or activate production
+programs.

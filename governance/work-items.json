@@ -2792,6 +2792,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3151",
+          "title": "Document DesignMD visual dossier prepare-to-program flow",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Document DesignMD visual dossier prepare-to-program flow (task #3151)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }
