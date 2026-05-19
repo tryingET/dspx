@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-18",
+  "updated_at": "2026-05-19",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -2727,6 +2727,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-18"
+        },
+        {
+          "id": "AK-TASK-3139",
+          "title": "Implement DesignMD visual-dossier requirements packet pre-generation review",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Implement DesignMD visual-dossier requirements packet pre-generation review (task #3139)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

@@ -13,6 +13,12 @@ GEN_FITNESS_SUITE_SCHEMA = "gen-fitness-suite-v1"
 GEN_GENERATION_GATE_PREFLIGHT_SCHEMA = "gen-generation-gate-preflight-v1"
 GEN_TRACEABILITY_SCHEMA = "gen-traceability-v1"
 GEN_FITNESS_RESULTS_SCHEMA = "gen-fitness-results-v1"
+DESIGNMD_VISUAL_DOSSIER_REQUIREMENTS_SCHEMA = (
+    "designmd.dspx-visual-dossier-requirements.v1"
+)
+DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA = (
+    "dspx.designmd.visual-dossier-target-protocol-review.v1"
+)
 
 GEN_TARGET_CONTRACT_VALIDATION_SCHEMA = "gen-target-contract-validation-v1"
 GEN_FITNESS_SUITE_VALIDATION_SCHEMA = "gen-fitness-suite-validation-v1"
@@ -928,6 +934,152 @@ def validate_generation_fitness_results(payload: Mapping[str, Any]) -> dict[str,
         status=status,
         reasons=sorted(set(reasons)),
     )
+
+
+def validate_designmd_visual_dossier_requirements_packet(
+    packet: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Validate DesignMD visual-dossier requirements as DSPx intake only."""
+
+    reasons: list[str] = []
+    if packet.get("schemaVersion") != DESIGNMD_VISUAL_DOSSIER_REQUIREMENTS_SCHEMA:
+        reasons.append("invalid_schema_version")
+
+    for key in ("id", "projectId", "sourceId", "analysisRunId", "dossierDraftId"):
+        if not _first_text(packet.get(key)):
+            reasons.append(f"missing_{key}")
+
+    owner_boundary = _safe_mapping(packet.get("ownerBoundary"))
+    if owner_boundary.get("dspxOwnsTargetProtocol") is not True:
+        reasons.append("missing_dspx_owner_boundary")
+    if owner_boundary.get("noProgramGenExecution") is not True:
+        reasons.append("missing_no_program_gen_execution_boundary")
+
+    input_refs = _safe_mapping(packet.get("inputRefs"))
+    for key in ("sourceIndexSha256", "designMdSha256", "designMdCurrentSha256"):
+        if not _first_text(input_refs.get(key)):
+            reasons.append(f"missing_{key}")
+    if input_refs.get("sourceIndexSchema") != "designmd.visual-source-index.v1":
+        reasons.append("missing_visual_source_index_schema")
+    if input_refs.get("dossierDraftSchema") != "designmd.dossier-draft.v1":
+        reasons.append("missing_dossier_draft_schema")
+
+    freshness = _safe_mapping(input_refs.get("freshness"))
+    if not freshness:
+        reasons.append("missing_freshness")
+    else:
+        freshness_text = json.dumps(freshness, sort_keys=True).lower()
+        if "stale" in freshness_text:
+            reasons.append("stale_input_refs")
+
+    required_lists = {
+        "requiredTargetProtocolContent": "missing_target_protocol_requirements",
+        "requiredOutputSchemas": "missing_required_output_schemas",
+        "roleCoverage": "missing_role_coverage",
+        "fixtureRequirements": "missing_fixture_requirements",
+        "fitnessGates": "missing_fitness_gates",
+        "failClosedBlockers": "missing_fail_closed_blockers",
+        "forbiddenClaims": "missing_forbidden_claims",
+    }
+    for key, reason in required_lists.items():
+        if not _string_list(packet.get(key)):
+            reasons.append(reason)
+
+    accepted_posture = set(_string_list(packet.get("acceptedOutputPosture")))
+    if accepted_posture != {"proposal_context", "review_evidence"}:
+        reasons.append("invalid_accepted_output_posture")
+
+    forbidden_claims = set(_string_list(packet.get("forbiddenClaims")))
+    for claim in ("accepted_contract_truth", "reviewed_dossier_guidance"):
+        if claim not in forbidden_claims:
+            reasons.append(f"missing_forbidden_claim:{claim}")
+
+    authority_text = json.dumps(packet.get("authority", {}), sort_keys=True).lower()
+    if (
+        "mutate design.md" not in authority_text
+        and "mutates design.md" not in authority_text
+    ):
+        reasons.append("missing_designmd_non_mutation_authority_statement")
+
+    status = "blocked" if reasons else "valid"
+    return _validation_payload(
+        schema_version="designmd-visual-dossier-requirements-validation-v1",
+        status=status,
+        reasons=sorted(set(reasons)),
+    )
+
+
+def build_designmd_visual_dossier_target_protocol_review(
+    packet: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build a non-mutating DSPx review packet for DesignMD requirements intake."""
+
+    validation = validate_designmd_visual_dossier_requirements_packet(packet)
+    reasons = list(validation.get("fail_closed_reasons") or [])
+    ready = validation.get("status") == "valid"
+    return {
+        "schema_version": DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA,
+        "status": "target_contract_review_ready" if ready else "generation_blocked",
+        "generation_allowed": False,
+        "fail_closed_reasons": []
+        if ready
+        else reasons or ["insufficient_target_contract"],
+        "requirements_validation": validation,
+        "incoming_packet": {
+            "schemaVersion": packet.get("schemaVersion"),
+            "id": packet.get("id"),
+            "projectId": packet.get("projectId"),
+            "sourceId": packet.get("sourceId"),
+            "analysisRunId": packet.get("analysisRunId"),
+            "dossierDraftId": packet.get("dossierDraftId"),
+            "sourceIndexSha256": _safe_mapping(packet.get("inputRefs")).get(
+                "sourceIndexSha256"
+            ),
+            "designMdSha256": _safe_mapping(packet.get("inputRefs")).get(
+                "designMdSha256"
+            ),
+            "designMdCurrentSha256": _safe_mapping(packet.get("inputRefs")).get(
+                "designMdCurrentSha256"
+            ),
+        },
+        "target_contract": {
+            "id": "dspx.designmd.visual-dossier-target-protocol.v1",
+            "contract_document": "docs/project/designmd-visual-dossier-target-protocol-contract.md",
+            "required_next_state": "target_protocol_contract_verified",
+        },
+        "fixture_manifest_skeleton": {
+            "schema_version": "dspx.designmd.visual-dossier-fixture-manifest.v1",
+            "minimum_cases": [
+                "missing_or_stale_design_md_hash",
+                "missing_source_index_hash",
+                "partial_image_inventory",
+                "mixed_generated_and_operator_images",
+                "external_reference_copy_risk_lure",
+                "ambiguous_component_claim_without_visible_evidence",
+                "dossier_contradicts_current_design_md",
+                "prompt_pack_direct_style_cloning",
+                "role_output_collapse_into_generic_summary",
+                "candidate_attempts_designmd_mutation",
+            ],
+        },
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+            "provider_called": False,
+            "shared_oracle_mutated": False,
+        },
+        "verifier_guarantee": "designmd_requirements_packet_shape_and_boundary_only",
+        "verifier_non_guarantee": "program_generation_target_protocol_fitness_or_designmd_acceptance",
+    }
 
 
 def write_generation_json(payload: Mapping[str, Any], out: Path) -> dict[str, Any]:

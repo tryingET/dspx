@@ -4,11 +4,15 @@ import json
 from pathlib import Path
 
 from dspx.services.program_generation_contract import (
+    DESIGNMD_VISUAL_DOSSIER_REQUIREMENTS_SCHEMA,
+    DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA,
     GEN_GENERATION_GATE_PREFLIGHT_SCHEMA,
     GEN_TARGET_CONTRACT_SCHEMA,
+    build_designmd_visual_dossier_target_protocol_review,
     build_generation_fitness_results,
     build_generation_gate_preflight,
     build_generation_traceability,
+    validate_designmd_visual_dossier_requirements_packet,
     validate_generation_fitness_results,
     validate_generation_fitness_suite,
     validate_generation_target_contract,
@@ -77,6 +81,46 @@ def _base_contract(**overrides):
     return payload
 
 
+def _designmd_requirements_packet(**overrides):
+    payload = {
+        "schemaVersion": DESIGNMD_VISUAL_DOSSIER_REQUIREMENTS_SCHEMA,
+        "id": "vdspx_test",
+        "projectId": "default",
+        "sourceId": "vsrc_test",
+        "analysisRunId": "vrun_test",
+        "dossierDraftId": "vdossier_test",
+        "generatedAt": "2026-05-18T00:00:00.000Z",
+        "ownerBoundary": {
+            "designmdMayDefineRequirements": True,
+            "dspxOwnsTargetProtocol": True,
+            "noProgramGenExecution": True,
+            "statement": "DSPx owner surface must own/review target protocol and program-gen.",
+        },
+        "inputRefs": {
+            "sourceIndexSchema": "designmd.visual-source-index.v1",
+            "analysisRunSchema": "designmd.analysis-run.v1",
+            "dossierDraftSchema": "designmd.dossier-draft.v1",
+            "sourceIndexSha256": "source-sha",
+            "designMdSha256": "design-sha",
+            "designMdCurrentSha256": "design-sha",
+            "freshness": {"status": "current"},
+        },
+        "requiredTargetProtocolContent": ["Authority statements"],
+        "requiredOutputSchemas": ["designmd.component-inventory.v1"],
+        "roleCoverage": ["visual designer"],
+        "fixtureRequirements": ["stale DESIGN.md hash case"],
+        "fitnessGates": ["DSPx target-protocol owner review"],
+        "failClosedBlockers": ["Candidate attempts to mutate DESIGN.md"],
+        "acceptedOutputPosture": ["proposal_context", "review_evidence"],
+        "forbiddenClaims": ["accepted_contract_truth", "reviewed_dossier_guidance"],
+        "authority": {
+            "statement": "Does not mutate DESIGN.md or create AK/society authority."
+        },
+    }
+    payload.update(overrides)
+    return payload
+
+
 def _base_suite(**overrides):
     payload = {
         "schema_version": "gen-fitness-suite-v1",
@@ -99,6 +143,44 @@ def _base_suite(**overrides):
     }
     payload.update(overrides)
     return payload
+
+
+def test_designmd_visual_dossier_requirements_review_is_intake_only() -> None:
+    packet = _designmd_requirements_packet()
+
+    validation = validate_designmd_visual_dossier_requirements_packet(packet)
+    review = build_designmd_visual_dossier_target_protocol_review(packet)
+
+    assert validation["status"] == "valid"
+    assert review["schema_version"] == DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA
+    assert review["status"] == "target_contract_review_ready"
+    assert review["generation_allowed"] is False
+    assert review["effect"]["candidate_files_mutated"] is False
+    assert review["effect"]["provider_called"] is False
+    assert (
+        "candidate_attempts_designmd_mutation"
+        in review["fixture_manifest_skeleton"]["minimum_cases"]
+    )
+    assert review["verifier_non_guarantee"] == (
+        "program_generation_target_protocol_fitness_or_designmd_acceptance"
+    )
+
+
+def test_designmd_visual_dossier_requirements_blocks_incomplete_packet() -> None:
+    packet = _designmd_requirements_packet(
+        inputRefs={"sourceIndexSchema": "designmd.visual-source-index.v1"},
+        roleCoverage=[],
+        acceptedOutputPosture=["accepted_contract_truth"],
+    )
+
+    validation = validate_designmd_visual_dossier_requirements_packet(packet)
+    review = build_designmd_visual_dossier_target_protocol_review(packet)
+
+    assert validation["status"] == "blocked"
+    assert review["status"] == "generation_blocked"
+    assert review["generation_allowed"] is False
+    assert "missing_sourceIndexSha256" in review["fail_closed_reasons"]
+    assert "invalid_accepted_output_posture" in review["fail_closed_reasons"]
 
 
 def test_valid_target_bound_contract_allows_target_fidelity_claim() -> None:

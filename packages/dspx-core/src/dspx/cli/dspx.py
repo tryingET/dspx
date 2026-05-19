@@ -497,6 +497,42 @@ def program_gen_target_contract(
         raise typer.Exit(code=2)
 
 
+@program_gen_app.command("designmd-visual-dossier-review")
+def program_gen_designmd_visual_dossier_review(
+    requirements: Path = typer.Option(
+        ...,
+        "--requirements",
+        help="Path to designmd.dspx-visual-dossier-requirements.v1 JSON/YAML packet",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Write DSPx DesignMD visual-dossier target-protocol review packet here",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print review JSON"),
+) -> None:
+    """Review DesignMD visual-dossier requirements before any DSPx generation."""
+    from dspx.services.program_generation_contract import (
+        build_designmd_visual_dossier_target_protocol_review,
+        load_generation_target_contract,
+        write_generation_json,
+    )
+
+    if not requirements.exists():
+        typer.echo(f"Error: requirements file not found: {requirements}", err=True)
+        raise typer.Exit(code=2)
+    try:
+        packet = load_generation_target_contract(requirements)
+        review = build_designmd_visual_dossier_target_protocol_review(packet)
+        write_generation_json(review, out)
+    except Exception as exc:
+        typer.echo(f"Error: DesignMD visual-dossier review failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    _echo_generation_payload(review, json_out=json_out, out=out)
+    if review.get("status") == "generation_blocked":
+        raise typer.Exit(code=2)
+
+
 @program_gen_app.command("fitness-suite")
 def program_gen_fitness_suite(
     target_contract: Path = typer.Option(

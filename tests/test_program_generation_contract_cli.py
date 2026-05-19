@@ -12,6 +12,103 @@ runner = CliRunner()
 FIXTURE_INTENT = Path("tests/fixtures/program_gen/pdf_transition/intent.yaml")
 
 
+def _designmd_requirements_packet() -> dict:
+    return {
+        "schemaVersion": "designmd.dspx-visual-dossier-requirements.v1",
+        "id": "vdspx_cli",
+        "projectId": "default",
+        "sourceId": "vsrc_cli",
+        "analysisRunId": "vrun_cli",
+        "dossierDraftId": "vdossier_cli",
+        "generatedAt": "2026-05-18T00:00:00.000Z",
+        "ownerBoundary": {
+            "designmdMayDefineRequirements": True,
+            "dspxOwnsTargetProtocol": True,
+            "noProgramGenExecution": True,
+            "statement": "DSPx owner surface must own/review target protocol.",
+        },
+        "inputRefs": {
+            "sourceIndexSchema": "designmd.visual-source-index.v1",
+            "analysisRunSchema": "designmd.analysis-run.v1",
+            "dossierDraftSchema": "designmd.dossier-draft.v1",
+            "sourceIndexSha256": "source-sha",
+            "designMdSha256": "design-sha",
+            "designMdCurrentSha256": "design-sha",
+            "freshness": {"status": "current"},
+        },
+        "requiredTargetProtocolContent": ["Authority statements"],
+        "requiredOutputSchemas": ["designmd.component-inventory.v1"],
+        "roleCoverage": ["visual designer"],
+        "fixtureRequirements": ["stale DESIGN.md hash case"],
+        "fitnessGates": ["DSPx target-protocol owner review"],
+        "failClosedBlockers": ["Candidate attempts to mutate DESIGN.md"],
+        "acceptedOutputPosture": ["proposal_context", "review_evidence"],
+        "forbiddenClaims": ["accepted_contract_truth", "reviewed_dossier_guidance"],
+        "authority": {"statement": "Does not mutate DESIGN.md."},
+    }
+
+
+def test_program_gen_designmd_visual_dossier_review_cli_is_non_generation(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "designmd_requirements.json"
+    out = tmp_path / "designmd_review.json"
+    requirements.write_text(
+        json.dumps(_designmd_requirements_packet()), encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "designmd-visual-dossier-review",
+            "--requirements",
+            str(requirements),
+            "--out",
+            str(out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == (
+        "dspx.designmd.visual-dossier-target-protocol-review.v1"
+    )
+    assert payload["status"] == "target_contract_review_ready"
+    assert payload["generation_allowed"] is False
+    assert payload["effect"]["candidate_files_mutated"] is False
+    assert out.exists()
+
+
+def test_program_gen_designmd_visual_dossier_review_cli_blocks_incomplete_packet(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "designmd_requirements.json"
+    out = tmp_path / "designmd_review.json"
+    requirements.write_text(json.dumps({"schemaVersion": "wrong"}), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "designmd-visual-dossier-review",
+            "--requirements",
+            str(requirements),
+            "--out",
+            str(out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "generation_blocked"
+    assert payload["generation_allowed"] is False
+    assert "invalid_schema_version" in payload["fail_closed_reasons"]
+    assert out.exists()
+
+
 def test_program_gen_target_fidelity_cli_preflight_and_gated_generation(
     tmp_path: Path,
 ) -> None:
