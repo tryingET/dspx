@@ -14,8 +14,9 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 ## Active operating slices
 
 - AK-native direction now pins `SF-DESIGNMD-VDOS` as the active strategic frame for DesignMD visual-source dossier DSPx product integration.
-- The next work wave is `IW-DV-01-DISCOVERY`: map current DesignMD UI/API visual-source dossier flows, DSPx prepare/program-gen artifacts, execution outputs, authority boundaries, and missing seams before product design.
-- Live execution anchor: `AK-3164` — Discovery: map DesignMD visual dossier UI/API and DSPx evidence seams.
+- `IW-DV-01-DISCOVERY` is complete; discovery artifact: `docs/project/2026-05-19-designmd-visual-dossier-integration-discovery.md`.
+- The next work wave is `IW-DV-02-RESEARCH`: choose the DesignMD / DSPx orchestration and evidence custody model.
+- Live execution anchor: `AK-3170` — Research: choose DesignMD DSPx evidence custody model.
 - The current DSPx-side foothold is complete: `program-gen prepare --profile designmd-visual-dossier` can normalize a DesignMD requirements packet into native gate artifacts, optionally emit a `program-intent-v2`, materialize a bounded candidate assembly, and produce traceability / fitness-results evidence. These artifacts remain review evidence only and do not mutate DesignMD, AK/society authority, or production programs.
 - Later strategy waves are already staged in AK direction: `IW-DV-02-RESEARCH`, `IW-DV-03-DESIGN`, `IW-DV-04-PLAN`, `IW-DV-05-IMPLEMENT-PACKET-UX`, `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE`, and `IW-DV-07-IMPLEMENT-ORCHESTRATION`.
 
@@ -39,8 +40,8 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 
 ## Notes
 
-- `AK-3164` is the current repo-scoped ready discovery task for the DesignMD visual-source dossier integration strategy.
-- Do not skip discovery/research/design and jump straight to UI orchestration; the orchestration bridge remains optional until `IW-DV-02-RESEARCH` and `IW-DV-03-DESIGN` settle custody, security, and authority boundaries.
+- `AK-3170` is the current repo-scoped ready research task for the DesignMD visual-source dossier integration strategy.
+- Do not skip research/design and jump straight to UI orchestration; the orchestration bridge remains optional until `IW-DV-02-RESEARCH` and `IW-DV-03-DESIGN` settle custody, security, and authority boundaries.
 - Do not treat repeated governed policy-evaluation receipts, repeated promotion-eligibility nominations, or repeated human review decisions as de facto live policy authority.
 - Keep the `AK-1085` candidate-assembly / execution-episode / receipt-bundle runtime semantics closed unless a smaller follow-up proves a regression or explicitly widens the contract.
 - Keep the `AK-835` config/runtime/policy/registry/refine/receipt/task-scope hardening boundaries closed unless a smaller follow-up explicitly proves a regression.

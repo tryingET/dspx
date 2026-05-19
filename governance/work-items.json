@@ -2874,14 +2874,15 @@
         {
           "id": "AK-TASK-3164",
           "title": "Discovery: map DesignMD visual dossier UI/API and DSPx evidence seams",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Discovery: map DesignMD visual dossier UI/API and DSPx evidence seams (task #3164)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         },
         {
           "id": "AK-TASK-3169",
@@ -2895,6 +2896,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3170",
+          "title": "Research: choose DesignMD DSPx evidence custody model",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Research: choose DesignMD DSPx evidence custody model (task #3170)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
