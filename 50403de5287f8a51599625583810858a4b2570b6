@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "50403de5287f8a51599625583810858a4b2570b6"
+created_at: "2026-05-19T03:02:06Z"
+intent: "Harden DesignMD prepare generated program intent class names"
+files:
+  - "governance/work-items.json"
+  - "packages/dspx-core/src/dspx/services/program_generation_contract.py"
+  - "tests/test_program_generation_contract.py"
+validation:
+  fast_gate:
+    command: "uv run pytest tests/test_program_generation_contract.py tests/test_program_generation_contract_cli.py -q && uv run ruff check packages/dspx-core/src/dspx/services/program_generation_contract.py tests/test_program_generation_contract.py"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Ensure DesignMD source ids with punctuation or leading digits cannot create invalid program intent names."
+links:
+  task_ids:
+    - 3154
