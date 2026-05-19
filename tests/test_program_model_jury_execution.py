@@ -1,0 +1,206 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+from typing import Any, Mapping
+
+from typer.testing import CliRunner
+
+from dspx.cli.dspx import app
+from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_service import materialize_program_from_intent
+from dspx.services import program_model_jury_execution as model_jury
+
+runner = CliRunner()
+
+
+def _file_hashes(root: Path) -> dict[str, str]:
+    return {
+        str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def _setup_env(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+
+
+def _materialize_program(tmp_path: Path, monkeypatch) -> Path:
+    _setup_env(tmp_path, monkeypatch)
+    intent = ProgramIntent(
+        name="DesignReviewProgram",
+        objective="Extract DesignMD visual dossier evidence.",
+        inputs=["visual_source_packet_json"],
+        outputs=["role_findings_json", "component_inventory_json"],
+        metric="exact_match",
+        constraints=[
+            "preserve observed inferred unverified labels",
+            "do not claim design acceptance",
+        ],
+        examples=[
+            {
+                "inputs": {"visual_source_packet_json": '{"image_count": 1}'},
+                "outputs": {
+                    "role_findings_json": "{}",
+                    "component_inventory_json": "{}",
+                },
+            }
+        ],
+        jury={
+            "selection_model": "perspective_balanced_explicit_pool",
+            "minimum_jurors": 2,
+            "perspectives": ["role_coverage", "authority_boundaries"],
+            "jurors": [
+                {
+                    "id": "role_coverage_agent",
+                    "model": "stub",
+                    "provider": "stub",
+                    "perspective": "role_coverage",
+                },
+                {
+                    "id": "authority_agent",
+                    "model": "stub",
+                    "provider": "stub",
+                    "perspective": "authority_boundaries",
+                },
+            ],
+        },
+    )
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    return Path(artifact.root_path)
+
+
+def _fake_provider(provider: str | None = None) -> dict[str, Any]:
+    return {"status": "configured", "provider": provider or "stub"}
+
+
+def _fake_juror_model(
+    *,
+    juror: Mapping[str, Any],
+    rubric: Mapping[str, Any],
+    candidate_identity: Mapping[str, Any],
+    evidence_json: str,
+    adjudicator: Mapping[str, Any],
+) -> dict[str, Any]:
+    assert candidate_identity["schema_version"] == "program-candidate-assembly-v1"
+    assert "candidate_id" in candidate_identity["identity"]
+    assert "component_inventory" in evidence_json
+    assert adjudicator["repo"] == "calisthenics-ai-coach"
+    perspective = str(juror.get("perspective"))
+    return {
+        "outcome": "request_more_evidence"
+        if perspective == "role_coverage"
+        else "withhold",
+        "rationale": f"{perspective} needs explicit review before acceptance.",
+        "evidence_strengths": ["evidence was supplied"],
+        "concerns": ["not accepted authority"],
+        "improvement_requests": [f"improve {perspective}"],
+        "confidence": "medium",
+        "rubric_seen": rubric.get("juror_id"),
+    }
+
+
+def test_model_jury_service_calls_provider_backed_jurors_without_mutating_candidate(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    extra_evidence = tmp_path / "component_inventory_json"
+    extra_evidence.write_text(
+        json.dumps(
+            {
+                "schemaVersion": "designmd.component-inventory.v1",
+                "items": [{"name": "WorkoutCameraPanel"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    before = _file_hashes(program_root)
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", _fake_juror_model)
+
+    payload = model_jury.build_program_model_jury_execution_result(
+        manifest_path=program_root / "manifest.json",
+        evidence_paths=[extra_evidence],
+        provider="stub",
+        adjudicator_repo="calisthenics-ai-coach",
+    )
+
+    assert payload["schema_version"] == "program-model-jury-results-v1"
+    assert payload["status"] == "executed"
+    assert payload["jury"]["execution_mode"] == "provider_backed_model"
+    assert payload["jury"]["provider_backed_model_calls"] is True
+    assert payload["adjudicator"] == {
+        "id": "target_repo_product_manager_agent",
+        "kind": "target_repo_product_manager_agent",
+        "repo": "calisthenics-ai-coach",
+        "authority": "downstream_domain_review_recommendation_only",
+        "promotion_authority": False,
+    }
+    assert payload["evidence"]["default_behavior"]["present"] is True
+    assert payload["evidence"]["extra_evidence_count"] == 1
+    assert len(payload["juror_results"]) == 2
+    assert {item["status"] for item in payload["juror_results"]} == {"judged"}
+    assert payload["aggregate"]["judgment_counts"]["request_more_evidence"] == 1
+    assert payload["aggregate"]["judgment_counts"]["withhold"] == 1
+    assert payload["aggregate"]["recommendation"] == "request_more_evidence"
+    assert (
+        "improve role_coverage" in payload["aggregate"]["unique_improvement_requests"]
+    )
+    assert payload["effect"]["program_files_mutated"] is False
+    assert _file_hashes(program_root) == before
+
+
+def test_program_promote_model_jury_cli_writes_sidecar(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    extra_evidence = tmp_path / "role_findings_json"
+    extra_evidence.write_text(
+        json.dumps(
+            {
+                "schemaVersion": "designmd.role-findings.bundle.v1",
+                "roles": [{"role": "visual designer", "findings": []}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    out_path = tmp_path / "promotion" / "model_jury_results.json"
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", _fake_juror_model)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "model-jury",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--evidence",
+            str(extra_evidence),
+            "--provider",
+            "stub",
+            "--adjudicator-repo",
+            "calisthenics-ai-coach",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert out_path.exists()
+    assert json.loads(out_path.read_text(encoding="utf-8")) == payload
+    assert payload["schema_version"] == "program-model-jury-results-v1"
+    assert payload["created_from"]["evidence_paths"] == [str(extra_evidence.resolve())]
+    assert payload["adjudicator"]["repo"] == "calisthenics-ai-coach"
+    assert payload["non_authority"]["promotion_approval"] is False

@@ -2974,6 +2974,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3246",
+          "title": "Add model-backed generated-program jury execution",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add model-backed generated-program jury execution (task #3246)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

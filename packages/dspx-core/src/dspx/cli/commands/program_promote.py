@@ -98,6 +98,87 @@ def jury(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("model-jury")
+def model_jury(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to program-gen manifest.json",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the provider-backed model jury results sidecar should be written",
+    ),
+    evidence: list[Path] = typer.Option(
+        [],
+        "--evidence",
+        help="Additional runtime/extraction evidence file or directory to include (repeatable)",
+    ),
+    provider: str | None = typer.Option(
+        None,
+        "--provider",
+        help="Provider for juror model calls (defaults to DSPX_PROVIDER, then dspy-lm-auth)",
+    ),
+    adjudicator_id: str = typer.Option(
+        "target_repo_product_manager_agent",
+        "--adjudicator-id",
+        help="Downstream adjudicator id to bind in the sidecar",
+    ),
+    adjudicator_kind: str = typer.Option(
+        "target_repo_product_manager_agent",
+        "--adjudicator-kind",
+        help="Downstream adjudicator kind for product/domain review routing",
+    ),
+    adjudicator_repo: str | None = typer.Option(
+        None,
+        "--adjudicator-repo",
+        help="Owning target repo for the downstream adjudicator, when known",
+    ),
+    max_jurors: int | None = typer.Option(
+        None,
+        "--max-jurors",
+        help="Optional bounded number of selected jurors to execute",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print model jury results JSON"
+    ),
+) -> None:
+    """Run provider-backed model jury deliberation without promotion authority."""
+    from dspx.cli.utils import ensure_env
+    from dspx.services.program_model_jury_execution import (
+        ProgramModelJuryExecutionError,
+        build_program_model_jury_execution_result,
+        write_program_model_jury_execution_result,
+    )
+
+    try:
+        ensure_env(provider)
+        result = build_program_model_jury_execution_result(
+            manifest_path=manifest,
+            evidence_paths=evidence,
+            provider=provider,
+            adjudicator_id=adjudicator_id,
+            adjudicator_kind=adjudicator_kind,
+            adjudicator_repo=adjudicator_repo,
+            max_jurors=max_jurors,
+        )
+        payload = write_program_model_jury_execution_result(result, out)
+    except ProgramModelJuryExecutionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: provider-backed model jury execution failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("plan")
 def plan(
     manifest: Path = typer.Option(

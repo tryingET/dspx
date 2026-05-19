@@ -569,6 +569,35 @@ Expected JSON facts:
 
 This command writes only the requested `jury_results.json` sidecar. It reads already-generated evidence only: it does not mutate the candidate, does not mutate `promotion_review.json` or `promotion_review_refined.json`, does not generate a new candidate, does not run example/dataset/model-jury/topology/custom-module execution, does not create an Oracle index, does not call external models, does not require provider auth, does not introduce or broaden `eval_behavior.py`, and does not rank, select winners, promote, approve, export authority, mutate AK, or mutate governance.
 
+## 12a. Optional explicit provider-backed model jury
+
+If the program has generated review/extraction artifacts that should be judged by the selected jury perspectives, run a provider-backed model jury explicitly:
+
+```bash
+DSPX_PROVIDER=dspy-lm-auth \
+uv run -q python -m dspx.cli.dspx program-promote model-jury \
+  --manifest "$TD/program/manifest.json" \
+  --evidence "$TD/runtime-episode/role_findings_json" \
+  --evidence "$TD/runtime-episode/component_inventory_json" \
+  --adjudicator-kind target_repo_product_manager_agent \
+  --adjudicator-id target_repo_product_manager_agent \
+  --adjudicator-repo calisthenics-ai-coach \
+  --out "$TD/promotion/model_jury_results.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: program-model-jury-results-v1`
+- `jury.execution_mode: provider_backed_model`
+- `jury.provider_backed_model_calls: true`
+- `adjudicator` records the downstream target/domain reviewer that should receive the critique, for example a target-repo product-manager agent
+- `juror_results` contains one model-backed judgment per selected juror, with outcome, rationale, concerns, and `improvement_requests`
+- `aggregate` summarizes blocking concerns and unique improvement requests
+- `effect` and `non_authority` confirm no candidate mutation, promotion, AK mutation, governance mutation, Oracle mutation, or external-authority apply
+
+This is the first executable model-jury layer. It still does not improve files in place or approve promotion. Use the resulting `improvement_requests` as explicit evidence for a later refinement/rerun pass, then route the result to the declared target-repo adjudicator.
+
 ## 13. Optional explicit local adjudicator decision record
 
 If you want to record an explicit local operator/adjudicator decision against the refined packet, write a separate decision sidecar:
