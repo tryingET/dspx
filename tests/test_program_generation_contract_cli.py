@@ -79,6 +79,106 @@ def test_program_gen_prepare_cli_emits_native_gate_artifacts(tmp_path: Path) -> 
     assert outdir.joinpath("generation_gate_preflight.json").exists()
 
 
+def test_program_gen_prepare_cli_can_write_intent_and_run_follow_on_gate(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "designmd_requirements.json"
+    gate_dir = tmp_path / "prepared"
+    intent = tmp_path / "designmd_intent.yaml"
+    program_dir = tmp_path / "program"
+    traceability = tmp_path / "generation_traceability.json"
+    fitness_results = tmp_path / "generation_fitness_results.json"
+    requirements.write_text(
+        json.dumps(_designmd_requirements_packet()), encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "prepare",
+            "--profile",
+            "designmd-visual-dossier",
+            "--requirements",
+            str(requirements),
+            "--outdir",
+            str(gate_dir),
+            "--intent-out",
+            str(intent),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["generation_gate_preflight"]["generation_allowed"] is True
+    assert payload["paths"]["program_intent"] == str(intent.resolve())
+    assert intent.exists()
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(intent),
+            "--outdir",
+            str(program_dir),
+            "--generation-gate-preflight",
+            str(gate_dir / "generation_gate_preflight.json"),
+            "--print-manifest",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    manifest = json.loads(result.stdout)
+    assert manifest["schema_version"] == "program-candidate-assembly-v1"
+    assert program_dir.joinpath("manifest.json").exists()
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "traceability",
+            "--manifest",
+            str(program_dir / "manifest.json"),
+            "--target-contract",
+            str(gate_dir / "generation_target_contract.json"),
+            "--out",
+            str(traceability),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["schema_version"] == "gen-traceability-v1"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "fitness-results",
+            "--manifest",
+            str(program_dir / "manifest.json"),
+            "--target-contract",
+            str(gate_dir / "generation_target_contract.json"),
+            "--fitness-suite",
+            str(gate_dir / "generation_fitness_suite.json"),
+            "--traceability",
+            str(traceability),
+            "--out",
+            str(fitness_results),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    fitness_payload = json.loads(result.stdout)
+    assert fitness_payload["status"] == "fitness_passed"
+    assert fitness_payload["rendered_state"] == (
+        "eligible_for_downstream_evidence_review"
+    )
+
+
 def test_program_gen_requirements_intake_cli_emits_native_gate_artifacts(
     tmp_path: Path,
 ) -> None:

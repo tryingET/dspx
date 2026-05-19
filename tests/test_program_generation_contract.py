@@ -7,6 +7,7 @@ from dspx.services.program_generation_contract import (
     DESIGNMD_VISUAL_DOSSIER_REQUIREMENTS_SCHEMA,
     GEN_GENERATION_GATE_PREFLIGHT_SCHEMA,
     GEN_TARGET_CONTRACT_SCHEMA,
+    build_designmd_visual_dossier_program_intent_from_requirements,
     build_designmd_visual_dossier_target_contract_from_requirements,
     build_generation_fitness_results,
     build_generation_gate_preflight,
@@ -180,6 +181,30 @@ def test_designmd_visual_dossier_requirements_intake_builds_native_gate_artifact
     assert artifacts["generation_gate_preflight"]["generation_allowed"] is True
     assert artifacts["verifier_non_guarantee"] == (
         "semantic_truth_domain_acceptance_or_production_activation"
+    )
+
+
+def test_designmd_visual_dossier_requirements_build_minimal_program_intent() -> None:
+    packet = _designmd_requirements_packet()
+    intent = build_designmd_visual_dossier_program_intent_from_requirements(packet)
+    artifacts = build_generation_requirements_intake_artifacts(
+        profile="designmd-visual-dossier",
+        requirements=packet,
+        include_intent=True,
+    )
+
+    assert intent["schema_version"] == "program-intent-v2"
+    assert intent["task_type"] == "single_module"
+    assert "visual_source_packet_json" in intent["inputs"]
+    assert "receipt_bundle_json" in intent["outputs"]
+    assert "visual designer" in intent["options"]["role_coverage"]
+    assert intent["options"]["accepted_output_posture"] == [
+        "proposal_context",
+        "review_evidence",
+    ]
+    assert "program_intent" in artifacts
+    assert artifacts["program_intent"]["options"]["requirements_profile"] == (
+        "designmd-visual-dossier"
     )
 
 

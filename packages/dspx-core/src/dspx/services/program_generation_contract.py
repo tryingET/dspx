@@ -1120,8 +1120,169 @@ def build_designmd_visual_dossier_target_contract_from_requirements(
     return _payload_with_identity_hash(payload, identity_key="contract_sha256")
 
 
+def build_designmd_visual_dossier_program_intent_from_requirements(
+    packet: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build a minimal one-intent program spec from a DesignMD requirements packet.
+
+    The intent is a convenience bridge for the native DSPx program-gen path. It is
+    not a DesignMD review process and carries the same review-evidence-only
+    authority boundary as the generated gate artifacts.
+    """
+
+    required_outputs = _string_list(packet.get("requiredOutputSchemas"))
+    role_coverage = _string_list(packet.get("roleCoverage"))
+    fixture_requirements = _string_list(packet.get("fixtureRequirements"))
+    fail_closed = _string_list(packet.get("failClosedBlockers"))
+    forbidden_claims = _string_list(packet.get("forbiddenClaims"))
+    protocol_content = _string_list(packet.get("requiredTargetProtocolContent"))
+    input_refs = _safe_mapping(packet.get("inputRefs"))
+    source_id = _first_text(packet.get("sourceId")) or "designmd_visual_source"
+    dossier_id = _first_text(packet.get("dossierDraftId")) or "designmd_dossier"
+    name = f"DesignmdVisualDossier{_slug(source_id, default='Source').replace('-', '_')}Program"
+    constraints = [
+        "Consume DesignMD visual-dossier requirements as requirements intake only.",
+        "Emit review evidence and proposal context only; never approve dossier guidance.",
+        "Do not mutate DESIGN.md, docs/design, DesignMD source/dossier records, AK, governance state, or production programs.",
+        "Bind outputs to supplied sourceIndexSha256 and designMdCurrentSha256.",
+        "Preserve static-image inference labels: observed, inferred, and unverified.",
+        "Every component, role finding, synthesis claim, prompt-pack recommendation, and dossier section must carry traceability to source observations or explicit uncertainty.",
+        "Block direct style-copy instructions and flag external-reference imitation risks.",
+        *[f"Required target-protocol content: {item}" for item in protocol_content],
+        *[f"Forbidden claim: {item}" for item in forbidden_claims],
+        *[f"Fail-closed blocker: {item}" for item in fail_closed],
+    ]
+    return {
+        "schema_version": "program-intent-v2",
+        "name": name,
+        "objective": (
+            "Generate a bounded DSPx candidate assembly for DesignMD visual-source "
+            "dossier analysis that consumes visual-source/dossier packets, emits "
+            "role findings, component inventory, synthesis, optional prompt-pack "
+            "guidance, dossier markdown, traceability, and receipt evidence without "
+            "mutating DesignMD or claiming domain acceptance."
+        ),
+        "task_type": "single_module",
+        "inputs": [
+            "visual_source_packet_json",
+            "dossier_requirements_json",
+            "designmd_context_json",
+        ],
+        "outputs": [
+            "role_findings_json",
+            "component_inventory_json",
+            "synthesis_coverage_gaps_json",
+            "prompt_packs_json",
+            "dossier_markdown_json",
+            "traceability_matrix_json",
+            "receipt_bundle_json",
+        ],
+        "input_fields": [
+            {
+                "name": "visual_source_packet_json",
+                "type": "str",
+                "desc": "JSON packet for the DesignMD visual source, source index, image inventory, provenance, and static-image labels.",
+            },
+            {
+                "name": "dossier_requirements_json",
+                "type": "str",
+                "desc": "JSON DesignMD dspx visual-dossier requirements packet used as requirements intake only.",
+            },
+            {
+                "name": "designmd_context_json",
+                "type": "str",
+                "desc": "Read-only current DESIGN.md hash/context, sourceIndexSha256, dossier id, and review boundary metadata.",
+            },
+        ],
+        "output_fields": [
+            {
+                "name": "role_findings_json",
+                "type": "str",
+                "desc": "JSON role-specific findings preserving Design Core role coverage and uncertainty labels.",
+            },
+            {
+                "name": "component_inventory_json",
+                "type": "str",
+                "desc": "JSON component inventory with source-image traceability and observed/inferred/unverified labels.",
+            },
+            {
+                "name": "synthesis_coverage_gaps_json",
+                "type": "str",
+                "desc": "JSON synthesis and coverage-gap packet grounded in role findings and component inventory.",
+            },
+            {
+                "name": "prompt_packs_json",
+                "type": "str",
+                "desc": "JSON image-generation prompt guidance when applicable, including copy-risk checks and transformation-only wording.",
+            },
+            {
+                "name": "dossier_markdown_json",
+                "type": "str",
+                "desc": "JSON representation of dossier markdown-builder output for review evidence only.",
+            },
+            {
+                "name": "traceability_matrix_json",
+                "type": "str",
+                "desc": "JSON matrix connecting source images, role findings, components, synthesis, prompts, and dossier sections.",
+            },
+            {
+                "name": "receipt_bundle_json",
+                "type": "str",
+                "desc": "JSON execution receipt bundle with non-authority statement and output hashes.",
+            },
+        ],
+        "constraints": constraints,
+        "metric": "exact_match",
+        "jury": {
+            "selection_model": "perspective_balanced_explicit_pool",
+            "minimum_jurors": 8,
+            "perspectives": [
+                "source_traceability",
+                "role_coverage",
+                "component_inventory_fidelity",
+                "static_image_uncertainty",
+                "copy_risk_safety",
+                "authority_boundaries",
+                "dossier_markdown_completeness",
+                "review_evidence_readiness",
+            ],
+        },
+        "promotion": {
+            "external_authority": {
+                "refs": [
+                    {
+                        "system": "designmd-foundry",
+                        "ref": "review_evidence_only_no_designmd_mutation",
+                        "role": "proposal_context_not_acceptance",
+                    }
+                ]
+            }
+        },
+        "options": {
+            "scenario_name": "designmd-visual-dossier-program-gen",
+            "requirements_profile": "designmd-visual-dossier",
+            "requirements_packet_schema": packet.get("schemaVersion"),
+            "requirements_packet_sha256": _sha256_payload(packet),
+            "project_id": packet.get("projectId"),
+            "source_id": source_id,
+            "dossier_draft_id": dossier_id,
+            "analysis_run_id": packet.get("analysisRunId"),
+            "source_index_sha256": input_refs.get("sourceIndexSha256"),
+            "design_md_sha256": input_refs.get("designMdSha256"),
+            "design_md_current_sha256": input_refs.get("designMdCurrentSha256"),
+            "required_output_schemas": required_outputs,
+            "role_coverage": role_coverage,
+            "fixture_requirements": fixture_requirements,
+            "accepted_output_posture": _string_list(
+                packet.get("acceptedOutputPosture")
+            ),
+            "non_authority_statement": "DSPx outputs are proposal_context or review_evidence only; they do not mutate DESIGN.md, approve docs/design, create AK/society authority, or activate production programs.",
+        },
+    }
+
+
 def build_generation_requirements_intake_artifacts(
-    *, profile: str, requirements: Mapping[str, Any]
+    *, profile: str, requirements: Mapping[str, Any], include_intent: bool = False
 ) -> dict[str, Any]:
     """Normalize external requirements into DSPx-native gate artifacts."""
 
@@ -1147,7 +1308,7 @@ def build_generation_requirements_intake_artifacts(
         generation_gate_preflight["status"] = "generation_blocked"
         generation_gate_preflight["generation_allowed"] = False
         generation_gate_preflight["fail_closed_reasons"] = reasons
-    return {
+    out = {
         "schema_version": GEN_REQUIREMENTS_INTAKE_SCHEMA,
         "profile": profile,
         "requirements_validation": requirements_validation,
@@ -1157,6 +1318,11 @@ def build_generation_requirements_intake_artifacts(
         "verifier_guarantee": "requirements_normalized_to_dspx_native_generation_gate_artifacts",
         "verifier_non_guarantee": "semantic_truth_domain_acceptance_or_production_activation",
     }
+    if include_intent and requirements_validation.get("status") == "valid":
+        out["program_intent"] = (
+            build_designmd_visual_dossier_program_intent_from_requirements(requirements)
+        )
+    return out
 
 
 def write_generation_json(payload: Mapping[str, Any], out: Path) -> dict[str, Any]:
@@ -1164,6 +1330,14 @@ def write_generation_json(payload: Mapping[str, Any], out: Path) -> dict[str, An
     out_path.parent.mkdir(parents=True, exist_ok=True)
     data = dict(payload)
     out_path.write_text(_json_text(data), encoding="utf-8")
+    return data
+
+
+def write_generation_yaml(payload: Mapping[str, Any], out: Path) -> dict[str, Any]:
+    out_path = out.expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    data = dict(payload)
+    out_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     return data
 
 

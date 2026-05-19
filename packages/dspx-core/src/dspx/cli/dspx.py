@@ -498,19 +498,20 @@ def program_gen_target_contract(
 
 
 def _run_program_gen_requirements_intake(
-    *, profile: str, requirements: Path, outdir: Path
+    *, profile: str, requirements: Path, outdir: Path, intent_out: Path | None = None
 ) -> dict[str, Any]:
     from dspx.services.program_generation_contract import (
         build_generation_requirements_intake_artifacts,
         load_generation_target_contract,
         write_generation_json,
+        write_generation_yaml,
     )
 
     if not requirements.exists():
         raise FileNotFoundError(f"requirements file not found: {requirements}")
     packet = load_generation_target_contract(requirements)
     artifacts = build_generation_requirements_intake_artifacts(
-        profile=profile, requirements=packet
+        profile=profile, requirements=packet, include_intent=intent_out is not None
     )
     outdir_resolved = outdir.expanduser().resolve()
     outdir_resolved.mkdir(parents=True, exist_ok=True)
@@ -520,16 +521,21 @@ def _run_program_gen_requirements_intake(
     write_generation_json(artifacts["target_contract"], target_contract_path)
     write_generation_json(artifacts["fitness_suite"], fitness_suite_path)
     write_generation_json(artifacts["generation_gate_preflight"], preflight_path)
+    paths = {
+        "target_contract": str(target_contract_path),
+        "fitness_suite": str(fitness_suite_path),
+        "generation_gate_preflight": str(preflight_path),
+    }
+    if intent_out is not None and "program_intent" in artifacts:
+        intent_path = intent_out.expanduser().resolve()
+        write_generation_yaml(artifacts["program_intent"], intent_path)
+        paths["program_intent"] = str(intent_path)
     return {
         "schema_version": artifacts["schema_version"],
         "profile": profile,
         "requirements_validation": artifacts["requirements_validation"],
         "generation_gate_preflight": artifacts["generation_gate_preflight"],
-        "paths": {
-            "target_contract": str(target_contract_path),
-            "fitness_suite": str(fitness_suite_path),
-            "generation_gate_preflight": str(preflight_path),
-        },
+        "paths": paths,
         "verifier_guarantee": artifacts["verifier_guarantee"],
         "verifier_non_guarantee": artifacts["verifier_non_guarantee"],
     }
@@ -552,6 +558,11 @@ def program_gen_prepare(
         "--outdir",
         help="Directory for prepared generation gate artifacts",
     ),
+    intent_out: Optional[Path] = typer.Option(
+        None,
+        "--intent-out",
+        help="Optionally write a minimal program-intent-v2 YAML for follow-on program-gen",
+    ),
     json_out: bool = typer.Option(
         False, "--json", help="Print preparation summary JSON"
     ),
@@ -559,7 +570,10 @@ def program_gen_prepare(
     """Prepare DSPx-native generation gate artifacts from external requirements."""
     try:
         summary = _run_program_gen_requirements_intake(
-            profile=profile, requirements=requirements, outdir=outdir
+            profile=profile,
+            requirements=requirements,
+            outdir=outdir,
+            intent_out=intent_out,
         )
     except Exception as exc:
         typer.echo(f"Error: generation preparation failed: {exc}", err=True)

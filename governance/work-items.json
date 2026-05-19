@@ -2779,6 +2779,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3149",
+          "title": "Add DesignMD visual dossier prepare intent generation",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add DesignMD visual dossier prepare intent generation (task #3149)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }
