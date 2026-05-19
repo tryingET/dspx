@@ -2952,14 +2952,15 @@
         {
           "id": "AK-TASK-3176",
           "title": "Plan imported DSPx visual dossier evidence viewer",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Plan imported DSPx visual dossier evidence viewer (task #3176)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

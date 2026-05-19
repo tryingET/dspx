@@ -32,9 +32,9 @@ Do not ask for permission to start.
 - Latest repo-local learning: `docs/learnings/2026-02-28-receipt-v2-phase-c.md`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-3176` and plan the imported DSPx visual-dossier evidence viewer for `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE`.
+- Objective (one sentence): Repo-scoped ready queue is empty in DSPx; move to DesignMD Foundry and create/claim the imported DSPx evidence viewer implementation task.
 - Constraints (hard limits): Keep DSPx outputs review-evidence-only; do not mutate DesignMD `DESIGN.md`, mark dossier guidance accepted, create AK/society authority from DSPx artifacts, or add an orchestration bridge before a later explicit decision widens execution custody.
-- Assumptions (max 3): DesignMD packet export UX landed in commit `ab8e325`; imported evidence viewer is next; orchestration remains deferred.
+- Assumptions (max 3): DesignMD packet export UX landed in commit `ab8e325`; imported evidence viewer plan is complete at `docs/project/2026-05-19-designmd-visual-dossier-evidence-viewer-plan.md`; orchestration remains deferred.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -52,7 +52,7 @@ Do not ask for permission to start.
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the repo-scoped ready queue with `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If imported evidence viewer planning is already complete, re-check AK direction before selecting a follow-on; do not skip directly to orchestration.
+3. If imported evidence viewer implementation is already complete, re-check AK direction before selecting a follow-on; do not skip directly to orchestration.
 4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
 5. Execute at most one operating slice end-to-end.
 6. Validate truthfully with:
@@ -62,12 +62,12 @@ Do not ask for permission to start.
 7. Refresh source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: DesignMD `AK-3174` plus DSPx `AK-3175` — landed packet export UX in DesignMD Foundry and recorded completion in the DSPx strategy.
-- Outcome: DesignMD commit `ab8e325` adds the review-only DSPx requirements export panel; `IW-DV-05-IMPLEMENT-PACKET-UX` is done and `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE` is next.
-- Files changed: `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: DesignMD `npm test && npm run typecheck && npm run lint:design && npm run smoke:web` ✅; DesignMD agent-prompt/css exports ✅; DSPx `ak direction check`, `ak work-items check`, and `./scripts/ci/smoke.sh` pending after this handoff refresh.
-- Source-of-truth updates: marked `IW-DV-05-IMPLEMENT-PACKET-UX` done; promoted `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE` to next; seeded `AK-3176` as the imported-evidence viewer planning task; refreshed projections.
-- Next-session starting point: claim `AK-3176` and plan imported DSPx evidence viewer storage/schema/review-record details before implementation.
+- Slice executed: `AK-3176` — planned imported DSPx visual-dossier evidence viewer storage/schema/review-record behavior.
+- Outcome: plan artifact landed at `docs/project/2026-05-19-designmd-visual-dossier-evidence-viewer-plan.md`; next implementation belongs in DesignMD Foundry.
+- Files changed: `docs/project/2026-05-19-designmd-visual-dossier-evidence-viewer-plan.md`, `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict` pending; `ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json` pending; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` pending; `./scripts/ci/smoke.sh` pending after this handoff refresh.
+- Source-of-truth updates: completed `AK-3176`; marked `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE` planning done; refreshed the checked-in AK projection.
+- Next-session starting point: switch to `/home/tryinget/ai-society/softwareco/owned/designmd-foundry`, inspect dirty release-automation files, create/claim a scoped DesignMD AK task for imported DSPx evidence viewer, and implement without touching unrelated dirty files.
 
 ## END-OF-SESSION
 Run `/commit` only if the repo is validation-clean and the handoff reflects the real checkpoint; otherwise preserve the truthful handoff and leave commit/closeout for the isolated slice.
