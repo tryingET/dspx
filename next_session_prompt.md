@@ -32,9 +32,9 @@ Do not ask for permission to start.
 - Latest repo-local learning: `docs/learnings/2026-02-28-receipt-v2-phase-c.md`
 
 ## SESSION PREFLIGHT (FILL BEFORE EXECUTION)
-- Objective (one sentence): Claim `AK-3170` and choose the DesignMD / DSPx orchestration and evidence custody model for the `SF-DESIGNMD-VDOS` strategy.
-- Constraints (hard limits): Keep DSPx outputs review-evidence-only; do not mutate DesignMD `DESIGN.md`, mark dossier guidance accepted, create AK/society authority from DSPx artifacts, or add an orchestration bridge before research/design settles custody and authority boundaries.
-- Assumptions (max 3): DSPx-side prepare/program-gen/traceability/fitness flow is executable; DesignMD currently exposes requirements packet generation but not UI/program-gen orchestration; `IW-DV-02-RESEARCH` is the active next wave.
+- Objective (one sentence): Claim `AK-3171` and freeze the DesignMD-facing review-only UI/API contract for DSPx packet export and imported evidence.
+- Constraints (hard limits): Keep DSPx outputs review-evidence-only; do not mutate DesignMD `DESIGN.md`, mark dossier guidance accepted, create AK/society authority from DSPx artifacts, or add an orchestration bridge before a later explicit design decision widens execution custody.
+- Assumptions (max 3): Research selected packet export plus imported evidence viewer as the target path; packet UX should land before evidence import; `IW-DV-03-DESIGN` is the active next wave.
 - Blockers (none or list): none.
 
 ## READ-FIRST ALLOWLIST (STARTUP BUDGET)
@@ -52,7 +52,7 @@ Do not ask for permission to start.
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
 1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
 2. Confirm the repo-scoped ready queue with `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
-3. If the DesignMD dossier research task is no longer ready, re-check AK direction before selecting a follow-on; do not skip directly to orchestration.
+3. If the DesignMD dossier design task is no longer ready, re-check AK direction before selecting a follow-on; do not skip directly to orchestration.
 4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
 5. Execute at most one operating slice end-to-end.
 6. Validate truthfully with:
@@ -62,12 +62,12 @@ Do not ask for permission to start.
 7. Refresh source-of-truth docs/diary/ADR references before commit.
 
 ## SESSION CHECKPOINT (UPDATE BEFORE /commit)
-- Slice executed: `AK-3164` — completed discovery across DesignMD visual-source UI/API and DSPx prepare/program-gen evidence seams.
-- Outcome: discovery artifact landed at `docs/project/2026-05-19-designmd-visual-dossier-integration-discovery.md`; `IW-DV-01-DISCOVERY` is done, `IW-DV-02-RESEARCH` is next, and `AK-3170` is the repo-scoped research execution task.
-- Files changed: `docs/project/2026-05-19-designmd-visual-dossier-integration-discovery.md`, `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: `node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict` ✅; `ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json` ✅; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` ✅; `./scripts/ci/smoke.sh` pending after this handoff refresh.
-- Source-of-truth updates: completed `AK-3164`; marked `IW-DV-01-DISCOVERY` done; promoted `IW-DV-02-RESEARCH` to next; seeded `AK-3170` as the research task; refreshed the checked-in AK projection.
-- Next-session starting point: claim `AK-3170` and decide packet-only vs prepare-only vs full-orchestration evidence custody before design/implementation.
+- Slice executed: `AK-3170` — completed research on DesignMD / DSPx evidence custody and orchestration options.
+- Outcome: research artifact landed at `docs/project/2026-05-19-designmd-visual-dossier-integration-research.md`; selected packet export plus imported evidence viewer as the target path; `IW-DV-02-RESEARCH` is done, `IW-DV-03-DESIGN` is next, and `AK-3171` is the repo-scoped design execution task.
+- Files changed: `docs/project/2026-05-19-designmd-visual-dossier-integration-research.md`, `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
+- Validation commands + results: `node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict` pending; `ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json` pending; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` pending; `./scripts/ci/smoke.sh` pending after this handoff refresh.
+- Source-of-truth updates: completed `AK-3170`; marked `IW-DV-02-RESEARCH` done; promoted `IW-DV-03-DESIGN` to next; seeded `AK-3171` as the design task; refreshed the checked-in AK projection.
+- Next-session starting point: claim `AK-3171` and freeze the review-only UI/API contract before implementing packet UX.
 
 ## END-OF-SESSION
 Run `/commit` only if the repo is validation-clean and the handoff reflects the real checkpoint; otherwise preserve the truthful handoff and leave commit/closeout for the isolated slice.

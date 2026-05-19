@@ -2900,10 +2900,23 @@
         {
           "id": "AK-TASK-3170",
           "title": "Research: choose DesignMD DSPx evidence custody model",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "Research: choose DesignMD DSPx evidence custody model (task #3170)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3171",
+          "title": "Design: freeze DesignMD DSPx review-only UI/API contract",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "Design: freeze DesignMD DSPx review-only UI/API contract (task #3171)",
               "done": false
             }
           ],
