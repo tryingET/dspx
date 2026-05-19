@@ -2740,6 +2740,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3141",
+          "title": "Refactor DesignMD requirements intake into generic DSPx program-gen gate artifacts",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Refactor DesignMD requirements intake into generic DSPx program-gen gate artifacts (task #3141)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

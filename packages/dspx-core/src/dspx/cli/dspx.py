@@ -497,23 +497,28 @@ def program_gen_target_contract(
         raise typer.Exit(code=2)
 
 
-@program_gen_app.command("designmd-visual-dossier-review")
-def program_gen_designmd_visual_dossier_review(
+@program_gen_app.command("requirements-intake")
+def program_gen_requirements_intake(
+    profile: str = typer.Option(
+        ...,
+        "--profile",
+        help="Requirements adapter profile, for example designmd-visual-dossier",
+    ),
     requirements: Path = typer.Option(
         ...,
         "--requirements",
-        help="Path to designmd.dspx-visual-dossier-requirements.v1 JSON/YAML packet",
+        help="Path to an external repo requirements packet JSON/YAML file",
     ),
-    out: Path = typer.Option(
+    outdir: Path = typer.Option(
         ...,
-        "--out",
-        help="Write DSPx DesignMD visual-dossier target-protocol review packet here",
+        "--outdir",
+        help="Directory for generation_target_contract.json, generation_fitness_suite.json, and generation_gate_preflight.json",
     ),
-    json_out: bool = typer.Option(False, "--json", help="Print review JSON"),
+    json_out: bool = typer.Option(False, "--json", help="Print intake summary JSON"),
 ) -> None:
-    """Review DesignMD visual-dossier requirements before any DSPx generation."""
+    """Normalize external requirements into DSPx-native generation gate artifacts."""
     from dspx.services.program_generation_contract import (
-        build_designmd_visual_dossier_target_protocol_review,
+        build_generation_requirements_intake_artifacts,
         load_generation_target_contract,
         write_generation_json,
     )
@@ -523,13 +528,35 @@ def program_gen_designmd_visual_dossier_review(
         raise typer.Exit(code=2)
     try:
         packet = load_generation_target_contract(requirements)
-        review = build_designmd_visual_dossier_target_protocol_review(packet)
-        write_generation_json(review, out)
+        artifacts = build_generation_requirements_intake_artifacts(
+            profile=profile, requirements=packet
+        )
+        outdir_resolved = outdir.expanduser().resolve()
+        outdir_resolved.mkdir(parents=True, exist_ok=True)
+        target_contract_path = outdir_resolved / "generation_target_contract.json"
+        fitness_suite_path = outdir_resolved / "generation_fitness_suite.json"
+        preflight_path = outdir_resolved / "generation_gate_preflight.json"
+        write_generation_json(artifacts["target_contract"], target_contract_path)
+        write_generation_json(artifacts["fitness_suite"], fitness_suite_path)
+        write_generation_json(artifacts["generation_gate_preflight"], preflight_path)
+        summary = {
+            "schema_version": artifacts["schema_version"],
+            "profile": profile,
+            "requirements_validation": artifacts["requirements_validation"],
+            "generation_gate_preflight": artifacts["generation_gate_preflight"],
+            "paths": {
+                "target_contract": str(target_contract_path),
+                "fitness_suite": str(fitness_suite_path),
+                "generation_gate_preflight": str(preflight_path),
+            },
+            "verifier_guarantee": artifacts["verifier_guarantee"],
+            "verifier_non_guarantee": artifacts["verifier_non_guarantee"],
+        }
     except Exception as exc:
-        typer.echo(f"Error: DesignMD visual-dossier review failed: {exc}", err=True)
+        typer.echo(f"Error: requirements intake failed: {exc}", err=True)
         raise typer.Exit(code=2) from exc
-    _echo_generation_payload(review, json_out=json_out, out=out)
-    if review.get("status") == "generation_blocked":
+    _echo_generation_payload(summary, json_out=json_out, out=outdir)
+    if summary["generation_gate_preflight"].get("generation_allowed") is not True:
         raise typer.Exit(code=2)
 
 

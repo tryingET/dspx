@@ -5,12 +5,12 @@ from pathlib import Path
 
 from dspx.services.program_generation_contract import (
     DESIGNMD_VISUAL_DOSSIER_REQUIREMENTS_SCHEMA,
-    DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA,
     GEN_GENERATION_GATE_PREFLIGHT_SCHEMA,
     GEN_TARGET_CONTRACT_SCHEMA,
-    build_designmd_visual_dossier_target_protocol_review,
+    build_designmd_visual_dossier_target_contract_from_requirements,
     build_generation_fitness_results,
     build_generation_gate_preflight,
+    build_generation_requirements_intake_artifacts,
     build_generation_traceability,
     validate_designmd_visual_dossier_requirements_packet,
     validate_generation_fitness_results,
@@ -145,28 +145,45 @@ def _base_suite(**overrides):
     return payload
 
 
-def test_designmd_visual_dossier_requirements_review_is_intake_only() -> None:
+def test_designmd_visual_dossier_requirements_normalize_to_target_contract() -> None:
     packet = _designmd_requirements_packet()
 
     validation = validate_designmd_visual_dossier_requirements_packet(packet)
-    review = build_designmd_visual_dossier_target_protocol_review(packet)
+    contract = build_designmd_visual_dossier_target_contract_from_requirements(packet)
+    contract_validation = validate_generation_target_contract(contract)
 
     assert validation["status"] == "valid"
-    assert review["schema_version"] == DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA
-    assert review["status"] == "target_contract_review_ready"
-    assert review["generation_allowed"] is False
-    assert review["effect"]["candidate_files_mutated"] is False
-    assert review["effect"]["provider_called"] is False
+    assert contract["schema_version"] == GEN_TARGET_CONTRACT_SCHEMA
+    assert contract["target"]["id"] == "designmd_visual_dossier"
+    assert contract["identity"]["requirements_packet_sha256"]
     assert (
-        "candidate_attempts_designmd_mutation"
-        in review["fixture_manifest_skeleton"]["minimum_cases"]
+        "designmd.component-inventory.v1" in contract["protocol"]["artifact_families"]
     )
-    assert review["verifier_non_guarantee"] == (
-        "program_generation_target_protocol_fitness_or_designmd_acceptance"
+    assert "accepted_contract_truth" in contract["protocol"]["forbidden_shortcuts"]
+    assert contract_validation["status"] == "valid"
+
+
+def test_designmd_visual_dossier_requirements_intake_builds_native_gate_artifacts() -> (
+    None
+):
+    artifacts = build_generation_requirements_intake_artifacts(
+        profile="designmd-visual-dossier",
+        requirements=_designmd_requirements_packet(),
+    )
+
+    assert artifacts["schema_version"] == "gen-requirements-intake-v1"
+    assert artifacts["target_contract"]["schema_version"] == GEN_TARGET_CONTRACT_SCHEMA
+    assert artifacts["fitness_suite"]["schema_version"] == "gen-fitness-suite-v1"
+    assert artifacts["generation_gate_preflight"]["schema_version"] == (
+        GEN_GENERATION_GATE_PREFLIGHT_SCHEMA
+    )
+    assert artifacts["generation_gate_preflight"]["generation_allowed"] is True
+    assert artifacts["verifier_non_guarantee"] == (
+        "semantic_truth_domain_acceptance_or_production_activation"
     )
 
 
-def test_designmd_visual_dossier_requirements_blocks_incomplete_packet() -> None:
+def test_designmd_visual_dossier_requirements_intake_blocks_incomplete_packet() -> None:
     packet = _designmd_requirements_packet(
         inputRefs={"sourceIndexSchema": "designmd.visual-source-index.v1"},
         roleCoverage=[],
@@ -174,13 +191,16 @@ def test_designmd_visual_dossier_requirements_blocks_incomplete_packet() -> None
     )
 
     validation = validate_designmd_visual_dossier_requirements_packet(packet)
-    review = build_designmd_visual_dossier_target_protocol_review(packet)
+    artifacts = build_generation_requirements_intake_artifacts(
+        profile="designmd-visual-dossier", requirements=packet
+    )
+    preflight = artifacts["generation_gate_preflight"]
 
     assert validation["status"] == "blocked"
-    assert review["status"] == "generation_blocked"
-    assert review["generation_allowed"] is False
-    assert "missing_sourceIndexSha256" in review["fail_closed_reasons"]
-    assert "invalid_accepted_output_posture" in review["fail_closed_reasons"]
+    assert preflight["status"] == "generation_blocked"
+    assert preflight["generation_allowed"] is False
+    assert "missing_sourceIndexSha256" in preflight["fail_closed_reasons"]
+    assert "invalid_accepted_output_posture" in preflight["fail_closed_reasons"]
 
 
 def test_valid_target_bound_contract_allows_target_fidelity_claim() -> None:

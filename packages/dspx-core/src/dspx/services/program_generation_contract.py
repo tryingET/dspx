@@ -16,9 +16,7 @@ GEN_FITNESS_RESULTS_SCHEMA = "gen-fitness-results-v1"
 DESIGNMD_VISUAL_DOSSIER_REQUIREMENTS_SCHEMA = (
     "designmd.dspx-visual-dossier-requirements.v1"
 )
-DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA = (
-    "dspx.designmd.visual-dossier-target-protocol-review.v1"
-)
+GEN_REQUIREMENTS_INTAKE_SCHEMA = "gen-requirements-intake-v1"
 
 GEN_TARGET_CONTRACT_VALIDATION_SCHEMA = "gen-target-contract-validation-v1"
 GEN_FITNESS_SUITE_VALIDATION_SCHEMA = "gen-fitness-suite-validation-v1"
@@ -1009,58 +1007,85 @@ def validate_designmd_visual_dossier_requirements_packet(
     )
 
 
-def build_designmd_visual_dossier_target_protocol_review(
+def build_designmd_visual_dossier_target_contract_from_requirements(
     packet: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Build a non-mutating DSPx review packet for DesignMD requirements intake."""
+    """Normalize a DesignMD requirements packet into gen-target-contract-v1."""
 
-    validation = validate_designmd_visual_dossier_requirements_packet(packet)
-    reasons = list(validation.get("fail_closed_reasons") or [])
-    ready = validation.get("status") == "valid"
-    return {
-        "schema_version": DSPX_DESIGNMD_VISUAL_DOSSIER_REVIEW_SCHEMA,
-        "status": "target_contract_review_ready" if ready else "generation_blocked",
-        "generation_allowed": False,
-        "fail_closed_reasons": []
-        if ready
-        else reasons or ["insufficient_target_contract"],
-        "requirements_validation": validation,
-        "incoming_packet": {
-            "schemaVersion": packet.get("schemaVersion"),
-            "id": packet.get("id"),
-            "projectId": packet.get("projectId"),
-            "sourceId": packet.get("sourceId"),
-            "analysisRunId": packet.get("analysisRunId"),
-            "dossierDraftId": packet.get("dossierDraftId"),
-            "sourceIndexSha256": _safe_mapping(packet.get("inputRefs")).get(
-                "sourceIndexSha256"
-            ),
-            "designMdSha256": _safe_mapping(packet.get("inputRefs")).get(
-                "designMdSha256"
-            ),
-            "designMdCurrentSha256": _safe_mapping(packet.get("inputRefs")).get(
-                "designMdCurrentSha256"
-            ),
+    incoming_sha = _sha256_payload(packet)
+    input_refs = _safe_mapping(packet.get("inputRefs"))
+    protocol_requirements = _string_list(packet.get("requiredTargetProtocolContent"))
+    required_outputs = _string_list(packet.get("requiredOutputSchemas"))
+    fixture_requirements = _string_list(packet.get("fixtureRequirements"))
+    fail_closed = _string_list(packet.get("failClosedBlockers"))
+    forbidden_claims = _string_list(packet.get("forbiddenClaims"))
+    role_coverage = _string_list(packet.get("roleCoverage"))
+    payload: dict[str, Any] = {
+        "schema_version": GEN_TARGET_CONTRACT_SCHEMA,
+        "identity": {
+            "intent_sha256": incoming_sha,
+            "contract_sha256": "",
+            "validator": "dspx.gen_target_contract.v1",
+            "validator_version": "v1",
+            "requirements_packet_schema": packet.get("schemaVersion"),
+            "requirements_packet_sha256": incoming_sha,
         },
-        "target_contract": {
-            "id": "dspx.designmd.visual-dossier-target-protocol.v1",
-            "contract_document": "docs/project/designmd-visual-dossier-target-protocol-contract.md",
-            "required_next_state": "target_protocol_contract_verified",
-        },
-        "fixture_manifest_skeleton": {
-            "schema_version": "dspx.designmd.visual-dossier-fixture-manifest.v1",
-            "minimum_cases": [
-                "missing_or_stale_design_md_hash",
-                "missing_source_index_hash",
-                "partial_image_inventory",
-                "mixed_generated_and_operator_images",
-                "external_reference_copy_risk_lure",
-                "ambiguous_component_claim_without_visible_evidence",
-                "dossier_contradicts_current_design_md",
-                "prompt_pack_direct_style_cloning",
-                "role_output_collapse_into_generic_summary",
-                "candidate_attempts_designmd_mutation",
+        "target": {
+            "id": "designmd_visual_dossier",
+            "owner": "designmd-foundry",
+            "owner_refs": [
+                "designmd-foundry/docs/decisions/ADR-0006-dspx-visual-dossier-target-protocol-handoff-boundary.md",
+                "designmd-foundry/docs/design-core/dspx-visual-dossier-requirements-packet.md",
+                "dspx/docs/project/designmd-visual-dossier-target-protocol-contract.md",
             ],
+            "owner_ref_custody": "cross_repo_reference_not_publishable_without_redaction",
+            "authority_refs": [],
+        },
+        "contract_source": "structured_requirements_packet",
+        "confirmation_status": "domain_confirmed_for_generation_gate",
+        "risk_tier": "authority_adjacent",
+        "protocol": {
+            "required_stages": [
+                "validated_visual_source_packet",
+                "role_findings",
+                "component_inventory",
+                "synthesis_and_coverage_gaps",
+                "dossier_builder_traceability",
+                "review_evidence_only",
+            ],
+            "artifact_families": [
+                *required_outputs,
+                "traceability_matrix",
+                "receipt_bundle",
+                "review_evidence",
+            ],
+            "forbidden_shortcuts": [
+                *forbidden_claims,
+                *fail_closed,
+                "skip_designmd_review_record",
+                "mutate_designmd_contract",
+            ],
+        },
+        "source_policy": {
+            "provenance_required": True,
+            "language_policy": "preserve_designmd_packet_labels_and_uncertainty",
+            "source_index_sha256": input_refs.get("sourceIndexSha256"),
+            "design_md_sha256": input_refs.get("designMdSha256"),
+            "design_md_current_sha256": input_refs.get("designMdCurrentSha256"),
+        },
+        "fitness": {
+            "required_adversarial_cases": fixture_requirements
+            or fail_closed
+            or ["designmd_visual_dossier_target_protocol_regression"],
+            "role_coverage": role_coverage,
+            "requirements": protocol_requirements,
+        },
+        "requests": {
+            "adapter_materialization": True,
+            "shared_oracle_publication": False,
+            "promotion_evidence": False,
+            "export_evidence": False,
+            "activation_evidence": False,
         },
         "non_authority": {
             "activation_authority": False,
@@ -1077,8 +1102,56 @@ def build_designmd_visual_dossier_target_protocol_review(
             "provider_called": False,
             "shared_oracle_mutated": False,
         },
-        "verifier_guarantee": "designmd_requirements_packet_shape_and_boundary_only",
-        "verifier_non_guarantee": "program_generation_target_protocol_fitness_or_designmd_acceptance",
+        "profile_extension": {
+            "profile": "designmd-visual-dossier",
+            "project_id": packet.get("projectId"),
+            "source_id": packet.get("sourceId"),
+            "analysis_run_id": packet.get("analysisRunId"),
+            "dossier_draft_id": packet.get("dossierDraftId"),
+            "accepted_output_posture": _string_list(
+                packet.get("acceptedOutputPosture")
+            ),
+        },
+    }
+    return _payload_with_identity_hash(payload, identity_key="contract_sha256")
+
+
+def build_generation_requirements_intake_artifacts(
+    *, profile: str, requirements: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Normalize external requirements into DSPx-native gate artifacts."""
+
+    if profile != "designmd-visual-dossier":
+        raise ProgramGenerationContractError(
+            f"unsupported requirements profile: {profile}"
+        )
+    requirements_validation = validate_designmd_visual_dossier_requirements_packet(
+        requirements
+    )
+    target_contract = build_designmd_visual_dossier_target_contract_from_requirements(
+        requirements
+    )
+    fitness_suite = build_generation_fitness_suite_from_target_contract(target_contract)
+    generation_gate_preflight = build_generation_gate_preflight(
+        target_contract=target_contract, fitness_suite=fitness_suite
+    )
+    if requirements_validation.get("status") != "valid":
+        reasons = sorted(
+            set(generation_gate_preflight.get("fail_closed_reasons") or [])
+            | set(requirements_validation.get("fail_closed_reasons") or [])
+        )
+        generation_gate_preflight["status"] = "generation_blocked"
+        generation_gate_preflight["generation_allowed"] = False
+        generation_gate_preflight["fail_closed_reasons"] = reasons
+    return {
+        "schema_version": GEN_REQUIREMENTS_INTAKE_SCHEMA,
+        "profile": profile,
+        "requirements_validation": requirements_validation,
+        "target_contract": target_contract,
+        "fitness_suite": fitness_suite,
+        "generation_gate_preflight": generation_gate_preflight,
+        "verifier_guarantee": "requirements_normalized_to_dspx_native_generation_gate_artifacts",
+        "verifier_non_guarantee": "semantic_truth_domain_acceptance_or_production_activation",
     }
 
 
