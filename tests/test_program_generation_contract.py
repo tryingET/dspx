@@ -217,6 +217,17 @@ def test_designmd_visual_dossier_program_intent_name_is_python_identifier() -> N
     assert intent["name"].isidentifier()
 
 
+def test_designmd_visual_dossier_program_intent_name_rejects_unicode_word_traps() -> (
+    None
+):
+    intent = build_designmd_visual_dossier_program_intent_from_requirements(
+        _designmd_requirements_packet(sourceId="a²")
+    )
+
+    assert intent["name"] == "DesignmdVisualDossieraProgram"
+    assert intent["name"].isidentifier()
+
+
 def test_designmd_visual_dossier_requirements_freshness_ignores_empty_stale_reasons() -> (
     None
 ):

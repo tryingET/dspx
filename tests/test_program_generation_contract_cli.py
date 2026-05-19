@@ -82,6 +82,103 @@ def test_program_gen_prepare_cli_emits_native_gate_artifacts(tmp_path: Path) -> 
     assert outdir.joinpath("generation_gate_preflight.json").exists()
 
 
+def test_program_gen_prepare_cli_accepts_yaml_timestamp_scalars(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "designmd_requirements.yaml"
+    outdir = tmp_path / "prepared"
+    intent = tmp_path / "intent.yaml"
+    program_dir = tmp_path / "program"
+    requirements.write_text(
+        """
+schemaVersion: designmd.dspx-visual-dossier-requirements.v1
+id: vdspx_yaml
+projectId: default
+sourceId: a²
+analysisRunId: vrun_yaml
+dossierDraftId: vdossier_yaml
+generatedAt: 2026-05-18T00:00:00.000Z
+ownerBoundary:
+  designmdMayDefineRequirements: true
+  dspxOwnsTargetProtocol: true
+  noProgramGenExecution: true
+  statement: DSPx owner surface must own/review target protocol.
+inputRefs:
+  sourceIndexSchema: designmd.visual-source-index.v1
+  analysisRunSchema: designmd.analysis-run.v1
+  dossierDraftSchema: designmd.dossier-draft.v1
+  sourceIndexSha256: source-sha
+  designMdSha256: design-sha
+  designMdCurrentSha256: design-sha
+  freshness:
+    status: current
+requiredTargetProtocolContent:
+  - Authority statements
+requiredOutputSchemas:
+  - designmd.component-inventory.v1
+roleCoverage:
+  - visual designer
+fixtureRequirements:
+  - stale DESIGN.md hash case
+fitnessGates:
+  - DSPx target-protocol owner review
+failClosedBlockers:
+  - Candidate attempts to mutate DESIGN.md
+acceptedOutputPosture:
+  - proposal_context
+  - review_evidence
+forbiddenClaims:
+  - accepted_contract_truth
+  - reviewed_dossier_guidance
+authority:
+  statement: Does not mutate DESIGN.md.
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "prepare",
+            "--profile",
+            "designmd-visual-dossier",
+            "--requirements",
+            str(requirements),
+            "--outdir",
+            str(outdir),
+            "--intent-out",
+            str(intent),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["generation_gate_preflight"]["generation_allowed"] is True
+    assert outdir.joinpath("generation_target_contract.json").exists()
+    assert "DesignmdVisualDossieraProgram" in intent.read_text(encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(intent),
+            "--outdir",
+            str(program_dir),
+            "--generation-gate-preflight",
+            str(outdir / "generation_gate_preflight.json"),
+            "--print-manifest",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (
+        json.loads(result.stdout)["schema_version"] == "program-candidate-assembly-v1"
+    )
+
+
 def test_program_gen_prepare_cli_can_write_intent_and_run_follow_on_gate(
     tmp_path: Path,
 ) -> None:

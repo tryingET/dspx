@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -51,10 +52,26 @@ class ProgramGenerationContractError(ValueError):
     """Raised when generation target-fidelity contract inputs are invalid."""
 
 
+def _json_safe(value: object) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
 def _safe_mapping(value: object) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         return {}
-    return {str(key): item for key, item in value.items()}
+    return {str(key): _json_safe(item) for key, item in value.items()}
 
 
 def _safe_list(value: object) -> list[Any]:
@@ -77,12 +94,14 @@ def _first_text(*values: object) -> str | None:
 
 def _sha256_payload(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(_json_safe(payload), sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
     ).hexdigest()
 
 
 def _json_text(payload: Mapping[str, Any]) -> str:
-    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    return json.dumps(_json_safe(payload), indent=2, sort_keys=True) + "\n"
 
 
 def _load_json_or_yaml_mapping(path: Path) -> dict[str, Any]:
@@ -95,7 +114,7 @@ def _load_json_or_yaml_mapping(path: Path) -> dict[str, Any]:
         raise ProgramGenerationContractError(
             f"generation contract input must be a mapping/object: {source}"
         )
-    return {str(key): item for key, item in payload.items()}
+    return _safe_mapping(payload)
 
 
 def _sha256_file(path: Path) -> str:
@@ -110,7 +129,7 @@ def _slug(value: object, *, default: str = "case") -> str:
 def _payload_with_identity_hash(
     payload: dict[str, Any], *, identity_key: str
 ) -> dict[str, Any]:
-    data = json.loads(json.dumps(payload))
+    data = json.loads(json.dumps(_json_safe(payload)))
     identity = _safe_mapping(data.get("identity"))
     identity[identity_key] = ""
     data["identity"] = identity
@@ -996,7 +1015,9 @@ def validate_designmd_visual_dossier_requirements_packet(
         if claim not in forbidden_claims:
             reasons.append(f"missing_forbidden_claim:{claim}")
 
-    authority_text = json.dumps(packet.get("authority", {}), sort_keys=True).lower()
+    authority_text = json.dumps(
+        _json_safe(packet.get("authority", {})), sort_keys=True
+    ).lower()
     if (
         "mutate design.md" not in authority_text
         and "mutates design.md" not in authority_text
@@ -1121,11 +1142,11 @@ def build_designmd_visual_dossier_target_contract_from_requirements(
 
 
 def _program_identifier_part(value: object, *, default: str = "Source") -> str:
-    text = re.sub(r"\W+", "_", str(value or "").strip())
+    text = re.sub(r"[^A-Za-z0-9_]+", "_", str(value or "").strip())
     text = text.strip("_") or default
     if text[0].isdigit():
         text = f"_{text}"
-    return text
+    return text if text.isidentifier() else default
 
 
 def build_designmd_visual_dossier_program_intent_from_requirements(
