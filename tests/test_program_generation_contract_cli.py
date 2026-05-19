@@ -48,6 +48,37 @@ def _designmd_requirements_packet() -> dict:
     }
 
 
+def test_program_gen_prepare_cli_emits_native_gate_artifacts(tmp_path: Path) -> None:
+    requirements = tmp_path / "designmd_requirements.json"
+    outdir = tmp_path / "prepared"
+    requirements.write_text(
+        json.dumps(_designmd_requirements_packet()), encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "prepare",
+            "--profile",
+            "designmd-visual-dossier",
+            "--requirements",
+            str(requirements),
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == "gen-requirements-intake-v1"
+    assert payload["generation_gate_preflight"]["generation_allowed"] is True
+    assert outdir.joinpath("generation_target_contract.json").exists()
+    assert outdir.joinpath("generation_fitness_suite.json").exists()
+    assert outdir.joinpath("generation_gate_preflight.json").exists()
+
+
 def test_program_gen_requirements_intake_cli_emits_native_gate_artifacts(
     tmp_path: Path,
 ) -> None:

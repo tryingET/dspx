@@ -2753,6 +2753,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3144",
+          "title": "Add operator-facing program-gen prepare command for requirements intake",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add operator-facing program-gen prepare command for requirements intake (task #3144)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }
