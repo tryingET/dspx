@@ -1,0 +1,25 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "f21898e00db571d1e383ebaf443debe6b085eea0"
+created_at: "2026-05-19T02:19:17Z"
+intent: "Add operator-facing program-gen prepare command over requirements intake gate artifacts"
+files:
+  - "packages/dspx-core/src/dspx/cli/dspx.py"
+  - "tests/test_program_generation_contract_cli.py"
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "uv run pytest tests/test_program_generation_contract.py tests/test_program_generation_contract_cli.py -q && uv run ruff check packages/dspx-core/src/dspx/cli/dspx.py tests/test_program_generation_contract_cli.py"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "AK-3144 hides internal target-contract/fitness/preflight artifact split behind prepare UX"
+links:
+  task_ids:
+    - 3144
