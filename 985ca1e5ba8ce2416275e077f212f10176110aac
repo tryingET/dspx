@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "985ca1e5ba8ce2416275e077f212f10176110aac"
+created_at: "2026-05-19T02:52:08Z"
+intent: "Add realistic calicoach DesignMD requirements fixture to program-gen regression"
+files:
+  - "governance/work-items.json"
+  - "tests/fixtures/program_gen/designmd_visual_dossier/requirements_calicoach.json"
+  - "tests/test_program_generation_contract_cli.py"
+validation:
+  fast_gate:
+    command: "uv run pytest tests/test_program_generation_contract.py tests/test_program_generation_contract_cli.py -q && uv run ruff check tests/test_program_generation_contract_cli.py packages/dspx-core/src/dspx/services/program_generation_contract.py packages/dspx-core/src/dspx/cli/dspx.py"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Preserve calicoach dogfood shape as a regression fixture for prepare --intent-out and follow-on generation gates."
+links:
+  task_ids:
+    - 3153
