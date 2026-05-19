@@ -112,6 +112,90 @@ def _load_inputs(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _data_uri_from_base64(*, data: str, media_type: str) -> str:
+    raw = data.strip()
+    if raw.startswith("data:"):
+        return raw
+    return f"data:{media_type};base64,{raw}"
+
+
+def _materialize_image_descriptor(value: Mapping[str, Any], *, base_dir: Path) -> str:
+    descriptor_type = str(value.get("type") or value.get("kind") or "").strip()
+    try:
+        import dspy
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - import failure is environment-specific
+        raise RuntimeError("runtime image descriptors require dspy") from exc
+
+    if descriptor_type == "image_file":
+        raw_path = str(value.get("path") or value.get("file") or "").strip()
+        if not raw_path:
+            raise ValueError("image_file descriptor requires path")
+        candidate_path = Path(raw_path).expanduser()
+        if not candidate_path.is_absolute():
+            candidate_path = base_dir / candidate_path
+        image_path = candidate_path.resolve()
+        if not image_path.is_file():
+            raise ValueError(f"image_file path does not exist: {image_path}")
+        return str(dspy.Image(str(image_path)))
+
+    if descriptor_type == "image_base64":
+        data = str(value.get("data") or value.get("base64") or "").strip()
+        if not data:
+            raise ValueError("image_base64 descriptor requires data")
+        media_type = str(
+            value.get("media_type")
+            or value.get("mime_type")
+            or value.get("mimeType")
+            or "image/png"
+        ).strip()
+        return str(dspy.Image(_data_uri_from_base64(data=data, media_type=media_type)))
+
+    if descriptor_type == "image_url":
+        url = str(value.get("url") or value.get("image_url") or "").strip()
+        if not url:
+            raise ValueError("image_url descriptor requires url")
+        return str(dspy.Image(url))
+
+    raise ValueError(f"unsupported image descriptor type: {descriptor_type}")
+
+
+def _is_image_descriptor(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    descriptor_type = str(value.get("type") or value.get("kind") or "").strip()
+    return descriptor_type in {"image_file", "image_base64", "image_url"}
+
+
+def _materialize_runtime_input_value(value: object, *, base_dir: Path) -> Any:
+    if _is_image_descriptor(value):
+        return _materialize_image_descriptor(value, base_dir=base_dir)  # type: ignore[arg-type]
+    if isinstance(value, list):
+        materialized = [
+            _materialize_runtime_input_value(item, base_dir=base_dir) for item in value
+        ]
+        if value and all(_is_image_descriptor(item) for item in value):
+            return "\n".join(str(item) for item in materialized)
+        return materialized
+    if isinstance(value, Mapping):
+        return {
+            str(key): _materialize_runtime_input_value(item, base_dir=base_dir)
+            for key, item in value.items()
+        }
+    return value
+
+
+def _materialize_runtime_inputs(
+    runtime_inputs: Mapping[str, Any], *, inputs_path: Path
+) -> dict[str, Any]:
+    base_dir = inputs_path.expanduser().resolve().parent
+    return {
+        str(key): _materialize_runtime_input_value(item, base_dir=base_dir)
+        for key, item in runtime_inputs.items()
+    }
+
+
 @contextmanager
 def _generated_program_module(candidate_root: Path) -> Iterator[Any]:
     names = ("program", "module", "signature")
@@ -462,6 +546,9 @@ def run_program_runtime_episode(
     manifest = _validated_manifest(source_manifest_path)
     manifest_identity = _manifest_identity(manifest)
     runtime_inputs = _load_inputs(inputs_path)
+    materialized_runtime_inputs = _materialize_runtime_inputs(
+        runtime_inputs, inputs_path=inputs_path
+    )
     source_inputs_text = _json_text({"inputs": runtime_inputs})
     inputs_hash = _sha256_text(source_inputs_text)
     manifest_hash = _sha256_file(source_manifest_path)
@@ -499,7 +586,7 @@ def run_program_runtime_episode(
                 )
             program = program_module.build_program()
             prediction = program(
-                **{name: runtime_inputs[name] for name in input_fields}
+                **{name: materialized_runtime_inputs[name] for name in input_fields}
             )
             mapped = _prediction_mapping(prediction)
             for name in output_fields:

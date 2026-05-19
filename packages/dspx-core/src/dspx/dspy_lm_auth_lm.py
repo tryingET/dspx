@@ -109,6 +109,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         kwargs: dict[str, Any] | None = None,
     ) -> None:
         label = f"dspy-lm-auth/{model}"
+        supports_vision = model.startswith("codex/") or auth_provider == "codex"
         DSPyBaseLM.__init__(self, model=label, model_type="text")
         LMBase.__init__(
             self,
@@ -118,6 +119,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 json_mode=True,
                 multi_turn=True,
                 structured_output_format="json",
+                supports_vision=supports_vision,
             ),
         )
         self.requested_model = model

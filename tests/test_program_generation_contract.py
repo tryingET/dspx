@@ -196,12 +196,16 @@ def test_designmd_visual_dossier_requirements_build_minimal_program_intent() -> 
     assert intent["schema_version"] == "program-intent-v2"
     assert intent["task_type"] == "single_module"
     assert "visual_source_packet_json" in intent["inputs"]
+    assert "visual_image_blocks" in intent["inputs"]
     assert "receipt_bundle_json" in intent["outputs"]
     assert "visual designer" in intent["options"]["role_coverage"]
     assert intent["options"]["accepted_output_posture"] == [
         "proposal_context",
         "review_evidence",
     ]
+    assert any(
+        field["name"] == "visual_image_blocks" for field in intent["input_fields"]
+    )
     assert "program_intent" in artifacts
     assert artifacts["program_intent"]["options"]["requirements_profile"] == (
         "designmd-visual-dossier"

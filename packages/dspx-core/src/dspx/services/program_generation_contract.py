@@ -1200,6 +1200,7 @@ def build_designmd_visual_dossier_program_intent_from_requirements(
             "visual_source_packet_json",
             "dossier_requirements_json",
             "designmd_context_json",
+            "visual_image_blocks",
         ],
         "outputs": [
             "role_findings_json",
@@ -1225,6 +1226,11 @@ def build_designmd_visual_dossier_program_intent_from_requirements(
                 "name": "designmd_context_json",
                 "type": "str",
                 "desc": "Read-only current DESIGN.md hash/context, sourceIndexSha256, dossier id, and review boundary metadata.",
+            },
+            {
+                "name": "visual_image_blocks",
+                "type": "str",
+                "desc": "Optional serialized DSPy image markers for source screenshots/reference images, materialized from explicit program-run image descriptors. Empty string means no pixel-level image blocks supplied.",
             },
         ],
         "output_fields": [

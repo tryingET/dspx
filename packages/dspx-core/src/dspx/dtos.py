@@ -98,7 +98,7 @@ class TemplateAdapterConfig(BaseModel):
 
 class Message(BaseModel):
     role: Literal["system", "user", "assistant", "tool"]
-    content: str
+    content: Any
 
 
 class LMRequest(BaseModel):

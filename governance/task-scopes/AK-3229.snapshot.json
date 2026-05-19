@@ -1,0 +1,23 @@
+{
+  "task_id": 3229,
+  "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
+  "title": "Add DSPx DesignMD multimodal image runtime support",
+  "status": "done",
+  "entity_version": 3,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/**",
+      "governance/task-scopes/**",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "packages/dspx-core/src/dspx/dtos.py",
+      "packages/dspx-core/src/dspx/providers_register_dspy_lm_auth.py",
+      "packages/dspx-core/src/dspx/services/program_generation_contract.py",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "tests/**"
+    ],
+    "required_paths": [],
+    "forbidden_paths": []
+  },
+  "default_applies": false
+}

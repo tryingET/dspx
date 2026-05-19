@@ -8,7 +8,10 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, reset_embedding_engine
-from dspx.services.program_runtime_episode import run_program_runtime_episode
+from dspx.services.program_runtime_episode import (
+    _materialize_runtime_inputs,
+    run_program_runtime_episode,
+)
 from dspx.services.program_service import run_generate_from_intent_path
 
 runner = CliRunner()
@@ -147,6 +150,39 @@ def test_program_runtime_episode_can_write_shared_publication_preflight(
     assert packet["status"] == "ready_not_published"
     assert packet["preflight"]["identity_matches_manifest"] is True
     assert packet["effect"]["shared_oracle_mutated"] is False
+
+
+def test_runtime_input_materialization_converts_image_file_descriptors(
+    tmp_path: Path,
+) -> None:
+    image_path = tmp_path / "ref.png"
+    image_path.write_bytes(
+        bytes.fromhex(
+            "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63f8cfc00000030101c9fe92ef0000000049454e44ae426082"
+        )
+    )
+    inputs_path = tmp_path / "runtime-inputs.json"
+    inputs_path.write_text("{}\n", encoding="utf-8")
+
+    materialized = _materialize_runtime_inputs(
+        {
+            "visual_image_blocks": [
+                {"type": "image_file", "path": "ref.png"},
+                {
+                    "type": "image_url",
+                    "url": "data:image/png;base64,iVBORw0KGgo=",
+                },
+            ],
+            "text": "unchanged",
+        },
+        inputs_path=inputs_path,
+    )
+
+    assert materialized["text"] == "unchanged"
+    visual_image_blocks = materialized["visual_image_blocks"]
+    assert isinstance(visual_image_blocks, str)
+    assert visual_image_blocks.count("CUSTOM-TYPE-START-IDENTIFIER") == 2
+    assert "image_url" in visual_image_blocks
 
 
 def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:

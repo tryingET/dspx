@@ -2961,6 +2961,19 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3229",
+          "title": "Add DSPx DesignMD multimodal image runtime support",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Add DSPx DesignMD multimodal image runtime support (task #3229)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-19"
         }
       ]
     }

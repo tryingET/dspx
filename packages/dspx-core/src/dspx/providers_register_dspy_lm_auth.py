@@ -17,6 +17,10 @@ def _truthy(name: str, default: bool) -> bool:
 _CODEX_REASONING_EFFORTS = {"none", "low", "medium", "high", "xhigh"}
 
 
+def _model_supports_vision(model: str, auth_provider: str | None = None) -> bool:
+    return model.startswith("codex/") or auth_provider == "codex"
+
+
 def _factory() -> DspyLMAuthLM:
     model = os.getenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.5")
     auth_provider = os.getenv("DSPX_LM_AUTH_PROVIDER") or None
@@ -57,11 +61,14 @@ def _factory() -> DspyLMAuthLM:
 
 
 def register() -> None:
+    model = os.getenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.5")
+    auth_provider = os.getenv("DSPX_LM_AUTH_PROVIDER") or None
     caps = ProviderCapabilities(
         supports_tools=False,
         code_exec=False,
         json_mode=True,
         multi_turn=True,
         structured_output_format="json",
+        supports_vision=_model_supports_vision(model, auth_provider),
     )
     register_provider("dspy-lm-auth", _factory, caps)

@@ -73,6 +73,24 @@ def test_registry_includes_v4_providers() -> None:
     assert "vllm-local" in reg
 
 
+def test_dspy_lm_auth_registry_declares_default_codex_vision_support(
+    monkeypatch,
+) -> None:
+    from dspx.providers_register_dspy_lm_auth import register
+
+    saved_registry = dict(provider_registry._REGISTRY)
+    try:
+        provider_registry._REGISTRY.clear()
+        monkeypatch.delenv("DSPX_LM_AUTH_MODEL", raising=False)
+        monkeypatch.delenv("DSPX_LM_AUTH_PROVIDER", raising=False)
+        register()
+        caps = provider_registry.capabilities("dspy-lm-auth")
+        assert caps.supports_vision is True
+    finally:
+        provider_registry._REGISTRY.clear()
+        provider_registry._REGISTRY.update(saved_registry)
+
+
 def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -> None:
     fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
@@ -88,6 +106,8 @@ def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -
     health = lm.healthcheck()
     assert health["ok"] is True
     assert health["metadata"]["auth_storage_exists"] is True
+
+    assert lm.capabilities.supports_vision is True
 
     res = lm.generate(LMRequest(prompt="hello", messages=None))
     assert res.outputs == ["auth:hello"]
@@ -133,6 +153,54 @@ def test_dspy_lm_auth_wrapper_strips_unsupported_params_and_streams_codex_route(
     assert "temperature" not in _FakeLM.last_kwargs
     assert _FakeLM.last_kwargs["stream"] is True
     assert _FakeLM.last_kwargs["cache"] is False
+
+
+def test_dspy_lm_auth_generate_preserves_user_image_blocks(
+    monkeypatch, tmp_path: Path
+) -> None:
+    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
+    _FakeLM.last_messages = None
+
+    storage = tmp_path / "auth.json"
+    storage.write_text("{}\n", encoding="utf-8")
+    lm = DspyLMAuthLM(
+        model="codex/gpt-5.5",
+        auth_provider="codex",
+        auth_storage=str(storage),
+    )
+
+    lm.generate(
+        LMRequest(
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": "describe"},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": "data:image/png;base64,iVBORw0KGgo=",
+                            },
+                        },
+                    ],
+                }
+            ]
+        )
+    )
+
+    assert _FakeLM.last_messages == [
+        {
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": "describe"},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,iVBORw0KGgo="},
+                },
+            ],
+        }
+    ]
 
 
 def test_dspy_lm_auth_codex_route_normalizes_assistant_message_blocks(
