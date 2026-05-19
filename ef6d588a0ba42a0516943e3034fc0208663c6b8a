@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "ef6d588a0ba42a0516943e3034fc0208663c6b8a"
+created_at: "2026-05-19T06:12:16Z"
+intent: "Advance DesignMD visual dossier strategy after packet UX implementation"
+files:
+  - "docs/project/operational_goals.md"
+  - "next_session_prompt.md"
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json && ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx"
+    status: "pass"
+  full_gate:
+    command: "./scripts/ci/smoke.sh"
+    status: "pass"
+group:
+  rationale: "Record DesignMD packet UX completion and seed imported evidence viewer planning."
+links:
+  task_ids:
+    - 3175
