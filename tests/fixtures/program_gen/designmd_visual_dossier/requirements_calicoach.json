@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "designmd.dspx-visual-dossier-requirements.v1",
+  "id": "vdspx_calicoach_1779157403565_6f0b05",
+  "projectId": "default",
+  "sourceId": "vsrc_1779014802866_7adc9f",
+  "analysisRunId": "vrun_calicoach_visual_source_dogfood",
+  "dossierDraftId": "vdos_1779157403565_6f0b05",
+  "generatedAt": "2026-05-18T00:00:00.000Z",
+  "ownerBoundary": {
+    "designmdMayDefineRequirements": true,
+    "dspxOwnsTargetProtocol": true,
+    "noProgramGenExecution": true,
+    "statement": "DesignMD emits requirements only. DSPx owns target-protocol review, generation gates, traceability, fitness, and evidence production."
+  },
+  "inputRefs": {
+    "sourceIndexSchema": "designmd.visual-source-index.v1",
+    "analysisRunSchema": "designmd.analysis-run.v1",
+    "dossierDraftSchema": "designmd.dossier-draft.v1",
+    "sourceIndexSha256": "calicoach-source-index-sha256",
+    "designMdSha256": "calicoach-design-md-sha256",
+    "designMdCurrentSha256": "calicoach-design-md-sha256",
+    "freshness": {
+      "freshAgainstSource": true,
+      "freshAgainstDesign": true,
+      "staleReasons": [],
+      "statement": "Fresh against current visual source index and DESIGN.md hash for the calicoach dogfood dossier."
+    }
+  },
+  "requiredTargetProtocolContent": [
+    "Validate visual-source packet identity and current DESIGN.md hash before generation.",
+    "Emit role-specific findings rather than collapsing Design Core analysis into a generic summary.",
+    "Preserve observed, inferred, and unverified labels on every static-image claim.",
+    "Trace each dossier section to source images, role findings, component inventory entries, and synthesis records.",
+    "Treat prompt packs as transformation guidance only and block direct style-copy instructions."
+  ],
+  "requiredOutputSchemas": [
+    "designmd.role-findings.v1",
+    "designmd.component-inventory.v1",
+    "designmd.synthesis-coverage-gaps.v1",
+    "designmd.prompt-pack-guidance.v1",
+    "designmd.dossier-markdown-builder-output.v1",
+    "designmd.traceability-matrix.v1",
+    "dspx.visual-dossier-receipt-bundle.v1"
+  ],
+  "roleCoverage": [
+    "visual designer",
+    "product designer",
+    "brand reviewer",
+    "accessibility reviewer",
+    "copy-risk reviewer"
+  ],
+  "fixtureRequirements": [
+    "stale DESIGN.md hash blocks generation",
+    "missing source index hash blocks generation",
+    "ambiguous component claim without visible evidence is labeled unverified",
+    "external reference copy-risk lure is blocked",
+    "role output collapse into generic summary is withheld",
+    "candidate attempting DESIGN.md mutation is withheld"
+  ],
+  "fitnessGates": [
+    "DSPx target-protocol owner review",
+    "adversarial fixture suite present",
+    "traceability matrix covers source image to finding to component to dossier section",
+    "review-evidence-only authority boundary preserved"
+  ],
+  "failClosedBlockers": [
+    "Candidate attempts to mutate DESIGN.md",
+    "Candidate marks dossier guidance reviewed or accepted",
+    "Candidate approves docs/design",
+    "Candidate creates AK or society authority",
+    "Candidate activates a generated program for production use",
+    "Candidate emits direct style-copy instructions"
+  ],
+  "acceptedOutputPosture": [
+    "proposal_context",
+    "review_evidence"
+  ],
+  "forbiddenClaims": [
+    "accepted_contract_truth",
+    "reviewed_dossier_guidance",
+    "production_activation",
+    "canonical_design_authority"
+  ],
+  "authority": {
+    "statement": "DSPx visual-dossier outputs are proposal_context or review_evidence only. They do not mutate DESIGN.md, approve docs/design, create AK/society authority, or activate production programs."
+  }
+}

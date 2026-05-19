@@ -10,6 +10,9 @@ from dspx.cli.dspx import app
 
 runner = CliRunner()
 FIXTURE_INTENT = Path("tests/fixtures/program_gen/pdf_transition/intent.yaml")
+DESIGNMD_CALICOACH_REQUIREMENTS = Path(
+    "tests/fixtures/program_gen/designmd_visual_dossier/requirements_calicoach.json"
+)
 
 
 def _designmd_requirements_packet() -> dict:
@@ -89,7 +92,8 @@ def test_program_gen_prepare_cli_can_write_intent_and_run_follow_on_gate(
     traceability = tmp_path / "generation_traceability.json"
     fitness_results = tmp_path / "generation_fitness_results.json"
     requirements.write_text(
-        json.dumps(_designmd_requirements_packet()), encoding="utf-8"
+        DESIGNMD_CALICOACH_REQUIREMENTS.read_text(encoding="utf-8"),
+        encoding="utf-8",
     )
 
     result = runner.invoke(
@@ -114,6 +118,9 @@ def test_program_gen_prepare_cli_can_write_intent_and_run_follow_on_gate(
     assert payload["generation_gate_preflight"]["generation_allowed"] is True
     assert payload["paths"]["program_intent"] == str(intent.resolve())
     assert intent.exists()
+    intent_text = intent.read_text(encoding="utf-8")
+    assert "vsrc_1779014802866_7adc9f" in intent_text
+    assert "vdos_1779157403565_6f0b05" in intent_text
 
     result = runner.invoke(
         app,
