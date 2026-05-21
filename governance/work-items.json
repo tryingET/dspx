@@ -3004,14 +3004,15 @@
         {
           "id": "AK-TASK-3286",
           "title": "[Layer12] Extend DSPy proposal generation against AK direction-controller",
-          "state": "queued",
+          "state": "done",
           "tasks": [
             {
               "text": "[Layer12] Extend DSPy proposal generation against AK direction-controller (task #3286)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-21"
         }
       ]
     }

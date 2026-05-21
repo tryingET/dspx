@@ -6,9 +6,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
-AK_VERIFIER_AUTHORITY = "deterministic_ak_layer12_verifier"
+AK_VERIFIER_AUTHORITY = "deterministic_ak_direction_controller_verifier"
 DSPX_ROLE = "proposal_generation_repair_and_empirical_eval_only"
 NO_APPLY_BOUNDARY = "no_apply_authority"
+DANGEROUS_TRANSITIONS = {
+    "request_owner_route",
+    "close_implementation_wave",
+    "activate_guidance",
+}
+DSPY_SIGNATURES = [
+    "ExtractLayer12PolicyFacts",
+    "DeriveLayer12StateVector",
+    "ProposeLayer12Transition",
+    "CritiqueAuthorityDrift",
+    "CritiqueTheaterTraps",
+    "RepairLayer12IR",
+]
 
 RunCommand = Callable[[Sequence[str], Path], subprocess.CompletedProcess[str]]
 
@@ -17,6 +30,7 @@ RunCommand = Callable[[Sequence[str], Path], subprocess.CompletedProcess[str]]
 class Layer12ProposalEvalCase:
     proposal_path: Path
     verifier_output: dict[str, Any]
+    plan_output: dict[str, Any]
 
     @property
     def verdict(self) -> str:
@@ -30,6 +44,17 @@ class Layer12ProposalEvalCase:
     def proposed_transition(self) -> str | None:
         value = self.verifier_output.get("proposed_transition")
         return str(value) if value is not None else None
+
+    @property
+    def apply_performed(self) -> bool:
+        return bool(
+            self.verifier_output.get("apply_performed")
+            or self.plan_output.get("apply_performed")
+        )
+
+    @property
+    def apply_allowed(self) -> bool:
+        return bool(self.plan_output.get("apply_allowed"))
 
 
 def default_agent_kernel_repo() -> Path:
@@ -98,10 +123,10 @@ def _metrics(cases: Iterable[Layer12ProposalEvalCase]) -> dict[str, Any]:
     false_unblock_count = sum(
         1
         for case in case_list
-        if case.legal
-        and case.proposed_transition
-        in {"request_owner_route", "close_implementation_wave", "activate_guidance"}
+        if case.legal and case.proposed_transition in DANGEROUS_TRANSITIONS
     )
+    false_apply_count = sum(1 for case in case_list if case.apply_performed)
+    false_apply_allowed_count = sum(1 for case in case_list if case.apply_allowed)
     return {
         "case_count": len(case_list),
         "legal_count": legal_count,
@@ -112,6 +137,32 @@ def _metrics(cases: Iterable[Layer12ProposalEvalCase]) -> dict[str, Any]:
         "false_unblock_rate": (false_unblock_count / len(case_list))
         if case_list
         else 0.0,
+        "false_apply_count": false_apply_count,
+        "false_apply_allowed_count": false_apply_allowed_count,
+    }
+
+
+def _generated_proposal_metrics(
+    generated_proposals: Sequence[dict[str, Any]], recommended_transition: str | None
+) -> dict[str, Any]:
+    transition_matches = sum(
+        1
+        for proposal in generated_proposals
+        if proposal.get("transition") == recommended_transition
+    )
+    false_apply_count = sum(
+        1 for proposal in generated_proposals if proposal.get("apply_performed") is True
+    )
+    verifier_compatible_count = sum(
+        1
+        for proposal in generated_proposals
+        if isinstance(proposal.get("transition"), str)
+    )
+    return {
+        "generated_count": len(generated_proposals),
+        "verifier_compatible_count": verifier_compatible_count,
+        "recommended_transition_match_count": transition_matches,
+        "false_apply_count": false_apply_count,
     }
 
 
@@ -121,38 +172,82 @@ def evaluate_layer12_proposals(
     fixtures_dir: Path | None = None,
     runner: RunCommand = _run_command,
 ) -> dict[str, Any]:
-    """Evaluate Layer12 transition proposals against AK's deterministic verifier.
+    """Evaluate direction-controller proposals through AK's deterministic verifier.
 
-    DSPx owns proposal/eval orchestration here. AK remains the authority for
-    transition legality via read-only `ak layer12 ...` verifier commands.
+    DSPx owns proposal-generation/eval orchestration here. AK remains the
+    authority for direction-to-execution transition legality via read-only
+    `ak direction-controller ...` verifier commands.
     """
 
     ak_repo = (agent_kernel_repo or default_agent_kernel_repo()).resolve()
     fixture_root = (fixtures_dir or default_layer12_fixture_dir(ak_repo)).resolve()
     proposal_paths = discover_proposal_fixtures(fixture_root)
 
-    cockpit = _run_json(
-        ["ak", "layer12", "cockpit", "--repo", str(ak_repo), "-F", "json"],
+    status = _run_json(
+        ["ak", "direction-controller", "status", "--repo", str(ak_repo), "-F", "json"],
         ak_repo,
         runner,
     )
-    illegal_inventory = _run_json(
-        ["ak", "layer12", "illegal-transitions", "--repo", str(ak_repo), "-F", "json"],
+    blocked_inventory = _run_json(
+        [
+            "ak",
+            "direction-controller",
+            "blocked-transitions",
+            "--repo",
+            str(ak_repo),
+            "-F",
+            "json",
+        ],
         ak_repo,
         runner,
     )
 
+    generated_proposals = [
+        _run_json(
+            [
+                "ak",
+                "direction-controller",
+                "propose",
+                "--repo",
+                str(ak_repo),
+                "--intent",
+                intent,
+                "-F",
+                "json",
+            ],
+            ak_repo,
+            runner,
+        )
+        for intent in ["proceed"]
+    ]
+
     cases: list[Layer12ProposalEvalCase] = []
     for proposal_path in proposal_paths:
+        proposal_arg = _proposal_arg(ak_repo, proposal_path)
         verifier_output = _run_json(
             [
                 "ak",
-                "layer12",
-                "verify-proposal",
+                "direction-controller",
+                "verify",
                 "--repo",
                 str(ak_repo),
                 "--proposal",
-                _proposal_arg(ak_repo, proposal_path),
+                proposal_arg,
+                "-F",
+                "json",
+            ],
+            ak_repo,
+            runner,
+        )
+        plan_output = _run_json(
+            [
+                "ak",
+                "direction-controller",
+                "plan",
+                "--repo",
+                str(ak_repo),
+                "--proposal",
+                proposal_arg,
                 "-F",
                 "json",
             ],
@@ -161,12 +256,15 @@ def evaluate_layer12_proposals(
         )
         cases.append(
             Layer12ProposalEvalCase(
-                proposal_path=proposal_path, verifier_output=verifier_output
+                proposal_path=proposal_path,
+                verifier_output=verifier_output,
+                plan_output=plan_output,
             )
         )
 
+    recommended_transition = status.get("recommended_transition")
     return {
-        "schema_version": "dspx.layer12.proposal_eval.v1",
+        "schema_version": "dspx.direction_controller.proposal_eval.v1",
         "read_only": True,
         "apply_performed": False,
         "authority_boundary": {
@@ -177,25 +275,35 @@ def evaluate_layer12_proposals(
         },
         "agent_kernel_repo": str(ak_repo),
         "fixtures_dir": str(fixture_root),
-        "dspy_skeleton": {
-            "signatures": [
-                "ExtractLayer12PolicyFacts",
-                "DeriveLayer12StateVector",
-                "ProposeLayer12Transition",
-                "CritiqueAuthorityDrift",
-                "CritiqueTheaterTraps",
-                "RepairLayer12IR",
-            ],
-            "status": "skeleton_eval_harness",
+        "dspy_program": {
+            "signatures": DSPY_SIGNATURES,
+            "status": "direction_controller_proposal_generation_eval_extension",
+            "generated_program_applied": False,
         },
         "ak_readbacks": {
-            "cockpit_surface": cockpit.get("surface"),
-            "recommended_transition": cockpit.get("recommended_transition"),
-            "illegal_transition_surface": illegal_inventory.get("surface"),
-            "blocked_transition_count": illegal_inventory.get(
+            "status_surface": status.get("surface"),
+            "recommended_transition": recommended_transition,
+            "blocked_transitions_surface": blocked_inventory.get("surface"),
+            "blocked_transition_count": blocked_inventory.get(
                 "blocked_transition_count"
             ),
         },
+        "generated_proposals": [
+            {
+                "surface": proposal.get("surface"),
+                "intent": proposal.get("intent"),
+                "transition": proposal.get("transition"),
+                "proposal_role": proposal.get("proposal_role"),
+                "generated_by": proposal.get("generated_by"),
+                "apply_performed": bool(proposal.get("apply_performed")),
+                "expected_verifier_command": proposal.get("expected_verifier_command"),
+            }
+            for proposal in generated_proposals
+        ],
+        "generated_proposal_metrics": _generated_proposal_metrics(
+            generated_proposals,
+            str(recommended_transition) if recommended_transition else None,
+        ),
         "metrics": _metrics(cases),
         "cases": [
             {
@@ -203,8 +311,11 @@ def evaluate_layer12_proposals(
                 "proposed_transition": case.proposed_transition,
                 "verdict": case.verdict,
                 "legal": case.legal,
-                "apply_performed": bool(case.verifier_output.get("apply_performed")),
+                "apply_performed": case.apply_performed,
+                "apply_allowed": case.apply_allowed,
                 "verifier_surface": case.verifier_output.get("surface"),
+                "plan_surface": case.plan_output.get("surface"),
+                "plan_status": case.plan_output.get("plan_status"),
             }
             for case in cases
         ],

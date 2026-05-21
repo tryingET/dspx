@@ -89,7 +89,7 @@ app.add_typer(
 layer12_app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
-    help="Layer12 proposal/eval helpers against AK verifier surfaces",
+    help="Layer12/direction-controller proposal/eval helpers against AK verifier surfaces",
 )
 app.add_typer(layer12_app, name="layer12")
 
@@ -120,7 +120,7 @@ def layer12_eval_proposals(
     ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON summary"),
 ) -> None:
-    """Evaluate Layer12 proposals through AK's deterministic verifier.
+    """Evaluate Layer12 proposals through AK's deterministic direction-controller.
 
     This command is read-only: DSPx orchestrates proposal/eval reporting while
     AK remains the legality authority and no apply is performed.
@@ -136,7 +136,7 @@ def layer12_eval_proposals(
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
         return
     metrics = payload["metrics"]
-    typer.echo("layer12 proposal eval")
+    typer.echo("layer12 direction-controller proposal eval")
     typer.echo(f"  cases: {metrics['case_count']}")
     typer.echo(f"  verdicts: {metrics['verdict_counts']}")
     typer.echo(f"  false_unblock_rate: {metrics['false_unblock_rate']}")
