@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-19",
+  "updated_at": "2026-05-21",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -2987,6 +2987,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-19"
+        },
+        {
+          "id": "AK-TASK-3274",
+          "title": "[Layer12] Implement DSPy proposal/eval skeleton against AK verifier",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "[Layer12] Implement DSPy proposal/eval skeleton against AK verifier (task #3274)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
