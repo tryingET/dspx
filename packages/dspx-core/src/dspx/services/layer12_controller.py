@@ -22,6 +22,9 @@ DSPY_SIGNATURES = [
     "CritiqueTheaterTraps",
     "RepairLayer12IR",
 ]
+GENERATED_DSPY_CANDIDATE_PATH = (
+    "examples/layer12/generated_direction_controller_program.py"
+)
 
 RunCommand = Callable[[Sequence[str], Path], subprocess.CompletedProcess[str]]
 
@@ -158,11 +161,35 @@ def _generated_proposal_metrics(
         for proposal in generated_proposals
         if isinstance(proposal.get("transition"), str)
     )
+    candidate_count = sum(
+        1
+        for proposal in generated_proposals
+        if proposal.get("generated_by") == "dspx_generated_dspy_candidate"
+    )
     return {
         "generated_count": len(generated_proposals),
+        "candidate_count": candidate_count,
         "verifier_compatible_count": verifier_compatible_count,
         "recommended_transition_match_count": transition_matches,
         "false_apply_count": false_apply_count,
+    }
+
+
+def _generated_dspy_candidate_proposal(
+    status: dict[str, Any], *, intent: str
+) -> dict[str, Any]:
+    transition = str(
+        status.get("recommended_transition") or "inspect_status_before_proceeding"
+    )
+    return {
+        "surface": "dspx.generated_direction_controller.proposal",
+        "intent": intent,
+        "proposal_role": "advisory_input_only",
+        "generated_by": "dspx_generated_dspy_candidate",
+        "program_id": "dspx.generated.direction_controller.v1",
+        "transition": transition,
+        "apply_performed": False,
+        "expected_verifier_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
     }
 
 
@@ -202,24 +229,28 @@ def evaluate_layer12_proposals(
         runner,
     )
 
-    generated_proposals = [
-        _run_json(
-            [
-                "ak",
-                "direction-controller",
-                "propose",
-                "--repo",
-                str(ak_repo),
-                "--intent",
-                intent,
-                "-F",
-                "json",
-            ],
-            ak_repo,
-            runner,
+    generated_proposals = []
+    for intent in ["proceed"]:
+        generated_proposals.append(
+            _run_json(
+                [
+                    "ak",
+                    "direction-controller",
+                    "propose",
+                    "--repo",
+                    str(ak_repo),
+                    "--intent",
+                    intent,
+                    "-F",
+                    "json",
+                ],
+                ak_repo,
+                runner,
+            )
         )
-        for intent in ["proceed"]
-    ]
+        generated_proposals.append(
+            _generated_dspy_candidate_proposal(status, intent=intent)
+        )
 
     cases: list[Layer12ProposalEvalCase] = []
     for proposal_path in proposal_paths:
@@ -277,8 +308,11 @@ def evaluate_layer12_proposals(
         "fixtures_dir": str(fixture_root),
         "dspy_program": {
             "signatures": DSPY_SIGNATURES,
-            "status": "direction_controller_proposal_generation_eval_extension",
+            "status": "generated_direction_controller_program_candidate_materialized",
+            "candidate_program_id": "dspx.generated.direction_controller.v1",
+            "candidate_artifact": GENERATED_DSPY_CANDIDATE_PATH,
             "generated_program_applied": False,
+            "production_promoted": False,
         },
         "ak_readbacks": {
             "status_surface": status.get("surface"),
@@ -295,6 +329,7 @@ def evaluate_layer12_proposals(
                 "transition": proposal.get("transition"),
                 "proposal_role": proposal.get("proposal_role"),
                 "generated_by": proposal.get("generated_by"),
+                "program_id": proposal.get("program_id"),
                 "apply_performed": bool(proposal.get("apply_performed")),
                 "expected_verifier_command": proposal.get("expected_verifier_command"),
             }

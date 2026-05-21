@@ -111,6 +111,21 @@ def test_evaluate_layer12_proposals_uses_direction_controller_as_authority(
     assert payload["authority_boundary"]["empirical_output_is_normative"] is False
     assert payload["ak_readbacks"]["status_surface"] == "ak.direction_controller.status"
     assert payload["ak_readbacks"]["blocked_transition_count"] == 2
+    assert payload["dspy_program"] == {
+        "signatures": [
+            "ExtractLayer12PolicyFacts",
+            "DeriveLayer12StateVector",
+            "ProposeLayer12Transition",
+            "CritiqueAuthorityDrift",
+            "CritiqueTheaterTraps",
+            "RepairLayer12IR",
+        ],
+        "status": "generated_direction_controller_program_candidate_materialized",
+        "candidate_program_id": "dspx.generated.direction_controller.v1",
+        "candidate_artifact": "examples/layer12/generated_direction_controller_program.py",
+        "generated_program_applied": False,
+        "production_promoted": False,
+    }
     assert payload["generated_proposals"] == [
         {
             "surface": "ak.direction_controller.propose",
@@ -118,14 +133,26 @@ def test_evaluate_layer12_proposals_uses_direction_controller_as_authority(
             "transition": "continue_current_execution_task",
             "proposal_role": "advisory_input_only",
             "generated_by": "deterministic_ak_direction_controller_dry_run",
+            "program_id": None,
             "apply_performed": False,
             "expected_verifier_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
-        }
+        },
+        {
+            "surface": "dspx.generated_direction_controller.proposal",
+            "intent": "proceed",
+            "transition": "continue_current_execution_task",
+            "proposal_role": "advisory_input_only",
+            "generated_by": "dspx_generated_dspy_candidate",
+            "program_id": "dspx.generated.direction_controller.v1",
+            "apply_performed": False,
+            "expected_verifier_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+        },
     ]
     assert payload["generated_proposal_metrics"] == {
-        "generated_count": 1,
-        "verifier_compatible_count": 1,
-        "recommended_transition_match_count": 1,
+        "generated_count": 2,
+        "candidate_count": 1,
+        "verifier_compatible_count": 2,
+        "recommended_transition_match_count": 2,
         "false_apply_count": 0,
     }
     assert payload["metrics"]["case_count"] == 3
