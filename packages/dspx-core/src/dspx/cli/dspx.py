@@ -86,6 +86,13 @@ app.add_typer(
     oracle_app, name="oracle", help="Behavioral oracle (semantic coordinates)"
 )
 
+layer12_app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    help="Layer12 proposal/eval helpers against AK verifier surfaces",
+)
+app.add_typer(layer12_app, name="layer12")
+
 program_gen_app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
@@ -97,6 +104,46 @@ app.add_typer(program_gen_app, name="program-gen")
 # =============================================================================
 # Inline Commands (single commands kept inline for simplicity)
 # =============================================================================
+
+
+@layer12_app.command("eval-proposals")
+def layer12_eval_proposals(
+    agent_kernel_repo: Path = typer.Option(
+        Path("~/ai-society/softwareco/owned/agent-kernel"),
+        "--agent-kernel-repo",
+        help="Path to the agent-kernel repo that owns the deterministic Layer12 verifier",
+    ),
+    fixtures_dir: Optional[Path] = typer.Option(
+        None,
+        "--fixtures-dir",
+        help="Agent-kernel-owned proposal fixture directory (defaults to docs/project/layer12/fixtures/proposals)",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Emit JSON summary"),
+) -> None:
+    """Evaluate Layer12 proposals through AK's deterministic verifier.
+
+    This command is read-only: DSPx orchestrates proposal/eval reporting while
+    AK remains the legality authority and no apply is performed.
+    """
+
+    from dspx.services.layer12_controller import evaluate_layer12_proposals
+
+    payload = evaluate_layer12_proposals(
+        agent_kernel_repo=agent_kernel_repo.expanduser(),
+        fixtures_dir=fixtures_dir.expanduser() if fixtures_dir is not None else None,
+    )
+    if json_out:
+        typer.echo(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    metrics = payload["metrics"]
+    typer.echo("layer12 proposal eval")
+    typer.echo(f"  cases: {metrics['case_count']}")
+    typer.echo(f"  verdicts: {metrics['verdict_counts']}")
+    typer.echo(f"  false_unblock_rate: {metrics['false_unblock_rate']}")
+    typer.echo(
+        f"  legality_authority: {payload['authority_boundary']['legality_authority']}"
+    )
+    typer.echo(f"  apply_performed: {payload['apply_performed']}")
 
 
 @app.command("module-gen")
