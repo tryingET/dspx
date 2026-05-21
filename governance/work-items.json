@@ -3030,14 +3030,15 @@
         {
           "id": "AK-TASK-3313",
           "title": "Make generated direct runners target-local observable",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Make generated direct runners target-local observable (task #3313)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-21"
         }
       ]
     }
