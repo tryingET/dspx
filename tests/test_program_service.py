@@ -139,6 +139,7 @@ def test_program_service_materializes_candidate_assembly(
         "signature",
         "module",
         "program",
+        "direct_runner",
         "eval_harness",
         "jury_harness",
         "promotion_harness",
@@ -472,9 +473,15 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()
     direct_run_text = (outdir / "direct_run.py").read_text(encoding="utf-8")
+    compile(direct_run_text, str(outdir / "direct_run.py"), "exec")
     assert "--inputs-root" in direct_run_text
+    assert "--config" in direct_run_text
     assert "direct_batch_receipt.json" in direct_run_text
     assert "ThreadPoolExecutor" in direct_run_text
+    assert (
+        "configure_observability(run_name='program-runtime', run_kind='program-runtime')"
+        in direct_run_text
+    )
     assert (outdir / "direct_run.py").exists()
     assert (outdir / "eval_jury.py").exists()
     assert (outdir / "eval_promotion.py").exists()

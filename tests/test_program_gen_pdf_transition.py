@@ -461,7 +461,24 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert "--inputs-root" in direct_run_text
     assert "direct_batch_receipt.json" in direct_run_text
     assert "dspx_program_run_wrapper_used" in direct_run_text
-    assert "from program import build_program, io_spec" in direct_run_text
+    assert "--config" in direct_run_text
+    assert (
+        "CONFIG_CANDIDATES = ('dspx-local.config.toml', 'config.toml')"
+        in direct_run_text
+    )
+    assert "from dspx.config_loader import load_config_env" in direct_run_text
+    assert (
+        "configure_observability(run_name='program-runtime', run_kind='program-runtime')"
+        in direct_run_text
+    )
+    assert (
+        "mlflow.log_artifacts(str(outdir), artifact_path='direct_run_outputs')"
+        in direct_run_text
+    )
+    assert (
+        "from program import build_program, configure_observability, end_observability_run, io_spec"
+        in direct_run_text
+    )
     assert any(
         surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
         for surface in manifest["candidate_assembly"]["surfaces"]

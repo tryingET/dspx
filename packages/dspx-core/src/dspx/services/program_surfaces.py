@@ -83,232 +83,376 @@ def render_direct_run_code(intent: Any) -> str:
     """Render a standard direct generated-program runner.
 
     The direct runner is intentionally lighter than `dspx program-run`: it imports the
-    generated program, configures a DSPy LM from the DSPx provider env, executes from
-    JSON input files, writes declared output files, and emits receipts. It does not
-    create DSPx runtime sidecars, publish evidence, or mutate external authority
-    surfaces. Batch mode is built in so callers do not need ad-hoc shell wrappers.
+    generated program, loads target-local DSPx config when present, configures a DSPy
+    LM from the DSPx provider env, executes from JSON input files, writes declared
+    output files, logs those outputs to the active program-runtime MLflow run when
+    configured, and emits receipts. It does not create DSPx runtime sidecars, publish
+    evidence, or mutate external authority surfaces. Batch mode is built in so callers
+    do not need ad-hoc shell wrappers.
     """
 
-    lines: list[str] = [
-        "#!/usr/bin/env python3",
-        "from __future__ import annotations",
-        "",
-        "import argparse",
-        "import json",
-        "import subprocess",
-        "import sys",
-        "from collections.abc import Mapping",
-        "from concurrent.futures import ThreadPoolExecutor, as_completed",
-        "from pathlib import Path",
-        "from typing import Any",
-        "",
-        "OUTPUT_RECEIPT = 'direct_run_receipt.json'",
-        "",
-        "def _prediction_mapping(prediction: object, output_fields: list[str]) -> dict[str, object]:",
-        "    if isinstance(prediction, Mapping):",
-        "        return {str(key): value for key, value in prediction.items()}",
-        "    for method_name in ('toDict', 'to_dict', 'model_dump'):",
-        "        method = getattr(prediction, method_name, None)",
-        "        if callable(method):",
-        "            payload = method()",
-        "            if isinstance(payload, Mapping):",
-        "                return dict(payload)",
-        "    return {field: getattr(prediction, field) for field in output_fields if hasattr(prediction, field)}",
-        "",
-        "def _load_inputs(path: Path) -> dict[str, Any]:",
-        "    payload = json.loads(path.read_text(encoding='utf-8'))",
-        "    inputs = payload.get('inputs') if isinstance(payload, dict) else None",
-        "    if isinstance(inputs, dict):",
-        "        return dict(inputs)",
-        "    if isinstance(payload, dict):",
-        "        return dict(payload)",
-        "    raise SystemExit(f'input file must be a JSON object: {path}')",
-        "",
-        "def _parse_json_output(value: object, *, field: str) -> Any:",
-        "    if not isinstance(value, str):",
-        "        return value",
-        "    text = value.strip()",
-        "    if text.startswith('```') and text.endswith('```'):",
-        "        text = '\\n'.join(text.splitlines()[1:-1]).strip()",
-        "    try:",
-        "        return json.loads(text)",
-        "    except json.JSONDecodeError as exc:",
-        "        raise SystemExit(f'generated output {field} is not valid JSON: {exc}') from exc",
-        "",
-        "def _configure_lm() -> dict[str, Any]:",
-        "    import dspy",
-        "    from dspx.provider_registry import create_from_env, ensure_default_providers",
-        "",
-        "    ensure_default_providers()",
-        "    lm = create_from_env(default='dspy-lm-auth')",
-        "    dspy.configure(lm=lm)",
-        "    return {",
-        "        'provider': getattr(lm, 'model', type(lm).__name__),",
-        "        'kwargs': dict(getattr(lm, 'kwargs', {}) or {}),",
-        "    }",
-        "",
-        "def _single_run(inputs_path: Path, outdir: Path) -> dict[str, Any]:",
-        "    program_dir = Path(__file__).resolve().parent",
-        "    sys.path.insert(0, str(program_dir))",
-        "    from program import build_program, io_spec  # noqa: PLC0415",
-        "",
-        "    output_fields = list(io_spec().get('outputs', []))",
-        "    if not output_fields:",
-        "        raise SystemExit('generated program io_spec declares no outputs')",
-        "    outdir.mkdir(parents=True, exist_ok=True)",
-        "    inputs = _load_inputs(inputs_path)",
-        "    provider = _configure_lm()",
-        "    prediction = build_program()(**inputs)",
-        "    observed = _prediction_mapping(prediction, output_fields)",
-        "",
-        "    for field in output_fields:",
-        "        if field not in observed:",
-        "            raise SystemExit(f'missing generated output: {field}')",
-        "        parsed = _parse_json_output(observed[field], field=field)",
-        "        (outdir / field).write_text(",
-        "            json.dumps(parsed, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',",
-        "            encoding='utf-8',",
-        "        )",
-        "",
-        "    receipt = {",
-        "        'schema_version': 'generated-dspy-direct-run-v1',",
-        "        'status': 'ok',",
-        "        'program_dir': str(program_dir),",
-        "        'inputs_path': str(inputs_path.resolve()),",
-        "        'outdir': str(outdir.resolve()),",
-        "        'provider': provider,",
-        "        'output_files': output_fields,",
-        "        'canonical_notes_mutated': False,",
-        "        'dspx_program_run_wrapper_used': False,",
-        "    }",
-        "    (outdir / OUTPUT_RECEIPT).write_text(",
-        "        json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',",
-        "        encoding='utf-8',",
-        "    )",
-        "    return receipt",
-        "",
-        "def _target_name(input_file: Path, inputs_root: Path) -> str:",
-        "    parent = input_file.parent",
-        "    if parent.name == 'runtime' and parent.parent != inputs_root:",
-        "        return parent.parent.name",
-        "    if parent != inputs_root:",
-        "        return parent.name",
-        "    return input_file.stem",
-        "",
-        "def _discover_input_files(inputs_root: Path) -> list[Path]:",
-        "    direct_children = sorted(inputs_root.glob('*/runtime_inputs.json'))",
-        "    if direct_children:",
-        "        return direct_children",
-        "    nested = sorted(inputs_root.glob('*/runtime/runtime_inputs.json'))",
-        "    if nested:",
-        "        return nested",
-        "    return sorted(inputs_root.glob('*.json'))",
-        "",
-        "def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: int) -> dict[str, Any]:",
-        "    attempts: list[dict[str, Any]] = []",
-        "    cmd = [",
-        "        sys.executable,",
-        "        str(Path(__file__).resolve()),",
-        "        '--inputs',",
-        "        str(input_file),",
-        "        '--outdir',",
-        "        str(outdir),",
-        "        '--json',",
-        "    ]",
-        "    for attempt in range(retries + 1):",
-        "        outdir.mkdir(parents=True, exist_ok=True)",
-        "        result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)",
-        "        attempts.append({",
-        "            'attempt': attempt + 1,",
-        "            'returncode': result.returncode,",
-        "            'stdout_tail': result.stdout[-2000:],",
-        "            'stderr_tail': result.stderr[-2000:],",
-        "        })",
-        "        if result.returncode == 0 and (outdir / OUTPUT_RECEIPT).exists():",
-        "            receipt = json.loads((outdir / OUTPUT_RECEIPT).read_text(encoding='utf-8'))",
-        "            return {",
-        "                'target': outdir.name,",
-        "                'status': 'ok',",
-        "                'inputs_path': str(input_file.resolve()),",
-        "                'outdir': str(outdir.resolve()),",
-        "                'attempts': attempts,",
-        "                'receipt': receipt,",
-        "            }",
-        "    return {",
-        "        'target': outdir.name,",
-        "        'status': 'failed',",
-        "        'inputs_path': str(input_file.resolve()),",
-        "        'outdir': str(outdir.resolve()),",
-        "        'attempts': attempts,",
-        "    }",
-        "",
-        "def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds: int, retries: int) -> dict[str, Any]:",
-        "    input_files = _discover_input_files(inputs_root)",
-        "    if not input_files:",
-        "        raise SystemExit(f'no batch inputs found under {inputs_root}')",
-        "    out_root.mkdir(parents=True, exist_ok=True)",
-        "    jobs = [(input_file, out_root / _target_name(input_file, inputs_root)) for input_file in input_files]",
-        "    results: list[dict[str, Any]] = []",
-        "    with ThreadPoolExecutor(max_workers=max(1, parallel)) as executor:",
-        "        futures = [executor.submit(_run_child, input_file, outdir, timeout_seconds, retries) for input_file, outdir in jobs]",
-        "        for future in as_completed(futures):",
-        "            results.append(future.result())",
-        "    results.sort(key=lambda item: str(item.get('target', '')))",
-        "    failed = [item for item in results if item.get('status') != 'ok']",
-        "    summary = {",
-        "        'schema_version': 'generated-dspy-direct-batch-run-v1',",
-        "        'status': 'ok' if not failed else 'failed',",
-        "        'inputs_root': str(inputs_root.resolve()),",
-        "        'out_root': str(out_root.resolve()),",
-        "        'parallel': parallel,",
-        "        'timeout_seconds': timeout_seconds,",
-        "        'retries': retries,",
-        "        'total': len(results),",
-        "        'ok': len(results) - len(failed),",
-        "        'failed': len(failed),",
-        "        'canonical_notes_mutated': False,",
-        "        'dspx_program_run_wrapper_used': False,",
-        "        'results': results,",
-        "    }",
-        "    (out_root / 'direct_batch_receipt.json').write_text(",
-        "        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',",
-        "        encoding='utf-8',",
-        "    )",
-        "    return summary",
-        "",
-        "def main() -> int:",
-        "    parser = argparse.ArgumentParser(description='Direct runner for this generated DSPy program.')",
-        "    single = parser.add_argument_group('single run')",
-        "    single.add_argument('--inputs', type=Path, help='JSON object or {inputs: {...}} payload.')",
-        "    single.add_argument('--outdir', type=Path, help='Directory for output JSON files and receipt.')",
-        "    batch = parser.add_argument_group('batch run')",
-        "    batch.add_argument('--inputs-root', type=Path, help='Root containing child runtime_inputs.json files.')",
-        "    batch.add_argument('--out-root', type=Path, help='Directory for per-target output folders and batch receipt.')",
-        "    batch.add_argument('--parallel', type=int, default=1, help='Batch parallelism. Default: 1.')",
-        "    batch.add_argument('--timeout-seconds', type=int, default=600, help='Per-target timeout for batch child runs. Default: 600.')",
-        "    batch.add_argument('--retries', type=int, default=0, help='Per-target retries after a failed child run. Default: 0.')",
-        "    parser.add_argument('--json', action='store_true', help='Print receipt JSON to stdout.')",
-        "    args = parser.parse_args()",
-        "",
-        "    if args.inputs_root or args.out_root:",
-        "        if not args.inputs_root or not args.out_root:",
-        "            raise SystemExit('batch mode requires --inputs-root and --out-root')",
-        "        summary = _batch_run(args.inputs_root, args.out_root, args.parallel, args.timeout_seconds, args.retries)",
-        "        if args.json:",
-        "            print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))",
-        "        return 0 if summary['status'] == 'ok' else 1",
-        "",
-        "    if not args.inputs or not args.outdir:",
-        "        raise SystemExit('single mode requires --inputs and --outdir')",
-        "    receipt = _single_run(args.inputs, args.outdir)",
-        "    if args.json:",
-        "        print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))",
-        "    return 0",
-        "",
-        "if __name__ == '__main__':",
-        "    raise SystemExit(main())",
+    code = """#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any
+
+OUTPUT_RECEIPT = 'direct_run_receipt.json'
+CONFIG_CANDIDATES = ('dspx-local.config.toml', 'config.toml')
+
+
+def _prediction_mapping(prediction: object, output_fields: list[str]) -> dict[str, object]:
+    if isinstance(prediction, Mapping):
+        return {str(key): value for key, value in prediction.items()}
+    for method_name in ('toDict', 'to_dict', 'model_dump'):
+        method = getattr(prediction, method_name, None)
+        if callable(method):
+            payload = method()
+            if isinstance(payload, Mapping):
+                return dict(payload)
+    return {field: getattr(prediction, field) for field in output_fields if hasattr(prediction, field)}
+
+
+def _load_inputs(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    inputs = payload.get('inputs') if isinstance(payload, dict) else None
+    if isinstance(inputs, dict):
+        return dict(inputs)
+    if isinstance(payload, dict):
+        return dict(payload)
+    raise SystemExit(f'input file must be a JSON object: {path}')
+
+
+def _parse_json_output(value: object, *, field: str) -> Any:
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    if text.startswith('```') and text.endswith('```'):
+        text = '\\n'.join(text.splitlines()[1:-1]).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f'generated output {field} is not valid JSON: {exc}') from exc
+
+
+def _find_runtime_config(explicit: Path | None, *, program_dir: Path) -> Path | None:
+    if explicit is not None:
+        path = explicit.expanduser().resolve()
+        if not path.exists():
+            raise SystemExit(f'config file not found: {path}')
+        return path
+    env_path = os.getenv('DSPX_CONFIG')
+    if env_path:
+        path = Path(env_path).expanduser().resolve()
+        if not path.exists():
+            raise SystemExit(f'DSPX_CONFIG path not found: {path}')
+        return path
+    for parent in [program_dir, *program_dir.parents]:
+        for name in CONFIG_CANDIDATES:
+            candidate = parent / name
+            if candidate.exists():
+                return candidate.resolve()
+    return None
+
+
+def _resolve_relative_sqlite_tracking_uri(*, config_path: Path | None) -> None:
+    if config_path is None:
+        return
+    uri = str(os.getenv('MLFLOW_TRACKING_URI') or '').strip()
+    prefix = 'sqlite:///'
+    if not uri.startswith(prefix) or '?' in uri or '#' in uri:
+        return
+    raw_path = uri[len(prefix):]
+    if not raw_path:
+        return
+    tracking_path = Path(raw_path).expanduser()
+    if tracking_path.is_absolute():
+        return
+    resolved = (config_path.parent / tracking_path).resolve()
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+    os.environ['MLFLOW_TRACKING_URI'] = 'sqlite:///' + str(resolved)
+
+
+def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str | None:
+    chosen = _find_runtime_config(config_path, program_dir=program_dir)
+    try:
+        from dspx.config_loader import load_config_env
+
+        load_config_env(str(chosen) if chosen is not None else None)
+    except Exception as exc:
+        raise SystemExit(f'failed to load DSPx runtime config: {exc}') from exc
+    _resolve_relative_sqlite_tracking_uri(config_path=chosen)
+    return str(chosen) if chosen is not None else None
+
+
+def _configure_lm() -> dict[str, Any]:
+    import dspy
+    from dspx.provider_registry import create_from_env, ensure_default_providers
+
+    ensure_default_providers()
+    lm = create_from_env(default='dspy-lm-auth')
+    dspy.configure(lm=lm)
+    return {
+        'provider': getattr(lm, 'model', type(lm).__name__),
+        'kwargs': dict(getattr(lm, 'kwargs', {}) or {}),
+    }
+
+
+def _active_mlflow_run_id() -> str | None:
+    try:
+        from dspx.tracing import get_mlflow
+
+        mlflow = get_mlflow()
+        active = None if mlflow is None else mlflow.active_run()
+        info = None if active is None else getattr(active, 'info', None)
+        run_id = None if info is None else getattr(info, 'run_id', None)
+        return str(run_id) if run_id else None
+    except Exception:
+        return None
+
+
+def _set_runtime_failed(error: BaseException) -> None:
+    try:
+        from dspx.tracing import get_mlflow
+
+        mlflow = get_mlflow()
+        if mlflow is None or mlflow.active_run() is None:
+            return
+        try:
+            mlflow.set_tag('program.runtime.status', 'failed')
+            mlflow.set_tag('program.runtime.error_type', type(error).__name__)
+        except Exception:
+            pass
+        try:
+            mlflow.log_metric('program.runtime.error', 1.0)
+        except Exception:
+            pass
+    except Exception:
+        return
+
+
+def _log_output_artifacts(outdir: Path) -> bool:
+    try:
+        from dspx.tracing import get_mlflow
+
+        mlflow = get_mlflow()
+        if mlflow is None or mlflow.active_run() is None:
+            return False
+        mlflow.log_artifacts(str(outdir), artifact_path='direct_run_outputs')
+        return True
+    except Exception:
+        return False
+
+
+def _mlflow_receipt() -> dict[str, Any]:
+    return {
+        'enabled': str(os.getenv('MLFLOW_ENABLE', '1')).strip().lower() not in {'', '0', 'false', 'no'},
+        'tracking_uri': os.getenv('MLFLOW_TRACKING_URI') or None,
+        'experiment': os.getenv('MLFLOW_EXPERIMENT') or None,
+    }
+
+
+def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None) -> dict[str, Any]:
+    program_dir = Path(__file__).resolve().parent
+    sys.path.insert(0, str(program_dir))
+    from program import build_program, configure_observability, end_observability_run, io_spec  # noqa: PLC0415
+
+    loaded_config = _load_runtime_config(config_path, program_dir=program_dir)
+    output_fields = list(io_spec().get('outputs', []))
+    if not output_fields:
+        raise SystemExit('generated program io_spec declares no outputs')
+    outdir.mkdir(parents=True, exist_ok=True)
+    inputs = _load_inputs(inputs_path)
+    provider = _configure_lm()
+    started = False
+    end_status = 'FINISHED'
+    mlflow_run_id: str | None = None
+    artifacts_logged = False
+    try:
+        started = configure_observability(run_name='program-runtime', run_kind='program-runtime')
+        mlflow_run_id = _active_mlflow_run_id()
+        prediction = build_program()(**inputs)
+        observed = _prediction_mapping(prediction, output_fields)
+
+        for field in output_fields:
+            if field not in observed:
+                raise SystemExit(f'missing generated output: {field}')
+            parsed = _parse_json_output(observed[field], field=field)
+            (outdir / field).write_text(
+                json.dumps(parsed, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
+                encoding='utf-8',
+            )
+        artifacts_logged = _log_output_artifacts(outdir)
+    except BaseException as exc:
+        end_status = 'FAILED'
+        _set_runtime_failed(exc)
+        raise
+    finally:
+        end_observability_run(started, status=end_status)
+
+    receipt = {
+        'schema_version': 'generated-dspy-direct-run-v1',
+        'status': 'ok',
+        'program_dir': str(program_dir),
+        'inputs_path': str(inputs_path.resolve()),
+        'outdir': str(outdir.resolve()),
+        'config_path': loaded_config,
+        'provider': provider,
+        'output_files': output_fields,
+        'observability': {
+            **_mlflow_receipt(),
+            'program_runtime_run_started': started,
+            'mlflow_run_id': mlflow_run_id,
+            'output_artifacts_logged': artifacts_logged,
+            'artifact_path': 'direct_run_outputs' if artifacts_logged else None,
+        },
+        'canonical_notes_mutated': False,
+        'dspx_program_run_wrapper_used': False,
+    }
+    (outdir / OUTPUT_RECEIPT).write_text(
+        json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
+        encoding='utf-8',
+    )
+    return receipt
+
+
+def _target_name(input_file: Path, inputs_root: Path) -> str:
+    parent = input_file.parent
+    if parent.name == 'runtime' and parent.parent != inputs_root:
+        return parent.parent.name
+    if parent != inputs_root:
+        return parent.name
+    return input_file.stem
+
+
+def _discover_input_files(inputs_root: Path) -> list[Path]:
+    direct_children = sorted(inputs_root.glob('*/runtime_inputs.json'))
+    if direct_children:
+        return direct_children
+    nested = sorted(inputs_root.glob('*/runtime/runtime_inputs.json'))
+    if nested:
+        return nested
+    return sorted(inputs_root.glob('*.json'))
+
+
+def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: int, config_path: Path | None) -> dict[str, Any]:
+    attempts: list[dict[str, Any]] = []
+    cmd = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        '--inputs',
+        str(input_file),
+        '--outdir',
+        str(outdir),
+        '--json',
     ]
-    code = "\n".join(lines)
+    if config_path is not None:
+        cmd.extend(['--config', str(config_path)])
+    for attempt in range(retries + 1):
+        outdir.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
+        attempts.append({
+            'attempt': attempt + 1,
+            'returncode': result.returncode,
+            'stdout_tail': result.stdout[-2000:],
+            'stderr_tail': result.stderr[-2000:],
+        })
+        if result.returncode == 0 and (outdir / OUTPUT_RECEIPT).exists():
+            receipt = json.loads((outdir / OUTPUT_RECEIPT).read_text(encoding='utf-8'))
+            return {
+                'target': outdir.name,
+                'status': 'ok',
+                'inputs_path': str(input_file.resolve()),
+                'outdir': str(outdir.resolve()),
+                'attempts': attempts,
+                'receipt': receipt,
+            }
+    return {
+        'target': outdir.name,
+        'status': 'failed',
+        'inputs_path': str(input_file.resolve()),
+        'outdir': str(outdir.resolve()),
+        'attempts': attempts,
+    }
+
+
+def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds: int, retries: int, config_path: Path | None = None) -> dict[str, Any]:
+    input_files = _discover_input_files(inputs_root)
+    if not input_files:
+        raise SystemExit(f'no batch inputs found under {inputs_root}')
+    out_root.mkdir(parents=True, exist_ok=True)
+    jobs = [(input_file, out_root / _target_name(input_file, inputs_root)) for input_file in input_files]
+    results: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=max(1, parallel)) as executor:
+        futures = [executor.submit(_run_child, input_file, outdir, timeout_seconds, retries, config_path) for input_file, outdir in jobs]
+        for future in as_completed(futures):
+            results.append(future.result())
+    results.sort(key=lambda item: str(item.get('target', '')))
+    failed = [item for item in results if item.get('status') != 'ok']
+    summary = {
+        'schema_version': 'generated-dspy-direct-batch-run-v1',
+        'status': 'ok' if not failed else 'failed',
+        'inputs_root': str(inputs_root.resolve()),
+        'out_root': str(out_root.resolve()),
+        'parallel': parallel,
+        'timeout_seconds': timeout_seconds,
+        'retries': retries,
+        'config_path': str(config_path.expanduser().resolve()) if config_path is not None else None,
+        'total': len(results),
+        'ok': len(results) - len(failed),
+        'failed': len(failed),
+        'canonical_notes_mutated': False,
+        'dspx_program_run_wrapper_used': False,
+        'results': results,
+    }
+    (out_root / 'direct_batch_receipt.json').write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
+        encoding='utf-8',
+    )
+    return summary
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description='Direct runner for this generated DSPy program.')
+    single = parser.add_argument_group('single run')
+    single.add_argument('--inputs', type=Path, help='JSON object or {inputs: {...}} payload.')
+    single.add_argument('--outdir', type=Path, help='Directory for output JSON files and receipt.')
+    batch = parser.add_argument_group('batch run')
+    batch.add_argument('--inputs-root', type=Path, help='Root containing child runtime_inputs.json files.')
+    batch.add_argument('--out-root', type=Path, help='Directory for per-target output folders and batch receipt.')
+    batch.add_argument('--parallel', type=int, default=1, help='Batch parallelism. Default: 1.')
+    batch.add_argument('--timeout-seconds', type=int, default=600, help='Per-target timeout for batch child runs. Default: 600.')
+    batch.add_argument('--retries', type=int, default=0, help='Per-target retries after a failed child run. Default: 0.')
+    parser.add_argument('--config', type=Path, help='DSPx runtime config. Defaults to nearest dspx-local.config.toml or config.toml above direct_run.py.')
+    parser.add_argument('--json', action='store_true', help='Print receipt JSON to stdout.')
+    args = parser.parse_args()
+
+    if args.inputs_root or args.out_root:
+        if not args.inputs_root or not args.out_root:
+            raise SystemExit('batch mode requires --inputs-root and --out-root')
+        summary = _batch_run(args.inputs_root, args.out_root, args.parallel, args.timeout_seconds, args.retries, args.config)
+        if args.json:
+            print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0 if summary['status'] == 'ok' else 1
+
+    if not args.inputs or not args.outdir:
+        raise SystemExit('single mode requires --inputs and --outdir')
+    receipt = _single_run(args.inputs, args.outdir, args.config)
+    if args.json:
+        print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
+"""
     return code if code.endswith("\n") else code + "\n"
 
 
