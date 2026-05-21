@@ -3013,6 +3013,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-21"
+        },
+        {
+          "id": "AK-TASK-3293",
+          "title": "[Layer12] Materialize generated DSPy direction-controller program candidate",
+          "state": "queued",
+          "tasks": [
+            {
+              "text": "[Layer12] Materialize generated DSPy direction-controller program candidate (task #3293)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
