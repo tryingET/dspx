@@ -478,6 +478,12 @@ def test_program_gen_cli_materializes_from_yaml(
     assert "--config" in direct_run_text
     assert "direct_batch_receipt.json" in direct_run_text
     assert "ThreadPoolExecutor" in direct_run_text
+    assert "def _apply_runtime_config_env(data: object) -> None:" in direct_run_text
+    assert "_set_env_from_config(provider, 'name', 'DSPX_PROVIDER')" in direct_run_text
+    assert (
+        "_set_env_from_config(lm_auth, 'model', 'DSPX_LM_AUTH_MODEL')"
+        in direct_run_text
+    )
     assert (
         "configure_observability(run_name='program-runtime', run_kind='program-runtime')"
         in direct_run_text

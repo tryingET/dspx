@@ -3052,6 +3052,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-22"
+        },
+        {
+          "id": "AK-TASK-3331",
+          "title": "Make generated direct runners prefer stage-local provider config",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Make generated direct runners prefer stage-local provider config (task #3331)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

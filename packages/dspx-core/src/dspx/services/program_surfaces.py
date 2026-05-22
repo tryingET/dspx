@@ -180,14 +180,58 @@ def _resolve_relative_sqlite_tracking_uri(*, config_path: Path | None) -> None:
     os.environ['MLFLOW_TRACKING_URI'] = 'sqlite:///' + str(resolved)
 
 
+def _coerce_config_bool(value: object) -> str:
+    if isinstance(value, bool):
+        return '1' if value else '0'
+    text = str(value).strip().lower()
+    return '0' if text in {'0', 'false', 'no', 'off', ''} else '1'
+
+
+def _set_env_from_config(section: object, key: str, env_key: str, *, boolean: bool = False) -> None:
+    if not isinstance(section, Mapping) or key not in section:
+        return
+    value = section.get(key)
+    if value is None:
+        os.environ.pop(env_key, None)
+        return
+    os.environ[env_key] = _coerce_config_bool(value) if boolean else str(value)
+
+
+def _apply_runtime_config_env(data: object) -> None:
+    # Make the selected target-local runtime config win over stale shell env.
+    # load_config_env preserves explicit env overrides for ordinary DSPx CLI usage.
+    # Generated direct runners are different: the selected stage-local config is
+    # the direct-run contract, so leftover DSPX_PROVIDER=stub or MLFLOW_ENABLE=0
+    # from program-gen smoke commands must not shadow non-secret config values.
+    # Secrets remain outside TOML because config_loader rejects secret-like keys.
+    if not isinstance(data, Mapping):
+        return
+    mlflow = data.get('mlflow')
+    provider = data.get('provider')
+    lm_auth = data.get('lm_auth')
+    _set_env_from_config(mlflow, 'enable', 'MLFLOW_ENABLE', boolean=True)
+    _set_env_from_config(mlflow, 'tracking_uri', 'MLFLOW_TRACKING_URI')
+    _set_env_from_config(mlflow, 'experiment', 'MLFLOW_EXPERIMENT')
+    _set_env_from_config(provider, 'name', 'DSPX_PROVIDER')
+    _set_env_from_config(lm_auth, 'model', 'DSPX_LM_AUTH_MODEL')
+    _set_env_from_config(lm_auth, 'auth_provider', 'DSPX_LM_AUTH_PROVIDER')
+    _set_env_from_config(lm_auth, 'auth_storage', 'DSPX_LM_AUTH_STORAGE')
+    _set_env_from_config(lm_auth, 'timeout_s', 'DSPX_LM_AUTH_TIMEOUT')
+    _set_env_from_config(lm_auth, 'strict', 'DSPX_LM_AUTH_STRICT', boolean=True)
+    _set_env_from_config(lm_auth, 'temperature', 'DSPX_LM_AUTH_TEMPERATURE')
+    _set_env_from_config(lm_auth, 'max_tokens', 'DSPX_LM_AUTH_MAX_TOKENS')
+
+
 def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str | None:
     chosen = _find_runtime_config(config_path, program_dir=program_dir)
     try:
         from dspx.config_loader import load_config_env
 
-        load_config_env(str(chosen) if chosen is not None else None)
+        config_data = load_config_env(str(chosen) if chosen is not None else None)
     except Exception as exc:
         raise SystemExit(f'failed to load DSPx runtime config: {exc}') from exc
+    if chosen is not None:
+        _apply_runtime_config_env(config_data)
     _resolve_relative_sqlite_tracking_uri(config_path=chosen)
     return str(chosen) if chosen is not None else None
 
