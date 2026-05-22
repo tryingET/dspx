@@ -3043,14 +3043,15 @@
         {
           "id": "AK-TASK-3326",
           "title": "Write failure receipts for generated direct runners",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Write failure receipts for generated direct runners (task #3326)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-22"
         }
       ]
     }
