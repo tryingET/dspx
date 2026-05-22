@@ -462,6 +462,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert "direct_batch_receipt.json" in direct_run_text
     assert "dspx_program_run_wrapper_used" in direct_run_text
     assert "--config" in direct_run_text
+    assert "--preflight" in direct_run_text
+    assert "generated-dspy-direct-run-preflight-v1" in direct_run_text
+    assert "model_call_performed': False" in direct_run_text
     assert (
         "CONFIG_CANDIDATES = ('dspx-local.config.toml', 'config.toml')"
         in direct_run_text

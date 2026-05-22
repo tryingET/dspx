@@ -476,6 +476,9 @@ def test_program_gen_cli_materializes_from_yaml(
     compile(direct_run_text, str(outdir / "direct_run.py"), "exec")
     assert "--inputs-root" in direct_run_text
     assert "--config" in direct_run_text
+    assert "--preflight" in direct_run_text
+    assert "generated-dspy-direct-run-preflight-v1" in direct_run_text
+    assert "model_call_performed': False" in direct_run_text
     assert "direct_batch_receipt.json" in direct_run_text
     assert "ThreadPoolExecutor" in direct_run_text
     assert "def _apply_runtime_config_env(data: object) -> None:" in direct_run_text

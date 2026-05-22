@@ -473,6 +473,30 @@ def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: in
     }
 
 
+def _preflight(config_path: Path | None = None) -> dict[str, Any]:
+    program_dir = Path(__file__).resolve().parent
+    loaded_config = _load_runtime_config(config_path, program_dir=program_dir)
+    provider = _configure_lm()
+    return {
+        'schema_version': 'generated-dspy-direct-run-preflight-v1',
+        'status': 'ok',
+        'program_dir': str(program_dir),
+        'config_path': loaded_config,
+        'provider': provider,
+        'resolved_env': {
+            'DSPX_PROVIDER': os.getenv('DSPX_PROVIDER') or None,
+            'DSPX_LM_AUTH_MODEL': os.getenv('DSPX_LM_AUTH_MODEL') or None,
+            'DSPX_LM_AUTH_PROVIDER': os.getenv('DSPX_LM_AUTH_PROVIDER') or None,
+            'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
+            'MLFLOW_TRACKING_URI': os.getenv('MLFLOW_TRACKING_URI') or None,
+            'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
+        },
+        'model_call_performed': False,
+        'canonical_notes_mutated': False,
+        'dspx_program_run_wrapper_used': False,
+    }
+
+
 def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds: int, retries: int, config_path: Path | None = None) -> dict[str, Any]:
     input_files = _discover_input_files(inputs_root)
     if not input_files:
@@ -521,8 +545,17 @@ def main() -> int:
     batch.add_argument('--timeout-seconds', type=int, default=600, help='Per-target timeout for batch child runs. Default: 600.')
     batch.add_argument('--retries', type=int, default=0, help='Per-target retries after a failed child run. Default: 0.')
     parser.add_argument('--config', type=Path, help='DSPx runtime config. Defaults to nearest dspx-local.config.toml or config.toml above direct_run.py.')
+    parser.add_argument('--preflight', action='store_true', help='Load config and resolve/configure the provider without executing the generated program or making a model call.')
     parser.add_argument('--json', action='store_true', help='Print receipt JSON to stdout.')
     args = parser.parse_args()
+
+    if args.preflight:
+        receipt = _preflight(args.config)
+        if args.json:
+            print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))
+        else:
+            print(f"provider={receipt['resolved_env']['DSPX_PROVIDER']} model={receipt['resolved_env']['DSPX_LM_AUTH_MODEL']} config={receipt['config_path']}")
+        return 0
 
     if args.inputs_root or args.out_root:
         if not args.inputs_root or not args.out_root:

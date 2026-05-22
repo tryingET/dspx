@@ -3065,6 +3065,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-22"
+        },
+        {
+          "id": "AK-TASK-3337",
+          "title": "Add generated direct-run provider preflight",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Add generated direct-run provider preflight (task #3337)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
