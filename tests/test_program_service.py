@@ -482,6 +482,8 @@ def test_program_gen_cli_materializes_from_yaml(
         "configure_observability(run_name='program-runtime', run_kind='program-runtime')"
         in direct_run_text
     )
+    assert "def _write_direct_run_receipt(" in direct_run_text
+    assert "status='failed'" in direct_run_text
     assert (outdir / "direct_run.py").exists()
     assert (outdir / "eval_jury.py").exists()
     assert (outdir / "eval_promotion.py").exists()

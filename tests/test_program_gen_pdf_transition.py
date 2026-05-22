@@ -475,6 +475,9 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
         "mlflow.log_artifacts(str(outdir), artifact_path='direct_run_outputs')"
         in direct_run_text
     )
+    assert "def _write_direct_run_receipt(" in direct_run_text
+    assert "status='failed'" in direct_run_text
+    assert "receipt['error']" in direct_run_text
     assert (
         "from program import build_program, configure_observability, end_observability_run, io_spec"
         in direct_run_text

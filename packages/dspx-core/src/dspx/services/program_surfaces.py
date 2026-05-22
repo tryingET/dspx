@@ -259,6 +259,51 @@ def _mlflow_receipt() -> dict[str, Any]:
     }
 
 
+def _write_direct_run_receipt(
+    *,
+    status: str,
+    program_dir: Path,
+    inputs_path: Path,
+    outdir: Path,
+    config_path: str | None,
+    provider: dict[str, Any],
+    output_fields: list[str],
+    started: bool,
+    mlflow_run_id: str | None,
+    artifacts_logged: bool,
+    error: BaseException | None = None,
+) -> dict[str, Any]:
+    receipt: dict[str, Any] = {
+        'schema_version': 'generated-dspy-direct-run-v1',
+        'status': status,
+        'program_dir': str(program_dir),
+        'inputs_path': str(inputs_path.resolve()),
+        'outdir': str(outdir.resolve()),
+        'config_path': config_path,
+        'provider': provider,
+        'output_files': output_fields,
+        'observability': {
+            **_mlflow_receipt(),
+            'program_runtime_run_started': started,
+            'mlflow_run_id': mlflow_run_id,
+            'output_artifacts_logged': artifacts_logged,
+            'artifact_path': 'direct_run_outputs' if artifacts_logged else None,
+        },
+        'canonical_notes_mutated': False,
+        'dspx_program_run_wrapper_used': False,
+    }
+    if error is not None:
+        receipt['error'] = {
+            'type': type(error).__name__,
+            'message': str(error),
+        }
+    (outdir / OUTPUT_RECEIPT).write_text(
+        json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
+        encoding='utf-8',
+    )
+    return receipt
+
+
 def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None) -> dict[str, Any]:
     program_dir = Path(__file__).resolve().parent
     sys.path.insert(0, str(program_dir))
@@ -293,34 +338,35 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
     except BaseException as exc:
         end_status = 'FAILED'
         _set_runtime_failed(exc)
+        _write_direct_run_receipt(
+            status='failed',
+            program_dir=program_dir,
+            inputs_path=inputs_path,
+            outdir=outdir,
+            config_path=loaded_config,
+            provider=provider,
+            output_fields=output_fields,
+            started=started,
+            mlflow_run_id=mlflow_run_id,
+            artifacts_logged=False,
+            error=exc,
+        )
         raise
     finally:
         end_observability_run(started, status=end_status)
 
-    receipt = {
-        'schema_version': 'generated-dspy-direct-run-v1',
-        'status': 'ok',
-        'program_dir': str(program_dir),
-        'inputs_path': str(inputs_path.resolve()),
-        'outdir': str(outdir.resolve()),
-        'config_path': loaded_config,
-        'provider': provider,
-        'output_files': output_fields,
-        'observability': {
-            **_mlflow_receipt(),
-            'program_runtime_run_started': started,
-            'mlflow_run_id': mlflow_run_id,
-            'output_artifacts_logged': artifacts_logged,
-            'artifact_path': 'direct_run_outputs' if artifacts_logged else None,
-        },
-        'canonical_notes_mutated': False,
-        'dspx_program_run_wrapper_used': False,
-    }
-    (outdir / OUTPUT_RECEIPT).write_text(
-        json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
-        encoding='utf-8',
+    return _write_direct_run_receipt(
+        status='ok',
+        program_dir=program_dir,
+        inputs_path=inputs_path,
+        outdir=outdir,
+        config_path=loaded_config,
+        provider=provider,
+        output_fields=output_fields,
+        started=started,
+        mlflow_run_id=mlflow_run_id,
+        artifacts_logged=artifacts_logged,
     )
-    return receipt
 
 
 def _target_name(input_file: Path, inputs_root: Path) -> str:
