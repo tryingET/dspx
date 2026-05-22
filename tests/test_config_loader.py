@@ -12,6 +12,7 @@ def test_load_config_env_sets_env(monkeypatch, tmp_path: Path) -> None:
         "MLFLOW_ENABLE",
         "MLFLOW_TRACKING_URI",
         "MLFLOW_EXPERIMENT",
+        "MLFLOW_ARTIFACT_ROOT",
         "CODEX_MODEL",
         "CODEX_REASONING",
         "CODEX_BYPASS",
@@ -27,6 +28,7 @@ def test_load_config_env_sets_env(monkeypatch, tmp_path: Path) -> None:
         enable = true
         tracking_uri = "http://localhost:5000"
         experiment = "TEST_EXP"
+        artifact_root = "./mlflow-artifacts"
 
         [codex]
         model = "gpt-test"
@@ -45,6 +47,7 @@ def test_load_config_env_sets_env(monkeypatch, tmp_path: Path) -> None:
     assert os.environ["MLFLOW_TRACKING_URI"] == "http://localhost:5000"
     assert os.environ["MLFLOW_ENABLE"] == "1"
     assert os.environ["MLFLOW_EXPERIMENT"] == "TEST_EXP"
+    assert os.environ["MLFLOW_ARTIFACT_ROOT"] == "./mlflow-artifacts"
     assert os.environ["CODEX_MODEL"] == "gpt-test"
     assert os.environ["CODEX_REASONING"] == "minimal"
     assert os.environ["CODEX_BYPASS"] == "1"

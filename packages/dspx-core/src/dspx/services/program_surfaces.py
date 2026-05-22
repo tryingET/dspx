@@ -162,22 +162,30 @@ def _find_runtime_config(explicit: Path | None, *, program_dir: Path) -> Path | 
     return None
 
 
-def _resolve_relative_sqlite_tracking_uri(*, config_path: Path | None) -> None:
+def _resolve_relative_mlflow_paths(*, config_path: Path | None) -> None:
     if config_path is None:
         return
     uri = str(os.getenv('MLFLOW_TRACKING_URI') or '').strip()
     prefix = 'sqlite:///'
-    if not uri.startswith(prefix) or '?' in uri or '#' in uri:
+    if uri.startswith(prefix) and '?' not in uri and '#' not in uri:
+        raw_path = uri[len(prefix):]
+        if raw_path:
+            tracking_path = Path(raw_path).expanduser()
+            if not tracking_path.is_absolute():
+                resolved = (config_path.parent / tracking_path).resolve()
+                resolved.parent.mkdir(parents=True, exist_ok=True)
+                os.environ['MLFLOW_TRACKING_URI'] = 'sqlite:///' + str(resolved)
+    artifact_root = str(os.getenv('MLFLOW_ARTIFACT_ROOT') or '').strip()
+    if not artifact_root:
         return
-    raw_path = uri[len(prefix):]
-    if not raw_path:
+    if artifact_root.startswith(('s3://', 'gs://', 'az://', 'http://', 'https://', 'file://')):
         return
-    tracking_path = Path(raw_path).expanduser()
-    if tracking_path.is_absolute():
+    artifact_path = Path(artifact_root).expanduser()
+    if artifact_path.is_absolute():
         return
-    resolved = (config_path.parent / tracking_path).resolve()
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    os.environ['MLFLOW_TRACKING_URI'] = 'sqlite:///' + str(resolved)
+    resolved_artifacts = (config_path.parent / artifact_path).resolve()
+    resolved_artifacts.mkdir(parents=True, exist_ok=True)
+    os.environ['MLFLOW_ARTIFACT_ROOT'] = resolved_artifacts.as_uri()
 
 
 def _coerce_config_bool(value: object) -> str:
@@ -212,6 +220,7 @@ def _apply_runtime_config_env(data: object) -> None:
     _set_env_from_config(mlflow, 'enable', 'MLFLOW_ENABLE', boolean=True)
     _set_env_from_config(mlflow, 'tracking_uri', 'MLFLOW_TRACKING_URI')
     _set_env_from_config(mlflow, 'experiment', 'MLFLOW_EXPERIMENT')
+    _set_env_from_config(mlflow, 'artifact_root', 'MLFLOW_ARTIFACT_ROOT')
     _set_env_from_config(provider, 'name', 'DSPX_PROVIDER')
     _set_env_from_config(lm_auth, 'model', 'DSPX_LM_AUTH_MODEL')
     _set_env_from_config(lm_auth, 'auth_provider', 'DSPX_LM_AUTH_PROVIDER')
@@ -232,7 +241,7 @@ def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str 
         raise SystemExit(f'failed to load DSPx runtime config: {exc}') from exc
     if chosen is not None:
         _apply_runtime_config_env(config_data)
-    _resolve_relative_sqlite_tracking_uri(config_path=chosen)
+    _resolve_relative_mlflow_paths(config_path=chosen)
     return str(chosen) if chosen is not None else None
 
 
@@ -490,6 +499,7 @@ def _preflight(config_path: Path | None = None) -> dict[str, Any]:
             'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
             'MLFLOW_TRACKING_URI': os.getenv('MLFLOW_TRACKING_URI') or None,
             'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
+            'MLFLOW_ARTIFACT_ROOT': os.getenv('MLFLOW_ARTIFACT_ROOT') or None,
         },
         'model_call_performed': False,
         'canonical_notes_mutated': False,

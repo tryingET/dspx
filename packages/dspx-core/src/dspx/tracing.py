@@ -5,6 +5,7 @@ Environment knobs:
 - MLFLOW_ENABLE=1 (default: enabled)
 - MLFLOW_TRACKING_URI=<uri> (required for MLflow side effects; no local fallback)
 - MLFLOW_EXPERIMENT=DSPy
+- MLFLOW_ARTIFACT_ROOT=<file URI or path> (optional; used when creating a new experiment)
 
 DSPy autologging knobs (MLflow 3.x):
 - DSPX_MLFLOW_DSPY_AUTOLOG=1 (default)
@@ -184,8 +185,18 @@ def enable_mlflow_from_env() -> bool:
     uri = default_tracking_uri_from_env()
     exp = os.getenv("MLFLOW_EXPERIMENT", "DSPy")
 
+    artifact_root = os.getenv("MLFLOW_ARTIFACT_ROOT") or None
+
     try:
         mlflow.set_tracking_uri(uri)
+        if artifact_root:
+            try:
+                mlflow.create_experiment(exp, artifact_location=artifact_root)
+            except Exception:
+                # Experiment may already exist or the backend may not support explicit
+                # artifact roots. Continue with set_experiment so MLflow availability
+                # is not lost solely because the creation race failed.
+                pass
         mlflow.set_experiment(exp)
         _enable_dspy_autolog(mlflow)
         # No implicit run creation here. Runs are started explicitly via ensure_run_*.

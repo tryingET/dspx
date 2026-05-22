@@ -3078,6 +3078,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-22"
+        },
+        {
+          "id": "AK-TASK-3341",
+          "title": "Support local MLflow artifact roots for generated direct runs",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Support local MLflow artifact roots for generated direct runs (task #3341)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

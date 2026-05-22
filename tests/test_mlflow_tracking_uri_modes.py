@@ -24,6 +24,10 @@ class _FakeMlflowBackend:
     def set_experiment(self, name: str) -> None:
         self.calls.append(("set_experiment", name))
 
+    def create_experiment(self, name: str, artifact_location: str | None = None) -> str:
+        self.calls.append(("create_experiment", name, artifact_location))
+        return "exp-1"
+
     def active_run(self):
         return self._active
 
@@ -71,6 +75,7 @@ def _install_fake_mlflow(monkeypatch: pytest.MonkeyPatch) -> _FakeMlflowBackend:
     mod: Any = types.ModuleType("mlflow")
     setattr(mod, "set_tracking_uri", backend.set_tracking_uri)
     setattr(mod, "set_experiment", backend.set_experiment)
+    setattr(mod, "create_experiment", backend.create_experiment)
     setattr(mod, "active_run", backend.active_run)
     setattr(mod, "start_run", backend.start_run)
     setattr(mod, "end_run", backend.end_run)
@@ -101,6 +106,26 @@ def test_enable_mlflow_honors_explicit_tracking_uri(
     assert enable_mlflow_from_env() is True
     assert ("set_tracking_uri", uri) in backend.calls
     assert ("set_experiment", "DSPxTest") in backend.calls
+
+
+def test_enable_mlflow_can_create_experiment_with_artifact_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = _install_fake_mlflow(monkeypatch)
+    monkeypatch.setenv("MLFLOW_ENABLE", "1")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "sqlite:////tmp/dspx_mlflow_explicit.db")
+    monkeypatch.setenv("MLFLOW_EXPERIMENT", "DSPxArtifacts")
+    monkeypatch.setenv("MLFLOW_ARTIFACT_ROOT", "file:///tmp/dspx-mlflow-artifacts")
+
+    from dspx.tracing import enable_mlflow_from_env
+
+    assert enable_mlflow_from_env() is True
+    assert (
+        "create_experiment",
+        "DSPxArtifacts",
+        "file:///tmp/dspx-mlflow-artifacts",
+    ) in backend.calls
+    assert ("set_experiment", "DSPxArtifacts") in backend.calls
 
 
 @pytest.mark.parametrize(

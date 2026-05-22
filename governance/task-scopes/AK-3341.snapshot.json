@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-22T13:24:38.238639212+00:00",
+  "task_id": 3341,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/MLFLOW_OBSERVABILITY_PLAN.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/config_loader.py",
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "packages/dspx-core/src/dspx/tracing.py",
+      "tests/test_config_loader.py",
+      "tests/test_mlflow_tracking_uri_modes.py",
+      "tests/test_program_gen_pdf_transition.py",
+      "tests/test_program_service.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/config_loader.py",
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "packages/dspx-core/src/dspx/tracing.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

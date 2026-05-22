@@ -190,6 +190,11 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
         mlflow.get("experiment", "DSPy"),
         seen_keys=seen_keys,
     )
+    _set_config_value(
+        "MLFLOW_ARTIFACT_ROOT",
+        mlflow.get("artifact_root"),
+        seen_keys=seen_keys,
+    )
 
     # Codex Exec envs
     _set_config_value("CODEX_MODEL", codex.get("model"), seen_keys=seen_keys)
