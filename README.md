@@ -332,7 +332,7 @@ just dspx program-architect plan \
   --json
 ```
 
-The planner writes `program-architecture-candidates-v1` and, when requested, `program-architecture-intent-portfolio-v1` intent drafts only. It does not materialize candidate programs, call providers, index Oracle, rank/select winners, promote, call AK, or mutate governance/external authority. Materialize a chosen draft explicitly with `dspx program-gen --intent /tmp/dspx-architecture-portfolio/candidate_intents/<candidate>.json --outdir <candidate-dir>` and then replay-check the resulting receipt.
+The planner writes `program-architecture-candidates-v1` and, when requested, `program-architecture-intent-portfolio-v1` intent drafts only. Declared materializable pipeline drafts preserve the same bounded execution contract as `program-gen`, including explicit `Retriever` modules only when they carry `retriever.mode: inline_corpus`. It does not materialize candidate programs, call providers, index Oracle, rank/select winners, promote, call AK, or mutate governance/external authority. Materialize a chosen draft explicitly with `dspx program-gen --intent /tmp/dspx-architecture-portfolio/candidate_intents/<candidate>.json --outdir <candidate-dir>` and then replay-check the resulting receipt.
 
 For an empirical local portfolio run, use the tournament surface:
 

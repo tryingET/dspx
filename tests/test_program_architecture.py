@@ -8,6 +8,9 @@ from typer.testing import CliRunner
 from dspx.cache import sha256_text
 from dspx.cli.dspx import app
 from dspx.services.program_architecture import build_program_architecture_candidates
+from dspx.services.program_architecture_tournament import (
+    run_program_architecture_tournament,
+)
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_service import materialize_program_from_intent
 from dspx.services.run_replay_service import check_run_receipt
@@ -87,6 +90,76 @@ def test_architecture_planner_emits_non_authoritative_prompt_inferred_candidates
         surface["source_kind"]
         for surface in inferred["module_surface_preview"]["module_surfaces"]
     ] == ["generated_topology_module", "generated_topology_module"]
+
+
+def test_architecture_planner_preserves_bounded_inline_retriever_as_materializable_candidate() -> (
+    None
+):
+    intent = ProgramIntent(
+        name="InlineRetrieverDeclaredProgram",
+        objective="Retrieve local context for a question from an inline corpus.",
+        inputs=["question"],
+        outputs=["context"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveContext",
+                        "inputs": ["question"],
+                        "outputs": ["context"],
+                    },
+                    "retriever": {
+                        "mode": "inline_corpus",
+                        "k": 1,
+                        "documents": [
+                            {
+                                "id": "refund_policy",
+                                "text": "Refunds are available for duplicate billing within 30 days.",
+                            }
+                        ],
+                    },
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "output"},
+            ],
+        },
+    )
+
+    plan = build_program_architecture_candidates(intent)
+
+    assert plan["recommended_candidate_id"] == "declared_pipeline"
+    declared = next(
+        candidate
+        for candidate in plan["candidates"]
+        if candidate["candidate_id"] == "declared_pipeline"
+    )
+    assert declared["status"] == "materializable"
+    module = declared["intent_payload"]["topology"]["modules"][0]
+    assert module["primitive"] == "Retriever"
+    assert module["retriever"] == {
+        "mode": "inline_corpus",
+        "k": 1,
+        "documents": [
+            {
+                "id": "refund_policy",
+                "text": "Refunds are available for duplicate billing within 30 days.",
+            }
+        ],
+    }
+    surface = declared["module_surface_preview"]["module_surfaces"][0]
+    assert surface["primitive"] == "Retriever"
+    assert surface["capability_ref"]["runtime_binding"] == (
+        "generated_bounded_inline_retriever_adapter"
+    )
+    assert surface["capability_ref"]["materializable"] is True
+    assert declared["effect"]["candidate_materialized"] is False
+    assert declared["non_authority"]["winner_selection"] is False
 
 
 def test_architecture_planner_preserves_unsupported_declared_pipeline_as_declared_only() -> (
@@ -671,6 +744,102 @@ def test_program_architect_recommend_rejects_shared_oracle_mutation(
     assert result.exit_code == 2
     assert "shared_oracle_mutated" in result.output
     assert not recommendation_out.exists()
+
+
+def test_program_architect_tournament_materializes_declared_inline_retriever_candidate(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="InlineRetrieverDeclaredProgram",
+            objective="Retrieve local context for a question from an inline corpus.",
+            inputs=["question"],
+            outputs=["context"],
+            topology={
+                "kind": "pipeline",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "retrieve_context",
+                        "primitive": "Retriever",
+                        "signature": {
+                            "name": "RetrieveContext",
+                            "inputs": ["question"],
+                            "outputs": ["context"],
+                        },
+                        "retriever": {
+                            "mode": "inline_corpus",
+                            "k": 1,
+                            "documents": [
+                                {
+                                    "id": "refund_policy",
+                                    "text": "Refunds are available for duplicate billing within 30 days.",
+                                }
+                            ],
+                        },
+                    }
+                ],
+                "edges": [
+                    {"from": "input", "to": "retrieve_context"},
+                    {"from": "retrieve_context", "to": "output"},
+                ],
+            },
+        )
+    )
+
+    payload = run_program_architecture_tournament(
+        architecture_plan=plan,
+        outdir=tmp_path / "tournament",
+        candidate_ids=["declared_pipeline"],
+    )
+
+    assert payload["materialized_candidate_count"] == 1
+    assert payload["interpretation"]["replay_ok_count"] == 1
+    assert payload["effect"]["candidate_programs_materialized"] is True
+    assert payload["effect"]["oracle_index_mutated"] is False
+    assert payload["effect"]["winner_selected"] is False
+    assert payload["effect"]["promotion_applied"] is False
+    materialized = next(
+        candidate
+        for candidate in payload["candidates"]
+        if candidate["candidate_id"] == "declared_pipeline"
+    )
+    root = Path(materialized["root_path"])
+    manifest = json.loads((root / "manifest.json").read_text())
+    assert materialized["status"] == "replay_ok"
+    assert materialized["replay_check"]["status"] == "ok"
+    assert manifest["topology_execution"]["status"] == "pipeline_materialized"
+    assert manifest["topology_execution"]["materialized"] is True
+    assert (root / "program_capability_registry.json").exists()
+    capability_registry = json.loads(
+        (root / "program_capability_registry.json").read_text()
+    )
+    retriever_ref = next(
+        ref
+        for ref in capability_registry["used_capability_refs"]
+        if ref["primitive"] == "Retriever"
+    )
+    assert retriever_ref["runtime_binding"] == (
+        "generated_bounded_inline_retriever_adapter"
+    )
+    row = next(
+        item
+        for item in payload["evidence_matrix"]["rows"]
+        if item["candidate_id"] == "declared_pipeline"
+    )
+    assert row["replay_status"] == "ok"
+    assert row["topology"]["status"] == "pipeline_materialized"
+    assert row["artifacts"]["capability_registry"]["exists"] is True
+    skipped = next(
+        candidate
+        for candidate in payload["candidates"]
+        if candidate["candidate_id"] == "baseline_single_predict"
+    )
+    assert skipped["status"] == "skipped"
 
 
 def test_program_architect_tournament_skips_declared_only_candidates(

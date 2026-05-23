@@ -64,6 +64,8 @@ def _explicit_materializable_topology(topology: Mapping[str, Any]) -> dict[str, 
         role = str(module.get("role") or "").strip()
         if role:
             normalized["role"] = role
+        if normalized["primitive"] == "Retriever" and "retriever" in module:
+            normalized["retriever"] = dict(module.get("retriever") or {})
         modules.append(normalized)
     edges = [
         dict(edge) for edge in topology.get("edges", []) if isinstance(edge, Mapping)
@@ -219,7 +221,7 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
                 ]
                 limitations.append(str(exc))
                 limitations.append(
-                    "Current execution renderer materializes only Predict/ChainOfThought pipeline modules."
+                    "Current execution renderer materializes only Predict/ChainOfThought pipeline modules and explicit Retriever:inline_corpus adapters."
                 )
                 declared_payload = deepcopy(source_payload)
             else:
@@ -234,7 +236,7 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
                 "Operator-declared topology is preserved as a planning candidate but is not materializable by the current renderer.",
             ]
             limitations.append(
-                "Current execution renderer materializes only pipeline topologies over Predict/ChainOfThought."
+                "Current execution renderer materializes only pipeline topologies over Predict/ChainOfThought and explicit Retriever:inline_corpus adapters."
             )
             declared_payload = deepcopy(source_payload)
         candidates.append(
@@ -280,7 +282,7 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
                 ],
                 limitations=[
                     "Inference is deterministic and local; it is not a provider-backed architecture search.",
-                    "No arbitrary custom Python imports, tools, retrievers, ReAct, or ProgramOfThought are executed.",
+                    "No arbitrary custom Python imports, tools, external retrievers, ReAct, or ProgramOfThought are executed; Retriever execution remains limited to explicit inline_corpus adapters.",
                 ],
             )
         )
