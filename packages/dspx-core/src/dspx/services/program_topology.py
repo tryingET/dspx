@@ -327,7 +327,125 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
             raise ProgramTopologyMaterializationError(
                 "pipeline topology supports only simple when.field/equals routing clauses"
             )
+    _validate_pipeline_graph_contract(
+        modules=modules,
+        edges=edges,
+        intent_inputs=[str(item) for item in getattr(intent, "inputs", [])],
+        intent_outputs=[str(item) for item in getattr(intent, "outputs", [])],
+    )
     return topology
+
+
+def _validate_pipeline_graph_contract(
+    *,
+    modules: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    intent_inputs: list[str],
+    intent_outputs: list[str],
+) -> None:
+    module_ids = [_module_id(module) for module in modules]
+    module_id_set = set(module_ids)
+    inbound_by_module: dict[str, list[dict[str, Any]]] = {
+        module_id: [] for module_id in module_ids
+    }
+    module_outputs: dict[str, set[str]] = {
+        _module_id(module): set(_signature_outputs(module)) for module in modules
+    }
+    module_inputs: dict[str, set[str]] = {
+        _module_id(module): set(_signature_inputs(module)) for module in modules
+    }
+    produced_outputs = (
+        set().union(*module_outputs.values()) if module_outputs else set()
+    )
+    missing_declared_outputs = sorted(set(intent_outputs) - produced_outputs)
+    if missing_declared_outputs:
+        raise ProgramTopologyMaterializationError(
+            "pipeline topology declared outputs are not produced by any module: "
+            f"{missing_declared_outputs}"
+        )
+    output_edge_sources = {
+        str(edge.get("from") or "")
+        for edge in edges
+        if str(edge.get("to") or "") == "output"
+        and str(edge.get("from") or "") in module_id_set
+    }
+    edge_reachable_outputs: set[str] = set()
+    for source in output_edge_sources:
+        edge_reachable_outputs.update(module_outputs[source])
+    missing_output_edges = sorted(set(intent_outputs) - edge_reachable_outputs)
+    if missing_output_edges:
+        raise ProgramTopologyMaterializationError(
+            "pipeline topology declared outputs require an edge from a producing "
+            f"module to output; missing outputs: {missing_output_edges}"
+        )
+
+    adjacency: dict[str, set[str]] = {module_id: set() for module_id in module_ids}
+    indegree: dict[str, int] = {module_id: 0 for module_id in module_ids}
+    intent_input_set = set(intent_inputs)
+    for edge in edges:
+        target = str(edge.get("to") or "")
+        source = str(edge.get("from") or "")
+        when = edge.get("when")
+        if isinstance(when, Mapping):
+            when_field = str(when.get("field") or "")
+            available_when_fields = set(intent_input_set)
+            if source in module_id_set:
+                available_when_fields.update(module_outputs[source])
+            if when_field not in available_when_fields:
+                raise ProgramTopologyMaterializationError(
+                    "pipeline topology when.field must be available from program "
+                    "inputs or the source module outputs; "
+                    f"edge={source!r}->{target!r} field={when_field!r}"
+                )
+        if target in inbound_by_module:
+            inbound_by_module[target].append(edge)
+        if source in module_id_set and target in module_id_set:
+            if target not in adjacency[source]:
+                adjacency[source].add(target)
+                indegree[target] += 1
+
+    missing_inbound = sorted(
+        module_id for module_id, inbound in inbound_by_module.items() if not inbound
+    )
+    if missing_inbound:
+        raise ProgramTopologyMaterializationError(
+            "pipeline topology modules require at least one inbound edge: "
+            f"{missing_inbound}"
+        )
+
+    for module_id, required_inputs in module_inputs.items():
+        inbound_module_ids = {
+            str(edge.get("from") or "")
+            for edge in inbound_by_module[module_id]
+            if str(edge.get("from") or "") in module_id_set
+        }
+        available_from_inbound = set(intent_input_set)
+        for inbound_module_id in inbound_module_ids:
+            available_from_inbound.update(module_outputs[inbound_module_id])
+        missing_inputs = sorted(required_inputs - available_from_inbound)
+        if missing_inputs:
+            raise ProgramTopologyMaterializationError(
+                "pipeline topology module inputs must be provided by program inputs "
+                "or direct inbound module outputs; "
+                f"module={module_id!r} missing={missing_inputs}"
+            )
+
+    ready = [module_id for module_id, degree in indegree.items() if degree == 0]
+    visited: list[str] = []
+    while ready:
+        module_id = ready.pop(0)
+        visited.append(module_id)
+        for target in sorted(adjacency[module_id]):
+            indegree[target] -= 1
+            if indegree[target] == 0:
+                ready.append(target)
+    if len(visited) != len(module_ids):
+        cyclic = sorted(
+            module_id for module_id, degree in indegree.items() if degree > 0
+        )
+        raise ProgramTopologyMaterializationError(
+            f"pipeline topology module graph must be acyclic; cyclic modules: {cyclic}"
+        )
 
 
 def materializes_pipeline_topology(intent: Any) -> bool:
@@ -611,6 +729,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"MATERIALIZATION_SCOPE = {materialization_scope!r}",
             f"MODULE_ORDER = {[_module_id(module) for module in modules]!r}",
             f"MODULE_SIGNATURES = {module_signatures!r}",
+            f"PROGRAM_OUTPUTS = {list(getattr(intent, 'outputs', []))!r}",
             f"EDGES = {list(topology.get('edges', []))!r}",
             "PROGRAM_TEMPLATE_VERSION = 'program-candidate-assembly-v1'",
             "",
@@ -807,6 +926,10 @@ def render_pipeline_program_code(intent: Any) -> str:
             "    )",
             "",
             "",
+            "def _missing_declared_outputs(state: dict[str, object]) -> list[str]:",
+            "    return [name for name in PROGRAM_OUTPUTS if name not in state]",
+            "",
+            "",
             f"class {program_class}(dspy.Module):",
             '    """Composed explicit pipeline topology program."""',
             "",
@@ -823,8 +946,7 @@ def render_pipeline_program_code(intent: Any) -> str:
         f"{name!r}: {name}" for name in getattr(intent, "inputs", [])
     )
     output_payload = ", ".join(
-        f"{name}=_jsonable(state.get({name!r}, ''))"
-        for name in getattr(intent, "outputs", [])
+        f"{name}=_jsonable(state[{name!r}])" for name in getattr(intent, "outputs", [])
     )
     lines.extend(
         [
@@ -854,7 +976,19 @@ def render_pipeline_program_code(intent: Any) -> str:
             "                    elif hasattr(prediction, output_name):",
             "                        state[output_name] = getattr(prediction, output_name)",
             "            if not progressed:",
+            "                missing_outputs = _missing_declared_outputs(state)",
+            "                if missing_outputs:",
+            "                    raise RuntimeError(",
+            "                        'pipeline topology scheduler stalled before producing declared outputs: '",
+            "                        f'missing_outputs={missing_outputs} pending={sorted(pending)}'",
+            "                    )",
             "                break",
+            "        missing_outputs = _missing_declared_outputs(state)",
+            "        if missing_outputs:",
+            "            raise RuntimeError(",
+            "                'pipeline topology completed without declared outputs: '",
+            "                f'missing_outputs={missing_outputs}'",
+            "            )",
             f"        return dspy.Prediction({output_payload})",
             "",
             "",

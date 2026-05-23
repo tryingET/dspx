@@ -215,6 +215,8 @@ def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
                     "to": "answer_technical",
                     "when": {"field": "intent", "equals": "technical"},
                 },
+                {"from": "answer_billing", "to": "output"},
+                {"from": "answer_technical", "to": "output"},
             ],
         },
         examples=[

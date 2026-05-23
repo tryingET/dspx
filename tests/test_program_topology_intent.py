@@ -238,6 +238,8 @@ def test_explicit_router_pipeline_materializes_three_modules_and_runs_harnesses(
                 "to": "answer_technical",
                 "when": {"field": "intent", "equals": "technical"},
             },
+            {"from": "answer_billing", "to": "output"},
+            {"from": "answer_technical", "to": "output"},
         ],
     }
     intent = ProgramIntent(
@@ -492,6 +494,170 @@ def test_pipeline_dag_scheduler_executes_out_of_order_fan_in_modules(
     assert calls == ["extract_facts", "score_risk", "compose_answer"]
     assert prediction.answer == "known facts / low"
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def test_pipeline_topology_rejects_cyclic_module_graph(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    topology = {
+        "kind": "pipeline",
+        "execution_status": "declared_not_materialized",
+        "modules": [
+            {
+                "id": "module_a",
+                "primitive": "Predict",
+                "signature": {"name": "ModuleA", "inputs": ["b"], "outputs": ["a"]},
+            },
+            {
+                "id": "module_b",
+                "primitive": "Predict",
+                "signature": {"name": "ModuleB", "inputs": ["a"], "outputs": ["b"]},
+            },
+        ],
+        "edges": [
+            {"from": "module_a", "to": "module_b"},
+            {"from": "module_b", "to": "module_a"},
+            {"from": "module_a", "to": "output"},
+        ],
+    }
+    intent = ProgramIntent(
+        name="CyclicPipelineProgram",
+        objective="Reject cyclic topology.",
+        inputs=["question"],
+        outputs=["a"],
+        topology=topology,
+    )
+
+    with pytest.raises(ValueError, match="must be acyclic"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    assert not (tmp_path / "program" / "manifest.json").exists()
+
+
+def test_pipeline_topology_rejects_missing_direct_data_dependency(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    topology = {
+        "kind": "pipeline",
+        "execution_status": "declared_not_materialized",
+        "modules": [
+            {
+                "id": "extract_facts",
+                "primitive": "Predict",
+                "signature": {
+                    "name": "ExtractFacts",
+                    "inputs": ["ticket_text"],
+                    "outputs": ["facts"],
+                },
+            },
+            {
+                "id": "compose_answer",
+                "primitive": "ChainOfThought",
+                "signature": {
+                    "name": "ComposeAnswer",
+                    "inputs": ["facts"],
+                    "outputs": ["answer"],
+                },
+            },
+        ],
+        "edges": [
+            {"from": "input", "to": "extract_facts"},
+            {"from": "input", "to": "compose_answer"},
+            {"from": "compose_answer", "to": "output"},
+        ],
+    }
+    intent = ProgramIntent(
+        name="MissingDependencyPipelineProgram",
+        objective="Reject missing direct dependency edge.",
+        inputs=["ticket_text"],
+        outputs=["answer"],
+        topology=topology,
+    )
+
+    with pytest.raises(ValueError, match="direct inbound module outputs"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    assert not (tmp_path / "program" / "manifest.json").exists()
+
+
+def test_pipeline_scheduler_raises_when_no_branch_produces_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    topology = {
+        "kind": "pipeline",
+        "execution_status": "declared_not_materialized",
+        "modules": [
+            {
+                "id": "classify_intent",
+                "primitive": "Predict",
+                "signature": {
+                    "name": "ClassifyIntentForRuntimeStall",
+                    "inputs": ["ticket_text"],
+                    "outputs": ["intent"],
+                },
+            },
+            {
+                "id": "answer_billing",
+                "primitive": "ChainOfThought",
+                "signature": {
+                    "name": "AnswerBillingRuntimeStall",
+                    "inputs": ["ticket_text"],
+                    "outputs": ["answer"],
+                },
+            },
+        ],
+        "edges": [
+            {"from": "input", "to": "classify_intent"},
+            {
+                "from": "classify_intent",
+                "to": "answer_billing",
+                "when": {"field": "intent", "equals": "billing"},
+            },
+            {"from": "answer_billing", "to": "output"},
+        ],
+    }
+    intent = ProgramIntent(
+        name="RuntimeBranchMissProgram",
+        objective="Raise when no route produces an answer.",
+        inputs=["ticket_text"],
+        outputs=["answer"],
+        topology=topology,
+    )
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+
+    for module_name in ["program", "module", "signature"]:
+        sys.modules.pop(module_name, None)
+    sys.path.insert(0, str(root))
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "generated_runtime_branch_miss_program", root / "program.py"
+        )
+        assert spec is not None and spec.loader is not None
+        generated = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generated)
+        program = generated.build_program()
+
+        class ClassifierStub:
+            def __call__(self, **kwargs: object) -> object:
+                return generated.dspy.Prediction(intent="technical")
+
+        program.classify_intent = ClassifierStub()
+        with pytest.raises(RuntimeError, match="scheduler stalled"):
+            program(ticket_text="not billing")
+    finally:
+        try:
+            sys.path.remove(str(root))
+        except ValueError:
+            pass
+        for module_name in ["program", "module", "signature"]:
+            sys.modules.pop(module_name, None)
 
 
 def test_pipeline_inline_retriever_materializes_bounded_local_adapter(
