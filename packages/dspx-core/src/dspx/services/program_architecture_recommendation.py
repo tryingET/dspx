@@ -40,6 +40,9 @@ _AUTHORITY_FALSE_NON_AUTHORITY_FLAGS = (
     "promotion_authority",
     "activation_authority",
     "oracle_authority",
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
     "governance_authority",
     "external_mutation",
     "canonical_mutation",
@@ -107,6 +110,28 @@ def _safe_output_path(path: Path) -> Path:
     return target
 
 
+def _widened_effect_flags(value: object, *, require_all: bool = True) -> list[str]:
+    effect = _mapping(value)
+    if require_all:
+        return [
+            key for key in _AUTHORITY_FALSE_EFFECT_FLAGS if effect.get(key) is not False
+        ]
+    return [
+        key
+        for key in _AUTHORITY_FALSE_EFFECT_FLAGS
+        if key in effect and effect.get(key) is not False
+    ]
+
+
+def _widened_non_authority_flags(value: object) -> list[str]:
+    non_authority = _mapping(value)
+    return [
+        key
+        for key in _AUTHORITY_FALSE_NON_AUTHORITY_FLAGS
+        if key in non_authority and non_authority.get(key) is not False
+    ]
+
+
 def _validate_tournament(tournament: Mapping[str, Any]) -> None:
     if tournament.get("schema_version") != PROGRAM_ARCHITECTURE_TOURNAMENT_SCHEMA:
         raise ProgramArchitectureRecommendationError(
@@ -120,25 +145,51 @@ def _validate_tournament(tournament: Mapping[str, Any]) -> None:
         raise ProgramArchitectureRecommendationError(
             "tournament evidence_matrix schema_version must be program-architecture-tournament-evidence-matrix-v1"
         )
-    effect = _mapping(tournament.get("effect"))
-    widened_effect = [
-        key for key in _AUTHORITY_FALSE_EFFECT_FLAGS if effect.get(key) is not False
-    ]
+    widened_effect = _widened_effect_flags(tournament.get("effect"))
     if widened_effect:
         raise ProgramArchitectureRecommendationError(
             "tournament effect widens authority: " + ", ".join(widened_effect)
         )
-    non_authority = _mapping(tournament.get("non_authority"))
-    widened_non_authority = [
-        key
-        for key in _AUTHORITY_FALSE_NON_AUTHORITY_FLAGS
-        if key in non_authority and non_authority.get(key) is not False
-    ]
+    widened_non_authority = _widened_non_authority_flags(
+        tournament.get("non_authority")
+    )
     if widened_non_authority:
         raise ProgramArchitectureRecommendationError(
             "tournament non_authority widens authority: "
             + ", ".join(widened_non_authority)
         )
+    widened_matrix_non_authority = _widened_non_authority_flags(
+        matrix.get("non_authority")
+    )
+    if widened_matrix_non_authority:
+        raise ProgramArchitectureRecommendationError(
+            "tournament evidence_matrix non_authority widens authority: "
+            + ", ".join(widened_matrix_non_authority)
+        )
+    rows = matrix.get("rows")
+    if not isinstance(rows, list):
+        raise ProgramArchitectureRecommendationError(
+            "tournament evidence_matrix rows must be a list"
+        )
+    for index, row_value in enumerate(rows):
+        row = _mapping(row_value)
+        widened_row_non_authority = _widened_non_authority_flags(
+            row.get("non_authority")
+        )
+        if widened_row_non_authority:
+            raise ProgramArchitectureRecommendationError(
+                f"tournament evidence_matrix row {index} non_authority widens authority: "
+                + ", ".join(widened_row_non_authority)
+            )
+        if "effect" in row:
+            widened_row_effect = _widened_effect_flags(
+                row.get("effect"), require_all=False
+            )
+            if widened_row_effect:
+                raise ProgramArchitectureRecommendationError(
+                    f"tournament evidence_matrix row {index} effect widens authority: "
+                    + ", ".join(widened_row_effect)
+                )
 
 
 def _candidate_advisory(row: Mapping[str, Any]) -> dict[str, Any]:
