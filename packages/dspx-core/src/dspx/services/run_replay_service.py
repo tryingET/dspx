@@ -377,6 +377,8 @@ def _program_evidence_declarations(
         kind = str(surface.get("kind") or "")
         if kind not in {
             "module_surfaces",
+            "capability_registry",
+            "generated_module_policy",
             "execution_episode",
             "behavior_results",
             "oracle_evidence",
@@ -405,6 +407,20 @@ def _program_evidence_declarations(
         path=evidence.get("module_surfaces_path") or "module_surfaces.json",
         content_hash=evidence.get("module_surfaces_hash"),
         source="manifest.receipt_bundle.evidence.module_surfaces_hash",
+    )
+    add(
+        "capability_registry",
+        path=evidence.get("capability_registry_path")
+        or "program_capability_registry.json",
+        content_hash=evidence.get("capability_registry_hash"),
+        source="manifest.receipt_bundle.evidence.capability_registry_hash",
+    )
+    add(
+        "generated_module_policy",
+        path=evidence.get("generated_module_policy_path")
+        or "generated_module_policy.json",
+        content_hash=evidence.get("generated_module_policy_hash"),
+        source="manifest.receipt_bundle.evidence.generated_module_policy_hash",
     )
     add(
         "execution_episode",
@@ -463,6 +479,18 @@ def _program_evidence_declarations(
         source="manifest.receipt_bundle.evidence.surface_hashes.module_surfaces.json",
     )
     add(
+        "capability_registry",
+        path="program_capability_registry.json",
+        content_hash=surface_hashes.get("program_capability_registry.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.program_capability_registry.json",
+    )
+    add(
+        "generated_module_policy",
+        path="generated_module_policy.json",
+        content_hash=surface_hashes.get("generated_module_policy.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.generated_module_policy.json",
+    )
+    add(
         "execution_episode",
         path="execution_episode.json",
         content_hash=surface_hashes.get("execution_episode.json"),
@@ -517,6 +545,20 @@ def _program_evidence_declarations(
         path=run_summary.get("module_surfaces_path") or "module_surfaces.json",
         content_hash=run_summary.get("module_surfaces_hash"),
         source="receipt.run_summary.module_surfaces_hash",
+    )
+    add(
+        "capability_registry",
+        path=run_summary.get("capability_registry_path")
+        or "program_capability_registry.json",
+        content_hash=run_summary.get("capability_registry_hash"),
+        source="receipt.run_summary.capability_registry_hash",
+    )
+    add(
+        "generated_module_policy",
+        path=run_summary.get("generated_module_policy_path")
+        or "generated_module_policy.json",
+        content_hash=run_summary.get("generated_module_policy_hash"),
+        source="receipt.run_summary.generated_module_policy_hash",
     )
     add(
         "execution_episode",
@@ -670,6 +712,23 @@ def _check_program_evidence_artifacts(
                 ),
                 check=hash_check,
             )
+        if kind == "generated_module_policy":
+            policy_payload = _load_json_object(artifact_path)
+            semantic_check = "program_generated_module_policy_semantic_valid"
+            checks[semantic_check] = (
+                isinstance(policy_payload, dict)
+                and policy_payload.get("schema_version")
+                == "program-generated-module-policy-v1"
+                and policy_payload.get("status") == "passed"
+                and policy_payload.get("checked_surface") == "module.py"
+            )
+            if not checks[semantic_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program generated module policy semantic check failed: {artifact_path}",
+                    check=semantic_check,
+                )
 
 
 def _expected_cache_payload(receipt: Mapping[str, Any]) -> dict[str, Any] | None:

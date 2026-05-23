@@ -45,6 +45,7 @@ from dspx.cli.commands import (
     providers_app,
     program_promote_app,
     program_refine_app,
+    program_architect_app,
     oracle_app,
     signature_app,
     mermaid_app,
@@ -81,6 +82,11 @@ app.add_typer(
     program_promote_app,
     name="program-promote",
     help="Local program promotion-review evidence packets",
+)
+app.add_typer(
+    program_architect_app,
+    name="program-architect",
+    help="Non-authoritative program architecture candidate planning",
 )
 app.add_typer(
     oracle_app, name="oracle", help="Behavioral oracle (semantic coordinates)"
@@ -442,6 +448,116 @@ def _load_allowed_generation_gate(path: Path) -> dict[str, Any]:
         reasons = payload.get("fail_closed_reasons") or []
         raise ValueError(f"generation gate blocked candidate creation: {reasons}")
     return payload
+
+
+@program_gen_app.command("normalize-intent")
+def normalize_intent(
+    intent: Optional[Path] = typer.Option(
+        None,
+        "--intent",
+        "-i",
+        help="Path to an existing JSON/YAML program-intent-v2 file to normalize",
+    ),
+    prompt: Optional[str] = typer.Option(
+        None,
+        "--prompt",
+        help="Natural-language program request to normalize into a draft program intent",
+    ),
+    request: Optional[Path] = typer.Option(
+        None,
+        "--request",
+        help="Path to a text file containing a natural-language program request",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the program-intent-normalization-v1 sidecar should be written",
+    ),
+    normalized_intent_out: Optional[Path] = typer.Option(
+        None,
+        "--normalized-intent-out",
+        help="Optional path where the normalized program-intent-v2 JSON should be written",
+    ),
+    name: Optional[str] = typer.Option(
+        None,
+        "--name",
+        help="Optional program name when normalizing from --prompt/--request",
+    ),
+    input_field: List[str] = typer.Option(
+        [],
+        "--input",
+        help="Explicit input field for prompt/request normalization; may repeat",
+    ),
+    output_field: List[str] = typer.Option(
+        [],
+        "--output",
+        help="Explicit output field for prompt/request normalization; may repeat",
+    ),
+    metric: Optional[str] = typer.Option(
+        None,
+        "--metric",
+        help="Optional metric for prompt/request normalization",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print normalization JSON"),
+) -> None:
+    """Normalize a program request/intent before materialization."""
+    from dspx.services.program_intent_normalization import (
+        ProgramIntentNormalizationError,
+        normalize_program_intent_from_path,
+        normalize_program_intent_from_prompt,
+        normalize_program_intent_from_request_path,
+        write_normalized_intent,
+        write_program_intent_normalization,
+    )
+
+    supplied = [intent is not None, prompt is not None, request is not None]
+    if sum(1 for item in supplied if item) != 1:
+        typer.echo(
+            "Error: supply exactly one of --intent, --prompt, or --request", err=True
+        )
+        raise typer.Exit(code=2)
+    try:
+        if intent is not None:
+            payload = normalize_program_intent_from_path(intent)
+        elif request is not None:
+            payload = normalize_program_intent_from_request_path(
+                request,
+                name=name,
+                inputs=input_field or None,
+                outputs=output_field or None,
+                metric=metric,
+            )
+        else:
+            assert prompt is not None
+            payload = normalize_program_intent_from_prompt(
+                prompt,
+                name=name,
+                inputs=input_field or None,
+                outputs=output_field or None,
+                metric=metric,
+            )
+        if normalized_intent_out is not None:
+            intent_artifact = write_normalized_intent(payload, normalized_intent_out)
+            payload = {
+                **payload,
+                "normalized_intent_artifact": intent_artifact,
+                "effect": {
+                    **dict(payload.get("effect") or {}),
+                    "normalized_intent_written": True,
+                },
+            }
+        written = write_program_intent_normalization(payload, out)
+    except ProgramIntentNormalizationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program intent normalization failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(written, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
 
 
 @program_gen_app.callback(invoke_without_command=True)

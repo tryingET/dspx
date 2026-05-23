@@ -10,6 +10,10 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from dspx.cache import cache_dir
+from dspx.services.program_capabilities import (
+    normalize_inline_retriever_config,
+    normalize_program_capabilities,
+)
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DECLARED_NOT_MATERIALIZED = "declared_not_materialized"
@@ -80,6 +84,17 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
     if not primitive:
         raise ValueError(f"topology module {module_id!r} primitive must not be blank")
     primitive = _PRIMITIVE_CANONICAL_NAMES.get(primitive.lower(), primitive)
+    common_keys = {"id", "primitive", "signature", "role"}
+    if primitive == "Retriever":
+        extra_keys = set(module) - common_keys - {"retriever"}
+        if extra_keys:
+            raise ValueError(
+                f"topology Retriever module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
+            )
+    elif "retriever" in module:
+        raise ValueError(
+            f"topology module {module_id!r} may declare retriever only when primitive is Retriever"
+        )
     normalized: dict[str, Any] = {
         "id": module_id,
         "primitive": primitive,
@@ -90,6 +105,10 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
     role = str(module.get("role") or "").strip()
     if role:
         normalized["role"] = role
+    if "retriever" in module:
+        normalized["retriever"] = normalize_inline_retriever_config(
+            module.get("retriever"), module_id=module_id
+        )
     return normalized
 
 
@@ -232,6 +251,7 @@ class ProgramIntent(BaseModel):
     jury: dict[str, Any] = Field(default_factory=dict)
     promotion: dict[str, Any] = Field(default_factory=dict)
     options: dict[str, Any] = Field(default_factory=dict)
+    capabilities: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("name")
     @classmethod
@@ -278,7 +298,14 @@ class ProgramIntent(BaseModel):
         return fields
 
     @field_validator(
-        "jury", "promotion", "options", "runtime", "topology", "dataset", "datasets"
+        "jury",
+        "promotion",
+        "options",
+        "runtime",
+        "topology",
+        "dataset",
+        "datasets",
+        "capabilities",
     )
     @classmethod
     def _mapping_fields_must_be_objects(cls, value: dict[str, Any]) -> dict[str, Any]:
@@ -335,6 +362,7 @@ class ProgramIntent(BaseModel):
                 f"overlap: {overlap}"
             )
         self.topology = normalize_program_topology(self.topology)
+        self.capabilities = normalize_program_capabilities(self.capabilities)
         return self
 
 

@@ -4,6 +4,7 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -59,11 +60,23 @@ def test_single_module_program_gen_emits_module_surface_contract(
         "signature_path": "signature.py",
         "module_path": "module.py",
     }
+    assert surface["capability_ref"] == {
+        "schema_version": "program-capability-contract-v1",
+        "capability_id": "dspy.primitive.Predict",
+        "primitive": "Predict",
+        "status": "materializable",
+        "materializable": True,
+        "runtime_binding": "generated_dspy_primitive",
+    }
     assert surface["io"] == {"inputs": ["context", "question"], "outputs": ["answer"]}
     assert surface["effects"] == {
+        "provider_called": False,
+        "tool_called": False,
+        "custom_import_loaded": False,
         "network": False,
         "filesystem_read": False,
         "filesystem_write": False,
+        "subprocess": False,
         "external_authority": False,
     }
     assert surface["non_authority"] == {
@@ -94,14 +107,39 @@ def test_single_module_program_gen_emits_module_surface_contract(
         manifest["receipt_bundle"]["evidence"]["surface_hashes"]["module_surfaces.json"]
         == module_surfaces_hash
     )
+    capability_registry_path = root / "program_capability_registry.json"
+    capability_registry = json.loads(
+        capability_registry_path.read_text(encoding="utf-8")
+    )
+    capability_registry_hash = hashlib.sha256(
+        capability_registry_path.read_bytes()
+    ).hexdigest()
+    assert capability_registry["schema_version"] == "program-capability-registry-v1"
+    assert capability_registry["status"] == "descriptor_only_no_runtime_binding"
+    assert capability_registry["effects"]["tool_called"] is False
+    assert capability_registry["effects"]["custom_import_loaded"] is False
+    assert manifest["request"]["capability_registry_hash"] == capability_registry_hash
+    assert manifest["capability_registry_artifact"] == {
+        "path": "program_capability_registry.json",
+        "content_hash": capability_registry_hash,
+        "schema_version": "program-capability-registry-v1",
+    }
+    assert manifest["program_capability_registry"] == capability_registry
     assert receipt["run_summary"]["module_surfaces_hash"] == module_surfaces_hash
+    assert (
+        receipt["run_summary"]["capability_registry_hash"] == capability_registry_hash
+    )
     assert receipt["program_module_surfaces"] == module_surfaces
+    assert receipt["program_capability_registry"] == capability_registry
 
     replay = check_run_receipt(root / "manifest.json.meta.json")
     assert replay["status"] == "ok"
     assert replay["checks"]["program_module_surfaces_exists"] is True
     assert replay["checks"]["program_module_surfaces_hash_match"] is True
     assert replay["program_module_surfaces_hash"] == module_surfaces_hash
+    assert replay["checks"]["program_capability_registry_exists"] is True
+    assert replay["checks"]["program_capability_registry_hash_match"] is True
+    assert replay["program_capability_registry_hash"] == capability_registry_hash
 
 
 def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
@@ -112,7 +150,7 @@ def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
     subprocess_calls: list[list[str]] = []
 
     def spy_run(
-        command: list[str], *args: object, **kwargs: object
+        command: list[str], *args: Any, **kwargs: Any
     ) -> subprocess.CompletedProcess[str]:
         command_text = [str(part) for part in command]
         command_names = [Path(part).name for part in command_text]
@@ -121,7 +159,9 @@ def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
         assert "program-refine" not in command_names
         assert "program-promote" not in command_names
         subprocess_calls.append(command_text)
-        return real_run(command, *args, **kwargs)
+        return cast(
+            subprocess.CompletedProcess[str], real_run(command, *args, **kwargs)
+        )
 
     monkeypatch.setattr(program_service.subprocess, "run", spy_run)
     intent = ProgramIntent(
@@ -217,6 +257,11 @@ def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
     assert all(
         surface["source_kind"] == "generated_topology_module" for surface in surfaces
     )
+    assert all(
+        surface["capability_ref"]["materializable"] is True for surface in surfaces
+    )
+    assert all(surface["effects"]["provider_called"] is False for surface in surfaces)
+    assert all(surface["effects"]["tool_called"] is False for surface in surfaces)
     assert all(surface["effects"]["network"] is False for surface in surfaces)
     assert all(surface["effects"]["filesystem_read"] is False for surface in surfaces)
     assert all(surface["effects"]["filesystem_write"] is False for surface in surfaces)
@@ -238,7 +283,7 @@ def test_pipeline_program_gen_emits_one_module_surface_per_topology_module(
     assert "module_surfaces" in manifest["candidate_assembly"]["surface_kinds"]
     surface_payload = json.dumps(surfaces).lower()
     assert "module_ref" not in surface_payload
-    assert "custom" not in surface_payload
+    assert "custommodule" not in surface_payload
     assert (root / "behavior_results.json").exists()
     assert (root / "oracle_evidence.json").exists()
     assert (root / "eval_behavior.py").exists()
@@ -276,4 +321,73 @@ def test_module_surface_contract_drift_is_replay_checked(
     assert drift["checks"]["output_hash_match"] is True
     assert drift["checks"]["program_module_surfaces_exists"] is True
     assert drift["checks"]["program_module_surfaces_hash_match"] is False
+    assert "program_evidence_hash_mismatch" in drift["error_codes"]
+
+
+def test_prompt_inferred_pipeline_capability_registry_matches_module_surfaces(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _configure_local(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="PromptInferredCapabilityProgram",
+            objective="Route support tickets and draft a response.",
+            inputs=["ticket_text"],
+            outputs=["response"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    root = Path(artifact.root_path)
+
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+    registry = json.loads(
+        (root / "program_capability_registry.json").read_text(encoding="utf-8")
+    )
+    surface_refs = {
+        (surface["module_id"], surface["capability_ref"]["capability_id"])
+        for surface in module_surfaces["module_surfaces"]
+    }
+    registry_refs = {
+        (ref["module_id"], ref["capability_id"])
+        for ref in registry["used_capability_refs"]
+    }
+
+    assert module_surfaces["module_surface_count"] == 2
+    assert surface_refs == registry_refs
+    assert ("classify_route", "dspy.primitive.Predict") in registry_refs
+    assert ("produce_response", "dspy.primitive.ChainOfThought") in registry_refs
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def test_capability_registry_contract_drift_is_replay_checked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _configure_local(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="ReplayCapabilityRegistryProgram",
+            objective="Answer a short question.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    root = Path(artifact.root_path)
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+    registry_path = root / "program_capability_registry.json"
+    payload = json.loads(registry_path.read_text(encoding="utf-8"))
+    payload["status"] = "drifted"
+    registry_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert drift["status"] == "failed"
+    assert drift["checks"]["output_hash_match"] is True
+    assert drift["checks"]["program_capability_registry_exists"] is True
+    assert drift["checks"]["program_capability_registry_hash_match"] is False
     assert "program_evidence_hash_mismatch" in drift["error_codes"]

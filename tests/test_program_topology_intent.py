@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, Mapping, cast
 
 import pytest
 
@@ -75,7 +77,7 @@ def test_explicit_pipeline_topology_is_normalized_and_persisted(
     subprocess_calls: list[list[str]] = []
 
     def spy_run(
-        command: list[str], *args: object, **kwargs: object
+        command: list[str], *args: Any, **kwargs: Any
     ) -> subprocess.CompletedProcess[str]:
         command_text = [str(part) for part in command]
         command_names = [Path(part).name for part in command_text]
@@ -84,7 +86,9 @@ def test_explicit_pipeline_topology_is_normalized_and_persisted(
         assert "program-refine" not in command_names
         assert "program-promote" not in command_names
         subprocess_calls.append(command_text)
-        return real_run(command, *args, **kwargs)
+        return cast(
+            subprocess.CompletedProcess[str], real_run(command, *args, **kwargs)
+        )
 
     monkeypatch.setattr(program_service.subprocess, "run", spy_run)
 
@@ -391,6 +395,334 @@ def test_invalid_explicit_topology_fails_validation(
         )
 
 
+def test_pipeline_dag_scheduler_executes_out_of_order_fan_in_modules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    topology = {
+        "kind": "pipeline",
+        "execution_status": "declared_not_materialized",
+        "modules": [
+            {
+                "id": "compose_answer",
+                "primitive": "ChainOfThought",
+                "signature": {
+                    "name": "ComposeAnswer",
+                    "inputs": ["facts", "risk"],
+                    "outputs": ["answer"],
+                },
+            },
+            {
+                "id": "extract_facts",
+                "primitive": "Predict",
+                "signature": {
+                    "name": "ExtractFacts",
+                    "inputs": ["ticket_text"],
+                    "outputs": ["facts"],
+                },
+            },
+            {
+                "id": "score_risk",
+                "primitive": "Predict",
+                "signature": {
+                    "name": "ScoreRisk",
+                    "inputs": ["ticket_text"],
+                    "outputs": ["risk"],
+                },
+            },
+        ],
+        "edges": [
+            {"from": "input", "to": "extract_facts"},
+            {"from": "input", "to": "score_risk"},
+            {"from": "extract_facts", "to": "compose_answer"},
+            {"from": "score_risk", "to": "compose_answer"},
+            {"from": "compose_answer", "to": "output"},
+        ],
+    }
+    intent = ProgramIntent(
+        name="OutOfOrderDagProgram",
+        objective="Extract facts and score risk before composing an answer.",
+        inputs=["ticket_text"],
+        outputs=["answer"],
+        topology=topology,
+    )
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+
+    for module_name in ["program", "module", "signature"]:
+        sys.modules.pop(module_name, None)
+    sys.path.insert(0, str(root))
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "generated_out_of_order_dag_program", root / "program.py"
+        )
+        assert spec is not None and spec.loader is not None
+        generated = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generated)
+        program = generated.build_program()
+        calls: list[str] = []
+
+        class StubModule:
+            def __init__(self, module_id: str, outputs: dict[str, str]) -> None:
+                self.module_id = module_id
+                self.outputs = outputs
+
+            def __call__(self, **kwargs: object) -> object:
+                calls.append(self.module_id)
+                return generated.dspy.Prediction(**self.outputs)
+
+        program.extract_facts = StubModule("extract_facts", {"facts": "known facts"})
+        program.score_risk = StubModule("score_risk", {"risk": "low"})
+        program.compose_answer = StubModule(
+            "compose_answer",
+            {"answer": "known facts / low"},
+        )
+        prediction = program(ticket_text="billing ticket")
+    finally:
+        try:
+            sys.path.remove(str(root))
+        except ValueError:
+            pass
+        for module_name in ["program", "module", "signature"]:
+            sys.modules.pop(module_name, None)
+
+    assert calls == ["extract_facts", "score_risk", "compose_answer"]
+    assert prediction.answer == "known facts / low"
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def test_pipeline_inline_retriever_materializes_bounded_local_adapter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    intent = ProgramIntent(
+        name="RetrieverPipelineProgram",
+        objective="Retrieve local inline passages, then answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveContext",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "inline_corpus",
+                        "k": 1,
+                        "documents": [
+                            {
+                                "id": "billing_doc",
+                                "text": "Billing invoices can be corrected by the accounts team.",
+                            },
+                            {
+                                "id": "technical_doc",
+                                "text": "Technical crashes require logs and reproduction steps.",
+                            },
+                        ],
+                    },
+                },
+                {
+                    "id": "answer_question",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "AnswerQuestion",
+                        "inputs": ["question", "passages"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "answer_question"},
+                {"from": "answer_question", "to": "output"},
+            ],
+        },
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    module_text = (root / "module.py").read_text(encoding="utf-8")
+    assert "_select_inline_documents" in module_text
+    assert "generated_bounded_inline_retriever_adapter" not in module_text
+    assert "dspy.Retrieve" not in module_text
+    assert "dspy.settings.rm" not in module_text
+    assert "importlib" not in module_text
+
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+    registry = json.loads(
+        (root / "program_capability_registry.json").read_text(encoding="utf-8")
+    )
+    retriever_surface = module_surfaces["module_surfaces"][0]
+    assert retriever_surface["primitive"] == "Retriever"
+    assert retriever_surface["capability_ref"] == {
+        "schema_version": "program-capability-contract-v1",
+        "capability_id": "dspy.primitive.Retriever",
+        "primitive": "Retriever",
+        "status": "materializable_with_bounded_inline_adapter",
+        "materializable": True,
+        "runtime_binding": "generated_bounded_inline_retriever_adapter",
+    }
+    assert retriever_surface["effects"]["provider_called"] is False
+    assert retriever_surface["effects"]["tool_called"] is False
+    assert retriever_surface["effects"]["filesystem_read"] is False
+    assert retriever_surface["effects"]["network"] is False
+    assert ("retrieve_context", "dspy.primitive.Retriever") in {
+        (ref["module_id"], ref["capability_id"])
+        for ref in registry["used_capability_refs"]
+    }
+
+    spec = importlib.util.spec_from_file_location(
+        "generated_retriever_module", root / "module.py"
+    )
+    assert spec is not None and spec.loader is not None
+    generated_module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(root))
+    try:
+        spec.loader.exec_module(generated_module)
+        retriever = generated_module.RetrieveContextModule()
+        prediction = retriever(question="How do I fix a billing invoice?")
+    finally:
+        try:
+            sys.path.remove(str(root))
+        except ValueError:
+            pass
+        sys.modules.pop("signature", None)
+        sys.modules.pop("generated_retriever_module", None)
+    passages = json.loads(prediction.passages)
+    assert passages[0]["id"] == "billing_doc"
+    assert passages[0]["score"] > 0
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def test_pipeline_retriever_fails_closed_without_bounded_inline_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="InvalidRetrieverProgram",
+        objective="Reject unbounded retriever modules.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveContext",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                }
+            ],
+            "edges": [{"from": "input", "to": "retrieve_context"}],
+        },
+    )
+
+    with pytest.raises(ValueError, match="supports only module primitives"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    assert not (tmp_path / "program" / "manifest.json").exists()
+
+
+@pytest.mark.parametrize(
+    "retriever",
+    [
+        {"mode": "remote", "k": 1, "documents": [{"id": "doc", "text": "text"}]},
+        {
+            "mode": "inline_corpus",
+            "k": 99,
+            "documents": [{"id": "doc", "text": "text"}],
+        },
+        {"mode": "inline_corpus", "k": 1, "documents": []},
+        {
+            "mode": "inline_corpus",
+            "k": 1,
+            "documents": [{"id": "doc", "text": "text", "path": "secret.md"}],
+        },
+    ],
+)
+def test_pipeline_retriever_contract_validation_rejects_unsafe_shapes(
+    retriever: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError):
+        ProgramIntent(
+            name="InvalidRetrieverContractProgram",
+            objective="Reject unsafe retriever contracts.",
+            inputs=["question"],
+            outputs=["answer"],
+            topology={
+                "kind": "pipeline",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "retrieve_context",
+                        "primitive": "Retriever",
+                        "signature": {
+                            "name": "RetrieveContext",
+                            "inputs": ["question"],
+                            "outputs": ["passages"],
+                        },
+                        "retriever": retriever,
+                    }
+                ],
+                "edges": [{"from": "input", "to": "retrieve_context"}],
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    "extra_key",
+    ["provider", "endpoint", "tool", "import"],
+)
+def test_pipeline_retriever_rejects_external_module_level_keys(extra_key: str) -> None:
+    with pytest.raises(ValueError, match="unsupported keys"):
+        ProgramIntent(
+            name="ExternalRetrieverRejectedProgram",
+            objective="Reject external retriever hints on materialized retriever module.",
+            inputs=["question"],
+            outputs=["answer"],
+            topology={
+                "kind": "pipeline",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "retrieve_context",
+                        "primitive": "Retriever",
+                        "signature": {
+                            "name": "RetrieveContext",
+                            "inputs": ["question"],
+                            "outputs": ["passages"],
+                        },
+                        "retriever": {
+                            "mode": "inline_corpus",
+                            "k": 1,
+                            "documents": [{"id": "doc", "text": "text"}],
+                        },
+                        extra_key: "external",
+                    }
+                ],
+                "edges": [{"from": "input", "to": "retrieve_context"}],
+            },
+        )
+
+
 def test_unsupported_pipeline_primitive_fails_when_materializing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -405,7 +737,10 @@ def test_unsupported_pipeline_primitive_fails_when_materializing(
             **PIPELINE_TOPOLOGY,
             "modules": [
                 PIPELINE_TOPOLOGY["modules"][0],
-                {**PIPELINE_TOPOLOGY["modules"][1], "primitive": "ReAct"},
+                {
+                    **cast(Mapping[str, object], PIPELINE_TOPOLOGY["modules"][1]),
+                    "primitive": "ReAct",
+                },
             ],
         },
     )
@@ -413,6 +748,177 @@ def test_unsupported_pipeline_primitive_fails_when_materializing(
     with pytest.raises(ValueError, match="supports only module primitives"):
         materialize_program_from_intent(intent, outdir=tmp_path / "program")
     assert not (tmp_path / "program" / "manifest.json").exists()
+
+
+def test_prompt_inferred_modules_choose_richer_pipeline_when_prompt_cues_are_clear(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    intent = ProgramIntent(
+        name="PromptInferredSupportProgram",
+        objective=(
+            "Route support tickets by classifying billing versus technical issues, "
+            "then draft a helpful response with rationale."
+        ),
+        inputs=["ticket_text"],
+        outputs=["response"],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    intent_payload = json.loads((root / "intent.json").read_text(encoding="utf-8"))
+    plan = json.loads((root / "plan.json").read_text(encoding="utf-8"))
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+
+    assert intent_payload["topology"] == {}
+    assert plan["declared_topology"] is None
+    assert plan["inferred_topology"]["origin"] == "prompt_inferred"
+    assert plan["inferred_topology"]["kind"] == "pipeline"
+    assert plan["materialization_scope"]["topology_declared"] is False
+    assert plan["materialization_scope"]["topology_inferred"] is True
+    assert plan["materialization_scope"]["topology_materialized"] is True
+    assert plan["materialization_scope"]["current_renderer"] == (
+        "prompt_inferred_pipeline_renderer"
+    )
+    assert [module["id"] for module in plan["materialized_topology"]["modules"]] == [
+        "classify_route",
+        "produce_response",
+    ]
+    assert [
+        module["primitive"] for module in plan["materialized_topology"]["modules"]
+    ] == ["Predict", "ChainOfThought"]
+
+    assert manifest["topology_execution"]["declared_topology_present"] is False
+    assert manifest["topology_execution"]["inferred_topology_present"] is True
+    assert manifest["topology_execution"]["materialized"] is True
+    assert manifest["topology_execution"]["status"] == "pipeline_materialized"
+    assert manifest["topology_execution"]["current_renderer"] == (
+        "prompt_inferred_pipeline_renderer"
+    )
+    assert module_surfaces["module_surface_count"] == 2
+    assert [
+        surface["source_kind"] for surface in module_surfaces["module_surfaces"]
+    ] == [
+        "generated_prompt_inferred_module",
+        "generated_prompt_inferred_module",
+    ]
+    assert [surface["primitive"] for surface in module_surfaces["module_surfaces"]] == [
+        "Predict",
+        "ChainOfThought",
+    ]
+
+    signature_text = (root / "signature.py").read_text(encoding="utf-8")
+    module_text = (root / "module.py").read_text(encoding="utf-8")
+    program_text = (root / "program.py").read_text(encoding="utf-8")
+    assert "class ClassifyRoute" in signature_text
+    assert "class ProduceResponse" in signature_text
+    assert "class ClassifyRouteModule" in module_text
+    assert "class ProduceResponseModule" in module_text
+    assert "dspy.ChainOfThought(ProduceResponse)" in module_text
+    assert "INFERRED_TOPOLOGY" in program_text
+    assert "prompt_inferred_pipeline_renderer" in program_text
+
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+    assert replay["status"] == "ok"
+
+
+def test_prompt_inferred_reasoning_intent_uses_chain_of_thought_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    intent = ProgramIntent(
+        name="ReviewFindingsProgram",
+        objective="Review the evidence and explain the strongest recommendation.",
+        inputs=["evidence"],
+        outputs=["recommendation"],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    plan = json.loads((root / "plan.json").read_text(encoding="utf-8"))
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+
+    assert plan["declared_topology"] is None
+    assert plan["inferred_topology"]["execution_status"] == (
+        "prompt_inferred_not_materialized"
+    )
+    assert plan["materialization_scope"]["topology_inferred"] is True
+    assert [module["id"] for module in plan["materialized_topology"]["modules"]] == [
+        "reason_recommendation"
+    ]
+    assert [
+        module["primitive"] for module in plan["materialized_topology"]["modules"]
+    ] == ["ChainOfThought"]
+    assert module_surfaces["module_surfaces"][0]["source_kind"] == (
+        "generated_prompt_inferred_module"
+    )
+    assert module_surfaces["module_surfaces"][0]["primitive"] == "ChainOfThought"
+    assert "dspy.ChainOfThought(ReasonRecommendation)" in (
+        root / "module.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_prompt_module_inference_can_be_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="InferenceDisabledProgram",
+        objective=(
+            "Route support tickets by classifying billing versus technical issues, "
+            "then draft a helpful response with rationale."
+        ),
+        inputs=["ticket_text"],
+        outputs=["response"],
+        options={"module_inference": False},
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    plan = json.loads((root / "plan.json").read_text(encoding="utf-8"))
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+
+    assert plan["inferred_topology"] is None
+    assert plan["topology"]["kind"] == "single_module"
+    assert plan["materialization_scope"]["current_renderer"] == (
+        "single_module_scaffold"
+    )
+    assert module_surfaces["module_surface_count"] == 1
+    assert module_surfaces["module_surfaces"][0]["primitive"] == "Predict"
+
+
+def test_classification_only_prompt_does_not_infer_generation_pipeline_from_output_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="ClassifyOnlyProgram",
+        objective="Classify sentiment for a support ticket.",
+        inputs=["ticket_text"],
+        outputs=["answer"],
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    plan = json.loads((root / "plan.json").read_text(encoding="utf-8"))
+
+    assert plan["inferred_topology"] is None
+    assert plan["topology"]["kind"] == "single_module"
 
 
 def test_default_single_module_intent_keeps_current_materialization_contract(

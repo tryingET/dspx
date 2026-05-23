@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from dspx.services.program_capabilities import module_capability_ref
 from dspx.services.program_contracts import intent_surface_names, sanitize_ident
 from dspx.services.program_topology import (
     has_declared_pipeline_topology,
+    has_materializable_pipeline_topology,
     module_class_name,
     validate_materializable_pipeline_topology,
 )
@@ -13,9 +15,13 @@ PROGRAM_MODULE_SURFACE_SCHEMA = "program-module-surface-v1"
 PROGRAM_MODULE_SURFACES_SCHEMA = "program-module-surfaces-v1"
 
 _MODULE_SURFACE_EFFECTS = {
+    "provider_called": False,
+    "tool_called": False,
+    "custom_import_loaded": False,
     "network": False,
     "filesystem_read": False,
     "filesystem_write": False,
+    "subprocess": False,
     "external_authority": False,
 }
 
@@ -58,7 +64,11 @@ def _module_surface_contract(
     inputs: list[str],
     outputs: list[str],
     module_class: str,
+    retriever: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    capability_module: dict[str, Any] = {"primitive": primitive, "id": module_id}
+    if retriever is not None:
+        capability_module["retriever"] = dict(retriever)
     signature = {
         "name": signature_name,
         "inputs": list(inputs),
@@ -76,6 +86,7 @@ def _module_surface_contract(
             "signature_path": "signature.py",
             "module_path": "module.py",
         },
+        "capability_ref": module_capability_ref(capability_module),
         "io": {"inputs": list(inputs), "outputs": list(outputs)},
         "effects": dict(_MODULE_SURFACE_EFFECTS),
         "authority": "module_surface_contract_only_non_authoritative",
@@ -103,18 +114,28 @@ def build_pipeline_module_surface_contracts(intent: Any) -> list[dict[str, Any]]
 
     topology = validate_materializable_pipeline_topology(intent)
     modules = [dict(item) for item in topology.get("modules", [])]
-    return [
-        _module_surface_contract(
-            module_id=str(module.get("id") or ""),
-            source_kind="generated_topology_module",
-            primitive=str(module.get("primitive") or "Predict"),
-            signature_name=_signature_class_name(module),
-            inputs=_signature_inputs(module),
-            outputs=_signature_outputs(module),
-            module_class=module_class_name(module),
+    source_kind = (
+        "generated_topology_module"
+        if has_declared_pipeline_topology(intent)
+        else "generated_prompt_inferred_module"
+    )
+    surfaces: list[dict[str, Any]] = []
+    for module in modules:
+        raw_retriever = module.get("retriever")
+        retriever = dict(raw_retriever) if isinstance(raw_retriever, Mapping) else None
+        surfaces.append(
+            _module_surface_contract(
+                module_id=str(module.get("id") or ""),
+                source_kind=source_kind,
+                primitive=str(module.get("primitive") or "Predict"),
+                signature_name=_signature_class_name(module),
+                inputs=_signature_inputs(module),
+                outputs=_signature_outputs(module),
+                module_class=module_class_name(module),
+                retriever=retriever,
+            )
         )
-        for module in modules
-    ]
+    return surfaces
 
 
 def build_program_module_surfaces(intent: Any) -> dict[str, Any]:
@@ -124,7 +145,7 @@ def build_program_module_surfaces(intent: Any) -> dict[str, Any]:
     It does not import, execute, rank, promote, or grant authority to modules.
     """
 
-    if has_declared_pipeline_topology(intent):
+    if has_materializable_pipeline_topology(intent):
         surfaces = build_pipeline_module_surface_contracts(intent)
     else:
         surfaces = [build_single_module_surface_contract(intent)]
@@ -137,6 +158,8 @@ def build_program_module_surfaces(intent: Any) -> dict[str, Any]:
         "non_authority": dict(_MODULE_SURFACE_NON_AUTHORITY),
         "notes": [
             "program-gen composes generated module surfaces through this replayable contract.",
+            "No-topology intents may deterministically infer bounded generated Predict/ChainOfThought modules from clear prompt cues when those modules are more valuable than the default Predict scaffold.",
+            "Capability refs bind each generated surface to the descriptor-only program_capability_registry.json boundary contract.",
             "Future local custom module references can use the same IO-declared surface shape once a safe declared-only/import-free contract lands.",
             "This artifact does not execute arbitrary custom Python modules and carries no ranking, promotion, governance, or external mutation authority.",
         ],

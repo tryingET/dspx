@@ -9,6 +9,10 @@ from typing import Any, Mapping, Optional
 
 from dspx.cache import cache_dir, cache_enabled, make_key, sha256_text
 from dspx.generated_code_guard import isolated_subprocess_env
+from dspx.services.program_capabilities import build_program_capability_registry
+from dspx.services.program_generated_policy import (
+    verify_program_generated_module_policy,
+)
 from dspx.run_receipts import (
     build_mlflow_hints,
     build_run_receipt,
@@ -55,7 +59,9 @@ from dspx.services.program_surfaces import (
 )
 from dspx.services.program_topology import (
     PIPELINE_MATERIALIZED_STATUS,
+    PROMPT_INFERRED_PIPELINE_RENDERER,
     materialized_pipeline_topology,
+    prompt_inferred_pipeline_topology,
     validate_materializable_pipeline_topology,
 )
 
@@ -167,7 +173,9 @@ def _default_materialized_topology(intent: ProgramIntent) -> dict[str, Any]:
 
 def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
     declared_topology = dict(intent.topology or {})
+    inferred_topology = prompt_inferred_pipeline_topology(intent)
     materialized_topology = _default_materialized_topology(intent)
+    topology_inferred = False
     if declared_topology:
         topology = declared_topology
         if declared_topology.get("kind") == "pipeline":
@@ -178,8 +186,8 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
             current_renderer = "pipeline_topology_renderer"
             notes = [
                 "Explicit pipeline topology is preserved as declared input and rendered as a composed program.",
-                "Only Predict and ChainOfThought module primitives plus simple when.field/equals routing are supported in this slice.",
-                "No topology inference, broad graph engine, tools, retrievers, ReAct, or ProgramOfThought execution is performed.",
+                "Only Predict, ChainOfThought, and explicit bounded inline Retriever module primitives plus simple when.field/equals routing are supported in this slice.",
+                "No topology inference, broad graph engine, external tools/retrievers, ReAct, or ProgramOfThought execution is performed.",
             ]
         else:
             status = str(
@@ -192,21 +200,32 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
                 "This slice only renders explicit pipeline topology; unsupported kinds remain declared-only.",
                 "The generated Python remains the current single-module scaffold for this topology kind.",
             ]
+    elif inferred_topology:
+        validate_materializable_pipeline_topology(intent)
+        topology = inferred_topology
+        materialized_topology = materialized_pipeline_topology(intent)
+        status = PIPELINE_MATERIALIZED_STATUS
+        topology_materialized = True
+        topology_inferred = True
+        current_renderer = PROMPT_INFERRED_PIPELINE_RENDERER
+        notes = list(inferred_topology.get("notes") or [])
     else:
         topology = materialized_topology
         status = str(materialized_topology["execution_status"])
         topology_materialized = True
         current_renderer = "single_module_scaffold"
         notes = [
-            "No explicit topology was declared; program-gen used the existing single-module scaffold.",
+            "No explicit topology was declared and no prompt cues required richer module inference; program-gen used the existing single-module scaffold.",
         ]
     return {
         "topology": topology,
         "declared_topology": declared_topology or None,
+        "inferred_topology": inferred_topology or None,
         "materialized_topology": materialized_topology,
         "topology_execution_status": status,
         "materialization_scope": {
             "topology_declared": bool(declared_topology),
+            "topology_inferred": topology_inferred,
             "topology_materialized": topology_materialized,
             "current_renderer": current_renderer,
             "notes": notes,
@@ -260,6 +279,16 @@ def build_program_plan(
         {
             "kind": "execution_episode",
             "path": "execution_episode.json",
+            "generator": "program-gen",
+        },
+        {
+            "kind": "capability_registry",
+            "path": "program_capability_registry.json",
+            "generator": "program-gen",
+        },
+        {
+            "kind": "generated_module_policy",
+            "path": "generated_module_policy.json",
             "generator": "program-gen",
         },
         {"kind": "signature", "path": "signature.py", "generator": "signature-gen"},
@@ -357,9 +386,20 @@ def build_program_plan(
         },
         "topology": topology_contract["topology"],
         "declared_topology": topology_contract["declared_topology"],
+        "inferred_topology": topology_contract["inferred_topology"],
         "materialized_topology": topology_contract["materialized_topology"],
         "topology_execution_status": topology_contract["topology_execution_status"],
         "materialization_scope": topology_contract["materialization_scope"],
+        "capability_contracts": {
+            "schema_version": "program-capability-registry-v1",
+            "path": "program_capability_registry.json",
+            "status": "descriptor_only_no_runtime_binding",
+        },
+        "generated_module_policy": {
+            "schema_version": "program-generated-module-policy-v1",
+            "path": "generated_module_policy.json",
+            "status": "passed",
+        },
         "surfaces": surfaces,
         "metric": intent.metric or "unspecified",
         "runtime": dict(intent.runtime),
@@ -687,6 +727,8 @@ def _oracle_source_artifacts(
     for kind, path in (
         ("dataset_manifest", "dataset_manifest.json"),
         ("module_surfaces", "module_surfaces.json"),
+        ("capability_registry", "program_capability_registry.json"),
+        ("generated_module_policy", "generated_module_policy.json"),
         ("signature", "signature.py"),
         ("module", "module.py"),
         ("program", "program.py"),
@@ -1131,6 +1173,7 @@ def _build_execution_episode_contract(
             for split, payload in dataset_split_behavior_payloads.items()
         }
     declared_topology = dict(intent.topology or {})
+    inferred_topology = prompt_inferred_pipeline_topology(intent)
     if declared_topology.get("kind") == "pipeline":
         topology_execution = {
             "declared_topology_present": True,
@@ -1144,10 +1187,27 @@ def _build_execution_episode_contract(
                 "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated.",
             ],
         }
+    elif inferred_topology:
+        topology_execution = {
+            "declared_topology_present": False,
+            "declared_topology_kind": None,
+            "inferred_topology_present": True,
+            "inferred_topology_kind": "pipeline",
+            "materialized": True,
+            "status": PIPELINE_MATERIALIZED_STATUS,
+            "current_renderer": PROMPT_INFERRED_PIPELINE_RENDERER,
+            "materialized_topology_kind": "pipeline",
+            "notes": [
+                "Prompt-inferred generated module topology was rendered into signature.py, module.py, and program.py.",
+                "Inference supports only bounded generated Predict/ChainOfThought modules and simple deterministic routing.",
+                "No custom Python imports, external tools/retrievers, ReAct, ranking, promotion, or external authority mutation are performed.",
+            ],
+        }
     else:
         topology_execution = {
             "declared_topology_present": bool(declared_topology),
             "declared_topology_kind": declared_topology.get("kind"),
+            "inferred_topology_present": False,
             "materialized": not bool(declared_topology),
             "status": str(
                 declared_topology.get("execution_status")
@@ -1399,6 +1459,13 @@ def materialize_program_from_intent(
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
     module_surfaces_payload = build_program_module_surfaces(intent)
     module_surfaces_text = _json_text(module_surfaces_payload)
+    capability_registry_payload = build_program_capability_registry(intent)
+    capability_registry_text = _json_text(capability_registry_payload)
+    generated_module_policy_payload = verify_program_generated_module_policy(
+        module_code,
+        module_surfaces=module_surfaces_payload,
+    )
+    generated_module_policy_text = _json_text(generated_module_policy_payload)
     program_plan = build_program_plan(intent, examples_hash=examples_hash)
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
@@ -1425,6 +1492,8 @@ def materialize_program_from_intent(
     promotion_decision_template_text = _json_text(promotion_decision_template)
     plan_hash = sha256_text(plan_text)
     module_surfaces_hash = sha256_text(module_surfaces_text)
+    capability_registry_hash = sha256_text(capability_registry_text)
+    generated_module_policy_hash = sha256_text(generated_module_policy_text)
     jury_hash = sha256_text(jury_text)
     jury_selection_hash = sha256_text(jury_selection_text)
     jury_rubric_hash = sha256_text(jury_rubric_text)
@@ -1443,6 +1512,8 @@ def materialize_program_from_intent(
         promotion_adjudication_request_text,
         promotion_decision_template_text,
         module_surfaces_text,
+        capability_registry_text,
+        generated_module_policy_text,
         signature_code,
         module_code,
         program_code,
@@ -1471,6 +1542,8 @@ def materialize_program_from_intent(
         "promotion_adjudication_request.json": promotion_adjudication_request_hash,
         "promotion_decision_template.json": promotion_decision_template_hash,
         "module_surfaces.json": module_surfaces_hash,
+        "program_capability_registry.json": capability_registry_hash,
+        "generated_module_policy.json": generated_module_policy_hash,
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -1519,6 +1592,12 @@ def materialize_program_from_intent(
         promotion_decision_template_text, encoding="utf-8"
     )
     (root / "module_surfaces.json").write_text(module_surfaces_text, encoding="utf-8")
+    (root / "program_capability_registry.json").write_text(
+        capability_registry_text, encoding="utf-8"
+    )
+    (root / "generated_module_policy.json").write_text(
+        generated_module_policy_text, encoding="utf-8"
+    )
     _write_json(root / "intent.json", intent_payload)
     if examples_text is not None:
         (root / "examples.json").write_text(examples_text, encoding="utf-8")
@@ -1683,6 +1762,8 @@ def materialize_program_from_intent(
             "promotion_adjudication_request.json",
             "promotion_decision_template.json",
             "module_surfaces.json",
+            "program_capability_registry.json",
+            "generated_module_policy.json",
             "intent.json",
             *(["examples.json", "behavior_results.json"] if examples_payload else []),
             *(["behavior_episode.json"] if behavior_episode_hash is not None else []),
@@ -1808,6 +1889,8 @@ def materialize_program_from_intent(
             "intent",
             "module_surfaces",
             "execution_episode",
+            "capability_registry",
+            "generated_module_policy",
             *(["examples", "behavior_results"] if examples_payload else []),
             *(
                 ["behavior_harness", "behavior_episode", "oracle_evidence"]
@@ -1906,6 +1989,22 @@ def materialize_program_from_intent(
                 "content_hash": surface_hashes["execution_episode.json"],
                 "schema_version": execution_episode["schema_version"],
                 "status": execution_episode["status"],
+            },
+            {
+                "kind": "capability_registry",
+                "path": "program_capability_registry.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["program_capability_registry.json"],
+                "schema_version": capability_registry_payload["schema_version"],
+                "status": capability_registry_payload["status"],
+            },
+            {
+                "kind": "generated_module_policy",
+                "path": "generated_module_policy.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["generated_module_policy.json"],
+                "schema_version": generated_module_policy_payload["schema_version"],
+                "status": generated_module_policy_payload["status"],
             },
             *dataset_candidate_surfaces,
             {
@@ -2023,6 +2122,10 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "module_surfaces_path": "module_surfaces.json",
+            "capability_registry_hash": capability_registry_hash,
+            "capability_registry_path": "program_capability_registry.json",
+            "generated_module_policy_hash": generated_module_policy_hash,
+            "generated_module_policy_path": "generated_module_policy.json",
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
             "topology_execution": topology_execution,
@@ -2068,6 +2171,8 @@ def materialize_program_from_intent(
                 "promotion_adjudication_request": "program-gen",
                 "promotion_decision_template": "program-gen",
                 "module_surfaces": "program-gen",
+                "capability_registry": "program-gen",
+                "generated_module_policy": "program-gen",
                 "execution_episode": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
@@ -2166,6 +2271,8 @@ def materialize_program_from_intent(
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
+            "capability_registry_hash": capability_registry_hash,
+            "generated_module_policy_hash": generated_module_policy_hash,
             "execution_episode_hash": execution_episode_hash,
             "dataset_manifest_hash": dataset_manifest_hash,
             "dataset_split_behavior_results_hashes": dict(
@@ -2187,6 +2294,18 @@ def materialize_program_from_intent(
             "path": "module_surfaces.json",
             "content_hash": module_surfaces_hash,
             "schema_version": module_surfaces_payload["schema_version"],
+        },
+        "program_capability_registry": capability_registry_payload,
+        "capability_registry_artifact": {
+            "path": "program_capability_registry.json",
+            "content_hash": capability_registry_hash,
+            "schema_version": capability_registry_payload["schema_version"],
+        },
+        "program_generated_module_policy": generated_module_policy_payload,
+        "generated_module_policy_artifact": {
+            "path": "generated_module_policy.json",
+            "content_hash": generated_module_policy_hash,
+            "schema_version": generated_module_policy_payload["schema_version"],
         },
         "execution_episode_artifact": {
             "path": "execution_episode.json",
@@ -2263,6 +2382,10 @@ def materialize_program_from_intent(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "module_surfaces_path": "module_surfaces.json",
+            "capability_registry_hash": capability_registry_hash,
+            "capability_registry_path": "program_capability_registry.json",
+            "generated_module_policy_hash": generated_module_policy_hash,
+            "generated_module_policy_path": "generated_module_policy.json",
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
             "dataset_manifest_hash": dataset_manifest_hash,
@@ -2295,6 +2418,18 @@ def materialize_program_from_intent(
                 "path": "module_surfaces.json",
                 "content_hash": module_surfaces_hash,
                 "schema_version": module_surfaces_payload["schema_version"],
+            },
+            "program_capability_registry": capability_registry_payload,
+            "program_capability_registry_artifact": {
+                "path": "program_capability_registry.json",
+                "content_hash": capability_registry_hash,
+                "schema_version": capability_registry_payload["schema_version"],
+            },
+            "program_generated_module_policy": generated_module_policy_payload,
+            "program_generated_module_policy_artifact": {
+                "path": "generated_module_policy.json",
+                "content_hash": generated_module_policy_hash,
+                "schema_version": generated_module_policy_payload["schema_version"],
             },
             "program_execution_episode_artifact": {
                 "path": "execution_episode.json",
@@ -2394,6 +2529,8 @@ def materialize_program_from_intent(
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
+            "capability_registry_hash": capability_registry_hash,
+            "generated_module_policy_hash": generated_module_policy_hash,
             "execution_episode_hash": execution_episode_hash,
             "dataset_manifest_hash": dataset_manifest_hash,
             "dataset_split_behavior_results_hashes": dict(

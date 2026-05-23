@@ -19,6 +19,7 @@ Extraction status:
   ✅ program    - root-level program-gen command uses dspx.services.program_service
   ✅ program_refine - dspx.cli.commands.program_refine
   ✅ program_promote - dspx.cli.commands.program_promote
+  ✅ program_architect - dspx.cli.commands.program_architect
 """
 
 from dspx.cli.commands.adapters import (
@@ -32,6 +33,7 @@ from dspx.cli.commands.openapi import app as openapi_app
 from dspx.cli.commands.optimize import app as optimize_app
 from dspx.cli.commands.oracle import app as oracle_app
 from dspx.cli.commands.providers import app as providers_app
+from dspx.cli.commands.program_architect import app as program_architect_app
 from dspx.cli.commands.program_promote import app as program_promote_app
 from dspx.cli.commands.program_refine import app as program_refine_app
 from dspx.cli.commands.run import app as run_app
@@ -46,6 +48,7 @@ __all__ = [
     "providers_app",
     "program_refine_app",
     "program_promote_app",
+    "program_architect_app",
     "oracle_app",
     "signature_app",
     "mermaid_app",

@@ -1,11 +1,43 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
+import re
 
+from dspx.services.program_capabilities import (
+    is_pipeline_module_materializable,
+    materializable_pipeline_primitives,
+    normalize_inline_retriever_config,
+)
 from dspx.services.program_contracts import sanitize_ident, surface_description
 
 PIPELINE_MATERIALIZED_STATUS = "pipeline_materialized"
-SUPPORTED_PIPELINE_PRIMITIVES = {"Predict", "ChainOfThought"}
+PROMPT_INFERRED_PIPELINE_RENDERER = "prompt_inferred_pipeline_renderer"
+SUPPORTED_PIPELINE_PRIMITIVES = materializable_pipeline_primitives()
+_REASONING_CUES = {
+    "adjudicate",
+    "analyse",
+    "analyze",
+    "assess",
+    "compare",
+    "critique",
+    "derive",
+    "diagnose",
+    "evaluate",
+    "explain",
+    "infer",
+    "judge",
+    "multi-step",
+    "plan",
+    "rationale",
+    "reason",
+    "review",
+    "strategy",
+    "synthesize",
+}
+_ROUTING_CUES = {"classify", "dispatch", "route", "triage"}
+_GENERATION_CUES = {"answer", "draft", "recommend", "respond", "response"}
+_EXTRACT_CUES = {"extract", "parse", "summarize", "summarise"}
+_VALIDATE_CUES = {"check", "validate", "verify"}
 
 
 class ProgramTopologyMaterializationError(ValueError):
@@ -23,6 +55,206 @@ def has_declared_pipeline_topology(intent: Any) -> bool:
     return bool(declared_pipeline_topology(intent))
 
 
+def _objective_tokens(intent: Any) -> set[str]:
+    text = " ".join(
+        str(part or "")
+        for part in [
+            getattr(intent, "objective", ""),
+            getattr(intent, "task_type", ""),
+            " ".join(str(item) for item in getattr(intent, "constraints", []) or []),
+        ]
+    ).casefold()
+    words = set(re.findall(r"[a-z][a-z0-9_\-]*", text))
+    if "step" in words and "by" in words:
+        words.add("step-by-step")
+    if "multi" in words and "step" in words:
+        words.add("multi-step")
+    return words
+
+
+def _module_inference_enabled(intent: Any) -> bool:
+    options = getattr(intent, "options", {}) or {}
+    if not isinstance(options, Mapping):
+        return True
+    if "module_inference" not in options and "prompt_module_inference" not in options:
+        if bool(options.get("focused_json_bundle_runtime")):
+            return False
+    raw = options.get("module_inference", options.get("prompt_module_inference", True))
+    if isinstance(raw, bool):
+        return raw
+    return str(raw).strip().casefold() not in {"0", "false", "no", "off", "none"}
+
+
+def _pascal_name(value: str, *, fallback: str) -> str:
+    parts = [part for part in re.split(r"[^A-Za-z0-9]+", value) if part]
+    if not parts:
+        return fallback
+    return sanitize_ident(
+        "".join(part[:1].upper() + part[1:] for part in parts), fallback=fallback
+    )
+
+
+def _signature(
+    name: str, *, inputs: list[str], outputs: list[str]
+) -> dict[str, list[str] | str]:
+    return {"name": name, "inputs": list(inputs), "outputs": list(outputs)}
+
+
+def _with_intermediate(inputs: list[str], name: str) -> list[str]:
+    return [*inputs, *([] if name in inputs else [name])]
+
+
+def _prompt_inference_notes(reason: str) -> list[str]:
+    return [
+        "No explicit topology was declared; program-gen inferred a bounded generated module topology from the objective/task wording.",
+        reason,
+        "Inference is deterministic, local, and limited to generated Predict/ChainOfThought modules; no custom Python imports, tools, external retrievers, ReAct, ranking, promotion, or external authority mutation are performed.",
+    ]
+
+
+def prompt_inferred_pipeline_topology(intent: Any) -> dict[str, Any]:
+    """Infer a safe generated module topology from the user intent.
+
+    This is deliberately conservative: it only upgrades no-topology intents from the
+    default Predict scaffold to generated Predict/ChainOfThought pipeline modules
+    when the prompt contains clear routing, extraction/validation, or reasoning
+    cues. It does not infer arbitrary custom imports or non-supported DSPy
+    primitives.
+    """
+
+    if getattr(intent, "topology", {}) or not _module_inference_enabled(intent):
+        return {}
+    tokens = _objective_tokens(intent)
+    inputs = [str(item) for item in getattr(intent, "inputs", []) or ["context"]]
+    outputs = [str(item) for item in getattr(intent, "outputs", []) or ["output"]]
+    first_output = outputs[0]
+
+    if tokens & _ROUTING_CUES and tokens & _GENERATION_CUES:
+        final_id = f"produce_{first_output}"
+        return {
+            "kind": "pipeline",
+            "execution_status": "prompt_inferred_not_materialized",
+            "origin": "prompt_inferred",
+            "inference_reason": "routing/generation cues favor a generated classifier plus reasoned output module over a single Predict scaffold.",
+            "modules": [
+                {
+                    "id": "classify_route",
+                    "primitive": "Predict",
+                    "signature": _signature(
+                        "ClassifyRoute",
+                        inputs=inputs,
+                        outputs=["route"],
+                    ),
+                    "role": "Classify the input into the most useful route before generating the final output.",
+                },
+                {
+                    "id": final_id,
+                    "primitive": "ChainOfThought",
+                    "signature": _signature(
+                        _pascal_name(final_id, fallback="ProduceOutput"),
+                        inputs=_with_intermediate(inputs, "route"),
+                        outputs=outputs,
+                    ),
+                    "role": "Use the route and original inputs to produce the requested output with reasoning.",
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "classify_route"},
+                {"from": "classify_route", "to": final_id},
+                {"from": final_id, "to": "output"},
+            ],
+            "notes": _prompt_inference_notes(
+                "Detected routing plus generation cues in the prompt."
+            ),
+        }
+
+    if tokens & _EXTRACT_CUES and tokens & _VALIDATE_CUES:
+        final_id = f"validate_{first_output}"
+        return {
+            "kind": "pipeline",
+            "execution_status": "prompt_inferred_not_materialized",
+            "origin": "prompt_inferred",
+            "inference_reason": "extract/validate cues favor an extraction module plus a reasoned validation/output module over a single Predict scaffold.",
+            "modules": [
+                {
+                    "id": "extract_evidence",
+                    "primitive": "Predict",
+                    "signature": _signature(
+                        "ExtractEvidence",
+                        inputs=inputs,
+                        outputs=["evidence"],
+                    ),
+                    "role": "Extract the evidence needed by the final generated program output.",
+                },
+                {
+                    "id": final_id,
+                    "primitive": "ChainOfThought",
+                    "signature": _signature(
+                        _pascal_name(final_id, fallback="ValidateOutput"),
+                        inputs=_with_intermediate(inputs, "evidence"),
+                        outputs=outputs,
+                    ),
+                    "role": "Validate extracted evidence and produce the requested output.",
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "extract_evidence"},
+                {"from": "extract_evidence", "to": final_id},
+                {"from": final_id, "to": "output"},
+            ],
+            "notes": _prompt_inference_notes(
+                "Detected extraction plus validation cues in the prompt."
+            ),
+        }
+
+    if tokens & _REASONING_CUES:
+        module_id = f"reason_{first_output}"
+        return {
+            "kind": "pipeline",
+            "execution_status": "prompt_inferred_not_materialized",
+            "origin": "prompt_inferred",
+            "inference_reason": "reasoning/review cues favor a generated ChainOfThought module over a single Predict scaffold.",
+            "modules": [
+                {
+                    "id": module_id,
+                    "primitive": "ChainOfThought",
+                    "signature": _signature(
+                        _pascal_name(module_id, fallback="ReasonedOutput"),
+                        inputs=inputs,
+                        outputs=outputs,
+                    ),
+                    "role": "Reason over the supplied inputs before producing the requested output.",
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": module_id},
+                {"from": module_id, "to": "output"},
+            ],
+            "notes": _prompt_inference_notes(
+                "Detected reasoning/review cues in the prompt."
+            ),
+        }
+    return {}
+
+
+def effective_pipeline_topology(intent: Any) -> dict[str, Any]:
+    return declared_pipeline_topology(intent) or prompt_inferred_pipeline_topology(
+        intent
+    )
+
+
+def pipeline_topology_origin(intent: Any) -> str | None:
+    if declared_pipeline_topology(intent):
+        return "declared"
+    if prompt_inferred_pipeline_topology(intent):
+        return "prompt_inferred"
+    return None
+
+
+def has_materializable_pipeline_topology(intent: Any) -> bool:
+    return bool(effective_pipeline_topology(intent))
+
+
 def _module_signature(module: Mapping[str, Any]) -> dict[str, Any]:
     signature = module.get("signature")
     return dict(signature) if isinstance(signature, Mapping) else {}
@@ -31,7 +263,7 @@ def _module_signature(module: Mapping[str, Any]) -> dict[str, Any]:
 def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
     """Return the normalized pipeline topology or fail for unsupported execution."""
 
-    topology = declared_pipeline_topology(intent)
+    topology = effective_pipeline_topology(intent)
     if not topology:
         return {}
     modules = [
@@ -45,15 +277,29 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
         {
             str(module.get("primitive") or "")
             for module in modules
-            if str(module.get("primitive") or "") not in SUPPORTED_PIPELINE_PRIMITIVES
+            if not is_pipeline_module_materializable(module)
         }
     )
     if unsupported:
-        allowed = ", ".join(sorted(SUPPORTED_PIPELINE_PRIMITIVES))
+        allowed = ", ".join(
+            sorted([*SUPPORTED_PIPELINE_PRIMITIVES, "Retriever:inline_corpus"])
+        )
         raise ProgramTopologyMaterializationError(
             "pipeline topology materialization supports only module primitives "
-            f"{allowed}; unsupported primitives: {unsupported}"
+            f"{allowed} under the capability-registry materialization policy; "
+            f"unsupported primitives: {unsupported}"
         )
+    for module in modules:
+        if str(module.get("primitive") or "") != "Retriever":
+            continue
+        normalize_inline_retriever_config(
+            module.get("retriever"), module_id=str(module.get("id") or "")
+        )
+        outputs = _signature_outputs(module)
+        if len(outputs) != 1:
+            raise ProgramTopologyMaterializationError(
+                "pipeline Retriever modules must declare exactly one signature output"
+            )
     signature_names = [
         str(_module_signature(module).get("name") or "") for module in modules
     ]
@@ -85,7 +331,7 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
 
 
 def materializes_pipeline_topology(intent: Any) -> bool:
-    if not has_declared_pipeline_topology(intent):
+    if not has_materializable_pipeline_topology(intent):
         return False
     validate_materializable_pipeline_topology(intent)
     return True
@@ -168,6 +414,30 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
     lines: list[str] = ["import json", "", "import dspy", "", "from signature import ("]
     lines.extend(f"    {name}," for name in signature_names)
     lines.extend([")", ""])
+    if any(str(module.get("primitive") or "") == "Retriever" for module in modules):
+        lines.extend(
+            [
+                "",
+                "def _retriever_tokens(value: object) -> set[str]:",
+                "    text = ''.join(ch.lower() if ch.isalnum() else ' ' for ch in str(value))",
+                "    return {part for part in text.split() if part}",
+                "",
+                "",
+                "def _select_inline_documents(query: object, documents: list[dict[str, str]], k: int) -> list[dict[str, object]]:",
+                "    query_tokens = _retriever_tokens(query)",
+                "    scored: list[tuple[int, int, dict[str, str]]] = []",
+                "    for index, document in enumerate(documents):",
+                "        document_tokens = _retriever_tokens(document.get('text', ''))",
+                "        score = len(query_tokens & document_tokens)",
+                "        scored.append((score, index, document))",
+                "    scored.sort(key=lambda item: (-item[0], item[1]))",
+                "    selected = []",
+                "    for score, _index, document in scored[:k]:",
+                "        selected.append({'id': document.get('id', ''), 'text': document.get('text', ''), 'score': score})",
+                "    return selected",
+                "",
+            ]
+        )
     for index, module in enumerate(modules):
         signature_name = _signature_class_name(module)
         class_name = module_class_name(module)
@@ -178,19 +448,44 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
         input_names = _signature_inputs(module)
         input_params = ", ".join(f"{name}: str" for name in input_names)
         call_args = ", ".join(f"{name}={name}" for name in input_names)
-        lines.extend(
-            [
-                f"class {class_name}(dspy.Module):",
-                f'    """{doc}"""',
-                "",
-                "    def __init__(self, use_cot: bool = False) -> None:",
-                "        super().__init__()",
-                f"        self.predict = dspy.{primitive}({signature_name})",
-                "",
-                f"    def forward(self, {input_params}) -> dspy.Prediction:",
-                f"        return self.predict({call_args})",
-            ]
-        )
+        if primitive == "Retriever":
+            retriever = normalize_inline_retriever_config(
+                module.get("retriever"), module_id=str(module.get("id") or "")
+            )
+            output_name = _signature_outputs(module)[0]
+            query_expr = (
+                " + ' ' + ".join(f"str({name})" for name in input_names) or "''"
+            )
+            lines.extend(
+                [
+                    f"class {class_name}(dspy.Module):",
+                    f'    """{doc}"""',
+                    "",
+                    f"    _DOCUMENTS = {retriever['documents']!r}",
+                    f"    _K = {retriever['k']!r}",
+                    "",
+                    "    def __init__(self, use_cot: bool = False) -> None:",
+                    "        super().__init__()",
+                    "",
+                    f"    def forward(self, {input_params}) -> dspy.Prediction:",
+                    f"        selected = _select_inline_documents({query_expr}, self._DOCUMENTS, self._K)",
+                    f"        return dspy.Prediction({output_name}=json.dumps(selected, ensure_ascii=False, sort_keys=True))",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    f"class {class_name}(dspy.Module):",
+                    f'    """{doc}"""',
+                    "",
+                    "    def __init__(self, use_cot: bool = False) -> None:",
+                    "        super().__init__()",
+                    f"        self.predict = dspy.{primitive}({signature_name})",
+                    "",
+                    f"    def forward(self, {input_params}) -> dspy.Prediction:",
+                    f"        return self.predict({call_args})",
+                ]
+            )
         if index != len(modules) - 1:
             lines.extend(["", ""])
     lines.extend(
@@ -267,10 +562,18 @@ def render_pipeline_program_code(intent: Any) -> str:
     )
     constraints = list(getattr(intent, "constraints", []))
     metric = getattr(intent, "metric", None) or "unspecified"
+    declared_topology = declared_pipeline_topology(intent)
+    inferred_topology = prompt_inferred_pipeline_topology(intent)
+    renderer = (
+        PROMPT_INFERRED_PIPELINE_RENDERER
+        if inferred_topology and not declared_topology
+        else "pipeline_topology_renderer"
+    )
     materialization_scope = {
-        "topology_declared": True,
+        "topology_declared": bool(declared_topology),
+        "topology_inferred": bool(inferred_topology and not declared_topology),
         "topology_materialized": True,
-        "current_renderer": "pipeline_topology_renderer",
+        "current_renderer": renderer,
     }
     module_signatures = {
         _module_id(module): {
@@ -301,7 +604,8 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"OBJECTIVE = {getattr(intent, 'objective', '')!r}",
             f"CONSTRAINTS = {constraints!r}",
             f"METRIC = {metric!r}",
-            f"DECLARED_TOPOLOGY = {topology!r}",
+            f"DECLARED_TOPOLOGY = {declared_topology!r}",
+            f"INFERRED_TOPOLOGY = {inferred_topology!r}",
             f"MATERIALIZED_TOPOLOGY = {materialized_pipeline_topology(intent)!r}",
             f"TOPOLOGY_EXECUTION_STATUS = {PIPELINE_MATERIALIZED_STATUS!r}",
             f"MATERIALIZATION_SCOPE = {materialization_scope!r}",
@@ -528,20 +832,29 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"    def forward(self, {forward_params}) -> dspy.Prediction:",
             f"        state: dict[str, object] = {{{state_payload}}}",
             "        executed: set[str] = set()",
-            "        for module_id in MODULE_ORDER:",
-            "            if not _module_ready(module_id, state, executed):",
-            "                continue",
-            "            signature = MODULE_SIGNATURES[module_id]",
-            "            module = getattr(self, module_id)",
-            "            kwargs = {name: state[name] for name in signature['inputs']}",
-            "            prediction = module(**kwargs)",
-            "            executed.add(module_id)",
-            "            mapped = _prediction_mapping(prediction)",
-            "            for output_name in signature['outputs']:",
-            "                if output_name in mapped:",
-            "                    state[output_name] = mapped[output_name]",
-            "                elif hasattr(prediction, output_name):",
-            "                    state[output_name] = getattr(prediction, output_name)",
+            "        pending: set[str] = set(MODULE_ORDER)",
+            "        while pending:",
+            "            progressed = False",
+            "            for module_id in MODULE_ORDER:",
+            "                if module_id not in pending:",
+            "                    continue",
+            "                if not _module_ready(module_id, state, executed):",
+            "                    continue",
+            "                signature = MODULE_SIGNATURES[module_id]",
+            "                module = getattr(self, module_id)",
+            "                kwargs = {name: state[name] for name in signature['inputs']}",
+            "                prediction = module(**kwargs)",
+            "                executed.add(module_id)",
+            "                pending.remove(module_id)",
+            "                progressed = True",
+            "                mapped = _prediction_mapping(prediction)",
+            "                for output_name in signature['outputs']:",
+            "                    if output_name in mapped:",
+            "                        state[output_name] = mapped[output_name]",
+            "                    elif hasattr(prediction, output_name):",
+            "                        state[output_name] = getattr(prediction, output_name)",
+            "            if not progressed:",
+            "                break",
             f"        return dspy.Prediction({output_payload})",
             "",
             "",
@@ -571,6 +884,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             "        'metric': METRIC,",
             "        'io': io_spec(),",
             "        'declared_topology': dict(DECLARED_TOPOLOGY),",
+            "        'inferred_topology': dict(INFERRED_TOPOLOGY),",
             "        'materialized_topology': dict(MATERIALIZED_TOPOLOGY),",
             "        'topology_execution_status': TOPOLOGY_EXECUTION_STATUS,",
             "        'materialization_scope': dict(MATERIALIZATION_SCOPE),",

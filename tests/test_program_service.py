@@ -5,6 +5,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from typer.testing import CliRunner
@@ -136,6 +137,8 @@ def test_program_service_materializes_candidate_assembly(
         "intent",
         "module_surfaces",
         "execution_episode",
+        "capability_registry",
+        "generated_module_policy",
         "signature",
         "module",
         "program",
@@ -176,8 +179,20 @@ def test_program_service_materializes_candidate_assembly(
         == "execution_episode.json"
     )
     assert manifest["candidate_assembly"]["surfaces"][8]["generator"] == "program-gen"
-    assert manifest["candidate_assembly"]["surfaces"][9]["generator"] == "signature-gen"
-    assert manifest["candidate_assembly"]["surfaces"][10]["generator"] == "module-gen"
+    assert (
+        manifest["candidate_assembly"]["surfaces"][9]["path"]
+        == "program_capability_registry.json"
+    )
+    assert manifest["candidate_assembly"]["surfaces"][9]["generator"] == "program-gen"
+    assert (
+        manifest["candidate_assembly"]["surfaces"][10]["path"]
+        == "generated_module_policy.json"
+    )
+    assert manifest["candidate_assembly"]["surfaces"][10]["generator"] == "program-gen"
+    assert (
+        manifest["candidate_assembly"]["surfaces"][11]["generator"] == "signature-gen"
+    )
+    assert manifest["candidate_assembly"]["surfaces"][12]["generator"] == "module-gen"
     promotion_review = manifest["program_promotion_review"]
     assert promotion_review["schema_version"] == "program-promotion-review-v1"
     assert promotion_review["promotion_state"] == "not_promoted"
@@ -298,6 +313,9 @@ def test_program_service_materializes_candidate_assembly(
     execution_episode_hash = hashlib.sha256(
         (root / "execution_episode.json").read_bytes()
     ).hexdigest()
+    generated_module_policy_hash = hashlib.sha256(
+        (root / "generated_module_policy.json").read_bytes()
+    ).hexdigest()
     assert evidence["plan_hash"] == plan_hash
     assert evidence["jury_hash"] == jury_hash
     assert evidence["jury_selection_hash"] == jury_selection_hash
@@ -312,6 +330,8 @@ def test_program_service_materializes_candidate_assembly(
     )
     assert evidence["module_surfaces_hash"] == module_surfaces_hash
     assert evidence["module_surfaces_path"] == "module_surfaces.json"
+    assert evidence["generated_module_policy_hash"] == generated_module_policy_hash
+    assert evidence["generated_module_policy_path"] == "generated_module_policy.json"
     assert evidence["execution_episode_hash"] == execution_episode_hash
     assert evidence["execution_episode_path"] == "execution_episode.json"
     assert evidence["surface_hashes"]["module_surfaces.json"] == module_surfaces_hash
@@ -319,6 +339,10 @@ def test_program_service_materializes_candidate_assembly(
         evidence["surface_hashes"]["execution_episode.json"] == execution_episode_hash
     )
     assert manifest["request"]["module_surfaces_hash"] == module_surfaces_hash
+    assert (
+        manifest["request"]["generated_module_policy_hash"]
+        == generated_module_policy_hash
+    )
     assert manifest["request"]["execution_episode_hash"] == execution_episode_hash
     assert manifest["execution_episode_artifact"] == {
         "path": "execution_episode.json",
@@ -340,6 +364,14 @@ def test_program_service_materializes_candidate_assembly(
     )
     assert receipt["run_summary"]["module_surfaces_hash"] == module_surfaces_hash
     assert receipt["run_summary"]["module_surfaces_path"] == "module_surfaces.json"
+    assert (
+        receipt["run_summary"]["generated_module_policy_hash"]
+        == generated_module_policy_hash
+    )
+    assert (
+        receipt["run_summary"]["generated_module_policy_path"]
+        == "generated_module_policy.json"
+    )
     assert receipt["run_summary"]["execution_episode_hash"] == execution_episode_hash
     assert receipt["run_summary"]["execution_episode_path"] == "execution_episode.json"
     assert receipt["program_module_surfaces"] == manifest["program_module_surfaces"]
@@ -365,6 +397,8 @@ def test_program_service_materializes_candidate_assembly(
         evidence["surface_generation"]["promotion_decision_template"] == "program-gen"
     )
     assert evidence["surface_generation"]["module_surfaces"] == "program-gen"
+    assert evidence["surface_generation"]["capability_registry"] == "program-gen"
+    assert evidence["surface_generation"]["generated_module_policy"] == "program-gen"
     assert evidence["surface_generation"]["execution_episode"] == "program-gen"
     assert evidence["surface_generation"]["jury_harness"] == "program-gen"
     assert evidence["surface_generation"]["promotion_harness"] == "program-gen"
@@ -378,6 +412,8 @@ def test_program_service_materializes_candidate_assembly(
     assert "promotion_adjudication_request.json" in evidence["surface_hashes"]
     assert "promotion_decision_template.json" in evidence["surface_hashes"]
     assert "module_surfaces.json" in evidence["surface_hashes"]
+    assert "program_capability_registry.json" in evidence["surface_hashes"]
+    assert "generated_module_policy.json" in evidence["surface_hashes"]
     assert "execution_episode.json" in evidence["surface_hashes"]
     assert "eval_jury.py" in evidence["surface_hashes"]
     assert "eval_promotion.py" in evidence["surface_hashes"]
@@ -450,7 +486,15 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (
         payload["candidate_assembly"]["surfaces"][8]["path"] == "execution_episode.json"
     )
-    assert payload["candidate_assembly"]["surfaces"][9]["path"] == "signature.py"
+    assert (
+        payload["candidate_assembly"]["surfaces"][9]["path"]
+        == "program_capability_registry.json"
+    )
+    assert (
+        payload["candidate_assembly"]["surfaces"][10]["path"]
+        == "generated_module_policy.json"
+    )
+    assert payload["candidate_assembly"]["surfaces"][11]["path"] == "signature.py"
     assert any(
         surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
         for surface in payload["candidate_assembly"]["surfaces"]
@@ -662,7 +706,7 @@ def test_program_service_binds_examples_when_present(
     subprocess_calls: list[list[str]] = []
 
     def spy_run(
-        command: list[str], *args: object, **kwargs: object
+        command: list[str], *args: Any, **kwargs: Any
     ) -> subprocess.CompletedProcess[str]:
         command_text = [str(part) for part in command]
         command_names = [Path(part).name for part in command_text]
@@ -676,9 +720,13 @@ def test_program_service_binds_examples_when_present(
         ):
             assert isinstance(env, dict)
             source_root = str(Path(program_service.__file__).resolve().parents[2])
-            assert source_root in str(env.get("PYTHONPATH", ""))
+            assert source_root in str(
+                cast(dict[str, object], env).get("PYTHONPATH", "")
+            )
         subprocess_calls.append(command_text)
-        return real_run(command, *args, **kwargs)
+        return cast(
+            subprocess.CompletedProcess[str], real_run(command, *args, **kwargs)
+        )
 
     monkeypatch.setattr(program_service.subprocess, "run", spy_run)
     intent = ProgramIntent(
@@ -1044,6 +1092,8 @@ def test_program_service_binds_examples_when_present(
         "summary": manifest["oracle_readability"]["summary"],
         "facets": oracle_evidence["oracle_facets"],
     }
+    assert evidence["surface_generation"]["capability_registry"] == "program-gen"
+    assert evidence["surface_generation"]["generated_module_policy"] == "program-gen"
     assert evidence["surface_generation"]["execution_episode"] == "program-gen"
     assert evidence["surface_generation"]["behavior_harness"] == "program-gen"
     assert evidence["surface_generation"]["behavior_episode"] == "program-gen"
@@ -1058,6 +1108,8 @@ def test_program_service_binds_examples_when_present(
     assert "eval_behavior.py" in evidence["generated_files"]
     assert "behavior_episode.json" in evidence["generated_files"]
     assert "oracle_evidence.json" in evidence["generated_files"]
+    assert "program_capability_registry.json" in evidence["generated_files"]
+    assert "generated_module_policy.json" in evidence["generated_files"]
     assert "execution_episode.json" in evidence["generated_files"]
 
     receipt = json.loads((root / "manifest.json.meta.json").read_text(encoding="utf-8"))
@@ -1652,13 +1704,15 @@ def test_program_gen_cli_preserves_external_authority_refs_without_adapter_coupl
     subprocess_calls: list[list[str]] = []
 
     def spy_run(
-        command: list[str], *args: object, **kwargs: object
+        command: list[str], *args: Any, **kwargs: Any
     ) -> subprocess.CompletedProcess[str]:
         command_text = [str(part) for part in command]
         command_names = [Path(part).name for part in command_text]
         assert "ak" not in command_names
         subprocess_calls.append(command_text)
-        return real_run(command, *args, **kwargs)
+        return cast(
+            subprocess.CompletedProcess[str], real_run(command, *args, **kwargs)
+        )
 
     monkeypatch.setattr(program_service.subprocess, "run", spy_run)
     intent_path = tmp_path / "intent.yaml"

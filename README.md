@@ -290,7 +290,9 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `promotion_review.json` — deterministic non-authoritative local promotion-review shell; records the explicit pending adjudicator (`human_operator`, `ai_agent`, `ai_council`, `hybrid`, or `policy_gate`), optional opaque `external_authority` refs for a separately invoked adapter/export tool, pending behavioral evaluation, model-jury execution, and adjudicator-decision requirements while keeping the candidate unpromoted
 - `promotion_adjudication_request.json` — deterministic non-authoritative decision packet for the configured adjudicator, including evidence refs, missing evidence, allowed outcomes, optional opaque external authority refs, and a pending decision-record template
 - `promotion_decision_template.json` — standalone pending `program-promotion-decision-v1` template that an explicit adjudicator may later fill; it is not a decision
-- `module_surfaces.json` — standalone `program-module-surfaces-v1` artifact containing one or more `program-module-surface-v1` contracts; each generated module surface declares `module_id`, `source_kind`, primitive, signature IO, generated class/path metadata, false effect flags, and explicit non-authority flags. This is the bridge toward future local custom module references, but this slice does not import or execute arbitrary custom Python modules.
+- `module_surfaces.json` — standalone `program-module-surfaces-v1` artifact containing one or more `program-module-surface-v1` contracts; each generated module surface declares `module_id`, `source_kind`, primitive, capability ref, signature IO, generated class/path metadata, false effect flags, and explicit non-authority flags. This is the bridge toward future local custom module references, but this slice does not import or execute arbitrary custom Python modules.
+- `program_capability_registry.json` — standalone `program-capability-registry-v1` descriptor-only contract that records the generated-program capability boundary. It marks generated `Predict`/`ChainOfThought` as materializable, explicit pipeline `Retriever` modules as conditionally materializable only when they use the bounded `inline_corpus` adapter, and `ReAct`/`ProgramOfThought`/`Custom` as declared-only until explicit safe adapters exist; it does not bind external tools/retrievers, load imports, call providers, rank, promote, or mutate authority.
+- `generated_module_policy.json` — standalone `program-generated-module-policy-v1` artifact that statically verifies generated `module.py` imports/calls/effect claims before materialization proceeds; it fails closed on dynamic imports, filesystem/network/subprocess calls, `dspy.Retrieve`, `dspy.settings`, tools, ReAct, and ProgramOfThought.
 - `signature.py` — signature surface generated through the signature service
 - `module.py` — module surface generated through the module service
 - `program.py` — program assembly wrapper exporting `build_program()` / `build_student()`
@@ -306,7 +308,65 @@ The generated candidate assembly contains a structured plan, separate surfaces, 
 - `manifest.json` — candidate assembly / execution episode / receipt-bundle metadata, including plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode hash provenance plus behavior result and Oracle-readability hashes/summaries when examples are present
 - `manifest.json.meta.json` — standard `program-gen` run receipt, including the same plan/jury/selection/rubric/promotion-review/adjudication-request/decision-template/execution-episode evidence plus behavior result and Oracle-readability hashes/summaries when examples are present
 
-This path is intentionally deterministic and scaffold-first for ordinary no-topology intents, while also rendering the current narrow explicit `pipeline` topology subset. `program-intent-v2` may carry an explicit user/Pi-declared topology (`single_module`, `pipeline`, `router`, `retrieve_then_answer`, `extract_transform_validate`, `generate_critique_revise`, or `custom`) with module IDs, `primitive` names, `signature.name` / `signature.inputs` / `signature.outputs`, and edges. For `pipeline`, DSPx now materializes supported modules (`Predict` and `ChainOfThought`) into multiple signature/module classes and a composed `program.py`; `when` supports only simple field equality (`field` + `equals`) and no executable expressions. `program-gen` also emits `module_surfaces.json` so generated single-module scaffolds and generated topology modules are represented as replayable, hashable, IO-declared module surfaces. `module-gen` should be understood as one producer of module surfaces; `program-gen` composes module surfaces. Unsupported topology kinds remain accepted/preserved as declared-only planning contracts when valid. DSPx does not infer topology from natural language or provider output. This slice does not execute arbitrary custom imports or local custom modules. Example-backed runs capture a minimal local behavior episode via `eval_examples.py` / `behavior_results.json` and a compact Oracle-readable evidence view for explicit later ingestion. Dataset-backed runs additionally materialize deterministic local split files plus split-specific harnesses and `program-behavior-results-v1` evidence; ratio splits use a seeded `random.Random(seed)` shuffle, `floor(n * train)` / `floor(n * validation)` counts, and remaining records for test, while explicit split files are copied into canonical split artifacts without ratio recomputation. Inline examples and dataset splits are never silently merged. There is no `eval_behavior.py`, and no Oracle indexing runs during materialization. The `jury` entry remains a planned evaluation contract during materialization: no juror models are called by `program-gen`. Explicit local deterministic jury execution is available only through `program-promote jury` over an existing manifest and writes a non-authoritative `program-jury-results-v1` sidecar. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not automatically index, report, refine, review, decide, generate follow-up candidates, compare candidates, promote, rank, select winners, run GEPA/search, run jury execution, prune, export authority, or grant Oracle/governance authority. Any GEPA-backed program refinement is a separate `program-refine optimize-gepa` command over an existing manifest.
+This path is intentionally deterministic and scaffold-first for ordinary no-topology intents, while also rendering the current narrow explicit `pipeline` topology subset. `program-intent-v2` may carry an explicit user/Pi-declared topology (`single_module`, `pipeline`, `router`, `retrieve_then_answer`, `extract_transform_validate`, `generate_critique_revise`, or `custom`) with module IDs, `primitive` names, `signature.name` / `signature.inputs` / `signature.outputs`, and edges. For `pipeline`, DSPx now materializes supported modules (`Predict`, `ChainOfThought`, and explicit bounded `Retriever` modules with `retriever.mode: inline_corpus`) into multiple signature/module classes and a composed `program.py`; the generated runner uses a bounded deterministic scheduler for declared DAGs, so out-of-order module declarations, fan-out, and fan-in can execute when declared inputs become available. `when` supports only simple field equality (`field` + `equals`) and no executable expressions. When no topology is declared, `program-gen` can now deterministically infer bounded generated `Predict`/`ChainOfThought` module topologies from clear prompt cues such as routing+generation, extraction+validation, or reasoning/review, choosing those generated modules over the default single `Predict` scaffold when they are more valuable; retrievers are never prompt-inferred. `program-gen` also emits `module_surfaces.json` so generated single-module scaffolds, explicit topology modules, and prompt-inferred generated modules are represented as replayable, hashable, IO-declared module surfaces, `program_capability_registry.json` so the richer future primitives/tools/import boundary is explicit and replay-checked instead of implicit, and `generated_module_policy.json` so generated module imports/calls/effect claims are statically checked before candidate assembly. `module-gen` should be understood as one producer of module surfaces; `program-gen` composes module surfaces. Unsupported topology kinds and unsupported primitives remain accepted/preserved as declared-only planning contracts when valid. This slice does not infer provider-backed arbitrary topology, execute arbitrary custom imports, bind or call external tools/retrievers, run ReAct, run ProgramOfThought, or load local custom modules; the only retriever execution is the generated deterministic inline-corpus lexical adapter embedded from the intent, and Retriever modules fail closed if they include external-looking module keys such as provider, endpoint, tool, or import. Example-backed runs capture a minimal local behavior episode via `eval_examples.py` / `behavior_results.json` and a compact Oracle-readable evidence view for explicit later ingestion. Dataset-backed runs additionally materialize deterministic local split files plus split-specific harnesses and `program-behavior-results-v1` evidence; ratio splits use a seeded `random.Random(seed)` shuffle, `floor(n * train)` / `floor(n * validation)` counts, and remaining records for test, while explicit split files are copied into canonical split artifacts without ratio recomputation. Inline examples and dataset splits are never silently merged. `eval_behavior.py` is emitted only when inline/example-file or dataset behavior evidence exists, and no Oracle indexing runs during materialization. The `jury` entry remains a planned evaluation contract during materialization: no juror models are called by `program-gen`. Explicit local deterministic jury execution is available only through `program-promote jury` over an existing manifest and writes a non-authoritative `program-jury-results-v1` sidecar. External authority refs are opaque metadata only: DSPx core does not validate, call, or mutate Agent Kernel or any other external system during materialization. It materializes evidence; it does not automatically index, report, refine, review, decide, generate follow-up candidates, compare candidates, promote, rank, select winners, run GEPA/search, run jury execution, prune, export authority, or grant Oracle/governance authority. Any GEPA-backed program refinement is a separate `program-refine optimize-gepa` command over an existing manifest.
+
+Before materialization, normalize prose or an existing intent into an explicit `program-intent-normalization-v1` packet that surfaces assumptions, missing evidence, topology/primitive hints, and generation risks without calling providers or generating code:
+
+```bash
+just dspx program-gen normalize-intent \
+  --prompt "Route support tickets, then draft a helpful response with rationale." \
+  --out /tmp/dspx-intent-normalization.json \
+  --normalized-intent-out /tmp/dspx-normalized-intent.json \
+  --json
+```
+
+The normalizer writes a valid `program-intent-v2` draft when requested. It does not invent examples/datasets, materialize programs, call Oracle, rank/select winners, promote, call AK, or mutate governance/external authority.
+
+Before materialization, the non-authoritative architecture planner can show the candidate program possibility space and optionally write materializable candidate intent drafts:
+
+```bash
+just dspx program-architect plan \
+  --intent examples/program_gen/ticket_intent.yaml \
+  --out /tmp/dspx-architecture-plan.json \
+  --portfolio-outdir /tmp/dspx-architecture-portfolio \
+  --json
+```
+
+The planner writes `program-architecture-candidates-v1` and, when requested, `program-architecture-intent-portfolio-v1` intent drafts only. It does not materialize candidate programs, call providers, index Oracle, rank/select winners, promote, call AK, or mutate governance/external authority. Materialize a chosen draft explicitly with `dspx program-gen --intent /tmp/dspx-architecture-portfolio/candidate_intents/<candidate>.json --outdir <candidate-dir>` and then replay-check the resulting receipt.
+
+For an empirical local portfolio run, use the tournament surface:
+
+```bash
+just dspx program-architect tournament \
+  --architecture-plan /tmp/dspx-architecture-plan.json \
+  --outdir /tmp/dspx-architecture-tournament \
+  --out /tmp/dspx-architecture-tournament.json \
+  --json
+```
+
+`program-architect tournament` materializes each materializable candidate in an isolated local directory, replay-checks each generated receipt, summarizes aggregate behavior/topology/artifact signals in a `program-architecture-tournament-evidence-matrix-v1`, and writes `program-architecture-tournament-v1`. Add `--with-oracle-reports` to explicitly write candidate-local `oracle/coordinates.db` indexes and `program_oracle_report.json` files for each materialized candidate. It is still evidence-only: no raw examples/outputs in the matrix, no shared Oracle mutation, no Oracle ranking, no winner selection, no promotion, no AK/governance/external-authority mutation.
+
+For the guided local product loop, compose normalization, architecture planning, tournament materialization/replay, and recommendation in one command:
+
+```bash
+just dspx program-architect loop \
+  --prompt "Route support tickets, then draft a helpful response with rationale." \
+  --outdir /tmp/dspx-architect-loop \
+  --json
+```
+
+`program-architect loop` writes `normalization.json`, `normalized_intent.json`, `architecture_plan.json`, `tournament.json`, `architecture_recommendation.json`, and `program_architect_loop.json`. Add `--with-oracle-reports` only when you want explicit candidate-local Oracle indexes/reports. The loop still does not rank/select winners, promote, call AK, mutate governance, or mutate shared Oracle/external authority.
+
+To turn an existing tournament sidecar into next moves without selecting a winner, write a recommendation packet:
+
+```bash
+just dspx program-architect recommend \
+  --tournament /tmp/dspx-architecture-tournament.json \
+  --out /tmp/dspx-architecture-recommendation.json \
+  --json
+```
+
+`program-architect recommend` writes `program-architecture-recommendation-v1`: candidate advisories, limitations, and next moves such as adding examples, rerunning with candidate-local Oracle reports, fixing replay, or sending candidates to explicit human/adjudicator review. It does not materialize programs, rank candidates, select winners, promote, call Oracle indexes, call AK, or mutate governance/external authority.
 
 Oracle ingestion is a separate local command that writes only to a chosen CoordinateIndex:
 
