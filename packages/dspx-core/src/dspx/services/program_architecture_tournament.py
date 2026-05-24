@@ -267,13 +267,19 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
             "architecture plan non_authority widens authority: "
             + ", ".join(widened_non_authority)
         )
+    seen_candidate_ids: set[str] = set()
     for index, candidate_value in enumerate(candidates):
         if not isinstance(candidate_value, Mapping):
             raise ProgramArchitectureTournamentError(
                 f"architecture plan candidate {index} must be an object"
             )
         candidate = _mapping(candidate_value)
-        _safe_candidate_id(candidate.get("candidate_id"))
+        candidate_id = _safe_candidate_id(candidate.get("candidate_id"))
+        if candidate_id in seen_candidate_ids:
+            raise ProgramArchitectureTournamentError(
+                f"duplicate architecture candidate_id: {candidate_id}"
+            )
+        seen_candidate_ids.add(candidate_id)
         missing_candidate_effect = _missing_required_flags(
             candidate.get("effect"), _PLAN_REQUIRED_FALSE_EFFECT_FLAGS
         )
@@ -305,6 +311,27 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
                 + ", ".join(widened_candidate_non_authority)
             )
         _validate_candidate_intent_payload(candidate=candidate, index=index)
+
+
+def _validated_selected_candidate_ids(
+    *, architecture_plan: Mapping[str, Any], candidate_ids: list[str] | None
+) -> set[str]:
+    selected_ids = {
+        _safe_candidate_id(item) for item in candidate_ids or [] if str(item).strip()
+    }
+    if not selected_ids:
+        return set()
+    plan_candidate_ids = {
+        _safe_candidate_id(candidate.get("candidate_id"))
+        for candidate in architecture_plan.get("candidates", [])
+        if isinstance(candidate, Mapping)
+    }
+    unknown = sorted(selected_ids - plan_candidate_ids)
+    if unknown:
+        raise ProgramArchitectureTournamentError(
+            "unknown architecture candidate id(s): " + ", ".join(unknown)
+        )
+    return selected_ids
 
 
 def _candidate_allowed(candidate_id: str, candidate_ids: set[str]) -> bool:
@@ -625,8 +652,10 @@ def run_program_architecture_tournament(
     """Materialize and replay-check materializable architecture candidates locally."""
 
     _validate_architecture_plan(architecture_plan)
+    selected_ids = _validated_selected_candidate_ids(
+        architecture_plan=architecture_plan, candidate_ids=candidate_ids
+    )
     root = _safe_outdir(outdir)
-    selected_ids = {str(item) for item in candidate_ids or [] if str(item).strip()}
     intent_dir = root / "candidate_intents"
     intent_dir.mkdir(parents=True, exist_ok=True)
     records: list[dict[str, Any]] = []

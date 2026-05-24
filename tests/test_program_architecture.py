@@ -1315,6 +1315,87 @@ def test_program_architect_tournament_rejects_authority_widened_plan_candidate(
     assert not outdir.exists()
 
 
+def test_program_architect_tournament_rejects_duplicate_candidate_ids_without_partial_dirs(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="CandidateIdentityProgram",
+            objective=(
+                "Route support tickets by classifying billing versus technical issues, "
+                "then draft a helpful response with rationale."
+            ),
+            inputs=["ticket_text"],
+            outputs=["response"],
+        )
+    )
+    plan["candidates"].append(json.loads(json.dumps(plan["candidates"][0])))
+    plan["candidate_count"] = len(plan["candidates"])
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "duplicate architecture candidate_id" in result.output
+    assert "baseline_single_predict" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
+def test_program_architect_tournament_rejects_unknown_candidate_filter_without_partial_dirs(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="CandidateIdentityProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+            "--candidate",
+            "typo_candidate",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "unknown architecture candidate id" in result.output
+    assert "typo_candidate" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
 def test_program_architect_tournament_rejects_materializable_candidate_missing_intent_payload_without_partial_dirs(
     tmp_path: Path,
 ) -> None:
