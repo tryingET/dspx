@@ -379,6 +379,7 @@ def _program_evidence_declarations(
             "module_surfaces",
             "capability_registry",
             "generated_module_policy",
+            "intent_normalization",
             "execution_episode",
             "behavior_results",
             "oracle_evidence",
@@ -421,6 +422,12 @@ def _program_evidence_declarations(
         or "generated_module_policy.json",
         content_hash=evidence.get("generated_module_policy_hash"),
         source="manifest.receipt_bundle.evidence.generated_module_policy_hash",
+    )
+    add(
+        "intent_normalization",
+        path=evidence.get("intent_normalization_path") or "intent_normalization.json",
+        content_hash=evidence.get("intent_normalization_hash"),
+        source="manifest.receipt_bundle.evidence.intent_normalization_hash",
     )
     add(
         "execution_episode",
@@ -491,6 +498,12 @@ def _program_evidence_declarations(
         source="manifest.receipt_bundle.evidence.surface_hashes.generated_module_policy.json",
     )
     add(
+        "intent_normalization",
+        path="intent_normalization.json",
+        content_hash=surface_hashes.get("intent_normalization.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.intent_normalization.json",
+    )
+    add(
         "execution_episode",
         path="execution_episode.json",
         content_hash=surface_hashes.get("execution_episode.json"),
@@ -559,6 +572,13 @@ def _program_evidence_declarations(
         or "generated_module_policy.json",
         content_hash=run_summary.get("generated_module_policy_hash"),
         source="receipt.run_summary.generated_module_policy_hash",
+    )
+    add(
+        "intent_normalization",
+        path=run_summary.get("intent_normalization_path")
+        or "intent_normalization.json",
+        content_hash=run_summary.get("intent_normalization_hash"),
+        source="receipt.run_summary.intent_normalization_hash",
     )
     add(
         "execution_episode",

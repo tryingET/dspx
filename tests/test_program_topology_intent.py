@@ -843,6 +843,143 @@ def test_pipeline_inline_retriever_materializes_bounded_local_adapter(
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
+def test_retrieve_then_answer_topology_materializes_bounded_inline_adapter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    intent = ProgramIntent(
+        name="RetrieveThenAnswerProgram",
+        objective="Retrieve local inline passages, then answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "retrieve_then_answer",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveContext",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "inline_corpus",
+                        "k": 1,
+                        "documents": [
+                            {
+                                "id": "billing_doc",
+                                "text": "Billing invoices can be corrected by accounts.",
+                            }
+                        ],
+                    },
+                },
+                {
+                    "id": "answer_question",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "AnswerQuestion",
+                        "inputs": ["question", "passages"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "answer_question"},
+                {"from": "answer_question", "to": "output"},
+            ],
+        },
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    plan = manifest["program_plan"]
+    assert plan["topology"]["kind"] == "retrieve_then_answer"
+    assert plan["topology_execution_status"] == "retrieve_then_answer_materialized"
+    assert (
+        plan["materialization_scope"]["current_renderer"]
+        == "retrieve_then_answer_topology_renderer"
+    )
+    assert (
+        manifest["topology_execution"]["status"] == "retrieve_then_answer_materialized"
+    )
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+    assert {
+        surface["source_kind"] for surface in module_surfaces["module_surfaces"]
+    } == {"generated_topology_module"}
+    program_text = (root / "program.py").read_text(encoding="utf-8")
+    assert (
+        "TOPOLOGY_EXECUTION_STATUS = 'retrieve_then_answer_materialized'"
+        in program_text
+    )
+    assert "dspy.Retrieve" not in (root / "module.py").read_text(encoding="utf-8")
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def test_retrieve_then_answer_fails_closed_when_retriever_does_not_feed_answer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    intent = ProgramIntent(
+        name="DisconnectedRetrieveThenAnswerProgram",
+        objective="Retrieve local inline passages, then answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "retrieve_then_answer",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveContext",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "inline_corpus",
+                        "k": 1,
+                        "documents": [
+                            {"id": "billing_doc", "text": "Billing invoices."}
+                        ],
+                    },
+                },
+                {
+                    "id": "answer_question",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "AnswerQuestion",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "input", "to": "answer_question"},
+                {"from": "answer_question", "to": "output"},
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match="Retriever output to feed"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+
+    assert not (tmp_path / "program" / "intent_normalization.json").exists()
+
+
 def test_pipeline_retriever_fails_closed_without_bounded_inline_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

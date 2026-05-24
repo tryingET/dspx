@@ -10,6 +10,7 @@ from dspx.cli.dspx import app
 from dspx.services.program_architecture import build_program_architecture_candidates
 from dspx.services.program_intent import ProgramIntent, load_program_intent
 from dspx.services.program_intent_normalization import (
+    build_program_intent_normalization,
     normalize_program_intent_from_prompt,
 )
 
@@ -62,6 +63,64 @@ def test_prompt_normalization_surfaces_unsupported_primitive_risk() -> None:
     intent = ProgramIntent.model_validate(payload["normalized_intent"])
     assert intent.inputs == ["question", "document_text"]
     assert intent.outputs == ["answer"]
+
+
+def test_explicit_bounded_retriever_normalization_is_not_reported_unsupported() -> None:
+    intent = ProgramIntent(
+        name="RetrieveThenAnswerProgram",
+        objective="Retrieve local inline passages, then answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "retrieve_then_answer",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveContext",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "inline_corpus",
+                        "documents": [{"id": "doc", "text": "Billing invoices."}],
+                    },
+                },
+                {
+                    "id": "answer_question",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "AnswerQuestion",
+                        "inputs": ["question", "passages"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "answer_question"},
+                {"from": "answer_question", "to": "output"},
+            ],
+        },
+    )
+
+    payload = build_program_intent_normalization(
+        intent, source={"kind": "test", "content_hash": "sha256:test"}
+    )
+
+    retriever_hints = [
+        hint for hint in payload["primitive_hints"] if hint["primitive"] == "Retriever"
+    ]
+    assert retriever_hints
+    assert all(
+        hint["status"] == "conditionally_materializable_with_bounded_inline_adapter"
+        for hint in retriever_hints
+    )
+    assert not any(
+        risk["kind"] == "unsupported_primitive" for risk in payload["generation_risks"]
+    )
 
 
 def test_normalize_intent_cli_writes_sidecar_and_loadable_intent(

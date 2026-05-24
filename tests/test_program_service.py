@@ -90,6 +90,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (root / "eval_jury.py").exists()
     assert (root / "eval_promotion.py").exists()
     assert (root / "intent.json").exists()
+    assert (root / "intent_normalization.json").exists()
     assert (root / "execution_episode.json").exists()
     assert (root / "manifest.json").exists()
     assert (root / "manifest.json.meta.json").exists()
@@ -109,6 +110,28 @@ def test_program_service_materializes_candidate_assembly(
     assert manifest["candidate_assembly"]["artifact_kind"] == "program"
     assert manifest["program_plan"]["schema_version"] == "program-plan-v1"
     assert manifest["program_plan"]["task_type"] == "single_module"
+    assert (
+        manifest["intent_normalization"]["schema_version"]
+        == "program-intent-normalization-v1"
+    )
+    assert (
+        manifest["intent_normalization"]["materialization_gate"]["status"]
+        == "emitted_before_candidate_materialization"
+    )
+    assert manifest["pre_materialization_review"] == {
+        "status": "emitted_before_candidate_materialization",
+        "path": "intent_normalization.json",
+        "content_hash": manifest["request"]["intent_normalization_hash"],
+        "assumption_count": len(manifest["intent_normalization"]["assumptions"]),
+        "missing_evidence_count": len(
+            manifest["intent_normalization"]["missing_evidence"]
+        ),
+        "generation_risk_count": len(
+            manifest["intent_normalization"]["generation_risks"]
+        ),
+        "blocks_materialization": False,
+        "non_authority": manifest["intent_normalization"]["non_authority"],
+    }
     inferred_jury = manifest["program_plan"]["evaluation_strategy"]
     assert inferred_jury["mode"] == "jury"
     assert inferred_jury["pool"]["scope"] == "program"
@@ -139,6 +162,7 @@ def test_program_service_materializes_candidate_assembly(
         "execution_episode",
         "capability_registry",
         "generated_module_policy",
+        "intent_normalization",
         "signature",
         "module",
         "program",
@@ -190,9 +214,14 @@ def test_program_service_materializes_candidate_assembly(
     )
     assert manifest["candidate_assembly"]["surfaces"][10]["generator"] == "program-gen"
     assert (
-        manifest["candidate_assembly"]["surfaces"][11]["generator"] == "signature-gen"
+        manifest["candidate_assembly"]["surfaces"][11]["path"]
+        == "intent_normalization.json"
     )
-    assert manifest["candidate_assembly"]["surfaces"][12]["generator"] == "module-gen"
+    assert manifest["candidate_assembly"]["surfaces"][11]["generator"] == "program-gen"
+    assert (
+        manifest["candidate_assembly"]["surfaces"][12]["generator"] == "signature-gen"
+    )
+    assert manifest["candidate_assembly"]["surfaces"][13]["generator"] == "module-gen"
     promotion_review = manifest["program_promotion_review"]
     assert promotion_review["schema_version"] == "program-promotion-review-v1"
     assert promotion_review["promotion_state"] == "not_promoted"
@@ -516,7 +545,11 @@ def test_program_gen_cli_materializes_from_yaml(
         payload["candidate_assembly"]["surfaces"][10]["path"]
         == "generated_module_policy.json"
     )
-    assert payload["candidate_assembly"]["surfaces"][11]["path"] == "signature.py"
+    assert (
+        payload["candidate_assembly"]["surfaces"][11]["path"]
+        == "intent_normalization.json"
+    )
+    assert payload["candidate_assembly"]["surfaces"][12]["path"] == "signature.py"
     assert any(
         surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
         for surface in payload["candidate_assembly"]["surfaces"]
@@ -535,6 +568,7 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "promotion_decision_template.json").exists()
     assert (outdir / "module_surfaces.json").exists()
     assert (outdir / "execution_episode.json").exists()
+    assert (outdir / "intent_normalization.json").exists()
     assert (outdir / "signature.py").exists()
     assert (outdir / "module.py").exists()
     assert (outdir / "program.py").exists()

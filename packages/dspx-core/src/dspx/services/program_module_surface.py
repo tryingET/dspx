@@ -5,7 +5,7 @@ from typing import Any, Mapping
 from dspx.services.program_capabilities import module_capability_ref
 from dspx.services.program_contracts import intent_surface_names, sanitize_ident
 from dspx.services.program_topology import (
-    has_declared_pipeline_topology,
+    pipeline_topology_origin,
     has_materializable_pipeline_topology,
     module_class_name,
     validate_materializable_pipeline_topology,
@@ -114,9 +114,10 @@ def build_pipeline_module_surface_contracts(intent: Any) -> list[dict[str, Any]]
 
     topology = validate_materializable_pipeline_topology(intent)
     modules = [dict(item) for item in topology.get("modules", [])]
+    origin = pipeline_topology_origin(intent)
     source_kind = (
         "generated_topology_module"
-        if has_declared_pipeline_topology(intent)
+        if origin in {"declared", "declared_retrieve_then_answer"}
         else "generated_prompt_inferred_module"
     )
     surfaces: list[dict[str, Any]] = []

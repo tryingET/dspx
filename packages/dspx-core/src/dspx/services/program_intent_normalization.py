@@ -192,8 +192,29 @@ def _topology_hints(token_set: set[str]) -> list[dict[str, Any]]:
     return hints
 
 
-def _primitive_hints(token_set: set[str]) -> list[dict[str, Any]]:
+def _has_bounded_inline_retriever(intent: ProgramIntent | None) -> bool:
+    if intent is None:
+        return False
+    topology = dict(intent.topology or {})
+    if topology.get("kind") not in {"pipeline", "retrieve_then_answer"}:
+        return False
+    for raw_module in topology.get("modules", []):
+        if not isinstance(raw_module, Mapping):
+            continue
+        module = dict(raw_module)
+        if str(module.get("primitive") or "") != "Retriever":
+            continue
+        retriever = module.get("retriever")
+        if isinstance(retriever, Mapping) and retriever.get("mode") == "inline_corpus":
+            return True
+    return False
+
+
+def _primitive_hints(
+    token_set: set[str], intent: ProgramIntent | None = None
+) -> list[dict[str, Any]]:
     hints: list[dict[str, Any]] = []
+    bounded_inline_retriever = _has_bounded_inline_retriever(intent)
     if token_set & _ROUTING_CUES or token_set & _EXTRACT_CUES:
         hints.append(
             {
@@ -215,14 +236,24 @@ def _primitive_hints(token_set: set[str]) -> list[dict[str, Any]]:
             }
         )
     for cue, primitive in sorted(_UNSUPPORTED_PRIMITIVE_CUES.items()):
-        if cue in token_set:
+        if cue not in token_set:
+            continue
+        if primitive == "Retriever" and bounded_inline_retriever:
             hints.append(
                 {
                     "primitive": primitive,
-                    "status": "declared_only_not_executable_by_current_renderer",
-                    "reason": f"Prompt mentions {cue!r}, but current executable rendering is limited to generated Predict/ChainOfThought pipeline modules.",
+                    "status": "conditionally_materializable_with_bounded_inline_adapter",
+                    "reason": f"Prompt mentions {cue!r}, and the explicit topology declares a bounded inline_corpus Retriever adapter materializable by the current pipeline/retrieve_then_answer renderer.",
                 }
             )
+            continue
+        hints.append(
+            {
+                "primitive": primitive,
+                "status": "declared_only_not_executable_by_current_renderer",
+                "reason": f"Prompt mentions {cue!r}, but current executable rendering is limited to generated Predict/ChainOfThought modules plus explicit bounded inline-corpus Retriever adapters in supported topologies.",
+            }
+        )
     if not hints:
         hints.append(
             {
@@ -269,7 +300,7 @@ def _generation_risks(
     risks: list[dict[str, str]] = []
     unsupported = [
         hint
-        for hint in _primitive_hints(token_set)
+        for hint in _primitive_hints(token_set, intent)
         if hint["status"].startswith("declared_only")
     ]
     if unsupported:
@@ -360,7 +391,7 @@ def build_program_intent_normalization(
         "assumptions": all_assumptions,
         "missing_evidence": _missing_evidence(intent),
         "topology_hints": _topology_hints(token_set),
-        "primitive_hints": _primitive_hints(token_set),
+        "primitive_hints": _primitive_hints(token_set, intent),
         "generation_risks": _generation_risks(token_set, intent),
         "next_actions": [
             "Inspect assumptions, missing evidence, topology hints, and generation risks before materialization.",

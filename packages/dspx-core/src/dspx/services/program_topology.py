@@ -11,7 +11,9 @@ from dspx.services.program_capabilities import (
 from dspx.services.program_contracts import sanitize_ident, surface_description
 
 PIPELINE_MATERIALIZED_STATUS = "pipeline_materialized"
+RETRIEVE_THEN_ANSWER_MATERIALIZED_STATUS = "retrieve_then_answer_materialized"
 PROMPT_INFERRED_PIPELINE_RENDERER = "prompt_inferred_pipeline_renderer"
+RETRIEVE_THEN_ANSWER_RENDERER = "retrieve_then_answer_topology_renderer"
 SUPPORTED_PIPELINE_PRIMITIVES = materializable_pipeline_primitives()
 _REASONING_CUES = {
     "adjudicate",
@@ -49,6 +51,19 @@ def declared_pipeline_topology(intent: Any) -> dict[str, Any]:
     if topology.get("kind") != "pipeline":
         return {}
     return topology
+
+
+def declared_retrieve_then_answer_topology(intent: Any) -> dict[str, Any]:
+    topology = dict(getattr(intent, "topology", {}) or {})
+    if topology.get("kind") != "retrieve_then_answer":
+        return {}
+    return topology
+
+
+def declared_materializable_topology(intent: Any) -> dict[str, Any]:
+    return declared_pipeline_topology(intent) or declared_retrieve_then_answer_topology(
+        intent
+    )
 
 
 def has_declared_pipeline_topology(intent: Any) -> bool:
@@ -237,15 +252,101 @@ def prompt_inferred_pipeline_topology(intent: Any) -> dict[str, Any]:
     return {}
 
 
+def _adapt_retrieve_then_answer_topology(intent: Any) -> dict[str, Any]:
+    topology = declared_retrieve_then_answer_topology(intent)
+    if not topology:
+        return {}
+    modules = [
+        dict(item) for item in topology.get("modules", []) if isinstance(item, Mapping)
+    ]
+    if not any(str(module.get("primitive") or "") == "Retriever" for module in modules):
+        raise ProgramTopologyMaterializationError(
+            "retrieve_then_answer topology materialization requires at least one bounded inline Retriever module"
+        )
+    if not any(str(module.get("primitive") or "") != "Retriever" for module in modules):
+        raise ProgramTopologyMaterializationError(
+            "retrieve_then_answer topology materialization requires an answer module after retrieval"
+        )
+    return {
+        **topology,
+        "execution_status": RETRIEVE_THEN_ANSWER_MATERIALIZED_STATUS,
+        "materialized_from_kind": "retrieve_then_answer",
+        "renderer": RETRIEVE_THEN_ANSWER_RENDERER,
+    }
+
+
+def _validate_retrieve_then_answer_contract(
+    *, modules: list[dict[str, Any]], edges: list[dict[str, Any]]
+) -> None:
+    """Fail closed unless retrieval actually feeds an answer path.
+
+    Generic pipeline DAG validity only proves that every module can run and that
+    declared outputs can be produced. ``retrieve_then_answer`` has a stronger
+    semantic promise: every bounded inline Retriever branch must feed at least
+    one non-Retriever answer module that can reach the declared output edge.
+    """
+
+    module_by_id = {_module_id(module): module for module in modules}
+    retriever_ids = {
+        module_id
+        for module_id, module in module_by_id.items()
+        if str(module.get("primitive") or "") == "Retriever"
+    }
+    answer_ids = set(module_by_id) - retriever_ids
+    adjacency: dict[str, set[str]] = {module_id: set() for module_id in module_by_id}
+    output_sources: set[str] = set()
+    for edge in edges:
+        source = str(edge.get("from") or "")
+        target = str(edge.get("to") or "")
+        if source in module_by_id and target in module_by_id:
+            adjacency[source].add(target)
+        if source in module_by_id and target == "output":
+            output_sources.add(source)
+
+    def reaches_output(module_id: str) -> bool:
+        pending = [module_id]
+        seen: set[str] = set()
+        while pending:
+            current = pending.pop(0)
+            if current in seen:
+                continue
+            seen.add(current)
+            if current in output_sources:
+                return True
+            pending.extend(sorted(adjacency.get(current, set()) - seen))
+        return False
+
+    disconnected: list[str] = []
+    for retriever_id in sorted(retriever_ids):
+        retriever_outputs = set(_signature_outputs(module_by_id[retriever_id]))
+        fed_answer_ids: list[str] = []
+        for answer_id in sorted(adjacency.get(retriever_id, set()) & answer_ids):
+            answer_inputs = set(_signature_inputs(module_by_id[answer_id]))
+            if retriever_outputs & answer_inputs and reaches_output(answer_id):
+                fed_answer_ids.append(answer_id)
+        if not fed_answer_ids:
+            disconnected.append(retriever_id)
+    if disconnected:
+        raise ProgramTopologyMaterializationError(
+            "retrieve_then_answer topology requires every Retriever output to feed "
+            "a downstream answer module that reaches output; disconnected retrievers: "
+            f"{disconnected}"
+        )
+
+
 def effective_pipeline_topology(intent: Any) -> dict[str, Any]:
-    return declared_pipeline_topology(intent) or prompt_inferred_pipeline_topology(
-        intent
+    return (
+        declared_pipeline_topology(intent)
+        or _adapt_retrieve_then_answer_topology(intent)
+        or prompt_inferred_pipeline_topology(intent)
     )
 
 
 def pipeline_topology_origin(intent: Any) -> str | None:
     if declared_pipeline_topology(intent):
         return "declared"
+    if declared_retrieve_then_answer_topology(intent):
+        return "declared_retrieve_then_answer"
     if prompt_inferred_pipeline_topology(intent):
         return "prompt_inferred"
     return None
@@ -333,6 +434,8 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
         intent_inputs=[str(item) for item in getattr(intent, "inputs", [])],
         intent_outputs=[str(item) for item in getattr(intent, "outputs", [])],
     )
+    if declared_retrieve_then_answer_topology(intent):
+        _validate_retrieve_then_answer_contract(modules=modules, edges=edges)
     return topology
 
 
@@ -460,7 +563,12 @@ def materialized_pipeline_topology(intent: Any) -> dict[str, Any]:
     if not topology:
         return {}
     materialized = dict(topology)
-    materialized["execution_status"] = PIPELINE_MATERIALIZED_STATUS
+    if declared_retrieve_then_answer_topology(intent):
+        materialized["execution_status"] = RETRIEVE_THEN_ANSWER_MATERIALIZED_STATUS
+        materialized["materialized_from_kind"] = "retrieve_then_answer"
+        materialized["renderer"] = RETRIEVE_THEN_ANSWER_RENDERER
+    else:
+        materialized["execution_status"] = PIPELINE_MATERIALIZED_STATUS
     return materialized
 
 
@@ -680,13 +788,15 @@ def render_pipeline_program_code(intent: Any) -> str:
     )
     constraints = list(getattr(intent, "constraints", []))
     metric = getattr(intent, "metric", None) or "unspecified"
-    declared_topology = declared_pipeline_topology(intent)
+    declared_topology = declared_materializable_topology(intent)
     inferred_topology = prompt_inferred_pipeline_topology(intent)
-    renderer = (
-        PROMPT_INFERRED_PIPELINE_RENDERER
-        if inferred_topology and not declared_topology
-        else "pipeline_topology_renderer"
-    )
+    materialized_topology = materialized_pipeline_topology(intent)
+    if declared_retrieve_then_answer_topology(intent):
+        renderer = RETRIEVE_THEN_ANSWER_RENDERER
+    elif inferred_topology and not declared_topology:
+        renderer = PROMPT_INFERRED_PIPELINE_RENDERER
+    else:
+        renderer = "pipeline_topology_renderer"
     materialization_scope = {
         "topology_declared": bool(declared_topology),
         "topology_inferred": bool(inferred_topology and not declared_topology),
@@ -724,8 +834,8 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"METRIC = {metric!r}",
             f"DECLARED_TOPOLOGY = {declared_topology!r}",
             f"INFERRED_TOPOLOGY = {inferred_topology!r}",
-            f"MATERIALIZED_TOPOLOGY = {materialized_pipeline_topology(intent)!r}",
-            f"TOPOLOGY_EXECUTION_STATUS = {PIPELINE_MATERIALIZED_STATUS!r}",
+            f"MATERIALIZED_TOPOLOGY = {materialized_topology!r}",
+            f"TOPOLOGY_EXECUTION_STATUS = {materialized_topology.get('execution_status', PIPELINE_MATERIALIZED_STATUS)!r}",
             f"MATERIALIZATION_SCOPE = {materialization_scope!r}",
             f"MODULE_ORDER = {[_module_id(module) for module in modules]!r}",
             f"MODULE_SIGNATURES = {module_signatures!r}",

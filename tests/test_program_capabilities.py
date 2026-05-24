@@ -27,7 +27,7 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
         "default": "fail_closed",
         "materializable_primitives": ["ChainOfThought", "Predict"],
         "conditional_materializable_primitives": {
-            "Retriever": "explicit pipeline module with retriever.mode=inline_corpus only"
+            "Retriever": "explicit pipeline or retrieve_then_answer module with retriever.mode=inline_corpus only"
         },
         "unsupported_primitives_are_declared_only": True,
         "custom_imports_are_declarations_only": True,
@@ -136,6 +136,7 @@ def test_retriever_primitive_contract_requires_bounded_inline_adapter() -> None:
     assert contract["status"] == "conditionally_materializable_with_adapter"
     assert contract["materializable"] is False
     assert contract["conditional_materializable"] is True
+    assert contract["allowed_topology_kinds"] == ["pipeline", "retrieve_then_answer"]
     assert (
         contract["materialization_policy"]["bounded_inline_retriever_adapter_allowed"]
         is True

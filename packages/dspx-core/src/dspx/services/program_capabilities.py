@@ -202,9 +202,9 @@ def _primitive_contract(primitive: str) -> dict[str, Any]:
         else "declared_only_not_materializable",
         "materializable": materializable,
         "conditional_materializable": conditional,
-        "allowed_topology_kinds": ["single_module", "pipeline"]
+        "allowed_topology_kinds": ["single_module", "pipeline", "retrieve_then_answer"]
         if materializable
-        else ["pipeline"]
+        else ["pipeline", "retrieve_then_answer"]
         if conditional
         else [],
         "materialization_policy": {
@@ -380,7 +380,7 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
             "default": "fail_closed",
             "materializable_primitives": sorted(_MATERIALIZABLE_PIPELINE_PRIMITIVES),
             "conditional_materializable_primitives": {
-                "Retriever": "explicit pipeline module with retriever.mode=inline_corpus only"
+                "Retriever": "explicit pipeline or retrieve_then_answer module with retriever.mode=inline_corpus only"
             },
             "unsupported_primitives_are_declared_only": True,
             "custom_imports_are_declarations_only": True,
@@ -394,6 +394,6 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
         "notes": [
             "This registry is descriptor-only evidence for generated program capability boundaries.",
             "It does not import custom modules, bind external tools/retrievers, construct ReAct agents, call providers, rank candidates, promote programs, or mutate external authority.",
-            "Current materialization supports generated Predict/ChainOfThought primitives and explicit bounded inline Retriever adapters only.",
+            "Current materialization supports generated Predict/ChainOfThought primitives and explicit bounded inline Retriever adapters in pipeline or retrieve_then_answer topologies only.",
         ],
     }
