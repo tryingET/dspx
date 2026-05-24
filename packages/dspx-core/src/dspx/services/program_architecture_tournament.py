@@ -202,8 +202,26 @@ def _widened_plan_non_authority_flags(value: object) -> list[str]:
     ]
 
 
+def _candidate_source_comparable_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    comparable = dict(payload)
+    comparable.pop("name", None)
+    comparable.pop("topology", None)
+    options = dict(comparable.get("options") or {})
+    options.pop("module_inference", None)
+    options.pop("prompt_module_inference", None)
+    if options:
+        comparable["options"] = options
+    else:
+        comparable.pop("options", None)
+    return comparable
+
+
 def _validate_candidate_intent_payload(
-    *, candidate: Mapping[str, Any], index: int, intent_identity: Mapping[str, Any]
+    *,
+    candidate: Mapping[str, Any],
+    index: int,
+    intent_identity: Mapping[str, Any],
+    source_intent_payload: Mapping[str, Any],
 ) -> None:
     if candidate.get("status") != "materializable":
         return
@@ -226,6 +244,12 @@ def _validate_candidate_intent_payload(
             raise ProgramArchitectureTournamentError(
                 f"architecture plan candidate {index} intent_payload does not match intent_identity.{key}"
             )
+    if source_intent_payload and _candidate_source_comparable_payload(
+        intent_payload
+    ) != _candidate_source_comparable_payload(source_intent_payload):
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {index} intent_payload source fields drift from source_intent_payload"
+        )
     candidate_topology = dict(candidate.get("topology") or {})
     payload_topology = dict(intent_payload.get("topology") or {})
     if candidate_topology != payload_topology:
@@ -272,15 +296,27 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
             "architecture plan candidate_count does not match candidates length"
         )
     intent_identity = _mapping(plan.get("intent_identity"))
+    source_intent_payload = _mapping(plan.get("source_intent_payload"))
+    if not source_intent_payload:
+        raise ProgramArchitectureTournamentError(
+            "architecture plan source_intent_payload is required for candidate lineage validation"
+        )
     missing_identity = [
         key
-        for key in ["schema_version", "objective", "inputs", "outputs"]
+        for key in ["schema_version", "objective", "inputs", "outputs", "intent_hash"]
         if key not in intent_identity
     ]
     if missing_identity:
         raise ProgramArchitectureTournamentError(
             "architecture plan intent_identity missing required fields: "
             + ", ".join(missing_identity)
+        )
+    source_hash = sha256_text(
+        json.dumps(dict(source_intent_payload), ensure_ascii=False, sort_keys=True)
+    )
+    if intent_identity.get("intent_hash") != source_hash:
+        raise ProgramArchitectureTournamentError(
+            "architecture plan source_intent_payload hash does not match intent_identity.intent_hash"
         )
     missing_effect = _missing_required_flags(
         plan.get("effect"), _PLAN_REQUIRED_FALSE_EFFECT_FLAGS
@@ -353,7 +389,10 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
                 + ", ".join(widened_candidate_non_authority)
             )
         _validate_candidate_intent_payload(
-            candidate=candidate, index=index, intent_identity=intent_identity
+            candidate=candidate,
+            index=index,
+            intent_identity=intent_identity,
+            source_intent_payload=source_intent_payload,
         )
 
 
@@ -385,6 +424,11 @@ def _candidate_allowed(candidate_id: str, candidate_ids: set[str]) -> bool:
 def _preflight_tournament_outputs(
     *, root: Path, architecture_plan: Mapping[str, Any], selected_ids: set[str]
 ) -> None:
+    intent_dir = root / "candidate_intents"
+    if intent_dir.exists() and not intent_dir.is_dir():
+        raise ProgramArchitectureTournamentError(
+            f"candidate intents output path is not a directory: {intent_dir}"
+        )
     candidates = architecture_plan.get("candidates", [])
     for raw_candidate in candidates:
         if not isinstance(raw_candidate, Mapping):
@@ -395,6 +439,11 @@ def _preflight_tournament_outputs(
         if raw_candidate.get("status") != "materializable":
             continue
         _candidate_dir(root, candidate_id)
+        intent_path = root / "candidate_intents" / f"{candidate_id}.json"
+        if intent_path.exists():
+            raise ProgramArchitectureTournamentError(
+                f"candidate intent output already exists: {intent_path}"
+            )
 
 
 def _artifact_ref(path: Path) -> dict[str, Any]:

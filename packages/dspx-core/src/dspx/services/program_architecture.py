@@ -299,6 +299,7 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
             "outputs": list(intent.outputs),
             "intent_hash": source_hash,
         },
+        "source_intent_payload": source_payload,
         "recommended_candidate_id": recommended_candidate_id,
         "candidate_count": len(candidates),
         "candidates": candidates,
