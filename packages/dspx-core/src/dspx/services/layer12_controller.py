@@ -25,6 +25,7 @@ DSPY_SIGNATURES = [
 GENERATED_DSPY_CANDIDATE_PATH = (
     "examples/layer12/generated_direction_controller_program.py"
 )
+DEFAULT_GENERATED_PROGRAM_EVAL_FIXTURE = "docs/project/layer12/fixtures/proposals/map-position-controls-generated-program-eval.json"
 
 RunCommand = Callable[[Sequence[str], Path], subprocess.CompletedProcess[str]]
 
@@ -93,16 +94,22 @@ def _run_json(args: Sequence[str], cwd: Path, runner: RunCommand) -> dict[str, A
         raise RuntimeError(f"command did not emit JSON: {' '.join(args)}") from exc
 
 
-def _proposal_arg(agent_kernel_repo: Path, proposal_path: Path) -> str:
+def _repo_owned_arg(agent_kernel_repo: Path, path: Path, *, artifact_kind: str) -> str:
     resolved_repo = agent_kernel_repo.resolve()
-    resolved_proposal = proposal_path.resolve()
+    resolved_path = path.resolve()
     try:
-        return str(resolved_proposal.relative_to(resolved_repo))
+        return str(resolved_path.relative_to(resolved_repo))
     except ValueError as exc:
         raise ValueError(
-            "Layer12 proposal fixtures must be repo-owned by agent-kernel so the "
-            "deterministic AK verifier can read them"
+            f"Layer12 {artifact_kind} must be repo-owned by agent-kernel so the "
+            "deterministic AK verifier can read it"
         ) from exc
+
+
+def _proposal_arg(agent_kernel_repo: Path, proposal_path: Path) -> str:
+    return _repo_owned_arg(
+        agent_kernel_repo, proposal_path, artifact_kind="proposal fixture"
+    )
 
 
 def discover_proposal_fixtures(fixtures_dir: Path) -> list[Path]:
@@ -142,6 +149,29 @@ def _metrics(cases: Iterable[Layer12ProposalEvalCase]) -> dict[str, Any]:
         else 0.0,
         "false_apply_count": false_apply_count,
         "false_apply_allowed_count": false_apply_allowed_count,
+    }
+
+
+def _candidate_score_metrics(
+    candidate_scores: Sequence[dict[str, Any]],
+) -> dict[str, Any]:
+    score_count = len(candidate_scores)
+    passed_count = sum(1 for score in candidate_scores if score.get("passed") is True)
+    failed_count = score_count - passed_count
+    false_apply_count = sum(
+        1 for score in candidate_scores if score.get("apply_performed") is True
+    )
+    return {
+        "score_count": score_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "best_score": max(
+            (float(score.get("score") or 0.0) for score in candidate_scores),
+            default=0.0,
+        ),
+        "false_apply_count": false_apply_count,
+        "used_as_authority": False,
+        "advisory_only": True,
     }
 
 
@@ -197,6 +227,8 @@ def evaluate_layer12_proposals(
     *,
     agent_kernel_repo: Path | None = None,
     fixtures_dir: Path | None = None,
+    eval_fixture: Path | None = None,
+    candidate_proposals: Sequence[Path] = (),
     runner: RunCommand = _run_command,
 ) -> dict[str, Any]:
     """Evaluate direction-controller proposals through AK's deterministic verifier.
@@ -209,6 +241,15 @@ def evaluate_layer12_proposals(
     ak_repo = (agent_kernel_repo or default_agent_kernel_repo()).resolve()
     fixture_root = (fixtures_dir or default_layer12_fixture_dir(ak_repo)).resolve()
     proposal_paths = discover_proposal_fixtures(fixture_root)
+    eval_fixture_path = (
+        eval_fixture or ak_repo / DEFAULT_GENERATED_PROGRAM_EVAL_FIXTURE
+    ).resolve()
+    eval_fixture_arg = _repo_owned_arg(
+        ak_repo, eval_fixture_path, artifact_kind="generated-program eval fixture"
+    )
+    candidate_proposal_args = [
+        _proposal_arg(ak_repo, proposal_path) for proposal_path in candidate_proposals
+    ]
 
     status = _run_json(
         ["ak", "direction-controller", "status", "--repo", str(ak_repo), "-F", "json"],
@@ -293,6 +334,24 @@ def evaluate_layer12_proposals(
             )
         )
 
+    eval_command = [
+        "ak",
+        "direction-controller",
+        "eval",
+        "--repo",
+        str(ak_repo),
+        "--fixture",
+        eval_fixture_arg,
+        "--summary",
+        "-F",
+        "json",
+    ]
+    for proposal_arg in candidate_proposal_args:
+        eval_command.extend(["--candidate-proposal", proposal_arg])
+    generated_program_eval = _run_json(eval_command, ak_repo, runner)
+    candidate_scores = list(generated_program_eval.get("candidate_scores") or [])
+    candidate_score_metrics = _candidate_score_metrics(candidate_scores)
+
     recommended_transition = status.get("recommended_transition")
     return {
         "schema_version": "dspx.direction_controller.proposal_eval.v1",
@@ -306,6 +365,7 @@ def evaluate_layer12_proposals(
         },
         "agent_kernel_repo": str(ak_repo),
         "fixtures_dir": str(fixture_root),
+        "generated_program_eval_fixture": eval_fixture_arg,
         "dspy_program": {
             "signatures": DSPY_SIGNATURES,
             "status": "generated_direction_controller_program_candidate_materialized",
@@ -339,6 +399,18 @@ def evaluate_layer12_proposals(
             generated_proposals,
             str(recommended_transition) if recommended_transition else None,
         ),
+        "generated_program_eval": {
+            "surface": generated_program_eval.get("surface"),
+            "payload_kind": generated_program_eval.get("payload_kind"),
+            "passed": generated_program_eval.get("passed"),
+            "eval_score": generated_program_eval.get("eval_score"),
+            "pass_rate": generated_program_eval.get("pass_rate"),
+            "case_count": generated_program_eval.get("case_count"),
+            "candidate_score_count": len(candidate_scores),
+            "apply_performed": bool(generated_program_eval.get("apply_performed")),
+        },
+        "candidate_scores": candidate_scores,
+        "candidate_score_metrics": candidate_score_metrics,
         "metrics": _metrics(cases),
         "cases": [
             {

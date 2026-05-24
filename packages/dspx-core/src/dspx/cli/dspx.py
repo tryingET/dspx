@@ -124,6 +124,16 @@ def layer12_eval_proposals(
         "--fixtures-dir",
         help="Agent-kernel-owned proposal fixture directory (defaults to docs/project/layer12/fixtures/proposals)",
     ),
+    eval_fixture: Optional[Path] = typer.Option(
+        None,
+        "--eval-fixture",
+        help="Agent-kernel-owned generated-program eval fixture for candidate_scores",
+    ),
+    candidate_proposals: Optional[List[Path]] = typer.Option(
+        None,
+        "--candidate-proposal",
+        help="Agent-kernel-owned generated-program candidate proposal to score with AK eval_summary (repeatable)",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON summary"),
 ) -> None:
     """Evaluate Layer12 proposals through AK's deterministic direction-controller.
@@ -137,6 +147,8 @@ def layer12_eval_proposals(
     payload = evaluate_layer12_proposals(
         agent_kernel_repo=agent_kernel_repo.expanduser(),
         fixtures_dir=fixtures_dir.expanduser() if fixtures_dir is not None else None,
+        eval_fixture=eval_fixture.expanduser() if eval_fixture is not None else None,
+        candidate_proposals=[path.expanduser() for path in candidate_proposals or []],
     )
     if json_out:
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
@@ -146,6 +158,12 @@ def layer12_eval_proposals(
     typer.echo(f"  cases: {metrics['case_count']}")
     typer.echo(f"  verdicts: {metrics['verdict_counts']}")
     typer.echo(f"  false_unblock_rate: {metrics['false_unblock_rate']}")
+    typer.echo(
+        f"  candidate_scores: {payload['candidate_score_metrics']['score_count']}"
+    )
+    typer.echo(
+        f"  best_candidate_score: {payload['candidate_score_metrics']['best_score']}"
+    )
     typer.echo(
         f"  legality_authority: {payload['authority_boundary']['legality_authority']}"
     )

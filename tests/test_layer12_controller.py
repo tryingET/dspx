@@ -80,6 +80,47 @@ def _fake_ak_runner(
             "apply_allowed": False,
             "apply_performed": False,
         }
+    elif args[2] == "eval":
+        candidate_refs = [
+            args[index + 1]
+            for index, value in enumerate(args)
+            if value == "--candidate-proposal"
+        ]
+        candidate_scores = []
+        for rank, proposal_ref in enumerate(candidate_refs, start=1):
+            passed = "bad" not in proposal_ref
+            candidate_scores.append(
+                {
+                    "candidate_id": proposal_ref.replace("/", "-"),
+                    "proposal_ref": proposal_ref,
+                    "case_id": f"candidate-proposal-{rank}",
+                    "rank": rank,
+                    "passed": passed,
+                    "score": 1.0 if passed else 0.0,
+                    "verdict": "accepted" if passed else "malformed",
+                    "transition": "continue_current_execution_task" if passed else None,
+                    "boundary_failures": []
+                    if passed
+                    else [
+                        "proposal.ir.map_position_controls.map.map_is_runtime_authority must be false"
+                    ],
+                    "errors": [] if passed else ["boundary drift"],
+                    "warnings": []
+                    if passed
+                    else ["map_is_runtime_authority must be false"],
+                }
+            )
+        payload = {
+            "surface": "ak.direction_controller.eval_summary",
+            "payload_kind": "ak_direction_controller_eval_summary",
+            "read_only": True,
+            "apply_performed": False,
+            "passed": all(score["passed"] for score in candidate_scores),
+            "eval_score": 1.0 if not candidate_scores else candidate_scores[0]["score"],
+            "pass_rate": 1.0 if not candidate_scores else candidate_scores[0]["score"],
+            "case_count": 4 + len(candidate_scores),
+            "candidate_scores": candidate_scores,
+        }
     else:
         raise AssertionError(f"unexpected command: {args}")
     return subprocess.CompletedProcess(args, 0, stdout=json.dumps(payload), stderr="")
@@ -155,6 +196,26 @@ def test_evaluate_layer12_proposals_uses_direction_controller_as_authority(
         "recommended_transition_match_count": 2,
         "false_apply_count": 0,
     }
+    assert payload["generated_program_eval"] == {
+        "surface": "ak.direction_controller.eval_summary",
+        "payload_kind": "ak_direction_controller_eval_summary",
+        "passed": True,
+        "eval_score": 1.0,
+        "pass_rate": 1.0,
+        "case_count": 4,
+        "candidate_score_count": 0,
+        "apply_performed": False,
+    }
+    assert payload["candidate_scores"] == []
+    assert payload["candidate_score_metrics"] == {
+        "score_count": 0,
+        "passed_count": 0,
+        "failed_count": 0,
+        "best_score": 0.0,
+        "false_apply_count": 0,
+        "used_as_authority": False,
+        "advisory_only": True,
+    }
     assert payload["metrics"]["case_count"] == 3
     assert payload["metrics"]["verdict_counts"] == {
         "accepted": 1,
@@ -172,6 +233,56 @@ def test_evaluate_layer12_proposals_uses_direction_controller_as_authority(
     assert {case["plan_surface"] for case in payload["cases"]} == {
         "ak.direction_controller.plan"
     }
+
+
+def test_evaluate_layer12_proposals_consumes_candidate_scores_as_advisory_input(
+    tmp_path: Path,
+) -> None:
+    ak_repo = tmp_path / "agent-kernel"
+    fixtures = ak_repo / "docs/project/layer12/fixtures/proposals"
+    fixtures.mkdir(parents=True)
+    _write_fixture(fixtures / "legal.json", "continue_current_execution_task")
+    candidate = fixtures / "candidate.json"
+    candidate.write_text(
+        json.dumps({"transition": "continue_current_execution_task"}), encoding="utf-8"
+    )
+
+    payload = evaluate_layer12_proposals(
+        agent_kernel_repo=ak_repo,
+        fixtures_dir=fixtures,
+        candidate_proposals=[candidate],
+        runner=_fake_ak_runner,
+    )
+
+    assert payload["candidate_scores"] == [
+        {
+            "candidate_id": "docs-project-layer12-fixtures-proposals-candidate.json",
+            "proposal_ref": "docs/project/layer12/fixtures/proposals/candidate.json",
+            "case_id": "candidate-proposal-1",
+            "rank": 1,
+            "passed": True,
+            "score": 1.0,
+            "verdict": "accepted",
+            "transition": "continue_current_execution_task",
+            "boundary_failures": [],
+            "errors": [],
+            "warnings": [],
+        }
+    ]
+    assert payload["candidate_score_metrics"] == {
+        "score_count": 1,
+        "passed_count": 1,
+        "failed_count": 0,
+        "best_score": 1.0,
+        "false_apply_count": 0,
+        "used_as_authority": False,
+        "advisory_only": True,
+    }
+    assert payload["authority_boundary"]["legality_authority"] == (
+        "deterministic_ak_direction_controller_verifier"
+    )
+    assert payload["authority_boundary"]["empirical_output_is_normative"] is False
+    assert payload["apply_performed"] is False
 
 
 def test_layer12_eval_proposals_cli_emits_json(monkeypatch, tmp_path: Path) -> None:
