@@ -1315,6 +1315,90 @@ def test_program_architect_tournament_rejects_authority_widened_plan_candidate(
     assert not outdir.exists()
 
 
+def test_program_architect_tournament_rejects_materializable_candidate_missing_intent_payload_without_partial_dirs(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="IntegrityPreflightProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    materializable = next(
+        candidate
+        for candidate in plan["candidates"]
+        if candidate["candidate_id"] == "baseline_single_predict"
+    )
+    materializable.pop("intent_payload")
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "materializable candidate lacks intent_payload" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
+def test_program_architect_tournament_rejects_candidate_intent_hash_mismatch_without_partial_dirs(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="IntegrityPreflightProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    materializable = next(
+        candidate
+        for candidate in plan["candidates"]
+        if candidate["candidate_id"] == "baseline_single_predict"
+    )
+    materializable["intent_hash"] = "not-the-real-hash"
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "intent_hash mismatch" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
 def test_architecture_plan_portfolio_dogfoods_program_gen_and_replay(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -197,6 +197,34 @@ def _widened_plan_non_authority_flags(value: object) -> list[str]:
     ]
 
 
+def _validate_candidate_intent_payload(
+    *, candidate: Mapping[str, Any], index: int
+) -> None:
+    if candidate.get("status") != "materializable":
+        return
+    intent_payload = candidate.get("intent_payload")
+    if not isinstance(intent_payload, Mapping):
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {index} materializable candidate lacks intent_payload"
+        )
+    try:
+        ProgramIntent.model_validate(dict(intent_payload))
+    except Exception as exc:
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {index} intent_payload is invalid: {exc}"
+        ) from exc
+    intent_hash = str(candidate.get("intent_hash") or "").strip()
+    if not intent_hash:
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {index} missing intent_hash"
+        )
+    actual_hash = sha256_text(_json_text(dict(intent_payload)))
+    if intent_hash != actual_hash:
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {index} intent_hash mismatch"
+        )
+
+
 def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
     if plan.get("schema_version") != PROGRAM_ARCHITECTURE_CANDIDATES_SCHEMA:
         raise ProgramArchitectureTournamentError(
@@ -206,6 +234,11 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
     if not isinstance(candidates, list):
         raise ProgramArchitectureTournamentError(
             "architecture plan candidates must be a list"
+        )
+    candidate_count = plan.get("candidate_count")
+    if candidate_count is not None and candidate_count != len(candidates):
+        raise ProgramArchitectureTournamentError(
+            "architecture plan candidate_count does not match candidates length"
         )
     missing_effect = _missing_required_flags(
         plan.get("effect"), _PLAN_REQUIRED_FALSE_EFFECT_FLAGS
@@ -271,6 +304,7 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
                 f"architecture plan candidate {index} non_authority widens authority: "
                 + ", ".join(widened_candidate_non_authority)
             )
+        _validate_candidate_intent_payload(candidate=candidate, index=index)
 
 
 def _candidate_allowed(candidate_id: str, candidate_ids: set[str]) -> bool:
