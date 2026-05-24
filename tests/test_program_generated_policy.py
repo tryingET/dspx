@@ -62,6 +62,30 @@ def _configure_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             "import json\nimport dspy\nfrom signature import X\ndspy.LM('openai/gpt-4o-mini')\n",
         ),
         (
+            "dspy_dict_lm",
+            "import json\nimport dspy\nfrom signature import X\ndspy.__dict__['LM']('openai/gpt-4o-mini')\n",
+        ),
+        (
+            "dspy_dunder_getattribute",
+            "import json\nimport dspy\nfrom signature import X\ndspy.__getattribute__('LM')('openai/gpt-4o-mini')\n",
+        ),
+        (
+            "object_dunder_getattribute_dspy_dict",
+            "import json\nimport dspy\nfrom signature import X\nobject.__getattribute__(dspy, '__dict__')['LM']('openai/gpt-4o-mini')\n",
+        ),
+        (
+            "type_dunder_getattribute_dspy_dict",
+            "import json\nimport dspy\nfrom signature import X\ntype.__getattribute__(type(dspy), '__dict__')['LM']('openai/gpt-4o-mini')\n",
+        ),
+        (
+            "aliased_object_dunder_getattribute",
+            "import json\nimport dspy\nfrom signature import X\nOG = object.__getattribute__\nOG(dspy, 'LM')('openai/gpt-4o-mini')\n",
+        ),
+        (
+            "aliased_object_root_dunder_getattribute",
+            "import json\nimport dspy\nfrom signature import X\nO = object\nO.__getattribute__(dspy, 'LM')('openai/gpt-4o-mini')\n",
+        ),
+        (
             "dynamic_import",
             "import json\nimport dspy\nfrom signature import X\n__import__('os')\n",
         ),

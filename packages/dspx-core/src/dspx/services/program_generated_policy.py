@@ -36,17 +36,20 @@ _DENIED_IMPORT_ROOTS = {
     "urllib",
 }
 _DENIED_CALL_NAMES = {
+    "__getattribute__",
     "__import__",
     "builtins.__import__",
     "compile",
     "eval",
     "exec",
+    "object.__getattribute__",
     "getattr",
     "globals",
     "input",
     "locals",
     "open",
     "setattr",
+    "type.__getattribute__",
     "vars",
 }
 _DENIED_CALL_ROOTS = {
@@ -54,11 +57,13 @@ _DENIED_CALL_ROOTS = {
     "builtins",
     "httpx",
     "importlib",
+    "object",
     "os",
     "requests",
     "shutil",
     "socket",
     "subprocess",
+    "type",
     "urllib",
 }
 _DENIED_CALL_SUFFIXES = {
@@ -106,6 +111,13 @@ def _call_name(node: ast.AST) -> str | None:
 
 def _root_name(name: str) -> str:
     return name.split(".", 1)[0]
+
+
+def _has_dunder_segment(name: str) -> bool:
+    return any(
+        segment.startswith("__") and segment.endswith("__")
+        for segment in name.split(".")
+    )
 
 
 def _add_violation(
@@ -257,6 +269,13 @@ def build_program_generated_module_policy(
                 _add_violation(
                     violations,
                     code="dspy_attribute_not_allowed",
+                    node=node,
+                    detail=name,
+                )
+            elif name is not None and name != "__init__" and _has_dunder_segment(name):
+                _add_violation(
+                    violations,
+                    code="dunder_attribute_not_allowed",
                     node=node,
                     detail=name,
                 )

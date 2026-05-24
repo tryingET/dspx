@@ -2058,6 +2058,40 @@ def test_program_architect_tournament_rejects_internal_output_path_before_materi
     assert not outdir.exists()
 
 
+def test_program_architect_tournament_rejects_out_equal_to_outdir_before_materialization(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="TournamentOutdirCollisionProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(outdir),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "collides with tournament outdir" in result.output
+    assert not outdir.exists()
+
+
 def test_program_architect_tournament_rejects_forbidden_output_before_materialization(
     tmp_path: Path,
 ) -> None:

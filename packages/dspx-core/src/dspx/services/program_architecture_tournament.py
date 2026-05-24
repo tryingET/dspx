@@ -925,6 +925,11 @@ def validate_program_architecture_tournament_output_path(
     target = _validate_output_path(out, label="architecture tournament")
     if outdir is not None:
         root = outdir.expanduser().resolve()
+        if target == root or target in root.parents:
+            raise ProgramArchitectureTournamentError(
+                "architecture tournament sidecar path collides with tournament outdir: "
+                f"{target}"
+            )
         reserved_roots = [root / "candidate_intents", root / "candidates"]
         for reserved in reserved_roots:
             if target == reserved or reserved in target.parents:

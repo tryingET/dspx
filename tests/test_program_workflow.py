@@ -427,3 +427,123 @@ def test_program_loop_rejects_duplicate_sidecar_output_paths_before_generation(
     assert "duplicates sidecar output path" in result.output
     assert not outdir.exists()
     assert not shared.exists()
+
+
+def test_program_loop_rejects_sidecar_parent_child_collision_before_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    shared_dir = tmp_path / "sidecars"
+    _write_intent(intent_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--skip-oracle-index",
+            "--state-out",
+            str(shared_dir / "state.json"),
+            "--workflow-out",
+            str(shared_dir),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "conflicts with sidecar output path" in result.output
+    assert not outdir.exists()
+    assert not shared_dir.exists()
+
+
+def test_program_loop_rejects_index_path_parent_child_collision_before_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    index_dir = tmp_path / "index"
+    _write_intent(intent_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--workflow-out",
+            str(index_dir),
+            "--index-path",
+            str(index_dir / "coordinates.db"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "conflicts with sidecar output path" in result.output
+    assert not outdir.exists()
+    assert not index_dir.exists()
+
+
+def test_program_loop_rejects_workflow_out_equal_to_outdir_before_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--skip-oracle-index",
+            "--workflow-out",
+            str(outdir),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "workflow_out output path collides with generated program output directory"
+        in result.output
+    )
+    assert not outdir.exists()
+
+
+def test_program_loop_rejects_workflow_out_equal_to_future_oracle_dir_before_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--workflow-out",
+            str(outdir / "oracle"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "workflow_out output path collides with generated program output directory"
+        in result.output
+    )
+    assert not outdir.exists()

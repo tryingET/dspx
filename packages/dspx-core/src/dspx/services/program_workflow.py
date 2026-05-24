@@ -116,10 +116,14 @@ def _active_loop_sidecars(
 
 def _preflight_loop_sidecar_outputs(
     *,
+    root: Path,
     paths: Mapping[str, Path],
     skip_oracle_index: bool,
     publish_to_shared: str | None,
 ) -> None:
+    generated_directories = [root]
+    if not skip_oracle_index:
+        generated_directories.append(root / "oracle")
     seen: dict[Path, str] = {}
     for label, path in _active_loop_sidecars(
         paths=paths,
@@ -127,10 +131,21 @@ def _preflight_loop_sidecar_outputs(
         publish_to_shared=publish_to_shared,
     ):
         target = _validate_sidecar_output_path(path, label=label)
-        if target in seen:
-            raise ValueError(
-                f"{label} duplicates sidecar output path already used by {seen[target]}: {target}"
-            )
+        for generated_directory in generated_directories:
+            planned_dir = generated_directory.expanduser().resolve()
+            if target == planned_dir or target in planned_dir.parents:
+                raise ValueError(
+                    f"{label} output path collides with generated program output directory: {target}"
+                )
+        for seen_target, seen_label in seen.items():
+            if target == seen_target:
+                raise ValueError(
+                    f"{label} duplicates sidecar output path already used by {seen_label}: {target}"
+                )
+            if target in seen_target.parents or seen_target in target.parents:
+                raise ValueError(
+                    f"{label} conflicts with sidecar output path already used by {seen_label}: {target} vs {seen_target}"
+                )
         seen[target] = label
 
 
@@ -197,6 +212,7 @@ def run_program_loop_from_intent_path(
     )
     output_paths["index_path"] = resolved_index_path
     _preflight_loop_sidecar_outputs(
+        root=root,
         paths=output_paths,
         skip_oracle_index=skip_oracle_index,
         publish_to_shared=publish_to_shared,
