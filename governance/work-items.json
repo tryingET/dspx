@@ -3117,6 +3117,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-24"
+        },
+        {
+          "id": "AK-TASK-3390",
+          "title": "Program-gen: materialize retrieve_then_answer topology",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Program-gen: materialize retrieve_then_answer topology (task #3390)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }
