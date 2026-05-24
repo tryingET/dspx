@@ -185,7 +185,7 @@ print(json.dumps({
 PY
 ```
 
-Use `--skip-oracle-index` when you want generation/replay/state only and no CoordinateIndex mutation. Even without that flag, the default mutation is candidate-local under `--outdir`, not a production/shared Oracle authority action.
+Use `--skip-oracle-index` when you want generation/replay/state only and no CoordinateIndex mutation. Even without that flag, the default mutation is candidate-local under `--outdir`, not a production/shared Oracle authority action. `program-loop` preflights all active output paths before candidate generation, rejects generated-artifact basenames and duplicate resolved sidecar/index paths, and therefore avoids overwriting candidate files or producing stale path claims.
 
 ## Optional: preflight shared Oracle publication without shared writes
 

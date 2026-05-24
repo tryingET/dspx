@@ -75,10 +75,12 @@ _DENIED_CALL_SUFFIXES = {
 }
 _DENIED_DSPY_CALLS = {
     "dspy.ColBERTv2",
+    "dspy.LM",
     "dspy.ProgramOfThought",
     "dspy.ReAct",
     "dspy.Retrieve",
     "dspy.Tool",
+    "dspy.configure",
     "dspy.settings.configure",
 }
 _DENIED_DSPY_ATTRS = {

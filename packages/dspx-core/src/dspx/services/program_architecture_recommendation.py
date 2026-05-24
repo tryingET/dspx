@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from dspx.cache import sha256_text
 from dspx.services.program_architecture import ProgramArchitectureError, _non_authority
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_architecture_tournament import (
     PROGRAM_ARCHITECTURE_TOURNAMENT_EVIDENCE_MATRIX_SCHEMA,
     PROGRAM_ARCHITECTURE_TOURNAMENT_SCHEMA,
@@ -14,16 +15,7 @@ from dspx.services.program_architecture_tournament import (
 
 PROGRAM_ARCHITECTURE_RECOMMENDATION_SCHEMA = "program-architecture-recommendation-v1"
 _FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "plan.json",
-    "program.py",
-    "module.py",
-    "signature.py",
-    "module_surfaces.json",
-    "execution_episode.json",
-    "oracle_evidence.json",
-    "behavior_results.json",
+    *PROTECTED_PROGRAM_ARTIFACT_NAMES,
     "tournament.json",
 }
 _AUTHORITY_FALSE_EFFECT_FLAGS = (

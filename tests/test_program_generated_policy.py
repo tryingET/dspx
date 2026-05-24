@@ -54,6 +54,14 @@ def _configure_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             "import json\nimport dspy\nfrom signature import X\ndspy.settings.configure(rm=None)\n",
         ),
         (
+            "dspy_configure",
+            "import json\nimport dspy\nfrom signature import X\ndspy.configure(lm=None)\n",
+        ),
+        (
+            "dspy_lm",
+            "import json\nimport dspy\nfrom signature import X\ndspy.LM('openai/gpt-4o-mini')\n",
+        ),
+        (
             "dynamic_import",
             "import json\nimport dspy\nfrom signature import X\n__import__('os')\n",
         ),

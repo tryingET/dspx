@@ -1941,6 +1941,46 @@ def test_program_architect_tournament_rejects_duplicate_candidate_ids_without_pa
     assert not outdir.exists()
 
 
+def test_program_architect_tournament_rejects_candidates_file_without_partial_writes(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="CandidateParentCollisionProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    candidates_path = outdir / "candidates"
+    outdir.mkdir()
+    candidates_path.write_text("SENTINEL\n")
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate outputs path is not a directory" in result.output
+    assert candidates_path.read_text() == "SENTINEL\n"
+    assert not (outdir / "candidate_intents").exists()
+    assert not tournament_out.exists()
+
+
 def test_program_architect_tournament_rejects_existing_later_candidate_without_partial_writes(
     tmp_path: Path,
 ) -> None:
@@ -1982,6 +2022,40 @@ def test_program_architect_tournament_rejects_existing_later_candidate_without_p
     assert not tournament_out.exists()
     assert not (outdir / "candidates" / "baseline_single_predict").exists()
     assert not (outdir / "candidate_intents").exists()
+
+
+def test_program_architect_tournament_rejects_internal_output_path_before_materialization(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="InternalTournamentOutProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(outdir / "candidate_intents" / "baseline_single_predict.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "collides with internal tournament artifacts" in result.output
+    assert not outdir.exists()
 
 
 def test_program_architect_tournament_rejects_forbidden_output_before_materialization(

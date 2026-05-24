@@ -119,7 +119,7 @@ def tournament(
         raise typer.Exit(code=2)
 
     try:
-        validate_program_architecture_tournament_output_path(out)
+        validate_program_architecture_tournament_output_path(out, outdir=outdir)
         if architecture_plan is not None:
             result = run_program_architecture_tournament_from_plan_path(
                 architecture_plan,

@@ -9,6 +9,7 @@ from dspx.services.program_candidate_state import (
     write_program_candidate_state,
 )
 from dspx.coordinates import CoordinateStore
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication import (
     publish_program_oracle_preflight,
@@ -18,6 +19,7 @@ from dspx.services.program_oracle_publication_preflight import (
     build_program_oracle_publication_preflight,
     write_program_oracle_publication_preflight,
 )
+from dspx.services.program_intent import default_outdir, load_program_intent
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_service import run_generate_from_intent_path
 from dspx.services.run_replay_service import check_run_receipt
@@ -25,19 +27,11 @@ from dspx.services.run_replay_service import check_run_receipt
 PROGRAM_LOOP_SCHEMA = "program-loop-workflow-v1"
 
 _FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "promotion_review.json",
-    "promotion_adjudication_request.json",
-    "promotion_decision_template.json",
+    *PROTECTED_PROGRAM_ARTIFACT_NAMES,
     "promotion_review_refined.json",
     "promotion_decision_record.json",
     "promotion_plan.json",
     "jury_results.json",
-    "behavior_results.json",
-    "behavior_episode.json",
-    "oracle_evidence.json",
-    "execution_episode.json",
 }
 
 
@@ -63,9 +57,81 @@ def _required_text(value: object, *, field: str) -> str:
     return text
 
 
-def _validate_sidecar_output_path(path: Path, *, label: str) -> None:
-    if path.expanduser().resolve().name in _FORBIDDEN_OUTPUT_NAMES:
-        raise ValueError(f"{label} must not overwrite {path.name}")
+def _validate_sidecar_output_path(path: Path, *, label: str) -> Path:
+    target = path.expanduser().resolve()
+    if target.name in _FORBIDDEN_OUTPUT_NAMES:
+        raise ValueError(f"{label} must not overwrite {target.name}")
+    if target.exists() and target.is_dir():
+        raise ValueError(f"{label} output path is a directory: {target}")
+    return target
+
+
+def _resolve_loop_output_paths(
+    *,
+    root: Path,
+    oracle_report_out: Path | None,
+    state_out: Path | None,
+    workflow_out: Path | None,
+    publication_preflight_out: Path | None,
+    publication_receipt_out: Path | None,
+) -> dict[str, Path]:
+    return {
+        "oracle_report_out": oracle_report_out.expanduser().resolve()
+        if oracle_report_out
+        else root / "program_oracle_report.json",
+        "state_out": state_out.expanduser().resolve()
+        if state_out
+        else root / "program_candidate_state.json",
+        "workflow_out": workflow_out.expanduser().resolve()
+        if workflow_out
+        else root / "program_loop.json",
+        "publication_preflight_out": publication_preflight_out.expanduser().resolve()
+        if publication_preflight_out
+        else root / "program_oracle_publication_preflight.json",
+        "publication_receipt_out": publication_receipt_out.expanduser().resolve()
+        if publication_receipt_out
+        else root / "program_oracle_publication_receipt.json",
+    }
+
+
+def _active_loop_sidecars(
+    *, paths: Mapping[str, Path], skip_oracle_index: bool, publish_to_shared: str | None
+) -> list[tuple[str, Path]]:
+    active = [
+        ("state_out", paths["state_out"]),
+        ("workflow_out", paths["workflow_out"]),
+    ]
+    if not skip_oracle_index:
+        active.append(("index_path", paths["index_path"]))
+        active.append(("oracle_report_out", paths["oracle_report_out"]))
+    if publish_to_shared is not None:
+        active.extend(
+            [
+                ("publication_preflight_out", paths["publication_preflight_out"]),
+                ("publication_receipt_out", paths["publication_receipt_out"]),
+            ]
+        )
+    return active
+
+
+def _preflight_loop_sidecar_outputs(
+    *,
+    paths: Mapping[str, Path],
+    skip_oracle_index: bool,
+    publish_to_shared: str | None,
+) -> None:
+    seen: dict[Path, str] = {}
+    for label, path in _active_loop_sidecars(
+        paths=paths,
+        skip_oracle_index=skip_oracle_index,
+        publish_to_shared=publish_to_shared,
+    ):
+        target = _validate_sidecar_output_path(path, label=label)
+        if target in seen:
+            raise ValueError(
+                f"{label} duplicates sidecar output path already used by {seen[target]}: {target}"
+            )
+        seen[target] = label
 
 
 def write_program_loop_result(
@@ -112,6 +178,42 @@ def run_program_loop_from_intent_path(
     It does not call AK, apply promotion, select winners, deploy, or mutate governance.
     """
 
+    intent = load_program_intent(intent_path)
+    root = (
+        (outdir if outdir is not None else default_outdir(intent))
+        .expanduser()
+        .resolve()
+    )
+    resolved_index_path = (
+        index_path.expanduser().resolve() if index_path else _default_index_path(root)
+    )
+    output_paths = _resolve_loop_output_paths(
+        root=root,
+        oracle_report_out=oracle_report_out,
+        state_out=state_out,
+        workflow_out=workflow_out,
+        publication_preflight_out=publication_preflight_out,
+        publication_receipt_out=publication_receipt_out,
+    )
+    output_paths["index_path"] = resolved_index_path
+    _preflight_loop_sidecar_outputs(
+        paths=output_paths,
+        skip_oracle_index=skip_oracle_index,
+        publish_to_shared=publish_to_shared,
+    )
+    if publish_to_shared is not None:
+        _required_text(publish_to_shared, field="publish_to_shared")
+        _required_text(publisher_id, field="publisher_id")
+        _required_text(publisher_role, field="publisher_role")
+        _required_text(publisher_assertion, field="publisher_assertion")
+        _required_text(redaction_status, field="redaction_status")
+        _required_text(retention_class, field="retention_class")
+    resolved_oracle_report_out = output_paths["oracle_report_out"]
+    resolved_state_out = output_paths["state_out"]
+    resolved_workflow_out = output_paths["workflow_out"]
+    resolved_publication_preflight_out = output_paths["publication_preflight_out"]
+    resolved_publication_receipt_out = output_paths["publication_receipt_out"]
+
     artifact = run_generate_from_intent_path(intent_path, outdir=outdir)
     root = Path(artifact.root_path).expanduser().resolve()
     manifest_path = root / "manifest.json"
@@ -121,43 +223,6 @@ def run_program_loop_from_intent_path(
     receipt_path = receipt_path.expanduser().resolve()
 
     replay = check_run_receipt(receipt_path)
-
-    resolved_index_path = (
-        index_path.expanduser().resolve() if index_path else _default_index_path(root)
-    )
-    resolved_oracle_report_out = (
-        oracle_report_out.expanduser().resolve()
-        if oracle_report_out
-        else root / "program_oracle_report.json"
-    )
-    resolved_state_out = (
-        state_out.expanduser().resolve()
-        if state_out
-        else root / "program_candidate_state.json"
-    )
-    resolved_workflow_out = (
-        workflow_out.expanduser().resolve()
-        if workflow_out
-        else root / "program_loop.json"
-    )
-    resolved_publication_preflight_out = (
-        publication_preflight_out.expanduser().resolve()
-        if publication_preflight_out
-        else root / "program_oracle_publication_preflight.json"
-    )
-    resolved_publication_receipt_out = (
-        publication_receipt_out.expanduser().resolve()
-        if publication_receipt_out
-        else root / "program_oracle_publication_receipt.json"
-    )
-    for label, path in (
-        ("oracle_report_out", resolved_oracle_report_out),
-        ("state_out", resolved_state_out),
-        ("workflow_out", resolved_workflow_out),
-        ("publication_preflight_out", resolved_publication_preflight_out),
-        ("publication_receipt_out", resolved_publication_receipt_out),
-    ):
-        _validate_sidecar_output_path(path, label=label)
 
     oracle_index_result: dict[str, Any] | None = None
     oracle_report: dict[str, Any] | None = None

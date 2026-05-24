@@ -310,10 +310,11 @@ def test_program_loop_publish_to_shared_requires_publisher_fields(
     intent_path = tmp_path / "intent.yaml"
     _write_intent(intent_path)
 
+    outdir = tmp_path / "candidate"
     with pytest.raises(ValueError, match="publisher_id is required"):
         run_program_loop_from_intent_path(
             intent_path,
-            outdir=tmp_path / "candidate",
+            outdir=outdir,
             publish_to_shared="retained",
             publisher_role="operator",
             publisher_assertion="share synthetic behavior evidence",
@@ -321,6 +322,7 @@ def test_program_loop_publish_to_shared_requires_publisher_fields(
             retention_class="retained_behavior_memory",
             shared_publication_store=cast(CoordinateStore, FakeSharedOracleStore()),
         )
+    assert not outdir.exists()
 
 
 def test_program_loop_rejects_output_path_overwriting_candidate_artifact(
@@ -337,3 +339,91 @@ def test_program_loop_rejects_output_path_overwriting_candidate_artifact(
             outdir=outdir,
             state_out=outdir / "manifest.json",
         )
+    assert not outdir.exists()
+
+
+def test_program_loop_rejects_output_path_overwriting_program_py_before_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--skip-oracle-index",
+            "--state-out",
+            str(outdir / "program.py"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "state_out must not overwrite program.py" in result.output
+    assert not outdir.exists()
+
+
+def test_program_loop_rejects_oracle_index_sidecar_output_collision_before_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    shared = tmp_path / "shared.db"
+    _write_intent(intent_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--index-path",
+            str(shared),
+            "--oracle-report-out",
+            str(shared),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "duplicates sidecar output path" in result.output
+    assert not outdir.exists()
+    assert not shared.exists()
+
+
+def test_program_loop_rejects_duplicate_sidecar_output_paths_before_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    shared = tmp_path / "shared.json"
+    _write_intent(intent_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--oracle-report-out",
+            str(shared),
+            "--state-out",
+            str(shared),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "duplicates sidecar output path" in result.output
+    assert not outdir.exists()
+    assert not shared.exists()

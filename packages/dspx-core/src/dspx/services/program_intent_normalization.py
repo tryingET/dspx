@@ -6,22 +6,12 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.cache import sha256_text
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_contracts import sanitize_ident
 from dspx.services.program_intent import ProgramIntent, load_program_intent
 
 PROGRAM_INTENT_NORMALIZATION_SCHEMA = "program-intent-normalization-v1"
-_FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "plan.json",
-    "program.py",
-    "module.py",
-    "signature.py",
-    "module_surfaces.json",
-    "execution_episode.json",
-    "oracle_evidence.json",
-    "behavior_results.json",
-}
+_FORBIDDEN_OUTPUT_NAMES = set(PROTECTED_PROGRAM_ARTIFACT_NAMES)
 _REASONING_CUES = {
     "adjudicate",
     "analyse",

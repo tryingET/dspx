@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.cache import sha256_text
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_intent import ProgramIntent, load_program_intent
 from dspx.services.program_module_surface import build_program_module_surfaces
 from dspx.services.program_topology import (
@@ -15,18 +16,7 @@ from dspx.services.program_topology import (
 
 PROGRAM_ARCHITECTURE_CANDIDATES_SCHEMA = "program-architecture-candidates-v1"
 _PROGRAM_INTENT_SCHEMA = "program-intent-v2"
-_FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "plan.json",
-    "program.py",
-    "module.py",
-    "signature.py",
-    "module_surfaces.json",
-    "execution_episode.json",
-    "oracle_evidence.json",
-    "behavior_results.json",
-}
+_FORBIDDEN_OUTPUT_NAMES = set(PROTECTED_PROGRAM_ARTIFACT_NAMES)
 
 
 class ProgramArchitectureError(ValueError):

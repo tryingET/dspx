@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.cache import sha256_text
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_architecture import (
     PROGRAM_ARCHITECTURE_CANDIDATES_SCHEMA,
     ProgramArchitectureError,
@@ -20,20 +21,7 @@ PROGRAM_ARCHITECTURE_TOURNAMENT_SCHEMA = "program-architecture-tournament-v1"
 PROGRAM_ARCHITECTURE_TOURNAMENT_EVIDENCE_MATRIX_SCHEMA = (
     "program-architecture-tournament-evidence-matrix-v1"
 )
-_FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "plan.json",
-    "program.py",
-    "module.py",
-    "signature.py",
-    "module_surfaces.json",
-    "program_capability_registry.json",
-    "generated_module_policy.json",
-    "execution_episode.json",
-    "oracle_evidence.json",
-    "behavior_results.json",
-}
+_FORBIDDEN_OUTPUT_NAMES = set(PROTECTED_PROGRAM_ARTIFACT_NAMES)
 
 
 _PLAN_REQUIRED_FALSE_EFFECT_FLAGS = (
@@ -428,6 +416,11 @@ def _preflight_tournament_outputs(
     if intent_dir.exists() and not intent_dir.is_dir():
         raise ProgramArchitectureTournamentError(
             f"candidate intents output path is not a directory: {intent_dir}"
+        )
+    candidates_dir = root / "candidates"
+    if candidates_dir.exists() and not candidates_dir.is_dir():
+        raise ProgramArchitectureTournamentError(
+            f"candidate outputs path is not a directory: {candidates_dir}"
         )
     candidates = architecture_plan.get("candidates", [])
     for raw_candidate in candidates:
@@ -924,10 +917,22 @@ def run_program_architecture_tournament_from_intent_path(
     )
 
 
-def validate_program_architecture_tournament_output_path(out: Path) -> Path:
+def validate_program_architecture_tournament_output_path(
+    out: Path, *, outdir: Path | None = None
+) -> Path:
     """Validate the tournament sidecar output path before materialization."""
 
-    return _validate_output_path(out, label="architecture tournament")
+    target = _validate_output_path(out, label="architecture tournament")
+    if outdir is not None:
+        root = outdir.expanduser().resolve()
+        reserved_roots = [root / "candidate_intents", root / "candidates"]
+        for reserved in reserved_roots:
+            if target == reserved or reserved in target.parents:
+                raise ProgramArchitectureTournamentError(
+                    "architecture tournament sidecar path collides with internal tournament artifacts: "
+                    f"{target}"
+                )
+    return target
 
 
 def write_program_architecture_tournament_result(

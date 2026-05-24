@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.cache import sha256_text
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_architecture import (
     build_program_architecture_candidates,
     write_program_architecture_candidates,
@@ -29,18 +30,7 @@ from dspx.services.program_intent_normalization import (
 )
 
 PROGRAM_ARCHITECT_LOOP_SCHEMA = "program-architect-loop-v1"
-_FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "plan.json",
-    "program.py",
-    "module.py",
-    "signature.py",
-    "module_surfaces.json",
-    "execution_episode.json",
-    "oracle_evidence.json",
-    "behavior_results.json",
-}
+_FORBIDDEN_OUTPUT_NAMES = set(PROTECTED_PROGRAM_ARTIFACT_NAMES)
 
 
 class ProgramArchitectureWorkflowError(ProgramIntentNormalizationError):
