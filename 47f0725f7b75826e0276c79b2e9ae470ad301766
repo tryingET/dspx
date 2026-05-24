@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "47f0725f7b75826e0276c79b2e9ae470ad301766"
-created_at: "2026-05-24T18:42:21Z"
+created_at: "2026-05-24T20:48:47Z"
 intent: "Materialize bounded retrieve_then_answer program topology with intent-normalization evidence"
 files:
   - "README.md"
@@ -26,8 +26,11 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-full"
-    status: "fail"
+    status: "pass"
 group:
   index: 1
-  total: 1
+  total: 3
   rationale: "single cohesive program-gen topology and evidence contract change"
+links:
+  task_ids:
+    - 3390
