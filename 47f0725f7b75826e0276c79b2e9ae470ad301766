@@ -1,0 +1,33 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "47f0725f7b75826e0276c79b2e9ae470ad301766"
+created_at: "2026-05-24T18:41:50Z"
+intent: "Materialize bounded retrieve_then_answer program topology with intent-normalization evidence"
+files:
+  - "README.md"
+  - "docs/project/product-posture.md"
+  - "docs/project/program-gen-walkthrough.md"
+  - "docs/project/program-synthesis-boundary.md"
+  - "packages/dspx-core/src/dspx/services/program_capabilities.py"
+  - "packages/dspx-core/src/dspx/services/program_intent_normalization.py"
+  - "packages/dspx-core/src/dspx/services/program_module_surface.py"
+  - "packages/dspx-core/src/dspx/services/program_service.py"
+  - "packages/dspx-core/src/dspx/services/program_topology.py"
+  - "packages/dspx-core/src/dspx/services/run_replay_service.py"
+  - "tests/test_program_capabilities.py"
+  - "tests/test_program_intent_normalization.py"
+  - "tests/test_program_service.py"
+  - "tests/test_program_topology_intent.py"
+validation:
+  fast_gate:
+    command: "uv run --no-sync -m pytest -q tests/test_program_capabilities.py tests/test_program_intent_normalization.py tests/test_program_service.py tests/test_program_topology_intent.py"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "single cohesive program-gen topology and evidence contract change"
