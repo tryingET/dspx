@@ -581,51 +581,89 @@ def _parse_size(raw: str) -> int:
     )
 
 
-class BodySizeLimitMiddleware(BaseHTTPMiddleware):
-    """Rejects requests whose Content-Length exceeds the configured limit."""
+class BodySizeLimitMiddleware:
+    """Reject requests once the streamed body exceeds the configured limit."""
 
     def __init__(self, app, config: BodySizeLimitConfig):
-        super().__init__(app)
+        self.app = app
         self.config = config
         self._log = logging.getLogger("dspx.server")
 
-    async def dispatch(self, request: Request, call_next):
-        if self.config.enabled:
-            content_length = request.headers.get("content-length")
-            if content_length is not None:
-                try:
-                    length = int(content_length)
-                except (ValueError, TypeError):
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "error": "invalid_request",
-                            "detail": "invalid Content-Length header",
-                            "status": 400,
-                        },
-                    )
-                if length > self.config.max_bytes:
-                    self._log.info(
-                        "body_too_large",
-                        extra={
-                            "event": "body_too_large",
-                            "content_length": length,
-                            "max_bytes": self.config.max_bytes,
-                            "path": request.url.path,
-                        },
-                    )
-                    return JSONResponse(
-                        status_code=413,
-                        content={
-                            "error": "body_too_large",
-                            "detail": (
-                                f"request body of {length} bytes exceeds "
-                                f"the {self.config.max_bytes} byte limit"
-                            ),
-                            "status": 413,
-                        },
-                    )
-        return await call_next(request)
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http" or not self.config.enabled:
+            await self.app(scope, receive, send)
+            return
+
+        headers = {
+            key.decode("latin1").lower(): value.decode("latin1")
+            for key, value in scope.get("headers", [])
+        }
+        raw_content_length = headers.get("content-length")
+        if raw_content_length is not None:
+            try:
+                content_length = int(raw_content_length)
+            except (ValueError, TypeError):
+                await JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": "invalid_request",
+                        "detail": "invalid Content-Length header",
+                        "status": 400,
+                    },
+                )(scope, receive, send)
+                return
+            if content_length > self.config.max_bytes:
+                self._log_body_too_large(content_length, scope)
+                await self._send_body_too_large(scope, receive, send, content_length)
+                return
+
+        buffered: list[dict[str, object]] = []
+        total = 0
+        while True:
+            message = await receive()
+            buffered.append(message)
+            if message.get("type") != "http.request":
+                break
+            body = message.get("body", b"")
+            if isinstance(body, bytes):
+                total += len(body)
+            if total > self.config.max_bytes:
+                self._log_body_too_large(total, scope)
+                await self._send_body_too_large(scope, receive, send, total)
+                return
+            if not message.get("more_body", False):
+                break
+
+        async def replay_receive():
+            if buffered:
+                return buffered.pop(0)
+            return await receive()
+
+        await self.app(scope, replay_receive, send)
+
+    def _log_body_too_large(self, length: int, scope) -> None:
+        self._log.info(
+            "body_too_large",
+            extra={
+                "event": "body_too_large",
+                "content_length": length,
+                "max_bytes": self.config.max_bytes,
+                "path": scope.get("path", ""),
+            },
+        )
+
+    async def _send_body_too_large(self, scope, receive, send, length: int) -> None:
+        await JSONResponse(
+            status_code=413,
+            content={
+                "error": "body_too_large",
+                "detail": (
+                    f"request body of {length} bytes exceeds "
+                    f"the {self.config.max_bytes} byte limit"
+                ),
+                "status": 413,
+            },
+        )(scope, receive, send)
 
 
 class _Stats:

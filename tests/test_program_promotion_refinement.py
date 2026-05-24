@@ -16,6 +16,7 @@ from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_promotion_refinement import (
     ProgramPromotionRefinementError,
     build_program_promotion_refinement,
+    write_program_promotion_refinement,
 )
 from dspx.services.program_service import materialize_program_from_intent
 
@@ -302,6 +303,32 @@ def test_program_promotion_refinement_rejects_authority_widened_proposal(
         )
 
 
+def test_program_promotion_refinement_rejects_oracle_report_partial_identity_collision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    record = report["records"][0]
+    record["identity"]["request_id"] = manifest["request"]["request_id"]
+    record["identity"]["candidate_id"] = "prog-cand-other"
+    bad_report_path = tmp_path / "oracle" / "partial-collision-report.json"
+    _write_json(bad_report_path, report)
+
+    with pytest.raises(
+        ProgramPromotionRefinementError, match="matching manifest identity"
+    ):
+        build_program_promotion_refinement(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=bad_report_path,
+            refinement_proposal_path=proposal_path,
+        )
+
+
 def test_program_promotion_refinement_rejects_oracle_report_identity_mismatch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -363,6 +390,27 @@ def test_program_promotion_refinement_rejects_proposal_identity_mismatch(
     assert result.exit_code == 2
     assert "candidate_id" in (result.stdout + result.stderr)
     assert not (tmp_path / "promotion" / "review.json").exists()
+
+
+def test_program_promotion_refinement_rejects_output_inside_program_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    packet = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+
+    with pytest.raises(ProgramPromotionRefinementError, match="generated program root"):
+        write_program_promotion_refinement(
+            packet,
+            program_root / "promotion_review_refined.json",
+        )
 
 
 def test_program_promotion_refinement_uses_behavior_episode_for_dataset_only_evidence(

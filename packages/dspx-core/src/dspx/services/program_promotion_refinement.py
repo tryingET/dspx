@@ -46,6 +46,23 @@ _REFINED_PACKET_NON_AUTHORITY = {
     "external_mutation": False,
 }
 
+_FORBIDDEN_SOURCE_OUTPUT_NAMES = {
+    "manifest.json",
+    "manifest.json.meta.json",
+    "program.py",
+    "module.py",
+    "signature.py",
+    "eval_examples.py",
+    "eval_behavior.py",
+    "behavior_results.json",
+    "behavior_episode.json",
+    "oracle_evidence.json",
+    "execution_episode.json",
+    "promotion_review.json",
+    "promotion_adjudication_request.json",
+    "promotion_decision_template.json",
+}
+
 
 class ProgramPromotionRefinementError(ValueError):
     """Raised when promotion-review refinement inputs are malformed."""
@@ -264,6 +281,7 @@ def _load_program_behavior_episode(
 
 
 def _identity_matches(left: Mapping[str, Any], right: Mapping[str, str | None]) -> bool:
+    matched = False
     for key in (
         "receipt_bundle_id",
         "episode_id",
@@ -273,9 +291,11 @@ def _identity_matches(left: Mapping[str, Any], right: Mapping[str, str | None]) 
     ):
         wanted = right.get(key)
         actual = left.get(key)
-        if wanted and actual and actual == wanted:
-            return True
-    return False
+        if wanted and actual:
+            if actual != wanted:
+                return False
+            matched = True
+    return matched
 
 
 def _assert_identity_matches(
@@ -756,12 +776,49 @@ def build_program_promotion_refinement(
     return packet
 
 
+def _assert_refinement_output_path(packet: Mapping[str, Any], out_path: Path) -> None:
+    if out_path.name in _FORBIDDEN_SOURCE_OUTPUT_NAMES:
+        raise ProgramPromotionRefinementError(
+            f"promotion review output must not overwrite source/control artifact {out_path.name}"
+        )
+    created_from = packet.get("created_from")
+    if not isinstance(created_from, Mapping):
+        return
+    protected_paths: list[Path] = []
+    protected_roots: list[Path] = []
+    for key in (
+        "manifest_path",
+        "behavior_results_path",
+        "behavior_episode_path",
+        "oracle_report_path",
+        "refinement_proposal_path",
+        "original_promotion_review_path",
+        "original_promotion_adjudication_request_path",
+        "original_promotion_decision_template_path",
+    ):
+        raw = created_from.get(key)
+        if isinstance(raw, str) and raw.strip():
+            path = Path(raw).expanduser().resolve()
+            protected_paths.append(path)
+            if path.name == "manifest.json":
+                protected_roots.append(path.parent)
+    if any(out_path == path for path in protected_paths):
+        raise ProgramPromotionRefinementError(
+            "promotion review output path must not overwrite an input artifact"
+        )
+    if any(out_path == root or root in out_path.parents for root in protected_roots):
+        raise ProgramPromotionRefinementError(
+            "promotion review output path must not be inside a generated program root"
+        )
+
+
 def write_program_promotion_refinement(
     packet: Mapping[str, Any], out_path: Path
 ) -> dict[str, Any]:
     """Write the refined local promotion-review packet and return its payload."""
 
     out_path = out_path.expanduser().resolve()
+    _assert_refinement_output_path(packet, out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
     out_path.write_text(

@@ -775,6 +775,7 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
             class _CapturePredict:
                 def __init__(self) -> None:
                     self.calls: list[dict[str, Any]] = []
+                    self._dspx_capture_predict = True
 
                 def __call__(self, **kwargs):
                     self.calls.append(dict(kwargs))

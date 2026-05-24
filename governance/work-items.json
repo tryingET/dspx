@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-22",
+  "updated_at": "2026-05-24",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -3091,6 +3091,32 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-22"
+        },
+        {
+          "id": "AK-TASK-3378",
+          "title": "[SF13] Consume AK direction-controller candidate_scores in DSPx eval",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "[SF13] Consume AK direction-controller candidate_scores in DSPx eval (task #3378)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-24"
+        },
+        {
+          "id": "AK-TASK-3384",
+          "title": "Atomic-completion hardening for DSPx boundary fail-closed fixes",
+          "state": "done",
+          "tasks": [
+            {
+              "text": "Atomic-completion hardening for DSPx boundary fail-closed fixes (task #3384)",
+              "done": true
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-24"
         }
       ]
     }

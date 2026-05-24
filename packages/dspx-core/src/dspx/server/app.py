@@ -503,7 +503,11 @@ def create_app() -> FastAPI:
     }:
 
         @app.get("/metrics")
-        def get_metrics(request: Request):
+        def get_metrics(
+            request: Request,
+            authorization: Optional[str] = Header(default=None),
+        ):
+            guard.check(authorization)
             # Content negotiation: Prometheus text when requested
             fmt = request.query_params.get("format")
             accept = (request.headers.get("accept") or "").lower()
@@ -530,7 +534,8 @@ def create_app() -> FastAPI:
             return {"status": "ok", **c}
 
         @app.get("/metrics-prom")
-        def get_metrics_prom():
+        def get_metrics_prom(authorization: Optional[str] = Header(default=None)):
+            guard.check(authorization)
             c = _stats.snapshot()
             lines = [
                 "# HELP dspx_requests_total Total HTTP requests.",

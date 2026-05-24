@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Sequence
 
 from typer.testing import CliRunner
 
@@ -17,9 +18,7 @@ def _write_fixture(path: Path, transition: str | None) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _fake_ak_runner(
-    args: list[str] | tuple[str, ...], cwd: Path
-) -> subprocess.CompletedProcess[str]:
+def _fake_ak_runner(args: Sequence[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     assert args[0] == "ak"
     assert args[1] == "direction-controller"
     assert "--repo" in args

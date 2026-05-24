@@ -7,7 +7,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Iterator, Mapping
+from typing import Any, Iterator, Mapping, TypeGuard, cast
 
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication_preflight import (
@@ -161,16 +161,17 @@ def _materialize_image_descriptor(value: Mapping[str, Any], *, base_dir: Path) -
     raise ValueError(f"unsupported image descriptor type: {descriptor_type}")
 
 
-def _is_image_descriptor(value: object) -> bool:
+def _is_image_descriptor(value: object) -> TypeGuard[Mapping[str, Any]]:
     if not isinstance(value, Mapping):
         return False
-    descriptor_type = str(value.get("type") or value.get("kind") or "").strip()
+    payload = cast(Mapping[str, Any], value)
+    descriptor_type = str(payload.get("type") or payload.get("kind") or "").strip()
     return descriptor_type in {"image_file", "image_base64", "image_url"}
 
 
 def _materialize_runtime_input_value(value: object, *, base_dir: Path) -> Any:
     if _is_image_descriptor(value):
-        return _materialize_image_descriptor(value, base_dir=base_dir)  # type: ignore[arg-type]
+        return _materialize_image_descriptor(value, base_dir=base_dir)
     if isinstance(value, list):
         materialized = [
             _materialize_runtime_input_value(item, base_dir=base_dir) for item in value
@@ -326,11 +327,12 @@ def _validate_pdf_transition_review_outputs(
             if not isinstance(proposal, Mapping):
                 errors.append(f"proposal {index} is not an object")
                 continue
-            if proposal.get("canonical_mutation_allowed") is not False:
+            proposal_payload = cast(Mapping[str, Any], proposal)
+            if proposal_payload.get("canonical_mutation_allowed") is not False:
                 errors.append(
                     f"proposal {index} must state canonical_mutation_allowed=false"
                 )
-            if proposal.get("review_required") is not True:
+            if proposal_payload.get("review_required") is not True:
                 errors.append(f"proposal {index} must state review_required=true")
     return errors
 

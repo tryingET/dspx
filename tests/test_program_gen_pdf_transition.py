@@ -6,6 +6,7 @@ import json
 import sys
 import types
 from pathlib import Path
+from typing import Any, cast
 
 import yaml
 from typer.testing import CliRunner
@@ -28,7 +29,7 @@ def _all_files(root: Path) -> set[Path]:
     return {path for path in root.rglob("*") if path.is_file()}
 
 
-def _load_json_text(value: object) -> object:
+def _load_json_text(value: object) -> Any:
     assert isinstance(value, str)
     return json.loads(value)
 
@@ -576,8 +577,7 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     reset_embedding_engine()
 
     outdir = tmp_path / "program"
-    outdir.mkdir(parents=True)
-    (outdir / "preexisting-secret.txt").write_text(
+    (tmp_path / "preexisting-secret.txt").write_text(
         "must not upload\n", encoding="utf-8"
     )
     result = runner.invoke(
@@ -659,7 +659,7 @@ def test_program_gen_logs_materialized_assembly_to_mlflow_when_configured(
     def _failing_program() -> object:
         raise RuntimeError("forced runtime observability failure")
 
-    generated_program.build_program = _failing_program
+    cast(Any, generated_program).build_program = _failing_program
     try:
         generated_program.run_with_observability(
             source_package_manifest_json="{}",

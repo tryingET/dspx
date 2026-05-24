@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from dspx.dtos import ModuleSpec
 import dspx.services.module_service as module_service
 from dspx.services.module_service import run_generate
+from dspx.templates.module_templates import render_module_skeleton
 
 
 def test_module_service_simple_no_signature(tmp_path: Path, monkeypatch) -> None:
@@ -344,6 +346,20 @@ def test_module_service_signature_mode_preserves_requested_io_contract(
     assert io_spec == {"inputs": ["question", "context"], "outputs": ["answer"]}
 
 
+def test_focused_json_bundle_capture_branch_is_sentinel_safe() -> None:
+    code = render_module_skeleton(
+        "ReviewModule",
+        inputs=["source"],
+        outputs=["items_json", "review_packet_json"],
+        signature_class_name="ReviewSignature",
+        signature_code="import dspy\n\nclass ReviewSignature(dspy.Signature):\n    source = dspy.InputField()\n    items_json = dspy.OutputField()\n    review_packet_json = dspy.OutputField()",
+        focused_json_bundle_runtime=True,
+    )
+
+    assert "hasattr(self.predict, '_dspx_capture_predict')" in code
+    assert "if self.predict._dspx_capture_predict" not in code
+
+
 @pytest.mark.parametrize(
     "spec_kwargs",
     [
@@ -355,7 +371,7 @@ def test_module_service_signature_mode_preserves_requested_io_contract(
     ],
 )
 def test_module_service_rejects_invalid_or_ambiguous_identifiers(
-    spec_kwargs: dict[str, object], tmp_path: Path, monkeypatch
+    spec_kwargs: dict[str, Any], tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setenv("DSPX_SYNTHESIS_DIR", str(tmp_path / "synthesis"))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")

@@ -4,6 +4,7 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -89,7 +90,7 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         assert "program-refine" not in command_names
         assert "program-promote" not in command_names
         subprocess_calls.append(command_text)
-        return real_run(command, *args, **kwargs)
+        return cast(Any, real_run)(command, *args, **kwargs)
 
     monkeypatch.setattr(program_service.subprocess, "run", spy_run)
 

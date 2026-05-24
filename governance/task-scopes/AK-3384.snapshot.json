@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-24T11:44:19.191210048+00:00",
+  "task_id": 3384,
+  "entity_version": 3,
+  "commit_sha": "d099eebfd034c1547eca4a7db5e11bdd29ed4c53",
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/**",
+      "tests/**"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/http_guard.py",
+      "packages/dspx-core/src/dspx/server/security.py",
+      "packages/dspx-core/src/dspx/services/program_activation_packet.py",
+      "packages/dspx-core/src/dspx/services/program_topology.py",
+      "tests/test_openapi_toolpack.py",
+      "tests/test_program_activation_packet.py",
+      "tests/test_program_topology_intent.py",
+      "tests/test_server_body_size.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

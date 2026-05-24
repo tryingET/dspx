@@ -660,6 +660,75 @@ def test_pipeline_scheduler_raises_when_no_branch_produces_output(
             sys.modules.pop(module_name, None)
 
 
+def test_pipeline_scheduler_honors_conditional_output_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    topology = {
+        "kind": "pipeline",
+        "execution_status": "declared_not_materialized",
+        "modules": [
+            {
+                "id": "answer_ticket",
+                "primitive": "Predict",
+                "signature": {
+                    "name": "AnswerTicketConditionalOutput",
+                    "inputs": ["ticket_text"],
+                    "outputs": ["answer"],
+                },
+            },
+        ],
+        "edges": [
+            {"from": "input", "to": "answer_ticket"},
+            {
+                "from": "answer_ticket",
+                "to": "output",
+                "when": {"field": "ticket_text", "equals": "ALLOW"},
+            },
+        ],
+    }
+    intent = ProgramIntent(
+        name="ConditionalOutputProgram",
+        objective="Return answer only when output edge condition permits it.",
+        inputs=["ticket_text"],
+        outputs=["answer"],
+        topology=topology,
+    )
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+
+    for module_name in ["program", "module", "signature"]:
+        sys.modules.pop(module_name, None)
+    sys.path.insert(0, str(root))
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "generated_conditional_output_program", root / "program.py"
+        )
+        assert spec is not None and spec.loader is not None
+        generated = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generated)
+        program = generated.build_program()
+
+        class AnswerStub:
+            def __call__(self, **kwargs: object) -> object:
+                return generated.dspy.Prediction(answer="allowed answer")
+
+        program.answer_ticket = AnswerStub()
+        with pytest.raises(RuntimeError, match="completed without declared outputs"):
+            program(ticket_text="DENY")
+        assert program(ticket_text="ALLOW").answer == "allowed answer"
+    finally:
+        try:
+            sys.path.remove(str(root))
+        except ValueError:
+            pass
+        for module_name in ["program", "module", "signature"]:
+            sys.modules.pop(module_name, None)
+
+
 def test_pipeline_inline_retriever_materializes_bounded_local_adapter(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

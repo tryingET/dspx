@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -37,10 +38,28 @@ def make_key(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
+_CACHE_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _validate_cache_segment(value: str, *, label: str) -> str:
+    text = str(value or "").strip()
+    if not text or text in {".", ".."} or not _CACHE_SEGMENT_RE.fullmatch(text):
+        raise ValueError(f"invalid cache {label}: {value!r}")
+    return text
+
+
 def _path_for(kind: str, key: str) -> Path:
-    base = cache_dir() / kind
+    safe_kind = _validate_cache_segment(kind, label="kind")
+    safe_key = _validate_cache_segment(key, label="key")
+    root = cache_dir().resolve()
+    base = (root / safe_kind).resolve()
+    path = (base / f"{safe_key}.json").resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("cache path escapes DSPX_CACHE_DIR") from exc
     base.mkdir(parents=True, exist_ok=True)
-    return base / f"{key}.json"
+    return path
 
 
 def read(kind: str, key: str) -> Optional[Dict[str, Any]]:

@@ -18,6 +18,7 @@ _EFFECT_KEYS = {
 }
 _ALLOWED_IMPORTS = {"json", "dspy"}
 _ALLOWED_FROM_IMPORTS = {"signature", "typing"}
+_ALLOWED_DUNDER_ATTRS = {"__init__", "__name__"}
 _DENIED_IMPORT_ROOTS = {
     "builtins",
     "ctypes",
@@ -272,13 +273,15 @@ def build_program_generated_module_policy(
                     node=node,
                     detail=name,
                 )
-            elif name is not None and name != "__init__" and _has_dunder_segment(name):
-                _add_violation(
-                    violations,
-                    code="dunder_attribute_not_allowed",
-                    node=node,
-                    detail=name,
-                )
+            elif name is not None and _has_dunder_segment(name):
+                tail = name.rsplit(".", 1)[-1]
+                if tail not in _ALLOWED_DUNDER_ATTRS:
+                    _add_violation(
+                        violations,
+                        code="dunder_attribute_not_allowed",
+                        node=node,
+                        detail=name,
+                    )
 
     raw_surfaces = module_surfaces.get("module_surfaces")
     if not isinstance(raw_surfaces, list) or not raw_surfaces:
@@ -333,7 +336,10 @@ def verify_program_generated_module_policy(
     )
     if policy.get("status") != "passed":
         details = ", ".join(
-            str(item.get("code") or "violation")
+            (
+                str(item.get("code") or "violation")
+                + (f":{item.get('detail')}" if item.get("detail") else "")
+            )
             for item in policy.get("violations", [])
             if isinstance(item, Mapping)
         )

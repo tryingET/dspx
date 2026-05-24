@@ -116,7 +116,7 @@ class PostgresPgvectorCoordinateStore:
 
     def _load_psycopg(self) -> Any:
         try:
-            import psycopg  # type: ignore[import-not-found]
+            import psycopg
         except ModuleNotFoundError as exc:
             raise StoreUnavailableError(
                 "Postgres Oracle store requires optional dependency 'psycopg'. "

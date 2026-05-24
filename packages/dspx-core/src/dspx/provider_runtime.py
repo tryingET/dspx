@@ -242,8 +242,10 @@ def check_provider_health(
     payload = provider_metadata_from_instance(provider, lm)
     payload.update(
         {
-            "ok": True,
+            "ok": False,
             "provider": provider,
+            "status": "unknown",
+            "error": "provider has no healthcheck; run with probe=true to verify readiness",
             "duration_ms": round((time.time() - started) * 1000.0, 3),
         }
     )
@@ -251,6 +253,9 @@ def check_provider_health(
         probe_started = time.time()
         try:
             text, usage = invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
+            payload["ok"] = True
+            payload.pop("error", None)
+            payload["status"] = "ok"
             payload["probe"] = {
                 "ok": True,
                 "text": _sanitize_text(text),

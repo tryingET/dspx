@@ -447,7 +447,7 @@ def run_gepa_optimize(
             output_weights=weights,
             normalize_output=normalize_output,
         ),
-        auto=auto,  # type: ignore[arg-type]
+        auto=auto,
         max_full_evals=max_full_evals,
         max_metric_calls=max_metric_calls,
         reflection_lm=cast(Any, reflection_lm),

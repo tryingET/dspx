@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from dspx.cache import sha256_text
 from dspx.services.program_architecture import ProgramArchitectureError, _non_authority
@@ -308,8 +308,8 @@ def _candidate_advisory(row: Mapping[str, Any]) -> dict[str, Any]:
 def _next_moves(
     *,
     tournament: Mapping[str, Any],
-    rows: list[Mapping[str, Any]],
-    advisories: list[Mapping[str, Any]],
+    rows: Sequence[Mapping[str, Any]],
+    advisories: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, str]]:
     moves: list[dict[str, str]] = []
     materialized = [row for row in rows if row.get("status") != "skipped"]
@@ -392,7 +392,7 @@ def _next_moves(
     return moves
 
 
-def _status(advisories: list[Mapping[str, Any]]) -> str:
+def _status(advisories: Sequence[Mapping[str, Any]]) -> str:
     if not advisories:
         return "insufficient_tournament_evidence"
     kinds = {str(item.get("advisory")) for item in advisories}

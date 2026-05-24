@@ -28,6 +28,27 @@ def _make_spec(tmp_path: Path) -> str:
     return str(p)
 
 
+def test_openapi_call_without_allow_host_fails_closed(tmp_path: Path) -> None:
+    spec = _make_spec(tmp_path)
+    res = runner.invoke(
+        app,
+        [
+            "tools",
+            "openapi",
+            "call",
+            "--spec",
+            spec,
+            "--op",
+            "getItem",
+            "--params",
+            "id=123",
+        ],
+    )
+
+    assert res.exit_code != 0
+    assert "Host not allowed" in (res.stdout + res.stderr + str(res.exception))
+
+
 def test_openapi_call_dry_run_prints_preview(tmp_path: Path) -> None:
     spec = _make_spec(tmp_path)
     res = runner.invoke(

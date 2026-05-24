@@ -36,6 +36,23 @@ def test_metrics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     }
 
 
+def test_metrics_requires_auth_when_auth_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DSPX_AUTH_SKIP_FOR_DEV", raising=False)
+    monkeypatch.setenv("DSPX_AUTH_REQUIRED", "1")
+    monkeypatch.setenv("DSPX_SERVER_TOKEN", "secret")
+    monkeypatch.setenv("DSPX_METRICS_ENABLED", "1")
+    app = create_app()
+    c = TestClient(app)
+
+    assert c.get("/metrics").status_code == 401
+    assert c.get("/metrics-prom").status_code == 401
+    assert (
+        c.get("/metrics", headers={"Authorization": "Bearer secret"}).status_code == 200
+    )
+
+
 def test_metrics_count_rate_limited_requests(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_METRICS_ENABLED", "1")
     monkeypatch.setenv("DSPX_RATE_LIMIT_ENABLED", "1")

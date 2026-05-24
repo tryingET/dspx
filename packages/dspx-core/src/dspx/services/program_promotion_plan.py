@@ -27,6 +27,20 @@ SUPPORTED_LOCAL_TARGETS = {
     "local_adjudication_plan": "Local plan target for adjudication planning only; no promotion is applied.",
 }
 
+_FORBIDDEN_SOURCE_OUTPUT_NAMES = {
+    "manifest.json",
+    "manifest.json.meta.json",
+    "program.py",
+    "module.py",
+    "signature.py",
+    "eval_examples.py",
+    "eval_behavior.py",
+    "behavior_results.json",
+    "behavior_episode.json",
+    "oracle_evidence.json",
+    "execution_episode.json",
+}
+
 _REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS = (
     "automatic_promotion",
     "oracle_ranking",
@@ -685,6 +699,39 @@ def build_program_promotion_plan(
     }
 
 
+def _assert_plan_output_path(plan: Mapping[str, Any], out_path: Path) -> None:
+    if out_path.name in _FORBIDDEN_SOURCE_OUTPUT_NAMES:
+        raise ProgramPromotionPlanError(
+            f"promotion plan must not overwrite source/control artifact {out_path.name}"
+        )
+    created_from = plan.get("created_from")
+    if not isinstance(created_from, Mapping):
+        return
+    protected_paths: list[Path] = []
+    protected_roots: list[Path] = []
+    for key in (
+        "candidate_manifest_path",
+        "source_manifest_path",
+        "decision_record_path",
+        "comparison_path",
+        "review_path",
+    ):
+        raw = created_from.get(key)
+        if isinstance(raw, str) and raw.strip():
+            path = Path(raw).expanduser().resolve()
+            protected_paths.append(path)
+            if path.name == "manifest.json":
+                protected_roots.append(path.parent)
+    if any(out_path == path for path in protected_paths):
+        raise ProgramPromotionPlanError(
+            "promotion plan output path must not overwrite an input artifact"
+        )
+    if any(out_path == root or root in out_path.parents for root in protected_roots):
+        raise ProgramPromotionPlanError(
+            "promotion plan output path must not be inside a generated program root"
+        )
+
+
 def write_program_promotion_plan(
     plan: Mapping[str, Any],
     out_path: Path,
@@ -692,6 +739,7 @@ def write_program_promotion_plan(
     """Write the local promotion/adjudication plan sidecar."""
 
     out_path = out_path.expanduser().resolve()
+    _assert_plan_output_path(plan, out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(plan)
     out_path.write_text(

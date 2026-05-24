@@ -10,9 +10,11 @@ AllowedHosts = Optional[Mapping[str, bool] | set[str]]
 
 
 def host_allowed(url: str, allowed_hosts: AllowedHosts) -> bool:
-    if allowed_hosts is None:
-        return True
     host = urlparse(url).hostname or ""
+    if not host:
+        return False
+    if allowed_hosts is None:
+        return False
     if isinstance(allowed_hosts, set):
         return host in allowed_hosts
     return bool(allowed_hosts.get(host, False))

@@ -526,6 +526,51 @@ def test_program_promote_activation_packet_rejects_obsidian_adapter_authority_wi
     assert "wiki_mutation_performed false" in result.output
 
 
+def test_program_promote_activation_packet_rejects_obsidian_adapter_missing_candidate_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    candidate_state_path = _write_target_aware_candidate_state(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+    )
+    adapter_receipt_path = _write_obsidian_adapter_receipt(
+        candidate_state_path,
+        tmp_path / "activation" / "adapter-receipt.json",
+    )
+    receipt = json.loads(adapter_receipt_path.read_text(encoding="utf-8"))
+    del receipt["program_candidate_state_hash"]
+    adapter_receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--obsidian-review-adapter-receipt",
+            str(adapter_receipt_path),
+            "--require-obsidian-review-adapter",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "program_candidate_state_hash is required" in result.output
+
+
 def test_program_promote_activation_packet_dogfoods_review_chain_without_activation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -934,6 +979,65 @@ def test_program_promote_activation_packet_reaches_rollout_preflight_after_verif
         verification_path.resolve()
     )
     assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_rejects_binding_verification_missing_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    promote_decision = json.loads(_decision_path.read_text(encoding="utf-8"))
+    promote_decision["outcome"] = "promote"
+    promote_decision["promotion_state_after_decision"] = "promoted"
+    decision_path = tmp_path / "promotion" / "promotion_decision_record_promote.json"
+    _write_json(decision_path, promote_decision)
+    verification_path = _write_canonical_binding_verification(
+        decision_path,
+        tmp_path / "activation" / "canonical_binding_verification.json",
+    )
+    verification = json.loads(verification_path.read_text(encoding="utf-8"))
+    del verification["decision_record_sha256"]
+    verification_path.write_text(json.dumps(verification, indent=2) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--canonical-binding-ref",
+            "ak://decision/123#accepted",
+            "--canonical-binding-verification",
+            str(verification_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "decision_record_sha256 is required" in result.output
 
 
 def test_program_promote_activation_packet_rejects_binding_verification_hash_mismatch(

@@ -212,6 +212,8 @@ def render_module_skeleton(
     else:
         io_sig = ", ".join(ins) + " -> " + ", ".join(outs)
         body.append(f"        self.predict = dspy.Predict({io_sig!r})")
+    if focused_json_bundle:
+        body.append("        self.predict._dspx_capture_predict = False")
     if demos and focused_json_bundle:
         body.append("        self.focused_predict.demos = _build_focused_demos()")
     elif demos:
@@ -238,7 +240,7 @@ def render_module_skeleton(
     if call_args:
         if focused_json_bundle:
             body.append(
-                "        if self.predict.__class__.__name__ == '_CapturePredict':"
+                "        if hasattr(self.predict, '_dspx_capture_predict') and self.predict._dspx_capture_predict:"
             )
             body.append(f"            self.predict({call_args})")
             body.append(f"            return dspy.Prediction({default_pred_args})")

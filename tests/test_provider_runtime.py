@@ -40,6 +40,21 @@ def test_provider_metadata_from_instance_sanitizes_runtime_metadata() -> None:
     assert "[REDACTED]" in payload["runtime"]["base_url"]
 
 
+def test_check_provider_health_without_healthcheck_is_unknown_until_probed(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(provider_runtime, "ensure_default_providers", lambda: None)
+    monkeypatch.setattr(
+        provider_runtime, "create", lambda _name: _ProviderWithSecrets()
+    )
+
+    payload = provider_runtime.check_provider_health("fake", probe=False)
+
+    assert payload["ok"] is False
+    assert payload["status"] == "unknown"
+    assert "no healthcheck" in payload["error"]
+
+
 def test_check_provider_health_sanitizes_probe_text_and_errors(monkeypatch) -> None:
     class _ProbeProvider(_ProviderWithSecrets):
         def forward(self, prompt=None, **kwargs):  # noqa: ANN001

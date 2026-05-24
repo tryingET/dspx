@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Callable, Iterator
 
 import pytest
 from fastapi.testclient import TestClient
 
 from dspx.server.app import create_app
-from dspx.server.security import BodySizeLimitConfig, _parse_size
+from dspx.server.security import (
+    BodySizeLimitConfig,
+    BodySizeLimitMiddleware,
+    _parse_size,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +184,43 @@ class TestBodySizeMiddleware:
             json={"prompt": "echo"},
         )
         assert r.status_code == 413
+
+    def test_chunked_body_without_content_length_is_rejected(self) -> None:
+        called_downstream = False
+
+        async def app(scope, receive, send):
+            nonlocal called_downstream
+            called_downstream = True
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+
+        middleware = BodySizeLimitMiddleware(
+            app,
+            BodySizeLimitConfig(max_bytes=5, enabled=True),
+        )
+        sent: list[dict[str, object]] = []
+        messages = [
+            {"type": "http.request", "body": b"abc", "more_body": True},
+            {"type": "http.request", "body": b"def", "more_body": False},
+        ]
+
+        async def receive() -> dict[str, object]:
+            return messages.pop(0)
+
+        async def send(message: dict[str, object]) -> None:
+            sent.append(message)
+
+        asyncio.run(
+            middleware(
+                {"type": "http", "method": "POST", "path": "/signature", "headers": []},
+                receive,
+                send,
+            )
+        )
+
+        assert called_downstream is False
+        assert sent[0]["type"] == "http.response.start"
+        assert sent[0]["status"] == 413
 
     def test_disabled_allows_oversized(
         self, make_client: Callable[..., TestClient]

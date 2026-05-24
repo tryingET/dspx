@@ -167,17 +167,15 @@ def providers_smoke(
     try:
         if hasattr(lm, "generate"):
             try:
-                res = lm.generate(  # type: ignore[misc]
-                    LMRequest(prompt=prompt), max_tokens=max_tokens
-                )
+                res = lm.generate(LMRequest(prompt=prompt), max_tokens=max_tokens)
             except TypeError:
-                res = lm.generate(LMRequest(prompt=prompt))  # type: ignore[misc]
+                res = lm.generate(LMRequest(prompt=prompt))
             text = str((getattr(res, "outputs", None) or [""])[0]).strip()
         else:
             try:
-                resp = lm.forward(prompt=prompt, max_tokens=max_tokens)  # type: ignore[attr-defined]
+                resp = lm.forward(prompt=prompt, max_tokens=max_tokens)
             except TypeError:
-                resp = lm.forward(prompt=prompt)  # type: ignore[attr-defined]
+                resp = lm.forward(prompt=prompt)
             try:
                 text = str(((resp.get("choices") or [{}])[0]).get("text") or "").strip()
             except Exception:

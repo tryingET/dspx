@@ -90,7 +90,7 @@ def test_justfile_change_requires_wide_verification() -> None:
     assert _command_ids(plan) == ["workflow_contract_check", "verify_fast"]
 
 
-def test_changed_files_accepts_just_style_base_assignment(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_changed_files_accepts_just_style_base_assignment(monkeypatch) -> None:
     module = _load_module()
 
     calls: list[list[str]] = []
@@ -113,7 +113,7 @@ def test_changed_files_accepts_just_style_base_assignment(monkeypatch) -> None: 
     assert calls == [["diff", "--name-only", "HEAD~1"]]
 
 
-def test_working_tree_status_parser_preserves_first_path_character(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_working_tree_status_parser_preserves_first_path_character(monkeypatch) -> None:
     module = _load_module()
 
     monkeypatch.setattr(
@@ -128,7 +128,7 @@ def test_working_tree_status_parser_preserves_first_path_character(monkeypatch) 
     ]
 
 
-def test_run_plan_writes_result_receipt(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_run_plan_writes_result_receipt(tmp_path, monkeypatch) -> None:
     module = _load_module()
     plan = _plan("docs/project/developer_workflow.md")
     result_out = tmp_path / "impact-result.json"
@@ -171,7 +171,7 @@ def test_run_plan_writes_result_receipt(tmp_path, monkeypatch) -> None:  # type:
     assert payload["non_authority"]["full_verification_replacement"] is False
 
 
-def test_main_run_writes_result_receipt_from_cli_args(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_main_run_writes_result_receipt_from_cli_args(tmp_path, monkeypatch) -> None:
     module = _load_module()
     result_out = tmp_path / "cli-impact-result.json"
     calls: list[list[str]] = []

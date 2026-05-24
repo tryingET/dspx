@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 
 from dspx.tools.openapi import load_spec, extract_operations
 from dspx.tools.openapi.caller import call_operation
@@ -88,6 +89,32 @@ def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
         client=client,
     )
     assert res2.status_code == 200 and (res2.raw_text or "").strip() == "hello"
+
+
+def test_openapi_call_requires_explicit_allowed_hosts(tmp_path: Path) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+
+    with pytest.raises(PermissionError, match="Host not allowed"):
+        call_operation(
+            OpenAPICallRequest(operation_id="ping"),
+            operation=ops["ping"],
+            client=client,
+        )
+
+
+def test_openapi_call_rejects_hostless_url_before_http_client() -> None:
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+
+    with pytest.raises(PermissionError, match="Host not allowed"):
+        call_operation(
+            OpenAPICallRequest(operation_id="ping"),
+            operation={"method": "GET", "server": "", "path": "/ping"},
+            allowed_hosts={},
+            client=client,
+        )
 
 
 def test_openapi_call_url_encodes_reserved_path_chars(tmp_path: Path) -> None:

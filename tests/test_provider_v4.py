@@ -21,7 +21,7 @@ from dspx.capabilities import ProviderCapabilities
 from dspx.provider_registry import available, ensure_default_providers
 import dspx.providers_register_multi as providers_register_multi
 from dspx.providers_register_openai_compatible import _truthy
-from dspx.dtos import LMRequest
+from dspx.dtos import LMRequest, Message
 from dspx.run_receipts import build_run_receipt
 from dspx.services.optimize_service import run_gepa_optimize
 
@@ -173,9 +173,9 @@ def test_dspy_lm_auth_generate_preserves_user_image_blocks(
     lm.generate(
         LMRequest(
             messages=[
-                {
-                    "role": "user",
-                    "content": [
+                Message(
+                    role="user",
+                    content=[
                         {"type": "input_text", "text": "describe"},
                         {
                             "type": "image_url",
@@ -184,7 +184,7 @@ def test_dspy_lm_auth_generate_preserves_user_image_blocks(
                             },
                         },
                     ],
-                }
+                )
             ]
         )
     )

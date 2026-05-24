@@ -113,7 +113,12 @@ def load_spec(
         except PermissionError:
             raise
         except Exception:
-            if _cache_enabled() and os.path.exists(pth):
+            if (
+                _cache_enabled()
+                and os.getenv("DSPX_OPENAPI_CACHE_FALLBACK", "0").strip().lower()
+                in {"1", "true", "yes"}
+                and os.path.exists(pth)
+            ):
                 try:
                     with open(pth, "r", encoding="utf-8") as rf:
                         return _load_text(rf.read(), pth)

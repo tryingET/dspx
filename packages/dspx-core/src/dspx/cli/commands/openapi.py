@@ -216,7 +216,7 @@ def openapi_call(
     req = OpenAPICallRequest(
         operation_id=op, params=pmap, body=body_data, timeout=timeout
     )
-    allowed = {allow_host: True} if allow_host else None
+    allowed = {allow_host: True} if allow_host else {}
 
     method = str(ops[op].method or "GET").upper()
     desc = ToolDescriptor(

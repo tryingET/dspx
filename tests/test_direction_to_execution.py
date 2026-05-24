@@ -106,10 +106,10 @@ def test_collect_issues_ignores_historical_ak_mentions_before_active_slice(
         "- `AK-111` — older slice\n",
     )
 
-    MODULE._run_json = lambda *args, **kwargs: [  # type: ignore[attr-defined]
+    MODULE._run_json = lambda *args, **kwargs: [
         {"id": 200, "repo": str(tmp_path.resolve())}
     ]
-    MODULE._run_check = lambda *args, **kwargs: None  # type: ignore[attr-defined]
+    MODULE._run_check = lambda *args, **kwargs: None
 
     issues = MODULE.collect_issues(tmp_path)
     messages = [issue.message for issue in issues]

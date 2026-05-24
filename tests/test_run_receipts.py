@@ -5,6 +5,7 @@ import hashlib
 import json
 import subprocess
 import warnings
+from typing import Any, cast
 
 from typer.testing import CliRunner
 
@@ -94,15 +95,16 @@ def _write_sqlite_mlflow_run(
 ) -> str:
     import mlflow
 
+    mlflow_any = cast(Any, mlflow)
     staging_root = tmp_path / "mlflow-artifact-staging" / run_name
-    with mlflow.start_run(run_name=run_name) as run:
-        mlflow.set_tags(tags)
+    with mlflow_any.start_run(run_name=run_name) as run:
+        mlflow_any.set_tags(tags)
         for rel_path, content in artifacts.items():
             source = staging_root / rel_path
             source.parent.mkdir(parents=True, exist_ok=True)
             source.write_text(content, encoding="utf-8")
             artifact_parent = Path(rel_path).parent.as_posix()
-            mlflow.log_artifact(
+            mlflow_any.log_artifact(
                 str(source),
                 artifact_path=None if artifact_parent == "." else artifact_parent,
             )

@@ -1730,7 +1730,11 @@ def build_module_synthesis_candidate_prior_audit(
     ) and not expected_rank_candidate_ids.issubset(set(rank_map))
     if incomplete_rank_context:
         rank_map = {}
-    selected_candidate_prior = candidate_priors_by_id.get(selected_candidate_id)
+    selected_candidate_prior = (
+        candidate_priors_by_id.get(selected_candidate_id)
+        if selected_candidate_id is not None
+        else None
+    )
     if selected_candidate_prior is None:
         return build_unavailable_module_synthesis_candidate_prior_audit(
             selected_candidate_id=selected_candidate_id,

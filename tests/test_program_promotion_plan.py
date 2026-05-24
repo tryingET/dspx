@@ -19,6 +19,7 @@ from dspx.services.program_promotion_decision import (
 from dspx.services.program_promotion_plan import (
     ProgramPromotionPlanError,
     build_program_promotion_plan,
+    write_program_promotion_plan,
 )
 from dspx.services.program_promotion_refinement import (
     build_program_promotion_refinement,
@@ -345,6 +346,32 @@ def test_program_promote_plan_cli_writes_local_non_authoritative_plan_only(
     assert (candidate_root / "behavior_episode.json").exists()
     assert index_path.exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_promote_plan_rejects_output_inside_program_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (
+        source_root,
+        candidate_root,
+        decision_path,
+        comparison_path,
+        review_path,
+        _index_path,
+    ) = _materialize_adjudication_plan_inputs(tmp_path, monkeypatch)
+    payload = build_program_promotion_plan(
+        manifest_path=candidate_root / "manifest.json",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+        review_path=review_path,
+        source_manifest_path=source_root / "manifest.json",
+        target="local_preferred_candidate",
+        authority_owner="local_operator",
+    )
+
+    with pytest.raises(ProgramPromotionPlanError, match="source/control artifact"):
+        write_program_promotion_plan(payload, candidate_root / "manifest.json")
 
 
 def test_program_promote_plan_rejects_unsupported_target(

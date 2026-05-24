@@ -556,9 +556,13 @@ def _validate_canonical_binding_verification(
             "canonical_binding_verification ak_decision_state must be adr_recorded or unblocked"
         )
     if decision_record_ref is not None:
-        expected_hash = decision_record_ref.get("sha256")
-        actual_hash = verification.get("decision_record_sha256")
-        if expected_hash and actual_hash and expected_hash != actual_hash:
+        expected_hash = _strip_sha256_prefix(decision_record_ref.get("sha256"))
+        actual_hash = _strip_sha256_prefix(verification.get("decision_record_sha256"))
+        if expected_hash and not actual_hash:
+            raise ProgramActivationPacketError(
+                "canonical_binding_verification decision_record_sha256 is required"
+            )
+        if expected_hash and actual_hash != expected_hash:
             raise ProgramActivationPacketError(
                 "canonical_binding_verification decision_record_sha256 does not match"
             )
@@ -838,7 +842,11 @@ def _validate_obsidian_review_adapter_receipt(
     if candidate_state_ref is not None:
         expected = _strip_sha256_prefix(candidate_state_ref.get("sha256"))
         actual = _strip_sha256_prefix(receipt.get("program_candidate_state_hash"))
-        if expected and actual and expected != actual:
+        if expected and not actual:
+            raise ProgramActivationPacketError(
+                "obsidian_review_adapter_receipt program_candidate_state_hash is required"
+            )
+        if expected and actual != expected:
             raise ProgramActivationPacketError(
                 "obsidian_review_adapter_receipt program_candidate_state_hash "
                 "does not match candidate_state"
