@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "e497c01ccb988925a60819ba1a90c23dfe0cf0fc"
+created_at: "2026-05-24T20:48:48Z"
+intent: "Add durable AK task-scope snapshot for retrieve_then_answer validation binding"
+files:
+  - "governance/task-scopes/AK-3390.snapshot.json"
+validation:
+  fast_gate:
+    command: "just governance-check"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 3
+  total: 3
+  rationale: "task-scope snapshot lets clean HEAD validation resolve task binding"
+links:
+  task_ids:
+    - 3390
