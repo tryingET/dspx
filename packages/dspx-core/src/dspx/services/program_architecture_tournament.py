@@ -36,6 +36,32 @@ _FORBIDDEN_OUTPUT_NAMES = {
 }
 
 
+_PLAN_REQUIRED_FALSE_EFFECT_FLAGS = (
+    "candidate_materialized",
+    "provider_called",
+    "oracle_index_mutated",
+    "ak_called",
+    "governance_mutated",
+    "external_authority_mutated",
+)
+_PLAN_OPTIONAL_FALSE_EFFECT_FLAGS = ("winner_selected", "promotion_applied")
+_PLAN_REQUIRED_FALSE_NON_AUTHORITY_FLAGS = (
+    "winner_selection",
+    "ranking_authority",
+    "promotion_authority",
+    "activation_authority",
+    "oracle_authority",
+    "governance_authority",
+    "external_mutation",
+    "canonical_mutation",
+)
+_PLAN_OPTIONAL_FALSE_NON_AUTHORITY_FLAGS = (
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+)
+
+
 class ProgramArchitectureTournamentError(ProgramArchitectureError):
     """Raised when local architecture tournament execution is unsafe."""
 
@@ -140,15 +166,111 @@ def _candidate_dir(root: Path, candidate_id: str) -> Path:
     return target
 
 
+def _missing_required_flags(
+    value: object, required_flags: tuple[str, ...]
+) -> list[str]:
+    mapping = _mapping(value)
+    return [key for key in required_flags if key not in mapping]
+
+
+def _widened_plan_effect_flags(value: object) -> list[str]:
+    effect = _mapping(value)
+    return [
+        key
+        for key in (
+            *_PLAN_REQUIRED_FALSE_EFFECT_FLAGS,
+            *_PLAN_OPTIONAL_FALSE_EFFECT_FLAGS,
+        )
+        if key in effect and effect.get(key) is not False
+    ]
+
+
+def _widened_plan_non_authority_flags(value: object) -> list[str]:
+    non_authority = _mapping(value)
+    return [
+        key
+        for key in (
+            *_PLAN_REQUIRED_FALSE_NON_AUTHORITY_FLAGS,
+            *_PLAN_OPTIONAL_FALSE_NON_AUTHORITY_FLAGS,
+        )
+        if key in non_authority and non_authority.get(key) is not False
+    ]
+
+
 def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
     if plan.get("schema_version") != PROGRAM_ARCHITECTURE_CANDIDATES_SCHEMA:
         raise ProgramArchitectureTournamentError(
             "architecture plan schema_version must be program-architecture-candidates-v1"
         )
-    if not isinstance(plan.get("candidates"), list):
+    candidates = plan.get("candidates")
+    if not isinstance(candidates, list):
         raise ProgramArchitectureTournamentError(
             "architecture plan candidates must be a list"
         )
+    missing_effect = _missing_required_flags(
+        plan.get("effect"), _PLAN_REQUIRED_FALSE_EFFECT_FLAGS
+    )
+    if missing_effect:
+        raise ProgramArchitectureTournamentError(
+            "architecture plan effect missing authority flags: "
+            + ", ".join(missing_effect)
+        )
+    widened_effect = _widened_plan_effect_flags(plan.get("effect"))
+    if widened_effect:
+        raise ProgramArchitectureTournamentError(
+            "architecture plan effect widens authority: " + ", ".join(widened_effect)
+        )
+    missing_non_authority = _missing_required_flags(
+        plan.get("non_authority"), _PLAN_REQUIRED_FALSE_NON_AUTHORITY_FLAGS
+    )
+    if missing_non_authority:
+        raise ProgramArchitectureTournamentError(
+            "architecture plan non_authority missing authority flags: "
+            + ", ".join(missing_non_authority)
+        )
+    widened_non_authority = _widened_plan_non_authority_flags(plan.get("non_authority"))
+    if widened_non_authority:
+        raise ProgramArchitectureTournamentError(
+            "architecture plan non_authority widens authority: "
+            + ", ".join(widened_non_authority)
+        )
+    for index, candidate_value in enumerate(candidates):
+        if not isinstance(candidate_value, Mapping):
+            raise ProgramArchitectureTournamentError(
+                f"architecture plan candidate {index} must be an object"
+            )
+        candidate = _mapping(candidate_value)
+        _safe_candidate_id(candidate.get("candidate_id"))
+        missing_candidate_effect = _missing_required_flags(
+            candidate.get("effect"), _PLAN_REQUIRED_FALSE_EFFECT_FLAGS
+        )
+        if missing_candidate_effect:
+            raise ProgramArchitectureTournamentError(
+                f"architecture plan candidate {index} effect missing authority flags: "
+                + ", ".join(missing_candidate_effect)
+            )
+        widened_candidate_effect = _widened_plan_effect_flags(candidate.get("effect"))
+        if widened_candidate_effect:
+            raise ProgramArchitectureTournamentError(
+                f"architecture plan candidate {index} effect widens authority: "
+                + ", ".join(widened_candidate_effect)
+            )
+        missing_candidate_non_authority = _missing_required_flags(
+            candidate.get("non_authority"), _PLAN_REQUIRED_FALSE_NON_AUTHORITY_FLAGS
+        )
+        if missing_candidate_non_authority:
+            raise ProgramArchitectureTournamentError(
+                f"architecture plan candidate {index} non_authority missing authority flags: "
+                + ", ".join(missing_candidate_non_authority)
+            )
+        widened_candidate_non_authority = _widened_plan_non_authority_flags(
+            candidate.get("non_authority")
+        )
+        if widened_candidate_non_authority:
+            raise ProgramArchitectureTournamentError(
+                f"architecture plan candidate {index} non_authority widens authority: "
+                + ", ".join(widened_candidate_non_authority)
+            )
 
 
 def _candidate_allowed(candidate_id: str, candidate_ids: set[str]) -> bool:

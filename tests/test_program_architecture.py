@@ -1123,6 +1123,198 @@ def test_program_architect_tournament_rejects_wrong_schema_without_partial_dirs(
     assert not outdir.exists()
 
 
+def test_program_architect_tournament_rejects_authority_widened_architecture_plan(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-architecture-candidates-v1",
+                "status": "planned_not_materialized",
+                "candidates": [
+                    {
+                        "candidate_id": "baseline_single_predict",
+                        "status": "materializable",
+                        "effect": {"candidate_materialized": False},
+                        "non_authority": {"winner_selection": False},
+                    }
+                ],
+                "effect": {
+                    "candidate_materialized": False,
+                    "provider_called": False,
+                    "oracle_index_mutated": False,
+                    "ak_called": False,
+                    "governance_mutated": False,
+                    "external_authority_mutated": True,
+                },
+                "non_authority": {"winner_selection": False},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "architecture plan effect widens authority" in result.output
+    assert "external_authority_mutated" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
+def test_program_architect_tournament_rejects_missing_plan_authority_flags(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-architecture-candidates-v1",
+                "status": "planned_not_materialized",
+                "candidates": [],
+                "non_authority": {
+                    "winner_selection": False,
+                    "ranking_authority": False,
+                    "promotion_authority": False,
+                    "activation_authority": False,
+                    "oracle_authority": False,
+                    "governance_authority": False,
+                    "external_mutation": False,
+                    "canonical_mutation": False,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "architecture plan effect missing authority flags" in result.output
+    assert "candidate_materialized" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
+def test_program_architect_tournament_rejects_authority_widened_plan_candidate(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-architecture-candidates-v1",
+                "status": "planned_not_materialized",
+                "candidates": [
+                    {
+                        "candidate_id": "baseline_single_predict",
+                        "status": "materializable",
+                        "effect": {
+                            "candidate_materialized": False,
+                            "provider_called": False,
+                            "oracle_index_mutated": False,
+                            "ak_called": False,
+                            "governance_mutated": False,
+                            "external_authority_mutated": False,
+                        },
+                        "non_authority": {
+                            "winner_selection": False,
+                            "ranking_authority": False,
+                            "promotion_authority": True,
+                            "activation_authority": False,
+                            "oracle_authority": False,
+                            "governance_authority": False,
+                            "external_mutation": False,
+                            "canonical_mutation": False,
+                        },
+                    }
+                ],
+                "effect": {
+                    "candidate_materialized": False,
+                    "provider_called": False,
+                    "oracle_index_mutated": False,
+                    "ak_called": False,
+                    "governance_mutated": False,
+                    "external_authority_mutated": False,
+                },
+                "non_authority": {
+                    "winner_selection": False,
+                    "ranking_authority": False,
+                    "promotion_authority": False,
+                    "activation_authority": False,
+                    "oracle_authority": False,
+                    "governance_authority": False,
+                    "external_mutation": False,
+                    "canonical_mutation": False,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "architecture plan candidate 0 non_authority widens authority" in result.output
+    )
+    assert "promotion_authority" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
 def test_architecture_plan_portfolio_dogfoods_program_gen_and_replay(
     tmp_path: Path, monkeypatch
 ) -> None:
