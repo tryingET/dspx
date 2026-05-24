@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "d545eb55a908fb8b7a9532a233cdcb84adae3b79"
+created_at: "2026-05-24T18:46:44Z"
+intent: "Refresh AK work-items projection for retrieve_then_answer task binding"
+files:
+  - "governance/work-items.json"
+validation:
+  fast_gate:
+    command: "just governance-check"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 2
+  total: 2
+  rationale: "projection update required after AK task creation for validation binding"
+links:
+  task_ids:
+    - 3390
