@@ -18,6 +18,19 @@ from dspx.services.run_replay_service import check_run_receipt
 runner = CliRunner()
 
 
+def _recommendation_tournament_non_authority() -> dict[str, bool]:
+    return {
+        "winner_selection": False,
+        "ranking_authority": False,
+        "promotion_authority": False,
+        "activation_authority": False,
+        "oracle_authority": False,
+        "governance_authority": False,
+        "external_mutation": False,
+        "canonical_mutation": False,
+    }
+
+
 def _write_intent(path: Path, objective: str, *, examples: bool = False) -> None:
     lines = [
         "schema_version: program-intent-v2",
@@ -720,7 +733,7 @@ def test_program_architect_recommend_rejects_shared_oracle_mutation(
                     "external_authority_mutated": False,
                     "shared_oracle_mutated": True,
                 },
-                "non_authority": {"winner_selection": False},
+                "non_authority": _recommendation_tournament_non_authority(),
             },
             indent=2,
             sort_keys=True,
@@ -743,6 +756,180 @@ def test_program_architect_recommend_rejects_shared_oracle_mutation(
 
     assert result.exit_code == 2
     assert "shared_oracle_mutated" in result.output
+    assert not recommendation_out.exists()
+
+
+def test_program_architect_recommend_rejects_missing_tournament_non_authority_flags(
+    tmp_path: Path,
+) -> None:
+    tournament_path = tmp_path / "tournament.json"
+    recommendation_out = tmp_path / "recommendation.json"
+    tournament_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-architecture-tournament-v1",
+                "status": "materialized_and_replay_checked",
+                "evidence_matrix": {
+                    "schema_version": "program-architecture-tournament-evidence-matrix-v1",
+                    "rows": [],
+                    "non_authority": {
+                        "evidence_summary_only": True,
+                        "winner_selection": False,
+                        "promotion_authority": False,
+                        "oracle_ranking": False,
+                    },
+                },
+                "effect": {
+                    "winner_selected": False,
+                    "promotion_applied": False,
+                    "ak_called": False,
+                    "governance_mutated": False,
+                    "external_authority_mutated": False,
+                    "shared_oracle_mutated": False,
+                },
+                "non_authority": {"winner_selection": False},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "recommend",
+            "--tournament",
+            str(tournament_path),
+            "--out",
+            str(recommendation_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "tournament non_authority missing authority flags" in result.output
+    assert "ranking_authority" in result.output
+    assert not recommendation_out.exists()
+
+
+def test_program_architect_recommend_rejects_missing_evidence_matrix_non_authority_flags(
+    tmp_path: Path,
+) -> None:
+    tournament_path = tmp_path / "tournament.json"
+    recommendation_out = tmp_path / "recommendation.json"
+    tournament_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-architecture-tournament-v1",
+                "status": "materialized_and_replay_checked",
+                "evidence_matrix": {
+                    "schema_version": "program-architecture-tournament-evidence-matrix-v1",
+                    "rows": [],
+                    "non_authority": {
+                        "evidence_summary_only": True,
+                        "winner_selection": False,
+                        "promotion_authority": False,
+                    },
+                },
+                "effect": {
+                    "winner_selected": False,
+                    "promotion_applied": False,
+                    "ak_called": False,
+                    "governance_mutated": False,
+                    "external_authority_mutated": False,
+                    "shared_oracle_mutated": False,
+                },
+                "non_authority": _recommendation_tournament_non_authority(),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "recommend",
+            "--tournament",
+            str(tournament_path),
+            "--out",
+            str(recommendation_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "evidence_matrix non_authority missing authority flags" in result.output
+    assert "oracle_ranking" in result.output
+    assert not recommendation_out.exists()
+
+
+def test_program_architect_recommend_rejects_missing_candidate_row_non_authority_flags(
+    tmp_path: Path,
+) -> None:
+    tournament_path = tmp_path / "tournament.json"
+    recommendation_out = tmp_path / "recommendation.json"
+    tournament_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-architecture-tournament-v1",
+                "status": "materialized_and_replay_checked",
+                "evidence_matrix": {
+                    "schema_version": "program-architecture-tournament-evidence-matrix-v1",
+                    "rows": [
+                        {
+                            "candidate_id": "candidate_a",
+                            "status": "skipped",
+                            "reason": "test",
+                            "non_authority": {
+                                "winner_selection": False,
+                                "promotion_authority": False,
+                            },
+                        }
+                    ],
+                    "non_authority": {
+                        "evidence_summary_only": True,
+                        "winner_selection": False,
+                        "promotion_authority": False,
+                        "oracle_ranking": False,
+                    },
+                },
+                "effect": {
+                    "winner_selected": False,
+                    "promotion_applied": False,
+                    "ak_called": False,
+                    "governance_mutated": False,
+                    "external_authority_mutated": False,
+                    "shared_oracle_mutated": False,
+                },
+                "non_authority": _recommendation_tournament_non_authority(),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "recommend",
+            "--tournament",
+            str(tournament_path),
+            "--out",
+            str(recommendation_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "row 0 non_authority missing authority flags" in result.output
+    assert "oracle_ranking" in result.output
     assert not recommendation_out.exists()
 
 
@@ -774,7 +961,7 @@ def test_program_architect_recommend_rejects_widened_evidence_matrix_non_authori
                     "external_authority_mutated": False,
                     "shared_oracle_mutated": False,
                 },
-                "non_authority": {"winner_selection": False},
+                "non_authority": _recommendation_tournament_non_authority(),
             },
             indent=2,
             sort_keys=True,
@@ -840,7 +1027,7 @@ def test_program_architect_recommend_rejects_widened_candidate_row_non_authority
                     "external_authority_mutated": False,
                     "shared_oracle_mutated": False,
                 },
-                "non_authority": {"winner_selection": False},
+                "non_authority": _recommendation_tournament_non_authority(),
             },
             indent=2,
             sort_keys=True,
@@ -907,7 +1094,7 @@ def test_program_architect_recommend_rejects_widened_candidate_row_effect(
                     "external_authority_mutated": False,
                     "shared_oracle_mutated": False,
                 },
-                "non_authority": {"winner_selection": False},
+                "non_authority": _recommendation_tournament_non_authority(),
             },
             indent=2,
             sort_keys=True,

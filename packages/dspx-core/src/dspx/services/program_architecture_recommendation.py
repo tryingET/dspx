@@ -34,18 +34,29 @@ _AUTHORITY_FALSE_EFFECT_FLAGS = (
     "external_authority_mutated",
     "shared_oracle_mutated",
 )
-_AUTHORITY_FALSE_NON_AUTHORITY_FLAGS = (
+_REQUIRED_TOURNAMENT_NON_AUTHORITY_FLAGS = (
     "winner_selection",
     "ranking_authority",
     "promotion_authority",
     "activation_authority",
     "oracle_authority",
-    "oracle_ranking",
-    "oracle_pruning",
-    "oracle_promotion",
     "governance_authority",
     "external_mutation",
     "canonical_mutation",
+)
+_OPTIONAL_NON_AUTHORITY_FLAGS = (
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+)
+_AUTHORITY_FALSE_NON_AUTHORITY_FLAGS = (
+    *_REQUIRED_TOURNAMENT_NON_AUTHORITY_FLAGS,
+    *_OPTIONAL_NON_AUTHORITY_FLAGS,
+)
+_REQUIRED_EVIDENCE_NON_AUTHORITY_FLAGS = (
+    "winner_selection",
+    "promotion_authority",
+    "oracle_ranking",
 )
 
 
@@ -123,6 +134,13 @@ def _widened_effect_flags(value: object, *, require_all: bool = True) -> list[st
     ]
 
 
+def _missing_required_flags(
+    value: object, required_flags: tuple[str, ...]
+) -> list[str]:
+    mapping = _mapping(value)
+    return [key for key in required_flags if key not in mapping]
+
+
 def _widened_non_authority_flags(value: object) -> list[str]:
     non_authority = _mapping(value)
     return [
@@ -150,6 +168,14 @@ def _validate_tournament(tournament: Mapping[str, Any]) -> None:
         raise ProgramArchitectureRecommendationError(
             "tournament effect widens authority: " + ", ".join(widened_effect)
         )
+    missing_non_authority = _missing_required_flags(
+        tournament.get("non_authority"), _REQUIRED_TOURNAMENT_NON_AUTHORITY_FLAGS
+    )
+    if missing_non_authority:
+        raise ProgramArchitectureRecommendationError(
+            "tournament non_authority missing authority flags: "
+            + ", ".join(missing_non_authority)
+        )
     widened_non_authority = _widened_non_authority_flags(
         tournament.get("non_authority")
     )
@@ -157,6 +183,14 @@ def _validate_tournament(tournament: Mapping[str, Any]) -> None:
         raise ProgramArchitectureRecommendationError(
             "tournament non_authority widens authority: "
             + ", ".join(widened_non_authority)
+        )
+    missing_matrix_non_authority = _missing_required_flags(
+        matrix.get("non_authority"), _REQUIRED_EVIDENCE_NON_AUTHORITY_FLAGS
+    )
+    if missing_matrix_non_authority:
+        raise ProgramArchitectureRecommendationError(
+            "tournament evidence_matrix non_authority missing authority flags: "
+            + ", ".join(missing_matrix_non_authority)
         )
     widened_matrix_non_authority = _widened_non_authority_flags(
         matrix.get("non_authority")
@@ -173,6 +207,14 @@ def _validate_tournament(tournament: Mapping[str, Any]) -> None:
         )
     for index, row_value in enumerate(rows):
         row = _mapping(row_value)
+        missing_row_non_authority = _missing_required_flags(
+            row.get("non_authority"), _REQUIRED_EVIDENCE_NON_AUTHORITY_FLAGS
+        )
+        if missing_row_non_authority:
+            raise ProgramArchitectureRecommendationError(
+                f"tournament evidence_matrix row {index} non_authority missing authority flags: "
+                + ", ".join(missing_row_non_authority)
+            )
         widened_row_non_authority = _widened_non_authority_flags(
             row.get("non_authority")
         )

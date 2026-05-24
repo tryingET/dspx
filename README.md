@@ -366,7 +366,7 @@ just dspx program-architect recommend \
   --json
 ```
 
-`program-architect recommend` writes `program-architecture-recommendation-v1`: candidate advisories, limitations, and next moves such as adding examples, rerunning with candidate-local Oracle reports, fixing replay, or sending candidates to explicit human/adjudicator review. It fail-closes if the tournament, evidence matrix, or candidate rows contain widened authority flags. It does not materialize programs, rank candidates, select winners, promote, call Oracle indexes, call AK, or mutate governance/external authority.
+`program-architect recommend` writes `program-architecture-recommendation-v1`: candidate advisories, limitations, and next moves such as adding examples, rerunning with candidate-local Oracle reports, fixing replay, or sending candidates to explicit human/adjudicator review. It fail-closes if the tournament, evidence matrix, or candidate rows contain missing or widened authority flags. It does not materialize programs, rank candidates, select winners, promote, call Oracle indexes, call AK, or mutate governance/external authority.
 
 Oracle ingestion is a separate local command that writes only to a chosen CoordinateIndex:
 
