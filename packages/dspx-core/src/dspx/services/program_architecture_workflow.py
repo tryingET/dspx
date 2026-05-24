@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 from dspx.cache import sha256_text
 from dspx.services.program_architecture import (
-    build_program_architecture_candidates_from_path,
+    build_program_architecture_candidates,
     write_program_architecture_candidates,
 )
 from dspx.services.program_architecture_recommendation import (
@@ -14,9 +14,11 @@ from dspx.services.program_architecture_recommendation import (
     write_program_architecture_recommendation,
 )
 from dspx.services.program_architecture_tournament import (
+    preflight_program_architecture_tournament,
     run_program_architecture_tournament_from_plan_path,
     write_program_architecture_tournament_result,
 )
+from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_intent_normalization import (
     ProgramIntentNormalizationError,
     normalize_program_intent_from_path,
@@ -59,7 +61,6 @@ def _safe_outdir(path: Path) -> Path:
         raise ProgramArchitectureWorkflowError(
             f"architecture loop outdir is not empty: {target}"
         )
-    target.mkdir(parents=True, exist_ok=True)
     return target
 
 
@@ -182,6 +183,20 @@ def run_program_architecture_loop(
             outputs=outputs,
             metric=metric,
         )
+    normalized_intent = normalization_payload.get("normalized_intent")
+    if not isinstance(normalized_intent, Mapping):
+        raise ProgramArchitectureWorkflowError(
+            "normalization payload missing normalized_intent"
+        )
+    plan_payload = build_program_architecture_candidates(
+        ProgramIntent.model_validate(dict(normalized_intent))
+    )
+    preflight_program_architecture_tournament(
+        architecture_plan=plan_payload,
+        outdir=root / "tournament",
+        candidate_ids=candidate_ids,
+    )
+
     normalized_intent_artifact = write_normalized_intent(
         normalization_payload,
         normalized_intent_path,
@@ -199,9 +214,6 @@ def run_program_architecture_loop(
         normalization_path,
     )
 
-    plan_payload = build_program_architecture_candidates_from_path(
-        normalized_intent_path
-    )
     plan_written = write_program_architecture_candidates(
         plan_payload,
         architecture_plan_path,

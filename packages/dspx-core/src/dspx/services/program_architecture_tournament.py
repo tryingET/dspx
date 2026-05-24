@@ -749,6 +749,25 @@ def _build_interpretation(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def preflight_program_architecture_tournament(
+    *,
+    architecture_plan: Mapping[str, Any],
+    outdir: Path,
+    candidate_ids: list[str] | None = None,
+) -> set[str]:
+    """Validate tournament inputs and output collisions without writing files."""
+
+    _validate_architecture_plan(architecture_plan)
+    selected_ids = _validated_selected_candidate_ids(
+        architecture_plan=architecture_plan, candidate_ids=candidate_ids
+    )
+    root = outdir.expanduser().resolve()
+    _preflight_tournament_outputs(
+        root=root, architecture_plan=architecture_plan, selected_ids=selected_ids
+    )
+    return selected_ids
+
+
 def run_program_architecture_tournament(
     *,
     architecture_plan: Mapping[str, Any],
@@ -759,13 +778,10 @@ def run_program_architecture_tournament(
 ) -> dict[str, Any]:
     """Materialize and replay-check materializable architecture candidates locally."""
 
-    _validate_architecture_plan(architecture_plan)
-    selected_ids = _validated_selected_candidate_ids(
-        architecture_plan=architecture_plan, candidate_ids=candidate_ids
-    )
-    root = outdir.expanduser().resolve()
-    _preflight_tournament_outputs(
-        root=root, architecture_plan=architecture_plan, selected_ids=selected_ids
+    selected_ids = preflight_program_architecture_tournament(
+        architecture_plan=architecture_plan,
+        outdir=outdir,
+        candidate_ids=candidate_ids,
     )
     root = _safe_outdir(outdir)
     intent_dir = root / "candidate_intents"

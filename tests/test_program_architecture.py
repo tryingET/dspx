@@ -371,6 +371,40 @@ def test_program_architect_loop_runs_guided_local_architecture_flow(
     assert not (outdir / "program.py").exists()
 
 
+def test_program_architect_loop_rejects_unknown_candidate_without_partial_sidecars(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    outdir = tmp_path / "architect_loop"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "loop",
+            "--prompt",
+            "Route support tickets by classifying billing versus technical issues, then draft a helpful response with rationale.",
+            "--outdir",
+            str(outdir),
+            "--candidate",
+            "does_not_exist",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "unknown architecture candidate id" in result.output
+    assert not (outdir / "normalization.json").exists()
+    assert not (outdir / "normalized_intent.json").exists()
+    assert not (outdir / "architecture_plan.json").exists()
+    assert not (outdir / "tournament.json").exists()
+    assert not (outdir / "architecture_recommendation.json").exists()
+    assert not (outdir / "program_architect_loop.json").exists()
+    assert not (outdir / "tournament" / "candidates").exists()
+
+
 def test_program_architect_loop_rejects_non_empty_outdir_before_partial_overwrite(
     tmp_path: Path, monkeypatch
 ) -> None:
