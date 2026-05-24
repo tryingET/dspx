@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "d099eebfd034c1547eca4a7db5e11bdd29ed4c53"
-created_at: "2026-05-24T12:44:15Z"
+created_at: "2026-05-24T12:44:59Z"
 intent: "Harden DSPx fail-closed boundary checks and complete surfaced atomic-completion fixes"
 files:
   - "governance/work-items.json"
@@ -52,7 +52,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-full"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
