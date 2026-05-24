@@ -55,6 +55,10 @@ def _safe_outdir(path: Path) -> Path:
         raise ProgramArchitectureWorkflowError(
             f"architecture loop outdir is a file: {target}"
         )
+    if target.exists() and any(target.iterdir()):
+        raise ProgramArchitectureWorkflowError(
+            f"architecture loop outdir is not empty: {target}"
+        )
     target.mkdir(parents=True, exist_ok=True)
     return target
 

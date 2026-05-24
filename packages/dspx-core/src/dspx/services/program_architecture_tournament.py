@@ -115,7 +115,7 @@ def _safe_int(value: object) -> int:
     return 0
 
 
-def _safe_output_path(path: Path, *, label: str) -> Path:
+def _validate_output_path(path: Path, *, label: str) -> Path:
     target = path.expanduser().resolve()
     if target.name in _FORBIDDEN_OUTPUT_NAMES:
         raise ProgramArchitectureTournamentError(
@@ -125,6 +125,11 @@ def _safe_output_path(path: Path, *, label: str) -> Path:
         raise ProgramArchitectureTournamentError(
             f"{label} output path is a directory: {target}"
         )
+    return target
+
+
+def _safe_output_path(path: Path, *, label: str) -> Path:
+    target = _validate_output_path(path, label=label)
     target.parent.mkdir(parents=True, exist_ok=True)
     return target
 
@@ -159,9 +164,9 @@ def _candidate_dir(root: Path, candidate_id: str) -> Path:
         raise ProgramArchitectureTournamentError(
             f"candidate output path escapes tournament root: {candidate_id!r}"
         )
-    if (target / "manifest.json").exists():
+    if target.exists():
         raise ProgramArchitectureTournamentError(
-            f"candidate output already contains manifest.json: {target}"
+            f"candidate output already exists: {target}"
         )
     return target
 
@@ -198,10 +203,11 @@ def _widened_plan_non_authority_flags(value: object) -> list[str]:
 
 
 def _validate_candidate_intent_payload(
-    *, candidate: Mapping[str, Any], index: int
+    *, candidate: Mapping[str, Any], index: int, intent_identity: Mapping[str, Any]
 ) -> None:
     if candidate.get("status") != "materializable":
         return
+    candidate_id = _safe_candidate_id(candidate.get("candidate_id"))
     intent_payload = candidate.get("intent_payload")
     if not isinstance(intent_payload, Mapping):
         raise ProgramArchitectureTournamentError(
@@ -213,6 +219,31 @@ def _validate_candidate_intent_payload(
         raise ProgramArchitectureTournamentError(
             f"architecture plan candidate {index} intent_payload is invalid: {exc}"
         ) from exc
+    for key in ["schema_version", "objective", "inputs", "outputs"]:
+        if key in intent_identity and intent_payload.get(key) != intent_identity.get(
+            key
+        ):
+            raise ProgramArchitectureTournamentError(
+                f"architecture plan candidate {index} intent_payload does not match intent_identity.{key}"
+            )
+    candidate_topology = dict(candidate.get("topology") or {})
+    payload_topology = dict(intent_payload.get("topology") or {})
+    if candidate_topology != payload_topology:
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {candidate_id} topology does not match intent_payload topology"
+        )
+    topology_source = str(candidate.get("topology_source") or "")
+    if topology_source == "baseline_default" and payload_topology:
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {candidate_id} baseline topology source cannot carry intent_payload topology"
+        )
+    if (
+        topology_source in {"declared", "prompt_inferred"}
+        and payload_topology.get("kind") != "pipeline"
+    ):
+        raise ProgramArchitectureTournamentError(
+            f"architecture plan candidate {candidate_id} topology source requires pipeline intent_payload topology"
+        )
     intent_hash = str(candidate.get("intent_hash") or "").strip()
     if not intent_hash:
         raise ProgramArchitectureTournamentError(
@@ -239,6 +270,17 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
     if candidate_count is not None and candidate_count != len(candidates):
         raise ProgramArchitectureTournamentError(
             "architecture plan candidate_count does not match candidates length"
+        )
+    intent_identity = _mapping(plan.get("intent_identity"))
+    missing_identity = [
+        key
+        for key in ["schema_version", "objective", "inputs", "outputs"]
+        if key not in intent_identity
+    ]
+    if missing_identity:
+        raise ProgramArchitectureTournamentError(
+            "architecture plan intent_identity missing required fields: "
+            + ", ".join(missing_identity)
         )
     missing_effect = _missing_required_flags(
         plan.get("effect"), _PLAN_REQUIRED_FALSE_EFFECT_FLAGS
@@ -310,7 +352,9 @@ def _validate_architecture_plan(plan: Mapping[str, Any]) -> None:
                 f"architecture plan candidate {index} non_authority widens authority: "
                 + ", ".join(widened_candidate_non_authority)
             )
-        _validate_candidate_intent_payload(candidate=candidate, index=index)
+        _validate_candidate_intent_payload(
+            candidate=candidate, index=index, intent_identity=intent_identity
+        )
 
 
 def _validated_selected_candidate_ids(
@@ -336,6 +380,21 @@ def _validated_selected_candidate_ids(
 
 def _candidate_allowed(candidate_id: str, candidate_ids: set[str]) -> bool:
     return not candidate_ids or candidate_id in candidate_ids
+
+
+def _preflight_tournament_outputs(
+    *, root: Path, architecture_plan: Mapping[str, Any], selected_ids: set[str]
+) -> None:
+    candidates = architecture_plan.get("candidates", [])
+    for raw_candidate in candidates:
+        if not isinstance(raw_candidate, Mapping):
+            continue
+        candidate_id = _safe_candidate_id(raw_candidate.get("candidate_id"))
+        if not _candidate_allowed(candidate_id, selected_ids):
+            continue
+        if raw_candidate.get("status") != "materializable":
+            continue
+        _candidate_dir(root, candidate_id)
 
 
 def _artifact_ref(path: Path) -> dict[str, Any]:
@@ -655,6 +714,10 @@ def run_program_architecture_tournament(
     selected_ids = _validated_selected_candidate_ids(
         architecture_plan=architecture_plan, candidate_ids=candidate_ids
     )
+    root = outdir.expanduser().resolve()
+    _preflight_tournament_outputs(
+        root=root, architecture_plan=architecture_plan, selected_ids=selected_ids
+    )
     root = _safe_outdir(outdir)
     intent_dir = root / "candidate_intents"
     intent_dir.mkdir(parents=True, exist_ok=True)
@@ -684,10 +747,10 @@ def run_program_architecture_tournament(
             raise ProgramArchitectureTournamentError(
                 f"materializable candidate lacks intent_payload: {candidate_id}"
             )
+        target_dir = _candidate_dir(root, candidate_id)
         intent_path = intent_dir / f"{candidate_id}.json"
         intent_text = _json_text(dict(intent_payload))
         intent_path.write_text(intent_text, encoding="utf-8")
-        target_dir = _candidate_dir(root, candidate_id)
         artifact = materialize_program_from_intent(
             ProgramIntent.model_validate(dict(intent_payload)),
             outdir=target_dir,
@@ -794,6 +857,12 @@ def run_program_architecture_tournament_from_intent_path(
         source_plan_path=None,
         candidate_local_oracle=candidate_local_oracle,
     )
+
+
+def validate_program_architecture_tournament_output_path(out: Path) -> Path:
+    """Validate the tournament sidecar output path before materialization."""
+
+    return _validate_output_path(out, label="architecture tournament")
 
 
 def write_program_architecture_tournament_result(

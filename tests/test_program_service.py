@@ -426,6 +426,28 @@ def test_program_service_materializes_candidate_assembly(
     assert replay["checks"]["cache_code_hash_matches_receipt"] is True
 
 
+def test_program_service_refuses_non_empty_outdir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="AnswerQuestion",
+        objective="Answer a question from context.",
+        inputs=["question"],
+        outputs=["answer"],
+    )
+    outdir = tmp_path / "program"
+    outdir.mkdir()
+    (outdir / "program.py").write_text("# existing\n")
+
+    with pytest.raises(ValueError, match="program-gen outdir is not empty"):
+        materialize_program_from_intent(intent, outdir=outdir)
+
+    assert (outdir / "program.py").read_text() == "# existing\n"
+    assert not (outdir / "manifest.json").exists()
+
+
 def test_program_gen_cli_materializes_from_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

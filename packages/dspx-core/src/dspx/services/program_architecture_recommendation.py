@@ -64,6 +64,22 @@ class ProgramArchitectureRecommendationError(ProgramArchitectureError):
     """Raised when architecture recommendation cannot be built safely."""
 
 
+def _advisory_non_authority() -> dict[str, bool]:
+    return {
+        "winner_selection": False,
+        "ranking_authority": False,
+        "promotion_authority": False,
+        "activation_authority": False,
+        "oracle_authority": False,
+        "oracle_ranking": False,
+        "oracle_pruning": False,
+        "oracle_promotion": False,
+        "governance_authority": False,
+        "external_mutation": False,
+        "canonical_mutation": False,
+    }
+
+
 def _json_text(payload: Mapping[str, Any] | list[Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
@@ -242,7 +258,7 @@ def _candidate_advisory(row: Mapping[str, Any]) -> dict[str, Any]:
             "advisory": "not_materialized",
             "attention": "candidate was skipped or declared-only; inspect the tournament skip reason before trying to materialize it.",
             "evidence_basis": ["tournament skipped candidate record"],
-            "non_authority": {"winner_selection": False, "promotion_authority": False},
+            "non_authority": _advisory_non_authority(),
         }
     replay_status = str(row.get("replay_status") or "unknown")
     behavior_summary = _mapping(row.get("behavior_summary"))
@@ -293,7 +309,7 @@ def _candidate_advisory(row: Mapping[str, Any]) -> dict[str, Any]:
             f"behavior_source_count={source_count}",
             f"candidate_local_oracle_records={oracle_records}",
         ],
-        "non_authority": {"winner_selection": False, "promotion_authority": False},
+        "non_authority": _advisory_non_authority(),
     }
 
 

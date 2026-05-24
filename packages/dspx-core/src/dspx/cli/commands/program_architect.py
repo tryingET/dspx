@@ -105,6 +105,7 @@ def tournament(
         ProgramArchitectureTournamentError,
         run_program_architecture_tournament_from_intent_path,
         run_program_architecture_tournament_from_plan_path,
+        validate_program_architecture_tournament_output_path,
         write_program_architecture_tournament_result,
     )
 
@@ -118,6 +119,7 @@ def tournament(
         raise typer.Exit(code=2)
 
     try:
+        validate_program_architecture_tournament_output_path(out)
         if architecture_plan is not None:
             result = run_program_architecture_tournament_from_plan_path(
                 architecture_plan,

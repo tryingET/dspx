@@ -1438,6 +1438,8 @@ def materialize_program_from_intent(
         .expanduser()
         .resolve()
     )
+    if root.exists() and any(root.iterdir()):
+        raise ValueError(f"program-gen outdir is not empty: {root}")
     root.mkdir(parents=True, exist_ok=True)
 
     signature_code, signature_metadata = render_signature_surface(intent)

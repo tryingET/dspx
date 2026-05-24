@@ -7,7 +7,11 @@ from typer.testing import CliRunner
 
 from dspx.cache import sha256_text
 from dspx.cli.dspx import app
-from dspx.services.program_architecture import build_program_architecture_candidates
+from dspx.services.program_architecture import (
+    ProgramArchitectureError,
+    build_program_architecture_candidates,
+    write_architecture_intent_portfolio,
+)
 from dspx.services.program_architecture_tournament import (
     run_program_architecture_tournament,
 )
@@ -218,6 +222,28 @@ def test_architecture_planner_preserves_unsupported_declared_pipeline_as_declare
     assert declared["effect"]["candidate_materialized"] is False
 
 
+def test_architecture_intent_portfolio_rejects_path_hostile_candidate_id(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="PortfolioEscapeProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    payload["candidates"][0]["candidate_id"] = "../escaped"
+
+    try:
+        write_architecture_intent_portfolio(payload, tmp_path / "portfolio")
+    except ProgramArchitectureError as exc:
+        assert "path-hostile" in str(exc)
+    else:  # pragma: no cover - defensive assertion for clearer failure output
+        raise AssertionError("path-hostile candidate id was accepted")
+    assert not (tmp_path / "escaped.json").exists()
+
+
 def test_architecture_planner_cli_writes_plan_and_intent_portfolio(
     tmp_path: Path,
 ) -> None:
@@ -343,6 +369,45 @@ def test_program_architect_loop_runs_guided_local_architecture_flow(
     assert payload["non_authority"]["winner_selection"] is False
     assert not (outdir / "manifest.json").exists()
     assert not (outdir / "program.py").exists()
+
+
+def test_program_architect_loop_rejects_non_empty_outdir_before_partial_overwrite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    outdir = tmp_path / "architect_loop"
+    first = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "loop",
+            "--prompt",
+            "Route support tickets by classifying billing versus technical issues, then draft a helpful response with rationale.",
+            "--outdir",
+            str(outdir),
+        ],
+    )
+    assert first.exit_code == 0, first.output
+    before = (outdir / "normalized_intent.json").read_text()
+
+    second = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "loop",
+            "--prompt",
+            "Answer a completely different question from context.",
+            "--outdir",
+            str(outdir),
+        ],
+    )
+
+    assert second.exit_code == 2
+    assert "architecture loop outdir is not empty" in second.output
+    assert (outdir / "normalized_intent.json").read_text() == before
 
 
 def test_program_architect_loop_with_oracle_reports_is_candidate_local(
@@ -661,6 +726,20 @@ def test_program_architect_recommend_emits_next_moves_without_winner_selection(
     assert payload["non_authority"]["advisory_only"] is True
     assert payload["non_authority"]["winner_selection"] is False
     assert payload["non_authority"]["promotion_authority"] is False
+    for advisory in payload["candidate_advisories"]:
+        assert advisory["non_authority"] == {
+            "winner_selection": False,
+            "ranking_authority": False,
+            "promotion_authority": False,
+            "activation_authority": False,
+            "oracle_authority": False,
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "governance_authority": False,
+            "external_mutation": False,
+            "canonical_mutation": False,
+        }
 
 
 def test_program_architect_recommend_rejects_authority_widened_tournament(
@@ -1310,6 +1389,32 @@ def test_program_architect_tournament_rejects_wrong_schema_without_partial_dirs(
     assert not outdir.exists()
 
 
+def test_program_architect_tournament_rejects_invalid_plan_before_out_parent_creation(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "not_architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    plan_path.write_text(json.dumps({"schema_version": "wrong", "candidates": []}))
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(outdir / "tournament.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "schema_version" in result.output
+    assert not outdir.exists()
+
+
 def test_program_architect_tournament_rejects_authority_widened_architecture_plan(
     tmp_path: Path,
 ) -> None:
@@ -1321,6 +1426,12 @@ def test_program_architect_tournament_rejects_authority_widened_architecture_pla
             {
                 "schema_version": "program-architecture-candidates-v1",
                 "status": "planned_not_materialized",
+                "intent_identity": {
+                    "schema_version": "program-intent-v2",
+                    "objective": "Answer a question from context.",
+                    "inputs": ["question"],
+                    "outputs": ["answer"],
+                },
                 "candidates": [
                     {
                         "candidate_id": "baseline_single_predict",
@@ -1378,6 +1489,12 @@ def test_program_architect_tournament_rejects_missing_plan_authority_flags(
             {
                 "schema_version": "program-architecture-candidates-v1",
                 "status": "planned_not_materialized",
+                "intent_identity": {
+                    "schema_version": "program-intent-v2",
+                    "objective": "Answer a question from context.",
+                    "inputs": ["question"],
+                    "outputs": ["answer"],
+                },
                 "candidates": [],
                 "non_authority": {
                     "winner_selection": False,
@@ -1429,6 +1546,12 @@ def test_program_architect_tournament_rejects_authority_widened_plan_candidate(
             {
                 "schema_version": "program-architecture-candidates-v1",
                 "status": "planned_not_materialized",
+                "intent_identity": {
+                    "schema_version": "program-intent-v2",
+                    "objective": "Answer a question from context.",
+                    "inputs": ["question"],
+                    "outputs": ["answer"],
+                },
                 "candidates": [
                     {
                         "candidate_id": "baseline_single_predict",
@@ -1502,6 +1625,112 @@ def test_program_architect_tournament_rejects_authority_widened_plan_candidate(
     assert not outdir.exists()
 
 
+def test_program_architect_tournament_rejects_candidate_intent_source_identity_drift_without_partial_dirs(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="SourceBindingProgram",
+            objective="Answer support questions from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    candidate = next(
+        item
+        for item in plan["candidates"]
+        if item["candidate_id"] == "baseline_single_predict"
+    )
+    candidate["intent_payload"]["objective"] = "Unrelated changed objective."
+    candidate["intent_payload"]["inputs"] = ["unrelated_input"]
+    candidate["intent_hash"] = sha256_text(
+        json.dumps(
+            candidate["intent_payload"], ensure_ascii=False, indent=2, sort_keys=True
+        )
+        + "\n"
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "intent_payload does not match intent_identity.objective" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
+def test_program_architect_tournament_rejects_candidate_topology_payload_mismatch_without_partial_dirs(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="TopologyCongruenceProgram",
+            objective=(
+                "Route support tickets by classifying billing versus technical issues, "
+                "then draft a helpful response with rationale."
+            ),
+            inputs=["ticket_text"],
+            outputs=["response"],
+        )
+    )
+    baseline = next(
+        item
+        for item in plan["candidates"]
+        if item["candidate_id"] == "baseline_single_predict"
+    )
+    inferred = next(
+        item
+        for item in plan["candidates"]
+        if item["candidate_id"] == "prompt_inferred_pipeline"
+    )
+    inferred["intent_payload"] = json.loads(json.dumps(baseline["intent_payload"]))
+    inferred["intent_hash"] = sha256_text(
+        json.dumps(
+            inferred["intent_payload"], ensure_ascii=False, indent=2, sort_keys=True
+        )
+        + "\n"
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "prompt_inferred_pipeline" in result.output
+    assert "topology" in result.output
+    assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
 def test_program_architect_tournament_rejects_duplicate_candidate_ids_without_partial_dirs(
     tmp_path: Path,
 ) -> None:
@@ -1541,6 +1770,83 @@ def test_program_architect_tournament_rejects_duplicate_candidate_ids_without_pa
     assert "duplicate architecture candidate_id" in result.output
     assert "baseline_single_predict" in result.output
     assert not tournament_out.exists()
+    assert not outdir.exists()
+
+
+def test_program_architect_tournament_rejects_existing_later_candidate_without_partial_writes(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="CollisionPreflightProgram",
+            objective=(
+                "Route support tickets by classifying billing versus technical issues, "
+                "then draft a helpful response with rationale."
+            ),
+            inputs=["ticket_text"],
+            outputs=["response"],
+        )
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    tournament_out = tmp_path / "tournament.json"
+    existing_candidate = outdir / "candidates" / "prompt_inferred_pipeline"
+    existing_candidate.mkdir(parents=True)
+    (existing_candidate / "manifest.json").write_text("{}\n")
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tournament_out),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate output already exists" in result.output
+    assert not tournament_out.exists()
+    assert not (outdir / "candidates" / "baseline_single_predict").exists()
+    assert not (outdir / "candidate_intents").exists()
+
+
+def test_program_architect_tournament_rejects_forbidden_output_before_materialization(
+    tmp_path: Path,
+) -> None:
+    plan = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ForbiddenTournamentOutProgram",
+            objective="Answer a question from context.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    plan_path = tmp_path / "architecture_plan.json"
+    outdir = tmp_path / "tournament"
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "tournament",
+            "--architecture-plan",
+            str(plan_path),
+            "--outdir",
+            str(outdir),
+            "--out",
+            str(tmp_path / "manifest.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "refusing to write architecture tournament" in result.output
     assert not outdir.exists()
 
 

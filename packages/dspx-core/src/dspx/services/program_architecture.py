@@ -326,6 +326,17 @@ def build_program_architecture_candidates_from_path(
     return build_program_architecture_candidates(load_program_intent(intent_path))
 
 
+def _safe_candidate_id(value: object) -> str:
+    candidate_id = str(value or "").strip()
+    if not candidate_id:
+        raise ProgramArchitectureError("architecture candidate_id must not be blank")
+    if candidate_id in {".", ".."} or "/" in candidate_id or "\\" in candidate_id:
+        raise ProgramArchitectureError(
+            f"architecture candidate_id is path-hostile: {candidate_id!r}"
+        )
+    return candidate_id
+
+
 def _validate_output_path(path: Path) -> Path:
     target = path.expanduser().resolve()
     if target.name in _FORBIDDEN_OUTPUT_NAMES:
@@ -377,7 +388,7 @@ def write_architecture_intent_portfolio(
             continue
         if raw_candidate.get("status") != "materializable":
             continue
-        candidate_id = str(raw_candidate.get("candidate_id") or "candidate")
+        candidate_id = _safe_candidate_id(raw_candidate.get("candidate_id"))
         intent_payload = raw_candidate.get("intent_payload")
         if not isinstance(intent_payload, Mapping):
             continue
