@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-24",
+  "updated_at": "2026-05-25",
   "owner": "@project-owners",
   "project_name": "dspx",
   "milestones": [
@@ -3121,10 +3121,26 @@
         {
           "id": "AK-TASK-3390",
           "title": "Program-gen: materialize retrieve_then_answer topology",
-          "state": "doing",
+          "state": "queued",
           "tasks": [
             {
               "text": "Program-gen: materialize retrieve_then_answer topology (task #3390)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "labels": [
+            "deferred"
+          ],
+          "note": "Deferred:\n- reason: Stale expired lease was released during boundary-hardening scope repair; defer pending owner review to preserve empty-ready posture.\n- kind: manual"
+        },
+        {
+          "id": "AK-TASK-3396",
+          "title": "Harden boundary verification nexus loop",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Harden boundary verification nexus loop (task #3396)",
               "done": false
             }
           ],

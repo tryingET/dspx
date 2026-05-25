@@ -148,6 +148,17 @@ verify-runtime:
   just module-synthesis-quality-check
   just boundary-contract-check
 
+# Diagnose whether the current dirty tree is inside the active AK task scope.
+scope-doctor:
+  @python3 scripts/check_task_scope.py --mode working-tree --json || true
+
+# Focused adversarial boundary-hardening validation for CLI/provider/runtime/generated-program seams.
+verify-boundary-hardening:
+  uvx ruff format --check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
+  uvx ruff check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
+  uvx ty check packages/dspx-core/src apps/forge/src
+  uv run --no-sync -m pytest -q tests/test_adversarial_boundary_contracts.py tests/test_cli_dspx.py tests/test_forge_cli_policy.py tests/test_program_runtime_episode.py
+
 # Plan deterministic impact-aware local validation from changed files without running it
 verify-impact-plan base="auto":
   uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --plan-only
@@ -155,6 +166,10 @@ verify-impact-plan base="auto":
 # Run deterministic impact-aware local validation from changed files
 verify-impact base="auto":
   uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run
+
+# Run deterministic impact-aware validation even when the plan honestly classifies the change as wide.
+verify-impact-wide base="auto":
+  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --allow-wide
 
 # Run impact-aware validation and write a local evidence-only result receipt
 verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":

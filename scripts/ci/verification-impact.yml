@@ -50,6 +50,74 @@ rules:
     commands:
       - task_scope_check
 
+  - match: "packages/dspx-core/src/dspx/cli/*.py"
+    category: cli_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_all
+      - pytest_boundary_hardening
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/cli/**/*.py"
+    category: cli_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_all
+      - pytest_boundary_hardening
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/provider_registry.py"
+    category: provider_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_boundary_hardening
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/provider_runtime.py"
+    category: provider_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_boundary_hardening
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
+    category: runtime_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_boundary_hardening
+      - boundary_contract_check
+
+  - match: "apps/forge/src/dspx_forge/*.py"
+    category: forge_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_all
+      - pytest_boundary_hardening
+
+  - match: "apps/forge/src/dspx_forge/**/*.py"
+    category: forge_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_all
+      - pytest_boundary_hardening
+
   - match: "packages/dspx-core/src/dspx/services/program_service.py"
     category: python_service
     impact_group: program_generation_spine

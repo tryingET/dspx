@@ -177,29 +177,25 @@ def test_program_gen_compile_failure_removes_new_empty_outdir(
     assert not root.exists()
 
 
-def test_program_gen_failure_preserves_concurrent_existing_outdir_files(
+def test_program_gen_rejects_existing_empty_outdir_without_partial_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = tmp_path / "program"
     root.mkdir()
 
-    def fail_after_concurrent_file(_root: Path) -> dict[str, object]:
-        (root / "sentinel.txt").write_text("keep\n", encoding="utf-8")
-        raise RuntimeError("simulated smoke failure")
+    def should_not_run(_root: Path) -> dict[str, object]:
+        raise AssertionError("materialization should not start for existing outdir")
 
-    monkeypatch.setattr(program_service, "_run_eval_smoke", fail_after_concurrent_file)
+    monkeypatch.setattr(program_service, "_run_eval_smoke", should_not_run)
 
-    with pytest.raises(RuntimeError, match="simulated smoke failure"):
+    with pytest.raises(ValueError, match="program-gen outdir already exists"):
         program_service.materialize_program_from_intent(
             ProgramIntent(name="X", objective="x", inputs=["q"], outputs=["a"]),
             outdir=root,
         )
 
     assert root.exists()
-    assert (root / "sentinel.txt").read_text(encoding="utf-8") == "keep\n"
-    assert not (root / "plan.json").exists()
-    assert not (root / "signature.py").exists()
-    assert not (root / "manifest.json").exists()
+    assert list(root.iterdir()) == []
 
 
 def test_cli_boundary_failures_are_concise(
@@ -281,6 +277,24 @@ def test_cli_boundary_failures_are_concise(
     assert missing_key.exit_code == 2
     assert "failed to read OpenRouter API key file" in missing_key.output
     assert "Traceback" not in missing_key.output
+
+    invalid_key = tmp_path / "invalid.key"
+    invalid_key.write_bytes(b"\xff\xfe")
+    invalid_key_result = runner.invoke(
+        app,
+        [
+            "--openrouter-api-key-file",
+            str(invalid_key),
+            "providers",
+            "health",
+            "--provider",
+            "openrouter",
+            "--json",
+        ],
+    )
+    assert invalid_key_result.exit_code == 2
+    assert "failed to read OpenRouter API key file" in invalid_key_result.output
+    assert "Traceback" not in invalid_key_result.output
 
 
 def test_cli_boundary_errors_redact_secrets(monkeypatch: pytest.MonkeyPatch) -> None:

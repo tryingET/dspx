@@ -2,8 +2,8 @@
   "schema_version": 1,
   "exported_at": "2026-05-25T05:53:55.723068284+00:00",
   "task_id": 3396,
-  "entity_version": 4,
-  "commit_sha": "e497c01ccb988925a60819ba1a90c23dfe0cf0fc",
+  "entity_version": 5,
+  "commit_sha": "0160a8aa943806f0cb2b7bbdedb5aca7c99254e4",
   "scope": {
     "allowed_paths": [
       "Justfile",
@@ -21,7 +21,9 @@
       "packages/dspx-core/src/dspx/services/program_surfaces.py",
       "scripts/ci/verification-impact.yml",
       "scripts/ci/verify_changed.py",
-      "tests/test_adversarial_boundary_contracts.py"
+      "tests/test_adversarial_boundary_contracts.py",
+      "tests/test_program_service.py",
+      "tests/test_verify_changed.py"
     ],
     "required_paths": [
       "tests/test_adversarial_boundary_contracts.py"

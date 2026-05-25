@@ -59,6 +59,28 @@ def test_program_generation_spine_selects_expanded_adjacent_checks() -> None:
     ]
 
 
+def test_cli_boundary_change_selects_boundary_hardening_tests() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/cli/dspx.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "pytest_boundary_hardening" in _command_ids(plan)
+    classification = plan["classifications"][0]
+    assert classification["reasons"] == ["matched packages/dspx-core/src/dspx/cli/*.py"]
+
+
+def test_nested_cli_boundary_change_uses_nested_rule_only() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/cli/commands/openapi.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "pytest_boundary_hardening" in _command_ids(plan)
+    classification = plan["classifications"][0]
+    assert classification["reasons"] == [
+        "matched packages/dspx-core/src/dspx/cli/**/*.py"
+    ]
+
+
 def test_refinement_comparison_and_test_change_deduplicate_commands() -> None:
     plan = _plan(
         "packages/dspx-core/src/dspx/services/program_refinement_comparison.py",

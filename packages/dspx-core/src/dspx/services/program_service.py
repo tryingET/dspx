@@ -80,62 +80,8 @@ def _json_text(payload: Mapping[str, Any] | list[Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
-_GENERATED_PROGRAM_OUTDIR_ENTRIES = {
-    "behavior_episode.json",
-    "behavior_results.dev.json",
-    "behavior_results.json",
-    "behavior_results.test.json",
-    "behavior_results.train.json",
-    "dataset_manifest.json",
-    "direct_run.py",
-    "eval_behavior.py",
-    "eval_dev.py",
-    "eval_examples.py",
-    "eval_jury.py",
-    "eval_promotion.py",
-    "eval_smoke.py",
-    "eval_test.py",
-    "eval_train.py",
-    "examples.json",
-    "execution_episode.json",
-    "generated_module_policy.json",
-    "intent.json",
-    "intent_normalization.json",
-    "jury.json",
-    "jury_rubric.json",
-    "jury_selection.json",
-    "manifest.json",
-    "module.py",
-    "module_surfaces.json",
-    "oracle_evidence.json",
-    "plan.json",
-    "program.py",
-    "program_capability_registry.json",
-    "promotion_adjudication_request.json",
-    "promotion_decision_template.json",
-    "promotion_review.json",
-    "receipt.json",
-    "signature.py",
-    "splits",
-}
-
-
-def _cleanup_failed_program_outdir(root: Path, *, remove_root: bool) -> None:
-    if not root.exists():
-        return
-    if remove_root:
-        shutil.rmtree(root, ignore_errors=True)
-        return
-    for child in root.iterdir():
-        if child.name not in _GENERATED_PROGRAM_OUTDIR_ENTRIES:
-            continue
-        if child.is_dir() and not child.is_symlink():
-            shutil.rmtree(child, ignore_errors=True)
-        else:
-            try:
-                child.unlink()
-            except FileNotFoundError:
-                pass
+def _cleanup_failed_program_outdir(root: Path) -> None:
+    shutil.rmtree(root, ignore_errors=True)
 
 
 def _program_cache_file(cache_key: str) -> Path:
@@ -1570,9 +1516,12 @@ def materialize_program_from_intent(
         .expanduser()
         .resolve()
     )
-    root_existed = root.exists()
-    if root_existed and any(root.iterdir()):
-        raise ValueError(f"program-gen outdir is not empty: {root}")
+    if root.exists():
+        raise ValueError(f"program-gen outdir already exists: {root}")
+    try:
+        root.mkdir(parents=True, exist_ok=False)
+    except FileExistsError as exc:
+        raise ValueError(f"program-gen outdir already exists: {root}") from exc
     try:
         return _materialize_program_from_intent_unchecked(
             intent,
@@ -1580,7 +1529,7 @@ def materialize_program_from_intent(
             intent_source=intent_source,
         )
     except Exception:
-        _cleanup_failed_program_outdir(root, remove_root=not root_existed)
+        _cleanup_failed_program_outdir(root)
         raise
 
 

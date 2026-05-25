@@ -62,9 +62,12 @@ This uses the stub provider, disables MLflow, writes to a temp directory by defa
 
 ```bash
 ./scripts/ci/smoke.sh
+just scope-doctor                                       # diagnose dirty-tree AK task-scope binding without failing the shell
 just task-scope-check task_id=<AK-ID> mode=working-tree   # before commit, for the current slice
+just verify-boundary-hardening                            # focused CLI/provider/runtime/generated-program boundary hardening loop
 just verify-impact-plan                                   # deterministic changed-file validation plan
 just verify-impact                                        # run the bounded/expanded impact-aware plan when it is not wide
+just verify-impact-wide                                   # explicitly run a wide/full-required impact-aware plan
 just verify-impact-receipt                                # run impact-aware validation and write generated/ci/verify-impact-result.json
 just verify-pre-push                                      # matches the pre-push hook
 just verify-full                                          # explicit full gate before merge/release or when needed
@@ -92,6 +95,12 @@ Validation contract:
 - `just verify-runtime`
   - runs replay provenance, monorepo boundary, module synthesis quality, and `just boundary-contract-check`
   - `just boundary-contract-check` executes the repo boundary contract matrix from `docs/project/boundary-contract-matrix.md` plus docs strict validation
+- `just scope-doctor`
+  - prints the current working-tree task-scope diagnosis as JSON and intentionally returns success for exploration/debugging
+  - does not replace `just task-scope-check` for landing readiness
+- `just verify-boundary-hardening`
+  - runs focused format, lint, typecheck, and adversarial boundary tests for CLI/provider/runtime/generated-program seams
+  - is the fast Nexus-loop gate for boundary hardening; landing still requires a valid AK task scope and the normal merge gate
 - `just verify-impact-plan`
   - runs `scripts/ci/verify_changed.py --plan-only` to produce a deterministic changed-file validation plan from `scripts/ci/verification-impact.yml`
   - does not execute checks and does not replace `just verify-full`
@@ -100,6 +109,9 @@ Validation contract:
   - runs the selected impact-aware commands when the plan is bounded or expanded
   - refuses to execute wide/full-required plans unless the planner is explicitly run with its wide-allowing flag
   - is a local iteration gate, not the final merge/release confidence gate
+- `just verify-impact-wide`
+  - runs the same impact-aware planner with `--allow-wide`
+  - is for explicit exploratory/adversarial validation of wide plans and does not by itself satisfy AK task-scope landing authority
 - `just verify-impact-receipt`
   - runs the same impact-aware planner with `--result-out generated/ci/verify-impact-result.json`
   - writes `dspx-verification-impact-result-v1` local evidence for passed, failed, or blocked-wide plans

@@ -9,14 +9,13 @@ full verification gate.
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import json
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -80,6 +79,21 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
     "boundary_contract_check": CommandSpec(
         ["just", "boundary-contract-check"],
         "boundary-sensitive surface changed",
+    ),
+    "pytest_boundary_hardening": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_adversarial_boundary_contracts.py",
+            "tests/test_cli_dspx.py",
+            "tests/test_forge_cli_policy.py",
+            "tests/test_program_runtime_episode.py",
+        ],
+        "CLI/provider/runtime boundary hardening changed",
     ),
     "pytest_program_generation_spine": CommandSpec(
         [
@@ -241,7 +255,7 @@ def load_impact_map(path: Path = DEFAULT_MAP) -> dict[str, Any]:
 
 
 def _matches(pattern: str, path: str) -> bool:
-    return fnmatch.fnmatch(path, pattern)
+    return PurePosixPath(path).match(pattern)
 
 
 def _risk_max(risks: list[str]) -> str:
@@ -388,6 +402,7 @@ def build_plan(
         "typecheck_core",
         "typecheck_all",
         "pytest_touched",
+        "pytest_boundary_hardening",
         "pytest_program_generation_spine",
         "pytest_program_oracle_refinement",
         "pytest_refinement_candidate_comparison",

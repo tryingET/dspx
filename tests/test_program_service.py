@@ -470,7 +470,7 @@ def test_program_service_refuses_non_empty_outdir(
     outdir.mkdir()
     (outdir / "program.py").write_text("# existing\n")
 
-    with pytest.raises(ValueError, match="program-gen outdir is not empty"):
+    with pytest.raises(ValueError, match="program-gen outdir already exists"):
         materialize_program_from_intent(intent, outdir=outdir)
 
     assert (outdir / "program.py").read_text() == "# existing\n"

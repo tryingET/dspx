@@ -25,6 +25,7 @@ from dspx.cli.utils import (
     ensure_env,
     require_template_adapter,
     check_template_adapter_available,
+    sanitize_cli_error,
     _TEMPLATE_ADAPTER_AVAILABLE,
 )
 from dspx.tracing import enable_mlflow_from_env
@@ -1408,9 +1409,11 @@ def _policy_callback(
                 os.environ["OPENROUTER_API_KEY"] = openrouter_api_key_file.read_text(
                     encoding="utf-8"
                 ).strip()
-            except OSError as exc:
+            except (OSError, UnicodeError) as exc:
                 typer.echo(
-                    f"Error: failed to read OpenRouter API key file: {exc}", err=True
+                    "Error: failed to read OpenRouter API key file: "
+                    f"{sanitize_cli_error(exc)}",
+                    err=True,
                 )
                 raise typer.Exit(code=2) from exc
         elif openrouter_api_key_op:
@@ -1425,7 +1428,7 @@ def _policy_callback(
                 check=False,
             )
             if p.returncode != 0:
-                msg = (p.stderr or "").strip() or "op read failed"
+                msg = sanitize_cli_error((p.stderr or "").strip() or "op read failed")
                 typer.echo(msg, err=True)
                 raise typer.Exit(code=p.returncode)
             os.environ["OPENROUTER_API_KEY"] = (p.stdout or "").strip()
