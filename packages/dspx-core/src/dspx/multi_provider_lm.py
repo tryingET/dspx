@@ -115,9 +115,9 @@ def _materialize_messages(
 
 def _safe_diagnostic_text(value: object, *, fallback: str = "error") -> str:
     try:
-        from dspx.provider_runtime import _sanitize_text
+        from dspx.redaction import sanitize_diagnostic_text
 
-        return _sanitize_text(str(value))
+        return sanitize_diagnostic_text(str(value))
     except Exception:  # pragma: no cover - sanitizer fallback only
         return fallback
 

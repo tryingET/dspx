@@ -60,6 +60,23 @@ def test_docs_globs_match_direct_and_deep_markdown() -> None:
     assert reasons == [["matched docs/*.md"], ["matched docs/**/*.md"]]
 
 
+def test_redaction_boundary_selects_provider_runtime_checks() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/redaction.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_provider_runtime",
+    ]
+    classification = plan["classifications"][0]
+    assert classification["category"] == "provider_boundary"
+    assert classification["reasons"] == [
+        "matched packages/dspx-core/src/dspx/redaction.py"
+    ]
+
+
 def test_program_generation_spine_selects_expanded_adjacent_checks() -> None:
     plan = _plan("packages/dspx-core/src/dspx/services/program_service.py")
 

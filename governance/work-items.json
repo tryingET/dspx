@@ -3169,6 +3169,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-25"
+        },
+        {
+          "id": "AK-TASK-3402",
+          "title": "Close redaction boundary sanitizer debt",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Close redaction boundary sanitizer debt (task #3402)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

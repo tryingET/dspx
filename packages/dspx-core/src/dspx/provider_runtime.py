@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import statistics
 import time
 from collections.abc import Mapping as MappingABC
@@ -8,7 +7,7 @@ from typing import Any, Sequence
 
 from dspx.dtos import LMRequest
 from dspx.provider_registry import create, ensure_default_providers
-from dspx.redaction import redact_headers, redact_url
+from dspx.redaction import redact_headers, redact_url, sanitize_diagnostic_text
 
 _MAX_PREVIEW_CHARS = 320
 _MAX_COLLECTION_ITEMS = 20
@@ -32,15 +31,6 @@ _SENSITIVE_FIELD_SUFFIXES = (
     "_secret",
     "_token",
 )
-_URL_RE = re.compile(r"https?://[^\s'\"<>]+", re.IGNORECASE)
-_BEARER_RE = re.compile(r"(?i)\b(bearer\s+)([^\s,;]+)")
-_AUTH_HEADER_RE = re.compile(r"(?i)\b(authorization\s*:\s*bearer\s+)([^\s,;]+)")
-_SECRET_ASSIGNMENT_RE = re.compile(
-    r"(?i)\b((?:api[-_]?key|access[-_]?token|token|secret|password)\s*[=:]\s*)([^\s,;]+)"
-)
-_JSON_SECRET_RE = re.compile(
-    r'(?i)("(?:api[-_]?key|access[-_]?token|token|secret|password|authorization)"\s*:\s*")([^"]+)(")'
-)
 
 
 def _looks_sensitive_field(name: str) -> bool:
@@ -57,13 +47,7 @@ def _truncate_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
 
 
 def _sanitize_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
-    sanitized = str(text or "")
-    sanitized = _URL_RE.sub(lambda m: redact_url(m.group(0)), sanitized)
-    sanitized = _AUTH_HEADER_RE.sub(r"\1[REDACTED]", sanitized)
-    sanitized = _JSON_SECRET_RE.sub(r"\1[REDACTED]\3", sanitized)
-    sanitized = _SECRET_ASSIGNMENT_RE.sub(r"\1[REDACTED]", sanitized)
-    sanitized = _BEARER_RE.sub(r"\1[REDACTED]", sanitized)
-    return _truncate_text(sanitized, limit=limit)
+    return sanitize_diagnostic_text(text, limit=limit)
 
 
 def _sanitize_mapping(value: MappingABC[str, Any]) -> dict[str, Any]:

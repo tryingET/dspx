@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-25T08:28:25.636562087+00:00",
+  "task_id": 3402,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/multi_provider_lm.py",
+      "packages/dspx-core/src/dspx/provider_runtime.py",
+      "packages/dspx-core/src/dspx/redaction.py",
+      "scripts/ci/verification-impact.yml",
+      "tests/test_multi_provider_parallel_semantics.py",
+      "tests/test_redaction.py",
+      "tests/test_verify_changed.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/multi_provider_lm.py",
+      "packages/dspx-core/src/dspx/redaction.py",
+      "scripts/ci/verification-impact.yml",
+      "tests/test_redaction.py",
+      "tests/test_verify_changed.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
