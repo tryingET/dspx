@@ -103,6 +103,55 @@ def test_required_query_param_validation(tmp_path: Path) -> None:
         )
 
 
+def test_request_body_ref_schema_validation(tmp_path: Path) -> None:
+    yml = textwrap.dedent(
+        """
+        openapi: 3.0.0
+        servers:
+          - url: http://api.example.com
+        paths:
+          /items:
+            post:
+              operationId: createItemFromRef
+              requestBody:
+                $ref: '#/components/requestBodies/CreateItem'
+              responses:
+                '200':
+                  description: ok
+        components:
+          requestBodies:
+            CreateItem:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    required: [title]
+                    properties:
+                      title:
+                        type: string
+        """
+    ).strip()
+    p = tmp_path / "spec-ref-body.yaml"
+    p.write_text(yml, encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+
+    assert ops["createItemFromRef"]["requestBody"] == {
+        "required": True,
+        "schema": {
+            "type": "object",
+            "required": ["title"],
+            "properties": {"title": {"type": "string"}},
+        },
+    }
+    with pytest.raises(ValueError):
+        call_operation(
+            OpenAPICallRequest(operation_id="createItemFromRef", body={}),
+            operation=ops["createItemFromRef"],
+            allowed_hosts={"api.example.com": True},
+        )
+
+
 def test_request_body_schema_validation(tmp_path: Path) -> None:
     yml = textwrap.dedent(
         """

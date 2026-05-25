@@ -312,7 +312,17 @@ def materialize_refinement_candidate(
         decision_record_path=decision_record_path,
     )
     next_intent = ProgramIntent.model_validate(next_intent_payload)
-    artifact = materialize_program_from_intent(next_intent, outdir=outdir)
+    source_intent = _safe_mapping(manifest.get("request")).get("intent_source")
+    intent_source_path = (
+        Path(str(source_intent)).expanduser().resolve()
+        if isinstance(source_intent, str) and source_intent.strip()
+        else None
+    )
+    artifact = materialize_program_from_intent(
+        next_intent,
+        outdir=outdir,
+        intent_source=intent_source_path,
+    )
     candidate_manifest_path = Path(artifact.root_path) / "manifest.json"
     return {
         "schema_version": PROGRAM_REFINEMENT_CANDIDATE_RESULT_SCHEMA,

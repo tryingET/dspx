@@ -7,6 +7,7 @@ from typing import Literal
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
+from dspx.oracle_time_travel import bisect_branch, load_receipt_records
 from dspx.run_receipts import build_run_receipt, write_run_receipt
 
 
@@ -116,6 +117,50 @@ def _seed_time_travel_receipts(root: Path) -> None:
     )
 
 
+def test_oracle_index_since_compares_timezone_instants(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    _write_receipt(
+        tmp_path,
+        output_name="after.py",
+        run_id="after-boundary",
+        created_at="2023-12-31T20:00:00-05:00",
+        run_kind="module-gen",
+        outcome="success",
+    )
+    _write_receipt(
+        tmp_path,
+        output_name="before.py",
+        run_id="before-boundary",
+        created_at="2023-12-31T18:00:00-05:00",
+        run_kind="module-gen",
+        outcome="success",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "index",
+            "--from-receipts",
+            "--path",
+            str(tmp_path),
+            "--index-path",
+            str(tmp_path / "coordinates.db"),
+            "--since",
+            "2024-01-01T00:00:00Z",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["scanned"] == 2
+    assert payload["indexed"] == 1
+    assert payload["skipped"] == 1
+
+
 def test_oracle_branch_lists_behavioral_branches(tmp_path: Path) -> None:
     _seed_time_travel_receipts(tmp_path)
 
@@ -173,6 +218,19 @@ def test_oracle_branch_falls_back_to_main_when_branch_metadata_absent(
     assert [run["run_id"] for run in payload["runs"]] == ["root-001", "main-002"]
     assert payload["runs"][1]["parent_run_id"] == "root-001"
     assert payload["runs"][1]["lineage_ids"] == ["root-001"]
+
+
+def test_oracle_bisect_accepts_single_pass_iterables(tmp_path: Path) -> None:
+    _seed_time_travel_receipts(tmp_path)
+
+    payload = bisect_branch(
+        (record for record in load_receipt_records(tmp_path)),
+        "feature-a",
+    )
+
+    assert payload["status"] == "boundary_found"
+    assert payload["method"] == "causal_chain"
+    assert payload["candidate_window"] == ["feature-a-001", "feature-a-002"]
 
 
 def test_oracle_diff_compares_branch_lineage(tmp_path: Path) -> None:

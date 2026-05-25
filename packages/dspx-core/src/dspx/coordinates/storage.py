@@ -261,11 +261,12 @@ class CoordinateIndex:
         self.db_path = Path(db_path) if db_path else get_default_index_path()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
-        # BUG 18 FIX: Check schema version
+        # BUG 18 FIX: Check schema version before creating indexes on migrated columns.
         self._check_schema_version(auto_migrate=auto_migrate)
+        self._ensure_indexes()
 
     def _init_db(self) -> None:
-        """Initialize database schema."""
+        """Initialize database schema without masking older on-disk versions."""
         with self._conn() as conn:
             conn.executescript(
                 """
@@ -286,6 +287,33 @@ class CoordinateIndex:
                     embedding_version INTEGER NOT NULL DEFAULT 1
                 );
 
+                CREATE TABLE IF NOT EXISTS index_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                );
+                """
+            )
+            row = conn.execute(
+                "SELECT value FROM index_meta WHERE key = 'schema_version'"
+            ).fetchone()
+            if row is None:
+                columns = {
+                    str(column[1])
+                    for column in conn.execute("PRAGMA table_info(coordinates)")
+                }
+                initial_version = (
+                    SCHEMA_VERSION if "embedding_version" in columns else 1
+                )
+                conn.execute(
+                    "INSERT INTO index_meta (key, value) VALUES (?, ?)",
+                    ("schema_version", str(initial_version)),
+                )
+
+    def _ensure_indexes(self) -> None:
+        """Create indexes after any required schema migration has completed."""
+        with self._conn() as conn:
+            conn.executescript(
+                """
                 CREATE INDEX IF NOT EXISTS idx_coordinates_run_kind
                     ON coordinates(run_kind);
                 CREATE INDEX IF NOT EXISTS idx_coordinates_provider
@@ -296,17 +324,7 @@ class CoordinateIndex:
                     ON coordinates(indexed_at);
                 CREATE INDEX IF NOT EXISTS idx_coordinates_embedding_version
                     ON coordinates(embedding_version);
-
-                CREATE TABLE IF NOT EXISTS index_meta (
-                    key TEXT PRIMARY KEY,
-                    value TEXT
-                );
                 """
-            )
-            # Set schema version (idempotent)
-            conn.execute(
-                "INSERT OR REPLACE INTO index_meta (key, value) VALUES (?, ?)",
-                ("schema_version", str(SCHEMA_VERSION)),
             )
 
     def _check_schema_version(self, *, auto_migrate: bool) -> None:
@@ -918,37 +936,38 @@ def parse_since(since_str: str) -> datetime:
     Raises:
         ParseSinceError: If the string cannot be parsed
     """
-    since_str = since_str.strip().lower()
+    original_since_str = since_str.strip()
+    since_str_lower = original_since_str.lower()
 
-    if not since_str:
+    if not original_since_str:
         raise ParseSinceError("Empty since string")
 
     try:
-        if since_str.endswith("d"):
-            days = int(since_str[:-1])
+        if since_str_lower.endswith("d"):
+            days = int(original_since_str[:-1])
             return datetime.now(timezone.utc) - timedelta(days=days)
-        elif since_str.endswith("h"):
-            hours = int(since_str[:-1])
+        elif since_str_lower.endswith("h"):
+            hours = int(original_since_str[:-1])
             return datetime.now(timezone.utc) - timedelta(hours=hours)
-        elif since_str.endswith("w"):
-            weeks = int(since_str[:-1])
+        elif since_str_lower.endswith("w"):
+            weeks = int(original_since_str[:-1])
             return datetime.now(timezone.utc) - timedelta(weeks=weeks)
-        elif since_str.endswith("m"):
-            minutes = int(since_str[:-1])
+        elif since_str_lower.endswith("m"):
+            minutes = int(original_since_str[:-1])
             return datetime.now(timezone.utc) - timedelta(minutes=minutes)
         else:
-            # Try parsing as ISO date
+            # Try parsing as ISO date while preserving case-sensitive T/Z separators.
             try:
-                dt = datetime.fromisoformat(since_str)
+                dt = datetime.fromisoformat(original_since_str.replace("Z", "+00:00"))
                 # Ensure timezone-aware
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=timezone.utc)
                 return dt
             except ValueError:
                 raise ParseSinceError(
-                    f"Invalid since string '{since_str}'. "
+                    f"Invalid since string '{original_since_str}'. "
                     f"Expected format: NNd, NNh, NNw, NNm (e.g., '30d', '24h') "
                     f"or ISO 8601 date (e.g., '2024-01-15', '2024-01-15T10:00:00Z')"
                 )
     except (ValueError, TypeError) as e:
-        raise ParseSinceError(f"Invalid since string '{since_str}': {e}")
+        raise ParseSinceError(f"Invalid since string '{original_since_str}': {e}")

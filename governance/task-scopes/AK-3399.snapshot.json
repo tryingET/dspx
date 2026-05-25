@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-25T07:19:01.247608262+00:00",
+  "task_id": 3399,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/commands/oracle.py",
+      "packages/dspx-core/src/dspx/coordinates/storage.py",
+      "packages/dspx-core/src/dspx/multi_provider_lm.py",
+      "packages/dspx-core/src/dspx/openrouter_lm.py",
+      "packages/dspx-core/src/dspx/oracle_time_travel.py",
+      "packages/dspx-core/src/dspx/services/program_promotion.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_candidate.py",
+      "packages/dspx-core/src/dspx/services/program_service.py",
+      "packages/dspx-core/src/dspx/tools/openapi/loader.py",
+      "scripts/ci/verification-impact.yml",
+      "scripts/ci/verify_changed.py",
+      "tests/test_coordinates.py",
+      "tests/test_multi_provider_parallel_semantics.py",
+      "tests/test_openapi_yaml_and_validation.py",
+      "tests/test_openrouter_provider_unit.py",
+      "tests/test_oracle_time_travel_cli.py",
+      "tests/test_program_dataset_splits.py",
+      "tests/test_program_refinement_candidate.py",
+      "tests/test_verify_changed.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/multi_provider_lm.py",
+      "scripts/ci/verify_changed.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

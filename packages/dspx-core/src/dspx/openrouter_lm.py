@@ -249,7 +249,7 @@ class OpenRouterLM(DSPyBaseLM):
 
         t0 = time.time()
         r = client.post(
-            "/chat/completions",
+            f"{self.base_url.rstrip('/')}/chat/completions",
             headers=self._headers(),
             json=self._request_payload(messages=msgs, kwargs=dict(kwargs)),
             timeout=float(kwargs.get("timeout", self.timeout)),

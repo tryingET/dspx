@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 import pytest
 
 from dspx.openrouter_lm import OpenRouterLM, _extract_text
@@ -23,3 +24,24 @@ def test_openrouter_forward_requires_api_key() -> None:
     lm = OpenRouterLM(api_key=None, client=None, strict=True)
     with pytest.raises(RuntimeError):
         lm.forward(prompt="hi")
+
+
+def test_openrouter_injected_client_does_not_require_preconfigured_base_url() -> None:
+    seen_urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_urls.append(str(request.url))
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "ok"}}]},
+        )
+
+    lm = OpenRouterLM(
+        api_key="test-key",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = lm.forward(prompt="hi")
+
+    assert result.choices[0]["text"] == "ok"
+    assert seen_urls == ["https://openrouter.ai/api/v1/chat/completions"]

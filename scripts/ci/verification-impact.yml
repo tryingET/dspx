@@ -3,6 +3,13 @@ thresholds:
   max_changed_files_before_wide: 20
   max_impact_groups_before_wide: 3
 rules:
+  - match: "docs/*.md"
+    category: docs
+    impact_group: docs
+    risk: docs_only
+    commands:
+      - docs_strict
+
   - match: "docs/**/*.md"
     category: docs
     impact_group: docs

@@ -43,6 +43,23 @@ class _SyncProvider:
         return SimpleNamespace(choices=[{"text": self.model}])
 
 
+class _FailingProvider:
+    model = "failing"
+
+    def forward(self, prompt=None, messages=None):
+        raise RuntimeError("provider boom")
+
+
+class _SecretFailingProvider:
+    model = "secret-failing"
+
+    def forward(self, prompt=None, messages=None):
+        raise RuntimeError(
+            "api_key=supersecret Authorization: Bearer bearer-secret "
+            "https://user:pass@example.test/path?token=url-secret&ok=1"
+        )
+
+
 class _AsyncProviderNoPopen:
     def __init__(self, model: str) -> None:
         self.model = model
@@ -182,6 +199,42 @@ def test_collect_concat_materializes_messages_for_all_providers() -> None:
 
     assert left.seen_messages == [source_messages]
     assert right.seen_messages == [source_messages]
+
+
+def test_generate_fails_closed_when_all_providers_fail() -> None:
+    lm = MultiProviderLM([_FailingProvider()], names=["bad"])
+
+    try:
+        lm.forward(prompt="hello")
+    except RuntimeError as exc:
+        assert "All providers failed" in str(exc)
+    else:  # pragma: no cover - defensive assertion clarity
+        raise AssertionError("forward should fail closed")
+
+    try:
+        lm.generate(LMRequest(prompt="hello"))
+    except RuntimeError as exc:
+        assert "All providers failed" in str(exc)
+        assert "provider boom" in str(exc)
+    else:  # pragma: no cover - defensive assertion clarity
+        raise AssertionError("generate should fail closed")
+
+
+def test_all_provider_failure_errors_are_redacted() -> None:
+    lm = MultiProviderLM([_SecretFailingProvider()], names=["bad"])
+
+    try:
+        lm.forward(prompt="hello")
+    except RuntimeError as exc:
+        text = str(exc)
+        assert "All providers failed" in text
+        assert "[REDACTED]" in text
+        assert "supersecret" not in text
+        assert "bearer-secret" not in text
+        assert "url-secret" not in text
+        assert "user:pass" not in text
+    else:  # pragma: no cover - defensive assertion clarity
+        raise AssertionError("forward should fail closed")
 
 
 def test_generate_preserves_message_history_for_generate_only_providers() -> None:

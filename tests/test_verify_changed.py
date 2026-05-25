@@ -45,6 +45,19 @@ def test_docs_only_change_selects_docs_strict_without_full_verification() -> Non
     assert _command_ids(plan) == ["docs_strict"]
 
 
+def test_docs_globs_match_direct_and_deep_markdown() -> None:
+    plan = _plan("docs/ARCHITECTURE.md", "docs/project/nested/deep.md")
+
+    assert plan["risk"] == "docs_only"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == ["docs_strict"]
+    reasons = [
+        classification["reasons"]
+        for classification in plan["classifications"]  # type: ignore[index]
+    ]
+    assert reasons == [["matched docs/*.md"], ["matched docs/**/*.md"]]
+
+
 def test_program_generation_spine_selects_expanded_adjacent_checks() -> None:
     plan = _plan("packages/dspx-core/src/dspx/services/program_service.py")
 
@@ -92,6 +105,16 @@ def test_refinement_comparison_and_test_change_deduplicate_commands() -> None:
     assert command_ids.count("ruff_touched") == 1
     assert command_ids.count("pytest_refinement_candidate_comparison") == 1
     assert "pytest_touched" in command_ids
+
+
+def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
+    plan = _plan("scripts/ci/nested/helper.py")
+
+    assert plan["risk"] == "wide"
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    classification = plan["classifications"][0]  # type: ignore[index]
+    assert classification["category"] == "ci"
+    assert classification["reasons"] == ["matched scripts/ci/**"]
 
 
 def test_unknown_file_fails_wide() -> None:

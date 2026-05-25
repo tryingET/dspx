@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -374,6 +375,48 @@ class TestCoordinateIndex:
         CoordinateIndex(db_path=temp_db)
         assert temp_db.exists()
 
+    def test_v1_sqlite_store_migrates_before_embedding_version_index(
+        self, tmp_path: Path
+    ) -> None:
+        db_path = tmp_path / "coordinates-v1.db"
+        conn = sqlite3.connect(db_path)
+        conn.executescript(
+            """
+            CREATE TABLE coordinates (
+                run_id TEXT PRIMARY KEY,
+                vector_json TEXT NOT NULL,
+                input_text TEXT,
+                output_text TEXT,
+                config_text TEXT,
+                run_kind TEXT,
+                provider TEXT,
+                template_version TEXT,
+                created_at TEXT,
+                dimension INTEGER NOT NULL,
+                source_path TEXT,
+                metadata_json TEXT,
+                indexed_at TEXT NOT NULL
+            );
+            CREATE TABLE index_meta (key TEXT PRIMARY KEY, value TEXT);
+            INSERT INTO index_meta VALUES ('schema_version', '1');
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        index = CoordinateIndex(db_path=db_path)
+
+        assert index.stats()["total"] == 0
+        with sqlite3.connect(db_path) as check_conn:
+            columns = {
+                row[1] for row in check_conn.execute("PRAGMA table_info(coordinates)")
+            }
+            schema_version = check_conn.execute(
+                "SELECT value FROM index_meta WHERE key = 'schema_version'"
+            ).fetchone()[0]
+        assert "embedding_version" in columns
+        assert schema_version == "2"
+
     def test_coordinate_index_satisfies_store_protocol(
         self, index: CoordinateIndex
     ) -> None:
@@ -607,6 +650,11 @@ class TestParseSince:
         since = parse_since("1w")
         expected = datetime.now(timezone.utc) - timedelta(weeks=1)
         assert abs((since - expected).total_seconds()) < 60
+
+    def test_parse_iso_preserves_uppercase_utc_designator(self) -> None:
+        since = parse_since("2024-01-15T10:00:00Z")
+
+        assert since == datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
 
     def test_parse_invalid_raises(self) -> None:
         """BUG 14 FIX: Invalid since string raises ParseSinceError."""

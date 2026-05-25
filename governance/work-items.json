@@ -3143,6 +3143,18 @@
           ],
           "dod": "Task reaches done in society.db with evidence recorded.",
           "completed_at": "2026-05-25"
+        },
+        {
+          "id": "AK-TASK-3399",
+          "title": "Fix deep review nexus boundary findings",
+          "state": "doing",
+          "tasks": [
+            {
+              "text": "Fix deep review nexus boundary findings (task #3399)",
+              "done": false
+            }
+          ],
+          "dod": "Task reaches done in society.db with evidence recorded."
         }
       ]
     }

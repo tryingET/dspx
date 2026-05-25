@@ -265,6 +265,7 @@ def bisect_branch(
     *,
     bad_outcomes: Iterable[str] = ("failure", "partial"),
 ) -> dict[str, Any]:
+    records = list(records)
     branch_records = branch_timeline(records, branch)
     if not branch_records:
         raise ValueError(f"Unknown branch: {branch}")

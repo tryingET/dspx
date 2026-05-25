@@ -1585,12 +1585,20 @@ def _materialize_program_from_intent_unchecked(
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
     jury_rubric = build_jury_rubric(intent, jury_selection)
+    behavior_artifact_refs: list[str] = []
+    if examples_payload:
+        behavior_artifact_refs.append("behavior_results.json")
+    if has_program_dataset(intent):
+        behavior_artifact_refs.extend(
+            f"behavior_results.{split}.json" for split in SPLIT_NAMES
+        )
     promotion_review = build_promotion_review(
         intent,
         has_examples=bool(examples_payload),
         jury_selection=jury_selection,
         jury_rubric=jury_rubric,
-        has_behavior_results=bool(examples_payload),
+        has_behavior_results=bool(behavior_artifact_refs),
+        behavior_artifact_refs=behavior_artifact_refs,
     )
     promotion_adjudication_request = build_promotion_adjudication_request(
         promotion_review

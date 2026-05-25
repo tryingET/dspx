@@ -113,6 +113,30 @@ def _materialize_messages(
     return materialized
 
 
+def _safe_diagnostic_text(value: object, *, fallback: str = "error") -> str:
+    try:
+        from dspx.provider_runtime import _sanitize_text
+
+        return _sanitize_text(str(value))
+    except Exception:  # pragma: no cover - sanitizer fallback only
+        return fallback
+
+
+def _safe_error_text(error: Exception) -> str:
+    return _safe_diagnostic_text(error, fallback=type(error).__name__)
+
+
+def _raise_if_all_failed(results: Sequence[ProviderResult]) -> None:
+    """Fail closed when every attempted provider returned an error."""
+    if results and all(result.error is not None for result in results):
+        summary = "; ".join(
+            f"{_safe_diagnostic_text(result.name, fallback='provider')}: {_safe_error_text(result.error)}"
+            for result in results
+            if result.error is not None
+        )
+        raise RuntimeError(f"All providers failed: {summary}")
+
+
 def _build_lm_request_messages(
     messages: Optional[Iterable[Dict[str, Any]]],
 ) -> Optional[List[Any]]:
@@ -351,12 +375,7 @@ class MultiProviderLM(DSPyBaseLM):
 
         # If every provider failed, raise an aggregated error instead of
         # returning an empty-string completion that masquerades as success.
-        all_failed = results and all(r.error is not None for r in results)
-        if all_failed:
-            summary = "; ".join(
-                f"{r.name}: {r.error}" for r in results if r.error is not None
-            )
-            raise RuntimeError(f"All providers failed: {summary}")
+        _raise_if_all_failed(results)
 
         text = self._reduce_text(results)
         return _MinimalResponse(
@@ -383,6 +402,7 @@ class MultiProviderLM(DSPyBaseLM):
 
         results = self._run_all(prompt=prompt, messages=messages)
         self.last_results = list(results)
+        _raise_if_all_failed(results)
         text = self._reduce_text(results)
         raw = {
             self.names[i] if i < len(self.names) else str(i): {

@@ -295,6 +295,22 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         is False
     )
     assert manifest["program_promotion_review"]["promotion_state"] == "not_promoted"
+    promotion_review = manifest["program_promotion_review"]
+    assert (
+        "no_behavioral_evaluation_episode"
+        not in promotion_review["blocking_conditions"]
+    )
+    behavior_requirement = next(
+        requirement
+        for requirement in promotion_review["evidence_requirements"]
+        if requirement["name"] == "behavioral_evaluation_episode"
+    )
+    assert behavior_requirement["status"] == "satisfied_by_current_behavior_episode"
+    assert behavior_requirement["artifact_refs"] == [
+        "behavior_results.train.json",
+        "behavior_results.validation.json",
+        "behavior_results.test.json",
+    ]
     assert receipt["run_summary"]["dataset_manifest_hash"] == dataset_manifest_hash
     assert receipt["program_dataset_manifest"] == dataset
     assert (

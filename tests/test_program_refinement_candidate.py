@@ -20,7 +20,11 @@ from dspx.services.program_promotion_refinement import (
     build_program_promotion_refinement,
 )
 from dspx.services.program_refinement import build_program_refinement_proposal
-from dspx.services.program_service import materialize_program_from_intent
+from dspx.services.program_refinement_candidate import materialize_refinement_candidate
+from dspx.services.program_service import (
+    materialize_program_from_intent,
+    run_generate_from_intent_path,
+)
 
 runner = CliRunner()
 
@@ -106,6 +110,109 @@ def _materialize_refinement_decision_path(
     decision_path = tmp_path / "promotion" / "promotion_decision_record.json"
     write_program_promotion_decision_record(decision, decision_path)
     return program_root, proposal_path, decision_path
+
+
+def test_program_refine_generate_candidate_preserves_intent_relative_dataset_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    case_dir = tmp_path / "case"
+    data_path = case_dir / "data" / "tickets.jsonl"
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "inputs": {"ticket_text": "server down"},
+            "outputs": {"urgency": "high"},
+        },
+        {
+            "inputs": {"ticket_text": "password reset"},
+            "outputs": {"urgency": "low"},
+        },
+    ]
+    data_path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    intent_path = case_dir / "intent.json"
+    _write_json(
+        intent_path,
+        {
+            "schema_version": "program-intent-v2",
+            "name": "RelativeDatasetProgram",
+            "objective": "Classify support ticket urgency.",
+            "inputs": ["ticket_text"],
+            "outputs": ["urgency"],
+            "metric": "exact_match",
+            "constraints": ["use only the supplied ticket text"],
+            "dataset": {
+                "path": "data/tickets.jsonl",
+                "input_fields": ["ticket_text"],
+                "output_fields": ["urgency"],
+                "split": {
+                    "strategy": "ratio",
+                    "train": 0.5,
+                    "validation": 0.0,
+                    "test": 0.5,
+                    "seed": 7,
+                },
+            },
+        },
+    )
+
+    artifact = run_generate_from_intent_path(intent_path, outdir=tmp_path / "program")
+    program_root = Path(artifact.root_path)
+    index_path = tmp_path / "oracle" / "coordinates.db"
+    assert (
+        index_program_oracle_evidence_path(
+            program_root,
+            index_path=index_path,
+        )["indexed"]
+        == 1
+    )
+    report = build_program_oracle_evidence_report(index_path=index_path)
+    report_path = tmp_path / "oracle" / "program-evidence-report.json"
+    _write_json(report_path, report)
+    proposal = build_program_refinement_proposal(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+    )
+    proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
+    _write_json(proposal_path, proposal)
+    refined_review = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    review_path = tmp_path / "promotion" / "promotion_review_refined.json"
+    _write_json(review_path, refined_review)
+    decision = build_program_promotion_decision_record(
+        refined_review_path=review_path,
+        outcome="request_more_evidence",
+        decided_by="local_operator",
+        rationale="Generate one bounded second candidate for the observed mismatch.",
+    )
+    decision_path = tmp_path / "promotion" / "promotion_decision_record.json"
+    write_program_promotion_decision_record(decision, decision_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    result = materialize_refinement_candidate(
+        manifest_path=program_root / "manifest.json",
+        refinement_proposal_path=proposal_path,
+        decision_record_path=decision_path,
+        outdir=tmp_path / "program-v2-relative-dataset",
+    )
+
+    candidate_root = Path(result["candidate"]["root_path"])
+    candidate_manifest = json.loads(
+        (candidate_root / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert candidate_manifest["request"]["intent_source"] == str(intent_path.resolve())
+    assert candidate_manifest["dataset_manifest"]["source"]["content_hash"] == (
+        hashlib.sha256(data_path.read_bytes()).hexdigest()
+    )
 
 
 def test_program_refine_generate_candidate_cli_materializes_second_candidate_locally(

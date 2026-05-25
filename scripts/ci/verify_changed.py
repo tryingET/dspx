@@ -9,13 +9,14 @@ full verification gate.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -255,7 +256,36 @@ def load_impact_map(path: Path = DEFAULT_MAP) -> dict[str, Any]:
 
 
 def _matches(pattern: str, path: str) -> bool:
-    return PurePosixPath(path).match(pattern)
+    """Slash-aware glob matcher for impact-map paths.
+
+    ``pathlib.PurePath.match`` and ``fnmatch`` each disagree with one part of the
+    impact-map contract: ``PurePath.match('docs/**/*.md')`` misses direct docs
+    files, while ``fnmatch`` lets ``*`` cross ``/``. Match segment-by-segment so
+    ``*`` stays within one path segment and ``**`` means zero or more segments.
+    """
+
+    pattern_parts = [part for part in pattern.replace("\\", "/").split("/") if part]
+    path_parts = [part for part in path.replace("\\", "/").split("/") if part]
+
+    def match_from(pattern_index: int, path_index: int) -> bool:
+        if pattern_index == len(pattern_parts):
+            return path_index == len(path_parts)
+        part = pattern_parts[pattern_index]
+        if part == "**":
+            if pattern_index == len(pattern_parts) - 1:
+                return True
+            return any(
+                match_from(pattern_index + 1, next_path_index)
+                for next_path_index in range(path_index + 1, len(path_parts) + 1)
+            )
+        if path_index >= len(path_parts):
+            return False
+        return fnmatch.fnmatchcase(path_parts[path_index], part) and match_from(
+            pattern_index + 1,
+            path_index + 1,
+        )
+
+    return match_from(0, 0)
 
 
 def _risk_max(risks: list[str]) -> str:

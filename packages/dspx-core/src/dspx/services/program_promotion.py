@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 PROMOTION_ADJUDICATOR_DEFAULT_IDS = {
     "human_operator": "local_operator",
@@ -116,9 +116,13 @@ def build_promotion_review(
     jury_selection: Mapping[str, Any],
     jury_rubric: Mapping[str, Any],
     has_behavior_results: bool = False,
+    behavior_artifact_refs: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Build a local non-authoritative promotion/review shell."""
 
+    behavior_refs = list(behavior_artifact_refs or [])
+    if has_behavior_results and not behavior_refs:
+        behavior_refs = ["behavior_results.json"]
     adjudicator = promotion_adjudicator(intent)
     policy = promotion_policy(intent)
     external_authority = promotion_external_authority(intent)
@@ -157,7 +161,7 @@ def build_promotion_review(
         {
             "name": "behavioral_evaluation_episode",
             "status": behavior_status,
-            "artifact_refs": ["behavior_results.json"] if has_behavior_results else [],
+            "artifact_refs": behavior_refs if has_behavior_results else [],
         },
         {
             "name": "model_jury_execution_episode",
@@ -212,9 +216,8 @@ def build_promotion_review(
             "smoke_harness": "eval_smoke.py",
             "jury_harness": "eval_jury.py",
             "examples_binding": has_examples,
-            "behavior_results": "behavior_results.json"
-            if has_behavior_results
-            else None,
+            "behavior_results": behavior_refs[0] if behavior_refs else None,
+            "behavior_result_artifacts": behavior_refs,
         },
         "non_authority": {
             "program_gen_materialization": "evidence_only",

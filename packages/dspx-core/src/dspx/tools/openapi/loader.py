@@ -4,7 +4,7 @@ import json
 from typing import Any, Dict, Mapping, Optional
 from .models import OpenAPIOperationInfo
 import os
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 import httpx
 
 from dspx.http_guard import host_allowed, send_with_host_allowlist
@@ -134,6 +134,19 @@ def load_spec(
     return _load_text(text, path)
 
 
+def _resolve_local_ref(ref: str, spec: Mapping[str, Any]) -> Any:
+    """Resolve a local JSON pointer reference from an OpenAPI document."""
+    if not ref.startswith("#/"):
+        return None
+    current: Any = spec
+    for raw_part in ref[2:].split("/"):
+        part = unquote(raw_part.replace("~1", "/").replace("~0", "~"))
+        if not isinstance(current, Mapping) or part not in current:
+            return None
+        current = current[part]
+    return current
+
+
 def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Extract operations keyed by operationId with basic metadata.
 
@@ -214,6 +227,10 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
             req_body = None
             if isinstance(op.get("requestBody"), dict):
                 rb = op["requestBody"]
+                if "$ref" in rb and isinstance(rb.get("$ref"), str):
+                    resolved = _resolve_local_ref(str(rb["$ref"]), spec)
+                    if isinstance(resolved, dict):
+                        rb = resolved
                 schema = None
                 try:
                     content = rb.get("content") or {}

@@ -681,8 +681,12 @@ def oracle_index(
                         created_dt = datetime.fromisoformat(
                             created_at.replace("Z", "+00:00")
                         )
-                        if created_dt.replace(tzinfo=None) < since_dt.replace(
-                            tzinfo=None
+                        if created_dt.tzinfo is None:
+                            created_dt = created_dt.replace(tzinfo=timezone.utc)
+                        if since_dt.tzinfo is None:
+                            since_dt = since_dt.replace(tzinfo=timezone.utc)
+                        if created_dt.astimezone(timezone.utc) < since_dt.astimezone(
+                            timezone.utc
                         ):
                             skipped += 1
                             continue
