@@ -3160,14 +3160,15 @@
         {
           "id": "AK-TASK-3401",
           "title": "Close verification impact unmapped boundary debt",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Close verification impact unmapped boundary debt (task #3401)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-25"
         }
       ]
     }
