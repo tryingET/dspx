@@ -401,7 +401,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             rule_groups.append((method_key, self.config.per_path[method_key]))
         if path in self.config.per_path:
             rule_groups.append((path, self.config.per_path[path]))
-        if self.config.default:
+        if self.config.default and not rule_groups:
             rule_groups.append(("GLOBAL", self.config.default))
         if method_key in self.config.global_per_path:
             global_rule_groups.append(
@@ -409,7 +409,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
         if path in self.config.global_per_path:
             global_rule_groups.append((path, self.config.global_per_path[path]))
-        if self.config.global_default:
+        if self.config.global_default and not global_rule_groups:
             global_rule_groups.append(("GLOBAL", self.config.global_default))
         return rule_groups, global_rule_groups
 
