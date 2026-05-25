@@ -147,18 +147,21 @@ def _resolve_local_ref(ref: str, spec: Mapping[str, Any]) -> Any:
     return current
 
 
+def _first_server_url(servers: Any) -> str | None:
+    if isinstance(servers, list) and servers:
+        s0 = servers[0]
+        if isinstance(s0, dict) and "url" in s0:
+            return str(s0["url"]).rstrip("/")
+    return None
+
+
 def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Extract operations keyed by operationId with basic metadata.
 
     Returns mapping opId -> { method, path, server, parameters, requestBody, responses, tags }.
     """
     ops: Dict[str, Dict[str, Any]] = {}
-    base_server = None
-    servers = spec.get("servers")
-    if isinstance(servers, list) and servers:
-        s0 = servers[0]
-        if isinstance(s0, dict) and "url" in s0:
-            base_server = str(s0["url"]).rstrip("/")
+    base_server = _first_server_url(spec.get("servers"))
     paths = spec.get("paths") or {}
     components = spec.get("components") or {}
     comp_params = components.get("parameters") if isinstance(components, dict) else None
@@ -167,12 +170,7 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     for path, item in paths.items():
         if not isinstance(item, dict):
             continue
-        item_server = base_server
-        p_servers = item.get("servers") if isinstance(item, dict) else None
-        if isinstance(p_servers, list) and p_servers:
-            s0 = p_servers[0]
-            if isinstance(s0, dict) and "url" in s0:
-                item_server = str(s0["url"]).rstrip("/")
+        item_server = _first_server_url(item.get("servers")) or base_server
         # Path-level parameters (applies to all methods unless overridden)
         path_params = []
         if isinstance(item.get("parameters"), list):
@@ -272,10 +270,11 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                         "schema": schema,
                     }
             tags = op.get("tags") if isinstance(op.get("tags"), list) else []
+            operation_server = _first_server_url(op.get("servers")) or item_server
             ops[str(op_id)] = {
                 "method": method.upper(),
                 "path": path,
-                "server": item_server or "",
+                "server": operation_server or "",
                 "parameters": merged_params,
                 "requestBody": req_body,
                 "responses": responses,

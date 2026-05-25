@@ -171,6 +171,38 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "provider runtime boundary changed",
     ),
+    "pytest_cache_boundary": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_cache.py",
+            "tests/test_cache_cli.py",
+            "tests/test_cache_controls_cli.py",
+            "tests/test_boundary_contracts.py",
+        ],
+        "cache boundary changed",
+    ),
+    "pytest_server_security": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_server_auth.py",
+            "tests/test_server_body_size.py",
+            "tests/test_server_confirm_mutations.py",
+            "tests/test_server_rate_limit.py",
+            "tests/test_web_tools_allowlist.py",
+            "tests/test_boundary_contracts.py",
+        ],
+        "server security boundary changed",
+    ),
     "pytest_openapi_tooling": CommandSpec(
         [
             "uv",
@@ -443,10 +475,9 @@ def build_plan(
                     f"{path}: matched {rule['match']}"
                 )
 
-    thresholds = (
-        impact_map.get("thresholds")
-        if isinstance(impact_map.get("thresholds"), dict)
-        else {}
+    raw_thresholds = impact_map.get("thresholds")
+    thresholds: dict[str, Any] = (
+        raw_thresholds if isinstance(raw_thresholds, dict) else {}
     )
     max_files = int(thresholds.get("max_changed_files_before_wide", 20))
     max_groups = int(thresholds.get("max_impact_groups_before_wide", 3))
@@ -485,6 +516,8 @@ def build_plan(
         "pytest_promotion_plan_adjacent",
         "pytest_coordinates",
         "pytest_provider_runtime",
+        "pytest_cache_boundary",
+        "pytest_server_security",
         "pytest_openapi_tooling",
         "pytest_oracle_time_travel",
         "boundary_contract_check",

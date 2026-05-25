@@ -48,18 +48,48 @@ def _validate_cache_segment(value: str, *, label: str) -> str:
     return text
 
 
-def _path_for(kind: str, key: str) -> Path:
-    safe_kind = _validate_cache_segment(kind, label="kind")
-    safe_key = _validate_cache_segment(key, label="key")
+def validate_cache_segment(value: str, *, label: str) -> str:
+    """Validate one user-controlled cache path segment.
+
+    Cache kinds and keys are intentionally single path segments. Public CLI
+    surfaces must use this helper family instead of joining raw user input onto
+    ``cache_dir()``.
+    """
+
+    return _validate_cache_segment(value, label=label)
+
+
+def cache_kind_dir(kind: str, *, create: bool = False) -> Path:
+    """Return a validated cache kind directory inside ``cache_dir()``."""
+
+    safe_kind = validate_cache_segment(kind, label="kind")
     root = cache_dir().resolve()
     base = (root / safe_kind).resolve()
+    try:
+        base.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("cache path escapes DSPX_CACHE_DIR") from exc
+    if create:
+        base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def cache_entry_path(kind: str, key: str, *, create_dir: bool = False) -> Path:
+    """Return a validated cache entry path inside ``cache_dir()``."""
+
+    safe_key = validate_cache_segment(key, label="key")
+    base = cache_kind_dir(kind, create=create_dir)
+    root = cache_dir().resolve()
     path = (base / f"{safe_key}.json").resolve()
     try:
         path.relative_to(root)
     except ValueError as exc:
         raise ValueError("cache path escapes DSPX_CACHE_DIR") from exc
-    base.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _path_for(kind: str, key: str) -> Path:
+    return cache_entry_path(kind, key, create_dir=True)
 
 
 def read(kind: str, key: str) -> Optional[Dict[str, Any]]:

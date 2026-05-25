@@ -205,7 +205,19 @@ def check_provider_health(
 
     health_fn = getattr(lm, "healthcheck", None)
     if callable(health_fn):
-        raw_payload = health_fn(probe=probe, prompt=prompt, max_tokens=max_tokens)
+        try:
+            raw_payload = health_fn(probe=probe, prompt=prompt, max_tokens=max_tokens)
+        except Exception as e:
+            return _sanitize_payload(
+                {
+                    "ok": False,
+                    "provider": provider,
+                    "status": "error",
+                    "error": _sanitize_text(str(e)),
+                    "duration_ms": round((time.time() - started) * 1000.0, 3),
+                    "metadata": provider_metadata_from_instance(provider, lm),
+                }
+            )
         payload: dict[str, Any] = (
             dict(raw_payload)
             if isinstance(raw_payload, MappingABC)

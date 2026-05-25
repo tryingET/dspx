@@ -391,44 +391,48 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return ("ip:" + chain[0], "ip")
         return ("ip:" + host, "ip")
 
-    def _rules_for(self, method: str, path: str) -> Tuple[List[Rate], List[Rate]]:
-        rules: List[Rate] = []
-        grules: List[Rate] = []
-        # Method-specific path first
-        key = f"{method.upper()} {path}"
-        if key in self.config.per_path:
-            rules.extend(self.config.per_path[key])
-        if key in self.config.global_per_path:
-            grules.extend(self.config.global_per_path[key])
-        # Generic path
+    def _rule_groups(
+        self, method: str, path: str
+    ) -> Tuple[List[Tuple[str, List[Rate]]], List[Tuple[str, List[Rate]]]]:
+        rule_groups: List[Tuple[str, List[Rate]]] = []
+        global_rule_groups: List[Tuple[str, List[Rate]]] = []
+        method_key = f"{method.upper()} {path}"
+        if method_key in self.config.per_path:
+            rule_groups.append((method_key, self.config.per_path[method_key]))
         if path in self.config.per_path:
-            rules.extend(self.config.per_path[path])
-        if path in self.config.global_per_path:
-            grules.extend(self.config.global_per_path[path])
-        # Default
+            rule_groups.append((path, self.config.per_path[path]))
         if self.config.default:
-            rules.extend(self.config.default)
+            rule_groups.append(("GLOBAL", self.config.default))
+        if method_key in self.config.global_per_path:
+            global_rule_groups.append(
+                (method_key, self.config.global_per_path[method_key])
+            )
+        if path in self.config.global_per_path:
+            global_rule_groups.append((path, self.config.global_per_path[path]))
         if self.config.global_default:
-            grules.extend(self.config.global_default)
-        return rules, grules
+            global_rule_groups.append(("GLOBAL", self.config.global_default))
+        return rule_groups, global_rule_groups
+
+    def _rules_for(self, method: str, path: str) -> Tuple[List[Rate], List[Rate]]:
+        """Return flattened rules for compatibility with older internal callers."""
+
+        rule_groups, global_rule_groups = self._rule_groups(method, path)
+        return (
+            [rule for _, rules in rule_groups for rule in rules],
+            [rule for _, rules in global_rule_groups for rule in rules],
+        )
 
     async def dispatch(self, request: Request, call_next):
         start = time.monotonic()
         ident, ident_kind = self._identity(request)
         method = request.method.upper()
         path = request.url.path
-        rules, grules = self._rules_for(method, path)
+        rule_groups, global_rule_groups = self._rule_groups(method, path)
         # Prepare log context
         ctx = {"method": method, "path": path, "ident_kind": ident_kind}
         if self.config.enabled:
             # Global rules first
-            if grules:
-                key_g = (
-                    f"{method} {path}"
-                    if f"{method} {path}" in self.config.global_per_path
-                    or path in self.config.global_per_path
-                    else "GLOBAL"
-                )
+            for key_g, grules in global_rule_groups:
                 with self._lock:
                     gb = self._global.get(key_g)
                     if gb is None:
@@ -452,15 +456,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     )
                 for bucket in gb:
                     bucket.consume(now)
-            if rules:
-                key = (
-                    f"{method} {path}"
-                    if f"{method} {path}" in self.config.per_path
-                    or path in self.config.per_path
-                    else "GLOBAL"
-                )
+            if rule_groups:
+                self._remember_identity(ident, time.monotonic())
+            for key, rules in rule_groups:
                 now = time.monotonic()
-                self._remember_identity(ident, now)
                 with self._lock:
                     buckmap = self._buckets.setdefault(ident, {})
                     buckets = buckmap.get(key)

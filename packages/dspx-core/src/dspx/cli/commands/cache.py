@@ -71,19 +71,26 @@ def cache_list(
     kind: Optional[str] = typer.Option(None, help="Cache kind to filter"),
 ) -> None:
     """List cache entries, optionally filtered by kind."""
-    from dspx.cache import cache_dir
+    from pathlib import Path
+
+    from dspx.cache import cache_dir, cache_kind_dir
 
     base = cache_dir()
-    kinds = [kind] if kind else []
+    kinds: list[Path] = []
+    if kind:
+        try:
+            kinds = [cache_kind_dir(kind)]
+        except ValueError as exc:
+            typer.echo(f"error: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
 
     if not kinds:
         # List subdirs under cache dir
         if base.exists():
-            for d in sorted([p for p in base.iterdir() if p.is_dir()]):
-                kinds.append(d.name)
+            kinds.extend(sorted([p for p in base.iterdir() if p.is_dir()]))
 
-    for k in kinds:
-        d = base / k
+    for d in kinds:
+        k = d.name
         if not d.exists() or not d.is_dir():
             continue
         for f in sorted(d.glob("*.json")):
@@ -99,9 +106,13 @@ def cache_show(
     key: str = typer.Option(..., "--key", help="Cache key (sha256 hex)"),
 ) -> None:
     """Show contents of a specific cache entry."""
-    from dspx.cache import cache_dir
+    from dspx.cache import cache_entry_path
 
-    f = cache_dir() / kind / f"{key}.json"
+    try:
+        f = cache_entry_path(kind, key)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     if not f.exists():
         raise typer.Exit(code=2)
 
@@ -128,7 +139,7 @@ def cache_clear(
     all_: bool = typer.Option(False, "--all", help="Clear entire cache directory"),
 ) -> None:
     """Clear cache entries."""
-    from dspx.cache import cache_dir
+    from dspx.cache import cache_dir, cache_entry_path, cache_kind_dir
 
     base = cache_dir()
 
@@ -148,7 +159,11 @@ def cache_clear(
         raise typer.Exit(code=2)
 
     if kind and key:
-        f = base / kind / f"{key}.json"
+        try:
+            f = cache_entry_path(kind, key)
+        except ValueError as exc:
+            typer.echo(f"error: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
         if f.exists():
             try:
                 f.unlink()
@@ -159,7 +174,11 @@ def cache_clear(
         raise typer.Exit(code=2)
 
     if kind and not key:
-        d = base / kind
+        try:
+            d = cache_kind_dir(kind)
+        except ValueError as exc:
+            typer.echo(f"error: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
         if d.exists():
             for f in d.glob("*.json"):
                 try:
@@ -184,7 +203,7 @@ def cache_prune(
     dry_run: bool = typer.Option(False, help="Only print what would be deleted"),
 ) -> None:
     """Prune cache by age and/or target size (oldest first)."""
-    from dspx.cache import cache_dir
+    from dspx.cache import cache_dir, cache_kind_dir
     from pathlib import Path as _Path
 
     base = cache_dir()
@@ -195,7 +214,11 @@ def cache_prune(
         typer.echo("no cache")
         return
 
-    root = base if not kind else base / kind
+    try:
+        root = base if not kind else cache_kind_dir(kind)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     for f in root.rglob("*.json"):
         try:
             st = f.stat()

@@ -6,6 +6,8 @@ Commands for loading, inspecting, and calling OpenAPI operations.
 from __future__ import annotations
 
 import json
+import re
+import shlex
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
@@ -14,6 +16,23 @@ import typer
 from dspx.cli.utils import ensure_env, sanitize_cli_error
 
 app = typer.Typer(no_args_is_help=True)
+
+_OPENAPI_PREFIX_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _openapi_mapping_prefix(prefix: str) -> str:
+    safe_prefix = str(prefix or "").strip()
+    if not _OPENAPI_PREFIX_RE.fullmatch(safe_prefix):
+        raise ValueError(f"invalid OpenAPI prefix: {prefix!r}")
+    return safe_prefix
+
+
+def _openapi_env_suffix(prefix: str) -> str:
+    return _openapi_mapping_prefix(prefix).upper()
+
+
+def _shell_export(name: str, value: object) -> str:
+    return f"export {name}={shlex.quote(str(value))}"
 
 
 def _load_spec_or_exit(spec: str, *, allow_host: str | None):
@@ -465,10 +484,15 @@ def openapi_load(
     generated/openapi/<prefix>.json by default.
     """
     ensure_env(None, tracing=False)
+    try:
+        safe_prefix = _openapi_mapping_prefix(prefix)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     base = outdir or Path("generated/openapi")
     base.mkdir(parents=True, exist_ok=True)
-    path = base / f"{prefix}.json"
-    payload = {"prefix": prefix, "spec": str(spec), "allow_host": allow_host}
+    path = base / f"{safe_prefix}.json"
+    payload = {"prefix": safe_prefix, "spec": str(spec), "allow_host": allow_host}
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     typer.echo(str(path))
 
@@ -484,13 +508,18 @@ def openapi_env(
 ) -> None:
     """Print shell exports for DSPX_OPENAPI_SPEC_<P> and DSPX_OPENAPI_HOST_<P>."""
     ensure_env(None, tracing=False)
+    try:
+        safe_prefix = _openapi_mapping_prefix(prefix)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     path = None
     if map_file and map_file.exists():
         path = map_file
     else:
         # try defaults
         for d in (Path.cwd() / "generated/openapi", Path.cwd() / "openapi"):
-            cand = d / f"{prefix}.json"
+            cand = d / f"{safe_prefix}.json"
             if cand.exists():
                 path = cand
                 break
@@ -500,8 +529,12 @@ def openapi_env(
     data = json.loads(path.read_text(encoding="utf-8"))
     spec = data.get("spec")
     host = data.get("allow_host")
-    u = prefix.upper()
+    try:
+        u = _openapi_env_suffix(prefix)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     if spec:
-        typer.echo(f"export DSPX_OPENAPI_SPEC_{u}='{spec}'")
+        typer.echo(_shell_export(f"DSPX_OPENAPI_SPEC_{u}", spec))
     if host:
-        typer.echo(f"export DSPX_OPENAPI_HOST_{u}='{host}'")
+        typer.echo(_shell_export(f"DSPX_OPENAPI_HOST_{u}", host))

@@ -77,6 +77,16 @@ rules:
       - pytest_boundary_hardening
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/cache.py"
+    category: cache_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_cache_boundary
+      - boundary_contract_check
+
   - match: "packages/dspx-core/src/dspx/provider_registry.py"
     category: provider_boundary
     impact_group: boundary_hardening
@@ -106,6 +116,16 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_provider_runtime
+
+  - match: "packages/dspx-core/src/dspx/server/security.py"
+    category: server_security_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_server_security
+      - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/multi_provider_lm.py"
     category: provider_boundary

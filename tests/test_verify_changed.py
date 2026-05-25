@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -23,7 +24,7 @@ def _load_module() -> ModuleType:
     return module
 
 
-def _plan(*paths: str) -> dict[str, object]:
+def _plan(*paths: str) -> dict[str, Any]:
     module = _load_module()
     impact_map = module.load_impact_map()
     return module.build_plan(
@@ -34,8 +35,8 @@ def _plan(*paths: str) -> dict[str, object]:
     )
 
 
-def _command_ids(plan: dict[str, object]) -> list[str]:
-    return [str(command["id"]) for command in plan["commands"]]  # type: ignore[index]
+def _command_ids(plan: dict[str, Any]) -> list[str]:
+    return [str(command["id"]) for command in plan["commands"]]
 
 
 def test_docs_only_change_selects_docs_strict_without_full_verification() -> None:
@@ -53,10 +54,7 @@ def test_docs_globs_match_direct_and_deep_markdown() -> None:
     assert plan["risk"] == "docs_only"
     assert plan["full_verification_required"] is False
     assert _command_ids(plan) == ["docs_strict"]
-    reasons = [
-        classification["reasons"]
-        for classification in plan["classifications"]  # type: ignore[index]
-    ]
+    reasons = [classification["reasons"] for classification in plan["classifications"]]
     assert reasons == [["matched docs/*.md"], ["matched docs/**/*.md"]]
 
 
@@ -131,7 +129,7 @@ def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
 
     assert plan["risk"] == "wide"
     assert "unmapped path" not in str(plan.get("wide_reason"))
-    classification = plan["classifications"][0]  # type: ignore[index]
+    classification = plan["classifications"][0]
     assert classification["category"] == "ci"
     assert classification["reasons"] == ["matched scripts/ci/**"]
 
@@ -143,6 +141,11 @@ def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
             "packages/dspx-core/src/dspx/coordinates/storage.py",
             "oracle_coordinate_store",
             "pytest_coordinates",
+        ),
+        (
+            "packages/dspx-core/src/dspx/cache.py",
+            "cache_boundary",
+            "pytest_cache_boundary",
         ),
         (
             "packages/dspx-core/src/dspx/multi_provider_lm.py",
@@ -158,6 +161,11 @@ def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
             "packages/dspx-core/src/dspx/oracle_time_travel.py",
             "oracle_time_travel",
             "pytest_oracle_time_travel",
+        ),
+        (
+            "packages/dspx-core/src/dspx/server/security.py",
+            "server_security_boundary",
+            "pytest_server_security",
         ),
         (
             "packages/dspx-core/src/dspx/services/program_promotion.py",
@@ -177,7 +185,7 @@ def test_boundary_debt_paths_are_mapped(
     plan = _plan(path)
 
     assert "unmapped path" not in str(plan.get("wide_reason"))
-    classification = plan["classifications"][0]  # type: ignore[index]
+    classification = plan["classifications"][0]
     assert classification["category"] == category
     assert expected_command in _command_ids(plan)
 
@@ -188,7 +196,7 @@ def test_unknown_file_fails_wide() -> None:
     assert plan["risk"] == "wide"
     assert plan["full_verification_required"] is True
     assert "unmapped path: misc/unmapped.file" in str(plan["wide_reason"])
-    classification = plan["classifications"][0]  # type: ignore[index]
+    classification = plan["classifications"][0]
     assert classification["category"] == "unknown"
 
 
