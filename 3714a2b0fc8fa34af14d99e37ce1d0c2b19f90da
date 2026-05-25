@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "3714a2b0fc8fa34af14d99e37ce1d0c2b19f90da"
-created_at: "2026-05-25T07:51:40Z"
+created_at: "2026-05-25T07:52:18Z"
 intent: "Refresh DSPx product posture with boundary-hardening maturity and next frontier guidance"
 files:
   - "docs/project/product-posture.md"
@@ -13,7 +13,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-fast"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
