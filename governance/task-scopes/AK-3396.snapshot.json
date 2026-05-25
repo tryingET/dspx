@@ -2,8 +2,8 @@
   "schema_version": 1,
   "exported_at": "2026-05-25T05:53:55.723068284+00:00",
   "task_id": 3396,
-  "entity_version": 5,
-  "commit_sha": "0160a8aa943806f0cb2b7bbdedb5aca7c99254e4",
+  "entity_version": 7,
+  "commit_sha": "c7a2b95719a4bcab74e272eed63b00b8a95f375a",
   "scope": {
     "allowed_paths": [
       "Justfile",
@@ -25,9 +25,7 @@
       "tests/test_program_service.py",
       "tests/test_verify_changed.py"
     ],
-    "required_paths": [
-      "tests/test_adversarial_boundary_contracts.py"
-    ],
+    "required_paths": [],
     "forbidden_paths": []
   },
   "default_applies": false,
