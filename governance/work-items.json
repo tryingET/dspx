@@ -3137,14 +3137,15 @@
         {
           "id": "AK-TASK-3396",
           "title": "Harden boundary verification nexus loop",
-          "state": "doing",
+          "state": "done",
           "tasks": [
             {
               "text": "Harden boundary verification nexus loop (task #3396)",
-              "done": false
+              "done": true
             }
           ],
-          "dod": "Task reaches done in society.db with evidence recorded."
+          "dod": "Task reaches done in society.db with evidence recorded.",
+          "completed_at": "2026-05-25"
         }
       ]
     }
