@@ -152,6 +152,52 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "promotion planning or authority-adjacent surface changed",
     ),
+    "pytest_coordinates": CommandSpec(
+        ["uv", "run", "--no-sync", "-m", "pytest", "-q", "tests/test_coordinates.py"],
+        "Oracle coordinate storage changed",
+    ),
+    "pytest_provider_runtime": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_multi_provider_parallel_semantics.py",
+            "tests/test_openrouter_provider_unit.py",
+            "tests/test_provider_runtime.py",
+            "tests/test_provider_registry.py",
+        ],
+        "provider runtime boundary changed",
+    ),
+    "pytest_openapi_tooling": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_openapi_yaml_and_validation.py",
+            "tests/test_openapi_toolpack.py",
+            "tests/test_openapi_deep_schema.py",
+            "tests/test_openapi_schema_refs_allof.py",
+        ],
+        "OpenAPI tooling changed",
+    ),
+    "pytest_oracle_time_travel": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_oracle_time_travel_cli.py",
+        ],
+        "Oracle time-travel surface changed",
+    ),
 }
 
 
@@ -437,6 +483,10 @@ def build_plan(
         "pytest_program_oracle_refinement",
         "pytest_refinement_candidate_comparison",
         "pytest_promotion_plan_adjacent",
+        "pytest_coordinates",
+        "pytest_provider_runtime",
+        "pytest_openapi_tooling",
+        "pytest_oracle_time_travel",
         "boundary_contract_check",
         "docs_strict",
         "verify_runtime",

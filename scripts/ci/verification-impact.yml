@@ -95,6 +95,65 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_boundary_hardening
+      - pytest_provider_runtime
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/multi_provider_lm.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
+      - pytest_boundary_hardening
+
+  - match: "packages/dspx-core/src/dspx/openrouter_lm.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
+
+  - match: "packages/dspx-core/src/dspx/coordinates/storage.py"
+    category: oracle_coordinate_store
+    impact_group: oracle_storage
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_coordinates
+      - verify_runtime
+
+  - match: "packages/dspx-core/src/dspx/oracle_time_travel.py"
+    category: oracle_time_travel
+    impact_group: oracle_time_travel
+    risk: bounded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_oracle_time_travel
+
+  - match: "packages/dspx-core/src/dspx/tools/openapi/**/*.py"
+    category: openapi_tooling
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_openapi_tooling
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/tools/openapi/*.py"
+    category: openapi_tooling
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_openapi_tooling
       - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
@@ -207,6 +266,16 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
+      - pytest_refinement_candidate_comparison
+
+  - match: "packages/dspx-core/src/dspx/services/program_promotion.py"
+    category: python_service
+    impact_group: program_refinement_candidates
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_promotion_plan_adjacent
       - pytest_refinement_candidate_comparison
 
   - match: "packages/dspx-core/src/dspx/services/program_promotion_plan.py"

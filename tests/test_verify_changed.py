@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "scripts" / "ci" / "verify_changed.py"
 
@@ -115,6 +117,52 @@ def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
     classification = plan["classifications"][0]  # type: ignore[index]
     assert classification["category"] == "ci"
     assert classification["reasons"] == ["matched scripts/ci/**"]
+
+
+@pytest.mark.parametrize(
+    ("path", "category", "expected_command"),
+    [
+        (
+            "packages/dspx-core/src/dspx/coordinates/storage.py",
+            "oracle_coordinate_store",
+            "pytest_coordinates",
+        ),
+        (
+            "packages/dspx-core/src/dspx/multi_provider_lm.py",
+            "provider_boundary",
+            "pytest_provider_runtime",
+        ),
+        (
+            "packages/dspx-core/src/dspx/openrouter_lm.py",
+            "provider_boundary",
+            "pytest_provider_runtime",
+        ),
+        (
+            "packages/dspx-core/src/dspx/oracle_time_travel.py",
+            "oracle_time_travel",
+            "pytest_oracle_time_travel",
+        ),
+        (
+            "packages/dspx-core/src/dspx/services/program_promotion.py",
+            "python_service",
+            "pytest_promotion_plan_adjacent",
+        ),
+        (
+            "packages/dspx-core/src/dspx/tools/openapi/loader.py",
+            "openapi_tooling",
+            "pytest_openapi_tooling",
+        ),
+    ],
+)
+def test_boundary_debt_paths_are_mapped(
+    path: str, category: str, expected_command: str
+) -> None:
+    plan = _plan(path)
+
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    classification = plan["classifications"][0]  # type: ignore[index]
+    assert classification["category"] == category
+    assert expected_command in _command_ids(plan)
 
 
 def test_unknown_file_fails_wide() -> None:
