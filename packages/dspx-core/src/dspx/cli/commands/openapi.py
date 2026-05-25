@@ -11,9 +11,40 @@ from typing import Any, Mapping, Optional
 
 import typer
 
-from dspx.cli.utils import ensure_env
+from dspx.cli.utils import ensure_env, sanitize_cli_error
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _load_spec_or_exit(spec: str, *, allow_host: str | None):
+    from dspx.tools.openapi import load_spec
+
+    try:
+        return load_spec(
+            spec, allowed_hosts=({allow_host: True} if allow_host else None)
+        )
+    except Exception as exc:
+        safe_spec = sanitize_cli_error(spec)
+        safe_error = sanitize_cli_error(exc)
+        typer.echo(
+            f"Error: failed to load OpenAPI spec {safe_spec}: {safe_error}",
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+
+def _operation_or_exit(ops: Mapping[str, Any], op: str) -> Any:
+    if op in ops:
+        return ops[op]
+    available = ", ".join(
+        sanitize_cli_error(key) for key in sorted(str(key) for key in ops.keys())[:20]
+    )
+    suffix = (
+        f" Available operations: {available}" if available else " No operations found."
+    )
+    safe_op = sanitize_cli_error(op)
+    typer.echo(f"Error: unknown OpenAPI operationId: {safe_op}.{suffix}", err=True)
+    raise typer.Exit(code=2)
 
 
 def _coerce_cli_bool(value: Any) -> bool:
@@ -124,12 +155,10 @@ def openapi_ops(
     ),
 ) -> None:
     """List operations from an OpenAPI spec."""
-    from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
 
     ensure_env(None, tracing=False)
-    allowed = {allow_host: True} if allow_host else None
-    data = load_spec(str(spec), allowed_hosts=allowed)
+    data = _load_spec_or_exit(str(spec), allow_host=allow_host)
     ops = extract_operation_infos(data)
 
     flt = (grep or "").lower()
@@ -192,7 +221,6 @@ def openapi_call(
     ),
 ) -> None:
     """Call an OpenAPI operation."""
-    from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
     from dspx.dtos import OpenAPICallRequest
     from dspx.tools.descriptors import ToolDescriptor
@@ -200,14 +228,11 @@ def openapi_call(
     from dspx.tools.openapi.caller import call_operation
 
     ensure_env(None)
-    data = load_spec(
-        str(spec), allowed_hosts=({allow_host: True} if allow_host else None)
-    )
+    data = _load_spec_or_exit(str(spec), allow_host=allow_host)
     ops = extract_operation_infos(data)
-    if op not in ops:
-        raise typer.Exit(code=2)
+    operation = _operation_or_exit(ops, op)
 
-    pmap = _coerce_cli_params(params, ops[op])
+    pmap = _coerce_cli_params(params, operation)
 
     body_data = None
     if body:
@@ -218,14 +243,14 @@ def openapi_call(
     )
     allowed = {allow_host: True} if allow_host else {}
 
-    method = str(ops[op].method or "GET").upper()
+    method = str(operation.method or "GET").upper()
     desc = ToolDescriptor(
         name=op,
         capabilities=["network.mutate"]
         if method in {"POST", "PUT", "PATCH", "DELETE"}
         else ["network.read"],
         kind="openapi",
-        openapi=ops[op],
+        openapi=operation,
     )
     preview = build_preview(desc, pmap)
 
@@ -261,7 +286,7 @@ def openapi_call(
     except Exception:
         pass
 
-    res = call_operation(req, operation=ops[op].model_dump(), allowed_hosts=allowed)
+    res = call_operation(req, operation=operation.model_dump(), allowed_hosts=allowed)
     typer.echo(res.raw_text or "")
 
 
@@ -273,16 +298,12 @@ def openapi_describe(
     json_out: bool = typer.Option(False, "--json", help="Output JSON summary"),
 ) -> None:
     """Describe an OpenAPI operation in detail."""
-    from dspx.tools.openapi import load_spec
     from dspx.tools.openapi.loader import extract_operation_infos
 
     ensure_env(None, tracing=False)
-    data = load_spec(spec, allowed_hosts=({allow_host: True} if allow_host else None))
+    data = _load_spec_or_exit(str(spec), allow_host=allow_host)
     ops = extract_operation_infos(data)
-    if op not in ops:
-        raise typer.Exit(code=2)
-
-    info = ops[op]
+    info = _operation_or_exit(ops, op)
 
     if json_out:
         from dspx.tools.descriptors import ToolDescriptor

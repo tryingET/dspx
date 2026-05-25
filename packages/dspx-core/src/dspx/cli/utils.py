@@ -10,6 +10,7 @@ from typing import Any, Callable, Optional, TypeVar, ParamSpec, cast
 import typer
 
 from dspx.config_loader import load_config_env
+from dspx.provider_runtime import _sanitize_text
 from dspx.tracing import enable_mlflow_from_env
 
 P = ParamSpec("P")
@@ -61,8 +62,8 @@ def ensure_env(provider: Optional[str], *, tracing: bool = True) -> None:
         os.environ["DSPX_PROVIDER"] = provider
     try:
         load_config_env()
-    except FileNotFoundError as exc:
-        typer.echo(f"Error: {exc}", err=True)
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        typer.echo(f"Error: {sanitize_cli_error(exc)}", err=True)
         raise typer.Exit(code=2) from exc
     if tracing:
         enable_mlflow_from_env()
@@ -139,6 +140,12 @@ def with_template_config(
         return wrapper
 
     return decorator
+
+
+def sanitize_cli_error(value: object) -> str:
+    """Return a concise CLI-safe diagnostic with secrets redacted."""
+
+    return _sanitize_text(str(value))
 
 
 def output_json(data: Any, json_out: bool, default_text: Optional[str] = None) -> None:

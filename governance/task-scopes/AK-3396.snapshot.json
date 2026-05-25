@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-25T05:53:55.723068284+00:00",
+  "task_id": 3396,
+  "entity_version": 4,
+  "commit_sha": "e497c01ccb988925a60819ba1a90c23dfe0cf0fc",
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "apps/forge/src/dspx_forge/**/*.py",
+      "apps/forge/src/dspx_forge/*.py",
+      "docs/project/developer_workflow.md",
+      "governance/task-scopes/*.snapshot.json",
+      "governance/work-items.json",
+      "packages/dspx-core/src/dspx/cli/**/*.py",
+      "packages/dspx-core/src/dspx/cli/*.py",
+      "packages/dspx-core/src/dspx/provider_registry.py",
+      "packages/dspx-core/src/dspx/provider_runtime.py",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "packages/dspx-core/src/dspx/services/program_service.py",
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "scripts/ci/verification-impact.yml",
+      "scripts/ci/verify_changed.py",
+      "tests/test_adversarial_boundary_contracts.py"
+    ],
+    "required_paths": [
+      "tests/test_adversarial_boundary_contracts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

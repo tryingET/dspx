@@ -138,8 +138,10 @@ def _parse_json_output(value: object, *, field: str) -> Any:
         text = '\\n'.join(text.splitlines()[1:-1]).strip()
     try:
         return json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise SystemExit(f'generated output {field} is not valid JSON: {exc}') from exc
+    except json.JSONDecodeError:
+        # Plain string outputs are valid DSPy outputs. Persist them as JSON
+        # strings instead of requiring model/program code to pre-encode them.
+        return value
 
 
 def _find_runtime_config(explicit: Path | None, *, program_dir: Path) -> Path | None:
@@ -508,13 +510,19 @@ def _preflight(config_path: Path | None = None) -> dict[str, Any]:
 
 
 def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds: int, retries: int, config_path: Path | None = None) -> dict[str, Any]:
+    if parallel < 1:
+        raise SystemExit('--parallel must be >= 1')
+    if timeout_seconds <= 0:
+        raise SystemExit('--timeout-seconds must be > 0')
+    if retries < 0:
+        raise SystemExit('--retries must be >= 0')
     input_files = _discover_input_files(inputs_root)
     if not input_files:
         raise SystemExit(f'no batch inputs found under {inputs_root}')
     out_root.mkdir(parents=True, exist_ok=True)
     jobs = [(input_file, out_root / _target_name(input_file, inputs_root)) for input_file in input_files]
     results: list[dict[str, Any]] = []
-    with ThreadPoolExecutor(max_workers=max(1, parallel)) as executor:
+    with ThreadPoolExecutor(max_workers=parallel) as executor:
         futures = [executor.submit(_run_child, input_file, outdir, timeout_seconds, retries, config_path) for input_file, outdir in jobs]
         for future in as_completed(futures):
             results.append(future.result())

@@ -13,9 +13,35 @@ from typing import Any, List, Optional, cast
 
 import typer
 
-from dspx.cli.utils import ensure_env, output_json, write_summary_json
+from dspx.cli.utils import (
+    ensure_env,
+    output_json,
+    sanitize_cli_error,
+    write_summary_json,
+)
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _describe_provider_or_exit(name: str, *, json_out: bool) -> dict[str, Any]:
+    from dspx.provider_runtime import describe_provider
+
+    try:
+        return describe_provider(name)
+    except Exception as exc:
+        error = sanitize_cli_error(exc)
+        safe_name = sanitize_cli_error(name)
+        if json_out:
+            typer.echo(
+                json.dumps(
+                    {"ok": False, "provider": safe_name, "error": error},
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+        else:
+            typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=2) from exc
 
 
 @app.command("list")
@@ -42,11 +68,9 @@ def providers_capabilities(
     json_out: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Show capabilities for a specific provider."""
-    from dspx.provider_runtime import describe_provider
-
     ensure_env(provider, tracing=False)
     name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
-    resolved = describe_provider(name)
+    resolved = _describe_provider_or_exit(name, json_out=json_out)
     caps = resolved.get("capabilities") or {}
 
     payload = {
@@ -69,11 +93,9 @@ def providers_resolve(
     json_out: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Resolve a provider into its runtime metadata."""
-    from dspx.provider_runtime import describe_provider
-
     ensure_env(provider, tracing=False)
     name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
-    payload = describe_provider(name)
+    payload = _describe_provider_or_exit(name, json_out=json_out)
     output_json(payload, json_out)
 
 

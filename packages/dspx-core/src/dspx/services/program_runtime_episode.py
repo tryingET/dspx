@@ -4,6 +4,7 @@ import hashlib
 import importlib
 import json
 import sys
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
@@ -22,6 +23,7 @@ PROGRAM_ORACLE_EVIDENCE_SCHEMA = "program-oracle-evidence-v1"
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
 
 CONTRACT_MODES = {"none", "pdf_transition_review"}
+_GENERATED_PROGRAM_IMPORT_LOCK = threading.RLock()
 
 
 def _json_text(payload: Mapping[str, Any]) -> str:
@@ -200,25 +202,29 @@ def _materialize_runtime_inputs(
 @contextmanager
 def _generated_program_module(candidate_root: Path) -> Iterator[Any]:
     names = ("program", "module", "signature")
-    saved: dict[str, ModuleType | None] = {
-        name: sys.modules.get(name) for name in names
-    }
-    for name in names:
-        sys.modules.pop(name, None)
     root_text = str(candidate_root)
-    sys.path.insert(0, root_text)
-    try:
-        yield importlib.import_module("program")
-    finally:
-        try:
-            sys.path.remove(root_text)
-        except ValueError:
-            pass
+    # Generated program candidates import sibling modules by process-global names
+    # (program/module/signature). Keep the whole candidate context serialized so
+    # concurrent runtime episodes cannot pop or replace each other's modules.
+    with _GENERATED_PROGRAM_IMPORT_LOCK:
+        saved: dict[str, ModuleType | None] = {
+            name: sys.modules.get(name) for name in names
+        }
         for name in names:
             sys.modules.pop(name, None)
-            saved_module = saved[name]
-            if saved_module is not None:
-                sys.modules[name] = saved_module
+        sys.path.insert(0, root_text)
+        try:
+            yield importlib.import_module("program")
+        finally:
+            try:
+                sys.path.remove(root_text)
+            except ValueError:
+                pass
+            for name in names:
+                sys.modules.pop(name, None)
+                saved_module = saved[name]
+                if saved_module is not None:
+                    sys.modules[name] = saved_module
 
 
 def _jsonable(value: object) -> object:

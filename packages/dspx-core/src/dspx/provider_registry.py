@@ -38,13 +38,19 @@ def register_provider(
 def create(name: str) -> object:
     check_provider_allowed(name)
     with _REGISTRY_LOCK:
-        factory = _REGISTRY[name].factory
-    return factory()
+        entry = _REGISTRY.get(name)
+    if entry is None:
+        raise ValueError(f"unknown provider: {name}")
+    return entry.factory()
 
 
 def capabilities(name: str) -> ProviderCapabilities:
+    check_provider_allowed(name)
     with _REGISTRY_LOCK:
-        return _REGISTRY[name].capabilities
+        entry = _REGISTRY.get(name)
+    if entry is None:
+        raise ValueError(f"unknown provider: {name}")
+    return entry.capabilities
 
 
 def available() -> Dict[str, ProviderFactory]:

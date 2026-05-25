@@ -1403,35 +1403,38 @@ def _policy_callback(
     """Global callback for policy and API key setup."""
     # OpenRouter API key injection (avoid leaking secrets via CLI args).
     if os.getenv("OPENROUTER_API_KEY") is None:
-        try:
-            if openrouter_api_key_file is not None:
+        if openrouter_api_key_file is not None:
+            try:
                 os.environ["OPENROUTER_API_KEY"] = openrouter_api_key_file.read_text(
                     encoding="utf-8"
                 ).strip()
-            elif openrouter_api_key_op:
-                if shutil.which("op") is None:
-                    raise typer.Exit(code=2)
-                p = subprocess.run(
-                    ["op", "read", str(openrouter_api_key_op)],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    check=False,
+            except OSError as exc:
+                typer.echo(
+                    f"Error: failed to read OpenRouter API key file: {exc}", err=True
                 )
-                if p.returncode != 0:
-                    msg = (p.stderr or "").strip() or "op read failed"
-                    typer.echo(msg, err=True)
-                    raise typer.Exit(code=p.returncode)
-                os.environ["OPENROUTER_API_KEY"] = (p.stdout or "").strip()
-            elif openrouter_api_key_stdin:
-                os.environ["OPENROUTER_API_KEY"] = sys.stdin.read().strip()
-            elif openrouter_api_key_prompt:
-                os.environ["OPENROUTER_API_KEY"] = getpass.getpass(
-                    "OPENROUTER_API_KEY: "
-                ).strip()
-        except Exception:
-            # Best-effort; provider will error if key is required and missing.
-            pass
+                raise typer.Exit(code=2) from exc
+        elif openrouter_api_key_op:
+            if shutil.which("op") is None:
+                typer.echo("Error: 1Password CLI 'op' not found", err=True)
+                raise typer.Exit(code=2)
+            p = subprocess.run(
+                ["op", "read", str(openrouter_api_key_op)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            if p.returncode != 0:
+                msg = (p.stderr or "").strip() or "op read failed"
+                typer.echo(msg, err=True)
+                raise typer.Exit(code=p.returncode)
+            os.environ["OPENROUTER_API_KEY"] = (p.stdout or "").strip()
+        elif openrouter_api_key_stdin:
+            os.environ["OPENROUTER_API_KEY"] = sys.stdin.read().strip()
+        elif openrouter_api_key_prompt:
+            os.environ["OPENROUTER_API_KEY"] = getpass.getpass(
+                "OPENROUTER_API_KEY: "
+            ).strip()
 
     # Export policy envs for downstream modules
     if bypass_permissions:
