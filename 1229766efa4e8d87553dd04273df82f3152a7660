@@ -1,0 +1,55 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "1229766efa4e8d87553dd04273df82f3152a7660"
+created_at: "2026-05-26T19:02:20Z"
+intent: "Close visible-loop validation blockers under AK-3415"
+files:
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+  - "%q"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "Single AK-3415 scoped slice includes boundary fixes, direction retirement, and task-scope snapshot"
+links:
+  task_ids:
+    - 3415
