@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import httpx
+import pytest
 
 from dspx.tools.openapi import load_spec
 from dspx.tools.registry import register_openapi_operations, get_tool
@@ -43,6 +44,17 @@ def test_register_openapi_operations_and_run(tmp_path: Path) -> None:
     client = httpx.Client(transport=httpx.MockTransport(handler))
     out = tool(params={"msg": "hi"}, client=client)
     assert (out or "").strip() == "hi"
+
+
+def test_registered_openapi_tool_rejects_operation_overrides(tmp_path: Path) -> None:
+    spec = load_spec(_spec(tmp_path))
+    register_openapi_operations(
+        "ex_lock", spec, allowed_hosts={"api.example.com": True}
+    )
+    tool = get_tool("ex_lock.echo")
+
+    with pytest.raises(ValueError, match="operation overrides"):
+        tool(method="DELETE", path="/admin", params={"msg": "hi"})
 
 
 def test_register_openapi_operations_preserves_array_json_body(tmp_path: Path) -> None:

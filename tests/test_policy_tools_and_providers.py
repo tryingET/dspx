@@ -113,6 +113,37 @@ def test_openapi_mutation_denied_without_flag(tmp_path: Path, monkeypatch) -> No
     assert out.status_code == 201
 
 
+def test_codex_generated_cli_wrappers_are_safe_by_default() -> None:
+    from dspx.cli.vibegen import wrap_script as gen_wrap_script
+    from dspx.cli.viberefine import wrap_script as refine_wrap_script
+
+    for rendered in (
+        gen_wrap_script("class Sig: pass"),
+        refine_wrap_script("class Sig: pass"),
+    ):
+        assert "dangerously_bypass=False" in rendered
+        assert "auto_mode=True" in rendered
+        assert "dangerously_bypass=True" not in rendered
+
+
+def test_codex_provider_defaults_to_safe_auto_mode(monkeypatch) -> None:
+    ensure_default_providers()
+    try:
+        from dspx.provider_registry import available
+
+        if "codex-exec" not in available():
+            pytest.skip("codex provider not registered")
+    except Exception:
+        pytest.skip("codex provider not available")
+    monkeypatch.delenv("CODEX_BYPASS", raising=False)
+    monkeypatch.delenv("DSPX_SANDBOX_WORKTREE", raising=False)
+    from dspx.provider_registry import create as create_provider
+
+    lm = create_provider("codex-exec")
+    assert getattr(lm, "dangerously_bypass", None) is False
+    assert "--dangerously-bypass-approvals-and-sandbox" not in lm._build_command("noop")
+
+
 def test_codex_provider_uses_sandbox_when_enabled(monkeypatch) -> None:
     ensure_default_providers()
     # Only run if codex provider is present; if not present, skip

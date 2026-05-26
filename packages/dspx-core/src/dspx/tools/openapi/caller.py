@@ -25,6 +25,35 @@ except Exception:  # pragma: no cover
         return u
 
 
+def _operation_identity(
+    request: OpenAPICallRequest, operation: Mapping[str, Any]
+) -> tuple[str, str, str]:
+    """Resolve and enforce the fixed OpenAPI operation identity.
+
+    OpenAPICallRequest retains method/server/path fields for compatibility with
+    older programmatic callers, but operation identity must not be changed after
+    an operation descriptor has been selected. Supplying the same value is
+    tolerated; supplying a different value is rejected before validation/call.
+    """
+
+    method = str(operation.get("method") or "GET").upper()
+    server = str(operation.get("server") or "")
+    path = str(operation.get("path") or request.operation_id)
+    attempted: list[str] = []
+    if request.method is not None and str(request.method).upper() != method:
+        attempted.append("method")
+    if request.server is not None and str(request.server) != server:
+        attempted.append("server")
+    if request.path is not None and str(request.path) != path:
+        attempted.append("path")
+    if attempted:
+        raise ValueError(
+            "OpenAPI operation identity is fixed by the selected descriptor; "
+            "overrides rejected: " + ", ".join(sorted(attempted))
+        )
+    return method, server, path
+
+
 def _build_url(server: str, path: str, params: Mapping[str, Any]) -> str:
     """Replace path params like {id} and join with server.
 
@@ -188,9 +217,7 @@ def call_operation(
     - Uses path parameter interpolation for URL building.
     - Passes remaining params as query params.
     """
-    method = (request.method or operation.get("method") or "GET").upper()
-    server = request.server or operation.get("server") or ""
-    path = request.path or operation.get("path") or request.operation_id
+    method, server, path = _operation_identity(request, operation)
     params = dict(request.params or {})
     body = request.body if request.body is not None else None
     headers = request.headers or {}

@@ -455,7 +455,9 @@ def _echo_generation_payload(
         typer.echo(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 
 
-def _load_allowed_generation_gate(path: Path) -> dict[str, Any]:
+def _load_allowed_generation_gate(
+    path: Path, *, intent_path: Path | None = None
+) -> dict[str, Any]:
     from dspx.services.program_generation_contract import load_generation_gate_preflight
 
     if not path.exists():
@@ -466,6 +468,21 @@ def _load_allowed_generation_gate(path: Path) -> dict[str, Any]:
     if payload.get("generation_allowed") is not True:
         reasons = payload.get("fail_closed_reasons") or []
         raise ValueError(f"generation gate blocked candidate creation: {reasons}")
+    if intent_path is not None:
+        import hashlib
+
+        raw_identity = payload.get("identity")
+        identity: dict[str, Any] = (
+            raw_identity if isinstance(raw_identity, dict) else {}
+        )
+        expected_intent_sha = str(identity.get("intent_sha256") or "").strip()
+        if not expected_intent_sha:
+            raise ValueError("generation gate preflight missing identity.intent_sha256")
+        actual_intent_sha = hashlib.sha256(
+            intent_path.expanduser().resolve().read_bytes()
+        ).hexdigest()
+        if actual_intent_sha != expected_intent_sha:
+            raise ValueError("generation gate preflight intent_sha256_mismatch")
     return payload
 
 
@@ -621,7 +638,7 @@ def program_gen(
 
     if generation_gate_preflight is not None:
         try:
-            _load_allowed_generation_gate(generation_gate_preflight)
+            _load_allowed_generation_gate(generation_gate_preflight, intent_path=intent)
         except Exception as exc:
             typer.echo(f"Error: generation gate preflight failed: {exc}", err=True)
             raise typer.Exit(code=2) from exc
@@ -702,16 +719,24 @@ def _run_program_gen_requirements_intake(
     preflight_path = outdir_resolved / "generation_gate_preflight.json"
     write_generation_json(artifacts["target_contract"], target_contract_path)
     write_generation_json(artifacts["fitness_suite"], fitness_suite_path)
-    write_generation_json(artifacts["generation_gate_preflight"], preflight_path)
     paths = {
         "target_contract": str(target_contract_path),
         "fitness_suite": str(fitness_suite_path),
         "generation_gate_preflight": str(preflight_path),
     }
     if intent_out is not None and "program_intent" in artifacts:
+        import hashlib
+
         intent_path = intent_out.expanduser().resolve()
         write_generation_yaml(artifacts["program_intent"], intent_path)
+        identity = artifacts["generation_gate_preflight"].setdefault("identity", {})
+        if isinstance(identity, dict):
+            identity["requirements_packet_sha256"] = identity.get("intent_sha256")
+            identity["intent_sha256"] = hashlib.sha256(
+                intent_path.read_bytes()
+            ).hexdigest()
         paths["program_intent"] = str(intent_path)
+    write_generation_json(artifacts["generation_gate_preflight"], preflight_path)
     return {
         "schema_version": artifacts["schema_version"],
         "profile": profile,

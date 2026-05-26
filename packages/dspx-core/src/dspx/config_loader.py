@@ -205,7 +205,7 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     )
     _set_config_value(
         "CODEX_BYPASS",
-        _coerce_bool(codex.get("bypass", True)),
+        _coerce_bool(codex.get("bypass", False)),
         seen_keys=seen_keys,
     )
     _set_config_value(

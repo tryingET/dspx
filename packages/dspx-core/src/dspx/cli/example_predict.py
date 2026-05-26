@@ -17,8 +17,8 @@ def main() -> int:
     model = os.getenv("CODEX_MODEL", "gpt-5")
     lm = CodexExecLM(
         model_flag=model,
-        auto_mode=False,
-        dangerously_bypass=True,
+        auto_mode=True,
+        dangerously_bypass=False,
         reasoning_effort="minimal",
     )
     dspy.configure(lm=lm)

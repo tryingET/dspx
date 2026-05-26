@@ -30,8 +30,7 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 3. `docs/project/vision.md` — Canonical long-horizon direction
 4. `docs/project/strategic_goals.md` — Current strategic frontier
 5. `docs/project/tactical_goals.md` — Current tactical frontier
-6. `docs/project/operational_goals.md` — Active operating slices / AK mapping
-8. `docs/learnings/` — Crystallized patterns
+6. `docs/learnings/` — Crystallized patterns
 
 ## Stack
 - Python 3.13 + uv + just

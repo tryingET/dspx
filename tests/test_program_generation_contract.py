@@ -408,6 +408,7 @@ def test_generation_gate_allows_valid_contract_and_suite(tmp_path: Path) -> None
     written = write_generation_gate_preflight(result, out)
 
     assert result["status"] == "generation_allowed"
+    assert result["identity"]["intent_sha256"] == "intent-sha"
     assert written["generation_allowed"] is True
     assert out.exists()
 

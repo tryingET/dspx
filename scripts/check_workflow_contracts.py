@@ -164,6 +164,11 @@ def _check_loop_validation_policy(
 def collect_issues(root: Path) -> list[Issue]:
     root = root.resolve()
     issues: list[Issue] = []
+    for retired in ("next_session_prompt.md", "docs/project/operational_goals.md"):
+        if (root / retired).exists():
+            issues.append(
+                Issue(retired, "retired AK-native workflow file still exists")
+            )
 
     gitignore = _require_file(root, ".gitignore", issues)
     if gitignore is not None:
@@ -199,7 +204,6 @@ def collect_issues(root: Path) -> list[Issue]:
                 "docs/project/vision.md",
                 "docs/project/strategic_goals.md",
                 "docs/project/tactical_goals.md",
-                "docs/project/operational_goals.md",
             ],
             "forbidden": ["./scripts/install-hooks.sh"],
         },
@@ -245,7 +249,6 @@ def collect_issues(root: Path) -> list[Issue]:
                 "just verify-impact",
                 "just verify-impact-receipt",
                 "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths",
-                "`next_session_prompt.md` remains handoff context only",
                 "brownfield legacy scope file",
                 "AK task ready/list/show is the live execution source of truth",
                 "uv run --no-sync",
@@ -272,17 +275,6 @@ def collect_issues(root: Path) -> list[Issue]:
                 "parallel",
             ],
             "forbidden": [],
-        },
-        "next_session_prompt.md": {
-            "required": [
-                "AK task ready/list/show is the live execution source of truth",
-                "Confirm the repo-scoped ready queue with `ak task ready",
-            ],
-            "forbidden": [
-                "Active/deferred work contract",
-                "Choose one highest-leverage actionable slice from `governance/work-items.json`",
-                "Planned active/deferred work map",
-            ],
         },
         "Justfile": {
             "required": [

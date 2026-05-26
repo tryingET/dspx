@@ -65,14 +65,6 @@ rules:
       - workflow_contract_check
       - docs_strict
 
-  - match: "next_session_prompt.md"
-    category: handoff_context
-    impact_group: workflow_context
-    risk: bounded
-    commands:
-      - workflow_contract_check
-      - direction_contract_check
-
   - match: "policy/engineering-lane.json"
     category: engineering_policy
     impact_group: engineering_policy

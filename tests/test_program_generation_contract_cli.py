@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -524,4 +525,39 @@ def test_program_gen_blocks_candidate_creation_when_preflight_blocks(
 
     assert result.exit_code == 2
     assert "generation gate blocked candidate creation" in result.output
+    assert not tmp_path.joinpath("program", "manifest.json").exists()
+
+
+def test_program_gen_blocks_candidate_creation_when_preflight_intent_mismatches(
+    tmp_path: Path,
+) -> None:
+    mismatched = tmp_path / "mismatched_generation_gate_preflight.json"
+    mismatched.write_text(
+        json.dumps(
+            {
+                "schema_version": "gen-generation-gate-preflight-v1",
+                "status": "generation_allowed",
+                "generation_allowed": True,
+                "fail_closed_reasons": [],
+                "identity": {"intent_sha256": hashlib.sha256(b"other").hexdigest()},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(FIXTURE_INTENT),
+            "--outdir",
+            str(tmp_path / "program"),
+            "--generation-gate-preflight",
+            str(mismatched),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "intent_sha256_mismatch" in result.output
     assert not tmp_path.joinpath("program", "manifest.json").exists()

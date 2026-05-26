@@ -88,12 +88,12 @@ def cache_entry_path(kind: str, key: str, *, create_dir: bool = False) -> Path:
     return path
 
 
-def _path_for(kind: str, key: str) -> Path:
-    return cache_entry_path(kind, key, create_dir=True)
+def _path_for(kind: str, key: str, *, create_dir: bool = True) -> Path:
+    return cache_entry_path(kind, key, create_dir=create_dir)
 
 
 def read(kind: str, key: str) -> Optional[Dict[str, Any]]:
-    p = _path_for(kind, key)
+    p = _path_for(kind, key, create_dir=False)
     if not p.exists():
         return None
     try:

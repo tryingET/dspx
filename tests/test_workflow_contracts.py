@@ -55,7 +55,6 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "just verify-impact\n"
         "just verify-impact-receipt\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
-        "`next_session_prompt.md` remains handoff context only\n"
         "brownfield legacy scope file\n"
         "AK task ready/list/show is the live execution source of truth\n"
         "uv run --no-sync\n",
@@ -65,7 +64,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         tmp_path,
         "AGENTS.md",
         "See docs/project/developer_workflow.md and run just hooks-install.\n"
-        "Canonical reads: docs/project/vision.md docs/project/strategic_goals.md docs/project/tactical_goals.md docs/project/operational_goals.md\n",
+        "Canonical reads: docs/project/vision.md docs/project/strategic_goals.md docs/project/tactical_goals.md\n",
     )
     _write(
         tmp_path,
@@ -111,12 +110,6 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "No `just dev` target\n"
         "fails closed\n"
         "parallel\n",
-    )
-    _write(
-        tmp_path,
-        "next_session_prompt.md",
-        "AK task ready/list/show is the live execution source of truth\n"
-        "Confirm the repo-scoped ready queue with `ak task ready --repo /tmp/example`\n",
     )
     _write(
         tmp_path,
@@ -247,7 +240,7 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         in messages
     )
     assert (
-        "next_session_prompt.md: contains forbidden stale text: 'Active/deferred work contract'"
+        "next_session_prompt.md: retired AK-native workflow file still exists"
         in messages
     )
     assert (
@@ -304,7 +297,6 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "just verify-impact\n"
         "just verify-impact-receipt\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
-        "`next_session_prompt.md` remains handoff context only\n"
         "brownfield legacy scope file\n"
         "uv run --no-sync\n",
     )
@@ -313,7 +305,7 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         tmp_path,
         "AGENTS.md",
         "See docs/project/developer_workflow.md and run just hooks-install.\n"
-        "Canonical reads: docs/project/vision.md docs/project/strategic_goals.md docs/project/tactical_goals.md docs/project/operational_goals.md\n",
+        "Canonical reads: docs/project/vision.md docs/project/strategic_goals.md docs/project/tactical_goals.md\n",
     )
     _write(
         tmp_path,

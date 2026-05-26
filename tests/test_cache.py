@@ -22,6 +22,14 @@ def test_cache_roundtrip(tmp_path: Path, monkeypatch) -> None:
     assert out == data
 
 
+def test_cache_read_miss_does_not_create_kind_dir(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+
+    assert cache_read("unit", "missing") is None
+    assert not (tmp_path / "cache" / "unit").exists()
+
+
 def test_cache_rejects_path_traversal(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))

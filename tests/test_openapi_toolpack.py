@@ -91,6 +91,21 @@ def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
     assert res2.status_code == 200 and (res2.raw_text or "").strip() == "hello"
 
 
+def test_openapi_call_rejects_operation_identity_overrides(tmp_path: Path) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+
+    with pytest.raises(ValueError, match="operation identity"):
+        call_operation(
+            OpenAPICallRequest(operation_id="ping", method="DELETE", path="/admin"),
+            operation=ops["ping"],
+            allowed_hosts={"api.example.com": True},
+            client=client,
+        )
+
+
 def test_openapi_call_requires_explicit_allowed_hosts(tmp_path: Path) -> None:
     spec_path = _make_spec(tmp_path)
     data = load_spec(spec_path)

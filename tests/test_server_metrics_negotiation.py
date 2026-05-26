@@ -40,3 +40,22 @@ def test_metrics_prom_by_query() -> None:
         "text/plain"
     )
     assert "dspx_status_401_total" in r.text
+
+
+def test_metrics_prom_includes_body_size_rejections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_MAX_BODY_SIZE", "10")
+    app = create_app()
+    c = TestClient(app)
+
+    rejected = c.post(
+        "/signature",
+        content=b'{"prompt":"oversized"}',
+        headers={"content-type": "application/json", "content-length": "999"},
+    )
+    assert rejected.status_code == 413
+
+    r = c.get("/metrics?format=prom")
+    assert r.status_code == 200
+    assert "dspx_status_413_total 1" in r.text

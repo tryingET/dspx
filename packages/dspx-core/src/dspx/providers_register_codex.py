@@ -15,7 +15,7 @@ _SANDBOX_HOLDERS: list[TemporaryDirectory] = []  # keep refs to avoid GC cleanup
 def _factory() -> CodexExecLM:
     model = os.getenv("CODEX_MODEL", "gpt-5")
     reasoning = os.getenv("CODEX_REASONING", "minimal")
-    bypass = os.getenv("CODEX_BYPASS", "1") not in {"", "0", "false", "False"}
+    bypass = os.getenv("CODEX_BYPASS", "0") not in {"", "0", "false", "False"}
     search = os.getenv("CODEX_SEARCH", "0") not in {"", "0", "false", "False"}
     timeout = int(os.getenv("CODEX_TIMEOUT", "0") or 0) or None
     workspace = os.getenv("DSPX_CODEX_WORKSPACE")

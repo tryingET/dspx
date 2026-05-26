@@ -16,7 +16,7 @@ def wrap_script(signature_code: str) -> str:
     lines.append("# Configure Codex Exec as the LM")
     lines.append("MODEL = os.getenv('CODEX_MODEL', 'gpt-5')")
     lines.append(
-        "lm = CodexExecLM(model_flag=MODEL, auto_mode=False, dangerously_bypass=True, reasoning_effort='minimal')"
+        "lm = CodexExecLM(model_flag=MODEL, auto_mode=True, dangerously_bypass=False, reasoning_effort='minimal')"
     )
     lines.append("dspy.configure(lm=lm)")
     lines.append("")

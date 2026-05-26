@@ -10,8 +10,8 @@ from dspx.codex_exec_lm import CodexExecLM
 MODEL = os.getenv("CODEX_MODEL", "gpt-5")
 lm = CodexExecLM(
     model_flag=MODEL,
-    auto_mode=False,
-    dangerously_bypass=True,
+    auto_mode=True,
+    dangerously_bypass=False,
     reasoning_effort="minimal",
 )
 dspy.configure(lm=lm)

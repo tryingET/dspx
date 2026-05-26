@@ -255,8 +255,11 @@ def register_openapi_operations(
     - body: dict
     - headers: dict[str, str]
     - timeout: float
-    - method/server/path: override defaults
     - client: optional httpx.Client (for testing)
+
+    The registered OpenAPI operation identity is fixed at registration time:
+    method, server, and path overrides are rejected so callers cannot escape the
+    descriptor/capability contract for the selected tool.
     """
     from dspx.tools.openapi.loader import extract_operation_infos  # lazy import
     from dspx.tools.openapi.caller import call_operation
@@ -279,11 +282,24 @@ def register_openapi_operations(
                 path: Optional[str] = None,
                 client: Optional[httpx.Client] = None,
             ) -> Any:
+                overrides = {
+                    "method": method,
+                    "server": server,
+                    "path": path,
+                }
+                attempted = sorted(
+                    name for name, value in overrides.items() if value is not None
+                )
+                if attempted:
+                    raise ValueError(
+                        "registered OpenAPI tools do not allow operation overrides: "
+                        + ", ".join(attempted)
+                    )
                 req = OpenAPICallRequest(
                     operation_id=op_id,
-                    method=method,
-                    server=server,
-                    path=path,
+                    method=None,
+                    server=None,
+                    path=None,
                     params=dict(params or {}),
                     body=body,
                     headers=dict(headers or {}),

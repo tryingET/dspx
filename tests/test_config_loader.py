@@ -55,6 +55,24 @@ def test_load_config_env_sets_env(monkeypatch, tmp_path: Path) -> None:
     assert os.environ["DSPX_PROVIDER"] == "codex-exec"
 
 
+def test_load_config_env_defaults_codex_bypass_to_safe_false(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("CODEX_BYPASS", raising=False)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [codex]
+        model = "gpt-test"
+        """,
+        encoding="utf-8",
+    )
+
+    load_config_env(str(cfg))
+
+    assert os.environ["CODEX_BYPASS"] == "0"
+
+
 def test_load_config_env_sets_pi_env(monkeypatch, tmp_path: Path) -> None:
     for k in [
         "DSPX_PROVIDER",

@@ -849,6 +849,9 @@ def build_generation_gate_preflight(
         "target_contract_validation": contract_validation,
         "fitness_suite_validation": suite_validation,
         "identity": {
+            "intent_sha256": _first_text(
+                _safe_mapping(target_contract.get("identity")).get("intent_sha256")
+            ),
             "target_contract_sha256": _first_text(
                 _safe_mapping(target_contract.get("identity")).get("contract_sha256")
             ),

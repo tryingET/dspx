@@ -941,7 +941,7 @@ Read-only verification and sanity commands keep `uv.lock` clean by using `uv run
 - architecture: `docs/ARCHITECTURE.md`
 - native signatures: `docs/SIGNATURE_NATIVE_PIPELINE.md`
 - status: `PROJECT_STATUS.md`
-- direction stack: `docs/project/vision.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, `docs/project/operational_goals.md`
+- direction stack: `docs/project/vision.md`, `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`
 - program-gen walkthrough: `docs/project/program-gen-walkthrough.md`
 - monorepo boundaries: `docs/MONOREPO_TRANSITION.md`
 - GEPA quick path: `docs/GEPA_FROM_MODULE_GEN.md`

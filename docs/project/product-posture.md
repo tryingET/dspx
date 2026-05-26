@@ -21,7 +21,6 @@ It does **not** replace:
 - AK task or decision authority
 - `docs/project/strategic_goals.md`
 - `docs/project/tactical_goals.md`
-- `docs/project/operational_goals.md`
 
 Use this file only when a product-wide maturity snapshot helps strategy. Do not turn it into a task log, release log, changelog, or second operating plan.
 
@@ -182,7 +181,7 @@ The near-term Oracle product gap is not conceptual presence; Oracle is already i
 - Product posture: this file
 - Target-state runtime boundary for program/Oracle/search concerns: `docs/project/program-synthesis-boundary.md`
 - Shipped runtime/source truth: README, architecture/configuration docs, source code, tests, and generated artifacts owned by the repo
-- Active direction: `docs/project/strategic_goals.md`, `docs/project/tactical_goals.md`, and `docs/project/operational_goals.md`
+- Active direction: `docs/project/strategic_goals.md` and `docs/project/tactical_goals.md`
 - Live execution truth: repo-local AK tasks and decisions
 - Raw session evidence: `diary/`
 - Crystallized learning: `docs/learnings/`

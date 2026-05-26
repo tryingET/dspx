@@ -100,7 +100,6 @@ Validation contract:
   - runs governance validation
   - runs `just task-scope-check`, which auto-selects working-tree validation when the repo is dirty and otherwise validates the full committed attested task slice from the first task-scope artifact introduction through `HEAD`, using an explicit `task_id`, an active AK claim, or changed task-scope snapshot/legacy-scope-file paths, and otherwise fails closed
   - when no explicit AK task-scope snapshot (or brownfield legacy scope file) exists for the task, the checker skips cleanly and applies repo-default scope instead of failing on missing repo-local scaffolding
-  - `next_session_prompt.md` remains handoff context only and does not participate in task-scope binding
   - runs `uvx pre-commit run --all-files`
 - `just verify-pre-push`
   - runs `just verify-fast`
@@ -152,9 +151,8 @@ The following docs must stay aligned with this file:
 - `CONTRIBUTING.md`
 - `README.md` (workflow snippets)
 - `docs/engineering.local.md`
-- `next_session_prompt.md`
 
-Any command referenced in those files must resolve to a real script or `just` recipe.
+The retired `next_session_prompt.md` handoff file must not be reintroduced; AK task ready/list/show is the live execution source of truth. Any command referenced in the aligned files must resolve to a real script or `just` recipe.
 
 ## Local artifact boundaries
 

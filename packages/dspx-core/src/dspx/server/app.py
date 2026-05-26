@@ -523,6 +523,9 @@ def create_app() -> FastAPI:
                     "# HELP dspx_status_429_total Rate-limited responses.",
                     "# TYPE dspx_status_429_total counter",
                     f"dspx_status_429_total {c.get('status_429', 0)}",
+                    "# HELP dspx_status_413_total Body-size rejection responses.",
+                    "# TYPE dspx_status_413_total counter",
+                    f"dspx_status_413_total {c.get('status_413', 0)}",
                 ]
                 from fastapi import Response
 
@@ -547,6 +550,9 @@ def create_app() -> FastAPI:
                 "# HELP dspx_status_429_total Rate-limited responses.",
                 "# TYPE dspx_status_429_total counter",
                 f"dspx_status_429_total {c.get('status_429', 0)}",
+                "# HELP dspx_status_413_total Body-size rejection responses.",
+                "# TYPE dspx_status_413_total counter",
+                f"dspx_status_413_total {c.get('status_413', 0)}",
             ]
             from fastapi import Response
 
