@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "b0ea3c728b579f251b0ff9b487dad05ccf559ba6"
-created_at: "2026-05-25T21:59:33Z"
+updated_at: "2026-05-26T00:00:00Z"
 intent: "Prefer specific rate-limit rule groups over fallback defaults."
 files:
   - "packages/dspx-core/src/dspx/server/security.py"
@@ -12,8 +12,9 @@ validation:
     command: "just verify-fast"
     status: "pass"
   full_gate:
-    command: "just verify-full"
-    status: "pending"
+    command: "just loop-impact-wide (included just verify-full)"
+    status: "pass"
+    evidence: "Parent evidence: loop-impact-wide passed; verify-full completed with full suite 1132/1133 passed depending run."
 group:
   index: 1
   total: 2
