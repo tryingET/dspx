@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-05-25T12:32:44.308600326+00:00",
+  "task_id": 3404,
+  "entity_version": 8,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "docs/engineering.local.md",
+      "docs/project/developer_workflow.md",
+      "docs/project/operational_goals.md",
+      "governance/README.md",
+      "governance/task-scopes/AK-3404.snapshot.json",
+      "next_session_prompt.md",
+      "packages/dspx-core/src/dspx/server/security.py",
+      "packages/dspx-core/src/dspx/task_scope.py",
+      "policy/engineering-lane.json",
+      "scripts/check_direction_to_execution.py",
+      "scripts/check_workflow_contracts.py",
+      "scripts/ci/smoke.sh",
+      "scripts/ci/verification-impact.yml",
+      "scripts/ci/verify_changed.py",
+      "tests/test_task_scope.py",
+      "tests/test_verify_changed.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "required_paths": [
+      "Justfile",
+      "docs/engineering.local.md",
+      "docs/project/developer_workflow.md",
+      "governance/README.md",
+      "packages/dspx-core/src/dspx/server/security.py",
+      "packages/dspx-core/src/dspx/task_scope.py",
+      "policy/engineering-lane.json",
+      "scripts/check_direction_to_execution.py",
+      "scripts/check_workflow_contracts.py",
+      "scripts/ci/smoke.sh",
+      "scripts/ci/verification-impact.yml",
+      "scripts/ci/verify_changed.py",
+      "tests/test_task_scope.py",
+      "tests/test_verify_changed.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

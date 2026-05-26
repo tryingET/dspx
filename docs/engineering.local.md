@@ -38,3 +38,16 @@ Local notes for DSPx:
   - `just verify-fast` runs workflow/governance/task-scope/pre-commit all-files checks and fails closed on unresolved task binding
   - `just verify-full` runs `verify-fast` first, then executes the heavier runtime/invariant branch and the typecheck/test branch in parallel
   - explicit batch gate before merge/release: `just verify-full`
+
+## Repo loop validation
+
+DSPx adopts `repo-loop-validation-v1` for repo-agnostic orchestration prompts such as `/visible-loop`, `/nexus-loop`, and future prompt-loop surfaces. The machine-readable declaration lives in `policy/engineering-lane.json`.
+
+- `loop-doctor`: `just loop-doctor` (maps to `just scope-doctor`; non-failing dirty-tree/task-scope diagnostics)
+- `loop-verify-fast`: `just loop-verify-fast` (maps to `just verify-boundary-hardening`)
+- `loop-impact-plan`: `just loop-impact-plan` (maps to `just verify-impact-plan`)
+- `loop-impact-run`: `just loop-impact-run` (maps to `just verify-impact`)
+- `loop-impact-wide`: `just loop-impact-wide` (maps to `just verify-impact-wide`)
+- `loop-landing-check`: `just loop-landing-check` (maps to `just check`)
+
+These commands produce DSPx-local validation evidence. They do not replace AK task scope, repo decisions/evidence, CI/release gates, or generated-program production activation authority.

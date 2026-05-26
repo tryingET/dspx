@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -79,6 +80,83 @@ def _check_recipe_body_contains(
                 Issue(
                     Path(relpath),
                     f"recipe {header!r} missing required text in body: {needle!r}",
+                )
+            )
+
+
+LOOP_VALIDATION_COMMANDS = [
+    "loop-doctor",
+    "loop-verify-fast",
+    "loop-impact-plan",
+    "loop-impact-run",
+    "loop-impact-wide",
+    "loop-landing-check",
+]
+
+
+def _check_loop_validation_policy(
+    root: Path, justfile_text: str, issues: list[Issue]
+) -> None:
+    relpath = "policy/engineering-lane.json"
+    path = _require_file(root, relpath, issues)
+    if path is None:
+        return
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        issues.append(Issue(Path(relpath), f"invalid JSON: {exc}"))
+        return
+    if not isinstance(payload, dict):
+        issues.append(Issue(Path(relpath), "expected top-level JSON object"))
+        return
+    engineering_core = payload.get("engineering_core")
+    if not isinstance(engineering_core, dict):
+        issues.append(Issue(Path(relpath), "missing engineering_core object"))
+        return
+    loop_validation = engineering_core.get("loop_validation")
+    if not isinstance(loop_validation, dict):
+        issues.append(
+            Issue(Path(relpath), "missing engineering_core.loop_validation object")
+        )
+        return
+    if loop_validation.get("version") != "repo-loop-validation-v1":
+        issues.append(
+            Issue(
+                Path(relpath),
+                "engineering_core.loop_validation.version must be repo-loop-validation-v1",
+            )
+        )
+    if (
+        loop_validation.get("contract_doc")
+        != "docs/engineering.local.md#repo-loop-validation"
+    ):
+        issues.append(
+            Issue(
+                Path(relpath),
+                "engineering_core.loop_validation.contract_doc must point at docs/engineering.local.md#repo-loop-validation",
+            )
+        )
+    commands = loop_validation.get("commands")
+    if not isinstance(commands, dict):
+        issues.append(Issue(Path(relpath), "missing loop_validation.commands object"))
+        return
+    for phase in LOOP_VALIDATION_COMMANDS:
+        raw_command = commands.get(phase)
+        if not isinstance(raw_command, str) or not raw_command.strip():
+            issues.append(Issue(Path(relpath), f"missing loop command: {phase}"))
+            continue
+        command = raw_command.strip()
+        if not command.startswith("just "):
+            issues.append(
+                Issue(Path(relpath), f"loop command {phase!r} must use a just recipe")
+            )
+            continue
+        recipe = command.split()[1]
+        if _extract_recipe_body(justfile_text, f"{recipe}:") is None:
+            issues.append(
+                Issue(
+                    Path(relpath),
+                    f"loop command {phase!r} targets missing Just recipe: {recipe}",
                 )
             )
 
@@ -169,6 +247,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths",
                 "`next_session_prompt.md` remains handoff context only",
                 "brownfield legacy scope file",
+                "AK task ready/list/show is the live execution source of truth",
                 "uv run --no-sync",
             ],
             "forbidden": [
@@ -196,10 +275,14 @@ def collect_issues(root: Path) -> list[Issue]:
         },
         "next_session_prompt.md": {
             "required": [
-                "Planned active/deferred work map",
-                "Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it.",
+                "AK task ready/list/show is the live execution source of truth",
+                "Confirm the repo-scoped ready queue with `ak task ready",
             ],
-            "forbidden": ["Active/deferred work contract"],
+            "forbidden": [
+                "Active/deferred work contract",
+                "Choose one highest-leverage actionable slice from `governance/work-items.json`",
+                "Planned active/deferred work map",
+            ],
         },
         "Justfile": {
             "required": [
@@ -230,7 +313,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 "verify-pre-push:",
                 "bash scripts/ci/verify-full.sh",
                 "uvx pre-commit run --all-files",
-                "cue vet governance/work-items.json governance/work-items.cue",
+                "AK DB is canonical; work-items projection is compatibility-only",
             ],
             "forbidden": [
                 "next_session_prompt checkpoint before failing closed",
@@ -239,30 +322,38 @@ def collect_issues(root: Path) -> list[Issue]:
         },
         "scripts/ci/smoke.sh": {
             "required": [
-                "need_cmd cue",
                 "need_cmd python3",
                 "need_cmd ak",
-                "cue vet governance/work-items.json governance/work-items.cue",
                 "python3 scripts/check_workflow_contracts.py",
                 "python3 scripts/check_direction_to_execution.py",
             ],
-            "forbidden": [],
+            "forbidden": [
+                "cue vet governance/work-items.json governance/work-items.cue"
+            ],
         },
         "governance/README.md": {
             "required": [
-                "Use it to choose the next slice; do not treat it as a scheduler or live execution state.",
+                "AK DB is canonical for live task/work-item truth.",
+                "legacy compatibility projection",
+                "not a landing gate",
+            ],
+            "forbidden": [
+                "Use it to choose the next slice",
                 "ak work-items export",
                 "ak work-items check",
+                "cue vet governance/work-items.json governance/work-items.cue",
             ],
-            "forbidden": [],
         },
     }
 
+    justfile_text = ""
     for relpath, spec in file_checks.items():
         path = _require_file(root, relpath, issues)
         if path is None:
             continue
         text = path.read_text(encoding="utf-8")
+        if relpath == "Justfile":
+            justfile_text = text
         _check_required_substrings(text, relpath, spec["required"], issues)
         _check_forbidden_substrings(text, relpath, spec["forbidden"], issues)
         if relpath == "Justfile":
@@ -361,6 +452,8 @@ def collect_issues(root: Path) -> list[Issue]:
                 ],
                 issues,
             )
+
+    _check_loop_validation_policy(root, justfile_text, issues)
 
     return issues
 

@@ -57,6 +57,29 @@ rules:
     commands:
       - task_scope_check
 
+  - match: "governance/README.md"
+    category: governance_docs
+    impact_group: governance
+    risk: bounded
+    commands:
+      - workflow_contract_check
+      - docs_strict
+
+  - match: "next_session_prompt.md"
+    category: handoff_context
+    impact_group: workflow_context
+    risk: bounded
+    commands:
+      - workflow_contract_check
+      - direction_contract_check
+
+  - match: "policy/engineering-lane.json"
+    category: engineering_policy
+    impact_group: engineering_policy
+    risk: bounded
+    commands:
+      - workflow_contract_check
+
   - match: "packages/dspx-core/src/dspx/cli/*.py"
     category: cli_boundary
     impact_group: boundary_hardening
@@ -362,6 +385,16 @@ rules:
       - workflow_contract_check
       - verify_fast
 
+  - match: "scripts/check_direction_to_execution.py"
+    category: direction_contract
+    impact_group: workflow
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - ruff_touched
+      - direction_contract_check
+      - verify_fast
+
   - match: "scripts/check_task_scope.py"
     category: task_scope_checker
     impact_group: workflow
@@ -369,6 +402,17 @@ rules:
     requires_full_verification: true
     commands:
       - ruff_touched
+      - verify_fast
+
+  - match: "packages/dspx-core/src/dspx/task_scope.py"
+    category: task_scope_checker
+    impact_group: workflow
+    risk: wide
+    requires_full_verification: true
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_touched
       - verify_fast
 
   - match: "scripts/ci/**"

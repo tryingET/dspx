@@ -26,7 +26,7 @@ Do not ask for permission to start.
 - Active operating slices: `docs/project/operational_goals.md`
 - Durable architecture decisions: `docs/adr/`
 - Live execution truth: `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`
-- Planned active/deferred work map: `governance/work-items.json` (checked-in projection/mirror; do not treat as live execution truth)
+- AK task ready/list/show is the live execution source of truth for DSPx task/work-item state.
 - Latest completed-slice diary: `diary/2026-04-10--freeze-human-review-decision-contract.md`
 - Latest contract artifact: `docs/adr/20260410-human-governed-review-decision-contract-v1.md`
 - Latest repo-local learning: `docs/learnings/2026-02-28-receipt-v2-phase-c.md`
@@ -47,11 +47,11 @@ Do not ask for permission to start.
 7. `docs/adr/20260410-human-governed-review-decision-contract-v1.md`
 8. `docs/project/program-synthesis-boundary.md`
 9. `docs/project/developer_workflow.md`
-10. `governance/work-items.json`
+10. `governance/README.md`
 
 ## EXECUTION MODE (ONE SESSION = ONE SLICE)
-1. Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it. In this repo, treat that file as a checked-in projection and confirm the live slice against AK before acting.
-2. Confirm the repo-scoped ready queue with `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'`.
+1. Confirm the repo-scoped ready queue with `ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx -F json --json-contract normalized | jq '.tasks | map(select(.repo=="/home/tryinget/ai-society/softwareco/owned/dspx"))'` unless operator direction overrides it.
+2. Choose one highest-leverage actionable AK slice from live AK state; treat `governance/work-items.json` as a legacy compatibility projection only.
 3. If imported evidence viewer implementation is already complete, re-check AK direction before selecting a follow-on; do not skip directly to orchestration.
 4. If a repo-scoped ready task exists, claim the current active task before editing docs or code.
 5. Execute at most one operating slice end-to-end.
@@ -65,8 +65,8 @@ Do not ask for permission to start.
 - Slice executed: `AK-3176` — planned imported DSPx visual-dossier evidence viewer storage/schema/review-record behavior.
 - Outcome: plan artifact landed at `docs/project/2026-05-19-designmd-visual-dossier-evidence-viewer-plan.md`; next implementation belongs in DesignMD Foundry.
 - Files changed: `docs/project/2026-05-19-designmd-visual-dossier-evidence-viewer-plan.md`, `docs/project/operational_goals.md`, `governance/work-items.json`, `next_session_prompt.md`.
-- Validation commands + results: `node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict` pending; `ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json` pending; `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx` pending; `./scripts/ci/smoke.sh` pending after this handoff refresh.
-- Source-of-truth updates: completed `AK-3176`; marked `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE` planning done; refreshed the checked-in AK projection.
+- Validation commands + results: `node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict` pending; `ak direction check --repo /home/tryinget/ai-society/softwareco/owned/dspx --format json` pending; `./scripts/ci/smoke.sh` pending after this handoff refresh.
+- Source-of-truth updates: completed `AK-3176`; marked `IW-DV-06-IMPLEMENT-PREPARE-EVIDENCE` planning done; AK remains the live execution source of truth.
 - Next-session starting point: switch to `/home/tryinget/ai-society/softwareco/owned/designmd-foundry`, inspect dirty release-automation files, create/claim a scoped DesignMD AK task for imported DSPx evidence viewer, and implement without touching unrelated dirty files.
 
 ## END-OF-SESSION

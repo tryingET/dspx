@@ -57,6 +57,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
         "`next_session_prompt.md` remains handoff context only\n"
         "brownfield legacy scope file\n"
+        "AK task ready/list/show is the live execution source of truth\n"
         "uv run --no-sync\n",
     )
     _write(tmp_path, "scripts/ci/verify-full.sh", "#!/bin/sh\nexit 0\n")
@@ -114,8 +115,8 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "next_session_prompt.md",
-        "Planned active/deferred work map\n"
-        "Choose one highest-leverage actionable slice from `governance/work-items.json` unless operator direction overrides it.\n",
+        "AK task ready/list/show is the live execution source of truth\n"
+        "Confirm the repo-scoped ready queue with `ak task ready --repo /tmp/example`\n",
     )
     _write(
         tmp_path,
@@ -130,7 +131,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "direction-contract-check:\n"
         "  python3 scripts/check_direction_to_execution.py\n"
         "governance-check:\n"
-        "  cue vet governance/work-items.json governance/work-items.cue\n"
+        '  @echo "ok: AK DB is canonical; work-items projection is compatibility-only"\n'
         "check:\n"
         "  just verify-fast\n"
         "fmt:\n"
@@ -159,6 +160,18 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run\n"
         'verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":\n'
         "  uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --result-out {{out}}\n"
+        "loop-doctor:\n"
+        "  just scope-doctor\n"
+        "loop-verify-fast:\n"
+        "  just verify-boundary-hardening\n"
+        "loop-impact-plan:\n"
+        "  just verify-impact-plan\n"
+        "loop-impact-run:\n"
+        "  just verify-impact\n"
+        "loop-impact-wide:\n"
+        "  just verify-impact-wide\n"
+        "loop-landing-check:\n"
+        "  just check\n"
         "verify-tests:\n"
         "  echo tests\n"
         "verify-pre-push:\n"
@@ -178,13 +191,18 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "scripts/ci/smoke.sh",
-        "need_cmd cue\nneed_cmd python3\nneed_cmd ak\ncue vet governance/work-items.json governance/work-items.cue\npython3 scripts/check_workflow_contracts.py\npython3 scripts/check_direction_to_execution.py\n",
+        "need_cmd python3\nneed_cmd ak\npython3 scripts/check_workflow_contracts.py\npython3 scripts/check_direction_to_execution.py\n",
     )
     _write(
         tmp_path,
         "governance/README.md",
-        "Use it to choose the next slice; do not treat it as a scheduler or live execution state.\n"
-        "Refresh with ak work-items export and verify with ak work-items check.\n",
+        "AK DB is canonical for live task/work-item truth.\n"
+        "governance/work-items.json is a legacy compatibility projection and not a landing gate.\n",
+    )
+    _write(
+        tmp_path,
+        "policy/engineering-lane.json",
+        '{"engineering_core":{"loop_validation":{"version":"repo-loop-validation-v1","contract_doc":"docs/engineering.local.md#repo-loop-validation","commands":{"loop-doctor":"just loop-doctor","loop-verify-fast":"just loop-verify-fast","loop-impact-plan":"just loop-impact-plan","loop-impact-run":"just loop-impact-run","loop-impact-wide":"just loop-impact-wide","loop-landing-check":"just loop-landing-check"}}}}\n',
     )
 
     issues = MODULE.collect_issues(tmp_path)
@@ -234,6 +252,27 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
     )
     assert (
         "Justfile: contains forbidden stale text: 'next_session_prompt checkpoint before failing closed'"
+        in messages
+    )
+
+
+def test_collect_issues_rejects_loop_policy_commands_without_recipes(
+    tmp_path: Path,
+) -> None:
+    _write(tmp_path, ".gitignore", "__pycache__/\n*.py[cod]\n")
+    _write(tmp_path, "Justfile", "loop-doctor:\n  echo ok\n")
+    _write(
+        tmp_path,
+        "policy/engineering-lane.json",
+        '{"engineering_core":{"loop_validation":{"version":"repo-loop-validation-v1","contract_doc":"docs/engineering.local.md#repo-loop-validation","commands":{"loop-doctor":"just loop-doctor","loop-verify-fast":"just missing-loop","loop-impact-plan":"just loop-impact-plan","loop-impact-run":"just loop-impact-run","loop-impact-wide":"just loop-impact-wide","loop-landing-check":"just loop-landing-check"}}}}\n',
+    )
+
+    messages = {
+        f"{issue.path}: {issue.message}" for issue in MODULE.collect_issues(tmp_path)
+    }
+
+    assert (
+        "policy/engineering-lane.json: loop command 'loop-verify-fast' targets missing Just recipe: missing-loop"
         in messages
     )
 

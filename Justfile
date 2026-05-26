@@ -25,14 +25,14 @@ hooks-install:
 workflow-contract-check:
   python3 scripts/check_workflow_contracts.py
 
-# Validate direction-to-execution coherence across docs, AK, and projections
+# Validate direction-to-execution coherence across docs and AK
 direction-contract-check:
   python3 scripts/check_direction_to_execution.py
 
-# Validate project planning artifacts
-# NOTE: work-items stay planning-only, but the schema must remain valid.
+# Validate AK-native governance posture.
+# NOTE: governance/work-items.json is a legacy compatibility projection, not a landing gate.
 governance-check:
-  cue vet governance/work-items.json governance/work-items.cue
+  @echo "ok: AK DB is canonical; work-items projection is compatibility-only"
 
 # Fast local validation gate from the standardized owned-lane Justfile surface
 check:
@@ -170,6 +170,26 @@ verify-impact base="auto":
 # Run deterministic impact-aware validation even when the plan honestly classifies the change as wide.
 verify-impact-wide base="auto":
   uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --allow-wide
+
+# Generic repo-loop-validation-v1 aliases for orchestration prompts.
+# These produce repo-local evidence; AK task scope and landing authority remain separate.
+loop-doctor:
+  @just scope-doctor
+
+loop-verify-fast:
+  @just verify-boundary-hardening
+
+loop-impact-plan:
+  @just verify-impact-plan
+
+loop-impact-run:
+  @just verify-impact
+
+loop-impact-wide:
+  @just verify-impact-wide
+
+loop-landing-check:
+  @just check
 
 # Run impact-aware validation and write a local evidence-only result receipt
 verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":

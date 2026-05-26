@@ -1186,6 +1186,145 @@ def test_check_task_scope_working_tree_uses_claimed_task_binding_without_scope_a
     assert result.changed_files == ("scripts/allowed.py",)
 
 
+def test_check_task_scope_head_accepts_required_paths_from_recent_commit_group_provenance(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "docs").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "scripts" / "first.py").write_text("print('first')\n", encoding="utf-8")
+    _commit_all(repo, "first commit group")
+    _git(
+        repo,
+        "git",
+        "notes",
+        "--ref=refs/notes/ai-society/provenance",
+        "add",
+        "-m",
+        "kind: ai-society/commit-provenance/v1\nlinks:\n  task_ids:\n    - 266\n",
+        "HEAD",
+    )
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 2,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "docs/*.md",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "required_paths": [
+                    "scripts/first.py",
+                    "docs/second.md",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    (repo / "docs" / "second.md").write_text("second\n", encoding="utf-8")
+    _commit_all(repo, "second commit group")
+    _git(
+        repo,
+        "git",
+        "notes",
+        "--ref=refs/notes/ai-society/provenance",
+        "add",
+        "-m",
+        "kind: ai-society/commit-provenance/v1\nlinks:\n  task_ids:\n    - 266\n",
+        "HEAD",
+    )
+
+    result = check_task_scope(repo, task_id=266, mode="head")
+
+    assert result.ok is True
+    assert result.task_id == 266
+    assert sorted(result.changed_files) == [
+        "docs/second.md",
+        "governance/task-scopes/AK-266.snapshot.json",
+        "scripts/first.py",
+    ]
+
+
+def test_check_task_scope_working_tree_accepts_required_paths_from_recent_commit_group_provenance(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "docs").mkdir(parents=True)
+    (repo / "README.md").write_text("hello\n", encoding="utf-8")
+    _commit_all(repo, "init")
+
+    (repo / "scripts" / "first.py").write_text("print('first')\n", encoding="utf-8")
+    _commit_all(repo, "first commit group")
+    _git(
+        repo,
+        "git",
+        "notes",
+        "--ref=refs/notes/ai-society/provenance",
+        "add",
+        "-m",
+        "kind: ai-society/commit-provenance/v1\nlinks:\n  task_ids:\n    - 266\n",
+        "HEAD",
+    )
+
+    _write_snapshot(
+        repo,
+        266,
+        {
+            "schema_version": 1,
+            "exported_at": "2026-03-31T00:00:00Z",
+            "task_id": 266,
+            "entity_version": 2,
+            "commit_sha": None,
+            "scope": {
+                "allowed_paths": [
+                    "scripts/*.py",
+                    "docs/*.md",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "required_paths": [
+                    "scripts/first.py",
+                    "docs/second.md",
+                    "governance/task-scopes/*.snapshot.json",
+                ],
+                "forbidden_paths": ["**/*.pyc"],
+            },
+            "default_applies": False,
+            "export_tool": "ak task scope export",
+            "export_tool_version": "snapshot-v1",
+        },
+    )
+    (repo / "docs" / "second.md").write_text("second\n", encoding="utf-8")
+
+    result = check_task_scope(repo, task_id=266, mode="working-tree")
+
+    assert result.ok is True
+    assert result.task_id == 266
+    assert sorted(result.changed_files) == [
+        "docs/second.md",
+        "governance/task-scopes/AK-266.snapshot.json",
+        "scripts/first.py",
+    ]
+
+
 def test_check_task_scope_cli_accepts_explicit_scope_artifact_path_for_snapshot(
     tmp_path: Path,
 ) -> None:

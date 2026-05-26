@@ -56,5 +56,5 @@ Authoritative live execution: Agent Kernel tasks for repo `/home/tryinget/ai-soc
 - Keep the `AK-798` narrowed contract-expression boundary closed unless a smaller follow-up explicitly widens the helper/attribute contract.
 - Do not start live predictive ranking, candidate pruning, promotion blocking, strategy/policy mutation, or the post-contract implementation follow-on while the repo-scoped queue is still unmaterialized.
 - Older deferred/provider/runtime follow-ons (`AK-224`, `AK-235`–`AK-239`) remain non-active backlog and were intentionally not resumed in this wave.
-- After AK task mutations for this wave, refresh the checked-in projection with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json` and verify with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`.
+- AK task/work-item state is canonical for this repo. Do not refresh or validate `governance/work-items.json` as part of routine task mutations; if a compatibility projection is needed, handle it as an explicitly scoped projection-maintenance slice.
 - Task-scope validation is now snapshot-backed for `AK-1827`, `AK-1106`, `AK-1105`, `AK-1102`, `AK-1101`, `AK-1094`, `AK-1093`, `AK-1085`, `AK-834`, and `AK-835`; keep isolating each slice so working-tree validation stays truthful.

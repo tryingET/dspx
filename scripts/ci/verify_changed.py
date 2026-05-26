@@ -57,6 +57,10 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ["just", "workflow-contract-check"],
         "workflow command contract changed",
     ),
+    "direction_contract_check": CommandSpec(
+        ["just", "direction-contract-check"],
+        "direction-to-execution contract changed",
+    ),
     "verify_fast": CommandSpec(
         ["just", "verify-fast"],
         "workflow, governance, or CI contract changed",
@@ -447,6 +451,9 @@ def build_plan(
             impact_groups.add("unknown")
             full_required = True
             wide_reasons.append(f"unmapped path: {path}")
+            command_reasons.setdefault("verify_full", []).append(
+                f"{path}: no impact-map rule matched"
+            )
             continue
         # Deterministic merge policy: strongest risk wins; commands are unioned.
         risk = _risk_max([str(rule["risk"]) for rule in matched])
@@ -499,10 +506,19 @@ def build_plan(
             f"impact group count {len(impact_groups)} exceeds threshold {max_groups}"
         )
 
+    risk = _risk_max(risks)
+    full_verification_required = full_required or risk == "wide"
+    wide_reason = "; ".join(dict.fromkeys(wide_reasons)) or None
+    if full_verification_required:
+        command_reasons.setdefault("verify_full", []).append(
+            wide_reason or "wide/full verification required"
+        )
+
     commands: list[dict[str, Any]] = []
     seen_commands: set[tuple[str, tuple[str, ...]]] = set()
     command_order = [
         "workflow_contract_check",
+        "direction_contract_check",
         "governance_check",
         "task_scope_check",
         "ruff_touched",
@@ -539,8 +555,6 @@ def build_plan(
             seen_commands.add(key)
             commands.append(command)
 
-    risk = _risk_max(risks)
-    wide_reason = "; ".join(dict.fromkeys(wide_reasons)) or None
     return {
         "schema_version": "dspx-verification-impact-plan-v1",
         "base_mode": base_mode,
@@ -549,7 +563,7 @@ def build_plan(
         "classifications": classifications,
         "commands": commands,
         "risk": risk,
-        "full_verification_required": full_required or risk == "wide",
+        "full_verification_required": full_verification_required,
         "wide_reason": wide_reason,
     }
 
@@ -640,6 +654,21 @@ def execute_plan(
                 command_results=command_results,
                 exit_code=2,
                 note="impact plan requires broad/full verification; rerun with --allow-wide to execute selected wide commands",
+            ),
+        )
+
+    if plan["full_verification_required"] and not plan["commands"]:
+        ended_at = _now_utc()
+        return (
+            2,
+            _result_payload(
+                plan=plan,
+                status="failed",
+                started_at=started_at,
+                ended_at=ended_at,
+                command_results=command_results,
+                exit_code=2,
+                note="full-required impact plan selected no commands",
             ),
         )
 

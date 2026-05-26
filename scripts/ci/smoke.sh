@@ -13,7 +13,6 @@ need_cmd() {
 need_cmd git
 need_cmd grep
 need_cmd sed
-need_cmd cue
 need_cmd python3
 need_cmd ak
 
@@ -52,7 +51,6 @@ if [ -f "./docs/dev/now.md" ]; then
   grep -q "docs/dev/now.md" "./AGENTS.md" || die "docs/dev/now.md exists but is not referenced from AGENTS.md"
 fi
 
-cue vet governance/work-items.json governance/work-items.cue
 python3 scripts/check_workflow_contracts.py
 python3 scripts/check_direction_to_execution.py
 

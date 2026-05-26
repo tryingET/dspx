@@ -73,11 +73,24 @@ just verify-pre-push                                      # matches the pre-push
 just verify-full                                          # explicit full gate before merge/release or when needed
 ```
 
+Generic `repo-loop-validation-v1` aliases for orchestration prompts:
+
+```bash
+just loop-doctor          # maps to just scope-doctor; non-failing diagnostics
+just loop-verify-fast     # maps to just verify-boundary-hardening
+just loop-impact-plan     # maps to just verify-impact-plan
+just loop-impact-run      # maps to just verify-impact
+just loop-impact-wide     # maps to just verify-impact-wide
+just loop-landing-check   # maps to just check; repo-declared landing/readiness gate
+```
+
+These aliases produce repo-local validation evidence for `/visible-loop`, `/nexus-loop`, and future loop prompts. They do not replace AK task scope, repo decisions/evidence, CI/release gates, or production activation authority.
+
 Validation contract:
 - `./scripts/ci/smoke.sh`
   - protects `docs/_core/**`
   - verifies workflow contract integrity
-  - validates `governance/work-items.json` against `governance/work-items.cue`
+  - validates direction-to-execution coherence against AK-native task authority
 - `./scripts/ci/full.sh`
   - runs `./scripts/ci/smoke.sh`
   - runs the deterministic replay provenance check (`uv run -q python scripts/check_replay_provenance.py`)
@@ -121,12 +134,16 @@ Validation contract:
   - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel
   - keeps `uv.lock` clean for the read-only validation commands it delegates through `uv run --no-sync`
   - remains the explicit full confidence gate before merge/release or when the current slice needs the whole suite
+- `just loop-*`
+  - maps the generic `repo-loop-validation-v1` phases to DSPx's existing scope, boundary-hardening, impact-aware, and landing checks
+  - is intended for orchestration prompts and agent loops that need repo-agnostic phase names
+  - produces evidence only; successful loop validation does not close AK tasks, approve merge/release, or authorize production activation by itself
 
 ## Governance + session planning
 
-`governance/work-items.json` is the project planning backlog.
-Use it to choose the next slice unless the operator gives a more specific priority.
-Do not treat it as a scheduler or a substitute for explicit execution receipts/session capture.
+AK task ready/list/show is the live execution source of truth for DSPx task/work-item state. Use AK to choose and claim the next repo-scoped slice unless the operator gives a more specific priority.
+
+`governance/work-items.json` is a legacy compatibility projection only. It is not the planning authority, not a scheduler, and not a landing gate for routine validation; if a future compatibility export is needed, perform it as an explicitly scoped projection-maintenance slice.
 
 ## Documentation contract
 

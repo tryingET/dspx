@@ -198,6 +198,43 @@ def test_unknown_file_fails_wide() -> None:
     assert "unmapped path: misc/unmapped.file" in str(plan["wide_reason"])
     classification = plan["classifications"][0]
     assert classification["category"] == "unknown"
+    assert _command_ids(plan) == ["verify_full"]
+
+
+def test_engineering_policy_change_selects_workflow_contract_check() -> None:
+    plan = _plan("policy/engineering-lane.json")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == ["workflow_contract_check"]
+
+
+def test_direction_contract_change_selects_direction_and_fast_checks() -> None:
+    plan = _plan("scripts/check_direction_to_execution.py")
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is True
+    assert _command_ids(plan) == [
+        "direction_contract_check",
+        "ruff_touched",
+        "verify_fast",
+        "verify_full",
+    ]
+
+
+def test_full_required_plan_without_commands_fails_even_when_wide_allowed() -> None:
+    module = _load_module()
+    plan = {
+        "full_verification_required": True,
+        "commands": [],
+        "risk": "wide",
+    }
+
+    exit_code, result = module.execute_plan(plan, allow_wide=True)
+
+    assert exit_code == 2
+    assert result["status"] == "failed"
+    assert result["note"] == "full-required impact plan selected no commands"
 
 
 def test_justfile_change_requires_wide_verification() -> None:
@@ -205,7 +242,11 @@ def test_justfile_change_requires_wide_verification() -> None:
 
     assert plan["risk"] == "wide"
     assert plan["full_verification_required"] is True
-    assert _command_ids(plan) == ["workflow_contract_check", "verify_fast"]
+    assert _command_ids(plan) == [
+        "workflow_contract_check",
+        "verify_fast",
+        "verify_full",
+    ]
 
 
 def test_changed_files_accepts_just_style_base_assignment(monkeypatch) -> None:

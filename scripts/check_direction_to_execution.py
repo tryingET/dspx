@@ -86,19 +86,6 @@ def _run_json(cmd: list[str], *, relpath: str, issues: list[Issue]) -> object | 
         return None
 
 
-def _run_check(cmd: list[str], *, relpath: str, issues: list[Issue]) -> None:
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    except FileNotFoundError:
-        issues.append(Issue(Path(relpath), f"missing command: {cmd[0]}"))
-        return
-    if proc.returncode != 0:
-        stderr = (proc.stderr or proc.stdout or "").strip()
-        issues.append(
-            Issue(Path(relpath), f"command failed: {' '.join(cmd)} :: {stderr}")
-        )
-
-
 def collect_issues(root: Path) -> list[Issue]:
     root = root.resolve()
     issues: list[Issue] = []
@@ -238,18 +225,12 @@ def collect_issues(root: Path) -> list[Issue]:
                 )
             )
 
-    _run_check(
-        [*_ak_cmd(root), "work-items", "check", "--repo", str(root)],
-        relpath="governance/work-items.json",
-        issues=issues,
-    )
-
     return issues
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Check DSPx direction-to-execution coherence across docs, AK, and work-item projections"
+        description="Check DSPx direction-to-execution coherence across docs and AK"
     )
     parser.add_argument("--root", type=Path, default=Path("."))
     args = parser.parse_args()

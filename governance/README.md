@@ -6,24 +6,23 @@ read_when:
 type: "reference"
 ---
 
-# Project Work Items
+# Governance Artifacts
 
-This file tracks project-specific work (features, bugs, improvements).
+AK DB is canonical for live task/work-item truth.
 
 ## Purpose
 
-**This is a PLANNING ARTIFACT, not an execution queue.**
-Use it to choose the next slice; do not treat it as a scheduler or live execution state.
+`governance/work-items.json` is a legacy compatibility projection. It is not live execution state, not the planning authority, and not a landing gate for routine validation.
 
-When Agent Kernel is authoritative for this repo, keep this file as a checked-in projection/mirror:
-- refresh it with `ak work-items export --repo /home/tryinget/ai-society/softwareco/owned/dspx --path governance/work-items.json`
-- verify it with `ak work-items check --repo /home/tryinget/ai-society/softwareco/owned/dspx`
+Use Agent Kernel directly for current DSPx work selection and execution state:
 
-| Aspect | Status |
-|--------|--------|
-| Structure | ✓ Complete |
-| Validation | ✓ CUE schema |
-| Operational | ✗ No scheduler support |
+```bash
+ak task ready --repo /home/tryinget/ai-society/softwareco/owned/dspx
+ak task list --repo /home/tryinget/ai-society/softwareco/owned/dspx
+ak task show <AK-ID>
+```
+
+If a future consumer still needs a checked-in compatibility projection, refresh or verify it only in an explicitly scoped projection-maintenance slice.
 
 Projects may also use:
 - Git issues / milestones
@@ -62,9 +61,7 @@ triage → queued → doing → review → done
 
 ## Validation
 
-```bash
-cue vet governance/work-items.json governance/work-items.cue
-```
+Routine validation follows the AK-native gates in `docs/project/developer_workflow.md`. The legacy projection is compatibility-only and is not part of the default `just check` landing path.
 
 ## Program vs Project
 
@@ -72,15 +69,16 @@ cue vet governance/work-items.json governance/work-items.cue
 |------|----------|-------|--------------|
 | **Program** | governance-kernel/governance/programs/ | Cross-company | Yes |
 | **Program** | company-templates/governance/programs/ | Company | No |
-| **Project** | repo/governance/work-items.json (this file) | This repo | No |
+| **Project** | AK task/work-item state for this repo | This repo | Yes |
+| **Legacy projection** | repo/governance/work-items.json | This repo | No |
 
 ## When to Use This vs Alternatives
 
-| Use This When | Use Alternative When |
+| Use AK When | Use Alternative When |
 |---------------|---------------------|
 | Work is specific to this repo | Work spans multiple repos (→ FCOS) |
-| You want structured tracking | Simple bugs (→ git issues) |
-| You need milestone tracking | Quick tasks (→ TODO comments) |
+| You need live task authority | Simple bugs (→ git issues) |
+| You need claim/scope/evidence lifecycle | Quick notes (→ docs/diary/learnings as appropriate) |
 
 ## Related
 

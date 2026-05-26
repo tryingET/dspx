@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
@@ -13,6 +14,7 @@ DEFAULT_FORBIDDEN_PATTERNS = [
     "**/*.pyo",
     "**/*.backup",
 ]
+PROVENANCE_NOTES_REF = "refs/notes/ai-society/provenance"
 
 
 @dataclass(frozen=True)
@@ -234,7 +236,7 @@ def task_slice_commits(repo_root: Path, task_id: int) -> list[str]:
 
 def changed_files_for_task_slice(repo_root: Path, task_id: int) -> list[str]:
     commits = task_slice_commits(repo_root, task_id)
-    changed: set[str] = set()
+    changed: set[str] = set(committed_files_for_task_provenance(repo_root, task_id))
     for commit in commits:
         changed.update(
             _git_output(
@@ -407,6 +409,65 @@ def changed_files_for_working_tree(repo_root: Path) -> list[str]:
     return sorted(tracked | untracked)
 
 
+def _provenance_note_for_commit(repo_root: Path, commit: str) -> str | None:
+    proc = _run(
+        ["git", "notes", f"--ref={PROVENANCE_NOTES_REF}", "show", commit],
+        cwd=repo_root,
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout
+
+
+def _provenance_note_links_task(note: str, task_id: int) -> bool:
+    if "task_ids" not in note:
+        return False
+    task_pattern = re.compile(rf"(?m)^\s*-\s*['\"]?{task_id}['\"]?\s*$")
+    return bool(task_pattern.search(note))
+
+
+def committed_files_for_task_provenance(
+    repo_root: Path, task_id: int, *, max_commits: int = 20
+) -> list[str]:
+    """Return recent committed files with provenance notes linked to ``task_id``.
+
+    Working-tree task-scope validation is often run between delegated commit
+    groups. In that state the current dirty tree is only the next group, while
+    required paths for the whole task may already be present in a just-created
+    commit. Commit-local provenance notes are the narrow authority membrane for
+    including those prior group files without sweeping unrelated history into the
+    validation target.
+    """
+
+    commits = _git_output(
+        ["rev-list", f"--max-count={max_commits}", "HEAD"], cwd=repo_root
+    )
+    changed: set[str] = set()
+    found_linked_head_chain = False
+    for commit in commits:
+        note = _provenance_note_for_commit(repo_root, commit)
+        if note is None or not _provenance_note_links_task(note, task_id):
+            if found_linked_head_chain:
+                break
+            return []
+        found_linked_head_chain = True
+        changed.update(
+            _git_output(
+                [
+                    "diff-tree",
+                    "--root",
+                    "--no-commit-id",
+                    "--name-only",
+                    "--diff-filter=ACMRD",
+                    "-r",
+                    commit,
+                ],
+                cwd=repo_root,
+            )
+        )
+    return sorted(changed)
+
+
 def _matches_any(path: str, patterns: tuple[str, ...]) -> bool:
     path = path.replace("\\", "/")
     for pattern in patterns:
@@ -543,7 +604,11 @@ def check_task_scope(
         else:
             changed = changed_files_for_head(repo_root, rev_range=rev_range)
     elif mode == "working-tree":
-        changed = changed_files_for_working_tree(repo_root)
+        working_tree_changed = changed_files_for_working_tree(repo_root)
+        committed_group_changed = committed_files_for_task_provenance(
+            repo_root, manifest.task_id
+        )
+        changed = sorted(set(working_tree_changed) | set(committed_group_changed))
     else:
         raise ValueError(f"unsupported task scope mode: {mode}")
 
