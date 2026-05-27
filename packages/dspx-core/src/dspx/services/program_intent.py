@@ -253,6 +253,13 @@ class ProgramIntent(BaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
     capabilities: dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("schema_version")
+    @classmethod
+    def _schema_version_must_be_current(cls, value: str) -> str:
+        if value != "program-intent-v2":
+            raise ValueError("program intent schema_version must be program-intent-v2")
+        return value
+
     @field_validator("name")
     @classmethod
     def _name_must_not_be_blank(cls, value: str) -> str:

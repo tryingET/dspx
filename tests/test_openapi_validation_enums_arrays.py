@@ -90,6 +90,66 @@ def test_query_param_enum_and_array_validation(tmp_path: Path) -> None:
     assert res.status_code == 200 and res.body == {"ok": True}
 
 
+def test_openapi_enum_validation_preserves_json_types() -> None:
+    from dspx.tools.openapi.caller import _validate_json_value_against_schema
+
+    with pytest.raises(ValueError):
+        _validate_json_value_against_schema("1", {"enum": [1]}, path="body")
+
+    with pytest.raises(ValueError):
+        _validate_json_value_against_schema(1, {"enum": ["1"]}, path="body")
+
+    _validate_json_value_against_schema(1, {"enum": [1]}, path="body")
+    _validate_json_value_against_schema("1", {"enum": ["1"]}, path="body")
+
+
+def test_openapi_parameter_string_enum_rejects_numeric_lookalike(
+    tmp_path: Path,
+) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "items",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "mode",
+                            "schema": {"type": "string", "enum": ["1"]},
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "spec_enum_types.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+
+    with pytest.raises(ValueError):
+        call_operation(
+            OpenAPICallRequest(operation_id="items", params={"mode": 1}),
+            operation=ops["items"],
+            allowed_hosts={"api.example.com": True},
+            client=httpx.Client(
+                transport=httpx.MockTransport(lambda r: httpx.Response(200))
+            ),
+        )
+
+    res = call_operation(
+        OpenAPICallRequest(operation_id="items", params={"mode": "1"}),
+        operation=ops["items"],
+        allowed_hosts={"api.example.com": True},
+        client=httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200))
+        ),
+    )
+    assert res.status_code == 200
+
+
 def test_body_arrays_and_nested_objects(tmp_path: Path) -> None:
     spec = {
         "openapi": "3.0.0",

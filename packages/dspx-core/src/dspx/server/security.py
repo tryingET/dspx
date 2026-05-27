@@ -431,58 +431,63 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Prepare log context
         ctx = {"method": method, "path": path, "ident_kind": ident_kind}
         if self.config.enabled:
-            # Global rules first
-            for key_g, grules in global_rule_groups:
-                with self._lock:
+            buckets_to_consume: list[list[_TokenBucket]] = []
+            with self._lock:
+                now = time.monotonic()
+                for key_g, grules in global_rule_groups:
                     gb = self._global.get(key_g)
                     if gb is None:
                         gb = [
-                            _TokenBucket(r.capacity, r.period_seconds) for r in grules
+                            _TokenBucket(r.capacity, r.period_seconds, now=now)
+                            for r in grules
                         ]
                         self._global[key_g] = gb
-                now = time.monotonic()
-                if not all(b.would_allow(now) for b in gb):
-                    self._log.info(
-                        "rate_limit",
-                        extra={"event": "ratelimit", **ctx, "scope": "global"},
-                    )
-                    return JSONResponse(
-                        status_code=429,
-                        content={
-                            "error": "rate_limited",
-                            "detail": "limit exceeded",
-                            "status": 429,
-                        },
-                    )
-                for bucket in gb:
-                    bucket.consume(now)
-            if rule_groups:
-                self._remember_identity(ident, time.monotonic())
-            for key, rules in rule_groups:
-                now = time.monotonic()
-                with self._lock:
+                    if not all(b.would_allow(now) for b in gb):
+                        self._log.info(
+                            "rate_limit",
+                            extra={"event": "ratelimit", **ctx, "scope": "global"},
+                        )
+                        return JSONResponse(
+                            status_code=429,
+                            content={
+                                "error": "rate_limited",
+                                "detail": "limit exceeded",
+                                "status": 429,
+                            },
+                        )
+                    buckets_to_consume.append(gb)
+
+                if rule_groups:
+                    self._bucket_last_seen[ident] = now
+                    self._cleanup_identities(now)
+
+                for key, rules in rule_groups:
                     buckmap = self._buckets.setdefault(ident, {})
                     buckets = buckmap.get(key)
                     if buckets is None:
                         buckets = [
-                            _TokenBucket(r.capacity, r.period_seconds) for r in rules
+                            _TokenBucket(r.capacity, r.period_seconds, now=now)
+                            for r in rules
                         ]
                         buckmap[key] = buckets
-                if not all(b.would_allow(now) for b in buckets):
-                    self._log.info(
-                        "rate_limit",
-                        extra={"event": "ratelimit", **ctx, "scope": "identity"},
-                    )
-                    return JSONResponse(
-                        status_code=429,
-                        content={
-                            "error": "rate_limited",
-                            "detail": "limit exceeded",
-                            "status": 429,
-                        },
-                    )
-                for bucket in buckets:
-                    bucket.consume(now)
+                    if not all(b.would_allow(now) for b in buckets):
+                        self._log.info(
+                            "rate_limit",
+                            extra={"event": "ratelimit", **ctx, "scope": "identity"},
+                        )
+                        return JSONResponse(
+                            status_code=429,
+                            content={
+                                "error": "rate_limited",
+                                "detail": "limit exceeded",
+                                "status": 429,
+                            },
+                        )
+                    buckets_to_consume.append(buckets)
+
+                for bucket_group in buckets_to_consume:
+                    for bucket in bucket_group:
+                        bucket.consume(now)
         # Proceed
         resp = await call_next(request)
         # Structured access log (redact auth header)

@@ -239,6 +239,16 @@ rules:
       - boundary_contract_check
       - docs_strict
 
+  - match: "packages/dspx-core/src/dspx/services/program_intent.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+
   - match: "packages/dspx-core/src/dspx/services/program_surfaces.py"
     category: python_service
     impact_group: program_generation_spine

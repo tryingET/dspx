@@ -66,6 +66,18 @@ def _explicit_topology_intent() -> ProgramIntent:
     )
 
 
+def test_program_intent_rejects_stale_schema_version() -> None:
+    with pytest.raises(ValueError, match="program-intent-v2"):
+        ProgramIntent.model_validate(
+            {"schema_version": "program-intent-v1", "objective": "x"}
+        )
+
+    with pytest.raises(ValueError, match="program-intent-v2"):
+        ProgramIntent.model_validate(
+            {"schema_version": "not-a-schema", "objective": "x"}
+        )
+
+
 def test_explicit_pipeline_topology_is_normalized_and_persisted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

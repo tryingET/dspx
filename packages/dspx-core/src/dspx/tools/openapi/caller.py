@@ -204,6 +204,50 @@ def _validate_numeric_schema(
     _validate_numeric_multiple_of(value, schema, label=label)
 
 
+def _json_enum_equal(left: Any, right: Any) -> bool:
+    """Return JSON-schema enum equality without type-erasing string coercion."""
+
+    if left is None or right is None:
+        return left is None and right is None
+    if isinstance(left, bool) or isinstance(right, bool):
+        return isinstance(left, bool) and isinstance(right, bool) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        if isinstance(left, bool) or isinstance(right, bool):
+            return False
+        return float(left) == float(right)
+    if isinstance(left, str) or isinstance(right, str):
+        return isinstance(left, str) and isinstance(right, str) and left == right
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(
+            _json_enum_equal(l_item, r_item)
+            for l_item, r_item in zip(left, right, strict=True)
+        )
+    if isinstance(left, Mapping) and isinstance(right, Mapping):
+        if set(left) != set(right):
+            return False
+        return all(_json_enum_equal(left[key], right[key]) for key in left)
+    return type(left) is type(right) and left == right
+
+
+def _coerce_enum_candidate_for_parameter(value: Any, schema: Mapping[str, Any]) -> Any:
+    schema_type = schema.get("type")
+    if schema_type == "integer":
+        return _coerce_numeric_param(value, integer=True, label="enum parameter")
+    if schema_type == "number":
+        return _coerce_numeric_param(value, integer=False, label="enum parameter")
+    if schema_type == "boolean" and isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"true", "1", "yes"}:
+            return True
+        if text in {"false", "0", "no"}:
+            return False
+    return value
+
+
+def _enum_contains(value: Any, enum: list[Any]) -> bool:
+    return any(_json_enum_equal(value, item) for item in enum)
+
+
 def call_operation(
     request: OpenAPICallRequest,
     *,
@@ -258,9 +302,10 @@ def call_operation(
                 )
                 val = params.get(p.get("name"))
                 if enum is not None:
-                    if str(val) not in {str(x) for x in enum}:
+                    enum_value = _coerce_enum_candidate_for_parameter(val, schema)
+                    if not _enum_contains(enum_value, enum):
                         raise ValueError(
-                            f"Invalid value for query param {p.get('name')}: must be one of {enum}"
+                            f"Invalid value for {where} param {p.get('name')}: must be one of {enum}"
                         )
                 numeric_value: float | int | None = None
                 param_kind = f"{where} param"
@@ -338,9 +383,9 @@ def call_operation(
                         else None
                     )
                     if items_enum is not None:
-                        allowed = {str(x) for x in items_enum}
                         for el in val:
-                            if str(el) not in allowed:
+                            enum_item = _coerce_enum_candidate_for_parameter(el, items)
+                            if not _enum_contains(enum_item, items_enum):
                                 raise ValueError(
                                     f"Invalid item value in array param {p.get('name')}: must be one of {items_enum}"
                                 )
@@ -657,9 +702,9 @@ def _validate_json_value_against_schema(
 
     # Enum constraint
     if isinstance(schema.get("enum"), list):
-        allowed = {str(x) for x in schema["enum"]}
-        if str(value) not in allowed:
-            raise ValueError(f"{path}: value must be one of {sorted(allowed)}")
+        allowed = list(schema["enum"])
+        if not _enum_contains(value, allowed):
+            raise ValueError(f"{path}: value must be one of {allowed}")
 
     t = schema.get("type")
 

@@ -89,6 +89,19 @@ def test_program_generation_spine_selects_expanded_adjacent_checks() -> None:
     ]
 
 
+def test_program_intent_selects_program_generation_spine_checks() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_intent.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_generation_spine",
+        "boundary_contract_check",
+    ]
+
+
 def test_cli_boundary_change_selects_boundary_hardening_tests() -> None:
     plan = _plan("packages/dspx-core/src/dspx/cli/dspx.py")
 

@@ -131,6 +131,60 @@ def test_generated_direct_batch_rejects_invalid_limits(
     assert message in result.stderr
 
 
+def test_generated_direct_batch_records_timeout_without_crashing(
+    tmp_path: Path,
+) -> None:
+    program_dir = tmp_path / "program"
+    program_dir.mkdir()
+    (program_dir / "direct_run.py").write_text(
+        render_direct_run_code(object()), encoding="utf-8"
+    )
+    (program_dir / "program.py").write_text(
+        """
+import time
+
+def io_spec(): return {"inputs": ["q"], "outputs": ["answer"]}
+def configure_observability(**kw): return False
+def end_observability_run(started, status="FINISHED"): pass
+class P:
+    def __call__(self, **kw):
+        time.sleep(3)
+        return {"answer": "late"}
+def build_program(): return P()
+""",
+        encoding="utf-8",
+    )
+    inputs_root = tmp_path / "inputs"
+    inputs_root.mkdir()
+    (inputs_root / "case.json").write_text('{"q": "x"}\n', encoding="utf-8")
+    out_root = tmp_path / "out"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(program_dir / "direct_run.py"),
+            "--inputs-root",
+            str(inputs_root),
+            "--out-root",
+            str(out_root),
+            "--timeout-seconds",
+            "1",
+            "--json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    summary = json.loads((out_root / "direct_batch_receipt.json").read_text())
+    assert summary["status"] == "failed"
+    assert summary["failed"] == 1
+    attempt = summary["results"][0]["attempts"][0]
+    assert attempt["timed_out"] is True
+    assert attempt["error_type"] == "TimeoutExpired"
+
+
 def test_program_gen_failure_cleans_partial_outdir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

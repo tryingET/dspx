@@ -443,6 +443,16 @@ def _discover_input_files(inputs_root: Path) -> list[Path]:
     return sorted(inputs_root.glob('*.json'))
 
 
+def _tail_text(value: object, *, limit: int = 2000) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, bytes):
+        text = value.decode('utf-8', errors='replace')
+    else:
+        text = str(value)
+    return text[-limit:]
+
+
 def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: int, config_path: Path | None) -> dict[str, Any]:
     attempts: list[dict[str, Any]] = []
     cmd = [
@@ -458,12 +468,32 @@ def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: in
         cmd.extend(['--config', str(config_path)])
     for attempt in range(retries + 1):
         outdir.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
+        try:
+            result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
+        except subprocess.TimeoutExpired as exc:
+            attempts.append({
+                'attempt': attempt + 1,
+                'returncode': None,
+                'timed_out': True,
+                'timeout_seconds': timeout_seconds,
+                'error_type': 'TimeoutExpired',
+                'stdout_tail': _tail_text(exc.stdout),
+                'stderr_tail': _tail_text(exc.stderr),
+            })
+            continue
+        except Exception as exc:
+            attempts.append({
+                'attempt': attempt + 1,
+                'returncode': None,
+                'error_type': type(exc).__name__,
+                'error': str(exc),
+            })
+            continue
         attempts.append({
             'attempt': attempt + 1,
             'returncode': result.returncode,
-            'stdout_tail': result.stdout[-2000:],
-            'stderr_tail': result.stderr[-2000:],
+            'stdout_tail': _tail_text(result.stdout),
+            'stderr_tail': _tail_text(result.stderr),
         })
         if result.returncode == 0 and (outdir / OUTPUT_RECEIPT).exists():
             receipt = json.loads((outdir / OUTPUT_RECEIPT).read_text(encoding='utf-8'))
