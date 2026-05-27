@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "6f589c050ff0846a90b7947526c96a17a3c36f91"
-created_at: "2026-05-27T22:48:12Z"
+created_at: "2026-05-27T22:58:33Z"
 intent: "Harden visible-loop boundary edge cases across rate limiting, program intent, direct batch timeout receipts, OpenAPI enums, and impact planning."
 files:
   - "packages/dspx-core/src/dspx/server/security.py"
@@ -22,8 +22,8 @@ validation:
     status: "pass"
   full_gate:
     command: "just loop-impact-wide"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
-  rationale: "Single boundary-hardening slice with matching regression coverage."
+  rationale: "Single boundary-hardening slice with matching regression coverage; final gate timed out during boundary_contract_check."
