@@ -11,12 +11,31 @@ class SanitizeResult:
     notes: list[str]
 
 
+_SECRET_KEY = (
+    r"(?:api[-_]?key|access[-_]?token|token|key|secret|password|authorization)"
+)
+
 _secret_patterns: list[tuple[str, re.Pattern[str]]] = [
     ("op_ref", re.compile(r"op://[A-Za-z0-9_./ -]+", re.IGNORECASE)),
     ("bearer", re.compile(r"(?i)authorization\s*:\s*bearer\s+[^\s]+")),
     ("openai_sk", re.compile(r"sk-[A-Za-z0-9]{20,}")),
     ("gitlab_pat", re.compile(r"glpat-[A-Za-z0-9\-]{10,}")),
-    ("env_key", re.compile(r"(?m)^(\w*(TOKEN|KEY|SECRET|PASSWORD)\w*)\s*=\s*.+$")),
+    (
+        "env_key",
+        re.compile(rf"(?im)^(\s*\w*{_SECRET_KEY}\w*\s*=\s*).+$"),
+    ),
+    (
+        "yaml_key",
+        re.compile(
+            rf"(?im)^(\s*[A-Za-z0-9_.-]*{_SECRET_KEY}[A-Za-z0-9_.-]*\s*:\s*).+$"
+        ),
+    ),
+    (
+        "json_key",
+        re.compile(
+            rf'(?i)("[A-Za-z0-9_.-]*{_SECRET_KEY}[A-Za-z0-9_.-]*"\s*:\s*")[^"]+(")'
+        ),
+    ),
 ]
 
 
@@ -28,8 +47,10 @@ def sanitize_text(raw: str) -> SanitizeResult:
         if pat.search(text):
             detected = True
             notes.append(f"redacted:{name}")
-            if name == "env_key":
-                text = pat.sub(r"\1=[REDACTED]", text)
+            if name in {"env_key", "yaml_key"}:
+                text = pat.sub(r"\1[REDACTED]", text)
+            elif name == "json_key":
+                text = pat.sub(r"\1[REDACTED]\2", text)
             else:
                 text = pat.sub("[REDACTED]", text)
     return SanitizeResult(sanitized=text, detected=detected, notes=notes)

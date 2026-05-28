@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import os
 import tempfile
 from pathlib import Path
 
@@ -24,6 +23,30 @@ def test_import_program_module_rejects_untrusted_program_root(
             _import_program_module(program)
 
 
+def test_import_program_module_rejects_default_temp_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("DSPX_TRUSTED_PROGRAM_ROOTS", raising=False)
+    program = tmp_path / "prog.py"
+    program.write_text("X = 1\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="trusted root"):
+        _import_program_module(program)
+
+
+def test_import_program_module_rejects_temp_cwd_implicit_trust(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DSPX_TRUSTED_PROGRAM_ROOTS", raising=False)
+    monkeypatch.chdir(tempfile.gettempdir())
+    with tempfile.TemporaryDirectory(dir=tempfile.gettempdir()) as temp_root:
+        program = Path(temp_root) / "prog.py"
+        program.write_text("X = 1\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="trusted root"):
+            _import_program_module(program)
+
+
 def test_import_program_module_allows_env_trusted_program_root(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -37,8 +60,11 @@ def test_import_program_module_allows_env_trusted_program_root(
         assert getattr(mod, "VALUE") == 7
 
 
-def test_gepa_optimize_saves_loadable_program(tmp_path: Path) -> None:
-    os.environ["DSPX_PROVIDER"] = "stub"
+def test_gepa_optimize_saves_loadable_program(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_TRUSTED_PROGRAM_ROOTS", str(tmp_path))
 
     program = tmp_path / "prog.py"
     program.write_text(

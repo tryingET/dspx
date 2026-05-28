@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from dspx_forge.issues import apply_issue_specs, build_issue_spec, default_paths
+from dspx_forge.issues import (
+    apply_issue_specs,
+    build_issue_spec,
+    default_paths,
+    write_issue_specs,
+)
 from dspx_forge.issue_text import build_managed_block, upsert_managed_block
 from dspx_forge.plan import build_plan
 from dspx_forge.workorder import build_workorder, load_workorder, write_workorder
@@ -83,6 +88,28 @@ def test_forge_issues_apply_dry_run_writes_manifest(tmp_path: Path) -> None:
     p = default_paths(paths.workorder_yaml).manifest_json
     assert p.exists()
     assert manifest.workorder_id == wo.work_order.id
+
+
+def test_forge_issue_spec_write_confines_project_key(tmp_path: Path) -> None:
+    wo = build_workorder("Build thing\nDo it safely")
+    paths = write_workorder(tmp_path / "generated" / "forge", wo)
+    spec = build_issue_spec(wo, project_key="../../escape")
+
+    with pytest.raises(ValueError, match="unsafe path component|Path escapes"):
+        write_issue_specs(default_paths(paths.workorder_yaml), [spec])
+
+    assert not (tmp_path / "escape" / f"{spec.issue_spec.local_id}.yaml").exists()
+
+
+def test_forge_workorder_redacts_colon_style_secrets() -> None:
+    wo = build_workorder(
+        "Build thing\npassword: hunter2\ntoken: abc123\napi_key: sk-test"
+    )
+
+    assert wo.work_order.redaction_report.detected is True
+    assert "hunter2" not in wo.work_order.sanitized_input
+    assert "abc123" not in wo.work_order.sanitized_input
+    assert "sk-test" not in wo.work_order.sanitized_input
 
 
 def test_forge_custom_out_root_persists_into_workorder_and_issue_specs(

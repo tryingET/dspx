@@ -18,46 +18,25 @@ class GEPAResult:
 
 
 def _trusted_program_roots() -> List[Path]:
-    import os
-    import tempfile
+    from dspx.security import trusted_path_roots
 
-    roots: List[Path] = [
-        Path.cwd().resolve(),
-        Path("/tmp").resolve(),
-        Path("/var/tmp").resolve(),
-        Path("/private/tmp").resolve(),
-        Path(tempfile.gettempdir()).resolve(),
-    ]
-    extra_roots = os.getenv("DSPX_TRUSTED_PROGRAM_ROOTS", "")
-    for raw_root in extra_roots.split(os.pathsep):
-        if raw_root.strip():
-            roots.append(Path(raw_root).expanduser().resolve())
-
-    deduped: List[Path] = []
-    seen: set[Path] = set()
-    for root in roots:
-        if root not in seen:
-            deduped.append(root)
-            seen.add(root)
-    return deduped
+    # Deliberately do not trust world-writable temp directories by default.
+    # Tests and callers that generate programs outside the repo must opt in via
+    # DSPX_TRUSTED_PROGRAM_ROOTS.
+    return trusted_path_roots(env_var="DSPX_TRUSTED_PROGRAM_ROOTS")
 
 
 def _require_trusted_program_path(program_path: Path) -> Path:
-    resolved = program_path.resolve()
-    trusted_roots = _trusted_program_roots()
-    for root in trusted_roots:
-        try:
-            resolved.relative_to(root)
-            return resolved
-        except ValueError:
-            continue
+    from dspx.security import require_path_under_roots
 
-    allowed = ", ".join(str(root) for root in trusted_roots)
-    raise ValueError(
-        "Program path must stay under a trusted root. "
-        f"Got {resolved}; trusted roots: {allowed}. "
-        "Use DSPX_TRUSTED_PROGRAM_ROOTS to allow additional roots."
-    )
+    try:
+        return require_path_under_roots(
+            program_path, _trusted_program_roots(), label="Program path"
+        )
+    except ValueError as exc:
+        raise ValueError(
+            f"{exc}. Use DSPX_TRUSTED_PROGRAM_ROOTS to allow additional roots."
+        ) from exc
 
 
 def _import_program_module(program_path: Path) -> object:

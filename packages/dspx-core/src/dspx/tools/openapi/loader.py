@@ -8,6 +8,9 @@ from urllib.parse import unquote, urlparse
 import httpx
 
 from dspx.http_guard import host_allowed, send_with_host_allowlist
+from dspx.security import read_response_text_bounded
+
+_DEFAULT_REMOTE_SPEC_MAX_BYTES = 2_000_000
 
 
 def _is_url(s: str) -> bool:
@@ -31,6 +34,19 @@ def _cache_key(url: str) -> str:
     import hashlib
 
     return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+
+def _remote_spec_max_bytes() -> int:
+    raw = os.getenv("DSPX_OPENAPI_MAX_BYTES", str(_DEFAULT_REMOTE_SPEC_MAX_BYTES))
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "DSPX_OPENAPI_MAX_BYTES must be an integer byte count"
+        ) from exc
+    if value < 1:
+        raise ValueError("DSPX_OPENAPI_MAX_BYTES must be positive")
+    return value
 
 
 def _cache_path(url: str) -> str:
@@ -98,10 +114,18 @@ def load_spec(
                 allowed_hosts=allowed_hosts,
                 blocked_error_prefix="Host not allowed for spec URL",
                 redirect_error_prefix="Redirect target host not allowed for spec URL",
+                stream=True,
             )
-            resp.raise_for_status()
-            final_url = str(resp.url)
-            text = resp.text
+            try:
+                resp.raise_for_status()
+                final_url = str(resp.url)
+                text = read_response_text_bounded(
+                    resp,
+                    max_bytes=_remote_spec_max_bytes(),
+                    label="OpenAPI remote spec",
+                )
+            finally:
+                resp.close()
             parsed = _load_text(text, final_url)
             if _cache_enabled():
                 try:

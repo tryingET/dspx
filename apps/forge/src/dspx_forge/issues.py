@@ -17,6 +17,36 @@ from dspx_forge.models import (
 )
 from dspx_forge.gitlab_client import GitLabClient, load_gitlab_config_from_env
 
+try:
+    from dspx.security import confine_relative_path
+except Exception:  # pragma: no cover - standalone forge fallback
+
+    def confine_relative_path(root: Path, *parts: str | Path) -> Path:  # type: ignore[misc]
+        resolved_root = root.resolve()
+        safe_parts: list[str] = []
+        for raw_part in parts:
+            raw_text = str(raw_part)
+            if raw_text in {"", "."}:
+                raise ValueError(
+                    f"unsafe path component segment is not allowed: {raw_part}"
+                )
+            part = Path(raw_part)
+            if part.is_absolute():
+                raise ValueError(f"absolute path component is not allowed: {raw_part}")
+            if not part.parts:
+                raise ValueError(
+                    f"unsafe path component segment is not allowed: {raw_part}"
+                )
+            for segment in part.parts:
+                if segment in {"", ".", ".."}:
+                    raise ValueError(
+                        f"unsafe path component segment is not allowed: {raw_part}"
+                    )
+                safe_parts.append(segment)
+        resolved = (resolved_root / Path(*safe_parts)).resolve()
+        resolved.relative_to(resolved_root)
+        return resolved
+
 
 @dataclass(frozen=True)
 class ForgePaths:
@@ -119,7 +149,9 @@ def write_issue_specs(paths: ForgePaths, specs: list[IssueSpecDoc]) -> list[Path
     out: list[Path] = []
     for doc in specs:
         iss = doc.issue_spec
-        p = paths.issues_dir / iss.project_key / f"{iss.local_id}.yaml"
+        p = confine_relative_path(
+            paths.issues_dir, iss.project_key, f"{iss.local_id}.yaml"
+        )
         write_yaml(p, doc.model_dump())
         out.append(p)
     return out

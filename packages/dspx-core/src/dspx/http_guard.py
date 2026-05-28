@@ -28,6 +28,7 @@ def send_with_host_allowlist(
     blocked_error_prefix: str = "Host not allowed for URL",
     redirect_error_prefix: str = "Redirect target host not allowed for URL",
     max_redirects: int = 10,
+    stream: bool = False,
 ) -> httpx.Response:
     """Send a request while validating every redirect hop before it is followed."""
     current = request
@@ -38,11 +39,12 @@ def send_with_host_allowlist(
         if not host_allowed(current_url, allowed_hosts):
             raise PermissionError(f"{blocked_error_prefix}: {current_url}")
 
-        response = client.send(current, follow_redirects=False)
+        response = client.send(current, follow_redirects=False, stream=stream)
         next_request = response.next_request
         if next_request is None:
             return response
 
+        response.close()
         redirects += 1
         if redirects > max_redirects:
             raise RuntimeError(f"too many redirects for URL: {current_url}")

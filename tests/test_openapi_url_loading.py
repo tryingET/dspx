@@ -52,6 +52,28 @@ def test_load_spec_from_url_with_allowlist_and_cache(
     assert "ping" in ops2
 
 
+def test_load_spec_url_enforces_remote_byte_limit(tmp_path: Path, monkeypatch) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            text='{"openapi":"3.0.0","paths":{}}' + (" " * 64),
+            request=request,
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setenv("DSPX_OPENAPI_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_OPENAPI_MAX_BYTES", "16")
+
+    with pytest.raises(ValueError, match="OpenAPI remote spec exceeded byte limit"):
+        load_spec(
+            "http://api.example.com/spec.json",
+            allowed_hosts={"api.example.com": True},
+            client=client,
+        )
+
+    assert not list((tmp_path / "cache").glob("*.json"))
+
+
 def test_load_spec_cache_fallback_is_opt_in(tmp_path: Path, monkeypatch) -> None:
     good_spec = '{"openapi":"3.0.0","paths":{"/ping":{"get":{"operationId":"ping","responses":{"200":{"description":"ok"}}}}}}'
     calls = {"count": 0}
