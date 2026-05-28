@@ -345,14 +345,12 @@ def module_capability_ref(module: Mapping[str, Any]) -> dict[str, Any]:
         status = "materializable_with_empty_sandbox"
         runtime_binding = "generated_sandboxed_program_of_thought"
     if primitive == "ReActV2":
-        react = module.get("react")
-        if isinstance(react, Mapping) and bool(
-            react.get("react_v2_materialization_explicit_opt_in")
-        ):
+        if is_pipeline_module_materializable(module):
             materializable = True
             status = "experimental_materializable_with_empty_tools_explicit_opt_in"
             runtime_binding = "generated_experimental_react_v2_no_tools"
         else:
+            materializable = False
             status = "experimental_declared_only_not_materializable"
             runtime_binding = "none"
     return {

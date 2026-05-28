@@ -118,13 +118,22 @@ def _input_linkage(
 ) -> list[dict[str, Any]]:
     linked: list[dict[str, Any]] = []
     for field in fields:
-        if field in prior_outputs:
-            source = "upstream_module_output"
-        elif field in inputs:
-            source = "program_input"
-        else:
+        present = field in inputs
+        declared_available_from_prior_output = field in prior_outputs
+        if not present:
             source = "missing"
-        linked.append({"field": field, "source": source, "present": field in inputs})
+        elif declared_available_from_prior_output:
+            source = "upstream_module_output"
+        else:
+            source = "program_input"
+        linked.append(
+            {
+                "field": field,
+                "source": source,
+                "present": present,
+                "declared_available_from_prior_output": declared_available_from_prior_output,
+            }
+        )
     return linked
 
 

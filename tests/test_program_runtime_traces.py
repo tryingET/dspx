@@ -77,6 +77,76 @@ def test_runtime_traces_reconstruct_single_module_behavior_call() -> None:
     assert payload["trace_hashes"]["module_calls"] == [call["trace_hash"]]
 
 
+def test_runtime_trace_missing_upstream_input_is_not_reported_as_present_source() -> (
+    None
+):
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="PipelineTraceProgram",
+            objective="Capture partial pipeline traces.",
+            outputs=["answer"],
+        ),
+        module_surfaces={
+            "schema_version": "program-module-surfaces-v1",
+            "module_surfaces": [
+                {
+                    "module_id": "extract",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "ExtractSignature",
+                        "inputs": ["question"],
+                        "outputs": ["facts"],
+                    },
+                },
+                {
+                    "module_id": "answer",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "AnswerSignature",
+                        "inputs": ["facts"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+        },
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q"},
+                    "observed_outputs": {"answer": "a"},
+                    "runtime_trace": {
+                        "module_calls": [
+                            {
+                                "module_id": "extract",
+                                "inputs": {"question": "q"},
+                                "outputs": {"facts": "f"},
+                            },
+                            {
+                                "module_id": "answer",
+                                "inputs": {},
+                                "outputs": {"answer": "a"},
+                            },
+                        ]
+                    },
+                }
+            ],
+        },
+    )
+
+    answer_call = payload["module_calls"][1]
+    assert answer_call["input_field_linkage"] == [
+        {
+            "field": "facts",
+            "source": "missing",
+            "present": False,
+            "declared_available_from_prior_output": True,
+        }
+    ]
+
+
 def test_program_gen_writes_hash_bound_runtime_traces_and_replay_checks(
     tmp_path: Path,
     monkeypatch,

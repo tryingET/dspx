@@ -7,6 +7,7 @@ import pytest
 from dspx.services.program_capabilities import (
     build_program_capability_registry,
     capability_contract_for_primitive,
+    module_capability_ref,
 )
 from dspx.services.program_intent import ProgramIntent
 
@@ -238,6 +239,45 @@ def test_react_v2_primitive_contract_is_experimental_opt_in_only() -> None:
     )
     assert contract["materialization_policy"]["react_v2_tool_binding_allowed"] is False
     assert contract["effects"]["tool_called"] is False
+
+
+def test_react_v2_module_capability_ref_requires_full_safety_predicate() -> None:
+    valid_ref = module_capability_ref(
+        {
+            "id": "safe_reasoner",
+            "primitive": "react_v2",
+            "react": {
+                "react_v2_materialization_explicit_opt_in": True,
+                "tools": [],
+                "max_iters": 2,
+            },
+        }
+    )
+    assert valid_ref["materializable"] is True
+    assert valid_ref["status"] == (
+        "experimental_materializable_with_empty_tools_explicit_opt_in"
+    )
+    assert valid_ref["runtime_binding"] == "generated_experimental_react_v2_no_tools"
+
+    for unsafe_react in [
+        {
+            "react_v2_materialization_explicit_opt_in": True,
+            "tools": ["unsafe"],
+            "max_iters": 2,
+        },
+        {
+            "react_v2_materialization_explicit_opt_in": True,
+            "tools": [],
+            "max_iters": "2",
+        },
+        {"tools": [], "max_iters": 2},
+    ]:
+        ref = module_capability_ref(
+            {"id": "unsafe_reasoner", "primitive": "react_v2", "react": unsafe_react}
+        )
+        assert ref["materializable"] is False
+        assert ref["status"] == "experimental_declared_only_not_materializable"
+        assert ref["runtime_binding"] == "none"
 
 
 def test_retriever_primitive_contract_requires_bounded_inline_adapter() -> None:

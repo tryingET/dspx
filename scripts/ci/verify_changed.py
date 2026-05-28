@@ -477,7 +477,7 @@ def _matches(pattern: str, path: str) -> bool:
                 return True
             return any(
                 match_from(pattern_index + 1, next_path_index)
-                for next_path_index in range(path_index + 1, len(path_parts) + 1)
+                for next_path_index in range(path_index, len(path_parts) + 1)
             )
         if path_index >= len(path_parts):
             return False

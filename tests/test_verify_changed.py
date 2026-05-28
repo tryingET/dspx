@@ -48,6 +48,17 @@ def test_docs_only_change_selects_docs_strict_without_full_verification() -> Non
     assert _command_ids(plan) == ["docs_strict"]
 
 
+def test_segment_glob_double_star_matches_zero_or_more_segments() -> None:
+    loaded = _load_module()
+
+    assert loaded._matches("docs/**/*.md", "docs/foo.md") is True
+    assert loaded._matches("docs/**/*.md", "docs/project/foo.md") is True
+    assert loaded._matches("docs/**/*.md", "docs/project/nested/foo.md") is True
+    assert loaded._matches("packages/**/*.py", "packages/foo.py") is True
+    assert loaded._matches("packages/**/*.py", "packages/dspx/foo.py") is True
+    assert loaded._matches("packages/*.py", "packages/dspx/foo.py") is False
+
+
 def test_docs_globs_match_direct_and_deep_markdown() -> None:
     plan = _plan("docs/ARCHITECTURE.md", "docs/project/nested/deep.md")
 
@@ -55,7 +66,10 @@ def test_docs_globs_match_direct_and_deep_markdown() -> None:
     assert plan["full_verification_required"] is False
     assert _command_ids(plan) == ["docs_strict"]
     reasons = [classification["reasons"] for classification in plan["classifications"]]
-    assert reasons == [["matched docs/*.md"], ["matched docs/**/*.md"]]
+    assert reasons == [
+        ["matched docs/*.md", "matched docs/**/*.md"],
+        ["matched docs/**/*.md"],
+    ]
 
 
 def test_redaction_boundary_selects_provider_runtime_checks() -> None:
@@ -204,7 +218,10 @@ def test_cli_boundary_change_selects_boundary_hardening_tests() -> None:
     assert plan["full_verification_required"] is False
     assert "pytest_boundary_hardening" in _command_ids(plan)
     classification = plan["classifications"][0]
-    assert classification["reasons"] == ["matched packages/dspx-core/src/dspx/cli/*.py"]
+    assert classification["reasons"] == [
+        "matched packages/dspx-core/src/dspx/cli/*.py",
+        "matched packages/dspx-core/src/dspx/cli/**/*.py",
+    ]
 
 
 def test_nested_cli_boundary_change_uses_nested_rule_only() -> None:
