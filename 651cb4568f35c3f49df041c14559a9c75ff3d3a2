@@ -1,0 +1,29 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "651cb4568f35c3f49df041c14559a9c75ff3d3a2"
+created_at: "2026-05-28T19:16:49Z"
+intent: "Split runtime impact validation so wide plans do not force full verification by default"
+files:
+  - "Justfile"
+  - "scripts/build_module_synthesis_quality_log.py"
+  - "scripts/check_workflow_contracts.py"
+  - "scripts/ci/verification-impact.yml"
+  - "scripts/ci/verify_changed.py"
+  - "tests/test_verify_changed.py"
+  - "tests/test_workflow_contracts.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "VISIBLE_LOOP_ACCEPTANCE_REASON=... just loop-impact-wide && just loop-landing-check"
+    status: "pass"
+group:
+  index: 2
+  total: 3
+  rationale: "repo-owned validation impact refinement"
+links:
+  task_ids:
+    - 3415
