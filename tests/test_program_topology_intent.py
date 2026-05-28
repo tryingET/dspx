@@ -9,8 +9,10 @@ from typing import Any, Mapping, cast
 
 import pytest
 
-from dspx.services import program_service
+from dspx.services import program_service, program_topology
+from dspx.services.program_capabilities import build_program_capability_registry
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_module_surface import build_program_module_surfaces
 from dspx.services.program_service import materialize_program_from_intent
 from dspx.services.run_replay_service import check_run_receipt
 
@@ -1520,6 +1522,104 @@ def test_bounded_reasoning_primitives_materialize_without_external_tools(
             "generated_sandboxed_program_of_thought"
         )
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def _react_v2_intent(*, opt_in: bool = False) -> ProgramIntent:
+    return ProgramIntent(
+        name="ReActV2PipelineProgram",
+        objective="Use explicitly enabled experimental ReActV2 reasoning to answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        options={"enable_react_v2_materialization": opt_in},
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "reason_answer",
+                    "primitive": "react_v2",
+                    "signature": {
+                        "name": "ReasonAnswer",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    },
+                    "tools": [],
+                    "max_iters": 2,
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "reason_answer"},
+                {"from": "reason_answer", "to": "output"},
+            ],
+        },
+    )
+
+
+def test_react_v2_pipeline_requires_explicit_opt_in_for_materialization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setattr(program_topology, "_dspy_react_v2_available", lambda: True)
+
+    with pytest.raises(
+        ValueError,
+        match="unsupported primitives: \\['ReActV2'\\]",
+    ):
+        materialize_program_from_intent(
+            _react_v2_intent(opt_in=False), outdir=tmp_path / "program"
+        )
+
+
+def test_react_v2_pipeline_fails_closed_when_dspy_lacks_react_v2(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setattr(program_topology, "_dspy_react_v2_available", lambda: False)
+
+    with pytest.raises(
+        ValueError, match="requires installed DSPy with public dspy.ReActV2"
+    ):
+        materialize_program_from_intent(
+            _react_v2_intent(opt_in=True), outdir=tmp_path / "program"
+        )
+
+
+def test_react_v2_explicit_opt_in_renders_no_tool_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(program_topology, "_dspy_react_v2_available", lambda: True)
+    intent = _react_v2_intent(opt_in=True)
+
+    module_text, metadata = program_topology.render_pipeline_module_surface(intent)
+    module_surfaces = build_program_module_surfaces(intent)
+    registry = build_program_capability_registry(intent)
+
+    assert metadata["module_classes"] == ["ReasonAnswerModule"]
+    assert "dspy.ReActV2(ReasonAnswer, tools=[], max_iters=2)" in module_text
+    assert "dspy.Tool" not in module_text
+    assert "_TOOL_BINDING_ALLOWED = False" in module_text
+    surface = module_surfaces["module_surfaces"][0]
+    assert surface["primitive"] == "ReActV2"
+    assert surface["capability_ref"] == {
+        "schema_version": "program-capability-contract-v1",
+        "capability_id": "dspy.primitive.ReActV2",
+        "primitive": "ReActV2",
+        "status": "experimental_materializable_with_empty_tools_explicit_opt_in",
+        "materializable": True,
+        "runtime_binding": "generated_experimental_react_v2_no_tools",
+    }
+    used = registry["used_capability_refs"][0]
+    assert used["primitive"] == "ReActV2"
+    assert used["materializable"] is True
+    assert used["runtime_binding"] == "generated_experimental_react_v2_no_tools"
 
 
 @pytest.mark.parametrize(

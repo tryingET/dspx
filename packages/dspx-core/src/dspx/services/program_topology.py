@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
+import os
 import re
 
 from dspx.services.program_capabilities import (
@@ -416,25 +417,86 @@ def _module_signature(module: Mapping[str, Any]) -> dict[str, Any]:
     return dict(signature) if isinstance(signature, Mapping) else {}
 
 
+def _truthy(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def _react_v2_materialization_requested(intent: Any) -> bool:
+    options = getattr(intent, "options", {}) or {}
+    option_enabled = False
+    if isinstance(options, Mapping):
+        option_enabled = _truthy(
+            options.get(
+                "enable_react_v2_materialization",
+                options.get("react_v2_materialization", False),
+            )
+        )
+    env_enabled = _truthy(os.getenv("DSPX_PROGRAM_GEN_ENABLE_REACT_V2"))
+    return option_enabled or env_enabled
+
+
+def _dspy_react_v2_available() -> bool:
+    try:
+        import dspy
+    except Exception:
+        return False
+    return hasattr(dspy, "ReActV2")
+
+
+def _prepare_react_v2_modules(
+    *, intent: Any, modules: list[dict[str, Any]]
+) -> list[str]:
+    react_v2_modules = [
+        str(module.get("id") or "")
+        for module in modules
+        if str(module.get("primitive") or "") == "ReActV2"
+    ]
+    if not react_v2_modules:
+        return []
+    if not _react_v2_materialization_requested(intent):
+        return react_v2_modules
+    if not _dspy_react_v2_available():
+        raise ProgramTopologyMaterializationError(
+            "ReActV2 materialization requires installed DSPy with public dspy.ReActV2; "
+            "keep ReActV2 descriptor-only or make an explicit DSPy 3.3 compatibility decision"
+        )
+    for module in modules:
+        if str(module.get("primitive") or "") != "ReActV2":
+            continue
+        react = dict(module.get("react") or {})
+        react["version"] = "v2"
+        react["status"] = "experimental_materializable_with_empty_tools_explicit_opt_in"
+        react["react_v2_materialization_explicit_opt_in"] = True
+        react["tool_binding_allowed"] = False
+        module["react"] = react
+    return []
+
+
 def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
     """Return the normalized pipeline topology or fail for unsupported execution."""
 
     topology = effective_pipeline_topology(intent)
     if not topology:
         return {}
+    topology = dict(topology)
     modules = [
         dict(item) for item in topology.get("modules", []) if isinstance(item, Mapping)
     ]
+    topology["modules"] = modules
     if not modules:
         raise ProgramTopologyMaterializationError(
             "pipeline topology materialization requires at least one module"
         )
+    react_v2_not_enabled = _prepare_react_v2_modules(intent=intent, modules=modules)
     unsupported = sorted(
         {
             str(module.get("primitive") or "")
             for module in modules
             if not is_pipeline_module_materializable(module)
         }
+        | ({"ReActV2"} if react_v2_not_enabled else set())
     )
     if unsupported:
         allowed = ", ".join(
@@ -443,6 +505,7 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
                     *SUPPORTED_PIPELINE_PRIMITIVES,
                     "Retriever:inline_corpus",
                     "ReAct:tools=[]",
+                    "ReActV2:tools=[]:explicit_opt_in:dspy_3_3_required",
                     "ProgramOfThought:empty_sandbox",
                 ]
             )
@@ -762,19 +825,30 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
                     f"        return dspy.Prediction({output_name}=json.dumps(selected, ensure_ascii=False, sort_keys=True))",
                 ]
             )
-        elif primitive == "ReAct":
+        elif primitive in {"ReAct", "ReActV2"}:
             react = dict(module.get("react") or {})
             max_iters = int(react.get("max_iters") or 1)
+            constructor = "ReActV2" if primitive == "ReActV2" else "ReAct"
+            status_lines = [
+                f"    _MAX_ITERS = {max_iters!r}",
+            ]
+            if primitive == "ReActV2":
+                status_lines.extend(
+                    [
+                        "    _REACT_V2_STATUS = 'experimental_materializable_with_empty_tools_explicit_opt_in'",
+                        "    _TOOL_BINDING_ALLOWED = False",
+                    ]
+                )
             lines.extend(
                 [
                     f"class {class_name}(dspy.Module):",
                     f'    """{doc}"""',
                     "",
-                    f"    _MAX_ITERS = {max_iters!r}",
+                    *status_lines,
                     "",
                     "    def __init__(self, use_cot: bool = False) -> None:",
                     "        super().__init__()",
-                    f"        self.predict = dspy.ReAct({signature_name}, tools=[], max_iters={max_iters!r})",
+                    f"        self.predict = dspy.{constructor}({signature_name}, tools=[], max_iters={max_iters!r})",
                     "",
                     f"    def forward(self, {input_params}) -> dspy.Prediction:",
                     f"        return self.predict({call_args})",
@@ -922,6 +996,10 @@ def render_pipeline_program_code(intent: Any) -> str:
         }
         for module in modules
     }
+    module_primitives = {
+        _module_id(module): str(module.get("primitive") or "Predict")
+        for module in modules
+    }
     lines: list[str] = [
         "from __future__ import annotations",
         "",
@@ -951,6 +1029,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"MATERIALIZATION_SCOPE = {materialization_scope!r}",
             f"MODULE_ORDER = {[_module_id(module) for module in modules]!r}",
             f"MODULE_SIGNATURES = {module_signatures!r}",
+            f"MODULE_PRIMITIVES = {module_primitives!r}",
             f"PROGRAM_OUTPUTS = {list(getattr(intent, 'outputs', []))!r}",
             f"EDGES = {list(topology.get('edges', []))!r}",
             "PROGRAM_TEMPLATE_VERSION = 'program-candidate-assembly-v1'",
@@ -1181,6 +1260,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"    def forward(self, {forward_params}) -> dspy.Prediction:",
             f"        state: dict[str, object] = {{{state_payload}}}",
             "        delivered_outputs: dict[str, object] = {}",
+            "        self._last_runtime_trace = {'schema_version': 'program-runtime-trace-fragment-v1', 'module_calls': [], 'final_outputs': {}}",
             "        executed: set[str] = set()",
             "        pending: set[str] = set(MODULE_ORDER)",
             "        while pending:",
@@ -1198,11 +1278,26 @@ def render_pipeline_program_code(intent: Any) -> str:
             "                pending.remove(module_id)",
             "                progressed = True",
             "                mapped = _prediction_mapping(prediction)",
+            "                call_outputs: dict[str, object] = {}",
             "                for output_name in signature['outputs']:",
             "                    if output_name in mapped:",
             "                        state[output_name] = mapped[output_name]",
             "                    elif hasattr(prediction, output_name):",
             "                        state[output_name] = getattr(prediction, output_name)",
+            "                    if output_name in state:",
+            "                        call_outputs[output_name] = state[output_name]",
+            "                self._last_runtime_trace['module_calls'].append({",
+            "                    'module_id': module_id,",
+            "                    'primitive': MODULE_PRIMITIVES.get(module_id, 'Predict'),",
+            "                    'inputs': _jsonable(kwargs),",
+            "                    'outputs': _jsonable(call_outputs),",
+            "                    'status': 'executed',",
+            "                    'react_steps': [],",
+            "                    'react_v2_steps': [],",
+            "                    'program_of_thought_steps': [],",
+            "                    'tool_call_intents': [],",
+            "                    'tool_call_results': [],",
+            "                })",
             "                if _output_edges_ready(module_id, state, executed):",
             "                    for output_name in signature['outputs']:",
             "                        if output_name in PROGRAM_OUTPUTS and output_name in state:",
@@ -1221,6 +1316,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             "                'pipeline topology completed without declared outputs: '",
             "                f'missing_outputs={missing_outputs}'",
             "            )",
+            "        self._last_runtime_trace['final_outputs'] = _jsonable(delivered_outputs)",
             f"        return dspy.Prediction({', '.join(f'{name}=_jsonable(delivered_outputs[{name!r}])' for name in getattr(intent, 'outputs', []))})",
             "",
             "",

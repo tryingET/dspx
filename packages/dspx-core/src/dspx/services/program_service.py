@@ -43,6 +43,10 @@ from dspx.services.program_runtime_outcomes import (
     PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
     build_program_runtime_outcomes,
 )
+from dspx.services.program_runtime_traces import (
+    PROGRAM_RUNTIME_TRACES_SCHEMA,
+    build_program_runtime_traces,
+)
 from dspx.services.program_tool_contracts import (
     PROGRAM_TOOL_CONTRACTS_SCHEMA,
     build_program_tool_contracts,
@@ -322,6 +326,7 @@ def build_program_plan(
     examples_hash: Optional[str] = None,
     retriever_snapshots_hash: Optional[str] = None,
     runtime_outcomes_hash: Optional[str] = None,
+    runtime_traces_hash: Optional[str] = None,
     tool_contracts_hash: Optional[str] = None,
 ) -> dict[str, Any]:
     """Build the deterministic ProgramPlan v1 contract from a ProgramIntent."""
@@ -382,6 +387,11 @@ def build_program_plan(
         {
             "kind": "runtime_outcomes",
             "path": "program_runtime_outcomes.json",
+            "generator": "program-gen",
+        },
+        {
+            "kind": "runtime_traces",
+            "path": "program_runtime_traces.json",
             "generator": "program-gen",
         },
         {
@@ -514,6 +524,12 @@ def build_program_plan(
             "path": "program_runtime_outcomes.json",
             "content_hash": runtime_outcomes_hash,
             "status": "outcome_contracts_declared",
+        },
+        "runtime_traces": {
+            "schema_version": PROGRAM_RUNTIME_TRACES_SCHEMA,
+            "path": "program_runtime_traces.json",
+            "content_hash": runtime_traces_hash,
+            "status": "runtime_traces_captured_or_not_applicable",
         },
         "tool_contracts": {
             "schema_version": PROGRAM_TOOL_CONTRACTS_SCHEMA,
@@ -1961,6 +1977,19 @@ def _materialize_program_from_intent_unchecked(
         source_payloads["behavior_results.json"] = behavior_results_payload
     for split, payload in dataset_split_behavior_payloads.items():
         source_payloads[f"behavior_results.{split}.json"] = payload
+    runtime_traces_payload = build_program_runtime_traces(
+        intent,
+        module_surfaces=module_surfaces_payload,
+        behavior_results=behavior_results_payload,
+        behavior_results_hash=behavior_results_hash,
+        dataset_split_behavior_results=dataset_split_behavior_payloads,
+        dataset_split_behavior_hashes=dataset_split_behavior_hashes,
+    )
+    runtime_traces_text = _write_json(
+        root / "program_runtime_traces.json", runtime_traces_payload
+    )
+    runtime_traces_hash = sha256_text(runtime_traces_text)
+    surface_hashes["program_runtime_traces.json"] = runtime_traces_hash
     if evaluation_sources:
         oracle_evidence_payload = _build_oracle_evidence(
             intent=intent,
@@ -2016,6 +2045,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template.json",
             "module_surfaces.json",
             "program_runtime_outcomes.json",
+            "program_runtime_traces.json",
             "program_tool_contracts.json",
             "program_capability_registry.json",
             "generated_module_policy.json",
@@ -2150,6 +2180,7 @@ def _materialize_program_from_intent_unchecked(
             "intent",
             "module_surfaces",
             "runtime_outcomes",
+            "runtime_traces",
             "tool_contracts",
             "execution_episode",
             "capability_registry",
@@ -2256,6 +2287,18 @@ def _materialize_program_from_intent_unchecked(
                 "status": runtime_outcomes_payload["status"],
                 "module_outcome_count": runtime_outcomes_payload[
                     "module_outcome_count"
+                ],
+            },
+            {
+                "kind": "runtime_traces",
+                "path": "program_runtime_traces.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["program_runtime_traces.json"],
+                "schema_version": runtime_traces_payload["schema_version"],
+                "status": runtime_traces_payload["status"],
+                "module_call_count": runtime_traces_payload["module_call_count"],
+                "final_output_trace_count": runtime_traces_payload[
+                    "final_output_trace_count"
                 ],
             },
             {
@@ -2434,6 +2477,8 @@ def _materialize_program_from_intent_unchecked(
             "module_surfaces_path": "module_surfaces.json",
             "runtime_outcomes_hash": runtime_outcomes_hash,
             "runtime_outcomes_path": "program_runtime_outcomes.json",
+            "runtime_traces_hash": runtime_traces_hash,
+            "runtime_traces_path": "program_runtime_traces.json",
             "tool_contracts_hash": tool_contracts_hash,
             "tool_contracts_path": "program_tool_contracts.json",
             "capability_registry_hash": capability_registry_hash,
@@ -2496,6 +2541,7 @@ def _materialize_program_from_intent_unchecked(
                 "promotion_decision_template": "program-gen",
                 "module_surfaces": "program-gen",
                 "runtime_outcomes": "program-gen",
+                "runtime_traces": "program-gen",
                 "tool_contracts": "program-gen",
                 "capability_registry": "program-gen",
                 "generated_module_policy": "program-gen",
@@ -2604,6 +2650,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "runtime_outcomes_hash": runtime_outcomes_hash,
+            "runtime_traces_hash": runtime_traces_hash,
             "tool_contracts_hash": tool_contracts_hash,
             "capability_registry_hash": capability_registry_hash,
             "generated_module_policy_hash": generated_module_policy_hash,
@@ -2637,6 +2684,13 @@ def _materialize_program_from_intent_unchecked(
             "content_hash": runtime_outcomes_hash,
             "schema_version": PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
             "status": runtime_outcomes_payload["status"],
+        },
+        "program_runtime_traces": runtime_traces_payload,
+        "runtime_traces_artifact": {
+            "path": "program_runtime_traces.json",
+            "content_hash": runtime_traces_hash,
+            "schema_version": PROGRAM_RUNTIME_TRACES_SCHEMA,
+            "status": runtime_traces_payload["status"],
         },
         "program_tool_contracts": tool_contracts_payload,
         "tool_contracts_artifact": {
@@ -2768,6 +2822,8 @@ def _materialize_program_from_intent_unchecked(
             "module_surfaces_path": "module_surfaces.json",
             "runtime_outcomes_hash": runtime_outcomes_hash,
             "runtime_outcomes_path": "program_runtime_outcomes.json",
+            "runtime_traces_hash": runtime_traces_hash,
+            "runtime_traces_path": "program_runtime_traces.json",
             "tool_contracts_hash": tool_contracts_hash,
             "tool_contracts_path": "program_tool_contracts.json",
             "capability_registry_hash": capability_registry_hash,
@@ -2819,6 +2875,13 @@ def _materialize_program_from_intent_unchecked(
                 "content_hash": runtime_outcomes_hash,
                 "schema_version": PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
                 "status": runtime_outcomes_payload["status"],
+            },
+            "program_runtime_traces": runtime_traces_payload,
+            "program_runtime_traces_artifact": {
+                "path": "program_runtime_traces.json",
+                "content_hash": runtime_traces_hash,
+                "schema_version": PROGRAM_RUNTIME_TRACES_SCHEMA,
+                "status": runtime_traces_payload["status"],
             },
             "program_tool_contracts": tool_contracts_payload,
             "program_tool_contracts_artifact": {
@@ -2958,6 +3021,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "runtime_outcomes_hash": runtime_outcomes_hash,
+            "runtime_traces_hash": runtime_traces_hash,
             "tool_contracts_hash": tool_contracts_hash,
             "capability_registry_hash": capability_registry_hash,
             "generated_module_policy_hash": generated_module_policy_hash,

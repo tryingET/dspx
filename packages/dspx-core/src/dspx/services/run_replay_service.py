@@ -378,6 +378,7 @@ def _program_evidence_declarations(
         if kind not in {
             "module_surfaces",
             "runtime_outcomes",
+            "runtime_traces",
             "tool_contracts",
             "capability_registry",
             "generated_module_policy",
@@ -416,6 +417,12 @@ def _program_evidence_declarations(
         path=evidence.get("runtime_outcomes_path") or "program_runtime_outcomes.json",
         content_hash=evidence.get("runtime_outcomes_hash"),
         source="manifest.receipt_bundle.evidence.runtime_outcomes_hash",
+    )
+    add(
+        "runtime_traces",
+        path=evidence.get("runtime_traces_path") or "program_runtime_traces.json",
+        content_hash=evidence.get("runtime_traces_hash"),
+        source="manifest.receipt_bundle.evidence.runtime_traces_hash",
     )
     add(
         "tool_contracts",
@@ -506,6 +513,12 @@ def _program_evidence_declarations(
         source="manifest.receipt_bundle.evidence.surface_hashes.program_runtime_outcomes.json",
     )
     add(
+        "runtime_traces",
+        path="program_runtime_traces.json",
+        content_hash=surface_hashes.get("program_runtime_traces.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.program_runtime_traces.json",
+    )
+    add(
         "tool_contracts",
         path="program_tool_contracts.json",
         content_hash=surface_hashes.get("program_tool_contracts.json"),
@@ -591,6 +604,12 @@ def _program_evidence_declarations(
         or "program_runtime_outcomes.json",
         content_hash=run_summary.get("runtime_outcomes_hash"),
         source="receipt.run_summary.runtime_outcomes_hash",
+    )
+    add(
+        "runtime_traces",
+        path=run_summary.get("runtime_traces_path") or "program_runtime_traces.json",
+        content_hash=run_summary.get("runtime_traces_hash"),
+        source="receipt.run_summary.runtime_traces_hash",
     )
     add(
         "tool_contracts",
@@ -786,6 +805,31 @@ def _check_program_evidence_artifacts(
                     report,
                     code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
                     message=f"program runtime outcomes semantic check failed: {artifact_path}",
+                    check=semantic_check,
+                )
+        if kind == "runtime_traces":
+            traces_payload = _load_json_object(artifact_path)
+            runtime_policy = (
+                traces_payload.get("runtime_policy")
+                if isinstance(traces_payload, dict)
+                else None
+            )
+            semantic_check = "program_runtime_traces_semantic_valid"
+            checks[semantic_check] = (
+                isinstance(traces_payload, dict)
+                and traces_payload.get("schema_version") == "program-runtime-traces-v1"
+                and traces_payload.get("status")
+                in {"runtime_traces_captured", "no_runtime_traces_captured"}
+                and isinstance(traces_payload.get("module_calls"), list)
+                and isinstance(traces_payload.get("final_outputs"), list)
+                and isinstance(runtime_policy, dict)
+                and runtime_policy.get("tool_execution_allowed") is False
+            )
+            if not checks[semantic_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program runtime traces semantic check failed: {artifact_path}",
                     check=semantic_check,
                 )
         if kind == "tool_contracts":

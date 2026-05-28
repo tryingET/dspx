@@ -32,7 +32,7 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
             "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus or local_corpus_snapshot only; local snapshots are normalized into generated inline adapters during materialization",
         },
         "experimental_primitives": {
-            "ReActV2": "descriptor-only until DSPy 3.3 beta support is explicitly enabled behind generated policy and tool contracts"
+            "ReActV2": "descriptor-only by default; conditionally materializable only with explicit opt-in, tools=[], public dspy.ReActV2, generated policy, and tool contracts"
         },
         "unsupported_primitives_are_declared_only": True,
         "custom_imports_are_declarations_only": True,
@@ -50,8 +50,9 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
     assert by_id["dspy.primitive.ReActV2"]["materializable"] is False
     assert by_id["dspy.primitive.ReActV2"]["experimental"] is True
     assert by_id["dspy.primitive.ReActV2"]["status"] == (
-        "experimental_declared_only_not_materializable"
+        "experimental_conditionally_materializable_with_empty_tools_explicit_opt_in"
     )
+    assert by_id["dspy.primitive.ReActV2"]["conditional_materializable"] is True
     assert by_id["dspy.primitive.ProgramOfThought"]["materializable"] is False
     assert (
         by_id["dspy.primitive.ProgramOfThought"]["conditional_materializable"] is True
@@ -207,16 +208,34 @@ def test_bounded_reasoning_primitive_contracts_are_conditionally_materializable(
     assert contract["effects"]["provider_called"] is False
 
 
-def test_react_v2_primitive_contract_is_experimental_declared_only() -> None:
+def test_react_v2_primitive_contract_is_experimental_opt_in_only() -> None:
     contract = capability_contract_for_primitive("react_v2")
 
     assert contract["capability_id"] == "dspy.primitive.ReActV2"
-    assert contract["status"] == "experimental_declared_only_not_materializable"
+    assert contract["status"] == (
+        "experimental_conditionally_materializable_with_empty_tools_explicit_opt_in"
+    )
     assert contract["materializable"] is False
-    assert contract["conditional_materializable"] is False
+    assert contract["conditional_materializable"] is True
     assert contract["experimental"] is True
-    assert contract["allowed_topology_kinds"] == ["custom"]
+    assert contract["allowed_topology_kinds"] == [
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise",
+    ]
     assert contract["materialization_policy"]["react_v2_declared_only"] is True
+    assert (
+        contract["materialization_policy"][
+            "react_v2_materialization_requires_explicit_opt_in"
+        ]
+        is True
+    )
+    assert (
+        contract["materialization_policy"]["react_v2_requires_public_dspy_react_v2"]
+        is True
+    )
     assert contract["materialization_policy"]["react_v2_tool_binding_allowed"] is False
     assert contract["effects"]["tool_called"] is False
 

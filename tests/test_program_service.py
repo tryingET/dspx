@@ -92,6 +92,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (root / "intent.json").exists()
     assert (root / "intent_normalization.json").exists()
     assert (root / "program_runtime_outcomes.json").exists()
+    assert (root / "program_runtime_traces.json").exists()
     assert (root / "program_tool_contracts.json").exists()
     assert (root / "execution_episode.json").exists()
     assert (root / "manifest.json").exists()
@@ -162,6 +163,7 @@ def test_program_service_materializes_candidate_assembly(
         "intent",
         "module_surfaces",
         "runtime_outcomes",
+        "runtime_traces",
         "tool_contracts",
         "execution_episode",
         "capability_registry",
@@ -193,6 +195,8 @@ def test_program_service_materializes_candidate_assembly(
     assert surfaces_by_kind["runtime_outcomes"]["path"] == (
         "program_runtime_outcomes.json"
     )
+    assert surfaces_by_kind["runtime_traces"]["path"] == "program_runtime_traces.json"
+    assert surfaces_by_kind["runtime_traces"]["status"] == "no_runtime_traces_captured"
     assert surfaces_by_kind["tool_contracts"]["path"] == "program_tool_contracts.json"
     assert surfaces_by_kind["execution_episode"]["path"] == "execution_episode.json"
     assert surfaces_by_kind["capability_registry"]["path"] == (
@@ -568,25 +572,29 @@ def test_program_gen_cli_materializes_from_yaml(
     )
     assert (
         payload["candidate_assembly"]["surfaces"][9]["path"]
-        == "program_tool_contracts.json"
+        == "program_runtime_traces.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][10]["path"]
-        == "execution_episode.json"
+        == "program_tool_contracts.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][11]["path"]
-        == "program_capability_registry.json"
+        == "execution_episode.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][12]["path"]
-        == "generated_module_policy.json"
+        == "program_capability_registry.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][13]["path"]
+        == "generated_module_policy.json"
+    )
+    assert (
+        payload["candidate_assembly"]["surfaces"][14]["path"]
         == "intent_normalization.json"
     )
-    assert payload["candidate_assembly"]["surfaces"][14]["path"] == "signature.py"
+    assert payload["candidate_assembly"]["surfaces"][15]["path"] == "signature.py"
     assert any(
         surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
         for surface in payload["candidate_assembly"]["surfaces"]
