@@ -10,6 +10,7 @@ from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAME
 from dspx.services.program_intent import ProgramIntent, load_program_intent
 from dspx.services.program_module_surface import build_program_module_surfaces
 from dspx.services.program_topology import (
+    MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS,
     prompt_inferred_pipeline_topology,
     validate_materializable_pipeline_topology,
 )
@@ -56,12 +57,21 @@ def _explicit_materializable_topology(topology: Mapping[str, Any]) -> dict[str, 
             normalized["role"] = role
         if normalized["primitive"] == "Retriever" and "retriever" in module:
             normalized["retriever"] = dict(module.get("retriever") or {})
+        if normalized["primitive"] == "ReAct" and "react" in module:
+            normalized["react"] = dict(module.get("react") or {})
+        if (
+            normalized["primitive"] == "ProgramOfThought"
+            and "program_of_thought" in module
+        ):
+            normalized["program_of_thought"] = dict(
+                module.get("program_of_thought") or {}
+            )
         modules.append(normalized)
     edges = [
         dict(edge) for edge in topology.get("edges", []) if isinstance(edge, Mapping)
     ]
     return {
-        "kind": "pipeline",
+        "kind": str(topology.get("kind") or "pipeline"),
         "execution_status": "declared_not_materialized",
         "modules": modules,
         "edges": edges,
@@ -191,7 +201,9 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
     inferred_topology = prompt_inferred_pipeline_topology(intent)
     recommended_candidate_id = "baseline_single_predict"
     if declared_topology:
-        materializable = declared_topology.get("kind") == "pipeline"
+        materializable = (
+            declared_topology.get("kind") in MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS
+        )
         limitations: list[str] = []
         if materializable:
             declared_payload = _candidate_intent_payload(
@@ -207,18 +219,18 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
                 materializable = False
                 recommendation = "declared_only"
                 why = [
-                    "Operator-declared pipeline topology is preserved as a planning candidate but is not materializable by the current renderer.",
+                    "Operator-declared topology is preserved as a planning candidate but is not materializable by the current renderer.",
                 ]
                 limitations.append(str(exc))
                 limitations.append(
-                    "Current execution renderer materializes only Predict/ChainOfThought pipeline modules and explicit Retriever:inline_corpus adapters."
+                    "Current execution renderer materializes only bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise modules over Predict/ChainOfThought/ReAct/ProgramOfThought and explicit Retriever:inline_corpus adapters."
                 )
                 declared_payload = deepcopy(source_payload)
             else:
                 recommendation = "operator_declared_topology"
                 recommended_candidate_id = "declared_pipeline"
                 why = [
-                    "Operator-declared executable pipeline topology takes precedence over prompt inference.",
+                    "Operator-declared executable topology takes precedence over prompt inference.",
                 ]
         else:
             recommendation = "declared_only"
@@ -226,7 +238,7 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
                 "Operator-declared topology is preserved as a planning candidate but is not materializable by the current renderer.",
             ]
             limitations.append(
-                "Current execution renderer materializes only pipeline topologies over Predict/ChainOfThought and explicit Retriever:inline_corpus adapters."
+                "Current execution renderer materializes only bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies over Predict/ChainOfThought/ReAct/ProgramOfThought and explicit Retriever:inline_corpus adapters."
             )
             declared_payload = deepcopy(source_payload)
         candidates.append(
@@ -272,7 +284,7 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
                 ],
                 limitations=[
                     "Inference is deterministic and local; it is not a provider-backed architecture search.",
-                    "No arbitrary custom Python imports, tools, external retrievers, ReAct, or ProgramOfThought are executed; Retriever execution remains limited to explicit inline_corpus adapters.",
+                    "No arbitrary custom Python imports, tools, or external retrievers are executed; ReAct uses an empty tools list, ProgramOfThought uses an empty sandbox, and Retriever execution remains limited to explicit inline_corpus adapters.",
                 ],
             )
         )

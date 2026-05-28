@@ -9,7 +9,14 @@ PROGRAM_CAPABILITY_REGISTRY_SCHEMA = "program-capability-registry-v1"
 PROGRAM_CAPABILITY_DECLARATION_SCHEMA = "program-capability-declaration-v1"
 
 _MATERIALIZABLE_PIPELINE_PRIMITIVES = {"Predict", "ChainOfThought"}
-_CONDITIONAL_PIPELINE_PRIMITIVES = {"Retriever"}
+_CONDITIONAL_PIPELINE_PRIMITIVES = {"Retriever", "ReAct", "ProgramOfThought"}
+_ALLOWED_TOPOLOGY_KINDS = [
+    "pipeline",
+    "router",
+    "retrieve_then_answer",
+    "extract_transform_validate",
+    "generate_critique_revise",
+]
 _MAX_INLINE_RETRIEVER_K = 10
 _MAX_INLINE_RETRIEVER_DOCUMENTS = 100
 _MAX_INLINE_RETRIEVER_DOCUMENT_CHARS = 4000
@@ -173,8 +180,19 @@ def normalize_inline_retriever_config(
 
 def is_pipeline_module_materializable(module: Mapping[str, Any]) -> bool:
     primitive = _canonical_primitive(module.get("primitive") or "Predict")
-    if primitive in _MATERIALIZABLE_PIPELINE_PRIMITIVES:
+    if primitive in {"Predict", "ChainOfThought"}:
         return True
+    if primitive == "ReAct":
+        react = module.get("react")
+        if not isinstance(react, Mapping):
+            return False
+        return react.get("tools") == [] and isinstance(react.get("max_iters"), int)
+    if primitive == "ProgramOfThought":
+        config = module.get("program_of_thought")
+        if not isinstance(config, Mapping):
+            return False
+        sandbox = config.get("sandbox")
+        return isinstance(config.get("max_iters"), int) and isinstance(sandbox, Mapping)
     if primitive == "Retriever":
         try:
             normalize_inline_retriever_config(
@@ -202,9 +220,9 @@ def _primitive_contract(primitive: str) -> dict[str, Any]:
         else "declared_only_not_materializable",
         "materializable": materializable,
         "conditional_materializable": conditional,
-        "allowed_topology_kinds": ["single_module", "pipeline", "retrieve_then_answer"]
+        "allowed_topology_kinds": ["single_module", *_ALLOWED_TOPOLOGY_KINDS]
         if materializable
-        else ["pipeline", "retrieve_then_answer"]
+        else list(_ALLOWED_TOPOLOGY_KINDS)
         if conditional
         else [],
         "materialization_policy": {
@@ -213,8 +231,8 @@ def _primitive_contract(primitive: str) -> dict[str, Any]:
             "tool_binding_allowed": False,
             "retriever_binding_allowed": False,
             "bounded_inline_retriever_adapter_allowed": primitive == "Retriever",
-            "react_loop_allowed": False,
-            "program_of_thought_allowed": False,
+            "react_loop_allowed": primitive == "ReAct",
+            "program_of_thought_allowed": primitive == "ProgramOfThought",
             "provider_call_allowed_by_contract": False,
             "fail_closed_without_explicit_adapter": True,
         },
@@ -254,6 +272,14 @@ def module_capability_ref(module: Mapping[str, Any]) -> dict[str, Any]:
         materializable = True
         status = "materializable_with_bounded_inline_adapter"
         runtime_binding = "generated_bounded_inline_retriever_adapter"
+    if primitive == "ReAct" and is_pipeline_module_materializable(module):
+        materializable = True
+        status = "materializable_with_empty_tools"
+        runtime_binding = "generated_bounded_react_no_tools"
+    if primitive == "ProgramOfThought" and is_pipeline_module_materializable(module):
+        materializable = True
+        status = "materializable_with_empty_sandbox"
+        runtime_binding = "generated_sandboxed_program_of_thought"
     return {
         "schema_version": PROGRAM_CAPABILITY_CONTRACT_SCHEMA,
         "capability_id": _capability_id_for_primitive(primitive),
@@ -380,11 +406,15 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
             "default": "fail_closed",
             "materializable_primitives": sorted(_MATERIALIZABLE_PIPELINE_PRIMITIVES),
             "conditional_materializable_primitives": {
-                "Retriever": "explicit pipeline or retrieve_then_answer module with retriever.mode=inline_corpus only"
+                "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus only",
+                "ReAct": "explicit bounded materializable topology module with tools=[] and bounded max_iters only",
+                "ProgramOfThought": "explicit bounded materializable topology module with empty PythonInterpreter sandbox only",
             },
             "unsupported_primitives_are_declared_only": True,
             "custom_imports_are_declarations_only": True,
-            "external_tools_retrievers_and_react_are_not_bound_or_executed": True,
+            "external_tools_retrievers_are_not_bound_or_executed": True,
+            "react_materialization_requires_empty_tools": True,
+            "program_of_thought_uses_empty_sandbox": True,
         },
         "builtin_capabilities": builtin_capability_contracts(),
         "declared_capabilities": declarations,
@@ -393,7 +423,8 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
         "non_authority": dict(_NON_AUTHORITY),
         "notes": [
             "This registry is descriptor-only evidence for generated program capability boundaries.",
-            "It does not import custom modules, bind external tools/retrievers, construct ReAct agents, call providers, rank candidates, promote programs, or mutate external authority.",
-            "Current materialization supports generated Predict/ChainOfThought primitives and explicit bounded inline Retriever adapters in pipeline or retrieve_then_answer topologies only.",
+            "It does not import custom modules, bind external tools/retrievers, call providers during materialization, rank candidates, promote programs, or mutate external authority.",
+            "Current materialization supports generated Predict/ChainOfThought/ReAct/ProgramOfThought primitives plus explicit bounded inline Retriever adapters in bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies only.",
+            "ReAct is generated only with an empty tools list; ProgramOfThought is generated only with an empty PythonInterpreter sandbox.",
         ],
     }

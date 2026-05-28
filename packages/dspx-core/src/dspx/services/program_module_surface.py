@@ -65,10 +65,16 @@ def _module_surface_contract(
     outputs: list[str],
     module_class: str,
     retriever: Mapping[str, Any] | None = None,
+    react: Mapping[str, Any] | None = None,
+    program_of_thought: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     capability_module: dict[str, Any] = {"primitive": primitive, "id": module_id}
     if retriever is not None:
         capability_module["retriever"] = dict(retriever)
+    if react is not None:
+        capability_module["react"] = dict(react)
+    if program_of_thought is not None:
+        capability_module["program_of_thought"] = dict(program_of_thought)
     signature = {
         "name": signature_name,
         "inputs": list(inputs),
@@ -117,13 +123,21 @@ def build_pipeline_module_surface_contracts(intent: Any) -> list[dict[str, Any]]
     origin = pipeline_topology_origin(intent)
     source_kind = (
         "generated_topology_module"
-        if origin in {"declared", "declared_retrieve_then_answer"}
+        if str(origin or "").startswith("declared")
         else "generated_prompt_inferred_module"
     )
     surfaces: list[dict[str, Any]] = []
     for module in modules:
         raw_retriever = module.get("retriever")
         retriever = dict(raw_retriever) if isinstance(raw_retriever, Mapping) else None
+        raw_react = module.get("react")
+        react = dict(raw_react) if isinstance(raw_react, Mapping) else None
+        raw_program_of_thought = module.get("program_of_thought")
+        program_of_thought = (
+            dict(raw_program_of_thought)
+            if isinstance(raw_program_of_thought, Mapping)
+            else None
+        )
         surfaces.append(
             _module_surface_contract(
                 module_id=str(module.get("id") or ""),
@@ -134,6 +148,8 @@ def build_pipeline_module_surface_contracts(intent: Any) -> list[dict[str, Any]]
                 outputs=_signature_outputs(module),
                 module_class=module_class_name(module),
                 retriever=retriever,
+                react=react,
+                program_of_thought=program_of_thought,
             )
         )
     return surfaces

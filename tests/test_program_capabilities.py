@@ -27,11 +27,15 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
         "default": "fail_closed",
         "materializable_primitives": ["ChainOfThought", "Predict"],
         "conditional_materializable_primitives": {
-            "Retriever": "explicit pipeline or retrieve_then_answer module with retriever.mode=inline_corpus only"
+            "ProgramOfThought": "explicit bounded materializable topology module with empty PythonInterpreter sandbox only",
+            "ReAct": "explicit bounded materializable topology module with tools=[] and bounded max_iters only",
+            "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus only",
         },
         "unsupported_primitives_are_declared_only": True,
         "custom_imports_are_declarations_only": True,
-        "external_tools_retrievers_and_react_are_not_bound_or_executed": True,
+        "external_tools_retrievers_are_not_bound_or_executed": True,
+        "react_materialization_requires_empty_tools": True,
+        "program_of_thought_uses_empty_sandbox": True,
     }
     by_id = {item["capability_id"]: item for item in registry["builtin_capabilities"]}
     assert by_id["dspy.primitive.Predict"]["materializable"] is True
@@ -39,6 +43,11 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
     assert by_id["dspy.primitive.Retriever"]["materializable"] is False
     assert by_id["dspy.primitive.Retriever"]["conditional_materializable"] is True
     assert by_id["dspy.primitive.ReAct"]["materializable"] is False
+    assert by_id["dspy.primitive.ReAct"]["conditional_materializable"] is True
+    assert by_id["dspy.primitive.ProgramOfThought"]["materializable"] is False
+    assert (
+        by_id["dspy.primitive.ProgramOfThought"]["conditional_materializable"] is True
+    )
     assert by_id["dspy.primitive.Custom"]["materializable"] is False
     assert registry["effects"] == {
         "provider_called": False,
@@ -119,13 +128,30 @@ def test_capability_declarations_fail_closed(capabilities: dict[str, object]) ->
         )
 
 
-def test_unsupported_primitive_contract_is_declared_only() -> None:
-    contract = capability_contract_for_primitive("ReAct")
+@pytest.mark.parametrize(
+    ("primitive", "policy_key"),
+    [
+        ("ReAct", "react_loop_allowed"),
+        ("ProgramOfThought", "program_of_thought_allowed"),
+    ],
+)
+def test_bounded_reasoning_primitive_contracts_are_conditionally_materializable(
+    primitive: str, policy_key: str
+) -> None:
+    contract = capability_contract_for_primitive(primitive)
 
-    assert contract["capability_id"] == "dspy.primitive.ReAct"
-    assert contract["status"] == "declared_only_not_materializable"
+    assert contract["capability_id"] == f"dspy.primitive.{primitive}"
+    assert contract["status"] == "conditionally_materializable_with_adapter"
     assert contract["materializable"] is False
-    assert contract["materialization_policy"]["react_loop_allowed"] is False
+    assert contract["conditional_materializable"] is True
+    assert contract["materialization_policy"][policy_key] is True
+    assert contract["allowed_topology_kinds"] == [
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise",
+    ]
     assert contract["effects"]["provider_called"] is False
 
 
@@ -136,7 +162,13 @@ def test_retriever_primitive_contract_requires_bounded_inline_adapter() -> None:
     assert contract["status"] == "conditionally_materializable_with_adapter"
     assert contract["materializable"] is False
     assert contract["conditional_materializable"] is True
-    assert contract["allowed_topology_kinds"] == ["pipeline", "retrieve_then_answer"]
+    assert contract["allowed_topology_kinds"] == [
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise",
+    ]
     assert (
         contract["materialization_policy"]["bounded_inline_retriever_adapter_allowed"]
         is True

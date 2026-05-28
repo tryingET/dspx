@@ -936,6 +936,74 @@ def test_retrieve_then_answer_topology_materializes_bounded_inline_adapter(
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
+@pytest.mark.parametrize(
+    "kind",
+    ["router", "extract_transform_validate", "generate_critique_revise"],
+)
+def test_named_bounded_topologies_materialize_as_declared_dags(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    intent = ProgramIntent(
+        name="NamedTopologyProgram",
+        objective=f"Run the declared {kind} DAG.",
+        inputs=["text"],
+        outputs=["answer"],
+        topology={
+            "kind": kind,
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "prepare",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "Prepare",
+                        "inputs": ["text"],
+                        "outputs": ["draft"],
+                    },
+                },
+                {
+                    "id": "answer",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "Answer",
+                        "inputs": ["text", "draft"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "prepare"},
+                {"from": "prepare", "to": "answer"},
+                {"from": "answer", "to": "output"},
+            ],
+        },
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["program_plan"]["topology"]["kind"] == kind
+    assert (
+        manifest["program_plan"]["topology_execution_status"] == f"{kind}_materialized"
+    )
+    assert manifest["topology_execution"]["status"] == f"{kind}_materialized"
+    assert (
+        manifest["topology_execution"]["current_renderer"]
+        == f"{kind}_topology_renderer"
+    )
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+    assert {
+        surface["source_kind"] for surface in module_surfaces["module_surfaces"]
+    } == {"generated_topology_module"}
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
 def test_retrieve_then_answer_fails_closed_when_retriever_does_not_feed_answer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1107,6 +1175,128 @@ def test_pipeline_retriever_rejects_external_module_level_keys(extra_key: str) -
         )
 
 
+@pytest.mark.parametrize(
+    ("primitive", "expected_call", "config"),
+    [
+        ("ReAct", "dspy.ReAct", {"tools": [], "max_iters": 1}),
+        ("ProgramOfThought", "dspy.ProgramOfThought", {"max_iters": 1}),
+    ],
+)
+def test_bounded_reasoning_primitives_materialize_without_external_tools(
+    primitive: str,
+    expected_call: str,
+    config: dict[str, object],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    module = {
+        "id": "reason_answer",
+        "primitive": primitive,
+        "signature": {
+            "name": "ReasonAnswer",
+            "inputs": ["question"],
+            "outputs": ["answer"],
+        },
+        **config,
+    }
+    intent = ProgramIntent(
+        name=f"{primitive}PipelineProgram",
+        objective=f"Use bounded {primitive} reasoning to answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [module],
+            "edges": [
+                {"from": "input", "to": "reason_answer"},
+                {"from": "reason_answer", "to": "output"},
+            ],
+        },
+    )
+
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    module_text = (root / "module.py").read_text(encoding="utf-8")
+    assert expected_call in module_text
+    assert "dspy.Tool" not in module_text
+    assert "importlib" not in module_text
+    if primitive == "ReAct":
+        assert "tools=[]" in module_text
+    else:
+        assert "dspy.PythonInterpreter" in module_text
+        assert "enable_network_access=[]" in module_text
+        assert "sync_files=False" in module_text
+
+    policy = json.loads(
+        (root / "generated_module_policy.json").read_text(encoding="utf-8")
+    )
+    assert policy["status"] == "passed"
+    registry = json.loads(
+        (root / "program_capability_registry.json").read_text(encoding="utf-8")
+    )
+    used = {ref["primitive"]: ref for ref in registry["used_capability_refs"]}
+    assert used[primitive]["materializable"] is True
+    module_surfaces = json.loads(
+        (root / "module_surfaces.json").read_text(encoding="utf-8")
+    )
+    surface = module_surfaces["module_surfaces"][0]
+    assert surface["capability_ref"]["materializable"] is True
+    if primitive == "ReAct":
+        assert surface["capability_ref"]["runtime_binding"] == (
+            "generated_bounded_react_no_tools"
+        )
+    else:
+        assert surface["capability_ref"]["runtime_binding"] == (
+            "generated_sandboxed_program_of_thought"
+        )
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+@pytest.mark.parametrize(
+    ("module_patch", "match"),
+    [
+        ({"primitive": "ReAct", "tools": ["external_search"]}, "empty tools list"),
+        ({"primitive": "ReAct", "max_iters": 99}, "max_iters"),
+        ({"primitive": "ProgramOfThought", "max_iters": 99}, "max_iters"),
+        ({"primitive": "ProgramOfThought", "tools": []}, "unsupported keys"),
+    ],
+)
+def test_bounded_reasoning_primitives_reject_unsafe_shapes(
+    module_patch: dict[str, object], match: str
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        ProgramIntent(
+            name="UnsafeReasoningPrimitiveProgram",
+            objective="Reject unsafe reasoning primitive config.",
+            inputs=["question"],
+            outputs=["answer"],
+            topology={
+                "kind": "pipeline",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "reason_answer",
+                        "signature": {
+                            "name": "ReasonAnswer",
+                            "inputs": ["question"],
+                            "outputs": ["answer"],
+                        },
+                        **module_patch,
+                    }
+                ],
+                "edges": [
+                    {"from": "input", "to": "reason_answer"},
+                    {"from": "reason_answer", "to": "output"},
+                ],
+            },
+        )
+
+
 def test_unsupported_pipeline_primitive_fails_when_materializing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1123,7 +1313,7 @@ def test_unsupported_pipeline_primitive_fails_when_materializing(
                 PIPELINE_TOPOLOGY["modules"][0],
                 {
                     **cast(Mapping[str, object], PIPELINE_TOPOLOGY["modules"][1]),
-                    "primitive": "ReAct",
+                    "primitive": "Custom",
                 },
             ],
         },

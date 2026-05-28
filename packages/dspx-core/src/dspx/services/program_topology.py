@@ -14,6 +14,13 @@ PIPELINE_MATERIALIZED_STATUS = "pipeline_materialized"
 RETRIEVE_THEN_ANSWER_MATERIALIZED_STATUS = "retrieve_then_answer_materialized"
 PROMPT_INFERRED_PIPELINE_RENDERER = "prompt_inferred_pipeline_renderer"
 RETRIEVE_THEN_ANSWER_RENDERER = "retrieve_then_answer_topology_renderer"
+MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS = {
+    "pipeline",
+    "retrieve_then_answer",
+    "router",
+    "extract_transform_validate",
+    "generate_critique_revise",
+}
 SUPPORTED_PIPELINE_PRIMITIVES = materializable_pipeline_primitives()
 _REASONING_CUES = {
     "adjudicate",
@@ -60,9 +67,22 @@ def declared_retrieve_then_answer_topology(intent: Any) -> dict[str, Any]:
     return topology
 
 
+def declared_named_materializable_topology(intent: Any) -> dict[str, Any]:
+    topology = dict(getattr(intent, "topology", {}) or {})
+    kind = str(topology.get("kind") or "")
+    if kind not in MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS - {
+        "pipeline",
+        "retrieve_then_answer",
+    }:
+        return {}
+    return topology
+
+
 def declared_materializable_topology(intent: Any) -> dict[str, Any]:
-    return declared_pipeline_topology(intent) or declared_retrieve_then_answer_topology(
-        intent
+    return (
+        declared_pipeline_topology(intent)
+        or declared_retrieve_then_answer_topology(intent)
+        or declared_named_materializable_topology(intent)
     )
 
 
@@ -252,6 +272,22 @@ def prompt_inferred_pipeline_topology(intent: Any) -> dict[str, Any]:
     return {}
 
 
+def _materialized_status_for_kind(kind: str) -> str:
+    if kind == "pipeline":
+        return PIPELINE_MATERIALIZED_STATUS
+    if kind == "retrieve_then_answer":
+        return RETRIEVE_THEN_ANSWER_MATERIALIZED_STATUS
+    return f"{kind}_materialized"
+
+
+def _renderer_for_kind(kind: str) -> str:
+    if kind == "pipeline":
+        return "pipeline_topology_renderer"
+    if kind == "retrieve_then_answer":
+        return RETRIEVE_THEN_ANSWER_RENDERER
+    return f"{kind}_topology_renderer"
+
+
 def _adapt_retrieve_then_answer_topology(intent: Any) -> dict[str, Any]:
     topology = declared_retrieve_then_answer_topology(intent)
     if not topology:
@@ -272,6 +308,19 @@ def _adapt_retrieve_then_answer_topology(intent: Any) -> dict[str, Any]:
         "execution_status": RETRIEVE_THEN_ANSWER_MATERIALIZED_STATUS,
         "materialized_from_kind": "retrieve_then_answer",
         "renderer": RETRIEVE_THEN_ANSWER_RENDERER,
+    }
+
+
+def _adapt_named_materializable_topology(intent: Any) -> dict[str, Any]:
+    topology = declared_named_materializable_topology(intent)
+    if not topology:
+        return {}
+    kind = str(topology.get("kind") or "")
+    return {
+        **topology,
+        "execution_status": _materialized_status_for_kind(kind),
+        "materialized_from_kind": kind,
+        "renderer": _renderer_for_kind(kind),
     }
 
 
@@ -338,6 +387,7 @@ def effective_pipeline_topology(intent: Any) -> dict[str, Any]:
     return (
         declared_pipeline_topology(intent)
         or _adapt_retrieve_then_answer_topology(intent)
+        or _adapt_named_materializable_topology(intent)
         or prompt_inferred_pipeline_topology(intent)
     )
 
@@ -347,6 +397,11 @@ def pipeline_topology_origin(intent: Any) -> str | None:
         return "declared"
     if declared_retrieve_then_answer_topology(intent):
         return "declared_retrieve_then_answer"
+    if declared_named_materializable_topology(intent):
+        kind = str(
+            declared_named_materializable_topology(intent).get("kind") or "named"
+        )
+        return f"declared_{kind}"
     if prompt_inferred_pipeline_topology(intent):
         return "prompt_inferred"
     return None
@@ -383,7 +438,14 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
     )
     if unsupported:
         allowed = ", ".join(
-            sorted([*SUPPORTED_PIPELINE_PRIMITIVES, "Retriever:inline_corpus"])
+            sorted(
+                [
+                    *SUPPORTED_PIPELINE_PRIMITIVES,
+                    "Retriever:inline_corpus",
+                    "ReAct:tools=[]",
+                    "ProgramOfThought:empty_sandbox",
+                ]
+            )
         )
         raise ProgramTopologyMaterializationError(
             "pipeline topology materialization supports only module primitives "
@@ -563,10 +625,12 @@ def materialized_pipeline_topology(intent: Any) -> dict[str, Any]:
     if not topology:
         return {}
     materialized = dict(topology)
-    if declared_retrieve_then_answer_topology(intent):
-        materialized["execution_status"] = RETRIEVE_THEN_ANSWER_MATERIALIZED_STATUS
-        materialized["materialized_from_kind"] = "retrieve_then_answer"
-        materialized["renderer"] = RETRIEVE_THEN_ANSWER_RENDERER
+    declared = declared_materializable_topology(intent)
+    declared_kind = str(declared.get("kind") or "")
+    if declared_kind and declared_kind != "pipeline":
+        materialized["execution_status"] = _materialized_status_for_kind(declared_kind)
+        materialized["materialized_from_kind"] = declared_kind
+        materialized["renderer"] = _renderer_for_kind(declared_kind)
     else:
         materialized["execution_status"] = PIPELINE_MATERIALIZED_STATUS
     return materialized
@@ -698,6 +762,53 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
                     f"        return dspy.Prediction({output_name}=json.dumps(selected, ensure_ascii=False, sort_keys=True))",
                 ]
             )
+        elif primitive == "ReAct":
+            react = dict(module.get("react") or {})
+            max_iters = int(react.get("max_iters") or 1)
+            lines.extend(
+                [
+                    f"class {class_name}(dspy.Module):",
+                    f'    """{doc}"""',
+                    "",
+                    f"    _MAX_ITERS = {max_iters!r}",
+                    "",
+                    "    def __init__(self, use_cot: bool = False) -> None:",
+                    "        super().__init__()",
+                    f"        self.predict = dspy.ReAct({signature_name}, tools=[], max_iters={max_iters!r})",
+                    "",
+                    f"    def forward(self, {input_params}) -> dspy.Prediction:",
+                    f"        return self.predict({call_args})",
+                ]
+            )
+        elif primitive == "ProgramOfThought":
+            config = dict(module.get("program_of_thought") or {})
+            max_iters = int(config.get("max_iters") or 1)
+            lines.extend(
+                [
+                    f"class {class_name}(dspy.Module):",
+                    f'    """{doc}"""',
+                    "",
+                    f"    _MAX_ITERS = {max_iters!r}",
+                    "",
+                    "    def __init__(self, use_cot: bool = False) -> None:",
+                    "        super().__init__()",
+                    "        self.predict = dspy.ProgramOfThought(",
+                    f"            {signature_name},",
+                    f"            max_iters={max_iters!r},",
+                    "            interpreter=dspy.PythonInterpreter(",
+                    "                enable_read_paths=[],",
+                    "                enable_write_paths=[],",
+                    "                enable_env_vars=[],",
+                    "                enable_network_access=[],",
+                    "                tools={},",
+                    "                sync_files=False,",
+                    "            ),",
+                    "        )",
+                    "",
+                    f"    def forward(self, {input_params}) -> dspy.Prediction:",
+                    f"        return self.predict({call_args})",
+                ]
+            )
         else:
             lines.extend(
                 [
@@ -791,8 +902,9 @@ def render_pipeline_program_code(intent: Any) -> str:
     declared_topology = declared_materializable_topology(intent)
     inferred_topology = prompt_inferred_pipeline_topology(intent)
     materialized_topology = materialized_pipeline_topology(intent)
-    if declared_retrieve_then_answer_topology(intent):
-        renderer = RETRIEVE_THEN_ANSWER_RENDERER
+    declared_kind = str(declared_topology.get("kind") or "")
+    if declared_kind:
+        renderer = _renderer_for_kind(declared_kind)
     elif inferred_topology and not declared_topology:
         renderer = PROMPT_INFERRED_PIPELINE_RENDERER
     else:

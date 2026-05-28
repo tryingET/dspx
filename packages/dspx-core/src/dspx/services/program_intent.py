@@ -75,6 +75,70 @@ def _normalize_topology_signature(value: object, *, module_id: str) -> dict[str,
     return {"name": name, "inputs": inputs, "outputs": outputs}
 
 
+def _bounded_int(
+    value: object, *, label: str, default: int, minimum: int, maximum: int
+) -> int:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        raise ValueError(f"{label} must be an integer")
+    if not isinstance(value, (str, int)):
+        raise ValueError(f"{label} must be an integer")
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{label} must be an integer") from exc
+    if number < minimum or number > maximum:
+        raise ValueError(f"{label} must be between {minimum} and {maximum}")
+    return number
+
+
+def _normalize_react_config(
+    module: Mapping[str, Any], *, module_id: str
+) -> dict[str, Any]:
+    raw_tools = module.get("tools", [])
+    if raw_tools is None:
+        raw_tools = []
+    if not isinstance(raw_tools, list):
+        raise ValueError(f"topology ReAct module {module_id!r} tools must be a list")
+    if raw_tools:
+        raise ValueError(
+            f"topology ReAct module {module_id!r} supports only an empty tools list in this renderer"
+        )
+    return {
+        "tools": [],
+        "max_iters": _bounded_int(
+            module.get("max_iters"),
+            label=f"topology ReAct module {module_id!r} max_iters",
+            default=1,
+            minimum=1,
+            maximum=5,
+        ),
+    }
+
+
+def _normalize_program_of_thought_config(
+    module: Mapping[str, Any], *, module_id: str
+) -> dict[str, Any]:
+    return {
+        "max_iters": _bounded_int(
+            module.get("max_iters"),
+            label=f"topology ProgramOfThought module {module_id!r} max_iters",
+            default=1,
+            minimum=1,
+            maximum=3,
+        ),
+        "sandbox": {
+            "read_paths": [],
+            "write_paths": [],
+            "env_vars": [],
+            "network_access": [],
+            "tools": [],
+            "sync_files": False,
+        },
+    }
+
+
 def _normalize_topology_module(value: object) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError("topology modules must contain objects")
@@ -90,6 +154,18 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
         if extra_keys:
             raise ValueError(
                 f"topology Retriever module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
+            )
+    elif primitive == "ReAct":
+        extra_keys = set(module) - common_keys - {"tools", "max_iters"}
+        if extra_keys:
+            raise ValueError(
+                f"topology ReAct module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
+            )
+    elif primitive == "ProgramOfThought":
+        extra_keys = set(module) - common_keys - {"max_iters"}
+        if extra_keys:
+            raise ValueError(
+                f"topology ProgramOfThought module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
             )
     elif "retriever" in module:
         raise ValueError(
@@ -108,6 +184,12 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
     if "retriever" in module:
         normalized["retriever"] = normalize_inline_retriever_config(
             module.get("retriever"), module_id=module_id
+        )
+    if primitive == "ReAct":
+        normalized["react"] = _normalize_react_config(module, module_id=module_id)
+    if primitive == "ProgramOfThought":
+        normalized["program_of_thought"] = _normalize_program_of_thought_config(
+            module, module_id=module_id
         )
     return normalized
 

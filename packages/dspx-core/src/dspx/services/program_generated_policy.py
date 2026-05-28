@@ -82,8 +82,6 @@ _DENIED_CALL_SUFFIXES = {
 _DENIED_DSPY_CALLS = {
     "dspy.ColBERTv2",
     "dspy.LM",
-    "dspy.ProgramOfThought",
-    "dspy.ReAct",
     "dspy.Retrieve",
     "dspy.Tool",
     "dspy.configure",
@@ -140,6 +138,162 @@ def _module_surfaces(value: Mapping[str, Any]) -> list[dict[str, Any]]:
     return [dict(item) for item in surfaces if isinstance(item, Mapping)]
 
 
+def _surface_primitives(surfaces: list[dict[str, Any]]) -> set[str]:
+    return {str(surface.get("primitive") or "") for surface in surfaces}
+
+
+def _keyword(node: ast.Call, name: str) -> ast.AST | None:
+    for keyword in node.keywords:
+        if keyword.arg == name:
+            return keyword.value
+    return None
+
+
+def _int_constant(node: ast.AST | None) -> int | None:
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
+    ):
+        return node.value
+    if isinstance(node, ast.Attribute):
+        return None
+    return None
+
+
+def _is_empty_list(node: ast.AST | None) -> bool:
+    return isinstance(node, ast.List) and not node.elts
+
+
+def _is_empty_dict(node: ast.AST | None) -> bool:
+    return isinstance(node, ast.Dict) and not node.keys and not node.values
+
+
+def _is_false(node: ast.AST | None) -> bool:
+    return isinstance(node, ast.Constant) and node.value is False
+
+
+def _is_safe_python_interpreter_call(node: ast.AST | None) -> bool:
+    if (
+        not isinstance(node, ast.Call)
+        or _call_name(node.func) != "dspy.PythonInterpreter"
+    ):
+        return False
+    allowed = {
+        "enable_read_paths": _is_empty_list,
+        "enable_write_paths": _is_empty_list,
+        "enable_env_vars": _is_empty_list,
+        "enable_network_access": _is_empty_list,
+        "tools": _is_empty_dict,
+        "sync_files": _is_false,
+    }
+    seen = {keyword.arg for keyword in node.keywords}
+    if seen != set(allowed):
+        return False
+    return all(allowed[str(keyword.arg)](keyword.value) for keyword in node.keywords)
+
+
+_SENSITIVE_DSPY_CONSTRUCTORS = {
+    "dspy.ReAct",
+    "dspy.ProgramOfThought",
+    "dspy.PythonInterpreter",
+}
+
+
+def _contains_sensitive_dspy_constructor(node: ast.AST | None) -> bool:
+    if node is None:
+        return False
+    return any(
+        _call_name(child) in _SENSITIVE_DSPY_CONSTRUCTORS for child in ast.walk(node)
+    )
+
+
+def _target_names(node: ast.AST) -> set[str]:
+    names: set[str] = set()
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name):
+            names.add(child.id)
+    return names
+
+
+def _assigned_sensitive_dspy_aliases(tree: ast.AST) -> set[str]:
+    aliases: set[str] = set()
+    for node in ast.walk(tree):
+        value: ast.AST | None = None
+        targets: list[ast.AST] = []
+        if isinstance(node, ast.Assign):
+            value = node.value
+            targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            value = node.value
+            targets = [node.target]
+        if (
+            value is None
+            or isinstance(value, ast.Call)
+            or not _contains_sensitive_dspy_constructor(value)
+        ):
+            continue
+        for target in targets:
+            aliases.update(_target_names(target))
+    return aliases
+
+
+def _validate_special_dspy_call(
+    node: ast.Call,
+    *,
+    name: str,
+    primitives: set[str],
+    violations: list[dict[str, Any]],
+) -> None:
+    if name == "dspy.ReAct":
+        if "ReAct" not in primitives:
+            _add_violation(
+                violations,
+                code="dspy_call_not_allowed",
+                node=node,
+                detail=name,
+            )
+            return
+        max_iters = _int_constant(_keyword(node, "max_iters"))
+        if (
+            not _is_empty_list(_keyword(node, "tools"))
+            or max_iters is None
+            or max_iters < 1
+            or max_iters > 5
+        ):
+            _add_violation(
+                violations,
+                code="unsafe_react_call",
+                node=node,
+                detail="ReAct requires tools=[] and max_iters between 1 and 5",
+            )
+    elif name == "dspy.ProgramOfThought":
+        if "ProgramOfThought" not in primitives:
+            _add_violation(
+                violations,
+                code="dspy_call_not_allowed",
+                node=node,
+                detail=name,
+            )
+            return
+        max_iters = _int_constant(_keyword(node, "max_iters"))
+        if max_iters is None or max_iters < 1 or max_iters > 3:
+            _add_violation(
+                violations,
+                code="unsafe_program_of_thought_call",
+                node=node,
+                detail="ProgramOfThought requires max_iters between 1 and 3",
+            )
+        interpreter = _keyword(node, "interpreter")
+        if not _is_safe_python_interpreter_call(interpreter):
+            _add_violation(
+                violations,
+                code="unsafe_program_of_thought_call",
+                node=node,
+                detail="ProgramOfThought requires the generated safe interpreter binding",
+            )
+
+
 def build_program_generated_module_policy(
     module_code: str,
     *,
@@ -171,6 +325,10 @@ def build_program_generated_module_policy(
             "effects": {key: False for key in sorted(_EFFECT_KEYS)},
         }
 
+    surfaces = _module_surfaces(module_surfaces)
+    primitives = _surface_primitives(surfaces)
+    sensitive_aliases = _assigned_sensitive_dspy_aliases(tree)
+
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -196,6 +354,34 @@ def build_program_generated_module_policy(
                         node=node,
                         detail=str(alias.name),
                     )
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            defaults = [
+                *node.args.defaults,
+                *[item for item in node.args.kw_defaults if item is not None],
+            ]
+            if any(
+                _contains_sensitive_dspy_constructor(default) for default in defaults
+            ):
+                _add_violation(
+                    violations,
+                    code="sensitive_dspy_default_not_allowed",
+                    node=node,
+                    detail=node.name,
+                )
+        elif isinstance(node, ast.Lambda):
+            defaults = [
+                *node.args.defaults,
+                *[item for item in node.args.kw_defaults if item is not None],
+            ]
+            if any(
+                _contains_sensitive_dspy_constructor(default) for default in defaults
+            ):
+                _add_violation(
+                    violations,
+                    code="sensitive_dspy_default_not_allowed",
+                    node=node,
+                    detail="lambda",
+                )
         elif isinstance(node, ast.ImportFrom):
             module = str(node.module or "")
             root = _root_name(module)
@@ -232,6 +418,14 @@ def build_program_generated_module_policy(
             name = _call_name(node.func)
             if not name:
                 continue
+            if name in sensitive_aliases:
+                _add_violation(
+                    violations,
+                    code="sensitive_dspy_alias_call_not_allowed",
+                    node=node,
+                    detail=name,
+                )
+                continue
             root = _root_name(name)
             if name in _DENIED_CALL_NAMES:
                 _add_violation(
@@ -254,6 +448,23 @@ def build_program_generated_module_policy(
                     node=node,
                     detail=name,
                 )
+            if name in {"dspy.ReAct", "dspy.ProgramOfThought"}:
+                _validate_special_dspy_call(
+                    node,
+                    name=name,
+                    primitives=primitives,
+                    violations=violations,
+                )
+            if (
+                name == "dspy.PythonInterpreter"
+                and not _is_safe_python_interpreter_call(node)
+            ):
+                _add_violation(
+                    violations,
+                    code="unsafe_python_interpreter_call",
+                    node=node,
+                    detail="PythonInterpreter requires empty read/write/env/network/tools and sync_files=False",
+                )
             if any(
                 name == suffix or name.endswith(f".{suffix}")
                 for suffix in _DENIED_CALL_SUFFIXES
@@ -263,6 +474,19 @@ def build_program_generated_module_policy(
                     code="effect_call_not_allowed",
                     node=node,
                     detail=name,
+                )
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            value = node.value
+            if (
+                value is not None
+                and not isinstance(value, ast.Call)
+                and _contains_sensitive_dspy_constructor(value)
+            ):
+                _add_violation(
+                    violations,
+                    code="sensitive_dspy_alias_not_allowed",
+                    node=node,
+                    detail=str(_call_name(value)),
                 )
         elif isinstance(node, ast.Attribute):
             name = _call_name(node)
@@ -291,7 +515,6 @@ def build_program_generated_module_policy(
             node=tree,
             detail="module_surfaces must contain at least one surface",
         )
-    surfaces = _module_surfaces(module_surfaces)
     for surface in surfaces:
         effects = surface.get("effects")
         if not isinstance(effects, Mapping):

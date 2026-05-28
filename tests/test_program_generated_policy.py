@@ -113,6 +113,34 @@ def _configure_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             "tool",
             "import json\nimport dspy\nfrom signature import X\ndspy.Tool(lambda x: x)\n",
         ),
+        (
+            "react_without_surface",
+            "import json\nimport dspy\nfrom signature import X\ndspy.ReAct(X, tools=[], max_iters=1)\n",
+        ),
+        (
+            "program_of_thought_without_surface",
+            "import json\nimport dspy\nfrom signature import X\ndspy.ProgramOfThought(X, max_iters=1)\n",
+        ),
+        (
+            "aliased_react",
+            "import json\nimport dspy\nfrom signature import X\nRA = dspy.ReAct\nRA(X, tools=['unsafe'], max_iters=99)\n",
+        ),
+        (
+            "aliased_python_interpreter",
+            "import json\nimport dspy\nfrom signature import X\nPI = dspy.PythonInterpreter\nPI(deno_command=['deno'])\n",
+        ),
+        (
+            "tuple_aliased_react",
+            "import json\nimport dspy\nfrom signature import X\n(RA,) = (dspy.ReAct,)\nRA(X, tools=['unsafe'], max_iters=99)\n",
+        ),
+        (
+            "unsafe_program_of_thought_interpreter_binding",
+            "import json\nimport dspy\nfrom signature import X\ninterpreter = None\ndspy.ProgramOfThought(X, max_iters=1, interpreter=interpreter)\n",
+        ),
+        (
+            "default_aliased_react",
+            "import json\nimport dspy\nfrom signature import X\ndef make(RA=dspy.ReAct):\n    return RA(X, tools=['unsafe'], max_iters=99)\n",
+        ),
     ],
 )
 def test_generated_module_policy_rejects_disallowed_effects(

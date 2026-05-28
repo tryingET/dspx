@@ -63,6 +63,7 @@ from dspx.services.program_surfaces import (
     render_signature_surface,
 )
 from dspx.services.program_topology import (
+    MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS,
     PIPELINE_MATERIALIZED_STATUS,
     PROMPT_INFERRED_PIPELINE_RENDERER,
     RETRIEVE_THEN_ANSWER_RENDERER,
@@ -231,7 +232,7 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
     topology_inferred = False
     if declared_topology:
         topology = declared_topology
-        if declared_topology.get("kind") in {"pipeline", "retrieve_then_answer"}:
+        if declared_topology.get("kind") in MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS:
             validate_materializable_pipeline_topology(intent)
             materialized_topology = materialized_pipeline_topology(intent)
             status = str(
@@ -243,15 +244,20 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
                 current_renderer = RETRIEVE_THEN_ANSWER_RENDERER
                 notes = [
                     "Explicit retrieve_then_answer topology is preserved as declared input and rendered through the bounded topology renderer.",
-                    "Only explicit bounded inline Retriever modules feeding generated Predict/ChainOfThought answer modules are supported in this slice.",
-                    "No external retriever, tool, ReAct, ProgramOfThought, custom import, ranking, promotion, or external authority execution is performed.",
+                    "Only explicit bounded inline Retriever modules feeding generated Predict/ChainOfThought/ReAct/ProgramOfThought answer modules are supported in this slice.",
+                    "No external retriever, tool binding, custom import, ranking, promotion, or external authority execution is performed; ReAct uses tools=[] and ProgramOfThought uses an empty sandbox.",
                 ]
             else:
-                current_renderer = "pipeline_topology_renderer"
+                kind = str(declared_topology.get("kind") or "pipeline")
+                current_renderer = (
+                    "pipeline_topology_renderer"
+                    if kind == "pipeline"
+                    else f"{kind}_topology_renderer"
+                )
                 notes = [
-                    "Explicit pipeline topology is preserved as declared input and rendered as a composed program.",
-                    "Only Predict, ChainOfThought, and explicit bounded inline Retriever module primitives plus simple when.field/equals routing are supported in this slice.",
-                    "No topology inference, broad graph engine, external tools/retrievers, ReAct, or ProgramOfThought execution is performed.",
+                    f"Explicit {kind} topology is preserved as declared input and rendered as a bounded composed program.",
+                    "Only Predict, ChainOfThought, bounded no-tool ReAct, sandboxed ProgramOfThought, and explicit bounded inline Retriever module primitives plus simple when.field/equals routing are supported in this slice.",
+                    "No topology inference, broad graph engine, external tools/retrievers, ReAct tool binding, or ProgramOfThought filesystem/network/env/tool sandbox access is performed.",
                 ]
         else:
             status = str(
@@ -261,7 +267,7 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
             current_renderer = "single_module_scaffold"
             notes = [
                 "Explicit topology is preserved as a planning contract.",
-                "This slice only renders explicit pipeline and bounded retrieve_then_answer topology; unsupported kinds remain declared-only.",
+                "This slice only renders explicit bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topology; unsupported kinds remain declared-only.",
                 "The generated Python remains the current single-module scaffold for this topology kind.",
             ]
     elif inferred_topology:
@@ -1238,32 +1244,37 @@ def _build_execution_episode_contract(
         }
     declared_topology = dict(intent.topology or {})
     inferred_topology = prompt_inferred_pipeline_topology(intent)
-    if declared_topology.get("kind") == "pipeline":
-        topology_execution = {
-            "declared_topology_present": True,
-            "declared_topology_kind": "pipeline",
-            "materialized": True,
-            "status": PIPELINE_MATERIALIZED_STATUS,
-            "current_renderer": "pipeline_topology_renderer",
-            "materialized_topology_kind": "pipeline",
-            "notes": [
-                "Explicit pipeline topology was rendered into signature.py, module.py, and program.py.",
-                "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated.",
-            ],
-        }
-    elif declared_topology.get("kind") == "retrieve_then_answer":
-        topology_execution = {
-            "declared_topology_present": True,
-            "declared_topology_kind": "retrieve_then_answer",
-            "materialized": True,
-            "status": "retrieve_then_answer_materialized",
-            "current_renderer": RETRIEVE_THEN_ANSWER_RENDERER,
-            "materialized_topology_kind": "retrieve_then_answer",
-            "notes": [
-                "Explicit retrieve_then_answer topology was rendered into signature.py, module.py, and program.py.",
+    declared_kind = str(declared_topology.get("kind") or "")
+    if declared_kind in MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS:
+        status = (
+            PIPELINE_MATERIALIZED_STATUS
+            if declared_kind == "pipeline"
+            else f"{declared_kind}_materialized"
+        )
+        renderer = (
+            "pipeline_topology_renderer"
+            if declared_kind == "pipeline"
+            else RETRIEVE_THEN_ANSWER_RENDERER
+            if declared_kind == "retrieve_then_answer"
+            else f"{declared_kind}_topology_renderer"
+        )
+        notes = [
+            f"Explicit {declared_kind} topology was rendered into signature.py, module.py, and program.py.",
+            "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated.",
+        ]
+        if declared_kind == "retrieve_then_answer":
+            notes.insert(
+                1,
                 "Retrieval is limited to generated bounded inline-corpus adapters; no external retriever is bound or executed.",
-                "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated.",
-            ],
+            )
+        topology_execution = {
+            "declared_topology_present": True,
+            "declared_topology_kind": declared_kind,
+            "materialized": True,
+            "status": status,
+            "current_renderer": renderer,
+            "materialized_topology_kind": declared_kind,
+            "notes": notes,
         }
     elif inferred_topology:
         topology_execution = {

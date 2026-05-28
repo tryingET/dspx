@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from dspx.cache import sha256_text
@@ -179,12 +180,129 @@ def test_architecture_planner_preserves_bounded_inline_retriever_as_materializab
     assert declared["non_authority"]["winner_selection"] is False
 
 
+def test_architecture_planner_preserves_retrieve_then_answer_as_materializable_candidate() -> (
+    None
+):
+    intent = ProgramIntent(
+        name="RetrieveThenAnswerDeclaredProgram",
+        objective="Retrieve local context and answer a question.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "retrieve_then_answer",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveContext",
+                        "inputs": ["question"],
+                        "outputs": ["context"],
+                    },
+                    "retriever": {
+                        "mode": "inline_corpus",
+                        "k": 1,
+                        "documents": [{"id": "doc", "text": "Refund policy context."}],
+                    },
+                },
+                {
+                    "id": "answer_question",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "AnswerQuestion",
+                        "inputs": ["question", "context"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "answer_question"},
+                {"from": "answer_question", "to": "output"},
+            ],
+        },
+    )
+
+    plan = build_program_architecture_candidates(intent)
+
+    assert plan["recommended_candidate_id"] == "declared_pipeline"
+    declared = next(
+        candidate
+        for candidate in plan["candidates"]
+        if candidate["candidate_id"] == "declared_pipeline"
+    )
+    assert declared["status"] == "materializable"
+    assert declared["family"] == "retrieve_then_answer"
+    assert declared["intent_payload"]["topology"]["kind"] == "retrieve_then_answer"
+    assert [
+        surface["primitive"]
+        for surface in declared["module_surface_preview"]["module_surfaces"]
+    ] == ["Retriever", "ChainOfThought"]
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["router", "extract_transform_validate", "generate_critique_revise"],
+)
+def test_architecture_planner_preserves_named_bounded_topologies_as_materializable(
+    kind: str,
+) -> None:
+    intent = ProgramIntent(
+        name="NamedTopologyDeclaredProgram",
+        objective=f"Run the declared {kind} topology.",
+        inputs=["text"],
+        outputs=["answer"],
+        topology={
+            "kind": kind,
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "prepare",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "Prepare",
+                        "inputs": ["text"],
+                        "outputs": ["draft"],
+                    },
+                },
+                {
+                    "id": "answer",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "Answer",
+                        "inputs": ["text", "draft"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "prepare"},
+                {"from": "prepare", "to": "answer"},
+                {"from": "answer", "to": "output"},
+            ],
+        },
+    )
+
+    plan = build_program_architecture_candidates(intent)
+
+    declared = next(
+        candidate
+        for candidate in plan["candidates"]
+        if candidate["candidate_id"] == "declared_pipeline"
+    )
+    assert declared["status"] == "materializable"
+    assert declared["family"] == kind
+    assert declared["intent_payload"]["topology"]["kind"] == kind
+    assert declared["module_surface_preview"]["module_surface_count"] == 2
+
+
 def test_architecture_planner_preserves_unsupported_declared_pipeline_as_declared_only() -> (
     None
 ):
     intent = ProgramIntent(
         name="UnsupportedDeclaredProgram",
-        objective="Use a tool-like reasoning architecture.",
+        objective="Use an unsupported custom reasoning architecture.",
         inputs=["question"],
         outputs=["answer"],
         topology={
@@ -192,18 +310,18 @@ def test_architecture_planner_preserves_unsupported_declared_pipeline_as_declare
             "execution_status": "declared_not_materialized",
             "modules": [
                 {
-                    "id": "react_answer",
-                    "primitive": "ReAct",
+                    "id": "custom_answer",
+                    "primitive": "Custom",
                     "signature": {
-                        "name": "ReactAnswer",
+                        "name": "CustomAnswer",
                         "inputs": ["question"],
                         "outputs": ["answer"],
                     },
                 }
             ],
             "edges": [
-                {"from": "input", "to": "react_answer"},
-                {"from": "react_answer", "to": "output"},
+                {"from": "input", "to": "custom_answer"},
+                {"from": "custom_answer", "to": "output"},
             ],
         },
     )
@@ -1340,7 +1458,7 @@ def test_program_architect_tournament_skips_declared_only_candidates(
     plan = build_program_architecture_candidates(
         ProgramIntent(
             name="UnsupportedDeclaredProgram",
-            objective="Use a tool-like reasoning architecture.",
+            objective="Use an unsupported custom reasoning architecture.",
             inputs=["question"],
             outputs=["answer"],
             topology={
@@ -1348,18 +1466,18 @@ def test_program_architect_tournament_skips_declared_only_candidates(
                 "execution_status": "declared_not_materialized",
                 "modules": [
                     {
-                        "id": "react_answer",
-                        "primitive": "ReAct",
+                        "id": "custom_answer",
+                        "primitive": "Custom",
                         "signature": {
-                            "name": "ReactAnswer",
+                            "name": "CustomAnswer",
                             "inputs": ["question"],
                             "outputs": ["answer"],
                         },
                     }
                 ],
                 "edges": [
-                    {"from": "input", "to": "react_answer"},
-                    {"from": "react_answer", "to": "output"},
+                    {"from": "input", "to": "custom_answer"},
+                    {"from": "custom_answer", "to": "output"},
                 ],
             },
         )
