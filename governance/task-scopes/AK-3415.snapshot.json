@@ -3,7 +3,7 @@
   "exported_at": "2026-05-26T18:30:24.963492737+00:00",
   "task_id": 3415,
   "entity_version": 15,
-  "commit_sha": "651cb4568f35c3f49df041c14559a9c75ff3d3a2",
+  "commit_sha": "987e29c46aeada0cc01b681c535f5ad7139a670f",
   "scope": {
     "allowed_paths": [
       "AGENTS.md",
