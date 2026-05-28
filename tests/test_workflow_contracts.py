@@ -53,6 +53,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
         "just verify-impact-plan\n"
         "just verify-impact\n"
+        'just hooks-run files="path/one.py path/two.py"\n'
         "just verify-impact-receipt\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
         "brownfield legacy scope file\n"
@@ -118,7 +119,9 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "help:\n"
         "  just --list\n"
         "hooks-install:\n"
-        "  uvx pre-commit install --hook-type pre-commit --hook-type pre-push\n"
+        "  uvx prek install --hook-type pre-commit --hook-type pre-push\n"
+        'hooks-run files="":\n'
+        "  uvx prek run --files $paths\n"
         "workflow-contract-check:\n"
         "  python3 scripts/check_workflow_contracts.py\n"
         "direction-contract-check:\n"
@@ -140,7 +143,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         'task-scope-check task_id="" mode="auto" rev_range="auto":\n'
         '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
         "verify-fast:\n"
-        "  uvx pre-commit run --all-files\n"
+        "  uvx prek run --all-files\n"
         "replay-provenance-check:\n"
         "  uv run --no-sync -q python scripts/check_replay_provenance.py\n"
         "module-synthesis-quality-check:\n"
@@ -295,6 +298,7 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "just task-scope-check task_id=<AK-ID> mode=working-tree\n"
         "just verify-impact-plan\n"
         "just verify-impact\n"
+        'just hooks-run files="path/one.py path/two.py"\n'
         "just verify-impact-receipt\n"
         "an active AK claim, or changed task-scope snapshot/legacy-scope-file paths\n"
         "brownfield legacy scope file\n"
@@ -365,7 +369,9 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         "help:\n"
         "  just --list\n"
         "hooks-install:\n"
-        "  uvx pre-commit install --hook-type pre-commit --hook-type pre-push\n"
+        "  uvx prek install --hook-type pre-commit --hook-type pre-push\n"
+        'hooks-run files="":\n'
+        "  uvx prek run --files $paths\n"
         "workflow-contract-check:\n"
         "  python3 scripts/check_workflow_contracts.py\n"
         "direction-contract-check:\n"
@@ -387,7 +393,7 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         'task-scope-check task_id="" mode="auto" rev_range="auto":\n'
         '  if [ -n "{{task_id}}" ]; then uv run -q python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run -q python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi\n'
         "verify-fast:\n"
-        "  uvx pre-commit run --all-files\n"
+        "  uvx prek run --all-files\n"
         "replay-provenance-check:\n"
         "  echo bad replay\n"
         "module-synthesis-quality-check:\n"

@@ -26,7 +26,7 @@ just dev-install   # optional: editable installs for console scripts during dev
 just hooks-install
 ```
 
-Implementation detail: this uses `uvx pre-commit install` for both `pre-commit` and `pre-push` hooks.
+Implementation detail: this uses `uvx prek install` for both `pre-commit` and `pre-push` hooks. `prek` is a fast, language-agnostic Git hook manager; DSPx keeps the interoperable `.pre-commit-config.yaml` hook definition and uses `prek` as the runner.
 
 ### Optional local auth-provider checkout
 
@@ -68,6 +68,7 @@ just verify-boundary-hardening                            # focused CLI/provider
 just verify-impact-plan                                   # deterministic changed-file validation plan
 just verify-impact                                        # run the bounded/expanded impact-aware plan when it is not wide
 just verify-impact-wide                                   # explicitly run a wide/full-required impact-aware plan
+just hooks-run files="path/one.py path/two.py"             # run repo hook stack on explicit files before staging/commit
 just verify-impact-receipt                                # run impact-aware validation and write generated/ci/verify-impact-result.json
 just verify-pre-push                                      # matches the pre-push hook
 just verify-full                                          # explicit full gate before merge/release or when needed
@@ -95,12 +96,15 @@ Validation contract:
   - runs `./scripts/ci/smoke.sh`
   - runs the deterministic replay provenance check (`uv run -q python scripts/check_replay_provenance.py`)
   - runs repo ontology validation when ROCS metadata is present
+- `just hooks-run files="..."`
+  - runs `uvx prek run --files ...` on an explicit file set before staging/commit
+  - is the normalization boundary for commit workflows: hooks may rewrite formatting/lint fixes, so inspect the diff and explicitly stage only intended paths afterward
 - `just verify-fast`
   - re-checks workflow contracts
   - runs governance validation
   - runs `just task-scope-check`, which auto-selects working-tree validation when the repo is dirty and otherwise validates the full committed attested task slice from the first task-scope artifact introduction through `HEAD`, using an explicit `task_id`, an active AK claim, or changed task-scope snapshot/legacy-scope-file paths, and otherwise fails closed
   - when no explicit AK task-scope snapshot (or brownfield legacy scope file) exists for the task, the checker skips cleanly and applies repo-default scope instead of failing on missing repo-local scaffolding
-  - runs `uvx pre-commit run --all-files`
+  - runs `uvx prek run --all-files`
 - `just verify-pre-push`
   - runs `just verify-fast`
   - is the hook-facing pre-push gate

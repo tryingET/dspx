@@ -894,13 +894,19 @@ Hook setup (once per clone):
 just hooks-install
 ```
 
+Commit-time normalization on explicit files:
+
+```bash
+just hooks-run files="path/one.py path/two.py"
+```
+
 Canonical workflow contract:
 - `docs/project/developer_workflow.md`
 
 Validation tiers:
 
 ```bash
-# pre-commit hook (fast, staged-only):
+# pre-commit hook (fast, staged-only via prek):
 # - ruff format/check
 # - whitespace check
 
@@ -908,7 +914,7 @@ Validation tiers:
 # - just verify-pre-push
 #   - workflow contract + governance validation
 #   - task-scope attestation for the committed slice via explicit task_id, AK claim, or changed task-scope artifact path
-#   - pre-commit all-files
+#   - prek all-files
 # explicit full gate:
 # - just verify-full
 #   - runs verify-fast first, then executes runtime/invariant and typecheck/test branches in parallel

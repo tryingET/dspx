@@ -19,7 +19,12 @@ install:
 
 # Install git hooks (fast pre-commit + full pre-push validation)
 hooks-install:
-  uvx pre-commit install --hook-type pre-commit --hook-type pre-push
+  uvx prek install --hook-type pre-commit --hook-type pre-push
+
+# Run the repo hook stack on an explicit file set before staging/committing.
+# Usage: just hooks-run files="path/one.py path/two.py"
+hooks-run files="":
+  paths="{{files}}"; paths="${paths#files=}"; if [ -z "$paths" ]; then echo 'usage: just hooks-run files="path/one.py path/two.py"'; exit 2; fi; uvx prek run --files $paths
 
 # Validate the repo's documented workflow contract
 workflow-contract-check:
@@ -139,7 +144,7 @@ verify-fast:
   just direction-contract-check
   just governance-check
   just task-scope-check
-  uvx pre-commit run --all-files
+  uvx prek run --all-files
 
 # Runtime/invariant checks that are heavier than the fast contract but cheaper than full tests
 verify-runtime:

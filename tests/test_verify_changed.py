@@ -108,6 +108,7 @@ def test_program_intent_selects_program_generation_spine_checks() -> None:
         "packages/dspx-core/src/dspx/services/program_capabilities.py",
         "packages/dspx-core/src/dspx/services/program_retrievers.py",
         "packages/dspx-core/src/dspx/services/program_runtime_outcomes.py",
+        "packages/dspx-core/src/dspx/services/program_tool_contracts.py",
     ],
 )
 def test_program_generation_support_modules_select_spine_checks(path: str) -> None:
@@ -377,15 +378,30 @@ def test_full_required_plan_without_commands_fails_even_when_wide_allowed() -> N
     assert result["note"] == "full-required impact plan selected no commands"
 
 
-def test_justfile_change_requires_wide_verification() -> None:
+def test_justfile_change_runs_workflow_gates_without_forcing_full_verification() -> (
+    None
+):
     plan = _plan("Justfile")
 
     assert plan["risk"] == "wide"
-    assert plan["full_verification_required"] is True
+    assert plan["full_verification_required"] is False
     assert _command_ids(plan) == [
         "workflow_contract_check",
         "verify_fast",
-        "verify_full",
+    ]
+
+
+def test_workflow_contract_checker_change_runs_fast_contract_gates_without_full_verification() -> (
+    None
+):
+    plan = _plan("scripts/check_workflow_contracts.py")
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "workflow_contract_check",
+        "ruff_touched",
+        "verify_fast",
     ]
 
 
@@ -526,7 +542,7 @@ def test_run_plan_writes_blocked_wide_receipt(tmp_path) -> None:
     assert payload["status"] == "blocked_wide"
     assert payload["summary"]["blocked_wide"] is True
     assert payload["commands"] == []
-    assert payload["plan"]["full_verification_required"] is True
+    assert payload["plan"]["full_verification_required"] is False
 
 
 def test_plan_json_is_serializable() -> None:

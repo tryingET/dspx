@@ -31,11 +31,12 @@ Local notes for DSPx:
   - `pytest-bdd` for executable Gherkin/BDD scenarios
   - `Jinja2` for reusable text/config/html templates
 - Validation tiers:
-  - install hooks once: `just hooks-install`
+  - install hooks once: `just hooks-install` (uses `uvx prek`; `.pre-commit-config.yaml` remains the hook definition)
+  - normalize explicit files before staging/commit: `just hooks-run files="path/one.py path/two.py"`, then inspect and explicitly stage intended rewrites
   - current-slice validation before commit: `just task-scope-check task_id=<AK-ID> mode=working-tree`
   - pre-commit hook = fast staged checks (ruff/whitespace)
   - pre-push hook = `just verify-pre-push`
-  - `just verify-fast` runs workflow/governance/task-scope/pre-commit all-files checks and fails closed on unresolved task binding
+  - `just verify-fast` runs workflow/governance/task-scope/prek all-files checks and fails closed on unresolved task binding
   - `just verify-full` runs `verify-fast` first, then executes the heavier runtime/invariant branch and the typecheck/test branch in parallel
   - explicit batch gate before merge/release: `just verify-full`
 
