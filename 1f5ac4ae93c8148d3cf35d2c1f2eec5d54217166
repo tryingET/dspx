@@ -1,0 +1,37 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "1f5ac4ae93c8148d3cf35d2c1f2eec5d54217166"
+created_at: "2026-05-28T19:16:48Z"
+intent: "Capture bounded program runtime traces and explicit no-tool ReActV2 materialization boundaries"
+files:
+  - "README.md"
+  - "docs/project/product-posture.md"
+  - "docs/project/program-gen-walkthrough.md"
+  - "docs/project/program-synthesis-boundary.md"
+  - "packages/dspx-core/src/dspx/services/program_capabilities.py"
+  - "packages/dspx-core/src/dspx/services/program_dataset.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+  - "packages/dspx-core/src/dspx/services/program_service.py"
+  - "packages/dspx-core/src/dspx/services/program_surfaces.py"
+  - "packages/dspx-core/src/dspx/services/program_topology.py"
+  - "packages/dspx-core/src/dspx/services/run_replay_service.py"
+  - "tests/test_program_capabilities.py"
+  - "tests/test_program_runtime_traces.py"
+  - "tests/test_program_service.py"
+  - "tests/test_program_topology_intent.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "VISIBLE_LOOP_ACCEPTANCE_REASON=... just loop-impact-wide && just loop-landing-check"
+    status: "pass"
+group:
+  index: 1
+  total: 3
+  rationale: "program-gen runtime evidence and topology boundary implementation"
+links:
+  task_ids:
+    - 3415
