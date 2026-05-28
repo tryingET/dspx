@@ -378,6 +378,7 @@ def _program_evidence_declarations(
         if kind not in {
             "module_surfaces",
             "runtime_outcomes",
+            "tool_contracts",
             "capability_registry",
             "generated_module_policy",
             "intent_normalization",
@@ -415,6 +416,12 @@ def _program_evidence_declarations(
         path=evidence.get("runtime_outcomes_path") or "program_runtime_outcomes.json",
         content_hash=evidence.get("runtime_outcomes_hash"),
         source="manifest.receipt_bundle.evidence.runtime_outcomes_hash",
+    )
+    add(
+        "tool_contracts",
+        path=evidence.get("tool_contracts_path") or "program_tool_contracts.json",
+        content_hash=evidence.get("tool_contracts_hash"),
+        source="manifest.receipt_bundle.evidence.tool_contracts_hash",
     )
     add(
         "capability_registry",
@@ -499,6 +506,12 @@ def _program_evidence_declarations(
         source="manifest.receipt_bundle.evidence.surface_hashes.program_runtime_outcomes.json",
     )
     add(
+        "tool_contracts",
+        path="program_tool_contracts.json",
+        content_hash=surface_hashes.get("program_tool_contracts.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.program_tool_contracts.json",
+    )
+    add(
         "capability_registry",
         path="program_capability_registry.json",
         content_hash=surface_hashes.get("program_capability_registry.json"),
@@ -578,6 +591,12 @@ def _program_evidence_declarations(
         or "program_runtime_outcomes.json",
         content_hash=run_summary.get("runtime_outcomes_hash"),
         source="receipt.run_summary.runtime_outcomes_hash",
+    )
+    add(
+        "tool_contracts",
+        path=run_summary.get("tool_contracts_path") or "program_tool_contracts.json",
+        content_hash=run_summary.get("tool_contracts_hash"),
+        source="receipt.run_summary.tool_contracts_hash",
     )
     add(
         "capability_registry",
@@ -767,6 +786,29 @@ def _check_program_evidence_artifacts(
                     report,
                     code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
                     message=f"program runtime outcomes semantic check failed: {artifact_path}",
+                    check=semantic_check,
+                )
+        if kind == "tool_contracts":
+            tool_payload = _load_json_object(artifact_path)
+            runtime_policy = (
+                tool_payload.get("runtime_policy")
+                if isinstance(tool_payload, dict)
+                else None
+            )
+            semantic_check = "program_tool_contracts_semantic_valid"
+            checks[semantic_check] = (
+                isinstance(tool_payload, dict)
+                and tool_payload.get("schema_version") == "program-tool-contracts-v1"
+                and tool_payload.get("status") == "descriptor_only_no_tool_binding"
+                and isinstance(tool_payload.get("contracts"), list)
+                and isinstance(runtime_policy, dict)
+                and runtime_policy.get("tool_execution_allowed") is False
+            )
+            if not checks[semantic_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program tool contracts semantic check failed: {artifact_path}",
                     check=semantic_check,
                 )
         if kind == "generated_module_policy":

@@ -390,6 +390,8 @@ def normalize_capability_declaration(value: object) -> dict[str, Any]:
         )
     if raw.get("description") is not None:
         normalized["description"] = str(raw.get("description") or "")
+    if raw.get("name") is not None:
+        normalized["name"] = str(raw.get("name") or declaration_id)
     if raw.get("inputs") is not None:
         if not isinstance(raw.get("inputs"), list):
             raise ValueError(
@@ -402,6 +404,24 @@ def normalize_capability_declaration(value: object) -> dict[str, Any]:
                 f"capability declaration {declaration_id!r} outputs must be a list"
             )
         normalized["outputs"] = [str(item) for item in raw.get("outputs") or []]
+    if kind == "tool":
+        for object_key in (
+            "args_schema",
+            "return_schema",
+            "allowlists",
+            "timeout_policy",
+            "redaction_policy",
+        ):
+            if raw.get(object_key) is not None:
+                if not isinstance(raw.get(object_key), Mapping):
+                    raise ValueError(
+                        f"capability declaration {declaration_id!r} {object_key} must be an object"
+                    )
+                normalized[object_key] = dict(raw.get(object_key) or {})
+        if raw.get("effect_class") is not None:
+            normalized["effect_class"] = str(raw.get("effect_class") or "pure")
+        if raw.get("mutation_allowed") is not None:
+            normalized["mutation_allowed"] = bool(raw.get("mutation_allowed"))
     return normalized
 
 

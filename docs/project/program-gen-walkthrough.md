@@ -37,6 +37,7 @@ The current `program-gen` loop proves:
 1. When no topology is declared, clear routing/generation, extraction/validation, or reasoning/review cues can deterministically infer bounded generated `Predict`/`ChainOfThought` module topologies instead of the default single `Predict` scaffold.
 1. `module_surfaces.json` is a standalone `program-module-surfaces-v1` artifact containing one or more `program-module-surface-v1` contracts for the generated module surfaces that `program-gen` composed.
 1. `program_runtime_outcomes.json` is a standalone `program-runtime-outcomes-v1` artifact that declares each generated module's normalized final-output and primitive-specific outcome/trajectory shape, including ReActV2-style history/tool-call/final-submit slots as evidence contracts without enabling tools or claiming materialization-time runtime traces.
+1. `program_tool_contracts.json` is a standalone `program-tool-contracts-v1` descriptor-only artifact for declared future tools. It records tool id/name, args/return schemas, effect class, allowlists, timeout policy, redaction policy, dry-run/mutation posture, non-authority flags, and absent generated-adapter hash/provenance while keeping `dspy.Tool`, ReAct tools, execution, network, filesystem, subprocess, and mutation disabled.
 1. `program_capability_registry.json` is a standalone `program-capability-registry-v1` descriptor-only artifact that makes the generated-program capability boundary replayable: generated `Predict`/`ChainOfThought`, bounded no-tool `ReAct`, and sandboxed `ProgramOfThought` are materializable; explicit pipeline or `retrieve_then_answer` `Retriever` modules are conditionally materializable only with `retriever.mode: inline_corpus` or materialization-time `local_corpus_snapshot`; experimental `ReActV2` is descriptor-only until DSPy 3.3 beta support is explicitly enabled behind generated policy and tool contracts; `Custom` and declared tool/import/external-retriever capabilities remain declared-only until explicit safe adapters exist.
 1. `generated_module_policy.json` is a standalone `program-generated-module-policy-v1` artifact that statically verifies generated `module.py` imports/calls/effect claims before materialization proceeds; it is hash-bound in the manifest and replay receipt.
 1. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact with source-indexed behavior evidence summaries.
@@ -62,14 +63,14 @@ The current `program-gen` loop proves:
 1. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
 1. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
 1. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-1. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `program_runtime_outcomes.json` and `execution_episode.json`.
+1. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `program_runtime_outcomes.json`, `program_tool_contracts.json`, and `execution_episode.json`.
 1. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
 - rich provider-backed or arbitrary topology inference,
 - broad graph execution beyond the supported declared/prompt-inferred `pipeline` DAG subset,
-- executable live external retriever/tool/custom-import adapters, ReActV2 materialization, ReAct tool binding, and ProgramOfThought with non-empty filesystem/network/env/tool sandbox access beyond descriptor-only capability declarations, the bounded inline-corpus Retriever adapter, and the bounded materialization-time local-corpus snapshot adapter,
+- executable live external retriever/tool/custom-import adapters, ReActV2 materialization, ReAct tool binding, `dspy.Tool` execution, and ProgramOfThought with non-empty filesystem/network/env/tool sandbox access beyond descriptor-only capability/tool declarations, the bounded inline-corpus Retriever adapter, and the bounded materialization-time local-corpus snapshot adapter,
 - broad dataset/eval orchestration beyond the current deterministic split-specific local harnesses,
 - model-backed jury execution,
 - model-jury adjudication, external approval, or activation,

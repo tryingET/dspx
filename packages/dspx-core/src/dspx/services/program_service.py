@@ -43,6 +43,10 @@ from dspx.services.program_runtime_outcomes import (
     PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
     build_program_runtime_outcomes,
 )
+from dspx.services.program_tool_contracts import (
+    PROGRAM_TOOL_CONTRACTS_SCHEMA,
+    build_program_tool_contracts,
+)
 from dspx.services.program_dataset import (
     SPLIT_NAMES,
     finalize_program_dataset_manifest,
@@ -318,6 +322,7 @@ def build_program_plan(
     examples_hash: Optional[str] = None,
     retriever_snapshots_hash: Optional[str] = None,
     runtime_outcomes_hash: Optional[str] = None,
+    tool_contracts_hash: Optional[str] = None,
 ) -> dict[str, Any]:
     """Build the deterministic ProgramPlan v1 contract from a ProgramIntent."""
 
@@ -377,6 +382,11 @@ def build_program_plan(
         {
             "kind": "runtime_outcomes",
             "path": "program_runtime_outcomes.json",
+            "generator": "program-gen",
+        },
+        {
+            "kind": "tool_contracts",
+            "path": "program_tool_contracts.json",
             "generator": "program-gen",
         },
         *(
@@ -504,6 +514,12 @@ def build_program_plan(
             "path": "program_runtime_outcomes.json",
             "content_hash": runtime_outcomes_hash,
             "status": "outcome_contracts_declared",
+        },
+        "tool_contracts": {
+            "schema_version": PROGRAM_TOOL_CONTRACTS_SCHEMA,
+            "path": "program_tool_contracts.json",
+            "content_hash": tool_contracts_hash,
+            "status": "descriptor_only_no_tool_binding",
         },
         "retriever_snapshots": {
             "schema_version": PROGRAM_RETRIEVER_SNAPSHOTS_SCHEMA,
@@ -840,6 +856,8 @@ def _oracle_source_artifacts(
     for kind, path in (
         ("dataset_manifest", "dataset_manifest.json"),
         ("module_surfaces", "module_surfaces.json"),
+        ("runtime_outcomes", "program_runtime_outcomes.json"),
+        ("tool_contracts", "program_tool_contracts.json"),
         ("capability_registry", "program_capability_registry.json"),
         ("generated_module_policy", "generated_module_policy.json"),
         ("signature", "signature.py"),
@@ -1649,6 +1667,9 @@ def _materialize_program_from_intent_unchecked(
     )
     runtime_outcomes_text = _json_text(runtime_outcomes_payload)
     runtime_outcomes_hash = sha256_text(runtime_outcomes_text)
+    tool_contracts_payload = build_program_tool_contracts(intent)
+    tool_contracts_text = _json_text(tool_contracts_payload)
+    tool_contracts_hash = sha256_text(tool_contracts_text)
     capability_registry_payload = build_program_capability_registry(intent)
     capability_registry_text = _json_text(capability_registry_payload)
     generated_module_policy_payload = verify_program_generated_module_policy(
@@ -1661,6 +1682,7 @@ def _materialize_program_from_intent_unchecked(
         examples_hash=examples_hash,
         retriever_snapshots_hash=retriever_snapshots_hash,
         runtime_outcomes_hash=runtime_outcomes_hash,
+        tool_contracts_hash=tool_contracts_hash,
     )
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
@@ -1695,6 +1717,7 @@ def _materialize_program_from_intent_unchecked(
     promotion_decision_template_text = _json_text(promotion_decision_template)
     plan_hash = sha256_text(plan_text)
     module_surfaces_hash = sha256_text(module_surfaces_text)
+    tool_contracts_hash = sha256_text(tool_contracts_text)
     capability_registry_hash = sha256_text(capability_registry_text)
     generated_module_policy_hash = sha256_text(generated_module_policy_text)
     jury_hash = sha256_text(jury_text)
@@ -1716,6 +1739,7 @@ def _materialize_program_from_intent_unchecked(
         promotion_decision_template_text,
         module_surfaces_text,
         runtime_outcomes_text,
+        tool_contracts_text,
         capability_registry_text,
         generated_module_policy_text,
         intent_normalization_text,
@@ -1749,6 +1773,7 @@ def _materialize_program_from_intent_unchecked(
         "promotion_decision_template.json": promotion_decision_template_hash,
         "module_surfaces.json": module_surfaces_hash,
         "program_runtime_outcomes.json": runtime_outcomes_hash,
+        "program_tool_contracts.json": tool_contracts_hash,
         "program_capability_registry.json": capability_registry_hash,
         "generated_module_policy.json": generated_module_policy_hash,
         "intent_normalization.json": intent_normalization_hash,
@@ -1816,6 +1841,9 @@ def _materialize_program_from_intent_unchecked(
     (root / "module_surfaces.json").write_text(module_surfaces_text, encoding="utf-8")
     (root / "program_runtime_outcomes.json").write_text(
         runtime_outcomes_text, encoding="utf-8"
+    )
+    (root / "program_tool_contracts.json").write_text(
+        tool_contracts_text, encoding="utf-8"
     )
     (root / "program_capability_registry.json").write_text(
         capability_registry_text, encoding="utf-8"
@@ -1988,6 +2016,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template.json",
             "module_surfaces.json",
             "program_runtime_outcomes.json",
+            "program_tool_contracts.json",
             "program_capability_registry.json",
             "generated_module_policy.json",
             "intent_normalization.json",
@@ -2121,6 +2150,7 @@ def _materialize_program_from_intent_unchecked(
             "intent",
             "module_surfaces",
             "runtime_outcomes",
+            "tool_contracts",
             "execution_episode",
             "capability_registry",
             "generated_module_policy",
@@ -2227,6 +2257,15 @@ def _materialize_program_from_intent_unchecked(
                 "module_outcome_count": runtime_outcomes_payload[
                     "module_outcome_count"
                 ],
+            },
+            {
+                "kind": "tool_contracts",
+                "path": "program_tool_contracts.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["program_tool_contracts.json"],
+                "schema_version": tool_contracts_payload["schema_version"],
+                "status": tool_contracts_payload["status"],
+                "tool_contract_count": tool_contracts_payload["tool_contract_count"],
             },
             {
                 "kind": "execution_episode",
@@ -2395,6 +2434,8 @@ def _materialize_program_from_intent_unchecked(
             "module_surfaces_path": "module_surfaces.json",
             "runtime_outcomes_hash": runtime_outcomes_hash,
             "runtime_outcomes_path": "program_runtime_outcomes.json",
+            "tool_contracts_hash": tool_contracts_hash,
+            "tool_contracts_path": "program_tool_contracts.json",
             "capability_registry_hash": capability_registry_hash,
             "capability_registry_path": "program_capability_registry.json",
             "generated_module_policy_hash": generated_module_policy_hash,
@@ -2455,6 +2496,7 @@ def _materialize_program_from_intent_unchecked(
                 "promotion_decision_template": "program-gen",
                 "module_surfaces": "program-gen",
                 "runtime_outcomes": "program-gen",
+                "tool_contracts": "program-gen",
                 "capability_registry": "program-gen",
                 "generated_module_policy": "program-gen",
                 "intent_normalization": "program-gen",
@@ -2562,6 +2604,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "runtime_outcomes_hash": runtime_outcomes_hash,
+            "tool_contracts_hash": tool_contracts_hash,
             "capability_registry_hash": capability_registry_hash,
             "generated_module_policy_hash": generated_module_policy_hash,
             "intent_normalization_hash": intent_normalization_hash,
@@ -2594,6 +2637,13 @@ def _materialize_program_from_intent_unchecked(
             "content_hash": runtime_outcomes_hash,
             "schema_version": PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
             "status": runtime_outcomes_payload["status"],
+        },
+        "program_tool_contracts": tool_contracts_payload,
+        "tool_contracts_artifact": {
+            "path": "program_tool_contracts.json",
+            "content_hash": tool_contracts_hash,
+            "schema_version": PROGRAM_TOOL_CONTRACTS_SCHEMA,
+            "status": tool_contracts_payload["status"],
         },
         "program_capability_registry": capability_registry_payload,
         "capability_registry_artifact": {
@@ -2718,6 +2768,8 @@ def _materialize_program_from_intent_unchecked(
             "module_surfaces_path": "module_surfaces.json",
             "runtime_outcomes_hash": runtime_outcomes_hash,
             "runtime_outcomes_path": "program_runtime_outcomes.json",
+            "tool_contracts_hash": tool_contracts_hash,
+            "tool_contracts_path": "program_tool_contracts.json",
             "capability_registry_hash": capability_registry_hash,
             "capability_registry_path": "program_capability_registry.json",
             "generated_module_policy_hash": generated_module_policy_hash,
@@ -2767,6 +2819,13 @@ def _materialize_program_from_intent_unchecked(
                 "content_hash": runtime_outcomes_hash,
                 "schema_version": PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
                 "status": runtime_outcomes_payload["status"],
+            },
+            "program_tool_contracts": tool_contracts_payload,
+            "program_tool_contracts_artifact": {
+                "path": "program_tool_contracts.json",
+                "content_hash": tool_contracts_hash,
+                "schema_version": PROGRAM_TOOL_CONTRACTS_SCHEMA,
+                "status": tool_contracts_payload["status"],
             },
             "program_capability_registry": capability_registry_payload,
             "program_capability_registry_artifact": {
@@ -2899,6 +2958,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "runtime_outcomes_hash": runtime_outcomes_hash,
+            "tool_contracts_hash": tool_contracts_hash,
             "capability_registry_hash": capability_registry_hash,
             "generated_module_policy_hash": generated_module_policy_hash,
             "intent_normalization_hash": intent_normalization_hash,

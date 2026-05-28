@@ -92,6 +92,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (root / "intent.json").exists()
     assert (root / "intent_normalization.json").exists()
     assert (root / "program_runtime_outcomes.json").exists()
+    assert (root / "program_tool_contracts.json").exists()
     assert (root / "execution_episode.json").exists()
     assert (root / "manifest.json").exists()
     assert (root / "manifest.json.meta.json").exists()
@@ -161,6 +162,7 @@ def test_program_service_materializes_candidate_assembly(
         "intent",
         "module_surfaces",
         "runtime_outcomes",
+        "tool_contracts",
         "execution_episode",
         "capability_registry",
         "generated_module_policy",
@@ -191,6 +193,7 @@ def test_program_service_materializes_candidate_assembly(
     assert surfaces_by_kind["runtime_outcomes"]["path"] == (
         "program_runtime_outcomes.json"
     )
+    assert surfaces_by_kind["tool_contracts"]["path"] == "program_tool_contracts.json"
     assert surfaces_by_kind["execution_episode"]["path"] == "execution_episode.json"
     assert surfaces_by_kind["capability_registry"]["path"] == (
         "program_capability_registry.json"
@@ -323,6 +326,9 @@ def test_program_service_materializes_candidate_assembly(
     runtime_outcomes_hash = hashlib.sha256(
         (root / "program_runtime_outcomes.json").read_bytes()
     ).hexdigest()
+    tool_contracts_hash = hashlib.sha256(
+        (root / "program_tool_contracts.json").read_bytes()
+    ).hexdigest()
     execution_episode_hash = hashlib.sha256(
         (root / "execution_episode.json").read_bytes()
     ).hexdigest()
@@ -345,6 +351,8 @@ def test_program_service_materializes_candidate_assembly(
     assert evidence["module_surfaces_path"] == "module_surfaces.json"
     assert evidence["runtime_outcomes_hash"] == runtime_outcomes_hash
     assert evidence["runtime_outcomes_path"] == "program_runtime_outcomes.json"
+    assert evidence["tool_contracts_hash"] == tool_contracts_hash
+    assert evidence["tool_contracts_path"] == "program_tool_contracts.json"
     assert evidence["generated_module_policy_hash"] == generated_module_policy_hash
     assert evidence["generated_module_policy_path"] == "generated_module_policy.json"
     assert evidence["execution_episode_hash"] == execution_episode_hash
@@ -355,10 +363,14 @@ def test_program_service_materializes_candidate_assembly(
         == runtime_outcomes_hash
     )
     assert (
+        evidence["surface_hashes"]["program_tool_contracts.json"] == tool_contracts_hash
+    )
+    assert (
         evidence["surface_hashes"]["execution_episode.json"] == execution_episode_hash
     )
     assert manifest["request"]["module_surfaces_hash"] == module_surfaces_hash
     assert manifest["request"]["runtime_outcomes_hash"] == runtime_outcomes_hash
+    assert manifest["request"]["tool_contracts_hash"] == tool_contracts_hash
     assert (
         manifest["request"]["generated_module_policy_hash"]
         == generated_module_policy_hash
@@ -389,6 +401,10 @@ def test_program_service_materializes_candidate_assembly(
         receipt["run_summary"]["runtime_outcomes_path"]
         == "program_runtime_outcomes.json"
     )
+    assert receipt["run_summary"]["tool_contracts_hash"] == tool_contracts_hash
+    assert (
+        receipt["run_summary"]["tool_contracts_path"] == "program_tool_contracts.json"
+    )
     assert (
         receipt["run_summary"]["generated_module_policy_hash"]
         == generated_module_policy_hash
@@ -409,6 +425,11 @@ def test_program_service_materializes_candidate_assembly(
         receipt["program_runtime_outcomes_artifact"]
         == manifest["runtime_outcomes_artifact"]
     )
+    assert receipt["program_tool_contracts"] == manifest["program_tool_contracts"]
+    assert (
+        receipt["program_tool_contracts_artifact"]
+        == manifest["tool_contracts_artifact"]
+    )
     assert (
         receipt["program_execution_episode_artifact"]
         == manifest["execution_episode_artifact"]
@@ -428,6 +449,7 @@ def test_program_service_materializes_candidate_assembly(
     )
     assert evidence["surface_generation"]["module_surfaces"] == "program-gen"
     assert evidence["surface_generation"]["runtime_outcomes"] == "program-gen"
+    assert evidence["surface_generation"]["tool_contracts"] == "program-gen"
     assert evidence["surface_generation"]["capability_registry"] == "program-gen"
     assert evidence["surface_generation"]["generated_module_policy"] == "program-gen"
     assert evidence["surface_generation"]["execution_episode"] == "program-gen"
@@ -444,6 +466,7 @@ def test_program_service_materializes_candidate_assembly(
     assert "promotion_decision_template.json" in evidence["surface_hashes"]
     assert "module_surfaces.json" in evidence["surface_hashes"]
     assert "program_runtime_outcomes.json" in evidence["surface_hashes"]
+    assert "program_tool_contracts.json" in evidence["surface_hashes"]
     assert "program_capability_registry.json" in evidence["surface_hashes"]
     assert "generated_module_policy.json" in evidence["surface_hashes"]
     assert "execution_episode.json" in evidence["surface_hashes"]
@@ -457,6 +480,7 @@ def test_program_service_materializes_candidate_assembly(
     assert replay["checks"]["cache_key_recomputes"] is True
     assert replay["checks"]["cache_code_hash_matches_receipt"] is True
     assert replay["checks"]["program_runtime_outcomes_semantic_valid"] is True
+    assert replay["checks"]["program_tool_contracts_semantic_valid"] is True
 
 
 def test_program_service_refuses_non_empty_outdir(
@@ -543,21 +567,26 @@ def test_program_gen_cli_materializes_from_yaml(
         == "program_runtime_outcomes.json"
     )
     assert (
-        payload["candidate_assembly"]["surfaces"][9]["path"] == "execution_episode.json"
+        payload["candidate_assembly"]["surfaces"][9]["path"]
+        == "program_tool_contracts.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][10]["path"]
-        == "program_capability_registry.json"
+        == "execution_episode.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][11]["path"]
-        == "generated_module_policy.json"
+        == "program_capability_registry.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][12]["path"]
+        == "generated_module_policy.json"
+    )
+    assert (
+        payload["candidate_assembly"]["surfaces"][13]["path"]
         == "intent_normalization.json"
     )
-    assert payload["candidate_assembly"]["surfaces"][13]["path"] == "signature.py"
+    assert payload["candidate_assembly"]["surfaces"][14]["path"] == "signature.py"
     assert any(
         surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
         for surface in payload["candidate_assembly"]["surfaces"]
