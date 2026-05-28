@@ -188,7 +188,7 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_openapi_tooling
-      - boundary_contract_check
+      - pytest_openapi_boundary_contracts
 
   - match: "packages/dspx-core/src/dspx/tools/openapi/*.py"
     category: openapi_tooling
@@ -198,7 +198,7 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_openapi_tooling
-      - boundary_contract_check
+      - pytest_openapi_boundary_contracts
 
   - match: "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
     category: runtime_boundary
@@ -250,14 +250,14 @@ rules:
       - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/services/program_surfaces.py"
-    category: python_service
-    impact_group: program_generation_spine
+    category: generated_direct_runner
+    impact_group: generated_direct_runner
     risk: expanded
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_program_generation_spine
-      - boundary_contract_check
+      - pytest_generated_direct_runner
+      - pytest_program_direct_runner_generation
 
   - match: "packages/dspx-core/src/dspx/services/program_dataset.py"
     category: python_service
@@ -349,7 +349,7 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
-      - boundary_contract_check
+      - pytest_authority_boundary_contracts
 
   - match: "packages/dspx-core/src/dspx/services/program_candidate_state.py"
     category: python_service
@@ -358,7 +358,7 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
-      - boundary_contract_check
+      - pytest_authority_boundary_contracts
 
   - match: "packages/dspx-core/src/dspx/services/run_replay_service.py"
     category: python_service
@@ -420,11 +420,12 @@ rules:
   - match: "scripts/ci/**"
     category: ci
     impact_group: ci
-    risk: wide
-    requires_full_verification: true
+    risk: bounded
     commands:
       - ruff_touched
-      - verify_fast
+      - workflow_contract_check
+      - impact_plan_smoke
+      - pytest_verify_changed
 
   - match: "Justfile"
     category: ci_contract

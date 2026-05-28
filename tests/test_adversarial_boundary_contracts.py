@@ -185,6 +185,34 @@ def build_program(): return P()
     assert attempt["error_type"] == "TimeoutExpired"
 
 
+def test_generated_direct_batch_records_internal_worker_exception(
+    tmp_path: Path,
+) -> None:
+    namespace: dict[str, object] = {"__file__": str(tmp_path / "direct_run.py")}
+    exec(render_direct_run_code(object()), namespace, namespace)
+
+    def boom(*args: object, **kwargs: object) -> dict[str, object]:
+        raise ValueError("bad child receipt")
+
+    namespace["_run_child"] = boom
+    inputs_root = tmp_path / "inputs"
+    inputs_root.mkdir()
+    (inputs_root / "case.json").write_text('{"q": "x"}\n', encoding="utf-8")
+    out_root = tmp_path / "out"
+
+    summary = namespace["_batch_run"](inputs_root, out_root, 1, 1, 0, None)
+
+    assert summary["status"] == "failed"
+    assert summary["failed"] == 1
+    result = summary["results"][0]
+    assert result["target"] == "case"
+    assert result["error_type"] == "ValueError"
+    assert result["error"] == "bad child receipt"
+    assert (
+        json.loads((out_root / "direct_batch_receipt.json").read_text())["failed"] == 1
+    )
+
+
 def test_program_gen_failure_cleans_partial_outdir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

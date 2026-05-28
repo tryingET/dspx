@@ -116,7 +116,7 @@ Validation contract:
 - `just verify-impact-plan`
   - runs `scripts/ci/verify_changed.py --plan-only` to produce a deterministic changed-file validation plan from `scripts/ci/verification-impact.yml`
   - does not execute checks and does not replace `just verify-full`
-  - fails wide in the plan for unknown, CI/dependency, broad shared, or cross-domain changes
+  - fails wide in the plan for unknown, dependency, broad shared, or cross-domain changes; CI planner/test changes stay bounded to planner tests and impact smoke for ordinary loop validation
 - `just verify-impact`
   - runs the selected impact-aware commands when the plan is bounded or expanded
   - refuses to execute wide/full-required plans unless the planner is explicitly run with its wide-allowing flag

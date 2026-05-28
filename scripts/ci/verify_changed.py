@@ -73,6 +73,21 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ["just", "verify-full"],
         "wide-risk change requires full verification",
     ),
+    "impact_plan_smoke": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "python",
+            "scripts/ci/verify_changed.py",
+            "--files",
+            "scripts/ci/verify_changed.py",
+            "tests/test_verify_changed.py",
+            "--plan-only",
+            "--json",
+        ],
+        "verification impact planner changed",
+    ),
     "typecheck_core": CommandSpec(
         ["uvx", "ty", "check", "packages/dspx-core/src"],
         "core Python service changed",
@@ -99,6 +114,44 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "tests/test_program_runtime_episode.py",
         ],
         "CLI/provider/runtime boundary hardening changed",
+    ),
+    "pytest_verify_changed": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_verify_changed.py",
+        ],
+        "verification impact planner changed",
+    ),
+    "pytest_generated_direct_runner": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_adversarial_boundary_contracts.py",
+            "-k",
+            "generated_direct",
+        ],
+        "generated direct-runner surface changed",
+    ),
+    "pytest_program_direct_runner_generation": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_service.py::test_program_gen_cli_materializes_from_yaml",
+        ],
+        "generated direct-runner rendering changed",
     ),
     "pytest_program_generation_spine": CommandSpec(
         [
@@ -219,8 +272,34 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "tests/test_openapi_toolpack.py",
             "tests/test_openapi_deep_schema.py",
             "tests/test_openapi_schema_refs_allof.py",
+            "tests/test_openapi_validation_enums_arrays.py",
         ],
         "OpenAPI tooling changed",
+    ),
+    "pytest_openapi_boundary_contracts": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_boundary_contracts.py",
+        ],
+        "OpenAPI boundary contract changed",
+    ),
+    "pytest_authority_boundary_contracts": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_authority_adapter_export_preflight.py",
+            "tests/test_program_candidate_state.py",
+        ],
+        "authority-adjacent boundary contract changed",
     ),
     "pytest_oracle_time_travel": CommandSpec(
         [
@@ -495,19 +574,17 @@ def build_plan(
     )
     if len(rel_paths) > max_files and not docs_only_paths:
         risks.append("wide")
-        full_required = True
         wide_reasons.append(
             f"changed file count {len(rel_paths)} exceeds threshold {max_files}"
         )
     if len(impact_groups) > max_groups:
         risks.append("wide")
-        full_required = True
         wide_reasons.append(
             f"impact group count {len(impact_groups)} exceeds threshold {max_groups}"
         )
 
     risk = _risk_max(risks)
-    full_verification_required = full_required or risk == "wide"
+    full_verification_required = full_required
     wide_reason = "; ".join(dict.fromkeys(wide_reasons)) or None
     if full_verification_required:
         command_reasons.setdefault("verify_full", []).append(
@@ -515,7 +592,7 @@ def build_plan(
         )
 
     commands: list[dict[str, Any]] = []
-    seen_commands: set[tuple[str, tuple[str, ...]]] = set()
+    seen_commands: set[tuple[str, ...]] = set()
     command_order = [
         "workflow_contract_check",
         "direction_contract_check",
@@ -524,8 +601,12 @@ def build_plan(
         "ruff_touched",
         "typecheck_core",
         "typecheck_all",
+        "impact_plan_smoke",
         "pytest_touched",
+        "pytest_verify_changed",
         "pytest_boundary_hardening",
+        "pytest_generated_direct_runner",
+        "pytest_program_direct_runner_generation",
         "pytest_program_generation_spine",
         "pytest_program_oracle_refinement",
         "pytest_refinement_candidate_comparison",
@@ -535,6 +616,8 @@ def build_plan(
         "pytest_cache_boundary",
         "pytest_server_security",
         "pytest_openapi_tooling",
+        "pytest_openapi_boundary_contracts",
+        "pytest_authority_boundary_contracts",
         "pytest_oracle_time_travel",
         "boundary_contract_check",
         "docs_strict",
@@ -550,7 +633,7 @@ def build_plan(
         )
         if command is None:
             continue
-        key = (command["id"], tuple(command["command"]))
+        key = tuple(command["command"])
         if key not in seen_commands:
             seen_commands.add(key)
             commands.append(command)
@@ -642,7 +725,10 @@ def execute_plan(
 ) -> tuple[int, dict[str, Any]]:
     started_at = _now_utc()
     command_results: list[dict[str, Any]] = []
-    if plan["full_verification_required"] and not allow_wide:
+    requires_wide_allowance = plan["risk"] == "wide" or bool(
+        plan["full_verification_required"]
+    )
+    if requires_wide_allowance and not allow_wide:
         ended_at = _now_utc()
         return (
             2,
@@ -653,7 +739,7 @@ def execute_plan(
                 ended_at=ended_at,
                 command_results=command_results,
                 exit_code=2,
-                note="impact plan requires broad/full verification; rerun with --allow-wide to execute selected wide commands",
+                note="impact plan is wide or full-required; rerun with --allow-wide to execute selected commands",
             ),
         )
 

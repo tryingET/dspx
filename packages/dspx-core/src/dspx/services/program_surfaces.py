@@ -553,9 +553,21 @@ def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds
     jobs = [(input_file, out_root / _target_name(input_file, inputs_root)) for input_file in input_files]
     results: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=parallel) as executor:
-        futures = [executor.submit(_run_child, input_file, outdir, timeout_seconds, retries, config_path) for input_file, outdir in jobs]
-        for future in as_completed(futures):
-            results.append(future.result())
+        future_to_job = {executor.submit(_run_child, input_file, outdir, timeout_seconds, retries, config_path): (input_file, outdir) for input_file, outdir in jobs}
+        for future in as_completed(future_to_job):
+            input_file, outdir = future_to_job[future]
+            try:
+                results.append(future.result())
+            except Exception as exc:
+                results.append({
+                    'target': outdir.name,
+                    'status': 'failed',
+                    'inputs_path': str(input_file.resolve()),
+                    'outdir': str(outdir.resolve()),
+                    'attempts': [],
+                    'error_type': type(exc).__name__,
+                    'error': str(exc),
+                })
     results.sort(key=lambda item: str(item.get('target', '')))
     failed = [item for item in results if item.get('status') != 'ok']
     summary = {

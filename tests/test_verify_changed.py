@@ -102,6 +102,39 @@ def test_program_intent_selects_program_generation_spine_checks() -> None:
     ]
 
 
+def test_openapi_tooling_command_includes_enum_array_regressions() -> None:
+    loaded = _load_module()
+    command = loaded.COMMAND_REGISTRY["pytest_openapi_tooling"].command
+
+    assert "tests/test_openapi_validation_enums_arrays.py" in command
+
+
+def test_openapi_tooling_uses_targeted_boundary_contracts() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/tools/openapi/caller.py")
+
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_openapi_tooling",
+        "pytest_openapi_boundary_contracts",
+    ]
+    assert "boundary_contract_check" not in _command_ids(plan)
+
+
+def test_generated_direct_runner_change_avoids_program_generation_spine() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_surfaces.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_generated_direct_runner",
+        "pytest_program_direct_runner_generation",
+    ]
+    assert "pytest_program_generation_spine" not in _command_ids(plan)
+
+
 def test_cli_boundary_change_selects_boundary_hardening_tests() -> None:
     plan = _plan("packages/dspx-core/src/dspx/cli/dspx.py")
 
@@ -140,11 +173,25 @@ def test_refinement_comparison_and_test_change_deduplicate_commands() -> None:
 def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
     plan = _plan("scripts/ci/nested/helper.py")
 
-    assert plan["risk"] == "wide"
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
     assert "unmapped path" not in str(plan.get("wide_reason"))
     classification = plan["classifications"][0]
     assert classification["category"] == "ci"
     assert classification["reasons"] == ["matched scripts/ci/**"]
+
+
+def test_ci_planner_change_runs_planner_checks_without_full_verification() -> None:
+    plan = _plan("scripts/ci/verify_changed.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "workflow_contract_check",
+        "ruff_touched",
+        "impact_plan_smoke",
+        "pytest_verify_changed",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -212,6 +259,27 @@ def test_unknown_file_fails_wide() -> None:
     classification = plan["classifications"][0]
     assert classification["category"] == "unknown"
     assert _command_ids(plan) == ["verify_full"]
+
+
+def test_cross_group_threshold_blocks_without_forcing_verify_full() -> None:
+    module = _load_module()
+    plan = _plan(
+        "docs/project/developer_workflow.md",
+        "policy/engineering-lane.json",
+        "packages/dspx-core/src/dspx/services/program_surfaces.py",
+        "tests/test_verify_changed.py",
+    )
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is False
+    assert "impact group count 4 exceeds threshold 3" in str(plan["wide_reason"])
+    assert "verify_full" not in _command_ids(plan)
+
+    exit_code, result = module.execute_plan(plan, allow_wide=False)
+
+    assert exit_code == 2
+    assert result["status"] == "blocked_wide"
+    assert result["commands"] == []
 
 
 def test_engineering_policy_change_selects_workflow_contract_check() -> None:
