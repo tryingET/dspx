@@ -1,0 +1,31 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "manual-commit-workflow"
+actor: "pi"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "987e29c46aeada0cc01b681c535f5ad7139a670f"
+created_at: "2026-05-28T19:35:03Z"
+intent: "Tighten ReActV2 materialization predicates, runtime trace linkage semantics, and impact-map glob matching after final validation."
+files:
+  - "packages/dspx-core/src/dspx/services/program_capabilities.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+  - "scripts/ci/verify_changed.py"
+  - "tests/test_program_capabilities.py"
+  - "tests/test_program_runtime_traces.py"
+  - "tests/test_verify_changed.py"
+validation:
+  focused_tests:
+    command: "uv run --no-sync -m pytest -q tests/test_verify_changed.py tests/test_workflow_contracts.py"
+    status: "pass"
+  impact_plan:
+    command: "just loop-impact-plan"
+    status: "pass"
+  full_gate:
+    command: "just loop-impact-run"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "post-validation hardening for runtime trace evidence and impact planner matching"
+links:
+  task_ids:
+    - 3415
