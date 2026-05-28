@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "263dd6241092828a2f9846bbda8e26004986e382"
-created_at: "2026-05-28T19:36:45Z"
+created_at: "2026-05-28T19:36:57Z"
 intent: "Refresh AK-3415 task scope snapshot after post-validation hardening"
 files:
   - "governance/task-scopes/AK-3415.snapshot.json"
@@ -13,7 +13,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just loop-landing-check"
-    status: "pending"
+    status: "pass"
 group:
   index: 1
   total: 1
