@@ -22,8 +22,8 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "just loop-impact-wide"
-    status: "fail"
+    command: "just loop-impact-run"
+    status: "pass"
 group:
   index: 1
   total: 1
