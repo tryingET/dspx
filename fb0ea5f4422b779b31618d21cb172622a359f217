@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "fb0ea5f4422b779b31618d21cb172622a359f217"
-created_at: "2026-05-28T16:35:39Z"
+created_at: "2026-05-28T19:35:03Z"
 intent: "Declare generated program runtime outcome contracts and ReActV2 descriptor-only policy boundaries."
 files:
   - "README.md"
@@ -30,7 +30,13 @@ validation:
   full_gate:
     command: "just loop-impact-run"
     status: "pass"
+  final_visible_loop_gate:
+    command: "just loop-impact-run"
+    status: "pass"
 group:
   index: 1
   total: 1
   rationale: "program-gen runtime outcome evidence, descriptor-only ReActV2 boundary, replay and impact-map coverage"
+links:
+  task_ids:
+    - 3415
