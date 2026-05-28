@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "69cb3f51f40d5aa6b03023764df34d30658c3faf"
-created_at: "2026-05-28T14:28:06Z"
+created_at: "2026-05-28T14:43:24Z"
 intent: "Materialize bounded local_corpus_snapshot retrievers into generated inline adapters and update AK-3415 scope projection"
 files:
   - "README.md"
@@ -22,12 +22,12 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "ACCEPT_IMPACT_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 2' just loop-impact-wide"
-    status: "pending"
+    command: "just loop-impact-wide"
+    status: "fail"
 group:
   index: 1
   total: 1
-  rationale: "single coherent program-generation boundary slice"
+  rationale: "single coherent program-generation boundary slice; final gate timed out during verify-full branch"
 links:
   task_ids:
     - 3415
