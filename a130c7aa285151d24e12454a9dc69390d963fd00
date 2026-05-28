@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "a130c7aa285151d24e12454a9dc69390d963fd00"
+created_at: "2026-05-28T19:16:49Z"
+intent: "Refresh AK-3415 task scope snapshot after bounded implementation"
+files:
+  - "governance/task-scopes/AK-3415.snapshot.json"
+validation:
+  fast_gate:
+    command: "just task-scope-check"
+    status: "pass"
+  full_gate:
+    command: "just loop-landing-check"
+    status: "pass"
+group:
+  index: 3
+  total: 3
+  rationale: "scope projection refresh"
+links:
+  task_ids:
+    - 3415
