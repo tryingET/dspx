@@ -28,8 +28,8 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 2' uv run --no-sync python scripts/ci/verify_changed.py --files README.md docs/project/product-posture.md docs/project/program-gen-walkthrough.md docs/project/program-synthesis-boundary.md packages/dspx-core/src/dspx/services/program_capabilities.py packages/dspx-core/src/dspx/services/program_generated_policy.py packages/dspx-core/src/dspx/services/program_intent.py packages/dspx-core/src/dspx/services/program_runtime_outcomes.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/run_replay_service.py scripts/ci/verification-impact.yml scripts/ci/verify_changed.py tests/test_program_capabilities.py tests/test_program_generated_policy.py tests/test_program_runtime_outcomes.py tests/test_program_service.py tests/test_verify_changed.py --run --allow-wide"
-    status: "fail"
+    command: "just loop-impact-run"
+    status: "pass"
 group:
   index: 1
   total: 1
