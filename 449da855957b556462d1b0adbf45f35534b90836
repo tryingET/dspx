@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "449da855957b556462d1b0adbf45f35534b90836"
-created_at: "2026-05-28T17:02:57Z"
+created_at: "2026-05-28T17:05:28Z"
 intent: "Emit descriptor-only generated-program tool contracts and replay evidence binding."
 files:
   - "docs/project/product-posture.md"
@@ -21,7 +21,7 @@ validation:
     status: "pass"
   full_gate:
     command: "VISIBLE_LOOP_ACCEPTANCE_REASON=\"visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 2\" just loop-impact-wide"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 2
