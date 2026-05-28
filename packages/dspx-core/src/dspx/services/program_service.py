@@ -34,6 +34,11 @@ from dspx.services.program_intent_normalization import (
     PROGRAM_INTENT_NORMALIZATION_SCHEMA,
     build_program_intent_normalization,
 )
+from dspx.services.program_retrievers import (
+    PROGRAM_RETRIEVER_SNAPSHOTS_SCHEMA,
+    resolve_program_retriever_snapshots,
+    retriever_snapshot_text,
+)
 from dspx.services.program_dataset import (
     SPLIT_NAMES,
     finalize_program_dataset_manifest,
@@ -244,8 +249,8 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
                 current_renderer = RETRIEVE_THEN_ANSWER_RENDERER
                 notes = [
                     "Explicit retrieve_then_answer topology is preserved as declared input and rendered through the bounded topology renderer.",
-                    "Only explicit bounded inline Retriever modules feeding generated Predict/ChainOfThought/ReAct/ProgramOfThought answer modules are supported in this slice.",
-                    "No external retriever, tool binding, custom import, ranking, promotion, or external authority execution is performed; ReAct uses tools=[] and ProgramOfThought uses an empty sandbox.",
+                    "Only explicit bounded inline or materialization-time local_corpus_snapshot Retriever modules feeding generated Predict/ChainOfThought/ReAct/ProgramOfThought answer modules are supported in this slice.",
+                    "No live external retriever, tool binding, custom import, ranking, promotion, or external authority execution is performed; ReAct uses tools=[] and ProgramOfThought uses an empty sandbox.",
                 ]
             else:
                 kind = str(declared_topology.get("kind") or "pipeline")
@@ -256,8 +261,8 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
                 )
                 notes = [
                     f"Explicit {kind} topology is preserved as declared input and rendered as a bounded composed program.",
-                    "Only Predict, ChainOfThought, bounded no-tool ReAct, sandboxed ProgramOfThought, and explicit bounded inline Retriever module primitives plus simple when.field/equals routing are supported in this slice.",
-                    "No topology inference, broad graph engine, external tools/retrievers, ReAct tool binding, or ProgramOfThought filesystem/network/env/tool sandbox access is performed.",
+                    "Only Predict, ChainOfThought, bounded no-tool ReAct, sandboxed ProgramOfThought, explicit bounded inline Retriever modules, and materialization-time local_corpus_snapshot Retriever modules plus simple when.field/equals routing are supported in this slice.",
+                    "No topology inference, broad graph engine, live external tools/retrievers, ReAct tool binding, or ProgramOfThought filesystem/network/env/tool sandbox access is performed.",
                 ]
         else:
             status = str(
@@ -304,7 +309,10 @@ def _topology_plan_contract(intent: ProgramIntent) -> dict[str, Any]:
 
 
 def build_program_plan(
-    intent: ProgramIntent, *, examples_hash: Optional[str] = None
+    intent: ProgramIntent,
+    *,
+    examples_hash: Optional[str] = None,
+    retriever_snapshots_hash: Optional[str] = None,
 ) -> dict[str, Any]:
     """Build the deterministic ProgramPlan v1 contract from a ProgramIntent."""
 
@@ -361,6 +369,17 @@ def build_program_plan(
             "path": "generated_module_policy.json",
             "generator": "program-gen",
         },
+        *(
+            [
+                {
+                    "kind": "retriever_snapshots",
+                    "path": "retriever_snapshots.json",
+                    "generator": "program-gen",
+                }
+            ]
+            if retriever_snapshots_hash is not None
+            else []
+        ),
         {"kind": "signature", "path": "signature.py", "generator": "signature-gen"},
         {"kind": "module", "path": "module.py", "generator": "module-gen"},
         {"kind": "program", "path": "program.py", "generator": "program-gen"},
@@ -470,6 +489,14 @@ def build_program_plan(
             "path": "generated_module_policy.json",
             "status": "passed",
         },
+        "retriever_snapshots": {
+            "schema_version": PROGRAM_RETRIEVER_SNAPSHOTS_SCHEMA,
+            "path": "retriever_snapshots.json",
+            "content_hash": retriever_snapshots_hash,
+            "status": "materialized_to_bounded_inline_adapters",
+        }
+        if retriever_snapshots_hash is not None
+        else None,
         "surfaces": surfaces,
         "metric": intent.metric or "unspecified",
         "runtime": dict(intent.runtime),
@@ -1265,7 +1292,7 @@ def _build_execution_episode_contract(
         if declared_kind == "retrieve_then_answer":
             notes.insert(
                 1,
-                "Retrieval is limited to generated bounded inline-corpus adapters; no external retriever is bound or executed.",
+                "Retrieval is limited to generated bounded inline-corpus adapters or materialization-time local_corpus_snapshot adapters; no live external retriever is bound or executed.",
             )
         topology_execution = {
             "declared_topology_present": True,
@@ -1559,6 +1586,21 @@ def _materialize_program_from_intent_unchecked(
         raise ValueError(f"program-gen outdir is not empty: {root}")
     root.mkdir(parents=True, exist_ok=True)
 
+    intent, retriever_snapshots_payload = resolve_program_retriever_snapshots(
+        intent,
+        intent_source=intent_source,
+    )
+    retriever_snapshots_text = (
+        retriever_snapshot_text(retriever_snapshots_payload)
+        if retriever_snapshots_payload is not None
+        else None
+    )
+    retriever_snapshots_hash = (
+        sha256_text(retriever_snapshots_text)
+        if retriever_snapshots_text is not None
+        else None
+    )
+
     intent_normalization_payload = _build_pre_materialization_intent_normalization(
         intent,
         intent_source=intent_source,
@@ -1592,7 +1634,11 @@ def _materialize_program_from_intent_unchecked(
         module_surfaces=module_surfaces_payload,
     )
     generated_module_policy_text = _json_text(generated_module_policy_payload)
-    program_plan = build_program_plan(intent, examples_hash=examples_hash)
+    program_plan = build_program_plan(
+        intent,
+        examples_hash=examples_hash,
+        retriever_snapshots_hash=retriever_snapshots_hash,
+    )
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
     jury_rubric = build_jury_rubric(intent, jury_selection)
@@ -1649,6 +1695,7 @@ def _materialize_program_from_intent_unchecked(
         capability_registry_text,
         generated_module_policy_text,
         intent_normalization_text,
+        *([retriever_snapshots_text] if retriever_snapshots_text is not None else []),
         signature_code,
         module_code,
         program_code,
@@ -1680,6 +1727,11 @@ def _materialize_program_from_intent_unchecked(
         "program_capability_registry.json": capability_registry_hash,
         "generated_module_policy.json": generated_module_policy_hash,
         "intent_normalization.json": intent_normalization_hash,
+        **(
+            {"retriever_snapshots.json": retriever_snapshots_hash}
+            if retriever_snapshots_hash is not None
+            else {}
+        ),
         "signature.py": sha256_text(signature_code),
         "module.py": sha256_text(module_code),
         "program.py": sha256_text(program_code),
@@ -1718,6 +1770,10 @@ def _materialize_program_from_intent_unchecked(
     (root / "intent_normalization.json").write_text(
         intent_normalization_text, encoding="utf-8"
     )
+    if retriever_snapshots_text is not None:
+        (root / "retriever_snapshots.json").write_text(
+            retriever_snapshots_text, encoding="utf-8"
+        )
     for relative, content in generated_files.items():
         (root / relative).write_text(content, encoding="utf-8")
 
@@ -1906,6 +1962,11 @@ def _materialize_program_from_intent_unchecked(
             "program_capability_registry.json",
             "generated_module_policy.json",
             "intent_normalization.json",
+            *(
+                ["retriever_snapshots.json"]
+                if retriever_snapshots_hash is not None
+                else []
+            ),
             "intent.json",
             *(["examples.json", "behavior_results.json"] if examples_payload else []),
             *(["behavior_episode.json"] if behavior_episode_hash is not None else []),
@@ -2034,6 +2095,7 @@ def _materialize_program_from_intent_unchecked(
             "capability_registry",
             "generated_module_policy",
             "intent_normalization",
+            *(["retriever_snapshots"] if retriever_snapshots_hash is not None else []),
             *(["examples", "behavior_results"] if examples_payload else []),
             *(
                 ["behavior_harness", "behavior_episode", "oracle_evidence"]
@@ -2157,6 +2219,23 @@ def _materialize_program_from_intent_unchecked(
                 "schema_version": PROGRAM_INTENT_NORMALIZATION_SCHEMA,
                 "status": intent_normalization_payload["status"],
             },
+            *(
+                [
+                    {
+                        "kind": "retriever_snapshots",
+                        "path": "retriever_snapshots.json",
+                        "generator": "program-gen",
+                        "content_hash": surface_hashes["retriever_snapshots.json"],
+                        "schema_version": PROGRAM_RETRIEVER_SNAPSHOTS_SCHEMA,
+                        "status": dict(retriever_snapshots_payload or {}).get("status"),
+                        "snapshot_count": dict(retriever_snapshots_payload or {}).get(
+                            "snapshot_count"
+                        ),
+                    }
+                ]
+                if retriever_snapshots_hash is not None
+                else []
+            ),
             *dataset_candidate_surfaces,
             {
                 "kind": "signature",
@@ -2279,6 +2358,14 @@ def _materialize_program_from_intent_unchecked(
             "generated_module_policy_path": "generated_module_policy.json",
             "intent_normalization_hash": intent_normalization_hash,
             "intent_normalization_path": "intent_normalization.json",
+            **(
+                {
+                    "retriever_snapshots_hash": retriever_snapshots_hash,
+                    "retriever_snapshots_path": "retriever_snapshots.json",
+                }
+                if retriever_snapshots_hash is not None
+                else {}
+            ),
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
             "topology_execution": topology_execution,
@@ -2327,6 +2414,11 @@ def _materialize_program_from_intent_unchecked(
                 "capability_registry": "program-gen",
                 "generated_module_policy": "program-gen",
                 "intent_normalization": "program-gen",
+                **(
+                    {"retriever_snapshots": "program-gen"}
+                    if retriever_snapshots_hash is not None
+                    else {}
+                ),
                 "execution_episode": "program-gen",
                 "signature": "signature-gen",
                 "module": "module-gen",
@@ -2428,6 +2520,7 @@ def _materialize_program_from_intent_unchecked(
             "capability_registry_hash": capability_registry_hash,
             "generated_module_policy_hash": generated_module_policy_hash,
             "intent_normalization_hash": intent_normalization_hash,
+            "retriever_snapshots_hash": retriever_snapshots_hash,
             "execution_episode_hash": execution_episode_hash,
             "dataset_manifest_hash": dataset_manifest_hash,
             "dataset_split_behavior_results_hashes": dict(
@@ -2469,6 +2562,15 @@ def _materialize_program_from_intent_unchecked(
             "schema_version": PROGRAM_INTENT_NORMALIZATION_SCHEMA,
             "status": intent_normalization_payload["status"],
         },
+        "retriever_snapshots": retriever_snapshots_payload,
+        "retriever_snapshots_artifact": {
+            "path": "retriever_snapshots.json",
+            "content_hash": retriever_snapshots_hash,
+            "schema_version": PROGRAM_RETRIEVER_SNAPSHOTS_SCHEMA,
+            "status": dict(retriever_snapshots_payload or {}).get("status"),
+        }
+        if retriever_snapshots_hash is not None
+        else None,
         "pre_materialization_review": {
             "status": "emitted_before_candidate_materialization",
             "path": "intent_normalization.json",
@@ -2568,6 +2670,10 @@ def _materialize_program_from_intent_unchecked(
             "generated_module_policy_path": "generated_module_policy.json",
             "intent_normalization_hash": intent_normalization_hash,
             "intent_normalization_path": "intent_normalization.json",
+            "retriever_snapshots_hash": retriever_snapshots_hash,
+            "retriever_snapshots_path": "retriever_snapshots.json"
+            if retriever_snapshots_hash is not None
+            else None,
             "execution_episode_hash": execution_episode_hash,
             "execution_episode_path": "execution_episode.json",
             "dataset_manifest_hash": dataset_manifest_hash,
@@ -2620,6 +2726,19 @@ def _materialize_program_from_intent_unchecked(
                 "schema_version": PROGRAM_INTENT_NORMALIZATION_SCHEMA,
                 "status": intent_normalization_payload["status"],
             },
+            **(
+                {
+                    "program_retriever_snapshots": retriever_snapshots_payload,
+                    "program_retriever_snapshots_artifact": {
+                        "path": "retriever_snapshots.json",
+                        "content_hash": retriever_snapshots_hash,
+                        "schema_version": PROGRAM_RETRIEVER_SNAPSHOTS_SCHEMA,
+                        "status": dict(retriever_snapshots_payload or {}).get("status"),
+                    },
+                }
+                if retriever_snapshots_hash is not None
+                else {}
+            ),
             "program_execution_episode_artifact": {
                 "path": "execution_episode.json",
                 "content_hash": execution_episode_hash,

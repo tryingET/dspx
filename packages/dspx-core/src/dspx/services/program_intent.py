@@ -11,8 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from dspx.cache import cache_dir
 from dspx.services.program_capabilities import (
-    normalize_inline_retriever_config,
     normalize_program_capabilities,
+    normalize_retriever_config,
 )
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -182,7 +182,7 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
     if role:
         normalized["role"] = role
     if "retriever" in module:
-        normalized["retriever"] = normalize_inline_retriever_config(
+        normalized["retriever"] = normalize_retriever_config(
             module.get("retriever"), module_id=module_id
         )
     if primitive == "ReAct":

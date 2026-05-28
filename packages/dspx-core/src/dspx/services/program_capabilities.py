@@ -100,6 +100,49 @@ def is_pipeline_primitive_materializable(primitive: object) -> bool:
     return _canonical_primitive(primitive) in _MATERIALIZABLE_PIPELINE_PRIMITIVES
 
 
+def normalize_retriever_config(value: object, *, module_id: str) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(
+            f"pipeline Retriever module {module_id!r} requires retriever object"
+        )
+    payload = dict(value)
+    mode = str(payload.get("mode") or "").strip()
+    if mode == "local_corpus_snapshot":
+        extra_keys = set(payload) - {"mode", "k", "path", "id_field", "text_field"}
+        if extra_keys:
+            raise ValueError(
+                f"pipeline Retriever module {module_id!r} retriever has unsupported keys: {sorted(extra_keys)}"
+            )
+        path = str(payload.get("path") or "").strip()
+        if not path:
+            raise ValueError(
+                f"pipeline Retriever module {module_id!r} retriever.path must not be blank"
+            )
+        raw_k = payload.get("k", 3)
+        if isinstance(raw_k, bool):
+            raise ValueError(
+                f"pipeline Retriever module {module_id!r} retriever.k must be an integer"
+            )
+        try:
+            k = int(raw_k)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"pipeline Retriever module {module_id!r} retriever.k must be an integer"
+            ) from exc
+        if k < 1 or k > _MAX_INLINE_RETRIEVER_K:
+            raise ValueError(
+                f"pipeline Retriever module {module_id!r} retriever.k must be between 1 and {_MAX_INLINE_RETRIEVER_K}"
+            )
+        return {
+            "mode": "local_corpus_snapshot",
+            "path": path,
+            "id_field": str(payload.get("id_field") or "id").strip() or "id",
+            "text_field": str(payload.get("text_field") or "text").strip() or "text",
+            "k": k,
+        }
+    return normalize_inline_retriever_config(value, module_id=module_id)
+
+
 def normalize_inline_retriever_config(
     value: object, *, module_id: str
 ) -> dict[str, Any]:
@@ -116,7 +159,7 @@ def normalize_inline_retriever_config(
     mode = str(payload.get("mode") or "").strip()
     if mode != "inline_corpus":
         raise ValueError(
-            f"pipeline Retriever module {module_id!r} supports only retriever.mode='inline_corpus'"
+            f"pipeline Retriever module {module_id!r} supports only retriever.mode='inline_corpus' or 'local_corpus_snapshot'"
         )
     raw_k = payload.get("k", 3)
     if isinstance(raw_k, bool):
@@ -231,6 +274,8 @@ def _primitive_contract(primitive: str) -> dict[str, Any]:
             "tool_binding_allowed": False,
             "retriever_binding_allowed": False,
             "bounded_inline_retriever_adapter_allowed": primitive == "Retriever",
+            "local_corpus_snapshot_adapter_allowed": primitive == "Retriever",
+            "live_external_retriever_binding_allowed": False,
             "react_loop_allowed": primitive == "ReAct",
             "program_of_thought_allowed": primitive == "ProgramOfThought",
             "provider_call_allowed_by_contract": False,
@@ -406,7 +451,7 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
             "default": "fail_closed",
             "materializable_primitives": sorted(_MATERIALIZABLE_PIPELINE_PRIMITIVES),
             "conditional_materializable_primitives": {
-                "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus only",
+                "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus or local_corpus_snapshot only; local snapshots are normalized into generated inline adapters during materialization",
                 "ReAct": "explicit bounded materializable topology module with tools=[] and bounded max_iters only",
                 "ProgramOfThought": "explicit bounded materializable topology module with empty PythonInterpreter sandbox only",
             },
@@ -423,8 +468,8 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
         "non_authority": dict(_NON_AUTHORITY),
         "notes": [
             "This registry is descriptor-only evidence for generated program capability boundaries.",
-            "It does not import custom modules, bind external tools/retrievers, call providers during materialization, rank candidates, promote programs, or mutate external authority.",
-            "Current materialization supports generated Predict/ChainOfThought/ReAct/ProgramOfThought primitives plus explicit bounded inline Retriever adapters in bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies only.",
+            "It does not import custom modules, bind live external tools/retrievers, call providers during materialization, rank candidates, promote programs, or mutate external authority.",
+            "Current materialization supports generated Predict/ChainOfThought/ReAct/ProgramOfThought primitives plus explicit bounded inline Retriever adapters and materialization-time local_corpus_snapshot Retriever adapters in bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies only.",
             "ReAct is generated only with an empty tools list; ProgramOfThought is generated only with an empty PythonInterpreter sandbox.",
         ],
     }

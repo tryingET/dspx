@@ -855,6 +855,262 @@ def test_pipeline_inline_retriever_materializes_bounded_local_adapter(
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
+def test_pipeline_local_corpus_snapshot_retriever_materializes_bounded_adapter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    corpus_path = tmp_path / "corpus.jsonl"
+    corpus_path.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "doc_id": "billing_doc",
+                        "body": "Billing invoices can be corrected by the accounts team.",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "doc_id": "technical_doc",
+                        "body": "Technical crashes require logs and reproduction steps.",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    intent_source = tmp_path / "intent.json"
+    intent_source.write_text(
+        '{"schema_version":"program-intent-v2"}\n', encoding="utf-8"
+    )
+    intent = ProgramIntent(
+        name="SnapshotRetrieverPipelineProgram",
+        objective="Snapshot a local corpus, retrieve passages, then answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "retrieve_then_answer",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveSnapshotContext",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "local_corpus_snapshot",
+                        "path": "corpus.jsonl",
+                        "id_field": "doc_id",
+                        "text_field": "body",
+                        "k": 1,
+                    },
+                },
+                {
+                    "id": "answer_question",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "AnswerSnapshotQuestion",
+                        "inputs": ["question", "passages"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "answer_question"},
+                {"from": "answer_question", "to": "output"},
+            ],
+        },
+    )
+
+    artifact = materialize_program_from_intent(
+        intent, outdir=tmp_path / "program", intent_source=intent_source
+    )
+    root = Path(artifact.root_path)
+    snapshot = json.loads(
+        (root / "retriever_snapshots.json").read_text(encoding="utf-8")
+    )
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    plan = json.loads((root / "plan.json").read_text(encoding="utf-8"))
+    module_text = (root / "module.py").read_text(encoding="utf-8")
+
+    assert snapshot["schema_version"] == "program-retriever-snapshots-v1"
+    assert snapshot["snapshot_count"] == 1
+    assert snapshot["snapshots"][0]["module_id"] == "retrieve_context"
+    assert snapshot["snapshots"][0]["document_count"] == 2
+    assert snapshot["runtime_policy"] == {
+        "generated_runtime_reads_source_corpus": False,
+        "live_external_retriever_bound": False,
+        "network_allowed": False,
+        "tool_binding_allowed": False,
+        "provider_call_allowed": False,
+    }
+    assert plan["retriever_snapshots"]["path"] == "retriever_snapshots.json"
+    assert manifest["retriever_snapshots"] == snapshot
+    assert (
+        manifest["retriever_snapshots_artifact"]["content_hash"]
+        == (
+            manifest["receipt_bundle"]["evidence"]["surface_hashes"][
+                "retriever_snapshots.json"
+            ]
+        )
+    )
+    assert {
+        surface["kind"] for surface in manifest["candidate_assembly"]["surfaces"]
+    } >= {"retriever_snapshots"}
+    assert "dspy.Retrieve" not in module_text
+    assert "importlib" not in module_text
+    assert "corpus.jsonl" not in module_text
+    assert "billing_doc" in module_text
+    assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def test_local_corpus_snapshot_retriever_requires_intent_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="SnapshotRetrieverRequiresSourceProgram",
+        objective="Reject source-less local corpus snapshots.",
+        inputs=["question"],
+        outputs=["passages"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveRequiresSource",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "local_corpus_snapshot",
+                        "path": "corpus.jsonl",
+                        "k": 1,
+                    },
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "output"},
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match="requires intent_source"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    assert not (tmp_path / "program" / "manifest.json").exists()
+
+
+def test_local_corpus_snapshot_retriever_rejects_parent_traversal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent_dir = tmp_path / "intents"
+    intent_dir.mkdir()
+    intent_source = intent_dir / "intent.json"
+    intent_source.write_text("{}\n", encoding="utf-8")
+    (tmp_path / "corpus.jsonl").write_text(
+        json.dumps({"id": "doc", "text": "text"}) + "\n",
+        encoding="utf-8",
+    )
+    intent = ProgramIntent(
+        name="SnapshotRetrieverTraversalProgram",
+        objective="Reject path traversal for local corpus snapshots.",
+        inputs=["question"],
+        outputs=["passages"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveTraversal",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "local_corpus_snapshot",
+                        "path": "../corpus.jsonl",
+                        "k": 1,
+                    },
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "output"},
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match="must stay under the intent file directory"):
+        materialize_program_from_intent(
+            intent, outdir=tmp_path / "program", intent_source=intent_source
+        )
+    assert not (tmp_path / "program" / "manifest.json").exists()
+
+
+def test_local_corpus_snapshot_retriever_rejects_oversized_source_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    corpus_path = tmp_path / "corpus.jsonl"
+    corpus_path.write_text("x" * 1_000_001, encoding="utf-8")
+    intent_source = tmp_path / "intent.json"
+    intent_source.write_text("{}\n", encoding="utf-8")
+    intent = ProgramIntent(
+        name="SnapshotRetrieverOversizedProgram",
+        objective="Reject oversized local corpus snapshots.",
+        inputs=["question"],
+        outputs=["passages"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "retrieve_context",
+                    "primitive": "Retriever",
+                    "signature": {
+                        "name": "RetrieveOversized",
+                        "inputs": ["question"],
+                        "outputs": ["passages"],
+                    },
+                    "retriever": {
+                        "mode": "local_corpus_snapshot",
+                        "path": "corpus.jsonl",
+                        "k": 1,
+                    },
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "retrieve_context"},
+                {"from": "retrieve_context", "to": "output"},
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match="source file exceeds byte limit"):
+        materialize_program_from_intent(
+            intent, outdir=tmp_path / "program", intent_source=intent_source
+        )
+    assert not (tmp_path / "program" / "manifest.json").exists()
+
+
 def test_retrieve_then_answer_topology_materializes_bounded_inline_adapter(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1103,6 +1359,15 @@ def test_pipeline_retriever_fails_closed_without_bounded_inline_contract(
             "documents": [{"id": "doc", "text": "text"}],
         },
         {"mode": "inline_corpus", "k": 1, "documents": []},
+        {
+            "mode": "local_corpus_snapshot",
+            "k": 99,
+            "path": "corpus.jsonl",
+        },
+        {
+            "mode": "local_corpus_snapshot",
+            "k": 1,
+        },
         {
             "mode": "inline_corpus",
             "k": 1,

@@ -29,7 +29,7 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
         "conditional_materializable_primitives": {
             "ProgramOfThought": "explicit bounded materializable topology module with empty PythonInterpreter sandbox only",
             "ReAct": "explicit bounded materializable topology module with tools=[] and bounded max_iters only",
-            "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus only",
+            "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus or local_corpus_snapshot only; local snapshots are normalized into generated inline adapters during materialization",
         },
         "unsupported_primitives_are_declared_only": True,
         "custom_imports_are_declarations_only": True,
@@ -172,6 +172,14 @@ def test_retriever_primitive_contract_requires_bounded_inline_adapter() -> None:
     assert (
         contract["materialization_policy"]["bounded_inline_retriever_adapter_allowed"]
         is True
+    )
+    assert (
+        contract["materialization_policy"]["local_corpus_snapshot_adapter_allowed"]
+        is True
+    )
+    assert (
+        contract["materialization_policy"]["live_external_retriever_binding_allowed"]
+        is False
     )
     assert contract["materialization_policy"]["retriever_binding_allowed"] is False
     assert contract["effects"]["provider_called"] is False
