@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "259e90f336f5a03226b9e265c638a8414ff3425e"
+created_at: "2026-05-28T17:09:26Z"
+intent: "Refresh AK-3415 task scope snapshot after scope update."
+files:
+  - "governance/task-scopes/AK-3415.snapshot.json"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just loop-impact-run"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "AK-3415 task-scope projection refresh after allowed-path update."
+links:
+  task_ids:
+    - 3415
