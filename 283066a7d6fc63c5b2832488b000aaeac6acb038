@@ -1,0 +1,26 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "pi"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "283066a7d6fc63c5b2832488b000aaeac6acb038"
+created_at: "2026-05-28T00:15:10Z"
+intent: "Complete follow-up validation hardening for visible-loop boundary fixes: generated batch receipt failure envelope, OpenAPI tooling regression coverage, impact-plan precision, docs workflow alignment, and AK-3415 task-scope snapshot."
+files:
+  - "docs/project/developer_workflow.md"
+  - "governance/task-scopes/AK-3415.snapshot.json"
+  - "packages/dspx-core/src/dspx/services/program_surfaces.py"
+  - "scripts/ci/verification-impact.yml"
+  - "scripts/ci/verify_changed.py"
+  - "tests/test_adversarial_boundary_contracts.py"
+  - "tests/test_verify_changed.py"
+validation:
+  impact_wide:
+    command: "just loop-impact-wide"
+    status: "pass"
+  landing_check:
+    command: "just loop-landing-check"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "Follow-up validation and receipt-guarantee hardening slice for AK-3415 after boundary-fix review."
