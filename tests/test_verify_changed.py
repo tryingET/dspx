@@ -108,7 +108,9 @@ def test_program_intent_selects_program_generation_spine_checks() -> None:
         "packages/dspx-core/src/dspx/services/program_capabilities.py",
         "packages/dspx-core/src/dspx/services/program_retrievers.py",
         "packages/dspx-core/src/dspx/services/program_runtime_outcomes.py",
+        "packages/dspx-core/src/dspx/services/program_runtime_traces.py",
         "packages/dspx-core/src/dspx/services/program_tool_contracts.py",
+        "packages/dspx-core/src/dspx/services/program_topology.py",
     ],
 )
 def test_program_generation_support_modules_select_spine_checks(path: str) -> None:
@@ -278,6 +280,11 @@ def test_ci_planner_change_runs_planner_checks_without_full_verification() -> No
             "pytest_provider_runtime",
         ),
         (
+            "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+            "provider_boundary",
+            "pytest_provider_v4",
+        ),
+        (
             "packages/dspx-core/src/dspx/oracle_time_travel.py",
             "oracle_time_travel",
             "pytest_oracle_time_travel",
@@ -308,6 +315,58 @@ def test_boundary_debt_paths_are_mapped(
     classification = plan["classifications"][0]
     assert classification["category"] == category
     assert expected_command in _command_ids(plan)
+
+
+def test_coordinate_storage_does_not_run_aggregate_runtime_gate() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/coordinates/storage.py")
+
+    assert "pytest_coordinates" in _command_ids(plan)
+    assert "verify_runtime" not in _command_ids(plan)
+    assert "verify_runtime_module_synthesis" not in _command_ids(plan)
+
+
+def test_provider_v4_auth_adapter_change_stays_bounded() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/dspy_lm_auth_lm.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_provider_v4",
+    ]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_replay_service_selects_replay_runtime_only() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/run_replay_service.py")
+
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "verify_runtime_replay",
+    ]
+    assert "verify_runtime" not in _command_ids(plan)
+    assert "verify_runtime_module_synthesis" not in _command_ids(plan)
+    assert "verify_runtime_boundary" not in _command_ids(plan)
+
+
+def test_module_synthesis_quality_log_selects_module_synthesis_runtime_only() -> None:
+    plan = _plan("scripts/build_module_synthesis_quality_log.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == ["ruff_touched", "verify_runtime_module_synthesis"]
+    assert "verify_runtime" not in _command_ids(plan)
+
+
+def test_runtime_aggregate_command_exists_for_explicit_full_confidence_only() -> None:
+    loaded = _load_module()
+
+    assert loaded.COMMAND_REGISTRY["verify_runtime"].command == [
+        "just",
+        "verify-runtime",
+    ]
 
 
 def test_unknown_file_fails_wide() -> None:

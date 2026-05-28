@@ -65,9 +65,25 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ["just", "verify-fast"],
         "workflow, governance, or CI contract changed",
     ),
+    "verify_runtime_replay": CommandSpec(
+        ["just", "verify-runtime-replay"],
+        "replay-sensitive runtime surface changed",
+    ),
+    "verify_runtime_monorepo": CommandSpec(
+        ["just", "verify-runtime-monorepo"],
+        "monorepo boundary surface changed",
+    ),
+    "verify_runtime_module_synthesis": CommandSpec(
+        ["just", "verify-runtime-module-synthesis"],
+        "module-synthesis quality surface changed",
+    ),
+    "verify_runtime_boundary": CommandSpec(
+        ["just", "verify-runtime-boundary"],
+        "runtime boundary contract surface changed",
+    ),
     "verify_runtime": CommandSpec(
         ["just", "verify-runtime"],
-        "runtime or replay-sensitive service changed",
+        "aggregate runtime bundle changed or explicitly required",
     ),
     "verify_full": CommandSpec(
         ["just", "verify-full"],
@@ -239,6 +255,18 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "tests/test_provider_registry.py",
         ],
         "provider runtime boundary changed",
+    ),
+    "pytest_provider_v4": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_provider_v4.py",
+        ],
+        "provider v4 auth adapter boundary changed",
     ),
     "pytest_cache_boundary": CommandSpec(
         [
@@ -626,6 +654,7 @@ def build_plan(
         "pytest_promotion_plan_adjacent",
         "pytest_coordinates",
         "pytest_provider_runtime",
+        "pytest_provider_v4",
         "pytest_cache_boundary",
         "pytest_server_security",
         "pytest_openapi_tooling",
@@ -633,6 +662,10 @@ def build_plan(
         "pytest_authority_boundary_contracts",
         "pytest_oracle_time_travel",
         "boundary_contract_check",
+        "verify_runtime_replay",
+        "verify_runtime_monorepo",
+        "verify_runtime_module_synthesis",
+        "verify_runtime_boundary",
         "docs_strict",
         "verify_runtime",
         "verify_fast",

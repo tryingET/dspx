@@ -146,12 +146,25 @@ verify-fast:
   just task-scope-check
   uvx prek run --all-files
 
-# Runtime/invariant checks that are heavier than the fast contract but cheaper than full tests
-verify-runtime:
+# Runtime/invariant checks split by responsibility for impact-aware selection.
+# `verify-runtime` remains the aggregate release/full-confidence runtime bundle.
+verify-runtime-replay:
   just replay-provenance-check
+
+verify-runtime-monorepo:
   just monorepo-check
+
+verify-runtime-module-synthesis:
   just module-synthesis-quality-check
+
+verify-runtime-boundary:
   just boundary-contract-check
+
+verify-runtime:
+  just verify-runtime-replay
+  just verify-runtime-monorepo
+  just verify-runtime-module-synthesis
+  just verify-runtime-boundary
 
 # Diagnose whether the current dirty tree is inside the active AK task scope.
 scope-doctor:

@@ -300,6 +300,10 @@ def collect_issues(root: Path) -> list[Issue]:
                 "working tree when the repo is dirty",
                 "active AK claim or changed task-scope artifact paths",
                 "verify-fast:",
+                "verify-runtime-replay:",
+                "verify-runtime-monorepo:",
+                "verify-runtime-module-synthesis:",
+                "verify-runtime-boundary:",
                 "verify-runtime:",
                 'verify-impact-plan base="auto":',
                 'verify-impact base="auto":',
@@ -403,6 +407,46 @@ def collect_issues(root: Path) -> list[Issue]:
                 "module-synthesis-quality-check:",
                 [
                     "uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py"
+                ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "verify-runtime-replay:",
+                ["just replay-provenance-check"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "verify-runtime-monorepo:",
+                ["just monorepo-check"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "verify-runtime-module-synthesis:",
+                ["just module-synthesis-quality-check"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "verify-runtime-boundary:",
+                ["just boundary-contract-check"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "verify-runtime:",
+                [
+                    "just verify-runtime-replay",
+                    "just verify-runtime-monorepo",
+                    "just verify-runtime-module-synthesis",
+                    "just verify-runtime-boundary",
                 ],
                 issues,
             )

@@ -161,6 +161,15 @@ rules:
       - typecheck_core
       - pytest_provider_runtime
 
+  - match: "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_v4
+
   - match: "packages/dspx-core/src/dspx/coordinates/storage.py"
     category: oracle_coordinate_store
     impact_group: oracle_storage
@@ -169,7 +178,6 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_coordinates
-      - verify_runtime
 
   - match: "packages/dspx-core/src/dspx/oracle_time_travel.py"
     category: oracle_time_travel
@@ -279,7 +287,27 @@ rules:
       - pytest_program_generation_spine
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+
   - match: "packages/dspx-core/src/dspx/services/program_tool_contracts.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_topology.py"
     category: python_service
     impact_group: program_generation_spine
     risk: expanded
@@ -412,12 +440,12 @@ rules:
 
   - match: "packages/dspx-core/src/dspx/services/run_replay_service.py"
     category: python_service
-    impact_group: boundary_sensitive
+    impact_group: replay_runtime
     risk: expanded
     commands:
       - ruff_touched
       - typecheck_core
-      - verify_runtime
+      - verify_runtime_replay
 
   - match: "tests/test_*.py"
     category: test
@@ -475,6 +503,32 @@ rules:
       - workflow_contract_check
       - impact_plan_smoke
       - pytest_verify_changed
+
+  - match: "scripts/build_module_synthesis_quality_log.py"
+    category: module_synthesis_quality
+    impact_group: module_synthesis_quality
+    risk: expanded
+    commands:
+      - ruff_touched
+      - verify_runtime_module_synthesis
+
+  - match: "packages/dspx-core/src/dspx/services/module_synthesis_corpus.py"
+    category: module_synthesis_quality
+    impact_group: module_synthesis_quality
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - verify_runtime_module_synthesis
+
+  - match: "packages/dspx-core/src/dspx/services/module_synthesis_quality.py"
+    category: module_synthesis_quality
+    impact_group: module_synthesis_quality
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - verify_runtime_module_synthesis
 
   - match: "Justfile"
     category: ci_contract
