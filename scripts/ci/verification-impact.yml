@@ -249,6 +249,46 @@ rules:
       - pytest_program_generation_spine
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/services/program_capabilities.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_retrievers.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_runtime_outcomes.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - boundary_contract_check
+
+  - match: "packages/dspx-core/src/dspx/services/program_generated_policy.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generated_policy
+      - boundary_contract_check
+
   - match: "packages/dspx-core/src/dspx/services/program_surfaces.py"
     category: generated_direct_runner
     impact_group: generated_direct_runner

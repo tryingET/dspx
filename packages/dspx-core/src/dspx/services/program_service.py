@@ -39,6 +39,10 @@ from dspx.services.program_retrievers import (
     resolve_program_retriever_snapshots,
     retriever_snapshot_text,
 )
+from dspx.services.program_runtime_outcomes import (
+    PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
+    build_program_runtime_outcomes,
+)
 from dspx.services.program_dataset import (
     SPLIT_NAMES,
     finalize_program_dataset_manifest,
@@ -313,6 +317,7 @@ def build_program_plan(
     *,
     examples_hash: Optional[str] = None,
     retriever_snapshots_hash: Optional[str] = None,
+    runtime_outcomes_hash: Optional[str] = None,
 ) -> dict[str, Any]:
     """Build the deterministic ProgramPlan v1 contract from a ProgramIntent."""
 
@@ -367,6 +372,11 @@ def build_program_plan(
         {
             "kind": "generated_module_policy",
             "path": "generated_module_policy.json",
+            "generator": "program-gen",
+        },
+        {
+            "kind": "runtime_outcomes",
+            "path": "program_runtime_outcomes.json",
             "generator": "program-gen",
         },
         *(
@@ -488,6 +498,12 @@ def build_program_plan(
             "schema_version": "program-generated-module-policy-v1",
             "path": "generated_module_policy.json",
             "status": "passed",
+        },
+        "runtime_outcomes": {
+            "schema_version": PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
+            "path": "program_runtime_outcomes.json",
+            "content_hash": runtime_outcomes_hash,
+            "status": "outcome_contracts_declared",
         },
         "retriever_snapshots": {
             "schema_version": PROGRAM_RETRIEVER_SNAPSHOTS_SCHEMA,
@@ -1627,6 +1643,12 @@ def _materialize_program_from_intent_unchecked(
     examples_hash = sha256_text(examples_text) if examples_text is not None else None
     module_surfaces_payload = build_program_module_surfaces(intent)
     module_surfaces_text = _json_text(module_surfaces_payload)
+    runtime_outcomes_payload = build_program_runtime_outcomes(
+        intent,
+        module_surfaces=module_surfaces_payload,
+    )
+    runtime_outcomes_text = _json_text(runtime_outcomes_payload)
+    runtime_outcomes_hash = sha256_text(runtime_outcomes_text)
     capability_registry_payload = build_program_capability_registry(intent)
     capability_registry_text = _json_text(capability_registry_payload)
     generated_module_policy_payload = verify_program_generated_module_policy(
@@ -1638,6 +1660,7 @@ def _materialize_program_from_intent_unchecked(
         intent,
         examples_hash=examples_hash,
         retriever_snapshots_hash=retriever_snapshots_hash,
+        runtime_outcomes_hash=runtime_outcomes_hash,
     )
     jury_payload = dict(program_plan["evaluation_strategy"])
     jury_selection = build_jury_selection(jury_payload)
@@ -1692,6 +1715,7 @@ def _materialize_program_from_intent_unchecked(
         promotion_adjudication_request_text,
         promotion_decision_template_text,
         module_surfaces_text,
+        runtime_outcomes_text,
         capability_registry_text,
         generated_module_policy_text,
         intent_normalization_text,
@@ -1724,6 +1748,7 @@ def _materialize_program_from_intent_unchecked(
         "promotion_adjudication_request.json": promotion_adjudication_request_hash,
         "promotion_decision_template.json": promotion_decision_template_hash,
         "module_surfaces.json": module_surfaces_hash,
+        "program_runtime_outcomes.json": runtime_outcomes_hash,
         "program_capability_registry.json": capability_registry_hash,
         "generated_module_policy.json": generated_module_policy_hash,
         "intent_normalization.json": intent_normalization_hash,
@@ -1789,6 +1814,9 @@ def _materialize_program_from_intent_unchecked(
         promotion_decision_template_text, encoding="utf-8"
     )
     (root / "module_surfaces.json").write_text(module_surfaces_text, encoding="utf-8")
+    (root / "program_runtime_outcomes.json").write_text(
+        runtime_outcomes_text, encoding="utf-8"
+    )
     (root / "program_capability_registry.json").write_text(
         capability_registry_text, encoding="utf-8"
     )
@@ -1959,6 +1987,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_adjudication_request.json",
             "promotion_decision_template.json",
             "module_surfaces.json",
+            "program_runtime_outcomes.json",
             "program_capability_registry.json",
             "generated_module_policy.json",
             "intent_normalization.json",
@@ -2091,6 +2120,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template",
             "intent",
             "module_surfaces",
+            "runtime_outcomes",
             "execution_episode",
             "capability_registry",
             "generated_module_policy",
@@ -2186,6 +2216,17 @@ def _materialize_program_from_intent_unchecked(
                 "schema_version": module_surfaces_payload["schema_version"],
                 "status": module_surfaces_payload["status"],
                 "module_surface_count": module_surfaces_payload["module_surface_count"],
+            },
+            {
+                "kind": "runtime_outcomes",
+                "path": "program_runtime_outcomes.json",
+                "generator": "program-gen",
+                "content_hash": surface_hashes["program_runtime_outcomes.json"],
+                "schema_version": runtime_outcomes_payload["schema_version"],
+                "status": runtime_outcomes_payload["status"],
+                "module_outcome_count": runtime_outcomes_payload[
+                    "module_outcome_count"
+                ],
             },
             {
                 "kind": "execution_episode",
@@ -2352,6 +2393,8 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "module_surfaces_path": "module_surfaces.json",
+            "runtime_outcomes_hash": runtime_outcomes_hash,
+            "runtime_outcomes_path": "program_runtime_outcomes.json",
             "capability_registry_hash": capability_registry_hash,
             "capability_registry_path": "program_capability_registry.json",
             "generated_module_policy_hash": generated_module_policy_hash,
@@ -2411,6 +2454,7 @@ def _materialize_program_from_intent_unchecked(
                 "promotion_adjudication_request": "program-gen",
                 "promotion_decision_template": "program-gen",
                 "module_surfaces": "program-gen",
+                "runtime_outcomes": "program-gen",
                 "capability_registry": "program-gen",
                 "generated_module_policy": "program-gen",
                 "intent_normalization": "program-gen",
@@ -2517,6 +2561,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
+            "runtime_outcomes_hash": runtime_outcomes_hash,
             "capability_registry_hash": capability_registry_hash,
             "generated_module_policy_hash": generated_module_policy_hash,
             "intent_normalization_hash": intent_normalization_hash,
@@ -2542,6 +2587,13 @@ def _materialize_program_from_intent_unchecked(
             "path": "module_surfaces.json",
             "content_hash": module_surfaces_hash,
             "schema_version": module_surfaces_payload["schema_version"],
+        },
+        "program_runtime_outcomes": runtime_outcomes_payload,
+        "runtime_outcomes_artifact": {
+            "path": "program_runtime_outcomes.json",
+            "content_hash": runtime_outcomes_hash,
+            "schema_version": PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
+            "status": runtime_outcomes_payload["status"],
         },
         "program_capability_registry": capability_registry_payload,
         "capability_registry_artifact": {
@@ -2664,6 +2716,8 @@ def _materialize_program_from_intent_unchecked(
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
             "module_surfaces_path": "module_surfaces.json",
+            "runtime_outcomes_hash": runtime_outcomes_hash,
+            "runtime_outcomes_path": "program_runtime_outcomes.json",
             "capability_registry_hash": capability_registry_hash,
             "capability_registry_path": "program_capability_registry.json",
             "generated_module_policy_hash": generated_module_policy_hash,
@@ -2706,6 +2760,13 @@ def _materialize_program_from_intent_unchecked(
                 "path": "module_surfaces.json",
                 "content_hash": module_surfaces_hash,
                 "schema_version": module_surfaces_payload["schema_version"],
+            },
+            "program_runtime_outcomes": runtime_outcomes_payload,
+            "program_runtime_outcomes_artifact": {
+                "path": "program_runtime_outcomes.json",
+                "content_hash": runtime_outcomes_hash,
+                "schema_version": PROGRAM_RUNTIME_OUTCOMES_SCHEMA,
+                "status": runtime_outcomes_payload["status"],
             },
             "program_capability_registry": capability_registry_payload,
             "program_capability_registry_artifact": {
@@ -2837,6 +2898,7 @@ def _materialize_program_from_intent_unchecked(
             "promotion_adjudication_request_hash": promotion_adjudication_request_hash,
             "promotion_decision_template_hash": promotion_decision_template_hash,
             "module_surfaces_hash": module_surfaces_hash,
+            "runtime_outcomes_hash": runtime_outcomes_hash,
             "capability_registry_hash": capability_registry_hash,
             "generated_module_policy_hash": generated_module_policy_hash,
             "intent_normalization_hash": intent_normalization_hash,

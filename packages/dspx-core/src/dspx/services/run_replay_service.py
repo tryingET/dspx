@@ -377,6 +377,7 @@ def _program_evidence_declarations(
         kind = str(surface.get("kind") or "")
         if kind not in {
             "module_surfaces",
+            "runtime_outcomes",
             "capability_registry",
             "generated_module_policy",
             "intent_normalization",
@@ -408,6 +409,12 @@ def _program_evidence_declarations(
         path=evidence.get("module_surfaces_path") or "module_surfaces.json",
         content_hash=evidence.get("module_surfaces_hash"),
         source="manifest.receipt_bundle.evidence.module_surfaces_hash",
+    )
+    add(
+        "runtime_outcomes",
+        path=evidence.get("runtime_outcomes_path") or "program_runtime_outcomes.json",
+        content_hash=evidence.get("runtime_outcomes_hash"),
+        source="manifest.receipt_bundle.evidence.runtime_outcomes_hash",
     )
     add(
         "capability_registry",
@@ -486,6 +493,12 @@ def _program_evidence_declarations(
         source="manifest.receipt_bundle.evidence.surface_hashes.module_surfaces.json",
     )
     add(
+        "runtime_outcomes",
+        path="program_runtime_outcomes.json",
+        content_hash=surface_hashes.get("program_runtime_outcomes.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.program_runtime_outcomes.json",
+    )
+    add(
         "capability_registry",
         path="program_capability_registry.json",
         content_hash=surface_hashes.get("program_capability_registry.json"),
@@ -558,6 +571,13 @@ def _program_evidence_declarations(
         path=run_summary.get("module_surfaces_path") or "module_surfaces.json",
         content_hash=run_summary.get("module_surfaces_hash"),
         source="receipt.run_summary.module_surfaces_hash",
+    )
+    add(
+        "runtime_outcomes",
+        path=run_summary.get("runtime_outcomes_path")
+        or "program_runtime_outcomes.json",
+        content_hash=run_summary.get("runtime_outcomes_hash"),
+        source="receipt.run_summary.runtime_outcomes_hash",
     )
     add(
         "capability_registry",
@@ -732,6 +752,23 @@ def _check_program_evidence_artifacts(
                 ),
                 check=hash_check,
             )
+        if kind == "runtime_outcomes":
+            outcomes_payload = _load_json_object(artifact_path)
+            semantic_check = "program_runtime_outcomes_semantic_valid"
+            checks[semantic_check] = (
+                isinstance(outcomes_payload, dict)
+                and outcomes_payload.get("schema_version")
+                == "program-runtime-outcomes-v1"
+                and outcomes_payload.get("status") == "outcome_contracts_declared"
+                and isinstance(outcomes_payload.get("outcomes"), list)
+            )
+            if not checks[semantic_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program runtime outcomes semantic check failed: {artifact_path}",
+                    check=semantic_check,
+                )
         if kind == "generated_module_policy":
             policy_payload = _load_json_object(artifact_path)
             semantic_check = "program_generated_module_policy_semantic_valid"

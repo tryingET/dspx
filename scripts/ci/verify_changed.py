@@ -167,6 +167,18 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "program generation spine changed",
     ),
+    "pytest_program_generated_policy": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_generated_policy.py",
+        ],
+        "generated module policy changed",
+    ),
     "pytest_program_oracle_refinement": CommandSpec(
         [
             "uv",
@@ -608,6 +620,7 @@ def build_plan(
         "pytest_generated_direct_runner",
         "pytest_program_direct_runner_generation",
         "pytest_program_generation_spine",
+        "pytest_program_generated_policy",
         "pytest_program_oracle_refinement",
         "pytest_refinement_candidate_comparison",
         "pytest_promotion_plan_adjacent",

@@ -102,6 +102,65 @@ def test_program_intent_selects_program_generation_spine_checks() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "packages/dspx-core/src/dspx/services/program_capabilities.py",
+        "packages/dspx-core/src/dspx/services/program_retrievers.py",
+        "packages/dspx-core/src/dspx/services/program_runtime_outcomes.py",
+    ],
+)
+def test_program_generation_support_modules_select_spine_checks(path: str) -> None:
+    plan = _plan(path)
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_generation_spine",
+        "boundary_contract_check",
+    ]
+
+
+def test_program_generated_policy_selects_targeted_policy_checks() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_generated_policy.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_generated_policy",
+        "boundary_contract_check",
+    ]
+
+
+def test_wide_threshold_does_not_force_full_verification_for_mapped_program_slice() -> (
+    None
+):
+    plan = _plan(
+        "README.md",
+        "docs/project/program-synthesis-boundary.md",
+        "governance/task-scopes/AK-3415.snapshot.json",
+        "packages/dspx-core/src/dspx/services/program_capabilities.py",
+        "packages/dspx-core/src/dspx/services/program_generated_policy.py",
+        "packages/dspx-core/src/dspx/services/program_intent.py",
+        "packages/dspx-core/src/dspx/services/program_retrievers.py",
+        "packages/dspx-core/src/dspx/services/program_service.py",
+        "tests/test_program_capabilities.py",
+        "tests/test_program_topology_intent.py",
+    )
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is False
+    assert "impact group count" in str(plan.get("wide_reason"))
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert "verify_full" not in _command_ids(plan)
+
+
 def test_openapi_tooling_command_includes_enum_array_regressions() -> None:
     loaded = _load_module()
     command = loaded.COMMAND_REGISTRY["pytest_openapi_tooling"].command

@@ -91,6 +91,7 @@ def test_program_service_materializes_candidate_assembly(
     assert (root / "eval_promotion.py").exists()
     assert (root / "intent.json").exists()
     assert (root / "intent_normalization.json").exists()
+    assert (root / "program_runtime_outcomes.json").exists()
     assert (root / "execution_episode.json").exists()
     assert (root / "manifest.json").exists()
     assert (root / "manifest.json.meta.json").exists()
@@ -159,6 +160,7 @@ def test_program_service_materializes_candidate_assembly(
         "promotion_decision_template",
         "intent",
         "module_surfaces",
+        "runtime_outcomes",
         "execution_episode",
         "capability_registry",
         "generated_module_policy",
@@ -171,57 +173,36 @@ def test_program_service_materializes_candidate_assembly(
         "jury_harness",
         "promotion_harness",
     ]
-    assert manifest["candidate_assembly"]["surfaces"][0]["generator"] == "program-gen"
-    assert manifest["candidate_assembly"]["surfaces"][1]["path"] == "jury.json"
-    assert manifest["candidate_assembly"]["surfaces"][1]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][2]["path"] == "jury_selection.json"
+    surfaces_by_kind = {
+        surface["kind"]: surface
+        for surface in manifest["candidate_assembly"]["surfaces"]
+    }
+    assert surfaces_by_kind["jury"]["path"] == "jury.json"
+    assert surfaces_by_kind["jury_selection"]["path"] == "jury_selection.json"
+    assert surfaces_by_kind["jury_rubric"]["path"] == "jury_rubric.json"
+    assert surfaces_by_kind["promotion_review"]["path"] == "promotion_review.json"
+    assert surfaces_by_kind["promotion_adjudication_request"]["path"] == (
+        "promotion_adjudication_request.json"
     )
-    assert manifest["candidate_assembly"]["surfaces"][2]["generator"] == "program-gen"
-    assert manifest["candidate_assembly"]["surfaces"][3]["path"] == "jury_rubric.json"
-    assert manifest["candidate_assembly"]["surfaces"][3]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][4]["path"] == "promotion_review.json"
+    assert surfaces_by_kind["promotion_decision_template"]["path"] == (
+        "promotion_decision_template.json"
     )
-    assert manifest["candidate_assembly"]["surfaces"][4]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][5]["path"]
-        == "promotion_adjudication_request.json"
+    assert surfaces_by_kind["module_surfaces"]["path"] == "module_surfaces.json"
+    assert surfaces_by_kind["runtime_outcomes"]["path"] == (
+        "program_runtime_outcomes.json"
     )
-    assert manifest["candidate_assembly"]["surfaces"][5]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][6]["path"]
-        == "promotion_decision_template.json"
+    assert surfaces_by_kind["execution_episode"]["path"] == "execution_episode.json"
+    assert surfaces_by_kind["capability_registry"]["path"] == (
+        "program_capability_registry.json"
     )
-    assert manifest["candidate_assembly"]["surfaces"][6]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][7]["path"] == "module_surfaces.json"
+    assert surfaces_by_kind["generated_module_policy"]["path"] == (
+        "generated_module_policy.json"
     )
-    assert manifest["candidate_assembly"]["surfaces"][7]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][8]["path"]
-        == "execution_episode.json"
+    assert surfaces_by_kind["intent_normalization"]["path"] == (
+        "intent_normalization.json"
     )
-    assert manifest["candidate_assembly"]["surfaces"][8]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][9]["path"]
-        == "program_capability_registry.json"
-    )
-    assert manifest["candidate_assembly"]["surfaces"][9]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][10]["path"]
-        == "generated_module_policy.json"
-    )
-    assert manifest["candidate_assembly"]["surfaces"][10]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][11]["path"]
-        == "intent_normalization.json"
-    )
-    assert manifest["candidate_assembly"]["surfaces"][11]["generator"] == "program-gen"
-    assert (
-        manifest["candidate_assembly"]["surfaces"][12]["generator"] == "signature-gen"
-    )
-    assert manifest["candidate_assembly"]["surfaces"][13]["generator"] == "module-gen"
+    assert surfaces_by_kind["signature"]["generator"] == "signature-gen"
+    assert surfaces_by_kind["module"]["generator"] == "module-gen"
     promotion_review = manifest["program_promotion_review"]
     assert promotion_review["schema_version"] == "program-promotion-review-v1"
     assert promotion_review["promotion_state"] == "not_promoted"
@@ -339,6 +320,9 @@ def test_program_service_materializes_candidate_assembly(
     module_surfaces_hash = hashlib.sha256(
         (root / "module_surfaces.json").read_bytes()
     ).hexdigest()
+    runtime_outcomes_hash = hashlib.sha256(
+        (root / "program_runtime_outcomes.json").read_bytes()
+    ).hexdigest()
     execution_episode_hash = hashlib.sha256(
         (root / "execution_episode.json").read_bytes()
     ).hexdigest()
@@ -359,15 +343,22 @@ def test_program_service_materializes_candidate_assembly(
     )
     assert evidence["module_surfaces_hash"] == module_surfaces_hash
     assert evidence["module_surfaces_path"] == "module_surfaces.json"
+    assert evidence["runtime_outcomes_hash"] == runtime_outcomes_hash
+    assert evidence["runtime_outcomes_path"] == "program_runtime_outcomes.json"
     assert evidence["generated_module_policy_hash"] == generated_module_policy_hash
     assert evidence["generated_module_policy_path"] == "generated_module_policy.json"
     assert evidence["execution_episode_hash"] == execution_episode_hash
     assert evidence["execution_episode_path"] == "execution_episode.json"
     assert evidence["surface_hashes"]["module_surfaces.json"] == module_surfaces_hash
     assert (
+        evidence["surface_hashes"]["program_runtime_outcomes.json"]
+        == runtime_outcomes_hash
+    )
+    assert (
         evidence["surface_hashes"]["execution_episode.json"] == execution_episode_hash
     )
     assert manifest["request"]["module_surfaces_hash"] == module_surfaces_hash
+    assert manifest["request"]["runtime_outcomes_hash"] == runtime_outcomes_hash
     assert (
         manifest["request"]["generated_module_policy_hash"]
         == generated_module_policy_hash
@@ -393,6 +384,11 @@ def test_program_service_materializes_candidate_assembly(
     )
     assert receipt["run_summary"]["module_surfaces_hash"] == module_surfaces_hash
     assert receipt["run_summary"]["module_surfaces_path"] == "module_surfaces.json"
+    assert receipt["run_summary"]["runtime_outcomes_hash"] == runtime_outcomes_hash
+    assert (
+        receipt["run_summary"]["runtime_outcomes_path"]
+        == "program_runtime_outcomes.json"
+    )
     assert (
         receipt["run_summary"]["generated_module_policy_hash"]
         == generated_module_policy_hash
@@ -407,6 +403,11 @@ def test_program_service_materializes_candidate_assembly(
     assert (
         receipt["program_module_surfaces_artifact"]
         == manifest["module_surfaces_artifact"]
+    )
+    assert receipt["program_runtime_outcomes"] == manifest["program_runtime_outcomes"]
+    assert (
+        receipt["program_runtime_outcomes_artifact"]
+        == manifest["runtime_outcomes_artifact"]
     )
     assert (
         receipt["program_execution_episode_artifact"]
@@ -426,6 +427,7 @@ def test_program_service_materializes_candidate_assembly(
         evidence["surface_generation"]["promotion_decision_template"] == "program-gen"
     )
     assert evidence["surface_generation"]["module_surfaces"] == "program-gen"
+    assert evidence["surface_generation"]["runtime_outcomes"] == "program-gen"
     assert evidence["surface_generation"]["capability_registry"] == "program-gen"
     assert evidence["surface_generation"]["generated_module_policy"] == "program-gen"
     assert evidence["surface_generation"]["execution_episode"] == "program-gen"
@@ -441,6 +443,7 @@ def test_program_service_materializes_candidate_assembly(
     assert "promotion_adjudication_request.json" in evidence["surface_hashes"]
     assert "promotion_decision_template.json" in evidence["surface_hashes"]
     assert "module_surfaces.json" in evidence["surface_hashes"]
+    assert "program_runtime_outcomes.json" in evidence["surface_hashes"]
     assert "program_capability_registry.json" in evidence["surface_hashes"]
     assert "generated_module_policy.json" in evidence["surface_hashes"]
     assert "execution_episode.json" in evidence["surface_hashes"]
@@ -453,6 +456,7 @@ def test_program_service_materializes_candidate_assembly(
     assert replay["checks"]["output_hash_match"] is True
     assert replay["checks"]["cache_key_recomputes"] is True
     assert replay["checks"]["cache_code_hash_matches_receipt"] is True
+    assert replay["checks"]["program_runtime_outcomes_semantic_valid"] is True
 
 
 def test_program_service_refuses_non_empty_outdir(
@@ -535,21 +539,25 @@ def test_program_gen_cli_materializes_from_yaml(
         payload["candidate_assembly"]["surfaces"][7]["path"] == "module_surfaces.json"
     )
     assert (
-        payload["candidate_assembly"]["surfaces"][8]["path"] == "execution_episode.json"
+        payload["candidate_assembly"]["surfaces"][8]["path"]
+        == "program_runtime_outcomes.json"
     )
     assert (
-        payload["candidate_assembly"]["surfaces"][9]["path"]
-        == "program_capability_registry.json"
+        payload["candidate_assembly"]["surfaces"][9]["path"] == "execution_episode.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][10]["path"]
-        == "generated_module_policy.json"
+        == "program_capability_registry.json"
     )
     assert (
         payload["candidate_assembly"]["surfaces"][11]["path"]
+        == "generated_module_policy.json"
+    )
+    assert (
+        payload["candidate_assembly"]["surfaces"][12]["path"]
         == "intent_normalization.json"
     )
-    assert payload["candidate_assembly"]["surfaces"][12]["path"] == "signature.py"
+    assert payload["candidate_assembly"]["surfaces"][13]["path"] == "signature.py"
     assert any(
         surface["kind"] == "direct_runner" and surface["path"] == "direct_run.py"
         for surface in payload["candidate_assembly"]["surfaces"]

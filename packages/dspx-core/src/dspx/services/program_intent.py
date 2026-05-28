@@ -31,6 +31,9 @@ _PRIMITIVE_CANONICAL_NAMES = {
     "chainofthought": "ChainOfThought",
     "chain_of_thought": "ChainOfThought",
     "react": "ReAct",
+    "reactv2": "ReActV2",
+    "react_v2": "ReActV2",
+    "react-v2": "ReActV2",
     "programofthought": "ProgramOfThought",
     "program_of_thought": "ProgramOfThought",
     "retriever": "Retriever",
@@ -155,11 +158,11 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
             raise ValueError(
                 f"topology Retriever module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
             )
-    elif primitive == "ReAct":
+    elif primitive in {"ReAct", "ReActV2"}:
         extra_keys = set(module) - common_keys - {"tools", "max_iters"}
         if extra_keys:
             raise ValueError(
-                f"topology ReAct module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
+                f"topology {primitive} module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
             )
     elif primitive == "ProgramOfThought":
         extra_keys = set(module) - common_keys - {"max_iters"}
@@ -185,8 +188,13 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
         normalized["retriever"] = normalize_retriever_config(
             module.get("retriever"), module_id=module_id
         )
-    if primitive == "ReAct":
+    if primitive in {"ReAct", "ReActV2"}:
         normalized["react"] = _normalize_react_config(module, module_id=module_id)
+        if primitive == "ReActV2":
+            normalized["react"]["version"] = "v2"
+            normalized["react"]["status"] = (
+                "experimental_declared_only_not_materializable"
+            )
     if primitive == "ProgramOfThought":
         normalized["program_of_thought"] = _normalize_program_of_thought_config(
             module, module_id=module_id

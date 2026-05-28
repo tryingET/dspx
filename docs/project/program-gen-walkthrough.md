@@ -36,7 +36,8 @@ The current `program-gen` loop proves:
 1. Explicit user/Pi-declared topology can be validated and preserved in artifacts; the supported generated `pipeline` and bounded inline `retrieve_then_answer` subsets are rendered into multiple signatures/modules and a composed program with bounded deterministic DAG scheduling for out-of-order declarations, fan-out, and fan-in. Materializable DAGs fail closed when cyclic, disconnected, missing direct data-dependency edges, missing output edges, stalled at runtime, or unable to produce declared outputs.
 1. When no topology is declared, clear routing/generation, extraction/validation, or reasoning/review cues can deterministically infer bounded generated `Predict`/`ChainOfThought` module topologies instead of the default single `Predict` scaffold.
 1. `module_surfaces.json` is a standalone `program-module-surfaces-v1` artifact containing one or more `program-module-surface-v1` contracts for the generated module surfaces that `program-gen` composed.
-1. `program_capability_registry.json` is a standalone `program-capability-registry-v1` descriptor-only artifact that makes the generated-program capability boundary replayable: generated `Predict`/`ChainOfThought`, bounded no-tool `ReAct`, and sandboxed `ProgramOfThought` are materializable; explicit pipeline or `retrieve_then_answer` `Retriever` modules are conditionally materializable only with `retriever.mode: inline_corpus` or materialization-time `local_corpus_snapshot`; `Custom` and declared tool/import/external-retriever capabilities remain declared-only until explicit safe adapters exist.
+1. `program_runtime_outcomes.json` is a standalone `program-runtime-outcomes-v1` artifact that declares each generated module's normalized final-output and primitive-specific outcome/trajectory shape, including ReActV2-style history/tool-call/final-submit slots as evidence contracts without enabling tools or claiming materialization-time runtime traces.
+1. `program_capability_registry.json` is a standalone `program-capability-registry-v1` descriptor-only artifact that makes the generated-program capability boundary replayable: generated `Predict`/`ChainOfThought`, bounded no-tool `ReAct`, and sandboxed `ProgramOfThought` are materializable; explicit pipeline or `retrieve_then_answer` `Retriever` modules are conditionally materializable only with `retriever.mode: inline_corpus` or materialization-time `local_corpus_snapshot`; experimental `ReActV2` is descriptor-only until DSPy 3.3 beta support is explicitly enabled behind generated policy and tool contracts; `Custom` and declared tool/import/external-retriever capabilities remain declared-only until explicit safe adapters exist.
 1. `generated_module_policy.json` is a standalone `program-generated-module-policy-v1` artifact that statically verifies generated `module.py` imports/calls/effect claims before materialization proceeds; it is hash-bound in the manifest and replay receipt.
 1. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact with source-indexed behavior evidence summaries.
 1. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`; `execution_episode.json` records whether that source came from inline examples or `examples_path`, plus result path/hash, count, provider, and metric facts already known.
@@ -61,14 +62,14 @@ The current `program-gen` loop proves:
 1. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
 1. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
 1. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-1. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `execution_episode.json`.
+1. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `program_runtime_outcomes.json` and `execution_episode.json`.
 1. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
 
 - rich provider-backed or arbitrary topology inference,
 - broad graph execution beyond the supported declared/prompt-inferred `pipeline` DAG subset,
-- executable live external retriever/tool/custom-import adapters, ReAct tool binding, and ProgramOfThought with non-empty filesystem/network/env/tool sandbox access beyond descriptor-only capability declarations, the bounded inline-corpus Retriever adapter, and the bounded materialization-time local-corpus snapshot adapter,
+- executable live external retriever/tool/custom-import adapters, ReActV2 materialization, ReAct tool binding, and ProgramOfThought with non-empty filesystem/network/env/tool sandbox access beyond descriptor-only capability declarations, the bounded inline-corpus Retriever adapter, and the bounded materialization-time local-corpus snapshot adapter,
 - broad dataset/eval orchestration beyond the current deterministic split-specific local harnesses,
 - model-backed jury execution,
 - model-jury adjudication, external approval, or activation,
@@ -345,6 +346,7 @@ How to read it:
 - each surface declares primitive, signature IO, generated signature/module class names, artifact paths, false effect flags, and non-authority flags;
 - this is the bridge toward future local custom module refs, but the current slice does not import or execute arbitrary custom Python modules;
 - `program_capability_registry.json` records descriptor-only capability contracts and false effect flags (`provider_called`, `tool_called`, `custom_import_loaded`, network/filesystem/subprocess/external-authority effects all false), permits only explicit inline-corpus or materialization-time local-corpus snapshot Retriever adapters as generated local lexical retrieval, rejects external-looking Retriever module keys such as provider/endpoint/tool/import, and its hash is bound into the manifest and run receipt.
+- `program_runtime_outcomes.json` records the normalized module outcome/trajectory contract; it makes DSPy ReActV2-style history/tool-call/final-submit evidence shapes explicit without enabling tool execution or claiming actual runtime traces during materialization.
 - `generated_module_policy.json` records the strict generated-module static policy gate; dynamic imports, filesystem/network/subprocess calls, `dspy.Retrieve`, `dspy.settings`, tools, unsafe ReAct shapes, and ProgramOfThought without the generated empty sandbox fail before a manifest is written.
 
 ## 5. Optional: declare dataset split evidence

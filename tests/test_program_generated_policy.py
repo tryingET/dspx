@@ -122,12 +122,24 @@ def _configure_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             "import json\nimport dspy\nfrom signature import X\ndspy.ProgramOfThought(X, max_iters=1)\n",
         ),
         (
+            "react_v2_without_surface",
+            "import json\nimport dspy\nfrom signature import X\ndspy.ReActV2(X, tools=[], max_iters=1)\n",
+        ),
+        (
+            "react_v2_with_tools",
+            "import json\nimport dspy\nfrom signature import X\ndspy.ReActV2(X, tools=['unsafe'], max_iters=1)\n",
+        ),
+        (
             "aliased_react",
             "import json\nimport dspy\nfrom signature import X\nRA = dspy.ReAct\nRA(X, tools=['unsafe'], max_iters=99)\n",
         ),
         (
             "aliased_python_interpreter",
             "import json\nimport dspy\nfrom signature import X\nPI = dspy.PythonInterpreter\nPI(deno_command=['deno'])\n",
+        ),
+        (
+            "aliased_react_v2",
+            "import json\nimport dspy\nfrom signature import X\nRA = dspy.ReActV2\nRA(X, tools=[], max_iters=1)\n",
         ),
         (
             "tuple_aliased_react",
@@ -153,6 +165,18 @@ def test_generated_module_policy_rejects_disallowed_effects(
 
     assert policy["status"] == "failed", snippet
     assert policy["violations"]
+
+
+def test_generated_module_policy_allows_declared_no_tool_react_v2_shape() -> None:
+    surfaces = json.loads(json.dumps(MODULE_SURFACES))
+    surfaces["module_surfaces"][0]["primitive"] = "ReActV2"
+
+    policy = build_program_generated_module_policy(
+        "import json\nimport dspy\nfrom signature import X\ndspy.ReActV2(X, tools=[], max_iters=1)\n",
+        module_surfaces=surfaces,
+    )
+
+    assert policy["status"] == "passed"
 
 
 def test_generated_module_policy_requires_module_surfaces() -> None:

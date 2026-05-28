@@ -195,6 +195,7 @@ def _is_safe_python_interpreter_call(node: ast.AST | None) -> bool:
 
 _SENSITIVE_DSPY_CONSTRUCTORS = {
     "dspy.ReAct",
+    "dspy.ReActV2",
     "dspy.ProgramOfThought",
     "dspy.PythonInterpreter",
 }
@@ -245,8 +246,9 @@ def _validate_special_dspy_call(
     primitives: set[str],
     violations: list[dict[str, Any]],
 ) -> None:
-    if name == "dspy.ReAct":
-        if "ReAct" not in primitives:
+    if name in {"dspy.ReAct", "dspy.ReActV2"}:
+        primitive = "ReActV2" if name == "dspy.ReActV2" else "ReAct"
+        if primitive not in primitives:
             _add_violation(
                 violations,
                 code="dspy_call_not_allowed",
@@ -265,7 +267,7 @@ def _validate_special_dspy_call(
                 violations,
                 code="unsafe_react_call",
                 node=node,
-                detail="ReAct requires tools=[] and max_iters between 1 and 5",
+                detail="ReAct/ReActV2 requires tools=[] and max_iters between 1 and 5",
             )
     elif name == "dspy.ProgramOfThought":
         if "ProgramOfThought" not in primitives:
@@ -448,7 +450,7 @@ def build_program_generated_module_policy(
                     node=node,
                     detail=name,
                 )
-            if name in {"dspy.ReAct", "dspy.ProgramOfThought"}:
+            if name in {"dspy.ReAct", "dspy.ReActV2", "dspy.ProgramOfThought"}:
                 _validate_special_dspy_call(
                     node,
                     name=name,
