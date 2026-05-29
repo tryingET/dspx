@@ -165,16 +165,32 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 return response_stream
             text_parts: list[str] = []
             done_text: str | None = None
+            error_messages: list[str] = []
             for event in response_stream:
                 delta = getattr(event, "delta", None)
                 if isinstance(delta, str) and delta:
                     text_parts.append(delta)
                     continue
                 event_type = str(getattr(event, "type", ""))
+                event_error = getattr(event, "error", None)
+                if event_error is not None or any(
+                    marker in event_type.lower()
+                    for marker in ("error", "failed", "incomplete")
+                ):
+                    message = getattr(event_error, "message", None) or getattr(
+                        event, "message", None
+                    )
+                    error_messages.append(str(message or event_type or "unknown"))
+                    continue
                 if "output_text.done" in event_type:
                     text = getattr(event, "text", None)
                     if isinstance(text, str) and text:
                         done_text = text
+            if error_messages:
+                raise RuntimeError(
+                    "Codex response stream ended with error: "
+                    + "; ".join(error_messages)
+                )
             completed_event = getattr(response_stream, "completed_response", None)
             completed_response = getattr(completed_event, "response", None)
             output_text = ("".join(text_parts) or done_text or "").strip()

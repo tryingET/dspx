@@ -58,6 +58,19 @@ def _string_list(value: object) -> list[str]:
     return [str(item) for item in value if str(item).strip()]
 
 
+def _string_list_field(value: object) -> list[str] | None:
+    if not isinstance(value, list):
+        return None
+    out: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item:
+            return None
+        out.append(item)
+    if len(set(out)) != len(out):
+        return None
+    return out
+
+
 def _surfaces(module_surfaces: Mapping[str, Any]) -> list[dict[str, Any]]:
     raw = module_surfaces.get("module_surfaces")
     if not isinstance(raw, list):
@@ -197,7 +210,7 @@ def _non_authority_valid(value: object) -> bool:
         return False
     payload = dict(value)
     for key, expected in _NON_AUTHORITY.items():
-        if bool(payload.get(key)) is not expected:
+        if payload.get(key) is not expected:
             return False
     return True
 
@@ -272,8 +285,38 @@ def validate_program_runtime_traces(payload: Mapping[str, Any]) -> bool:
         return False
     if payload.get("final_output_trace_count") != len(final_outputs):
         return False
-    sources = payload.get("sources")
-    if not isinstance(sources, list) or payload.get("source_count") != len(sources):
+    has_trace_records = bool(module_calls or final_outputs)
+    if payload.get("status") == "runtime_traces_captured" and not has_trace_records:
+        return False
+    if payload.get("status") == "no_runtime_traces_captured" and has_trace_records:
+        return False
+    raw_sources = payload.get("sources")
+    if not isinstance(raw_sources, list) or payload.get("source_count") != len(
+        raw_sources
+    ):
+        return False
+    sources = [dict(item) for item in raw_sources if isinstance(item, Mapping)]
+    if len(sources) != len(raw_sources):
+        return False
+    # Compatibility: older v1 runtime-trace artifacts did not emit
+    # source_record_coverage. New artifacts must match the reconstructed
+    # record-level semantics exactly when the field is present.
+    if "source_record_coverage" in payload and not _source_record_coverage_valid(
+        value=payload.get("source_record_coverage"),
+        sources=sources,
+        module_calls=module_calls,
+        final_outputs=final_outputs,
+        expected_module_ids=_string_list(
+            (payload.get("coverage") or {}).get("expected_module_ids")
+            if isinstance(payload.get("coverage"), Mapping)
+            else None
+        ),
+        program_outputs=_string_list(
+            (payload.get("coverage") or {}).get("program_outputs")
+            if isinstance(payload.get("coverage"), Mapping)
+            else None
+        ),
+    ):
         return False
     if not _runtime_policy_valid(payload.get("runtime_policy")):
         return False
@@ -465,6 +508,167 @@ def _synthetic_single_module_call(
     return _with_trace_hash(call)
 
 
+def _source_key(source: Mapping[str, Any]) -> tuple[str, str | None]:
+    split = source.get("split")
+    return (str(source.get("path") or ""), str(split) if split is not None else None)
+
+
+def _call_source_key(record: Mapping[str, Any]) -> tuple[str, str | None]:
+    source = record.get("source")
+    return _source_key(source) if isinstance(source, Mapping) else ("", None)
+
+
+def _record_index(value: object) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value >= 0:
+        return value
+    return None
+
+
+def _source_record_coverage(
+    *,
+    sources: list[dict[str, Any]],
+    module_calls: list[dict[str, Any]],
+    final_outputs: list[dict[str, Any]],
+    expected_module_ids: list[str],
+    program_outputs: list[str],
+) -> list[dict[str, Any]]:
+    coverage: list[dict[str, Any]] = []
+    module_indexes_by_source: dict[tuple[str, str | None], set[int]] = {}
+    final_indexes_by_source: dict[tuple[str, str | None], set[int]] = {}
+    module_ids_by_record: dict[tuple[str, str | None], dict[int, set[str]]] = {}
+    final_fields_by_record: dict[tuple[str, str | None], dict[int, set[str]]] = {}
+    module_counts_by_source: dict[tuple[str, str | None], int] = {}
+    final_counts_by_source: dict[tuple[str, str | None], int] = {}
+    expected_modules = set(expected_module_ids)
+    expected_outputs = set(program_outputs)
+    for call in module_calls:
+        key = _call_source_key(call)
+        module_counts_by_source[key] = module_counts_by_source.get(key, 0) + 1
+        index = _record_index(call.get("example_index"))
+        if index is not None:
+            module_indexes_by_source.setdefault(key, set()).add(index)
+            module_id = str(call.get("module_id") or "")
+            if module_id:
+                module_ids_by_record.setdefault(key, {}).setdefault(index, set()).add(
+                    module_id
+                )
+    for item in final_outputs:
+        key = _call_source_key(item)
+        final_counts_by_source[key] = final_counts_by_source.get(key, 0) + 1
+        index = _record_index(item.get("example_index"))
+        if index is not None:
+            final_indexes_by_source.setdefault(key, set()).add(index)
+            outputs = item.get("outputs")
+            if isinstance(outputs, Mapping):
+                fields = {str(field) for field in outputs if str(field)}
+                final_fields_by_record.setdefault(key, {}).setdefault(
+                    index, set()
+                ).update(fields)
+    for source in sources:
+        key = _source_key(source)
+        raw_count = source.get("record_count")
+        record_count = raw_count if isinstance(raw_count, int) and raw_count >= 0 else 0
+        expected_indexes = set(range(record_count))
+        module_indexes = module_indexes_by_source.get(key, set())
+        final_indexes = final_indexes_by_source.get(key, set())
+        per_record_modules = module_ids_by_record.get(key, {})
+        per_record_outputs = final_fields_by_record.get(key, {})
+        missing_module_indexes = [
+            index
+            for index in sorted(expected_indexes)
+            if expected_modules - per_record_modules.get(index, set())
+        ]
+        missing_final_indexes = [
+            index
+            for index in sorted(expected_indexes)
+            if expected_outputs - per_record_outputs.get(index, set())
+        ]
+        module_gaps = [
+            {
+                "record_index": index,
+                "missing_module_ids": sorted(
+                    expected_modules - per_record_modules.get(index, set())
+                ),
+            }
+            for index in missing_module_indexes
+        ]
+        final_output_gaps = [
+            {
+                "record_index": index,
+                "missing_final_output_fields": sorted(
+                    expected_outputs - per_record_outputs.get(index, set())
+                ),
+            }
+            for index in missing_final_indexes
+        ]
+        if record_count == 0:
+            status = "not_applicable_no_records"
+        elif missing_final_indexes or missing_module_indexes:
+            status = "partial"
+        else:
+            status = "complete"
+        coverage.append(
+            {
+                "schema_version": "program-runtime-trace-source-coverage-v1",
+                "status": status,
+                "path": str(source.get("path") or ""),
+                "split": source.get("split"),
+                "record_count": record_count,
+                "expected_module_ids": sorted(expected_modules),
+                "program_outputs": list(program_outputs),
+                "module_call_count": module_counts_by_source.get(key, 0),
+                "final_output_trace_count": final_counts_by_source.get(key, 0),
+                "records_with_module_calls": sorted(module_indexes),
+                "records_with_final_outputs": sorted(final_indexes),
+                "records_with_complete_module_calls": sorted(
+                    expected_indexes - set(missing_module_indexes)
+                ),
+                "records_with_complete_final_outputs": sorted(
+                    expected_indexes - set(missing_final_indexes)
+                ),
+                "missing_module_call_record_indexes": missing_module_indexes,
+                "missing_final_output_record_indexes": missing_final_indexes,
+                "module_coverage_gaps": module_gaps,
+                "final_output_coverage_gaps": final_output_gaps,
+                "non_authority": dict(_NON_AUTHORITY),
+            }
+        )
+    return coverage
+
+
+def _source_record_coverage_valid(
+    *,
+    value: object,
+    sources: list[dict[str, Any]],
+    module_calls: list[dict[str, Any]],
+    final_outputs: list[dict[str, Any]],
+    expected_module_ids: list[str],
+    program_outputs: list[str],
+) -> bool:
+    if not isinstance(value, list):
+        return False
+    expected = _source_record_coverage(
+        sources=sources,
+        module_calls=module_calls,
+        final_outputs=final_outputs,
+        expected_module_ids=expected_module_ids,
+        program_outputs=program_outputs,
+    )
+    if len(value) != len(expected):
+        return False
+    for raw_item, expected_item in zip(value, expected):
+        if not isinstance(raw_item, Mapping):
+            return False
+        item = dict(raw_item)
+        if item != expected_item:
+            return False
+        if not _non_authority_valid(item.get("non_authority")):
+            return False
+    return True
+
+
 def _coverage_summary(
     *,
     surfaces: list[dict[str, Any]],
@@ -494,9 +698,31 @@ def _coverage_summary(
             )
     missing_module_ids = sorted(set(expected_module_ids) - set(captured_module_ids))
     missing_final_output_fields = sorted(set(program_outputs) - final_output_fields)
+    source_record_coverage = _source_record_coverage(
+        sources=sources,
+        module_calls=module_calls,
+        final_outputs=final_outputs,
+        expected_module_ids=expected_module_ids,
+        program_outputs=program_outputs,
+    )
+    source_record_statuses = {
+        str(item.get("status")) for item in source_record_coverage if item.get("status")
+    }
+    if not sources:
+        source_record_coverage_status = "not_applicable_no_behavior_sources"
+    elif "partial" in source_record_statuses:
+        source_record_coverage_status = "partial"
+    elif source_record_statuses == {"not_applicable_no_records"}:
+        source_record_coverage_status = "not_applicable_no_records"
+    else:
+        source_record_coverage_status = "complete"
     if not sources:
         status = "not_applicable_no_behavior_sources"
-    elif missing_module_ids or missing_final_output_fields:
+    elif (
+        missing_module_ids
+        or missing_final_output_fields
+        or source_record_coverage_status == "partial"
+    ):
         status = "partial"
     else:
         status = "complete"
@@ -510,6 +736,7 @@ def _coverage_summary(
         "program_outputs": list(program_outputs),
         "captured_final_output_fields": sorted(final_output_fields),
         "missing_final_output_fields": missing_final_output_fields,
+        "source_record_coverage_status": source_record_coverage_status,
         "module_call_count": len(module_calls),
         "final_output_trace_count": len(final_outputs),
         "non_authority": dict(_NON_AUTHORITY),
@@ -542,23 +769,57 @@ def _coverage_valid(
         return False
     if not _non_authority_valid(payload.get("non_authority")):
         return False
-    expected = {str(item) for item in payload.get("expected_module_ids") or []}
-    captured = {str(item) for item in payload.get("captured_module_ids") or []}
-    missing = {str(item) for item in payload.get("missing_module_ids") or []}
+    expected_list = _string_list_field(payload.get("expected_module_ids"))
+    captured_list = _string_list_field(payload.get("captured_module_ids"))
+    missing_list = _string_list_field(payload.get("missing_module_ids"))
+    program_outputs_list = _string_list_field(payload.get("program_outputs"))
+    captured_outputs_list = _string_list_field(
+        payload.get("captured_final_output_fields")
+    )
+    missing_outputs_list = _string_list_field(
+        payload.get("missing_final_output_fields")
+    )
+    if any(
+        item is None
+        for item in (
+            expected_list,
+            captured_list,
+            missing_list,
+            program_outputs_list,
+            captured_outputs_list,
+            missing_outputs_list,
+        )
+    ):
+        return False
+    expected = set(expected_list or [])
+    captured = set(captured_list or [])
+    missing = set(missing_list or [])
+    if not captured <= expected:
+        return False
     if missing != expected - captured:
         return False
-    program_outputs = {str(item) for item in payload.get("program_outputs") or []}
-    captured_outputs = {
-        str(item) for item in payload.get("captured_final_output_fields") or []
-    }
-    missing_outputs = {
-        str(item) for item in payload.get("missing_final_output_fields") or []
-    }
+    program_outputs = set(program_outputs_list or [])
+    captured_outputs = set(captured_outputs_list or [])
+    missing_outputs = set(missing_outputs_list or [])
+    if not captured_outputs <= program_outputs:
+        return False
     if missing_outputs != program_outputs - captured_outputs:
+        return False
+    source_record_coverage_status = payload.get("source_record_coverage_status")
+    if (
+        source_record_coverage_status is not None
+        and source_record_coverage_status
+        not in {
+            "not_applicable_no_behavior_sources",
+            "not_applicable_no_records",
+            "partial",
+            "complete",
+        }
+    ):
         return False
     if not sources:
         return payload.get("status") == "not_applicable_no_behavior_sources"
-    if missing or missing_outputs:
+    if missing or missing_outputs or source_record_coverage_status == "partial":
         return payload.get("status") == "partial"
     return payload.get("status") == "complete"
 
@@ -606,6 +867,7 @@ def _collect_from_behavior_payload(
         if not isinstance(raw_record, Mapping):
             continue
         record = dict(raw_record)
+        has_explicit_runtime_trace = isinstance(record.get("runtime_trace"), Mapping)
         traced_calls = _module_calls_from_runtime_trace(
             record=record,
             source=source,
@@ -614,7 +876,7 @@ def _collect_from_behavior_payload(
         )
         if traced_calls:
             module_calls.extend(traced_calls)
-        elif len(surfaces) == 1:
+        elif len(surfaces) == 1 and not has_explicit_runtime_trace:
             module_calls.append(
                 _synthetic_single_module_call(
                     record=record,
@@ -712,6 +974,13 @@ def build_program_runtime_traces(
             "final_outputs": [str(item.get("trace_hash")) for item in final_outputs],
         },
         "coverage": coverage,
+        "source_record_coverage": _source_record_coverage(
+            sources=sources,
+            module_calls=module_calls,
+            final_outputs=final_outputs,
+            expected_module_ids=coverage["expected_module_ids"],
+            program_outputs=program_outputs,
+        ),
         "runtime_policy": {
             "source": "local_generated_behavior_harnesses_only",
             "provider_calls_may_have_occurred_in_behavior_harness": bool(sources),

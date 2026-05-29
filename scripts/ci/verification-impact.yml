@@ -306,6 +306,7 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_program_generation_spine
+      - pytest_program_runtime_traces
       - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/services/program_tool_contracts.py"
@@ -478,6 +479,7 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
+      - pytest_program_runtime_traces
       - verify_runtime_replay
 
   - match: "tests/test_*.py"

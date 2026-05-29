@@ -83,6 +83,28 @@ def test_runtime_traces_reconstruct_single_module_behavior_call() -> None:
     assert payload["coverage"]["captured_module_ids"] == ["generated_module"]
     assert payload["coverage"]["missing_module_ids"] == []
     assert payload["coverage"]["captured_final_output_fields"] == ["answer"]
+    assert payload["source_record_coverage"] == [
+        {
+            "schema_version": "program-runtime-trace-source-coverage-v1",
+            "status": "complete",
+            "path": "behavior_results.json",
+            "split": None,
+            "record_count": 1,
+            "expected_module_ids": ["generated_module"],
+            "program_outputs": ["answer"],
+            "module_call_count": 1,
+            "final_output_trace_count": 1,
+            "records_with_module_calls": [0],
+            "records_with_final_outputs": [0],
+            "records_with_complete_module_calls": [0],
+            "records_with_complete_final_outputs": [0],
+            "missing_module_call_record_indexes": [],
+            "missing_final_output_record_indexes": [],
+            "module_coverage_gaps": [],
+            "final_output_coverage_gaps": [],
+            "non_authority": payload["non_authority"],
+        }
+    ]
     assert validate_program_runtime_traces(payload) is True
 
 
@@ -121,9 +143,27 @@ def test_runtime_trace_semantic_validator_rejects_hash_and_tool_drift() -> None:
     bad_authority["non_authority"]["promotion_authority"] = True
     assert validate_program_runtime_traces(bad_authority) is False
 
+    bad_authority_type = json.loads(json.dumps(payload))
+    bad_authority_type["non_authority"]["runtime_evidence_only"] = "yes"
+    assert validate_program_runtime_traces(bad_authority_type) is False
+
+    bad_status = json.loads(json.dumps(payload))
+    bad_status["status"] = "no_runtime_traces_captured"
+    assert validate_program_runtime_traces(bad_status) is False
+
+    legacy_without_source_coverage = json.loads(json.dumps(payload))
+    legacy_without_source_coverage.pop("source_record_coverage")
+    assert validate_program_runtime_traces(legacy_without_source_coverage) is True
+
     bad_coverage = json.loads(json.dumps(payload))
     bad_coverage["coverage"]["missing_module_ids"] = ["generated_module"]
     assert validate_program_runtime_traces(bad_coverage) is False
+
+    bad_source_coverage = json.loads(json.dumps(payload))
+    bad_source_coverage["source_record_coverage"][0][
+        "missing_final_output_record_indexes"
+    ] = [0]
+    assert validate_program_runtime_traces(bad_source_coverage) is False
 
 
 def test_runtime_trace_coverage_reports_missing_modules_and_outputs() -> None:
@@ -188,10 +228,189 @@ def test_runtime_trace_coverage_reports_missing_modules_and_outputs() -> None:
         "program_outputs": ["answer", "confidence"],
         "captured_final_output_fields": ["answer"],
         "missing_final_output_fields": ["confidence"],
+        "source_record_coverage_status": "partial",
         "module_call_count": 1,
         "final_output_trace_count": 1,
         "non_authority": payload["non_authority"],
     }
+    assert payload["source_record_coverage"][0]["status"] == "partial"
+    assert payload["source_record_coverage"][0]["records_with_module_calls"] == [0]
+    assert payload["source_record_coverage"][0]["records_with_final_outputs"] == [0]
+    assert payload["source_record_coverage"][0]["module_coverage_gaps"] == [
+        {"record_index": 0, "missing_module_ids": ["answer"]}
+    ]
+    assert payload["source_record_coverage"][0]["final_output_coverage_gaps"] == [
+        {"record_index": 0, "missing_final_output_fields": ["confidence"]}
+    ]
+    assert validate_program_runtime_traces(payload) is True
+
+
+def test_runtime_trace_source_coverage_reports_record_level_gaps() -> None:
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="RecordGapTraceProgram",
+            objective="Capture record-level trace gaps.",
+            outputs=["answer"],
+        ),
+        module_surfaces={
+            "schema_version": "program-module-surfaces-v1",
+            "module_surfaces": [
+                {
+                    "module_id": "answer",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "AnswerSignature",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    },
+                },
+                {
+                    "module_id": "critique",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "CritiqueSignature",
+                        "inputs": ["answer"],
+                        "outputs": ["critique"],
+                    },
+                },
+            ],
+        },
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q0"},
+                    "observed_outputs": {"answer": "a0"},
+                    "runtime_trace": {"module_calls": []},
+                },
+                {
+                    "index": 1,
+                    "status": "error",
+                    "inputs": {"question": "q1"},
+                    "observed_outputs": {},
+                    "runtime_trace": {"module_calls": []},
+                },
+            ],
+        },
+    )
+
+    assert payload["source_record_coverage"] == [
+        {
+            "schema_version": "program-runtime-trace-source-coverage-v1",
+            "status": "partial",
+            "path": "behavior_results.json",
+            "split": None,
+            "record_count": 2,
+            "expected_module_ids": ["answer", "critique"],
+            "program_outputs": ["answer"],
+            "module_call_count": 0,
+            "final_output_trace_count": 2,
+            "records_with_module_calls": [],
+            "records_with_final_outputs": [0, 1],
+            "records_with_complete_module_calls": [],
+            "records_with_complete_final_outputs": [0],
+            "missing_module_call_record_indexes": [0, 1],
+            "missing_final_output_record_indexes": [1],
+            "module_coverage_gaps": [
+                {"record_index": 0, "missing_module_ids": ["answer", "critique"]},
+                {"record_index": 1, "missing_module_ids": ["answer", "critique"]},
+            ],
+            "final_output_coverage_gaps": [
+                {"record_index": 1, "missing_final_output_fields": ["answer"]}
+            ],
+            "non_authority": payload["non_authority"],
+        }
+    ]
+    assert validate_program_runtime_traces(payload) is True
+
+
+def test_runtime_trace_explicit_empty_single_module_trace_is_not_synthesized() -> None:
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="ExplicitEmptyTraceProgram",
+            objective="Respect an explicit empty runtime trace.",
+            outputs=["answer"],
+        ),
+        module_surfaces=_module_surfaces(),
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q"},
+                    "observed_outputs": {"answer": "a"},
+                    "runtime_trace": {"module_calls": []},
+                }
+            ],
+        },
+    )
+
+    assert payload["module_call_count"] == 0
+    assert payload["coverage"]["status"] == "partial"
+    assert payload["source_record_coverage"][0]["status"] == "partial"
+    assert payload["source_record_coverage"][0][
+        "missing_module_call_record_indexes"
+    ] == [0]
+    assert validate_program_runtime_traces(payload) is True
+
+
+def test_runtime_trace_coverage_requires_outputs_on_each_record() -> None:
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="SplitOutputTraceProgram",
+            objective="Catch aggregate-only output coverage.",
+            outputs=["answer", "confidence"],
+        ),
+        module_surfaces={
+            "schema_version": "program-module-surfaces-v1",
+            "module_surfaces": [
+                {
+                    "module_id": "generated_module",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "SplitOutputSignature",
+                        "inputs": ["question"],
+                        "outputs": ["answer", "confidence"],
+                    },
+                }
+            ],
+        },
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q0"},
+                    "observed_outputs": {"answer": "a0"},
+                },
+                {
+                    "index": 1,
+                    "status": "passed",
+                    "inputs": {"question": "q1"},
+                    "observed_outputs": {"confidence": 0.9},
+                },
+            ],
+        },
+    )
+
+    assert payload["coverage"]["captured_final_output_fields"] == [
+        "answer",
+        "confidence",
+    ]
+    assert payload["coverage"]["missing_final_output_fields"] == []
+    assert payload["coverage"]["source_record_coverage_status"] == "partial"
+    assert payload["coverage"]["status"] == "partial"
+    assert payload["source_record_coverage"][0][
+        "missing_final_output_record_indexes"
+    ] == [0, 1]
+    assert payload["source_record_coverage"][0]["final_output_coverage_gaps"] == [
+        {"record_index": 0, "missing_final_output_fields": ["confidence"]},
+        {"record_index": 1, "missing_final_output_fields": ["answer"]},
+    ]
     assert validate_program_runtime_traces(payload) is True
 
 

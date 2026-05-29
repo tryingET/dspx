@@ -122,7 +122,6 @@ def test_program_intent_selects_program_generation_spine_checks() -> None:
         "packages/dspx-core/src/dspx/services/program_capabilities.py",
         "packages/dspx-core/src/dspx/services/program_retrievers.py",
         "packages/dspx-core/src/dspx/services/program_runtime_outcomes.py",
-        "packages/dspx-core/src/dspx/services/program_runtime_traces.py",
         "packages/dspx-core/src/dspx/services/program_tool_contracts.py",
         "packages/dspx-core/src/dspx/services/program_topology.py",
     ],
@@ -137,6 +136,20 @@ def test_program_generation_support_modules_select_spine_checks(path: str) -> No
         "ruff_touched",
         "typecheck_core",
         "pytest_program_generation_spine",
+        "boundary_contract_check",
+    ]
+
+
+def test_program_runtime_traces_selects_spine_and_direct_trace_checks() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_runtime_traces.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_generation_spine",
+        "pytest_program_runtime_traces",
         "boundary_contract_check",
     ]
 
@@ -355,12 +368,13 @@ def test_provider_v4_auth_adapter_change_stays_bounded() -> None:
     assert "verify_full" not in _command_ids(plan)
 
 
-def test_replay_service_selects_replay_runtime_only() -> None:
+def test_replay_service_selects_replay_runtime_and_program_trace_checks() -> None:
     plan = _plan("packages/dspx-core/src/dspx/services/run_replay_service.py")
 
     assert _command_ids(plan) == [
         "ruff_touched",
         "typecheck_core",
+        "pytest_program_runtime_traces",
         "verify_runtime_replay",
     ]
     assert "verify_runtime" not in _command_ids(plan)

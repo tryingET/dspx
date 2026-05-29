@@ -195,6 +195,18 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "generated module policy changed",
     ),
+    "pytest_program_runtime_traces": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_runtime_traces.py",
+        ],
+        "program runtime trace evidence changed",
+    ),
     "pytest_program_oracle_refinement": CommandSpec(
         [
             "uv",
@@ -665,6 +677,7 @@ def build_plan(
         "pytest_program_direct_runner_generation",
         "pytest_program_generation_spine",
         "pytest_program_generated_policy",
+        "pytest_program_runtime_traces",
         "pytest_program_oracle_refinement",
         "pytest_refinement_candidate_comparison",
         "pytest_program_sidecar_boundaries",

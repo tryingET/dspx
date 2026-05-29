@@ -327,6 +327,41 @@ def test_dspy_lm_auth_codex_stream_patch_uses_text_when_completed_response_missi
     assert captured.usage is None
 
 
+def test_dspy_lm_auth_codex_stream_patch_raises_on_error_event(
+    monkeypatch,
+) -> None:
+    fake_module = types.SimpleNamespace(__name__="fake_dspy_lm_auth_error_stream")
+    fake_lm_module = types.ModuleType("fake_dspy_lm_auth_error_stream.lm")
+    setattr(
+        fake_lm_module,
+        "_consume_codex_response_stream",
+        lambda response_stream: response_stream,
+    )
+    monkeypatch.setitem(
+        sys.modules, "fake_dspy_lm_auth_error_stream.lm", fake_lm_module
+    )
+
+    DspyLMAuthLM._patch_codex_stream_text_capture(fake_module)
+
+    class _Stream:
+        completed_response = types.SimpleNamespace(response=None)
+
+        def __iter__(self):
+            return iter(
+                [
+                    types.SimpleNamespace(delta="partial text"),
+                    types.SimpleNamespace(
+                        type="response.failed",
+                        error=types.SimpleNamespace(message="rate limited"),
+                    ),
+                ]
+            )
+
+    consume = getattr(fake_lm_module, "_consume_codex_response_stream")
+    with pytest.raises(RuntimeError, match="rate limited"):
+        consume(_Stream())
+
+
 class _UsageObj:
     def model_dump(self):
         return {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5}
