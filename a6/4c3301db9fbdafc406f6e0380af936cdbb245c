@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "a64c3301db9fbdafc406f6e0380af936cdbb245c"
-created_at: "2026-05-29T10:25:03Z"
+created_at: "2026-05-29T10:35:17Z"
 intent: "Harden external tool, provider, generated harness, and authority sidecar boundaries."
 files:
   - "governance/task-scopes/AK-3415.snapshot.json"
@@ -25,7 +25,7 @@ validation:
     status: "pass"
   full_gate:
     command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 5' just loop-impact-wide"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
