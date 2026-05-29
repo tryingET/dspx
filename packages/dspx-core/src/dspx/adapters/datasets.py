@@ -7,6 +7,28 @@ import random
 import hashlib
 
 
+def _group_assignment_score(
+    *,
+    current: Mapping[int, Mapping[object, int]],
+    target: Mapping[int, Mapping[object, int]],
+    labels: set[object],
+    candidate_partition: int,
+    group_label_counts: Mapping[object, int],
+) -> float:
+    """Score the global post-assignment error for one grouped split choice."""
+
+    score = 0.0
+    for partition, target_counts in target.items():
+        current_counts = current[partition]
+        for label in labels:
+            after = current_counts[label]
+            if partition == candidate_partition:
+                after += group_label_counts[label]
+            delta = after - target_counts[label]
+            score += float(delta * delta)
+    return score
+
+
 class DatasetAdapter(Protocol):
     """Protocol for dataset loaders returning a list of row dicts.
 
@@ -354,16 +376,19 @@ def stratified_train_test_split(
             glc = {lbl: 0 for lbl in labels}
             for i in group_to_idxs[g]:
                 glc[records[i][label_key]] = 1
-        # Choose partition to minimize squared error to target after adding group
+        # Choose partition to minimize global squared error to all targets after
+        # adding the group.  Scoring only the destination partition biases the
+        # greedy assignment toward small partitions and can invert ratios.
         best_p = None
         best_score = None
         for p in (0, 1):
-            score = 0.0
-            for lbl in labels:
-                after = current[p][lbl] + glc[lbl]
-                tgt = target[p][lbl]
-                d = after - tgt
-                score += float(d * d)
+            score = _group_assignment_score(
+                current=current,
+                target=target,
+                labels=labels,
+                candidate_partition=p,
+                group_label_counts=glc,
+            )
             if best_score is None or score < best_score - 1e-9:
                 best_score = score
                 best_p = p
@@ -657,12 +682,13 @@ def stratified_train_val_test_split(
         best_p = None
         best_score = None
         for p in (0, 1, 2):
-            score = 0.0
-            for lbl in labels:
-                after = current[p][lbl] + glc[lbl]
-                tgt = target[p][lbl]
-                d = after - tgt
-                score += float(d * d)
+            score = _group_assignment_score(
+                current=current,
+                target=target,
+                labels=labels,
+                candidate_partition=p,
+                group_label_counts=glc,
+            )
             if best_score is None or score < best_score - 1e-9:
                 best_score = score
                 best_p = p

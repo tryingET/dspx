@@ -67,6 +67,29 @@ def _group_label_counts_by_partition(
     return out
 
 
+def test_group_aware_stratified_split_preserves_simple_ratio() -> None:
+    recs = [{"i": i, "y": "A", "grp": f"g{i}"} for i in range(10)]
+
+    tr, te = stratified_train_test_split(
+        recs, label_key="y", test_size=0.2, seed=0, group_key="grp"
+    )
+
+    assert len(tr) == 8
+    assert len(te) == 2
+
+
+def test_group_aware_three_way_stratified_split_preserves_simple_ratio() -> None:
+    recs = [{"i": i, "y": "A", "grp": f"g{i}"} for i in range(10)]
+
+    tr, va, te = stratified_train_val_test_split(
+        recs, label_key="y", ratios=(0.8, 0.1, 0.1), seed=0, group_key="grp"
+    )
+
+    assert len(tr) == 8
+    assert len(va) == 1
+    assert len(te) == 1
+
+
 def test_group_balance_groups_vs_instances() -> None:
     # Construct groups with imbalanced sizes so 'instances' and 'groups' differ
     # A: one big group + two small groups; B: one big group + two small groups
