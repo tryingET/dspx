@@ -10,6 +10,20 @@ def test_redact_url_tokens() -> None:
     assert "[REDACTED]" in r
 
 
+def test_redact_url_compound_secret_keys() -> None:
+    u = (
+        "https://api.example.com/cb?client_secret=s3cr3t"
+        "&refresh_token=refresh&id_token=id&session_token=session&ok=1"
+    )
+    r = redact_url(u)
+
+    assert "s3cr3t" not in r
+    assert "refresh_token=refresh" not in r
+    assert "id_token=id" not in r
+    assert "session_token=session" not in r
+    assert "ok=1" in r
+
+
 def test_redact_headers() -> None:
     h = {"Authorization": "Bearer x", "X-Token": "y", "Ok": "z"}
     r = redact_headers(h)
@@ -32,6 +46,15 @@ def test_sanitize_diagnostic_text_redacts_common_secret_shapes() -> None:
     assert "json-secret" not in redacted
     assert "url-secret" not in redacted
     assert "user:pass" not in redacted
+
+
+def test_sanitize_diagnostic_text_redacts_compound_secret_assignments() -> None:
+    text = 'client_secret=s3cr3t payload={"refresh_token":"json-refresh"}'
+
+    redacted = sanitize_diagnostic_text(text)
+
+    assert "s3cr3t" not in redacted
+    assert "json-refresh" not in redacted
 
 
 def test_sanitize_diagnostic_text_truncates_long_values() -> None:

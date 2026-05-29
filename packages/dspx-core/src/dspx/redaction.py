@@ -8,23 +8,34 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 _SENSITIVE_KEYS = {
     "token",
     "access_token",
+    "refresh_token",
+    "refreshtoken",
+    "id_token",
+    "idtoken",
+    "session_token",
+    "sessiontoken",
     "auth",
     "authorization",
     "apikey",
     "api_key",
     "key",
     "secret",
+    "client_secret",
+    "clientsecret",
+    "private_key",
+    "privatekey",
     "password",
 }
+_SENSITIVE_KEY_MARKERS = {"token", "secret", "password", "key", "credential"}
 _MAX_PREVIEW_CHARS = 320
 _URL_RE = re.compile(r"https?://[^\s'\"<>]+", re.IGNORECASE)
 _BEARER_RE = re.compile(r"(?i)\b(bearer\s+)([^\s,;]+)")
 _AUTH_HEADER_RE = re.compile(r"(?i)\b(authorization\s*:\s*bearer\s+)([^\s,;]+)")
 _SECRET_ASSIGNMENT_RE = re.compile(
-    r"(?i)\b((?:api[-_]?key|access[-_]?token|token|secret|password)\s*[=:]\s*)([^\s,;]+)"
+    r"(?i)\b(([A-Za-z0-9_.-]*(?:api[-_]?key|token|secret|password|credential)[A-Za-z0-9_.-]*)\s*[=:]\s*)([^\s,;]+)"
 )
 _JSON_SECRET_RE = re.compile(
-    r'(?i)("(?:api[-_]?key|access[-_]?token|token|secret|password|authorization)"\s*:\s*")([^"]+)(")'
+    r'(?i)("[A-Za-z0-9_.-]*(?:api[-_]?key|token|secret|password|credential|authorization)[A-Za-z0-9_.-]*"\s*:\s*")([^"]+)(")'
 )
 
 
@@ -32,6 +43,20 @@ def _truncate_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + "…[truncated]"
+
+
+def _is_sensitive_key(key: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+    if normalized in _SENSITIVE_KEYS:
+        return True
+    parts = {part for part in normalized.split("_") if part}
+    if parts.intersection(_SENSITIVE_KEY_MARKERS):
+        return True
+    return any(
+        normalized.endswith(marker)
+        for marker in _SENSITIVE_KEY_MARKERS
+        if marker != "key"
+    )
 
 
 def redact_url(url: str) -> str:
@@ -53,7 +78,7 @@ def redact_url(url: str) -> str:
             pairs = parse_qsl(sp.query, keep_blank_values=True)
             redacted = []
             for k, v in pairs:
-                if k.lower() in _SENSITIVE_KEYS:
+                if _is_sensitive_key(k):
                     redacted.append((k, "[REDACTED]"))
                 else:
                     redacted.append((k, v))
