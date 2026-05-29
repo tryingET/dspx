@@ -1,0 +1,44 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "manual-commit-workflow"
+actor: "pi"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "12930008a86ec2faa1ff4f77e639c3f5fe3776da"
+created_at: "2026-05-29T04:40:00Z"
+intent: "Isolate runtime trace source-record coverage semantics into a focused helper, map its impact checks, and refresh AK-3415 scope."
+files:
+  - "governance/task-scopes/AK-3415.snapshot.json"
+  - "packages/dspx-core/src/dspx/services/program_runtime_trace_coverage.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+  - "scripts/ci/verification-impact.yml"
+  - "tests/test_verify_changed.py"
+validation:
+  db_preflight:
+    command: "cd /home/tryinget/ai-society && ./scripts/db-change-preflight.sh --db-path /home/tryinget/ai-society/society.v2.db --stage db-dev"
+    status: "pass"
+  hooks:
+    command: "just hooks-run files=\"governance/task-scopes/AK-3415.snapshot.json packages/dspx-core/src/dspx/services/program_runtime_trace_coverage.py packages/dspx-core/src/dspx/services/program_runtime_traces.py scripts/ci/verification-impact.yml tests/test_verify_changed.py\""
+    status: "pass"
+  focused_tests:
+    command: "uv run --no-sync -m pytest -q tests/test_program_runtime_traces.py tests/test_provider_v4.py tests/test_verify_changed.py tests/test_workflow_contracts.py"
+    status: "pass"
+  impact_plan:
+    command: "just loop-impact-plan"
+    status: "pass"
+  impact_gate:
+    command: "LOOP_WIDE_REASON=\"atomic-completion follow-up validation for AK-3415 runtime trace coverage extraction\" just loop-impact-wide"
+    status: "pass"
+  landing_gate:
+    command: "just loop-landing-check"
+    status: "pass"
+concurrency:
+  preserved_dirty_stashes:
+    - "preserve-concurrent-dirty-before-ak3415-landing-check"
+    - "preserve-additional-concurrent-dirty-before-ak3415-landing-check"
+  note: "Unrelated dirty worktree changes appeared after validation; they were stashed only to run the landing gate and then restored."
+group:
+  index: 2
+  total: 2
+  rationale: "scope-attested runtime trace coverage helper extraction and final landing gate"
+links:
+  task_ids:
+    - 3415
