@@ -1,0 +1,21 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "0ff0498954c1ec4894dcf595a07db9bc208074f6"
+created_at: "2026-05-29T04:49:52Z"
+intent: "Balance grouped stratified split assignment against global targets"
+files:
+  - "packages/dspx-core/src/dspx/adapters/datasets.py"
+  - "tests/test_dataset_splits.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 1' just loop-impact-wide base=1293000"
+    status: "pending"
+group:
+  index: 1
+  total: 6
+  rationale: "dataset split scoring fix with focused regression tests"
