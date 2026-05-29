@@ -1,0 +1,31 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "manual-commit-workflow"
+actor: "pi"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "153cda1606ebf3c369c6e6207b371c1852fa69df"
+created_at: "2026-05-29T03:27:37Z"
+intent: "Validate runtime trace sidecar semantics during replay, including internal trace hashes, no-tool posture, non-authority flags, and count/linkage shape."
+files:
+  - "README.md"
+  - "docs/project/product-posture.md"
+  - "docs/project/program-gen-walkthrough.md"
+  - "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+  - "packages/dspx-core/src/dspx/services/run_replay_service.py"
+  - "tests/test_program_runtime_traces.py"
+validation:
+  focused_tests:
+    command: "uv run --no-sync -m pytest -q tests/test_program_runtime_traces.py"
+    status: "pass"
+  impact_gate:
+    command: "just loop-impact-run"
+    status: "pass"
+  landing_gate:
+    command: "just loop-landing-check"
+    status: "pass"
+group:
+  index: 2
+  total: 4
+  rationale: "runtime trace replay semantic validator implementation"
+links:
+  task_ids:
+    - 3415
