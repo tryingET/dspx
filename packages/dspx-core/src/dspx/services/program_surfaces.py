@@ -120,13 +120,67 @@ def _prediction_mapping(prediction: object, output_fields: list[str]) -> dict[st
     return {field: getattr(prediction, field) for field in output_fields if hasattr(prediction, field)}
 
 
+def _data_uri_from_base64(*, data: str, media_type: str) -> str:
+    raw = data.strip()
+    if raw.startswith('data:'):
+        return raw
+    return f'data:{media_type};base64,{raw}'
+
+
+def _image_marker_from_base64(*, data: str, media_type: str) -> str:
+    try:
+        import dspy
+    except Exception as exc:
+        raise RuntimeError('runtime image descriptors require dspy') from exc
+    return str(dspy.Image(_data_uri_from_base64(data=data, media_type=media_type)))
+
+
+def _materialize_designmd_visual_image_inputs_text(value: str) -> str:
+    try:
+        payload = json.loads(value)
+    except json.JSONDecodeError:
+        return value
+    if not isinstance(payload, dict):
+        return value
+    images = payload.get('images')
+    if not isinstance(images, list):
+        return value
+    next_payload = dict(payload)
+    next_images: list[object] = []
+    materialized = 0
+    for item in images:
+        if not isinstance(item, dict):
+            next_images.append(item)
+            continue
+        image = dict(item)
+        data = str(image.get('imageDataBase64') or '').strip()
+        media_type = str(image.get('imageDataMimeType') or image.get('mimeType') or 'image/png').strip()
+        if data and image.get('pixelInspectionInputStatus') == 'available_bounded_inline_image_payload':
+            image['modelImageInput'] = _image_marker_from_base64(data=data, media_type=media_type)
+            image['modelImageInputMaterialized'] = True
+            materialized += 1
+        next_images.append(image)
+    next_payload['images'] = next_images
+    next_payload['modelImageInputMaterializedCount'] = materialized
+    next_payload['modelImageInputAdapter'] = 'dspy.Image(data-uri)'
+    if materialized <= 0:
+        next_payload['pixelInspectionStatus'] = 'not_run_due_to_missing_image_input_adapter'
+    return json.dumps(next_payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _materialize_runtime_input_value(key: str, value: object) -> object:
+    if key == 'visual_image_inputs_json' and isinstance(value, str):
+        return _materialize_designmd_visual_image_inputs_text(value)
+    return value
+
+
 def _load_inputs(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding='utf-8'))
     inputs = payload.get('inputs') if isinstance(payload, dict) else None
     if isinstance(inputs, dict):
-        return dict(inputs)
+        return {str(key): _materialize_runtime_input_value(str(key), value) for key, value in inputs.items()}
     if isinstance(payload, dict):
-        return dict(payload)
+        return {str(key): _materialize_runtime_input_value(str(key), value) for key, value in payload.items()}
     raise SystemExit(f'input file must be a JSON object: {path}')
 
 
