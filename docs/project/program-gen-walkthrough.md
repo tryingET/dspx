@@ -210,7 +210,7 @@ uv run -q python -m dspx.cli.dspx oracle program-evidence publish-preflight \
   --json
 ```
 
-The preflight output is a `program-oracle-shared-publication-preflight-v1` packet. It computes a stable publication id, validates non-authority flags and custody fields, redacts backend secret posture, and records `shared_oracle_mutated: false`.
+The preflight output is a `program-oracle-shared-publication-preflight-v1` packet. It computes a stable publication id, validates non-authority flags and custody fields, redacts backend secret posture, verifies the `program_runtime_traces.json` summary/hash/semantic posture from `oracle_evidence.json`, records `ready_for_shared_publication: true`, and still records `shared_oracle_mutated: false`.
 
 DSPx also owns the adapter preflight for `pi-autoresearch` campaign evidence packets. If Pi emits an `autoresearch.oracle_evidence.v1` JSON packet, validate it here before any future shared Oracle publication:
 
@@ -490,7 +490,7 @@ uv run -q python -m dspx.cli.dspx oracle search \
   --json
 ```
 
-This is local evidence ingestion only. It writes to a local CoordinateIndex and does not rank, prune, promote, block, approve, export authority, or mutate governance state.
+This is local evidence ingestion only. It writes to a local CoordinateIndex and does not rank, prune, promote, block, approve, export authority, or mutate governance state. For the DRY map of local SQLite vs shared Oracle Postgres/pgvector vs MLflow Postgres, see [[oracle-backend-current-status]].
 
 You can then ask for an explicit interpretation/report over the indexed evidence:
 

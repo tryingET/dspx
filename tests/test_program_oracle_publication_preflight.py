@@ -106,14 +106,20 @@ def test_program_oracle_publication_preflight_cli_writes_local_packet_only(
     assert payload["status"] == "ready_not_published"
     assert payload["target"]["database_url_present"] is True
     assert payload["target"]["database_url_redacted"] == "<redacted>"
-    assert payload["preflight"]["ready_for_shared_publication"] is False
-    assert payload["preflight"]["blocking_reasons"] == [
-        "shared_publication_not_implemented"
-    ]
+    assert payload["preflight"]["ready_for_shared_publication"] is True
+    assert payload["preflight"]["blocking_reasons"] == []
+    assert payload["preflight"]["runtime_trace_summary_valid"] is True
+    assert payload["preflight"]["runtime_trace_hash_match"] is True
+    assert payload["preflight"]["runtime_trace_semantics_valid"] is True
     assert payload["publication"]["publication_label_class"] == "empirical"
     assert payload["publication"]["publisher_identity_kind"] == (
         "declared_not_authenticated"
     )
+    assert payload["artifact_hashes"]["runtime_traces_sha256"]
+    assert payload["planned_record"]["runtime_traces"]["path"] == (
+        "program_runtime_traces.json"
+    )
+    assert "module_calls" not in payload["planned_record"]["runtime_traces"]
     assert payload["effect"] == {
         "local_preflight_written": True,
         "oracle_index_mutated": False,
@@ -184,6 +190,76 @@ def test_program_oracle_publication_preflight_rejects_widened_non_authority(
 
     with pytest.raises(
         ProgramOraclePublicationPreflightError, match="oracle_promotion"
+    ):
+        build_program_oracle_publication_preflight(**_base_kwargs(root))
+
+
+def test_program_oracle_publication_preflight_rejects_runtime_trace_path_escape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    evidence_path = root / "oracle_evidence.json"
+    traces_path = root / "program_runtime_traces.json"
+    escaped_path = root.parent / "program_runtime_traces.json"
+    escaped_path.write_text(traces_path.read_text(encoding="utf-8"), encoding="utf-8")
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence["runtime_traces"]["path"] = "../program_runtime_traces.json"
+    for artifact in evidence["source_artifacts"]:
+        if artifact.get("kind") == "runtime_traces":
+            artifact["path"] = "../program_runtime_traces.json"
+    evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramOraclePublicationPreflightError,
+        match="must stay within the candidate root",
+    ):
+        build_program_oracle_publication_preflight(**_base_kwargs(root))
+
+
+def test_program_oracle_publication_preflight_rejects_tampered_runtime_trace_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    evidence_path = root / "oracle_evidence.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence["runtime_traces"]["module_call_count"] = 999
+    evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramOraclePublicationPreflightError,
+        match="runtime_traces summary does not match artifact",
+    ):
+        build_program_oracle_publication_preflight(**_base_kwargs(root))
+
+
+def test_program_oracle_publication_preflight_rejects_runtime_trace_hash_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    traces_path = root / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["status"] = "tampered"
+    traces_path.write_text(json.dumps(traces, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramOraclePublicationPreflightError,
+        match="runtime traces hash does not match",
+    ):
+        build_program_oracle_publication_preflight(**_base_kwargs(root))
+
+
+def test_program_oracle_publication_preflight_rejects_raw_traces_in_oracle_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    evidence_path = root / "oracle_evidence.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence["runtime_traces"]["module_calls"] = [{"leak": "raw-trace"}]
+    evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramOraclePublicationPreflightError,
+        match="must not include raw trace records",
     ):
         build_program_oracle_publication_preflight(**_base_kwargs(root))
 

@@ -677,6 +677,10 @@ def _safe_int(value: object, *, default: int = 0) -> int:
     return default
 
 
+def _safe_list_count(value: object) -> int:
+    return len(value) if isinstance(value, list) else 0
+
+
 def _behavior_status_counts(
     behavior_results: Mapping[str, Any], behavior_summary: Mapping[str, Any]
 ) -> dict[str, int]:
@@ -817,6 +821,11 @@ def _oracle_text(
             f"behavior.source_kinds={source_kind_text}",
             f"behavior.status_counts={status_text}",
             f"behavior.failure_modes={failure_text}",
+            f"runtime_traces.status={oracle_facets.get('runtime_trace_status')}",
+            f"runtime_traces.coverage_status={oracle_facets.get('runtime_trace_coverage_status')}",
+            f"runtime_traces.source_record_coverage_status={oracle_facets.get('runtime_trace_source_record_coverage_status')}",
+            f"runtime_traces.module_call_count={oracle_facets.get('runtime_trace_module_call_count')}",
+            f"runtime_traces.final_output_trace_count={oracle_facets.get('runtime_trace_final_output_trace_count')}",
             "authority=oracle_readability_only_non_authoritative; "
             "oracle_ranking=false; oracle_pruning=false; oracle_promotion=false; "
             "governance_authority=false; external_mutation=false",
@@ -873,6 +882,7 @@ def _oracle_source_artifacts(
         ("dataset_manifest", "dataset_manifest.json"),
         ("module_surfaces", "module_surfaces.json"),
         ("runtime_outcomes", "program_runtime_outcomes.json"),
+        ("runtime_traces", "program_runtime_traces.json"),
         ("tool_contracts", "program_tool_contracts.json"),
         ("capability_registry", "program_capability_registry.json"),
         ("generated_module_policy", "generated_module_policy.json"),
@@ -898,6 +908,54 @@ def _oracle_source_artifacts(
         )
         deduped[key] = artifact
     return sorted(deduped.values(), key=lambda item: str(item["path"]))
+
+
+def _oracle_runtime_trace_summary(
+    *,
+    runtime_traces_payload: Mapping[str, Any],
+    runtime_traces_hash: str,
+) -> dict[str, Any]:
+    raw_coverage = runtime_traces_payload.get("coverage")
+    coverage = dict(raw_coverage) if isinstance(raw_coverage, Mapping) else {}
+    raw_non_authority = runtime_traces_payload.get("non_authority")
+    non_authority = (
+        dict(raw_non_authority) if isinstance(raw_non_authority, Mapping) else {}
+    )
+    return {
+        "schema_version": runtime_traces_payload.get("schema_version"),
+        "path": "program_runtime_traces.json",
+        "content_hash": runtime_traces_hash,
+        "status": runtime_traces_payload.get("status"),
+        "source_count": runtime_traces_payload.get("source_count"),
+        "module_call_count": runtime_traces_payload.get("module_call_count"),
+        "final_output_trace_count": runtime_traces_payload.get(
+            "final_output_trace_count"
+        ),
+        "coverage": {
+            "schema_version": coverage.get("schema_version"),
+            "status": coverage.get("status"),
+            "source_record_coverage_status": coverage.get(
+                "source_record_coverage_status"
+            ),
+            "expected_module_count": _safe_list_count(
+                coverage.get("expected_module_ids")
+            ),
+            "captured_module_count": _safe_list_count(
+                coverage.get("captured_module_ids")
+            ),
+            "missing_module_count": _safe_list_count(
+                coverage.get("missing_module_ids")
+            ),
+            "program_output_count": _safe_list_count(coverage.get("program_outputs")),
+            "captured_final_output_field_count": _safe_list_count(
+                coverage.get("captured_final_output_fields")
+            ),
+            "missing_final_output_field_count": _safe_list_count(
+                coverage.get("missing_final_output_fields")
+            ),
+        },
+        "non_authority": non_authority,
+    }
 
 
 def _source_failure_modes(
@@ -938,6 +996,8 @@ def _build_oracle_evidence(
     source_payloads: Mapping[str, Mapping[str, Any]],
     behavior_results_hash: str | None,
     behavior_summary: Mapping[str, Any] | None,
+    runtime_traces_payload: Mapping[str, Any],
+    runtime_traces_hash: str,
     surface_hashes: Mapping[str, str],
 ) -> dict[str, Any]:
     output_fields = list(intent.outputs)
@@ -967,6 +1027,11 @@ def _build_oracle_evidence(
         1 for source in evaluation_sources if source.get("kind") == "dataset_split"
     )
     behavior_status = str(behavior_evidence_summary.get("status") or "unknown")
+    runtime_trace_summary = _oracle_runtime_trace_summary(
+        runtime_traces_payload=runtime_traces_payload,
+        runtime_traces_hash=runtime_traces_hash,
+    )
+    runtime_trace_coverage = dict(runtime_trace_summary.get("coverage") or {})
     oracle_facets = {
         "task_type": intent.task_type or "single_module",
         "metric": intent.metric or "unspecified",
@@ -983,6 +1048,17 @@ def _build_oracle_evidence(
         "total_evaluation_count": total_evaluation_count,
         "failure_mode_count": len(failure_modes),
         "has_failures": bool(failure_modes),
+        "runtime_trace_status": runtime_trace_summary.get("status"),
+        "runtime_trace_coverage_status": runtime_trace_coverage.get("status"),
+        "runtime_trace_source_record_coverage_status": runtime_trace_coverage.get(
+            "source_record_coverage_status"
+        ),
+        "runtime_trace_module_call_count": runtime_trace_summary.get(
+            "module_call_count"
+        ),
+        "runtime_trace_final_output_trace_count": runtime_trace_summary.get(
+            "final_output_trace_count"
+        ),
     }
     oracle_text = _oracle_text(
         intent=intent,
@@ -1041,6 +1117,7 @@ def _build_oracle_evidence(
             ),
             "failure_modes": failure_modes,
         },
+        "runtime_traces": runtime_trace_summary,
         "oracle_facets": oracle_facets,
         "oracle_text": oracle_text,
         "source_artifacts": source_artifacts,
@@ -2002,6 +2079,8 @@ def _materialize_program_from_intent_unchecked(
             source_payloads=source_payloads,
             behavior_results_hash=behavior_results_hash,
             behavior_summary=behavior_summary,
+            runtime_traces_payload=runtime_traces_payload,
+            runtime_traces_hash=runtime_traces_hash,
             surface_hashes=surface_hashes,
         )
         oracle_evidence_text = _write_json(

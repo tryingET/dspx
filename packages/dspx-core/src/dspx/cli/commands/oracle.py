@@ -63,8 +63,12 @@ def oracle_backend_status(
     typer.echo(f"Status: {status['status']}")
     typer.echo(f"Index backend: {status['coordinate_index']['backend']}")
     typer.echo(f"Index path: {status['coordinate_index']['path']}")
+    shared = status["shared_postgres_backend"]
+    typer.echo(f"Shared Postgres supported: {shared['supported']}")
+    typer.echo(f"Shared Postgres production ready: {shared['production_ready']}")
     typer.echo(
-        f"Shared Postgres supported: {status['shared_postgres_backend']['supported']}"
+        "Shared publication config ready: "
+        f"{shared['publication_config']['publication_ready_configured']}"
     )
     typer.echo(status["summary"])
     typer.echo(f"Next: {status['next_required_action']}")

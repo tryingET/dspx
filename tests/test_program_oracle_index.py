@@ -103,6 +103,8 @@ def test_oracle_index_from_program_evidence_cli_indexes_coordinate_record(
     assert embedding.metadata["identity"] == oracle_evidence["identity"]
     assert embedding.metadata["oracle_facets"] == oracle_evidence["oracle_facets"]
     assert embedding.metadata["behavior"] == oracle_evidence["behavior"]
+    assert embedding.metadata["runtime_traces"] == oracle_evidence["runtime_traces"]
+    assert "runtime_traces.status=" in embedding.config_text
     assert embedding.metadata["source_artifacts"] == oracle_evidence["source_artifacts"]
     assert embedding.metadata["non_authority"] == oracle_evidence["non_authority"]
     assert embedding.metadata["evidence_path"] == str(root / "oracle_evidence.json")
@@ -140,6 +142,30 @@ def test_oracle_index_from_program_evidence_cli_indexes_coordinate_record(
     assert second_payload["indexed"] == 1
     assert CoordinateIndex(db_path=index_path).stats()["total"] == 1
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_oracle_index_does_not_read_runtime_trace_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    traces_path = root / "program_runtime_traces.json"
+    assert traces_path.exists()
+    traces_path.write_text("not json\n", encoding="utf-8")
+
+    result = index_program_oracle_evidence_path(
+        root,
+        index_path=tmp_path / "oracle" / "coordinates.db",
+    )
+
+    assert result["scanned"] == 1
+    assert result["indexed"] == 1
+    assert result["errors"] == 0
+    index = CoordinateIndex(db_path=tmp_path / "oracle" / "coordinates.db")
+    embeddings = index.list_all(run_kind="program-oracle-evidence")
+    assert len(embeddings) == 1
+    assert embeddings[0].metadata["runtime_traces"]["path"] == (
+        "program_runtime_traces.json"
+    )
 
 
 def test_program_oracle_index_rejects_authority_widening(

@@ -7,7 +7,7 @@ import sys
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any, Iterator, Mapping, TypeGuard, cast
 
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
@@ -17,6 +17,7 @@ from dspx.services.program_oracle_publication_preflight import (
 )
 from dspx.security import confine_path
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
+from dspx.services.program_runtime_traces import build_program_runtime_traces
 from dspx.services.run_replay_service import check_run_receipt
 
 PROGRAM_RUNTIME_EPISODE_SCHEMA = "program-runtime-episode-v1"
@@ -430,12 +431,37 @@ def _runtime_id(*, manifest_hash: str, inputs_hash: str, contract_mode: str) -> 
     )
 
 
+def _runtime_trace_summary(
+    runtime_traces: Mapping[str, Any], *, content_hash: str
+) -> dict[str, Any]:
+    coverage = _safe_mapping(runtime_traces.get("coverage"))
+    return {
+        "schema_version": runtime_traces.get("schema_version"),
+        "path": "program_runtime_traces.json",
+        "content_hash": content_hash,
+        "status": runtime_traces.get("status"),
+        "source_count": runtime_traces.get("source_count"),
+        "module_call_count": runtime_traces.get("module_call_count"),
+        "final_output_trace_count": runtime_traces.get("final_output_trace_count"),
+        "coverage": {
+            "schema_version": coverage.get("schema_version"),
+            "status": coverage.get("status"),
+            "source_record_coverage_status": coverage.get(
+                "source_record_coverage_status"
+            ),
+        },
+        "non_authority": _safe_mapping(runtime_traces.get("non_authority")),
+    }
+
+
 def _oracle_evidence(
     *,
     manifest_identity: Mapping[str, str | None],
     runtime_episode_id: str,
     behavior_results: Mapping[str, Any],
     behavior_results_hash: str,
+    runtime_traces: Mapping[str, Any],
+    runtime_traces_hash: str,
     inputs_hash: str,
     contract_mode: str,
     manifest: Mapping[str, Any],
@@ -467,6 +493,10 @@ def _oracle_evidence(
         )
     identity = {key: value for key, value in manifest_identity.items() if value}
     identity["runtime_episode_id"] = runtime_episode_id
+    runtime_trace_summary = _runtime_trace_summary(
+        runtime_traces, content_hash=runtime_traces_hash
+    )
+    runtime_trace_coverage = _safe_mapping(runtime_trace_summary.get("coverage"))
     oracle_facets = {
         "task_type": str(intent.get("task_type") or "single_module"),
         "metric": f"runtime_episode:{contract_mode}",
@@ -485,6 +515,17 @@ def _oracle_evidence(
         "has_failures": bool(failure_modes),
         "runtime_episode_id": runtime_episode_id,
         "contract_mode": contract_mode,
+        "runtime_trace_status": runtime_trace_summary.get("status"),
+        "runtime_trace_coverage_status": runtime_trace_coverage.get("status"),
+        "runtime_trace_source_record_coverage_status": runtime_trace_coverage.get(
+            "source_record_coverage_status"
+        ),
+        "runtime_trace_module_call_count": runtime_trace_summary.get(
+            "module_call_count"
+        ),
+        "runtime_trace_final_output_trace_count": runtime_trace_summary.get(
+            "final_output_trace_count"
+        ),
     }
     objective = str(
         intent.get("objective")
@@ -507,6 +548,11 @@ def _oracle_evidence(
             f"behavior.status={status}",
             "behavior.source_kinds=runtime_inputs",
             "behavior.example_count=1",
+            f"runtime_traces.status={oracle_facets.get('runtime_trace_status')}",
+            f"runtime_traces.coverage_status={oracle_facets.get('runtime_trace_coverage_status')}",
+            f"runtime_traces.source_record_coverage_status={oracle_facets.get('runtime_trace_source_record_coverage_status')}",
+            f"runtime_traces.module_call_count={oracle_facets.get('runtime_trace_module_call_count')}",
+            f"runtime_traces.final_output_trace_count={oracle_facets.get('runtime_trace_final_output_trace_count')}",
             "authority=oracle_readability_only_non_authoritative; oracle_ranking=false; "
             "oracle_pruning=false; oracle_promotion=false; governance_authority=false; external_mutation=false",
         ]
@@ -555,6 +601,7 @@ def _oracle_evidence(
             "source_statuses": [status],
             "failure_modes": failure_modes,
         },
+        "runtime_traces": runtime_trace_summary,
         "oracle_facets": oracle_facets,
         "oracle_text": oracle_text,
         "source_artifacts": [
@@ -569,6 +616,11 @@ def _oracle_evidence(
                 "path": "behavior_results.json",
                 "content_hash": behavior_results_hash,
                 "source_kind": "runtime_inputs",
+            },
+            {
+                "kind": "runtime_traces",
+                "path": "program_runtime_traces.json",
+                "content_hash": runtime_traces_hash,
             },
         ],
     }
@@ -729,6 +781,27 @@ def run_program_runtime_episode(
     behavior_path.write_text(_json_text(behavior_results), encoding="utf-8")
     behavior_hash = _sha256_file(behavior_path)
 
+    module_surfaces_path = candidate_root / "module_surfaces.json"
+    module_surfaces = (
+        _load_json_object(module_surfaces_path, label="program module surfaces")
+        if module_surfaces_path.exists()
+        else {"module_surfaces": []}
+    )
+    runtime_trace_intent = SimpleNamespace(
+        name=str(intent_summary.get("name") or ""),
+        objective=str(intent_summary.get("objective") or ""),
+        outputs=output_fields,
+    )
+    runtime_traces = build_program_runtime_traces(
+        runtime_trace_intent,
+        module_surfaces=module_surfaces,
+        behavior_results=behavior_results,
+        behavior_results_hash=behavior_hash,
+    )
+    runtime_traces_path = root / "program_runtime_traces.json"
+    runtime_traces_path.write_text(_json_text(runtime_traces), encoding="utf-8")
+    runtime_traces_hash = _sha256_file(runtime_traces_path)
+
     runtime_manifest = dict(manifest)
     runtime_manifest["source_candidate_manifest"] = {
         "path": str(source_manifest_path),
@@ -755,6 +828,8 @@ def run_program_runtime_episode(
         runtime_episode_id=runtime_episode_id,
         behavior_results=behavior_results,
         behavior_results_hash=behavior_hash,
+        runtime_traces=runtime_traces,
+        runtime_traces_hash=runtime_traces_hash,
         inputs_hash=inputs_hash,
         contract_mode=contract_mode,
         manifest=manifest,
@@ -776,6 +851,7 @@ def run_program_runtime_episode(
             "runtime_inputs_sha256": inputs_hash,
             "behavior_results_sha256": behavior_hash,
             "oracle_evidence_sha256": _sha256_file(oracle_path),
+            "program_runtime_traces_sha256": runtime_traces_hash,
         },
         "non_authority": {
             "promotion_authority": False,

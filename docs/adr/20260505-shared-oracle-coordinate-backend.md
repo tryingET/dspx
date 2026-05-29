@@ -39,6 +39,7 @@ system4d:
 - reviewers: DSPx core reviewers, softwareco/infra DS1621 operator, AK/governance liaison
 - AK decision: `#29 Adopt shared Oracle coordinate backend target architecture`
 - related_docs:
+  - `docs/project/oracle-backend-current-status.md`
   - `docs/rfc/RFC-DSPX-ORACLE-20260505-shared-coordinate-backend.md`
   - `docs/project/2026-05-05-review-shared-oracle-coordinate-backend.md`
   - `docs/ARCHITECTURE.md`
@@ -49,6 +50,10 @@ system4d:
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/transition-passports/generated-cognition-program-production-activation.md`
   - `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`
   - `~/ai-society/softwareco/infra/ds1621-admin/contracts/ds1621-oracle-coordinate-backend.env`
+
+## Current-status note
+
+This ADR is decision-time rationale. The current backend/storage posture is maintained in [[oracle-backend-current-status]] so volatile pilot, backup, and publication-readiness facts do not drift across ADR/RFC copies.
 
 ## Executive summary
 

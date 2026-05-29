@@ -896,6 +896,9 @@ def test_program_service_binds_examples_when_present(
     behavior_hash = hashlib.sha256(
         (root / "behavior_results.json").read_bytes()
     ).hexdigest()
+    runtime_traces_hash = hashlib.sha256(
+        (root / "program_runtime_traces.json").read_bytes()
+    ).hexdigest()
     behavior_episode = json.loads(
         (root / "behavior_episode.json").read_text(encoding="utf-8")
     )
@@ -993,11 +996,25 @@ def test_program_service_binds_examples_when_present(
     assert oracle_evidence["oracle_facets"]["has_dataset_splits"] is False
     assert "behavior.evidence_source_count=1" in oracle_evidence["oracle_text"]
     assert "behavior.source_kinds=inline_examples" in oracle_evidence["oracle_text"]
+    assert oracle_evidence["runtime_traces"]["path"] == "program_runtime_traces.json"
+    assert oracle_evidence["runtime_traces"]["content_hash"] == runtime_traces_hash
+    assert oracle_evidence["runtime_traces"]["module_call_count"] >= 1
+    assert "module_calls" not in oracle_evidence["runtime_traces"]
+    assert "final_outputs" not in oracle_evidence["runtime_traces"]
+    assert oracle_evidence["runtime_traces"]["coverage"][
+        "source_record_coverage_status"
+    ] in {"complete", "partial", "not_applicable_no_records"}
+    assert "runtime_traces.status=" in oracle_evidence["oracle_text"]
     assert {
         "kind": "behavior_results",
         "path": "behavior_results.json",
         "content_hash": behavior_hash,
         "source_kind": "inline_examples",
+    } in oracle_evidence["source_artifacts"]
+    assert {
+        "kind": "runtime_traces",
+        "path": "program_runtime_traces.json",
+        "content_hash": runtime_traces_hash,
     } in oracle_evidence["source_artifacts"]
 
     examples = subprocess.run(

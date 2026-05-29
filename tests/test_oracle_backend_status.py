@@ -21,7 +21,7 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
     status = build_oracle_backend_status(index_path=index_path)
 
     assert status["schema_version"] == "oracle-backend-status-v1"
-    assert status["status"] == "local_sqlite_default"
+    assert status["status"] == "local_sqlite_default_shared_postgres_opt_in"
     assert status["coordinate_index"] == {
         "backend": "sqlite",
         "scope": "local_explicit_index_file",
@@ -33,43 +33,23 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
     shared = status["shared_postgres_backend"]
     assert shared["supported"] is True
     assert shared["adapter_available"] is True
+    assert shared["scope"] == "explicit_curated_shared_publication"
+    assert shared["production_ready"] is False
     assert shared["provisioned_by_default"] is False
-    assert shared["infra_contract"] == {
-        "owner": "softwareco/infra/ds1621-admin",
-        "status": "pilot_deployed_not_production_ready",
-        "deployment_status": (
-            "pilot_deployed_health_ok_live_smoke_passed_not_production_ready"
-        ),
-        "machine_readable_contract": (
-            "softwareco/infra/ds1621-admin/contracts/"
-            "ds1621-oracle-coordinate-backend.env"
-        ),
-        "contract_doc": (
-            "softwareco/infra/ds1621-admin/docs/project/"
-            "ds1621-oracle-coordinate-backend-contract.md"
-        ),
-        "provisioned_service": True,
-        "backup_restore_status": "verified_disposable_restore_2026_05_06",
-        "retention_status": "pilot_14_day_policy_with_dry_run_prune_helper",
-        "off_nas_coverage_status": (
-            "remote_hyper_backup_task_selected_but_success_after_latest_export_not_proven_2026_05_06"
-        ),
-        "hyper_backup_share": "DspxOracleBackups",
-        "hyper_backup_selection_status": (
-            "dedicated_share_selected_in_remote_hyper_backup_task_2026_05_06"
-        ),
-        "hyper_backup_remote_task_status": (
-            "task_3_hypterbackup2michy_selected_but_last_success_before_latest_export_2026_03_29"
-        ),
-        "monitoring_status": "systemd_user_timer_enabled_ntfy_alert_path_verified_2026_05_06",
-        "monitoring_command": "./scripts/oracle/monitor-ds1621-oracle.sh",
-        "monitoring_schedule": "systemd_user_timer_daily_05_30_persistent_randomized_15m",
-        "monitoring_alert_target": "http://ds1621:2586/dspx-oracle-alerts",
-        "monitoring_last_verified_at": "2026-05-06",
-        "rotation_status": "manual_rotation_exercised_and_verified_2026_05_06",
-        "rotation_last_verified_at": "2026-05-06",
-        "rotation_next_review": "2026-08-04",
-    }
+    assert shared["default_for_program_gen"] is False
+    assert shared["default_for_candidate_local_indexing"] is False
+    infra_contract = shared["infra_contract"]
+    assert infra_contract["owner"] == "softwareco/infra/ds1621-admin"
+    assert infra_contract["deployment_status"] == (
+        "pilot_deployed_health_ok_live_smoke_passed_not_production_ready"
+    )
+    assert infra_contract["dogfood_doc"] == (
+        "docs/project/2026-05-09-oracle-production-readiness-gates-dogfood.md"
+    )
+    assert infra_contract["off_nas_coverage_status"] == (
+        "remote_hyper_backup_success_after_latest_export_2026_05_09"
+    )
+    assert "not_proven" not in json.dumps(infra_contract)
     assert status["ds1621_mlflow_postgres"]["oracle_backend"] is False
     assert status["effects"] == {
         "oracle_index_mutated": False,
@@ -88,7 +68,9 @@ def test_oracle_backend_status_reports_postgres_env_without_secret_values(
     secret_url = "postgresql://user:super-secret@example.invalid/oracle"
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DSPX_ORACLE_POSTGRES_URL", secret_url)
-    monkeypatch.setenv("DATABASE_URL", "postgresql://other-secret@example.invalid/db")
+    monkeypatch.setenv(
+        "DATABASE_URL", "postgresql://other:ambient-secret@example.invalid/db"
+    )
 
     status = build_oracle_backend_status()
 
@@ -100,8 +82,37 @@ def test_oracle_backend_status_reports_postgres_env_without_secret_values(
     assert shared["configured_url_redacted"] == (
         "postgresql://user:<redacted>@example.invalid/oracle"
     )
+    assert shared["publication_config"] == {
+        "oracle_specific_env_present": True,
+        "oracle_specific_env_keys": ["DSPX_ORACLE_POSTGRES_URL"],
+        "oracle_specific_url_redacted": "postgresql://user:<redacted>@example.invalid/oracle",
+        "ambient_database_url_present": True,
+        "ambient_database_url_redacted": "postgresql://other:<redacted>@example.invalid/db",
+        "publication_ready_configured": False,
+    }
     assert shared["secret_values_reported"] is False
     assert secret_url not in json.dumps(status)
+
+
+def test_oracle_backend_status_separates_ambient_database_url_from_publication_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DSPX_ORACLE_STORE", "postgres_pgvector")
+    monkeypatch.setenv(
+        "DATABASE_URL", "postgresql://ambient:ambient-secret@example.invalid/db"
+    )
+
+    status = build_oracle_backend_status()
+
+    shared = status["shared_postgres_backend"]
+    assert shared["configured_store_selected"] is True
+    assert shared["configured_env_keys"] == ["DATABASE_URL"]
+    assert shared["publication_config"]["oracle_specific_env_present"] is False
+    assert shared["publication_config"]["ambient_database_url_present"] is True
+    assert shared["publication_config"]["publication_ready_configured"] is False
+    assert "ambient-secret" not in json.dumps(status)
 
 
 def test_oracle_backend_status_cli_json(tmp_path: Path, monkeypatch) -> None:
@@ -121,7 +132,7 @@ def test_oracle_backend_status_cli_json(tmp_path: Path, monkeypatch) -> None:
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert payload["status"] == "local_sqlite_default"
+    assert payload["status"] == "local_sqlite_default_shared_postgres_opt_in"
     assert payload["coordinate_index"]["backend"] == "sqlite"
     assert payload["coordinate_index"]["path"] == str(index_path.resolve())
     assert payload["shared_postgres_backend"]["supported"] is True

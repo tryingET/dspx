@@ -18,6 +18,7 @@ type: "rfc"
 - Created: `2026-05-06`
 - Target milestone: `shared Oracle production-readiness follow-up`
 - Related docs:
+  - `docs/project/oracle-backend-current-status.md`
   - `docs/rfc/RFC-DSPX-ORACLE-20260505-shared-coordinate-backend.md`
   - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
   - `docs/project/2026-05-06-review-oracle-evidence-publication-boundary-many-greats.md`
@@ -36,7 +37,7 @@ type: "rfc"
 
 ## 1) Problem statement
 
-DSPx now has three database-like surfaces that can be confused:
+Current backend/storage truth is maintained in [[oracle-backend-current-status]]. At the publication-boundary level, DSPx has database-like surfaces that can be confused:
 
 1. `society.v2.db` / Agent Kernel, backed by Frankensqlite, is the canonical society authority substrate for tasks, decisions, evidence bindings, transitions, and activation truth.
 2. Candidate-local Oracle indexes, currently SQLite `CoordinateIndex` files such as `<candidate>/oracle/coordinates.db`, are scratch/local semantic indexes for interpreting one generated candidate's evidence.
@@ -77,7 +78,7 @@ This RFC defines the publication boundary: how curated Oracle-readable evidence 
 - Candidate-local `coordinates.db` files are scratch indexes/caches, not source-of-truth artifacts.
 - Shared publication re-indexes canonical artifacts (`oracle_evidence.json`, manifest, receipts, sidecars), not local DB files.
 - Shared Oracle publication is explicit, idempotent, provenance-preserving, and non-authoritative.
-- The first legal implementation slice is publication preflight only: no shared writes.
+- Decision-time first slice was publication preflight only; current explicit publish behavior and backend posture are summarized in [[oracle-backend-current-status]].
 - Missing or `unknown` redaction status fails closed for shared publication eligibility.
 - Authority-mirror labels require an explicit external authority ref; Oracle stores that ref only as a mirror/reference, never as authority truth.
 - No secret values, DB passwords, or full secret-bearing URLs are stored in RFC examples or shared records.
@@ -373,7 +374,7 @@ Each shared Oracle record should carry at least:
 - Review with DSPx core and AK/governance liaison.
 - Decide whether this RFC needs a separate ADR or can be folded into the accepted shared coordinate backend ADR as an implementation constraint.
 
-### Phase 1 — Publication preflight only
+### Phase 1 — Publication preflight only (decision-time baseline)
 
 This is the only legal first implementation slice.
 

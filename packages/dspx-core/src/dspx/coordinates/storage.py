@@ -904,8 +904,9 @@ def open_coordinate_store(
 ) -> CoordinateStore:
     """Open a coordinate store using the current explicit backend contract.
 
-    ``sqlite`` is the only implemented backend today.  A shared Postgres/pgvector
-    store must be added behind this boundary later and must remain explicit opt-in.
+    ``sqlite`` remains the default local/offline backend.  ``postgres_pgvector`` is
+    available only behind explicit Oracle shared-store configuration and must not be
+    selected implicitly by candidate-local program evidence indexing/reporting.
     """
 
     store_name = (store or os.getenv("DSPX_ORACLE_STORE") or "sqlite").strip().lower()
@@ -917,7 +918,7 @@ def open_coordinate_store(
         return PostgresPgvectorCoordinateStore()
     raise ValueError(
         f"Unsupported DSPx Oracle coordinate store '{store_name}'. "
-        "Supported today: sqlite"
+        "Supported: sqlite, postgres_pgvector"
     )
 
 

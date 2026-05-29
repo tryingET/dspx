@@ -22,6 +22,7 @@ type: "rfc"
   - `docs/ARCHITECTURE.md`
   - `docs/ORACLE_TIME_TRAVEL.md`
   - `docs/project/2026-05-05-review-shared-oracle-coordinate-backend.md`
+  - `docs/project/oracle-backend-current-status.md`
   - `docs/adr/20260505-shared-oracle-coordinate-backend.md`
   - `docs/adr/20260322-synthesis-architecture-v7-v9.md`
   - `docs/adr/20260323-synthesis-evidence-retrieval-v1.md`
@@ -91,12 +92,14 @@ Pi session JSONL is historical capture, not canonical repo authority. This RFC i
 
 ## 4) Current state evidence
 
+Current backend/storage truth is maintained in [[oracle-backend-current-status]]. The notes below preserve the RFC decision-time evidence and may be historical when they describe deployment status.
+
 ### Implemented today
 
 - `dspx.coordinates.storage.CoordinateIndex` is SQLite-backed.
 - Default local index path is `generated/oracle/coordinates.db`, or `DSPX_ORACLE_INDEX_PATH` when set.
 - `dspx oracle backend-status --json` reports the current backend truth without creating indexes or exposing secret values.
-- `dspx oracle backend-status --json` links the DS1621 infra contract as `contract_only_not_deployed` rather than implying a live shared backend.
+- `dspx oracle backend-status --json` reports local-default vs explicit shared-backend posture without creating indexes, connecting to Postgres, or exposing secret values; see [[oracle-backend-current-status]] for current pilot truth.
 - Generated-program activation packets can include Oracle reports as evidence, while staying blocked until governance/authority requirements are met.
 
 ### Operational context
@@ -343,7 +346,7 @@ Oracle may not:
 
 - implementation:
   - land this RFC as `draft`;
-  - keep `dspx oracle backend-status` truthful: local SQLite only until implementation lands.
+  - keep `dspx oracle backend-status` truthful about local SQLite defaults and any explicit shared-backend implementation status.
 - tests:
   - docs strict;
   - task-scope check.

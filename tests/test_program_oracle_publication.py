@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -174,6 +175,72 @@ def test_program_oracle_publish_rejects_tampered_artifact_after_preflight(
     evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
 
     with pytest.raises(ProgramOraclePublicationError, match="hash no longer matches"):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_program_oracle_publish_rejects_runtime_trace_artifact_drift_after_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    traces_path = root / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["status"] = "tampered"
+    traces_path.write_text(json.dumps(traces, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramOraclePublicationError,
+        match="runtime traces hash no longer matches",
+    ):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_program_oracle_publish_rejects_runtime_trace_preflight_summary_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    traces = json.loads(
+        (root / "program_runtime_traces.json").read_text(encoding="utf-8")
+    )
+    traces["status"] = "alternate"
+    alternate = tmp_path / "alternate_runtime_traces.json"
+    alternate.write_text(json.dumps(traces, indent=2) + "\n", encoding="utf-8")
+    preflight["created_from"]["runtime_traces_path"] = str(alternate)
+    preflight["artifact_hashes"]["runtime_traces_sha256"] = hashlib.sha256(
+        alternate.read_bytes()
+    ).hexdigest()
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramOraclePublicationError,
+        match="runtime traces hash does not match program Oracle evidence summary",
+    ):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_program_oracle_publish_rejects_tampered_runtime_trace_planned_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["planned_record"]["runtime_traces"]["module_calls"] = [
+        {"leak": "raw-trace"}
+    ]
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramOraclePublicationError, match="runtime_traces"):
         publish_program_oracle_preflight(
             preflight_path=preflight_path,
             store=cast(CoordinateStore, FakeSharedOracleStore()),

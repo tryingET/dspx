@@ -147,6 +147,8 @@ def _config_text(payload: Mapping[str, Any]) -> str:
     intent = _mapping_or_empty(payload.get("intent"))
     io = _mapping_or_empty(payload.get("io"))
     non_authority = _mapping_or_empty(payload.get("non_authority"))
+    runtime_traces = _mapping_or_empty(payload.get("runtime_traces"))
+    runtime_trace_coverage = _mapping_or_empty(runtime_traces.get("coverage"))
     return "\n".join(
         [
             f"schema_version={payload.get('schema_version')}",
@@ -156,6 +158,11 @@ def _config_text(payload: Mapping[str, Any]) -> str:
             f"input_fields={_json_compact(io.get('inputs') or oracle_facets.get('input_fields') or [])}",
             f"output_fields={_json_compact(io.get('outputs') or oracle_facets.get('output_fields') or [])}",
             f"authority={payload.get('authority')}",
+            f"runtime_traces.status={runtime_traces.get('status')}",
+            f"runtime_traces.coverage_status={runtime_trace_coverage.get('status')}",
+            f"runtime_traces.source_record_coverage_status={runtime_trace_coverage.get('source_record_coverage_status')}",
+            f"runtime_traces.module_call_count={runtime_traces.get('module_call_count')}",
+            f"runtime_traces.final_output_trace_count={runtime_traces.get('final_output_trace_count')}",
             f"non_authority={_json_compact(non_authority)}",
         ]
     )
@@ -180,6 +187,7 @@ def build_program_oracle_evidence_embedding(
         "identity": identity,
         "oracle_facets": _mapping_or_empty(payload.get("oracle_facets")),
         "behavior": behavior,
+        "runtime_traces": _mapping_or_empty(payload.get("runtime_traces")),
         "source_artifacts": list(payload.get("source_artifacts") or []),
         "non_authority": _mapping_or_empty(payload.get("non_authority")),
         "authority": payload.get("authority"),

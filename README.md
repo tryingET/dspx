@@ -384,9 +384,9 @@ DSPX_ORACLE_EMBEDDING_BACKEND=mock just dspx oracle index \
   --json
 ```
 
-That command indexes `program-oracle-evidence-v1` records for later Oracle interpretation/search. It does not rank, prune, promote, block, approve, export authority, or mutate governance state.
+That command indexes `program-oracle-evidence-v1` records for later Oracle interpretation/search. It does not rank, prune, promote, block, approve, export authority, or mutate governance state. Shared publication uses a stricter explicit preflight/publish path, documented in `docs/project/oracle-backend-current-status.md`, that verifies runtime-trace summary hashes before any shared write.
 
-The current Oracle storage backend is intentionally local SQLite only. The DS1621 Postgres service discussed in the MLflow setup backs MLflow metadata, not Oracle coordinates; DSPx does not currently provision or consume a shared Oracle Postgres/pgvector backend. To make that boundary executable, inspect it with:
+Oracle has two coordinate-store surfaces depending on use case: local SQLite `CoordinateIndex` remains the default/offline candidate index, while shared DS1621 Postgres/pgvector is explicit opt-in for curated empirical publication. DS1621 MLflow Postgres is separate from both Oracle coordinate surfaces. See `docs/project/oracle-backend-current-status.md`; to make the boundary executable, inspect it with:
 
 ```bash
 just dspx oracle backend-status --json

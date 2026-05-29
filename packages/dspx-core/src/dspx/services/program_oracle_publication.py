@@ -84,6 +84,21 @@ def _sha256_payload(payload: Mapping[str, Any]) -> str:
     ).hexdigest()
 
 
+def _runtime_trace_publication_summary(summary: Mapping[str, Any]) -> dict[str, Any]:
+    coverage = _safe_mapping(summary.get("coverage"))
+    return {
+        "path": summary.get("path"),
+        "content_hash": summary.get("content_hash"),
+        "status": summary.get("status"),
+        "source_count": summary.get("source_count"),
+        "module_call_count": summary.get("module_call_count"),
+        "final_output_trace_count": summary.get("final_output_trace_count"),
+        "coverage_status": coverage.get("status"),
+        "source_record_coverage_status": coverage.get("source_record_coverage_status"),
+        "non_authority": _safe_mapping(summary.get("non_authority")),
+    }
+
+
 def _required_text(value: object, *, field: str) -> str:
     text = str(value or "").strip()
     if not text:
@@ -169,11 +184,15 @@ def _ensure_preflight_passed(
         "oracle_evidence_present",
         "oracle_evidence_non_authority_valid",
         "identity_matches_manifest",
+        "runtime_trace_summary_valid",
+        "runtime_trace_hash_match",
+        "runtime_trace_semantics_valid",
         "publication_label_valid",
         "authority_ref_requirement_satisfied",
         "publisher_fields_present",
         "redaction_status_eligible",
         "retention_class_eligible",
+        "ready_for_shared_publication",
     )
     failed = [key for key in required_true if checks.get(key) is not True]
     if failed:
@@ -181,10 +200,28 @@ def _ensure_preflight_passed(
             "preflight checks are not publishable: " + ", ".join(failed)
         )
     blocking = checks.get("blocking_reasons")
-    if blocking != ["shared_publication_not_implemented"]:
+    if blocking != []:
         raise ProgramOraclePublicationError(
-            "preflight blocking_reasons must only contain shared_publication_not_implemented"
+            "preflight blocking_reasons must be empty before shared publication"
         )
+
+
+def _resolve_candidate_relative_path(
+    candidate_root: Path, relative_path: str, *, label: str
+) -> Path:
+    if Path(relative_path).is_absolute():
+        raise ProgramOraclePublicationError(
+            f"{label} must be relative to candidate root"
+        )
+    root = candidate_root.resolve()
+    resolved = (root / relative_path).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ProgramOraclePublicationError(
+            f"{label} must stay within candidate root"
+        ) from exc
+    return resolved
 
 
 def _validate_preflight_hashes(
@@ -227,14 +264,69 @@ def _validate_preflight_hashes(
         raise ProgramOraclePublicationError(
             "program manifest hash no longer matches preflight packet"
         )
+    runtime_traces_path_text = _required_text(
+        created_from.get("runtime_traces_path"),
+        field="created_from.runtime_traces_path",
+    )
+    runtime_traces_path = Path(runtime_traces_path_text).expanduser().resolve()
+    expected_runtime_traces_hash = _required_text(
+        artifact_hashes.get("runtime_traces_sha256"),
+        field="artifact_hashes.runtime_traces_sha256",
+    )
+    if _sha256_file(runtime_traces_path) != expected_runtime_traces_hash:
+        raise ProgramOraclePublicationError(
+            "program runtime traces hash no longer matches preflight packet"
+        )
     return (
         evidence_path,
         manifest_path,
         {
             "manifest_sha256": expected_manifest_hash,
             "oracle_evidence_sha256": actual_hash,
+            "runtime_traces_sha256": expected_runtime_traces_hash,
         },
     )
+
+
+def _validate_runtime_trace_preflight_binding(
+    *,
+    preflight: Mapping[str, Any],
+    evidence: Mapping[str, Any],
+    manifest_path: Path,
+    artifact_hashes: Mapping[str, str],
+) -> None:
+    evidence_summary = _safe_mapping(evidence.get("runtime_traces"))
+    evidence_path = _required_text(
+        evidence_summary.get("path"), field="evidence.runtime_traces.path"
+    )
+    evidence_hash = _required_text(
+        evidence_summary.get("content_hash"),
+        field="evidence.runtime_traces.content_hash",
+    )
+    if evidence_hash != artifact_hashes.get("runtime_traces_sha256"):
+        raise ProgramOraclePublicationError(
+            "preflight runtime traces hash does not match program Oracle evidence summary"
+        )
+    expected_runtime_path = _resolve_candidate_relative_path(
+        manifest_path.parent,
+        evidence_path,
+        label="evidence.runtime_traces.path",
+    )
+    created_from = _safe_mapping(preflight.get("created_from"))
+    runtime_traces_path = (
+        Path(
+            _required_text(
+                created_from.get("runtime_traces_path"),
+                field="created_from.runtime_traces_path",
+            )
+        )
+        .expanduser()
+        .resolve()
+    )
+    if runtime_traces_path != expected_runtime_path:
+        raise ProgramOraclePublicationError(
+            "preflight runtime traces path does not match program Oracle evidence summary"
+        )
 
 
 def _expected_publication_id(
@@ -268,6 +360,7 @@ def _validate_publication_contract(
     *,
     preflight: Mapping[str, Any],
     target_name: str,
+    evidence: Mapping[str, Any],
     evidence_identity: Mapping[str, Any],
     artifact_hashes: Mapping[str, str],
 ) -> tuple[str, dict[str, Any], dict[str, Any]]:
@@ -337,6 +430,10 @@ def _validate_publication_contract(
         "publisher_secret_refs": secret_refs,
         "oracle_evidence_sha256": artifact_hashes["oracle_evidence_sha256"],
         "manifest_sha256": artifact_hashes["manifest_sha256"],
+        "runtime_traces_sha256": artifact_hashes["runtime_traces_sha256"],
+        "runtime_traces": _runtime_trace_publication_summary(
+            _safe_mapping(evidence.get("runtime_traces"))
+        ),
     }
     mismatched = [
         key
@@ -456,7 +553,7 @@ def publish_program_oracle_preflight(
     if target_name not in TARGETS:
         raise ProgramOraclePublicationError("preflight target is not supported")
 
-    evidence_path, _manifest_path, artifact_hashes = _validate_preflight_hashes(
+    evidence_path, manifest_path, artifact_hashes = _validate_preflight_hashes(
         preflight
     )
     evidence_hash = artifact_hashes["oracle_evidence_sha256"]
@@ -470,10 +567,17 @@ def publish_program_oracle_preflight(
             + PROGRAM_ORACLE_EVIDENCE_SCHEMA
         )
 
+    _validate_runtime_trace_preflight_binding(
+        preflight=preflight,
+        evidence=evidence,
+        manifest_path=manifest_path,
+        artifact_hashes=artifact_hashes,
+    )
     evidence_identity = _safe_mapping(evidence.get("identity"))
     publication_id, publication, planned_record = _validate_publication_contract(
         preflight=preflight,
         target_name=target_name,
+        evidence=evidence,
         evidence_identity=evidence_identity,
         artifact_hashes=artifact_hashes,
     )

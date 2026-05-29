@@ -94,6 +94,13 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
     assert report["input_field_counts"] == {"ticket_text": 1}
     assert report["output_field_counts"] == {"urgency": 1}
     assert report["behavior_source_kind_counts"] == {"inline_examples": 1}
+    assert sum(report["runtime_trace_status_counts"].values()) == 1
+    assert sum(report["runtime_trace_coverage_status_counts"].values()) == 1
+    assert (
+        sum(report["runtime_trace_source_record_coverage_status_counts"].values()) == 1
+    )
+    assert report["runtime_trace_module_call_count"] >= 1
+    assert report["runtime_trace_final_output_trace_count"] >= 1
     assert report["evidence_source_count"] == 1
     assert report["total_evaluation_count"] == 1
 
@@ -113,6 +120,14 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
     assert record["input_fields"] == ["ticket_text"]
     assert record["output_fields"] == ["urgency"]
     assert record["behavior_source_kinds"] == ["inline_examples"]
+    assert record["runtime_traces"]["path"] == "program_runtime_traces.json"
+    assert record["runtime_traces"]["content_hash"]
+    assert record["runtime_traces"]["module_call_count"] >= 1
+    assert record["runtime_traces"]["coverage_status"] in {
+        "complete",
+        "partial",
+        "not_applicable_no_behavior_sources",
+    }
     assert record["evidence_source_count"] == 1
     assert record["total_evaluation_count"] == 1
     assert record["evidence_path"] == str(program_root / "oracle_evidence.json")

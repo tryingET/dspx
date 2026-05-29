@@ -125,6 +125,36 @@ def _behavior_source_kinds(behavior: Mapping[str, Any]) -> list[str]:
     return sorted(kinds)
 
 
+def _safe_int(value: object) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    return 0
+
+
+def _runtime_trace_record(metadata: Mapping[str, Any]) -> dict[str, Any]:
+    runtime_traces = _safe_mapping(metadata.get("runtime_traces"))
+    coverage = _safe_mapping(runtime_traces.get("coverage"))
+    return {
+        "status": str(runtime_traces.get("status") or "unknown"),
+        "path": runtime_traces.get("path"),
+        "content_hash": runtime_traces.get("content_hash"),
+        "module_call_count": _safe_int(runtime_traces.get("module_call_count")),
+        "final_output_trace_count": _safe_int(
+            runtime_traces.get("final_output_trace_count")
+        ),
+        "coverage_status": str(coverage.get("status") or "unknown"),
+        "source_record_coverage_status": str(
+            coverage.get("source_record_coverage_status") or "unknown"
+        ),
+        "missing_module_count": _safe_int(coverage.get("missing_module_count")),
+        "missing_final_output_field_count": _safe_int(
+            coverage.get("missing_final_output_field_count")
+        ),
+    }
+
+
 def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
     metadata = embedding.metadata
     facets = _safe_mapping(metadata.get("oracle_facets"))
@@ -155,6 +185,7 @@ def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
         "evidence_hash": metadata.get("evidence_hash"),
         "source_artifact_kinds": _source_artifact_kinds(metadata),
         "behavior_source_kinds": source_kinds,
+        "runtime_traces": _runtime_trace_record(metadata),
         "evidence_source_count": _safe_mapping(behavior.get("evidence_summary")).get(
             "source_count", facets.get("evidence_source_count")
         ),
@@ -177,8 +208,13 @@ def summarize_program_oracle_evidence(
     output_field_counts: Counter[str] = Counter()
     failure_signal_counts: Counter[str] = Counter()
     behavior_source_kind_counts: Counter[str] = Counter()
+    runtime_trace_status_counts: Counter[str] = Counter()
+    runtime_trace_coverage_status_counts: Counter[str] = Counter()
+    runtime_trace_source_record_coverage_status_counts: Counter[str] = Counter()
     total_evaluation_count = 0
     evidence_source_count = 0
+    runtime_trace_module_call_count = 0
+    runtime_trace_final_output_trace_count = 0
 
     for record in records:
         behavior_status_counts[str(record["behavior_status"])] += 1
@@ -188,8 +224,22 @@ def summarize_program_oracle_evidence(
         output_field_counts.update(record["output_fields"])
         failure_signal_counts.update(record["failure_signals"])
         behavior_source_kind_counts.update(record["behavior_source_kinds"])
+        runtime_traces = _safe_mapping(record.get("runtime_traces"))
+        runtime_trace_status_counts[str(runtime_traces.get("status") or "unknown")] += 1
+        runtime_trace_coverage_status_counts[
+            str(runtime_traces.get("coverage_status") or "unknown")
+        ] += 1
+        runtime_trace_source_record_coverage_status_counts[
+            str(runtime_traces.get("source_record_coverage_status") or "unknown")
+        ] += 1
         total_evaluation_count += int(record.get("total_evaluation_count") or 0)
         evidence_source_count += int(record.get("evidence_source_count") or 0)
+        runtime_trace_module_call_count += _safe_int(
+            runtime_traces.get("module_call_count")
+        )
+        runtime_trace_final_output_trace_count += _safe_int(
+            runtime_traces.get("final_output_trace_count")
+        )
 
     return {
         "total_records": len(records),
@@ -200,6 +250,15 @@ def summarize_program_oracle_evidence(
         "output_field_counts": _counter_payload(output_field_counts),
         "failure_signal_counts": _counter_payload(failure_signal_counts),
         "behavior_source_kind_counts": _counter_payload(behavior_source_kind_counts),
+        "runtime_trace_status_counts": _counter_payload(runtime_trace_status_counts),
+        "runtime_trace_coverage_status_counts": _counter_payload(
+            runtime_trace_coverage_status_counts
+        ),
+        "runtime_trace_source_record_coverage_status_counts": _counter_payload(
+            runtime_trace_source_record_coverage_status_counts
+        ),
+        "runtime_trace_module_call_count": runtime_trace_module_call_count,
+        "runtime_trace_final_output_trace_count": runtime_trace_final_output_trace_count,
         "evidence_source_count": evidence_source_count,
         "total_evaluation_count": total_evaluation_count,
         "records": records,

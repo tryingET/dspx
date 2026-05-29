@@ -22,6 +22,7 @@ Related canonical context:
 
 - [[program-gen-walkthrough]]
 - [[program-synthesis-boundary]]
+- [[oracle-backend-current-status]]
 - [[OBSERVABILITY_ARCH_DRAFTS]]
 - [[20260505-shared-oracle-coordinate-backend]]
 - [[20260506-oracle-evidence-publication-boundary]]
@@ -34,7 +35,7 @@ Related canonical context:
 | Run receipts / replay | Local reproducibility and evidence hash checks | `*.meta.json`, `manifest.json`, `run_replay_service.py` | Observability backend, Oracle index, approval authority |
 | `program_runtime_traces.json` | Candidate-local semantic trace contract | Generated behavior results plus pipeline trace fragments; replay-validated JSON sidecar | MLflow replacement, Oracle index, tool execution permission, promotion evidence by itself |
 | MLflow / SQLite | Observability and artifact run tracking | Explicit `MLFLOW_TRACKING_URI`; tags/params/metrics/artifacts; optional SQLite URI | Replay source of truth, Oracle storage, automatic local fallback, production authority |
-| DSPx Oracle | Empirical semantic evidence indexing and reporting | `CoordinateIndex` / `CoordinateStore`, default local SQLite `coordinates.db`; `oracle_evidence.json` ingestion | MLflow backend, raw trace validator, ranking/promoting/activation authority |
+| DSPx Oracle | Empirical semantic evidence indexing and reporting | Local SQLite `CoordinateIndex` by default; explicit shared Postgres/pgvector publication only after preflight; `oracle_evidence.json` ingestion | MLflow backend, raw trace validator, ranking/promoting/activation authority |
 | `oracle_evidence.json` | Oracle-readable behavior summary | Derived from behavior/evaluation sources; indexed by `dspx oracle index --from-program-evidence` | Full trace log, authority record, direct MLflow export |
 | AK / governance / owning domain | Canonical decisions, evidence bindings, transitions, activation truth | External authority surfaces, not DSPx local sidecars | Convenience mirror of Oracle/MLflow/replay state |
 
@@ -61,9 +62,10 @@ manifest.json + manifest.json.meta.json
 - DSPy/MLflow autolog traces are off by default in the current DSPx baseline.
 - Oracle `--from-mlflow` scans local MLflow artifact files; it is not a general MLflow backend/API reader.
 - Oracle program-evidence indexing consumes `program-oracle-evidence-v1` / `oracle_evidence.json`, not `program_runtime_traces.json` directly.
-- `oracle_evidence.json` may include a hash-bound summary of `program_runtime_traces.json` so Oracle reports can mention trace presence/coverage, but Oracle still does not open or validate runtime traces.
+- `oracle_evidence.json` may include a hash-bound summary of `program_runtime_traces.json` so Oracle reports can mention trace presence/coverage, but local Oracle indexing/reporting still does not open or validate runtime traces.
+- Shared Oracle program-evidence publication preflight is stricter than local indexing: before a shared publish command can proceed, it verifies the runtime-trace summary path/hash, rejects raw trace records in the Oracle summary, and runs replay-semantic validation over the referenced trace artifact.
 - `program_runtime_traces.json` is replay semantic evidence: module calls, final outputs, linkage, coverage, trace hashes, no-tool posture, and non-authority flags.
-- Candidate-local Oracle `coordinates.db` files are scratch/cache indexes. Shared Oracle publication, where allowed, re-indexes curated canonical artifacts rather than copying local DB files.
+- Candidate-local Oracle `coordinates.db` files are scratch/cache indexes. Shared Oracle publication, where allowed, re-indexes curated canonical artifacts rather than copying local DB files; current backend posture is centralized in [[oracle-backend-current-status]].
 - None of these DSPx evidence surfaces can rank, select, promote, activate, mutate AK/governance, or mutate external authority by themselves.
 
 ## How to extend without blurring surfaces

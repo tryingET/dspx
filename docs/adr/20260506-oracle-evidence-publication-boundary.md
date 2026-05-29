@@ -22,7 +22,7 @@ system4d:
       - "Candidate-local coordinates.db files are scratch/cache and must not be migrated wholesale."
       - "Shared Oracle Postgres stores empirical behavioral memory and opaque authority references only."
       - "Shared publication is explicit, idempotent, redaction-aware, and non-authoritative."
-      - "The first legal implementation slice is publication preflight only: no shared writes."
+      - "Publication remains explicit, preflighted, non-authoritative, and separated from program-loop convenience."
       - "Authority-mirror labels require explicit authority refs."
   fog:
     risks:
@@ -43,6 +43,7 @@ system4d:
 - reviewers: DSPx core reviewers, AK/governance liaison, softwareco/infra DS1621 operator
 - AK decision: `#31 Review Oracle evidence publication boundary from initial RFC`
 - related_docs:
+  - `docs/project/oracle-backend-current-status.md`
   - `docs/rfc/RFC-DSPX-ORACLE-20260506-evidence-publication-boundary.md`
   - `docs/project/2026-05-06-problem-oracle-evidence-publication-boundary.md`
   - `docs/project/2026-05-06-evidence-oracle-evidence-publication-boundary.md`
@@ -56,13 +57,17 @@ system4d:
   - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/transition-passports/generated-cognition-program-production-activation.md`
   - `~/ai-society/softwareco/infra/ds1621-admin/docs/project/ds1621-oracle-coordinate-backend-contract.md`
 
+## Current-status note
+
+This ADR is decision-time rationale. The current backend/publication posture is maintained in [[oracle-backend-current-status]] so implementation readiness, shared publish availability, and pilot facts do not drift across ADR/RFC copies.
+
 ## Executive summary
 
 DSPx will treat shared Oracle Postgres as curated empirical behavioral memory, not as a second society authority database. `society.v2.db` / Agent Kernel remains canonical authority for tasks, decisions, evidence bindings, transitions, and activation truth where landed.
 
 Future shared Oracle publication must re-index canonical DSPx candidate artifacts into the shared backend with provenance, curation labels, publisher identity/responsibility, redaction status, retention class, retraction posture, idempotency keys, and non-authority flags. It must not copy candidate-local SQLite `coordinates.db` files wholesale.
 
-The first implementation slice authorized by this decision is publication preflight only. Shared writes and `program-loop --publish-to-shared` convenience remain future work after preflight is proven.
+The first implementation slice authorized by this decision was publication preflight only. Explicit standalone shared publish has since landed behind opt-in backend configuration; `program-loop --publish-to-shared` convenience remains future work.
 
 ## Context
 

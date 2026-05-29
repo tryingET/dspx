@@ -17,6 +17,10 @@ from dspx.services.program_oracle_secret_policy import (
     build_onepassword_ref_descriptors,
     validate_publisher_assertion_no_secret,
 )
+from dspx.services.program_runtime_traces import (
+    PROGRAM_RUNTIME_TRACES_SCHEMA,
+    validate_program_runtime_traces,
+)
 
 PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA = (
     "program-oracle-shared-publication-preflight-v1"
@@ -107,6 +111,143 @@ def _sha256_payload(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+
+
+def _runtime_trace_publication_summary(summary: Mapping[str, Any]) -> dict[str, Any]:
+    coverage = _safe_mapping(summary.get("coverage"))
+    return {
+        "path": summary.get("path"),
+        "content_hash": summary.get("content_hash"),
+        "status": summary.get("status"),
+        "source_count": summary.get("source_count"),
+        "module_call_count": summary.get("module_call_count"),
+        "final_output_trace_count": summary.get("final_output_trace_count"),
+        "coverage_status": coverage.get("status"),
+        "source_record_coverage_status": coverage.get("source_record_coverage_status"),
+        "non_authority": _safe_mapping(summary.get("non_authority")),
+    }
+
+
+def _source_artifact_hash(
+    source_artifacts: object, *, kind: str, path: str
+) -> str | None:
+    if not isinstance(source_artifacts, list):
+        return None
+    for artifact in source_artifacts:
+        if not isinstance(artifact, Mapping):
+            continue
+        item = _safe_mapping(artifact)
+        if item.get("kind") == kind and item.get("path") == path:
+            value = item.get("content_hash")
+            return value if isinstance(value, str) and value else None
+    return None
+
+
+def _resolve_candidate_relative_path(
+    candidate_root: Path, relative_path: str, *, label: str
+) -> Path:
+    if Path(relative_path).is_absolute():
+        raise ProgramOraclePublicationPreflightError(
+            f"{label} must be relative to the candidate root"
+        )
+    root = candidate_root.resolve()
+    resolved = (root / relative_path).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ProgramOraclePublicationPreflightError(
+            f"{label} must stay within the candidate root"
+        ) from exc
+    return resolved
+
+
+def _runtime_trace_expected_publication_summary(
+    *,
+    summary_path: str,
+    expected_hash: str,
+    runtime_traces: Mapping[str, Any],
+) -> dict[str, Any]:
+    coverage = _safe_mapping(runtime_traces.get("coverage"))
+    return {
+        "path": summary_path,
+        "content_hash": expected_hash,
+        "status": runtime_traces.get("status"),
+        "source_count": runtime_traces.get("source_count"),
+        "module_call_count": runtime_traces.get("module_call_count"),
+        "final_output_trace_count": runtime_traces.get("final_output_trace_count"),
+        "coverage_status": coverage.get("status"),
+        "source_record_coverage_status": coverage.get("source_record_coverage_status"),
+        "non_authority": _safe_mapping(runtime_traces.get("non_authority")),
+    }
+
+
+def _validate_runtime_trace_summary(
+    oracle_evidence: Mapping[str, Any], candidate_root: Path
+) -> tuple[Path, dict[str, Any], dict[str, Any]]:
+    raw_summary = oracle_evidence.get("runtime_traces")
+    if not isinstance(raw_summary, Mapping):
+        raise ProgramOraclePublicationPreflightError(
+            "program Oracle evidence must include runtime_traces summary for shared publication"
+        )
+    summary = dict(raw_summary)
+    if "module_calls" in summary or "final_outputs" in summary:
+        raise ProgramOraclePublicationPreflightError(
+            "program Oracle evidence runtime_traces summary must not include raw trace records"
+        )
+    relative_path = str(summary.get("path") or "").strip()
+    expected_hash = str(summary.get("content_hash") or "").strip()
+    if not relative_path or not expected_hash:
+        raise ProgramOraclePublicationPreflightError(
+            "program Oracle evidence runtime_traces summary requires path and content_hash"
+        )
+    source_hash = _source_artifact_hash(
+        oracle_evidence.get("source_artifacts"),
+        kind="runtime_traces",
+        path=relative_path,
+    )
+    if source_hash != expected_hash:
+        raise ProgramOraclePublicationPreflightError(
+            "program Oracle evidence runtime_traces source_artifacts hash does not match summary"
+        )
+    runtime_traces_path = _resolve_candidate_relative_path(
+        candidate_root,
+        relative_path,
+        label="program Oracle evidence runtime_traces path",
+    )
+    runtime_traces = _load_json_object(
+        runtime_traces_path, label="program runtime traces"
+    )
+    if runtime_traces.get("schema_version") != PROGRAM_RUNTIME_TRACES_SCHEMA:
+        raise ProgramOraclePublicationPreflightError(
+            "program runtime traces schema_version must be "
+            + PROGRAM_RUNTIME_TRACES_SCHEMA
+        )
+    actual_hash = _sha256_file(runtime_traces_path)
+    if actual_hash != expected_hash:
+        raise ProgramOraclePublicationPreflightError(
+            "program runtime traces hash does not match Oracle evidence summary"
+        )
+    if not validate_program_runtime_traces(runtime_traces):
+        raise ProgramOraclePublicationPreflightError(
+            "program runtime traces failed replay-semantic validation"
+        )
+    publication_summary = _runtime_trace_publication_summary(summary)
+    expected_summary = _runtime_trace_expected_publication_summary(
+        summary_path=relative_path,
+        expected_hash=expected_hash,
+        runtime_traces=runtime_traces,
+    )
+    mismatched = [
+        key
+        for key, expected in expected_summary.items()
+        if publication_summary.get(key) != expected
+    ]
+    if mismatched:
+        raise ProgramOraclePublicationPreflightError(
+            "program Oracle evidence runtime_traces summary does not match artifact: "
+            + ", ".join(sorted(mismatched))
+        )
+    return runtime_traces_path, runtime_traces, publication_summary
 
 
 def _manifest_identity(manifest: Mapping[str, Any]) -> dict[str, str | None]:
@@ -375,9 +516,16 @@ def build_program_oracle_publication_preflight(
         manifest_identity=identity,
     )
     oracle_evidence_hash = _sha256_file(oracle_evidence_file)
+    (
+        runtime_traces_file,
+        runtime_traces_payload,
+        runtime_trace_summary,
+    ) = _validate_runtime_trace_summary(oracle_evidence, manifest_file.parent)
+    runtime_traces_hash = _sha256_file(runtime_traces_file)
     artifact_hashes = {
         "manifest_sha256": manifest_hash,
         "oracle_evidence_sha256": oracle_evidence_hash,
+        "runtime_traces_sha256": runtime_traces_hash,
     }
     publication_id = _idempotency_key(
         target=normalized_target,
@@ -401,6 +549,10 @@ def build_program_oracle_publication_preflight(
             "manifest_schema_version": manifest.get("schema_version"),
             "oracle_evidence_path": str(oracle_evidence_file),
             "oracle_evidence_schema_version": oracle_evidence.get("schema_version"),
+            "runtime_traces_path": str(runtime_traces_file),
+            "runtime_traces_schema_version": runtime_traces_payload.get(
+                "schema_version"
+            ),
         },
         "identity": identity,
         "artifact_hashes": artifact_hashes,
@@ -428,14 +580,17 @@ def build_program_oracle_publication_preflight(
             "oracle_evidence_present": True,
             "oracle_evidence_non_authority_valid": True,
             "identity_matches_manifest": True,
+            "runtime_trace_summary_valid": True,
+            "runtime_trace_hash_match": True,
+            "runtime_trace_semantics_valid": True,
             "publication_label_valid": True,
             "authority_ref_requirement_satisfied": True,
             "publisher_fields_present": True,
             "redaction_status_eligible": True,
             "retention_class_eligible": True,
-            "ready_for_shared_publication": False,
-            "ready_for_shared_publication_reason": "preflight_only_no_shared_write_implemented",
-            "blocking_reasons": ["shared_publication_not_implemented"],
+            "ready_for_shared_publication": True,
+            "ready_for_shared_publication_reason": "preflight_passed_publish_requires_explicit_shared_backend",
+            "blocking_reasons": [],
         },
         "idempotency": {
             "publication_id": publication_id,
@@ -452,6 +607,8 @@ def build_program_oracle_publication_preflight(
             "receipt_bundle_id": identity.get("receipt_bundle_id"),
             "oracle_evidence_sha256": oracle_evidence_hash,
             "manifest_sha256": manifest_hash,
+            "runtime_traces_sha256": runtime_traces_hash,
+            "runtime_traces": runtime_trace_summary,
             "publication_label": normalized_label,
             "publication_label_class": label_class,
             "publisher_id": normalized_publisher_id,
@@ -497,7 +654,7 @@ def build_program_oracle_publication_preflight(
             "This packet is a local shared-Oracle publication preflight only.",
             "No shared Oracle backend was contacted or mutated.",
             "Publisher identity is declared custody context, not authenticated authority.",
-            "A future publish command must perform shared backend checks and emit a publication receipt.",
+            "The publish command must perform shared backend checks and emit a publication receipt.",
         ],
     }
 
