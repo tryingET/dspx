@@ -4,6 +4,12 @@ import hashlib
 import json
 from typing import Any, Mapping
 
+from dspx.services.program_runtime_trace_coverage import (
+    source_record_coverage,
+    source_record_coverage_status,
+    source_record_coverage_valid,
+)
+
 PROGRAM_RUNTIME_TRACES_SCHEMA = "program-runtime-traces-v1"
 PROGRAM_RUNTIME_MODULE_CALL_SCHEMA = "program-runtime-module-call-v1"
 PROGRAM_RUNTIME_FINAL_OUTPUT_SCHEMA = "program-runtime-final-output-v1"
@@ -301,7 +307,7 @@ def validate_program_runtime_traces(payload: Mapping[str, Any]) -> bool:
     # Compatibility: older v1 runtime-trace artifacts did not emit
     # source_record_coverage. New artifacts must match the reconstructed
     # record-level semantics exactly when the field is present.
-    if "source_record_coverage" in payload and not _source_record_coverage_valid(
+    if "source_record_coverage" in payload and not source_record_coverage_valid(
         value=payload.get("source_record_coverage"),
         sources=sources,
         module_calls=module_calls,
@@ -316,6 +322,7 @@ def validate_program_runtime_traces(payload: Mapping[str, Any]) -> bool:
             if isinstance(payload.get("coverage"), Mapping)
             else None
         ),
+        non_authority=_NON_AUTHORITY,
     ):
         return False
     if not _runtime_policy_valid(payload.get("runtime_policy")):
@@ -508,167 +515,6 @@ def _synthetic_single_module_call(
     return _with_trace_hash(call)
 
 
-def _source_key(source: Mapping[str, Any]) -> tuple[str, str | None]:
-    split = source.get("split")
-    return (str(source.get("path") or ""), str(split) if split is not None else None)
-
-
-def _call_source_key(record: Mapping[str, Any]) -> tuple[str, str | None]:
-    source = record.get("source")
-    return _source_key(source) if isinstance(source, Mapping) else ("", None)
-
-
-def _record_index(value: object) -> int | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int) and value >= 0:
-        return value
-    return None
-
-
-def _source_record_coverage(
-    *,
-    sources: list[dict[str, Any]],
-    module_calls: list[dict[str, Any]],
-    final_outputs: list[dict[str, Any]],
-    expected_module_ids: list[str],
-    program_outputs: list[str],
-) -> list[dict[str, Any]]:
-    coverage: list[dict[str, Any]] = []
-    module_indexes_by_source: dict[tuple[str, str | None], set[int]] = {}
-    final_indexes_by_source: dict[tuple[str, str | None], set[int]] = {}
-    module_ids_by_record: dict[tuple[str, str | None], dict[int, set[str]]] = {}
-    final_fields_by_record: dict[tuple[str, str | None], dict[int, set[str]]] = {}
-    module_counts_by_source: dict[tuple[str, str | None], int] = {}
-    final_counts_by_source: dict[tuple[str, str | None], int] = {}
-    expected_modules = set(expected_module_ids)
-    expected_outputs = set(program_outputs)
-    for call in module_calls:
-        key = _call_source_key(call)
-        module_counts_by_source[key] = module_counts_by_source.get(key, 0) + 1
-        index = _record_index(call.get("example_index"))
-        if index is not None:
-            module_indexes_by_source.setdefault(key, set()).add(index)
-            module_id = str(call.get("module_id") or "")
-            if module_id:
-                module_ids_by_record.setdefault(key, {}).setdefault(index, set()).add(
-                    module_id
-                )
-    for item in final_outputs:
-        key = _call_source_key(item)
-        final_counts_by_source[key] = final_counts_by_source.get(key, 0) + 1
-        index = _record_index(item.get("example_index"))
-        if index is not None:
-            final_indexes_by_source.setdefault(key, set()).add(index)
-            outputs = item.get("outputs")
-            if isinstance(outputs, Mapping):
-                fields = {str(field) for field in outputs if str(field)}
-                final_fields_by_record.setdefault(key, {}).setdefault(
-                    index, set()
-                ).update(fields)
-    for source in sources:
-        key = _source_key(source)
-        raw_count = source.get("record_count")
-        record_count = raw_count if isinstance(raw_count, int) and raw_count >= 0 else 0
-        expected_indexes = set(range(record_count))
-        module_indexes = module_indexes_by_source.get(key, set())
-        final_indexes = final_indexes_by_source.get(key, set())
-        per_record_modules = module_ids_by_record.get(key, {})
-        per_record_outputs = final_fields_by_record.get(key, {})
-        missing_module_indexes = [
-            index
-            for index in sorted(expected_indexes)
-            if expected_modules - per_record_modules.get(index, set())
-        ]
-        missing_final_indexes = [
-            index
-            for index in sorted(expected_indexes)
-            if expected_outputs - per_record_outputs.get(index, set())
-        ]
-        module_gaps = [
-            {
-                "record_index": index,
-                "missing_module_ids": sorted(
-                    expected_modules - per_record_modules.get(index, set())
-                ),
-            }
-            for index in missing_module_indexes
-        ]
-        final_output_gaps = [
-            {
-                "record_index": index,
-                "missing_final_output_fields": sorted(
-                    expected_outputs - per_record_outputs.get(index, set())
-                ),
-            }
-            for index in missing_final_indexes
-        ]
-        if record_count == 0:
-            status = "not_applicable_no_records"
-        elif missing_final_indexes or missing_module_indexes:
-            status = "partial"
-        else:
-            status = "complete"
-        coverage.append(
-            {
-                "schema_version": "program-runtime-trace-source-coverage-v1",
-                "status": status,
-                "path": str(source.get("path") or ""),
-                "split": source.get("split"),
-                "record_count": record_count,
-                "expected_module_ids": sorted(expected_modules),
-                "program_outputs": list(program_outputs),
-                "module_call_count": module_counts_by_source.get(key, 0),
-                "final_output_trace_count": final_counts_by_source.get(key, 0),
-                "records_with_module_calls": sorted(module_indexes),
-                "records_with_final_outputs": sorted(final_indexes),
-                "records_with_complete_module_calls": sorted(
-                    expected_indexes - set(missing_module_indexes)
-                ),
-                "records_with_complete_final_outputs": sorted(
-                    expected_indexes - set(missing_final_indexes)
-                ),
-                "missing_module_call_record_indexes": missing_module_indexes,
-                "missing_final_output_record_indexes": missing_final_indexes,
-                "module_coverage_gaps": module_gaps,
-                "final_output_coverage_gaps": final_output_gaps,
-                "non_authority": dict(_NON_AUTHORITY),
-            }
-        )
-    return coverage
-
-
-def _source_record_coverage_valid(
-    *,
-    value: object,
-    sources: list[dict[str, Any]],
-    module_calls: list[dict[str, Any]],
-    final_outputs: list[dict[str, Any]],
-    expected_module_ids: list[str],
-    program_outputs: list[str],
-) -> bool:
-    if not isinstance(value, list):
-        return False
-    expected = _source_record_coverage(
-        sources=sources,
-        module_calls=module_calls,
-        final_outputs=final_outputs,
-        expected_module_ids=expected_module_ids,
-        program_outputs=program_outputs,
-    )
-    if len(value) != len(expected):
-        return False
-    for raw_item, expected_item in zip(value, expected):
-        if not isinstance(raw_item, Mapping):
-            return False
-        item = dict(raw_item)
-        if item != expected_item:
-            return False
-        if not _non_authority_valid(item.get("non_authority")):
-            return False
-    return True
-
-
 def _coverage_summary(
     *,
     surfaces: list[dict[str, Any]],
@@ -698,30 +544,23 @@ def _coverage_summary(
             )
     missing_module_ids = sorted(set(expected_module_ids) - set(captured_module_ids))
     missing_final_output_fields = sorted(set(program_outputs) - final_output_fields)
-    source_record_coverage = _source_record_coverage(
+    record_coverage = source_record_coverage(
         sources=sources,
         module_calls=module_calls,
         final_outputs=final_outputs,
         expected_module_ids=expected_module_ids,
         program_outputs=program_outputs,
+        non_authority=_NON_AUTHORITY,
     )
-    source_record_statuses = {
-        str(item.get("status")) for item in source_record_coverage if item.get("status")
-    }
-    if not sources:
-        source_record_coverage_status = "not_applicable_no_behavior_sources"
-    elif "partial" in source_record_statuses:
-        source_record_coverage_status = "partial"
-    elif source_record_statuses == {"not_applicable_no_records"}:
-        source_record_coverage_status = "not_applicable_no_records"
-    else:
-        source_record_coverage_status = "complete"
+    record_coverage_status = source_record_coverage_status(
+        sources=sources, coverage=record_coverage
+    )
     if not sources:
         status = "not_applicable_no_behavior_sources"
     elif (
         missing_module_ids
         or missing_final_output_fields
-        or source_record_coverage_status == "partial"
+        or record_coverage_status == "partial"
     ):
         status = "partial"
     else:
@@ -736,7 +575,7 @@ def _coverage_summary(
         "program_outputs": list(program_outputs),
         "captured_final_output_fields": sorted(final_output_fields),
         "missing_final_output_fields": missing_final_output_fields,
-        "source_record_coverage_status": source_record_coverage_status,
+        "source_record_coverage_status": record_coverage_status,
         "module_call_count": len(module_calls),
         "final_output_trace_count": len(final_outputs),
         "non_authority": dict(_NON_AUTHORITY),
@@ -974,12 +813,13 @@ def build_program_runtime_traces(
             "final_outputs": [str(item.get("trace_hash")) for item in final_outputs],
         },
         "coverage": coverage,
-        "source_record_coverage": _source_record_coverage(
+        "source_record_coverage": source_record_coverage(
             sources=sources,
             module_calls=module_calls,
             final_outputs=final_outputs,
             expected_module_ids=coverage["expected_module_ids"],
             program_outputs=program_outputs,
+            non_authority=_NON_AUTHORITY,
         ),
         "runtime_policy": {
             "source": "local_generated_behavior_harnesses_only",

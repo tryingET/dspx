@@ -298,6 +298,17 @@ rules:
       - pytest_program_generation_spine
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/services/program_runtime_trace_coverage.py"
+    category: python_service
+    impact_group: program_generation_spine
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_generation_spine
+      - pytest_program_runtime_traces
+      - boundary_contract_check
+
   - match: "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
     category: python_service
     impact_group: program_generation_spine

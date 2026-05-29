@@ -154,6 +154,23 @@ def test_program_runtime_traces_selects_spine_and_direct_trace_checks() -> None:
     ]
 
 
+def test_program_runtime_trace_coverage_selects_trace_checks() -> None:
+    plan = _plan(
+        "packages/dspx-core/src/dspx/services/program_runtime_trace_coverage.py"
+    )
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_generation_spine",
+        "pytest_program_runtime_traces",
+        "boundary_contract_check",
+    ]
+
+
 def test_program_generated_policy_selects_targeted_policy_checks() -> None:
     plan = _plan("packages/dspx-core/src/dspx/services/program_generated_policy.py")
 
