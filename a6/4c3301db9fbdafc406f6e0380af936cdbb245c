@@ -1,0 +1,35 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "a64c3301db9fbdafc406f6e0380af936cdbb245c"
+created_at: "2026-05-29T10:25:03Z"
+intent: "Harden external tool, provider, generated harness, and authority sidecar boundaries."
+files:
+  - "governance/task-scopes/AK-3415.snapshot.json"
+  - "packages/dspx-core/src/dspx/cli/commands/tools.py"
+  - "packages/dspx-core/src/dspx/openai_compatible_lm.py"
+  - "packages/dspx-core/src/dspx/openrouter_lm.py"
+  - "packages/dspx-core/src/dspx/security.py"
+  - "packages/dspx-core/src/dspx/services/program_external_authority_export.py"
+  - "packages/dspx-core/src/dspx/services/program_surfaces.py"
+  - "packages/dspx-core/src/dspx/tools/registry.py"
+  - "tests/test_authority_adapter_export_preflight.py"
+  - "tests/test_http_response_bounds.py"
+  - "tests/test_program_service.py"
+  - "tests/test_tools_run_generic_confirm.py"
+  - "tests/test_web_tools_allowlist.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 5' just loop-impact-wide"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "Visible-loop boundary-hardening slice spanning external I/O and authority edges."
+links:
+  task_ids:
+    - 3415
