@@ -28,6 +28,7 @@ This is the DRY current-status map for DSPx Oracle storage. Historical rationale
 - `dspx oracle index --from-program-evidence` writes to the selected local SQLite CoordinateIndex for candidate-local analysis.
 - Shared Oracle publication is a separate explicit path over curated/preflighted evidence; it is not automatic and does not copy local `coordinates.db` files wholesale.
 - Program-evidence shared-publication preflight validates the `oracle_evidence.json` runtime-trace summary/hash against `program_runtime_traces.json` before the explicit publish command can write shared empirical memory.
+- `program-promote status` and activation packets can summarize shared-publication preflight readiness and shared-publication receipt evidence; activation packets validate receipt target/backend posture, secret redaction, idempotency/record/source/non-authority posture, bind receipt source hashes to the supplied preflight when both are present, cross-check candidate-state Oracle publication refs, and expose `evidence_alignment.oracle_publication`, and all remain evidence-only/non-authoritative.
 - The DS1621 shared Oracle Postgres/pgvector pilot is live enough for explicit dogfood publication, but remains `production_ready: false`; see [[2026-05-09-oracle-production-readiness-gates-dogfood]].
 - DS1621 MLflow Postgres is a different database role from DS1621 Oracle Postgres/pgvector.
 - Oracle records may carry authority references as mirrors, but Oracle is empirical memory only. AK/governance/owning-domain surfaces remain canonical authority.

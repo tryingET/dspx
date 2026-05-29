@@ -251,7 +251,7 @@ uv run -q python -m dspx.cli.dspx program-promote status \
   --json
 ```
 
-For activation packets, the same `--oracle-publication-receipt` flag adds an evidence ref only. It cannot satisfy the owning-domain decision, canonical binding, rollout owner, or rollback plan gates.
+For activation packets, `--oracle-publication-preflight` and `--oracle-publication-receipt` add readiness/evidence refs only. Activation-packet generation validates shared publication receipt target/backend posture, secret redaction, idempotency/record/source/non-authority posture and, when both preflight and receipt are supplied, binds receipt source hashes back to that exact preflight. If `--candidate-state` also cites those shared Oracle artifacts, it cross-checks that the refs agree and exposes the result under `evidence_alignment.oracle_publication` instead of treating either source as authority. They cannot satisfy the owning-domain decision, canonical binding, rollout owner, or rollback plan gates; see [[generated-program-activation-boundary]].
 
 `program-loop` can also run shared publication as an explicit opt-in after generation; the default remains candidate-local and service-free. The opt-in requires all custody fields and an explicitly configured shared Oracle backend:
 

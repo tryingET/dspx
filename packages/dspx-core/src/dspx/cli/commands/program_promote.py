@@ -363,6 +363,11 @@ def activation_packet(
         "--promotion-plan",
         help="Optional program-promotion-plan-v1 JSON",
     ),
+    oracle_publication_preflight: Path | None = typer.Option(
+        None,
+        "--oracle-publication-preflight",
+        help="Optional program-oracle-shared-publication-preflight-v1 JSON readiness evidence",
+    ),
     oracle_publication_receipt: Path | None = typer.Option(
         None,
         "--oracle-publication-receipt",
@@ -423,6 +428,7 @@ def activation_packet(
             review_path=review,
             decision_record_path=decision_record,
             promotion_plan_path=promotion_plan,
+            oracle_publication_preflight_path=oracle_publication_preflight,
             oracle_publication_receipt_path=oracle_publication_receipt,
             candidate_state_path=candidate_state,
             obsidian_review_adapter_receipt_path=obsidian_review_adapter_receipt,

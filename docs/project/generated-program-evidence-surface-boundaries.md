@@ -72,5 +72,5 @@ manifest.json + manifest.json.meta.json
 
 - To extend Oracle trace reporting, keep using the deliberate trace summary/hash reference in `oracle_evidence.json`; do not make Oracle the replay validator or full trace log.
 - To make MLflow useful for trace inspection, log `program_runtime_traces.json` as an artifact; do not make MLflow the replay source of truth.
-- To make activation packets cite evidence, cite stable artifacts and reports as evidence only; keep activation blocked on owning-domain/governance authority.
+- To make activation packets cite evidence, cite stable artifacts, publication preflights, receipts, and reports as evidence only; keep activation blocked on owning-domain/governance authority.
 - To add shared Oracle behavior, follow [[20260505-shared-oracle-coordinate-backend]] and [[20260506-oracle-evidence-publication-boundary]]: explicit ingestion, curation, redaction posture, idempotency, and non-authority labels.

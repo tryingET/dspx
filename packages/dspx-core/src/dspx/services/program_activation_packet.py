@@ -7,6 +7,15 @@ import subprocess
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.program_oracle_publication_preflight import (
+    AUTHORITY_MIRROR_LABELS,
+    ELIGIBLE_REDACTION_STATUSES,
+    ELIGIBLE_RETENTION_CLASSES,
+    EMPIRICAL_LABELS,
+    PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
+    TARGETS,
+)
+
 ACTIVATION_PACKET_SCHEMA = "generated-cognition-program-production-activation-packet-v1"
 TRANSITION_TYPE = "generated-cognition-program.production_activation"
 GOVERNANCE_BOUNDARY_REF = (
@@ -24,6 +33,7 @@ _EXPECTED_SCHEMAS = {
     "refined_review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
     "promotion_plan": "program-promotion-plan-v1",
+    "oracle_publication_preflight": "program-oracle-shared-publication-preflight-v1",
     "oracle_publication_receipt": "program-oracle-shared-publication-receipt-v1",
     "candidate_state": "program-candidate-state-v1",
     "obsidian_review_adapter_receipt": "dspy-pdf-transition-review-adapter-receipt-v1",
@@ -113,6 +123,12 @@ def _first_text(*values: object) -> str | None:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _sha256_payload(payload: Mapping[str, Any]) -> str:
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def _identity_from_manifest(manifest: Mapping[str, Any]) -> dict[str, str | None]:
@@ -457,8 +473,94 @@ def _validate_activation_evidence_boundaries(
         )
 
 
+def _validate_redacted_database_url_posture(
+    target: Mapping[str, Any], *, label: str
+) -> None:
+    if any(
+        key in target
+        for key in (
+            "database_url",
+            "database_url_raw",
+            "postgres_url",
+            "postgres_url_raw",
+        )
+    ):
+        raise ProgramActivationPacketError(
+            f"{label} target must not include raw database URL fields"
+        )
+    if target.get("database_url_present") is True:
+        redacted = str(target.get("database_url_redacted") or "").strip()
+        if not redacted:
+            raise ProgramActivationPacketError(
+                f"{label} target.database_url_redacted is required"
+            )
+        if "://" in redacted and "@" in redacted and ":<redacted>@" not in redacted:
+            raise ProgramActivationPacketError(
+                f"{label} target.database_url_redacted must not expose secret-bearing credentials"
+            )
+        lowered = redacted.lower()
+        if any(marker in lowered for marker in ("super-secret", "password=", "token=")):
+            raise ProgramActivationPacketError(
+                f"{label} target.database_url_redacted must not expose secret values"
+            )
+
+
+def _validate_oracle_publication_target_posture(target: Mapping[str, Any]) -> None:
+    if not target:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt target posture is required"
+        )
+    if not str(target.get("backend") or "").strip():
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt target.backend is required"
+        )
+    if target.get("connection_attempted") is not True:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt target.connection_attempted must be true"
+        )
+    if target.get("shared_write_attempted") is not True:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt target.shared_write_attempted must be true"
+        )
+    _validate_redacted_database_url_posture(target, label="oracle_publication_receipt")
+
+
+def _validate_oracle_publication_preflight_target_posture(
+    target: Mapping[str, Any],
+) -> str:
+    if not target:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight target posture is required"
+        )
+    target_name = str(target.get("target") or "").strip()
+    if target_name not in TARGETS:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight target must be a supported shared Oracle target"
+        )
+    if target.get("target_supported_by_preflight") is not True:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight target_supported_by_preflight must be true"
+        )
+    if target.get("connection_attempted") is not False:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight target.connection_attempted must be false"
+        )
+    if target.get("shared_write_attempted") is not False:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight target.shared_write_attempted must be false"
+        )
+    _validate_redacted_database_url_posture(
+        target, label="oracle_publication_preflight"
+    )
+    return target_name
+
+
 def _validate_oracle_publication_receipt(
-    identity: Mapping[str, Any], receipt: Mapping[str, Any] | None
+    identity: Mapping[str, Any],
+    receipt: Mapping[str, Any] | None,
+    *,
+    preflight: Mapping[str, Any] | None = None,
+    preflight_ref: Mapping[str, Any] | None = None,
 ) -> None:
     if receipt is None:
         return
@@ -471,6 +573,125 @@ def _validate_oracle_publication_receipt(
         receipt,
         label="oracle_publication_receipt",
     )
+    publication_id = str(receipt.get("publication_id") or "").strip()
+    run_id = str(receipt.get("run_id") or "").strip()
+    if not publication_id:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt publication_id is required"
+        )
+    expected_run_id = f"program-oracle-publication:{publication_id}"
+    if run_id != expected_run_id:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt run_id must match publication_id"
+        )
+
+    idempotency = _safe_mapping(receipt.get("idempotency"))
+    expected_idempotency = {
+        "publication_id": publication_id,
+        "run_id": run_id,
+        "safe_to_retry": True,
+    }
+    mismatched_idempotency = [
+        key
+        for key, expected in expected_idempotency.items()
+        if idempotency.get(key) != expected
+    ]
+    if mismatched_idempotency:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt idempotency contract mismatch: "
+            + ", ".join(mismatched_idempotency)
+        )
+
+    publication = _safe_mapping(receipt.get("publication"))
+    record = _safe_mapping(receipt.get("record"))
+    if preflight is not None:
+        preflight_publication = _safe_mapping(preflight.get("publication"))
+        if publication != preflight_publication:
+            raise ProgramActivationPacketError(
+                "oracle_publication_receipt publication does not match supplied preflight"
+            )
+        preflight_record = _safe_mapping(preflight.get("planned_record"))
+        expected_preflight_record = {
+            "schema_version": preflight_record.get("schema_version"),
+            "publication_label": preflight_record.get("publication_label"),
+            "publication_label_class": preflight_record.get("publication_label_class"),
+            "retention_class": preflight_record.get("retention_class"),
+            "redaction_status": preflight_record.get("redaction_status"),
+            "authority_ref": preflight_record.get("authority_ref"),
+            "non_authority": preflight_record.get("non_authority"),
+        }
+        mismatched_preflight_record = [
+            key
+            for key, expected in expected_preflight_record.items()
+            if record.get(key) != expected
+        ]
+        if mismatched_preflight_record:
+            raise ProgramActivationPacketError(
+                "oracle_publication_receipt record does not match supplied preflight planned_record: "
+                + ", ".join(sorted(mismatched_preflight_record))
+            )
+    expected_record = {
+        "schema_version": "program-oracle-shared-publication-v1",
+        "run_kind": "program-oracle-shared-publication",
+        "template_version": "program-oracle-shared-publication-v1",
+        "provider": "program-gen",
+        "publication_label": publication.get("publication_label"),
+        "publication_label_class": publication.get("publication_label_class"),
+        "retention_class": publication.get("retention_class"),
+        "redaction_status": publication.get("redaction_status"),
+        "authority_ref": publication.get("authority_ref"),
+    }
+    mismatched_record = [
+        key for key, expected in expected_record.items() if record.get(key) != expected
+    ]
+    if mismatched_record:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt record does not match publication fields: "
+            + ", ".join(sorted(mismatched_record))
+        )
+    _validate_non_authority_false(
+        record,
+        label="oracle_publication_receipt record",
+        keys=(
+            "oracle_ranking",
+            "oracle_pruning",
+            "oracle_promotion",
+            "governance_authority",
+            "external_mutation",
+        ),
+    )
+
+    _validate_oracle_publication_target_posture(_safe_mapping(receipt.get("target")))
+
+    source = _safe_mapping(receipt.get("source"))
+    if source.get("local_paths_omitted_from_shared_record") is not True:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt must omit local paths from shared record"
+        )
+    for key in (
+        "preflight_file",
+        "preflight_sha256",
+        "oracle_evidence_file",
+        "oracle_evidence_sha256",
+    ):
+        if not str(source.get(key) or "").strip():
+            raise ProgramActivationPacketError(
+                f"oracle_publication_receipt source.{key} is required"
+            )
+    if preflight is not None:
+        preflight_hash = str((preflight_ref or {}).get("sha256") or "").strip()
+        if preflight_hash and source.get("preflight_sha256") != preflight_hash:
+            raise ProgramActivationPacketError(
+                "oracle_publication_receipt source.preflight_sha256 does not match supplied preflight"
+            )
+        preflight_hashes = _safe_mapping(preflight.get("artifact_hashes"))
+        if source.get("oracle_evidence_sha256") != preflight_hashes.get(
+            "oracle_evidence_sha256"
+        ):
+            raise ProgramActivationPacketError(
+                "oracle_publication_receipt source.oracle_evidence_sha256 does not match supplied preflight"
+            )
+
     effect = _safe_mapping(receipt.get("effect"))
     if effect.get("shared_oracle_mutated") is not True:
         raise ProgramActivationPacketError(
@@ -720,6 +941,301 @@ def _validate_oracle_report_identity(
     )
 
 
+def _validate_oracle_publication_preflight(
+    identity: Mapping[str, Any], preflight_packet: Mapping[str, Any] | None
+) -> None:
+    if preflight_packet is None:
+        return
+    if preflight_packet.get("status") != "ready_not_published":
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight status must be ready_not_published"
+        )
+    preflight_identity = _safe_mapping(preflight_packet.get("identity"))
+    if not preflight_identity:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight missing identity object"
+        )
+    if preflight_identity != dict(identity):
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight identity does not match candidate identity"
+        )
+
+    checks = _safe_mapping(preflight_packet.get("preflight"))
+    required_ready_checks = (
+        "manifest_valid",
+        "oracle_evidence_present",
+        "oracle_evidence_non_authority_valid",
+        "identity_matches_manifest",
+        "runtime_trace_summary_valid",
+        "runtime_trace_hash_match",
+        "runtime_trace_semantics_valid",
+        "publication_label_valid",
+        "authority_ref_requirement_satisfied",
+        "publisher_fields_present",
+        "redaction_status_eligible",
+        "retention_class_eligible",
+        "ready_for_shared_publication",
+    )
+    failed_checks = [
+        key for key in required_ready_checks if checks.get(key) is not True
+    ]
+    if failed_checks:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight readiness checks must be true: "
+            + ", ".join(failed_checks)
+        )
+    if checks.get("blocking_reasons") != []:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight blocking_reasons must be empty"
+        )
+
+    effect = _safe_mapping(preflight_packet.get("effect"))
+    for key in (
+        "shared_oracle_mutated",
+        "ak_called",
+        "governance_mutated",
+        "mlflow_mutated",
+        "program_files_mutated",
+        "promotion_state_changed",
+    ):
+        if effect.get(key) is not False:
+            raise ProgramActivationPacketError(
+                f"oracle_publication_preflight must record {key} false"
+            )
+    _validate_non_authority_false(
+        preflight_packet,
+        label="oracle_publication_preflight",
+        keys=(
+            "oracle_authority",
+            "promotion_authority",
+            "governance_authority",
+            "agent_kernel_mutation",
+            "winner_selection",
+            "automatic_promotion",
+        ),
+    )
+
+    publication_id = str(preflight_packet.get("publication_id") or "").strip()
+    if not publication_id:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publication_id is required"
+        )
+    idempotency = _safe_mapping(preflight_packet.get("idempotency"))
+    expected_idempotency = {
+        "publication_id": publication_id,
+        "safe_to_recompute": True,
+        "same_inputs_same_publication_id": True,
+        "shared_duplicate_check_performed": False,
+    }
+    mismatched_idempotency = [
+        key
+        for key, expected in expected_idempotency.items()
+        if idempotency.get(key) != expected
+    ]
+    if mismatched_idempotency:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight idempotency contract mismatch: "
+            + ", ".join(mismatched_idempotency)
+        )
+
+    target_name = _validate_oracle_publication_preflight_target_posture(
+        _safe_mapping(preflight_packet.get("target"))
+    )
+    artifact_hashes = _safe_mapping(preflight_packet.get("artifact_hashes"))
+    required_hashes = (
+        "manifest_sha256",
+        "oracle_evidence_sha256",
+        "runtime_traces_sha256",
+    )
+    missing_hashes = [
+        key
+        for key in required_hashes
+        if not str(artifact_hashes.get(key) or "").strip()
+    ]
+    if missing_hashes:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight artifact_hashes missing required hashes: "
+            + ", ".join(missing_hashes)
+        )
+
+    publication = _safe_mapping(preflight_packet.get("publication"))
+    label = str(publication.get("publication_label") or "").strip()
+    if label not in EMPIRICAL_LABELS | AUTHORITY_MIRROR_LABELS:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publication_label is not eligible"
+        )
+    expected_label_class = (
+        "authority_mirror" if label in AUTHORITY_MIRROR_LABELS else "empirical"
+    )
+    authority_ref = str(publication.get("authority_ref") or "").strip() or None
+    expected_publication = {
+        "publication_label_class": expected_label_class,
+        "authority_ref": authority_ref,
+        "authority_ref_required": expected_label_class == "authority_mirror",
+        "authority_ref_kind": "opaque_reference_only" if authority_ref else None,
+        "publisher_secret_ref_policy": "1password_refs_only_values_never_persisted",
+        "publisher_identity_kind": "declared_not_authenticated",
+        "redaction_status_kind": "declared_custody_assertion_not_dlp_proof",
+        "retraction_supported_by_future_record": True,
+    }
+    mismatched_publication = [
+        key
+        for key, expected in expected_publication.items()
+        if publication.get(key) != expected
+    ]
+    if mismatched_publication:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publication contract mismatch: "
+            + ", ".join(sorted(mismatched_publication))
+        )
+    if expected_label_class == "authority_mirror" and authority_ref is None:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight authority_ref is required for authority-mirror labels"
+        )
+    publisher_id = str(publication.get("publisher_id") or "").strip()
+    if not publisher_id:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publication.publisher_id is required"
+        )
+    if not str(publication.get("publisher_role") or "").strip():
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publication.publisher_role is required"
+        )
+    if not str(publication.get("publisher_assertion") or "").strip():
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publication.publisher_assertion is required"
+        )
+    redaction_status = str(publication.get("redaction_status") or "").strip()
+    if redaction_status not in ELIGIBLE_REDACTION_STATUSES:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight redaction_status is not eligible"
+        )
+    retention_class = str(publication.get("retention_class") or "").strip()
+    if retention_class not in ELIGIBLE_RETENTION_CLASSES:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight retention_class is not eligible"
+        )
+    publisher_secret_refs = _safe_list(publication.get("publisher_secret_refs"))
+    if any(
+        not isinstance(item, Mapping) or item.get("secret_value_persisted") is not False
+        for item in publisher_secret_refs
+    ):
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publisher_secret_refs must be descriptors without persisted secret values"
+        )
+    expected_publication_id = (
+        "prog-oracle-pub-"
+        + _sha256_payload(
+            {
+                "schema_version": PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
+                "target": target_name,
+                "identity": {
+                    key: value for key, value in sorted(identity.items()) if value
+                },
+                "artifact_hashes": dict(sorted(artifact_hashes.items())),
+                "publication_label": label,
+                "authority_ref": authority_ref,
+                "publisher_id": publisher_id,
+                "redaction_status": redaction_status,
+                "retention_class": retention_class,
+                "publisher_secret_refs": publisher_secret_refs,
+            }
+        )[:20]
+    )
+    if publication_id != expected_publication_id:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight publication_id does not match recomputed idempotency key"
+        )
+
+    planned_record = _safe_mapping(preflight_packet.get("planned_record"))
+    expected_planned = {
+        "candidate_id": identity.get("candidate_id"),
+        "assembly_id": identity.get("assembly_id"),
+        "receipt_bundle_id": identity.get("receipt_bundle_id"),
+        "oracle_evidence_sha256": artifact_hashes.get("oracle_evidence_sha256"),
+        "manifest_sha256": artifact_hashes.get("manifest_sha256"),
+        "runtime_traces_sha256": artifact_hashes.get("runtime_traces_sha256"),
+        "publication_label": publication.get("publication_label"),
+        "publication_label_class": publication.get("publication_label_class"),
+        "publisher_id": publication.get("publisher_id"),
+        "publisher_role": publication.get("publisher_role"),
+        "publisher_secret_refs": publication.get("publisher_secret_refs"),
+        "authority_ref": publication.get("authority_ref"),
+        "authority_ref_kind": publication.get("authority_ref_kind"),
+        "redaction_status": publication.get("redaction_status"),
+        "retention_class": publication.get("retention_class"),
+    }
+    mismatched_planned = [
+        key
+        for key, expected in expected_planned.items()
+        if planned_record.get(key) != expected
+    ]
+    if mismatched_planned:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight planned_record does not match validated "
+            "preflight fields: " + ", ".join(sorted(mismatched_planned))
+        )
+    runtime_traces = _safe_mapping(planned_record.get("runtime_traces"))
+    if not runtime_traces:
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight planned_record missing runtime_traces"
+        )
+    _validate_non_authority_false(
+        runtime_traces,
+        label="oracle_publication_preflight planned_record runtime_traces",
+        keys=(
+            "activation_authority",
+            "canonical_mutation",
+            "external_mutation",
+            "governance_authority",
+            "oracle_authority",
+            "promotion_authority",
+            "ranking_authority",
+            "winner_selection",
+        ),
+    )
+    _validate_non_authority_false(
+        planned_record,
+        label="oracle_publication_preflight planned_record",
+        keys=(
+            "oracle_ranking",
+            "oracle_pruning",
+            "oracle_promotion",
+            "governance_authority",
+            "external_mutation",
+        ),
+    )
+
+
+def _oracle_publication_preflight_ref(
+    preflight_ref: dict[str, Any] | None,
+    preflight_packet: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if preflight_ref is None or preflight_packet is None:
+        return None
+    publication = _safe_mapping(preflight_packet.get("publication"))
+    checks = _safe_mapping(preflight_packet.get("preflight"))
+    effect = _safe_mapping(preflight_packet.get("effect"))
+    return {
+        **preflight_ref,
+        "publication_id": preflight_packet.get("publication_id"),
+        "publication_label": publication.get("publication_label"),
+        "publication_label_class": publication.get("publication_label_class"),
+        "authority_ref": publication.get("authority_ref"),
+        "retention_class": publication.get("retention_class"),
+        "ready_for_shared_publication": checks.get("ready_for_shared_publication")
+        is True,
+        "runtime_trace_semantics_valid": checks.get("runtime_trace_semantics_valid")
+        is True,
+        "runtime_trace_hash_match": checks.get("runtime_trace_hash_match") is True,
+        "blocking_reasons": _safe_list(checks.get("blocking_reasons")),
+        "preflight_only": True,
+        "activation_authority": False,
+        "promotion_authority": False,
+        "shared_oracle_mutated": effect.get("shared_oracle_mutated") is True,
+    }
+
+
 def _oracle_publication_ref(
     receipt_ref: dict[str, Any] | None,
     receipt: Mapping[str, Any] | None,
@@ -748,6 +1264,148 @@ def _strip_sha256_prefix(value: object) -> str | None:
     if not text:
         return None
     return text.removeprefix("sha256:")
+
+
+def _candidate_state_publication_refs(
+    candidate_state: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if candidate_state is None:
+        return {
+            "candidate_state_present": False,
+            "preflight_present": False,
+            "preflight_publication_id": None,
+            "receipt_present": False,
+            "receipt_publication_id": None,
+        }
+    evidence = _safe_mapping(candidate_state.get("evidence_state"))
+    shared = _safe_mapping(candidate_state.get("shared_oracle_publication"))
+    state_preflight = _safe_mapping(evidence.get("oracle_publication_preflight"))
+    state_receipt = _safe_mapping(evidence.get("oracle_publication_receipt"))
+    return {
+        "candidate_state_present": True,
+        "preflight_present": state_preflight.get("present") is True
+        or shared.get("preflight_present") is True,
+        "preflight_ready": shared.get("preflight_ready") is True,
+        "preflight_publication_id": state_preflight.get("publication_id"),
+        "receipt_present": state_receipt.get("present") is True
+        or shared.get("evidence_ref_present") is True,
+        "receipt_publication_id": state_receipt.get("publication_id"),
+    }
+
+
+def _oracle_publication_alignment_summary(
+    *,
+    candidate_state: Mapping[str, Any] | None,
+    oracle_publication_preflight: Mapping[str, Any] | None,
+    oracle_publication_receipt: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    candidate_refs = _candidate_state_publication_refs(candidate_state)
+    preflight_publication_id = (
+        oracle_publication_preflight.get("publication_id")
+        if oracle_publication_preflight is not None
+        else None
+    )
+    receipt_publication_id = (
+        oracle_publication_receipt.get("publication_id")
+        if oracle_publication_receipt is not None
+        else None
+    )
+    supplied_ids = [
+        value for value in (preflight_publication_id, receipt_publication_id) if value
+    ]
+    candidate_ids = [
+        value
+        for value in (
+            candidate_refs.get("preflight_publication_id"),
+            candidate_refs.get("receipt_publication_id"),
+        )
+        if value
+    ]
+    unique_ids = set(supplied_ids + candidate_ids)
+    return {
+        "candidate_state_present": candidate_refs["candidate_state_present"],
+        "candidate_state_preflight_present": candidate_refs["preflight_present"],
+        "candidate_state_receipt_present": candidate_refs["receipt_present"],
+        "preflight_ref_supplied": oracle_publication_preflight is not None,
+        "receipt_ref_supplied": oracle_publication_receipt is not None,
+        "preflight_publication_id": preflight_publication_id,
+        "receipt_publication_id": receipt_publication_id,
+        "candidate_state_preflight_publication_id": candidate_refs.get(
+            "preflight_publication_id"
+        ),
+        "candidate_state_receipt_publication_id": candidate_refs.get(
+            "receipt_publication_id"
+        ),
+        "publication_ids_aligned": len(unique_ids) <= 1,
+        "evidence_only": True,
+        "activation_authority": False,
+        "promotion_authority": False,
+    }
+
+
+def _validate_candidate_state_publication_alignment(
+    *,
+    candidate_state: Mapping[str, Any] | None,
+    oracle_publication_preflight: Mapping[str, Any] | None,
+    oracle_publication_receipt: Mapping[str, Any] | None,
+) -> None:
+    if (
+        oracle_publication_preflight is not None
+        and oracle_publication_receipt is not None
+        and oracle_publication_preflight.get("publication_id")
+        != oracle_publication_receipt.get("publication_id")
+    ):
+        raise ProgramActivationPacketError(
+            "oracle_publication_preflight/receipt publication_id mismatch"
+        )
+    if candidate_state is None:
+        return
+    evidence = _safe_mapping(candidate_state.get("evidence_state"))
+    shared = _safe_mapping(candidate_state.get("shared_oracle_publication"))
+    state_preflight = _safe_mapping(evidence.get("oracle_publication_preflight"))
+    state_receipt = _safe_mapping(evidence.get("oracle_publication_receipt"))
+
+    state_preflight_present = state_preflight.get("present") is True
+    shared_preflight_present = shared.get("preflight_present") is True
+    if oracle_publication_preflight is None:
+        if state_preflight_present or shared_preflight_present:
+            raise ProgramActivationPacketError(
+                "candidate_state references oracle_publication_preflight but activation packet omitted it"
+            )
+    else:
+        if not state_preflight_present or not shared_preflight_present:
+            raise ProgramActivationPacketError(
+                "candidate_state must include supplied oracle_publication_preflight"
+            )
+        if state_preflight.get("publication_id") != oracle_publication_preflight.get(
+            "publication_id"
+        ):
+            raise ProgramActivationPacketError(
+                "candidate_state oracle_publication_preflight publication_id does not match supplied preflight"
+            )
+        if shared.get("preflight_ready") is not True:
+            raise ProgramActivationPacketError(
+                "candidate_state shared_oracle_publication.preflight_ready must be true"
+            )
+
+    state_receipt_present = state_receipt.get("present") is True
+    shared_receipt_present = shared.get("evidence_ref_present") is True
+    if oracle_publication_receipt is None:
+        if state_receipt_present or shared_receipt_present:
+            raise ProgramActivationPacketError(
+                "candidate_state references oracle_publication_receipt but activation packet omitted it"
+            )
+    else:
+        if not state_receipt_present or not shared_receipt_present:
+            raise ProgramActivationPacketError(
+                "candidate_state must include supplied oracle_publication_receipt"
+            )
+        if state_receipt.get("publication_id") != oracle_publication_receipt.get(
+            "publication_id"
+        ):
+            raise ProgramActivationPacketError(
+                "candidate_state oracle_publication_receipt publication_id does not match supplied receipt"
+            )
 
 
 def _validate_candidate_state(
@@ -1016,6 +1674,7 @@ def build_generated_program_activation_packet(
     review_path: Path | None = None,
     decision_record_path: Path | None = None,
     promotion_plan_path: Path | None = None,
+    oracle_publication_preflight_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
     candidate_state_path: Path | None = None,
     obsidian_review_adapter_receipt_path: Path | None = None,
@@ -1072,6 +1731,12 @@ def build_generated_program_activation_packet(
         promotion_plan_path,
         label="promotion_plan",
     )
+    oracle_publication_preflight, oracle_publication_preflight_ref = (
+        _load_optional_artifact(
+            oracle_publication_preflight_path,
+            label="oracle_publication_preflight",
+        )
+    )
     oracle_publication_receipt, oracle_publication_receipt_ref = (
         _load_optional_artifact(
             oracle_publication_receipt_path,
@@ -1110,8 +1775,19 @@ def build_generated_program_activation_packet(
         authority_owner=normalized_authority_owner,
     )
     _validate_oracle_report_identity(identity, oracle_report)
-    _validate_oracle_publication_receipt(identity, oracle_publication_receipt)
+    _validate_oracle_publication_preflight(identity, oracle_publication_preflight)
+    _validate_oracle_publication_receipt(
+        identity,
+        oracle_publication_receipt,
+        preflight=oracle_publication_preflight,
+        preflight_ref=oracle_publication_preflight_ref,
+    )
     _validate_candidate_state(identity, candidate_state)
+    _validate_candidate_state_publication_alignment(
+        candidate_state=candidate_state,
+        oracle_publication_preflight=oracle_publication_preflight,
+        oracle_publication_receipt=oracle_publication_receipt,
+    )
     decision_ref_for_binding = (
         _decision_record_ref(decision_record_path)
         if decision_record_path is not None
@@ -1190,6 +1866,10 @@ def build_generated_program_activation_packet(
             "refined_review": review_ref,
             "decision_record": decision_ref,
             "promotion_plan": promotion_plan_ref,
+            "oracle_publication_preflight": _oracle_publication_preflight_ref(
+                oracle_publication_preflight_ref,
+                oracle_publication_preflight,
+            ),
             "oracle_publication_receipt": _oracle_publication_ref(
                 oracle_publication_receipt_ref,
                 oracle_publication_receipt,
@@ -1197,6 +1877,13 @@ def build_generated_program_activation_packet(
             "candidate_state": candidate_state_ref,
             "obsidian_review_adapter_receipt": obsidian_review_adapter_receipt_ref,
             "canonical_binding_verification": canonical_binding_verification_ref,
+        },
+        "evidence_alignment": {
+            "oracle_publication": _oracle_publication_alignment_summary(
+                candidate_state=candidate_state,
+                oracle_publication_preflight=oracle_publication_preflight,
+                oracle_publication_receipt=oracle_publication_receipt,
+            )
         },
         "target_review_admission": target_review_admission,
         "decision": {

@@ -177,8 +177,7 @@ def _write_obsidian_adapter_receipt(candidate_state_path: Path, out: Path) -> Pa
     return out
 
 
-def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
-    preflight_path = out.parent / "oracle_publication_preflight.json"
+def _write_oracle_publication_preflight(root: Path, out: Path) -> Path:
     preflight = build_program_oracle_publication_preflight(
         manifest_path=root / "manifest.json",
         target="shared-postgres",
@@ -189,12 +188,67 @@ def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
         redaction_status="checked",
         retention_class="retained_behavior_memory",
     )
-    write_program_oracle_publication_preflight(preflight, preflight_path)
+    write_program_oracle_publication_preflight(preflight, out)
+    return out
+
+
+def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
+    preflight_path = _write_oracle_publication_preflight(
+        root, out.parent / "oracle_publication_preflight.json"
+    )
     receipt = publish_program_oracle_preflight(
         preflight_path=preflight_path,
         store=cast(CoordinateStore, FakeSharedOracleStore()),
     )
     write_program_oracle_publication_receipt(receipt, out)
+    return out
+
+
+def _write_candidate_state_with_publication_preflight(
+    root: Path, preflight_path: Path, out: Path
+) -> Path:
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    _write_json(
+        out,
+        {
+            "schema_version": "program-candidate-state-v1",
+            "status": "not_promoted_materialized",
+            "candidate_identity": _candidate_identity(root),
+            "evidence_state": {
+                "oracle_publication_preflight": {
+                    "present": True,
+                    "schema_version": "program-oracle-shared-publication-preflight-v1",
+                    "status": "ready_not_published",
+                    "publication_id": preflight["publication_id"],
+                    "ready_for_shared_publication": True,
+                    "blocking_reasons": [],
+                    "runtime_trace_semantics_valid": True,
+                    "runtime_trace_hash_match": True,
+                    "shared_oracle_mutated": False,
+                    "preflight_only": True,
+                },
+                "oracle_publication_receipt": {"present": False, "status": "missing"},
+            },
+            "shared_oracle_publication": {
+                "preflight_present": True,
+                "preflight_ready": True,
+                "evidence_ref_present": False,
+                "evidence_only": True,
+                "activation_authority": False,
+                "promotion_authority": False,
+            },
+            "non_authority": {
+                "agent_kernel_mutation": False,
+                "apply_promotion": False,
+                "automatic_promotion": False,
+                "external_apply": False,
+                "governance_authority": False,
+                "oracle_authority": False,
+                "promotion_authority": False,
+                "winner_selection": False,
+            },
+        },
+    )
     return out
 
 
@@ -642,6 +696,255 @@ def test_program_promote_activation_packet_dogfoods_review_chain_without_activat
     assert not (program_root / "activation_packet.json").exists()
 
 
+def test_program_promote_activation_packet_includes_oracle_publication_preflight_as_readiness_evidence_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    preflight_ref = payload["evidence"]["oracle_publication_preflight"]
+    assert preflight_ref["path"] == str(preflight_path.resolve())
+    assert preflight_ref["schema_version"] == (
+        "program-oracle-shared-publication-preflight-v1"
+    )
+    assert preflight_ref["publication_id"].startswith("prog-oracle-pub-")
+    assert preflight_ref["ready_for_shared_publication"] is True
+    assert preflight_ref["runtime_trace_semantics_valid"] is True
+    assert preflight_ref["runtime_trace_hash_match"] is True
+    assert preflight_ref["blocking_reasons"] == []
+    assert preflight_ref["preflight_only"] is True
+    assert preflight_ref["activation_authority"] is False
+    assert preflight_ref["promotion_authority"] is False
+    assert preflight_ref["shared_oracle_mutated"] is False
+    assert payload["evidence"]["oracle_publication_receipt"] is None
+    assert (
+        payload["boundary_checks"]["oracle_publication_activation_authority"] is False
+    )
+    assert payload["status"] == "blocked"
+    assert payload["effect"]["production_activation_applied"] is False
+    assert payload["non_authority"]["oracle_promotion"] is False
+
+
+def test_program_promote_activation_packet_rejects_publication_preflight_missing_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight.pop("identity")
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "oracle_publication_preflight missing identity object" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_preflight_tampered_planned_record(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["planned_record"]["candidate_id"] = "evil-candidate"
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "planned_record does not match validated preflight fields" in result.output
+    assert "candidate_id" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_preflight_failed_readiness_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["preflight"]["runtime_trace_hash_match"] = False
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "runtime_trace_hash_match" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_preflight_target_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["target"]["connection_attempted"] = True
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "target.connection_attempted must be false" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_preflight_idempotency_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["publication"]["publisher_id"] = "tampered-publisher"
+    preflight["planned_record"]["publisher_id"] = "tampered-publisher"
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "publication_id does not match recomputed idempotency key" in result.output
+
+
 def test_program_promote_activation_packet_includes_oracle_publication_ref_as_evidence_only(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -751,6 +1054,486 @@ def test_program_promote_activation_packet_publication_ref_cannot_approve_activa
     assert "rollout_owner" in payload["missing_required_evidence"]
     assert "rollback_plan" in payload["missing_required_evidence"]
     assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_cross_checks_candidate_state_publication_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    candidate_state_path = _write_candidate_state_with_publication_preflight(
+        program_root,
+        preflight_path,
+        tmp_path / "state" / "program_candidate_state.json",
+    )
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--candidate-state",
+            str(candidate_state_path),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    publication_id = payload["evidence"]["oracle_publication_preflight"][
+        "publication_id"
+    ]
+    assert publication_id
+    assert payload["evidence"]["candidate_state"]["path"] == str(
+        candidate_state_path.resolve()
+    )
+    alignment = payload["evidence_alignment"]["oracle_publication"]
+    assert alignment == {
+        "candidate_state_present": True,
+        "candidate_state_preflight_present": True,
+        "candidate_state_receipt_present": False,
+        "preflight_ref_supplied": True,
+        "receipt_ref_supplied": False,
+        "preflight_publication_id": publication_id,
+        "receipt_publication_id": None,
+        "candidate_state_preflight_publication_id": publication_id,
+        "candidate_state_receipt_publication_id": None,
+        "publication_ids_aligned": True,
+        "evidence_only": True,
+        "activation_authority": False,
+        "promotion_authority": False,
+    }
+    assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_rejects_mismatched_preflight_and_receipt_ids(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["publication_id"] = "prog-oracle-pub-mismatched"
+    receipt["run_id"] = "program-oracle-publication:prog-oracle-pub-mismatched"
+    receipt["idempotency"]["publication_id"] = "prog-oracle-pub-mismatched"
+    receipt["idempotency"]["run_id"] = (
+        "program-oracle-publication:prog-oracle-pub-mismatched"
+    )
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "oracle_publication_preflight/receipt publication_id mismatch" in result.output
+    )
+
+
+def test_program_promote_activation_packet_rejects_candidate_state_publication_preflight_omission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    candidate_state_path = _write_candidate_state_with_publication_preflight(
+        program_root,
+        preflight_path,
+        tmp_path / "state" / "program_candidate_state.json",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate_state references oracle_publication_preflight" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_preflight_authority_widening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    preflight_path = _write_oracle_publication_preflight(
+        program_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["effect"]["shared_oracle_mutated"] = True
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "shared_oracle_mutated false" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_receipt_idempotency_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["idempotency"]["run_id"] = "program-oracle-publication:wrong"
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "idempotency contract mismatch" in result.output
+    assert "run_id" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_receipt_record_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["record"]["publication_label"] = "activated"
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "record does not match publication fields" in result.output
+    assert "publication_label" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_receipt_source_preflight_hash_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    preflight_path = receipt_path.parent / "oracle_publication_preflight.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["source"]["preflight_sha256"] = "0" * 64
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "source.preflight_sha256 does not match supplied preflight" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_receipt_preflight_publication_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    preflight_path = receipt_path.parent / "oracle_publication_preflight.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["publication"]["retention_class"] = "activation_evidence_reference"
+    receipt["record"]["retention_class"] = "activation_evidence_reference"
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "publication does not match supplied preflight" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_receipt_source_oracle_evidence_hash_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    preflight_path = receipt_path.parent / "oracle_publication_preflight.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["source"]["oracle_evidence_sha256"] = "0" * 64
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "source.oracle_evidence_sha256 does not match supplied preflight"
+        in result.output
+    )
+
+
+def test_program_promote_activation_packet_rejects_publication_receipt_unattempted_shared_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["target"]["shared_write_attempted"] = False
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "target.shared_write_attempted must be true" in result.output
+
+
+def test_program_promote_activation_packet_rejects_publication_receipt_secret_bearing_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["target"]["database_url_redacted"] = (
+        "postgresql://user:super-secret@example.invalid/db"
+    )
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not expose secret-bearing credentials" in result.output
+    assert "super-secret" not in result.output
 
 
 def test_program_promote_activation_packet_rejects_publication_ref_authority_widening(

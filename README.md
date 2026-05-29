@@ -520,13 +520,14 @@ just dspx program-promote activation-packet \
   --jury-results /tmp/dspx-program-promote/jury_results.json \
   --review /tmp/dspx-program-promote/promotion_review_refined.json \
   --decision-record /tmp/dspx-program-promote/promotion_decision_record.json \
+  --oracle-publication-preflight /tmp/dspx-program-oracle/program_oracle_publication_preflight.json \
   --rollout-owner softwareco-runtime-operator \
   --rollback-plan "disable generated route and restore previous production program" \
   --out /tmp/dspx-program-promote/activation_packet.json \
   --json
 ```
 
-The packet has `schema_version: generated-cognition-program-production-activation-packet-v1` and maps local DSPx/Oracle/MLflow/jury evidence to `generated-cognition-program.production_activation`. It never activates production, never calls AK, and never mutates governance; it remains blocked until the owning domain decision, canonical binding, rollout, and rollback requirements are satisfied. The society-wide governance boundary lives in `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`.
+The packet has `schema_version: generated-cognition-program-production-activation-packet-v1` and maps local DSPx/Oracle/MLflow/jury evidence to `generated-cognition-program.production_activation`. Shared Oracle publication preflight/receipt refs are evidence only and do not grant activation authority; activation-packet generation validates receipt target/backend posture, secret redaction, idempotency/record consistency, binds receipt source hashes to the supplied preflight when both are present, and, when candidate-state also cites them, cross-checks the refs and reports the result in `evidence_alignment.oracle_publication`. It never activates production, never calls AK, and never mutates governance; it remains blocked until the owning domain decision, canonical binding, rollout, and rollback requirements are satisfied. The society-wide governance boundary lives in `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`.
 
 GEPA-backed program refinement is also explicit and local. It consumes an existing `program-candidate-assembly-v1` manifest, chooses input evidence from explicit `--train` / `--validation` JSONL files, manifest-declared `splits/train.jsonl` and `splits/validation.jsonl`, or limited inline `examples.json` fallback, and writes a `program-refinement-gepa-result-v1` sidecar:
 

@@ -10,6 +10,12 @@ read_when:
 
 DSPx can produce activation evidence packets for generated DSPy/cognition programs, but those packets are not production activation authority.
 
+Related DRY maps:
+
+- [[oracle-backend-current-status]]
+- [[generated-program-evidence-surface-boundaries]]
+- [[program-gen-walkthrough]]
+
 Canonical society-wide semantics live in governance-kernel:
 
 - `~/ai-society/holdingco/governance-kernel/docs/core/definitions/generated-dspy-program-promotion-governance.md`
@@ -59,7 +65,7 @@ That evidence can prove review-packet admission, but it remains review-only. It 
 
 ## Practical consequence
 
-Oracle production-adjacent readiness on DS1621 improves the evidence substrate. It does not change the activation judge. A generated program still needs a domain-governed decision, canonical binding, rollout owner, and rollback plan before any production activation can be claimed.
+Oracle production-adjacent readiness on DS1621 improves the evidence substrate. Activation packets may cite shared Oracle publication preflight readiness and publication receipts as evidence only; they validate receipt target/backend posture, secret redaction, idempotency, record/publication consistency, source hash fields, preflight/receipt hash lineage when both are supplied, and non-authority posture before accepting a receipt. When a candidate-state sidecar also cites those Oracle publication artifacts, the activation packet cross-checks that the supplied refs agree instead of silently dropping them. The packet also exposes that check under `evidence_alignment.oracle_publication` so reviewers can see whether supplied/candidate-state publication IDs align. None of this changes the activation judge. A generated program still needs a domain-governed decision, canonical binding, rollout owner, and rollback plan before any production activation can be claimed.
 
 Dogfood evidence for the DS1621 Oracle backend, backup, and authority gates is recorded in `docs/project/2026-05-09-oracle-production-readiness-gates-dogfood.md`. The authority dogfood intentionally remained blocked even with a shared Oracle publication receipt because review evidence, rollout owner, rollback plan, and canonical activation binding were not present.
 
