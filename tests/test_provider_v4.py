@@ -293,6 +293,40 @@ def test_dspy_lm_auth_codex_stream_patch_captures_output_text(monkeypatch) -> No
     assert captured.raw is completed_response
 
 
+def test_dspy_lm_auth_codex_stream_patch_uses_text_when_completed_response_missing(
+    monkeypatch,
+) -> None:
+    fake_module = types.SimpleNamespace(__name__="fake_dspy_lm_auth_missing_completed")
+    fake_lm_module = types.ModuleType("fake_dspy_lm_auth_missing_completed.lm")
+    setattr(
+        fake_lm_module,
+        "_consume_codex_response_stream",
+        lambda response_stream: response_stream,
+    )
+    monkeypatch.setitem(
+        sys.modules, "fake_dspy_lm_auth_missing_completed.lm", fake_lm_module
+    )
+
+    DspyLMAuthLM._patch_codex_stream_text_capture(fake_module)
+
+    class _Stream:
+        completed_response = types.SimpleNamespace(response=None)
+
+        def __iter__(self):
+            return iter(
+                [
+                    types.SimpleNamespace(delta="stage "),
+                    types.SimpleNamespace(delta="d"),
+                ]
+            )
+
+    consume = getattr(fake_lm_module, "_consume_codex_response_stream")
+    captured = consume(_Stream())
+    assert isinstance(captured, DspyLMAuthCodexStreamResponse)
+    assert captured.output_text == "stage d"
+    assert captured.usage is None
+
+
 class _UsageObj:
     def model_dump(self):
         return {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5}

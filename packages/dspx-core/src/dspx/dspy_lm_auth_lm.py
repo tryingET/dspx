@@ -177,11 +177,17 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                         done_text = text
             completed_event = getattr(response_stream, "completed_response", None)
             completed_response = getattr(completed_event, "response", None)
+            output_text = ("".join(text_parts) or done_text or "").strip()
             if completed_response is None:
+                if output_text:
+                    return DspyLMAuthCodexStreamResponse(
+                        output_text=output_text,
+                        usage=None,
+                        raw=response_stream,
+                    )
                 raise RuntimeError(
                     "Codex response stream ended without a completed response"
                 )
-            output_text = ("".join(text_parts) or done_text or "").strip()
             if not output_text:
                 return completed_response
             return DspyLMAuthCodexStreamResponse(
