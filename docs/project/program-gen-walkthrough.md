@@ -64,7 +64,7 @@ The current `program-gen` loop proves:
 1. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
 1. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
 1. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
-1. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `program_runtime_outcomes.json`, `program_runtime_traces.json`, `program_tool_contracts.json`, and `execution_episode.json`.
+1. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `program_runtime_outcomes.json`, `program_runtime_traces.json`, `program_tool_contracts.json`, and `execution_episode.json`; runtime-trace replay also checks internal trace hashes, false tool-execution posture, non-authority flags, and count/linkage shape.
 1. Promotion and authority remain explicitly pending / non-authoritative.
 
 It does **not** prove:
@@ -349,7 +349,7 @@ How to read it:
 - this is the bridge toward future local custom module refs, but the current slice does not import or execute arbitrary custom Python modules;
 - `program_capability_registry.json` records descriptor-only capability contracts and false effect flags (`provider_called`, `tool_called`, `custom_import_loaded`, network/filesystem/subprocess/external-authority effects all false), permits only explicit inline-corpus or materialization-time local-corpus snapshot Retriever adapters as generated local lexical retrieval, rejects external-looking Retriever module keys such as provider/endpoint/tool/import, and its hash is bound into the manifest and run receipt.
 - `program_runtime_outcomes.json` records the normalized module outcome/trajectory contract; it makes DSPy ReActV2-style history/tool-call/final-submit evidence shapes explicit without enabling tool execution.
-- `program_runtime_traces.json` records hash-bound local generated-harness runtime trace evidence when behavior examples or dataset splits execute; it captures module-call IO linkage and final-output linkage without enabling tools, retrievers, external adapters, or authority mutation.
+- `program_runtime_traces.json` records hash-bound local generated-harness runtime trace evidence when behavior examples or dataset splits execute; it captures module-call IO linkage and final-output linkage without enabling tools, retrievers, external adapters, or authority mutation. Replay validates each internal trace hash plus no-tool/non-authority posture.
 - `generated_module_policy.json` records the strict generated-module static policy gate; dynamic imports, filesystem/network/subprocess calls, `dspy.Retrieve`, `dspy.settings`, tools, unsafe ReAct shapes, and ProgramOfThought without the generated empty sandbox fail before a manifest is written.
 
 ## 5. Optional: declare dataset split evidence

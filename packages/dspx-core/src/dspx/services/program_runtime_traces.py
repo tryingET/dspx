@@ -170,6 +170,162 @@ def _with_trace_hash(payload: dict[str, Any]) -> dict[str, Any]:
     return hashed
 
 
+def _without_trace_hash(value: Mapping[str, Any]) -> dict[str, Any]:
+    return {str(key): item for key, item in value.items() if key != "trace_hash"}
+
+
+def _trace_hash_valid(value: Mapping[str, Any]) -> bool:
+    trace_hash = value.get("trace_hash")
+    return isinstance(trace_hash, str) and trace_hash == _stable_hash(
+        _without_trace_hash(value)
+    )
+
+
+def _mapping_list(value: object) -> list[dict[str, Any]] | None:
+    if not isinstance(value, list):
+        return None
+    items: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            return None
+        items.append({str(key): value for key, value in item.items()})
+    return items
+
+
+def _non_authority_valid(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    payload = dict(value)
+    for key, expected in _NON_AUTHORITY.items():
+        if bool(payload.get(key)) is not expected:
+            return False
+    return True
+
+
+def _runtime_policy_valid(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    payload = dict(value)
+    false_keys = {
+        "tool_binding_allowed",
+        "tool_execution_allowed",
+        "dspy_tool_materialization_allowed",
+        "react_tool_binding_allowed",
+        "react_v2_tool_binding_allowed",
+        "live_external_retriever_allowed",
+        "network_allowed_by_trace_contract",
+        "filesystem_mutation_allowed_by_trace_contract",
+        "external_authority_mutation_allowed",
+    }
+    return all(payload.get(key) is False for key in false_keys)
+
+
+def _effects_safe(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    payload = dict(value)
+    forbidden_true = {
+        "tool_called",
+        "custom_import_loaded",
+        "network",
+        "filesystem_write",
+        "subprocess",
+        "external_authority",
+    }
+    return all(payload.get(key) is False for key in forbidden_true)
+
+
+def _trajectory_slots_safe(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    payload = dict(value)
+    if payload.get("tool_calls_executed") is not False:
+        return False
+    for key in ("tool_call_intents", "tool_call_results"):
+        raw = payload.get(key, [])
+        if raw not in ([], None):
+            return False
+    return True
+
+
+def validate_program_runtime_traces(payload: Mapping[str, Any]) -> bool:
+    """Return whether a runtime-traces artifact satisfies replay semantics.
+
+    This validates the artifact's internal hash chain and safety posture. It is
+    intentionally stricter than JSON-shape validation so replay can fail closed
+    if trace records are edited, tool execution is implied, or non-authority
+    flags drift.
+    """
+
+    if payload.get("schema_version") != PROGRAM_RUNTIME_TRACES_SCHEMA:
+        return False
+    if payload.get("status") not in {
+        "runtime_traces_captured",
+        "no_runtime_traces_captured",
+    }:
+        return False
+    module_calls = _mapping_list(payload.get("module_calls"))
+    final_outputs = _mapping_list(payload.get("final_outputs"))
+    if module_calls is None or final_outputs is None:
+        return False
+    if payload.get("module_call_count") != len(module_calls):
+        return False
+    if payload.get("final_output_trace_count") != len(final_outputs):
+        return False
+    sources = payload.get("sources")
+    if not isinstance(sources, list) or payload.get("source_count") != len(sources):
+        return False
+    if not _runtime_policy_valid(payload.get("runtime_policy")):
+        return False
+    if not _non_authority_valid(payload.get("non_authority")):
+        return False
+    if not _coverage_valid(
+        coverage=payload.get("coverage"),
+        sources=sources,
+        module_calls=module_calls,
+        final_outputs=final_outputs,
+    ):
+        return False
+    trace_hashes = payload.get("trace_hashes")
+    if not isinstance(trace_hashes, Mapping):
+        return False
+    if trace_hashes.get("module_calls") != [
+        call.get("trace_hash") for call in module_calls
+    ]:
+        return False
+    if trace_hashes.get("final_outputs") != [
+        item.get("trace_hash") for item in final_outputs
+    ]:
+        return False
+    for call in module_calls:
+        if call.get("schema_version") != PROGRAM_RUNTIME_MODULE_CALL_SCHEMA:
+            return False
+        if not _trace_hash_valid(call):
+            return False
+        if not _effects_safe(call.get("effects")):
+            return False
+        if not _trajectory_slots_safe(call.get("trajectory_slots")):
+            return False
+        if not _non_authority_valid(call.get("non_authority")):
+            return False
+        if not isinstance(call.get("input_field_linkage"), list):
+            return False
+        if not isinstance(call.get("output_field_linkage"), list):
+            return False
+        if not isinstance(call.get("final_output_linkage"), list):
+            return False
+    for item in final_outputs:
+        if item.get("schema_version") != PROGRAM_RUNTIME_FINAL_OUTPUT_SCHEMA:
+            return False
+        if not _trace_hash_valid(item):
+            return False
+        if not _non_authority_valid(item.get("non_authority")):
+            return False
+        if not isinstance(item.get("final_output_linkage"), list):
+            return False
+    return True
+
+
 def _source_descriptor(
     *,
     path: str,
@@ -309,6 +465,104 @@ def _synthetic_single_module_call(
     return _with_trace_hash(call)
 
 
+def _coverage_summary(
+    *,
+    surfaces: list[dict[str, Any]],
+    sources: list[dict[str, Any]],
+    module_calls: list[dict[str, Any]],
+    final_outputs: list[dict[str, Any]],
+    program_outputs: list[str],
+) -> dict[str, Any]:
+    expected_module_ids = sorted(
+        str(surface.get("module_id") or "")
+        for surface in surfaces
+        if str(surface.get("module_id") or "")
+    )
+    captured_module_ids = sorted(
+        {
+            str(call.get("module_id") or "")
+            for call in module_calls
+            if str(call.get("module_id") or "")
+        }
+    )
+    final_output_fields: set[str] = set()
+    for record in final_outputs:
+        outputs = record.get("outputs")
+        if isinstance(outputs, Mapping):
+            final_output_fields.update(
+                str(field) for field in outputs if str(field) in set(program_outputs)
+            )
+    missing_module_ids = sorted(set(expected_module_ids) - set(captured_module_ids))
+    missing_final_output_fields = sorted(set(program_outputs) - final_output_fields)
+    if not sources:
+        status = "not_applicable_no_behavior_sources"
+    elif missing_module_ids or missing_final_output_fields:
+        status = "partial"
+    else:
+        status = "complete"
+    return {
+        "schema_version": "program-runtime-trace-coverage-v1",
+        "status": status,
+        "source_count": len(sources),
+        "expected_module_ids": expected_module_ids,
+        "captured_module_ids": captured_module_ids,
+        "missing_module_ids": missing_module_ids,
+        "program_outputs": list(program_outputs),
+        "captured_final_output_fields": sorted(final_output_fields),
+        "missing_final_output_fields": missing_final_output_fields,
+        "module_call_count": len(module_calls),
+        "final_output_trace_count": len(final_outputs),
+        "non_authority": dict(_NON_AUTHORITY),
+    }
+
+
+def _coverage_valid(
+    *,
+    coverage: object,
+    sources: list[Any],
+    module_calls: list[dict[str, Any]],
+    final_outputs: list[dict[str, Any]],
+) -> bool:
+    if not isinstance(coverage, Mapping):
+        return False
+    payload = dict(coverage)
+    if payload.get("schema_version") != "program-runtime-trace-coverage-v1":
+        return False
+    if payload.get("status") not in {
+        "not_applicable_no_behavior_sources",
+        "partial",
+        "complete",
+    }:
+        return False
+    if payload.get("source_count") != len(sources):
+        return False
+    if payload.get("module_call_count") != len(module_calls):
+        return False
+    if payload.get("final_output_trace_count") != len(final_outputs):
+        return False
+    if not _non_authority_valid(payload.get("non_authority")):
+        return False
+    expected = {str(item) for item in payload.get("expected_module_ids") or []}
+    captured = {str(item) for item in payload.get("captured_module_ids") or []}
+    missing = {str(item) for item in payload.get("missing_module_ids") or []}
+    if missing != expected - captured:
+        return False
+    program_outputs = {str(item) for item in payload.get("program_outputs") or []}
+    captured_outputs = {
+        str(item) for item in payload.get("captured_final_output_fields") or []
+    }
+    missing_outputs = {
+        str(item) for item in payload.get("missing_final_output_fields") or []
+    }
+    if missing_outputs != program_outputs - captured_outputs:
+        return False
+    if not sources:
+        return payload.get("status") == "not_applicable_no_behavior_sources"
+    if missing or missing_outputs:
+        return payload.get("status") == "partial"
+    return payload.get("status") == "complete"
+
+
 def _final_output_record(
     *, record: Mapping[str, Any], source: Mapping[str, Any], program_outputs: list[str]
 ) -> dict[str, Any]:
@@ -433,6 +687,13 @@ def build_program_runtime_traces(
         if module_calls or final_outputs
         else "no_runtime_traces_captured"
     )
+    coverage = _coverage_summary(
+        surfaces=surfaces,
+        sources=sources,
+        module_calls=module_calls,
+        final_outputs=final_outputs,
+        program_outputs=program_outputs,
+    )
     return {
         "schema_version": PROGRAM_RUNTIME_TRACES_SCHEMA,
         "status": status,
@@ -450,6 +711,7 @@ def build_program_runtime_traces(
             "module_calls": [str(call.get("trace_hash")) for call in module_calls],
             "final_outputs": [str(item.get("trace_hash")) for item in final_outputs],
         },
+        "coverage": coverage,
         "runtime_policy": {
             "source": "local_generated_behavior_harnesses_only",
             "provider_calls_may_have_occurred_in_behavior_harness": bool(sources),

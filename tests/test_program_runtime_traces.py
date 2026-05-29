@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from dspx.services.program_runtime_traces import build_program_runtime_traces
+from dspx.services.program_runtime_traces import (
+    build_program_runtime_traces,
+    validate_program_runtime_traces,
+)
 from dspx.services.program_service import ProgramIntent, materialize_program_from_intent
 from dspx.services.run_replay_service import check_run_receipt
 
@@ -75,6 +78,43 @@ def test_runtime_traces_reconstruct_single_module_behavior_call() -> None:
     assert call["non_authority"]["promotion_authority"] is False
     assert payload["runtime_policy"]["tool_execution_allowed"] is False
     assert payload["trace_hashes"]["module_calls"] == [call["trace_hash"]]
+    assert validate_program_runtime_traces(payload) is True
+
+
+def test_runtime_trace_semantic_validator_rejects_hash_and_tool_drift() -> None:
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="TraceProgram",
+            objective="Capture runtime traces.",
+            outputs=["answer"],
+        ),
+        module_surfaces=_module_surfaces(),
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q"},
+                    "observed_outputs": {"answer": "a"},
+                }
+            ],
+            "summary": {"total": 1, "status": "passed"},
+        },
+    )
+    assert validate_program_runtime_traces(payload) is True
+
+    bad_hash = json.loads(json.dumps(payload))
+    bad_hash["module_calls"][0]["outputs"] = {"answer": "tampered"}
+    assert validate_program_runtime_traces(bad_hash) is False
+
+    bad_tool_policy = json.loads(json.dumps(payload))
+    bad_tool_policy["module_calls"][0]["trajectory_slots"]["tool_calls_executed"] = True
+    assert validate_program_runtime_traces(bad_tool_policy) is False
+
+    bad_authority = json.loads(json.dumps(payload))
+    bad_authority["non_authority"]["promotion_authority"] = True
+    assert validate_program_runtime_traces(bad_authority) is False
 
 
 def test_runtime_trace_missing_upstream_input_is_not_reported_as_present_source() -> (

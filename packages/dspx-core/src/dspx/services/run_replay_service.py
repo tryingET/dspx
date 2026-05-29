@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from dspx.cache import make_key
 from dspx.run_receipts import RUN_RECEIPT_VERSION, load_run_receipt
+from dspx.services.program_runtime_traces import validate_program_runtime_traces
 
 
 _REQUIRED_FIELDS: tuple[str, ...] = (
@@ -809,22 +810,10 @@ def _check_program_evidence_artifacts(
                 )
         if kind == "runtime_traces":
             traces_payload = _load_json_object(artifact_path)
-            runtime_policy = (
-                traces_payload.get("runtime_policy")
-                if isinstance(traces_payload, dict)
-                else None
-            )
             semantic_check = "program_runtime_traces_semantic_valid"
-            checks[semantic_check] = (
-                isinstance(traces_payload, dict)
-                and traces_payload.get("schema_version") == "program-runtime-traces-v1"
-                and traces_payload.get("status")
-                in {"runtime_traces_captured", "no_runtime_traces_captured"}
-                and isinstance(traces_payload.get("module_calls"), list)
-                and isinstance(traces_payload.get("final_outputs"), list)
-                and isinstance(runtime_policy, dict)
-                and runtime_policy.get("tool_execution_allowed") is False
-            )
+            checks[semantic_check] = isinstance(
+                traces_payload, dict
+            ) and validate_program_runtime_traces(traces_payload)
             if not checks[semantic_check]:
                 _add_error(
                     report,
