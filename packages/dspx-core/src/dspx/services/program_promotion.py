@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
 
+from dspx.contract_scalars import contract_bool
+
 PROMOTION_ADJUDICATOR_DEFAULT_IDS = {
     "human_operator": "local_operator",
     "ai_agent": "local_ai_agent",
@@ -93,17 +95,30 @@ def promotion_policy(intent: Any) -> dict[str, Any]:
     promotion = dict(intent.promotion or {})
     raw_policy = promotion.get("policy")
     policy = dict(raw_policy) if isinstance(raw_policy, Mapping) else {}
-    if bool(policy.get("automatic_promotion", False)):
+    automatic_promotion = contract_bool(
+        policy.get("automatic_promotion"),
+        default=False,
+        label="program promotion policy.automatic_promotion",
+    )
+    if automatic_promotion:
         raise ValueError(
             "program-gen promotion policy cannot enable automatic_promotion"
         )
     return {
-        "requires_behavioral_evaluation": bool(
-            policy.get("requires_behavioral_evaluation", True)
+        "requires_behavioral_evaluation": contract_bool(
+            policy.get("requires_behavioral_evaluation"),
+            default=True,
+            label="program promotion policy.requires_behavioral_evaluation",
         ),
-        "requires_jury_execution": bool(policy.get("requires_jury_execution", True)),
-        "requires_adjudicator_decision": bool(
-            policy.get("requires_adjudicator_decision", True)
+        "requires_jury_execution": contract_bool(
+            policy.get("requires_jury_execution"),
+            default=True,
+            label="program promotion policy.requires_jury_execution",
+        ),
+        "requires_adjudicator_decision": contract_bool(
+            policy.get("requires_adjudicator_decision"),
+            default=True,
+            label="program promotion policy.requires_adjudicator_decision",
         ),
         "automatic_promotion": False,
     }

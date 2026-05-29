@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from dspx.contract_scalars import contract_bool
+
 PROGRAM_TOOL_CONTRACTS_SCHEMA = "program-tool-contracts-v1"
 PROGRAM_TOOL_CONTRACT_SCHEMA = "program-tool-contract-v1"
 
@@ -73,7 +75,11 @@ def _timeout_policy(value: object) -> dict[str, Any]:
     return {
         "timeout_seconds": timeout_seconds,
         "retry_policy": str(payload.get("retry_policy") or "none"),
-        "fail_closed": bool(payload.get("fail_closed", True)),
+        "fail_closed": contract_bool(
+            payload.get("fail_closed"),
+            default=True,
+            label="tool contract timeout_policy.fail_closed",
+        ),
     }
 
 
@@ -82,8 +88,16 @@ def _redaction_policy(value: object) -> dict[str, Any]:
     return {
         "redact_inputs": _string_list(payload.get("redact_inputs")),
         "redact_outputs": _string_list(payload.get("redact_outputs")),
-        "redact_secrets": bool(payload.get("redact_secrets", True)),
-        "persist_redacted_only": bool(payload.get("persist_redacted_only", True)),
+        "redact_secrets": contract_bool(
+            payload.get("redact_secrets"),
+            default=True,
+            label="tool contract redaction_policy.redact_secrets",
+        ),
+        "persist_redacted_only": contract_bool(
+            payload.get("persist_redacted_only"),
+            default=True,
+            label="tool contract redaction_policy.persist_redacted_only",
+        ),
     }
 
 
@@ -117,8 +131,10 @@ def _tool_contract(declaration: Mapping[str, Any]) -> dict[str, Any]:
         "redaction_policy": _redaction_policy(declaration.get("redaction_policy")),
         "dry_run_mutation_posture": {
             "dry_run_required": True,
-            "declared_mutation_allowed": bool(
-                declaration.get("mutation_allowed", effect_class == "mutate")
+            "declared_mutation_allowed": contract_bool(
+                declaration.get("mutation_allowed"),
+                default=effect_class == "mutate",
+                label=f"tool contract {tool_id!r} mutation_allowed",
             ),
             "mutation_allowed_in_generated_program": False,
             "network_allowed_in_generated_program": False,

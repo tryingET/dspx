@@ -7,6 +7,7 @@ import pytest
 
 from dspx.services.program_generated_policy import build_program_generated_module_policy
 from dspx.services.program_service import ProgramIntent, materialize_program_from_intent
+from dspx.services.program_promotion import promotion_policy
 from dspx.services.program_tool_contracts import build_program_tool_contracts
 from dspx.services.run_replay_service import check_run_receipt
 
@@ -125,6 +126,55 @@ def test_tool_contract_builder_emits_descriptor_only_contract_fields() -> None:
     }
     assert contract["non_authority"]["tool_execution_authority"] is False
     assert contract["non_authority"]["external_mutation"] is False
+
+
+def test_tool_contract_builder_preserves_quoted_false_mutation_allowed() -> None:
+    intent = ProgramIntent(
+        name="ToolContractProgram",
+        objective="Answer using an explicitly declared future pure lookup tool.",
+        inputs=["question"],
+        outputs=["answer"],
+        capabilities={
+            "declarations": [
+                {
+                    "id": "lookup_policy",
+                    "kind": "tool",
+                    "effect_class": "pure",
+                    "mutation_allowed": "false",
+                }
+            ]
+        },
+    )
+
+    contract = build_program_tool_contracts(intent)["contracts"][0]
+
+    assert contract["dry_run_mutation_posture"]["declared_mutation_allowed"] is False
+
+
+def test_promotion_policy_preserves_quoted_false_values() -> None:
+    intent = ProgramIntent(
+        name="PromotionPolicyProgram",
+        objective="Answer locally.",
+        inputs=["question"],
+        outputs=["answer"],
+        promotion={
+            "policy": {
+                "automatic_promotion": "false",
+                "requires_behavioral_evaluation": "false",
+                "requires_jury_execution": "false",
+                "requires_adjudicator_decision": "false",
+            }
+        },
+    )
+
+    policy = promotion_policy(intent)
+
+    assert policy == {
+        "requires_behavioral_evaluation": False,
+        "requires_jury_execution": False,
+        "requires_adjudicator_decision": False,
+        "automatic_promotion": False,
+    }
 
 
 def test_program_gen_writes_and_replay_checks_tool_contracts(

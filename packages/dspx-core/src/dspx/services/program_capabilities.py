@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
+
+from dspx.contract_scalars import contract_bool
 import keyword
 import re
 
@@ -433,7 +435,11 @@ def normalize_capability_declaration(value: object) -> dict[str, Any]:
         if raw.get("effect_class") is not None:
             normalized["effect_class"] = str(raw.get("effect_class") or "pure")
         if raw.get("mutation_allowed") is not None:
-            normalized["mutation_allowed"] = bool(raw.get("mutation_allowed"))
+            normalized["mutation_allowed"] = contract_bool(
+                raw.get("mutation_allowed"),
+                default=False,
+                label=f"capability declaration {declaration_id!r} mutation_allowed",
+            )
     return normalized
 
 
