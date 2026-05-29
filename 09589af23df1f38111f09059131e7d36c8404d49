@@ -1,0 +1,26 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "09589af23df1f38111f09059131e7d36c8404d49"
+created_at: "2026-05-29T04:53:48Z"
+intent: "Align provider code execution capability declarations with runtime posture"
+files:
+  - "packages/dspx-core/src/dspx/claude_cli_lm.py"
+  - "packages/dspx-core/src/dspx/gemini_cli_lm.py"
+  - "packages/dspx-core/src/dspx/pi_rpc_lm.py"
+  - "packages/dspx-core/src/dspx/providers_register_claude.py"
+  - "packages/dspx-core/src/dspx/providers_register_gemini.py"
+  - "tests/test_pi_rpc_provider_unit.py"
+  - "tests/test_provider_registry.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 1' just loop-impact-wide base=1293000"
+    status: "pending"
+group:
+  index: 3
+  total: 6
+  rationale: "provider capability posture and focused registry/runtime tests"
