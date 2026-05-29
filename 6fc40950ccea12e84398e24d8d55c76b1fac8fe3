@@ -1,0 +1,31 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "manual-commit-workflow"
+actor: "pi"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "6fc40950ccea12e84398e24d8d55c76b1fac8fe3"
+created_at: "2026-05-29T03:27:37Z"
+intent: "Preserve streamed Codex text from dspy-lm-auth even when the completed_response object is absent, and expand AK-3415 scope for the provider boundary file."
+files:
+  - "governance/task-scopes/AK-3415.snapshot.json"
+  - "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py"
+  - "tests/test_provider_v4.py"
+validation:
+  db_preflight:
+    command: "cd /home/tryinget/ai-society && ./scripts/db-change-preflight.sh --db-path /home/tryinget/ai-society/society.v2.db --stage db-dev"
+    status: "pass"
+  focused_tests:
+    command: "uv run --no-sync -m pytest -q tests/test_provider_v4.py"
+    status: "pass"
+  impact_gate:
+    command: "just loop-impact-run"
+    status: "pass"
+  landing_gate:
+    command: "just loop-landing-check"
+    status: "pass"
+group:
+  index: 1
+  total: 4
+  rationale: "provider stream fallback implementation and scoped AK projection update"
+links:
+  task_ids:
+    - 3415
