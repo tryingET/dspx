@@ -246,6 +246,19 @@ def test_pi_rpc_lm_forward_fake_process_handles_noise(tmp_path: Path) -> None:
     assert "echo: emit-noise" in text
 
 
+def test_pi_rpc_lm_does_not_require_code_exec_capability(
+    tmp_path: Path, monkeypatch
+) -> None:
+    fake = tmp_path / "fake-pi"
+    _write_fake_pi_rpc_bin(fake)
+    monkeypatch.setenv("DSPX_POLICY_ALLOWED_CAPS", "network.read")
+
+    lm = PiRPCLM(binary=str(fake), no_tools=True, strict=True, timeout=2.0)
+    out = lm.generate(LMRequest(prompt="hello"))
+
+    assert out.outputs[0] == "echo: hello"
+
+
 def test_pi_rpc_lm_generate_fake_process(tmp_path: Path) -> None:
     fake = tmp_path / "fake-pi"
     _write_fake_pi_rpc_bin(fake)

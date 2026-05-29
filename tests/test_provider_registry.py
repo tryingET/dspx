@@ -3,6 +3,7 @@ from __future__ import annotations
 import dspx.providers_register_multi as providers_register_multi
 from dspx.provider_registry import (
     available,
+    capabilities,
     create_from_env,
     ensure_default_providers,
 )
@@ -15,6 +16,14 @@ def test_registry_defaults_available() -> None:
     assert any(
         k in reg for k in ("codex-exec", "claude-cli", "gemini-cli", "multi", "pi-rpc")
     )
+
+
+def test_default_provider_capabilities_match_code_exec_posture() -> None:
+    ensure_default_providers()
+
+    assert capabilities("pi-rpc").code_exec is False
+    assert capabilities("claude-cli").code_exec is True
+    assert capabilities("gemini-cli").code_exec is True
 
 
 def test_create_from_env_defaults(monkeypatch) -> None:

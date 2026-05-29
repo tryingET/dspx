@@ -99,7 +99,7 @@ class GeminiCLILM(DSPyBaseLM):
             if ProviderCapabilities is not None:
                 caps = ProviderCapabilities(
                     supports_tools=True,
-                    code_exec=False,
+                    code_exec=True,
                     json_mode=False,  # Gemini CLI doesn't guarantee JSON
                     multi_turn=True,
                     structured_output_format="none",  # Free-form output

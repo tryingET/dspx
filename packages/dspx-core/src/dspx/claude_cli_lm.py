@@ -174,7 +174,7 @@ class ClaudeHeadlessLM(DSPyBaseLM):
                 has_json = self.output_format in {"json", "stream-json"}
                 caps = ProviderCapabilities(
                     supports_tools=True,  # via allowedTools
-                    code_exec=False,  # CLI can call Bash via tools, but we don't assume local exec here
+                    code_exec=True,  # runtime shells out and gates on code.exec
                     json_mode=has_json,
                     multi_turn=True,
                     structured_output_format="json" if has_json else "xml",

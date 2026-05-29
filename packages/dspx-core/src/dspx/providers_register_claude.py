@@ -61,6 +61,6 @@ def _factory() -> ClaudeHeadlessLM:
 
 def register() -> None:
     caps = ProviderCapabilities(
-        supports_tools=True, code_exec=False, json_mode=True, multi_turn=True
+        supports_tools=True, code_exec=True, json_mode=True, multi_turn=True
     )
     register_provider("claude-cli", _factory, caps)

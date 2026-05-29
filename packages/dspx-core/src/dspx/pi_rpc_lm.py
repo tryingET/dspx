@@ -177,14 +177,6 @@ class PiRPCLM(DSPyBaseLM):
             ts = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts}] PiRPCLM: prompting pi rpc …")
 
-        # Capability: code.exec
-        try:
-            from dspx.policy import check_capability as _cap
-        except Exception:
-            _cap = None  # type: ignore
-        if _cap is not None:
-            _cap("code.exec")
-
         t0 = time.time()
         error: Optional[str] = None
         try:
@@ -225,14 +217,6 @@ class PiRPCLM(DSPyBaseLM):
             query = self._messages_to_prompt(
                 [{"role": m.role, "content": m.content} for m in (msgs or [])]
             )
-
-        # Capability: code.exec
-        try:
-            from dspx.policy import check_capability as _cap
-        except Exception:
-            _cap = None  # type: ignore
-        if _cap is not None:
-            _cap("code.exec")
 
         t0 = time.time()
         error: Optional[str] = None
