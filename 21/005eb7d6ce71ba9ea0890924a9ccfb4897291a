@@ -1,0 +1,26 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "21005eb7d6ce71ba9ea0890924a9ccfb4897291a"
+created_at: "2026-05-29T17:16:57Z"
+intent: "Split boundary hardening impact checks and map activation-packet validation to targeted tests"
+files:
+  - "Justfile"
+  - "scripts/ci/verification-impact.yml"
+  - "scripts/ci/verify_changed.py"
+  - "tests/test_verify_changed.py"
+validation:
+  fast_gate:
+    command: "just hooks-run files=\"Justfile scripts/ci/verification-impact.yml scripts/ci/verify_changed.py tests/test_verify_changed.py\" && uv run --no-sync -m pytest -q tests/test_verify_changed.py"
+    status: "pass"
+  full_gate:
+    command: "uv run --no-sync python scripts/ci/verify_changed.py --files Justfile scripts/ci/verification-impact.yml scripts/ci/verify_changed.py tests/test_verify_changed.py --run --allow-wide"
+    status: "fail"
+group:
+  index: 1
+  total: 1
+  rationale: "CI impact planner timeout fix"
+links:
+  task_ids:
+    - 3415
