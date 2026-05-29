@@ -434,16 +434,42 @@ def test_agent_kernel_export_preflight_not_ready_when_promotion_already_applied(
     decision = {
         "schema_version": "program-promotion-decision-record-v1",
         "status": "recorded",
+        "outcome": "request_more_evidence",
+        "promotion_state_after_decision": "not_promoted",
         "identity": identity,
         "effect": {
             "external_authority_mutated": False,
             "governance_mutated": False,
+        },
+        "non_authority": {
+            "local_decision_record_only": True,
+            "automatic_promotion": False,
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "program_mutation": False,
+            "refined_review_mutation": False,
+            "new_candidate_generation": False,
+            "governance_authority": False,
+            "external_mutation": False,
         },
     }
     comparison = {
         "schema_version": "program-refinement-candidate-comparison-v1",
         "source_identity": identity,
         "candidate_identity": identity,
+        "non_authority": {
+            "local_comparison_only": True,
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "winner_selection": False,
+            "automatic_promotion": False,
+            "program_mutation": False,
+            "new_candidate_generation": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
     }
     manifest_path = tmp_path / "manifest.json"
     decision_path = tmp_path / "decision.json"
@@ -471,6 +497,126 @@ def test_agent_kernel_export_preflight_not_ready_when_promotion_already_applied(
         "promotion_already_applied_or_state_not_not_promoted"
         in payload["preflight"]["blocking_reasons"]
     )
+
+
+def test_agent_kernel_export_preflight_fails_closed_on_authority_widened_sidecars(
+    tmp_path: Path,
+) -> None:
+    identity = {
+        "request_id": "req-1",
+        "candidate_id": "cand-1",
+        "assembly_id": "asm-1",
+        "episode_id": "episode-1",
+        "receipt_bundle_id": "bundle-1",
+    }
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "request": {"request_id": identity["request_id"]},
+        "candidate_assembly": {
+            "artifact_kind": "program",
+            "candidate_id": identity["candidate_id"],
+            "assembly_id": identity["assembly_id"],
+        },
+        "execution_episode": {"episode_id": identity["episode_id"]},
+        "receipt_bundle": {"receipt_bundle_id": identity["receipt_bundle_id"]},
+        "program_promotion_review": {
+            "promotion_state": "not_promoted",
+            "external_authority": {
+                "refs": [{"system": "agent_kernel", "ref": "AK-EXAMPLE"}]
+            },
+        },
+    }
+    decision = {
+        "schema_version": "program-promotion-decision-record-v1",
+        "status": "recorded",
+        "outcome": "promote",
+        "promotion_state_after_decision": "local_promotion_decision_recorded",
+        "identity": identity,
+        "effect": {
+            "external_authority_mutated": False,
+            "governance_mutated": False,
+        },
+        "non_authority": {
+            "local_decision_record_only": True,
+            "automatic_promotion": False,
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "program_mutation": False,
+            "refined_review_mutation": False,
+            "new_candidate_generation": False,
+            "governance_authority": True,
+            "external_mutation": True,
+        },
+    }
+    comparison = {
+        "schema_version": "program-refinement-candidate-comparison-v1",
+        "source_identity": identity,
+        "non_authority": {
+            "local_comparison_only": True,
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "winner_selection": False,
+            "automatic_promotion": False,
+            "program_mutation": False,
+            "new_candidate_generation": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+    }
+    manifest_path = tmp_path / "manifest.json"
+    decision_path = tmp_path / "decision.json"
+    comparison_path = tmp_path / "comparison.json"
+    _write_json(manifest_path, manifest)
+    _write_json(decision_path, decision)
+    _write_json(comparison_path, comparison)
+
+    with pytest.raises(
+        ProgramExternalAuthorityExportError,
+        match="widens non-authority flags",
+    ):
+        build_program_external_authority_export_preflight(
+            manifest_path=manifest_path,
+            external_ref="AK-EXAMPLE",
+            decision_record_path=decision_path,
+            comparison_path=comparison_path,
+        )
+
+    promoting_decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    promoting_decision["non_authority"]["governance_authority"] = False
+    promoting_decision["non_authority"]["external_mutation"] = False
+    _write_json(decision_path, promoting_decision)
+    with pytest.raises(
+        ProgramExternalAuthorityExportError,
+        match="promotion_state_after_decision must be not_promoted",
+    ):
+        build_program_external_authority_export_preflight(
+            manifest_path=manifest_path,
+            external_ref="AK-EXAMPLE",
+            decision_record_path=decision_path,
+            comparison_path=comparison_path,
+        )
+
+    safe_decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    safe_decision["outcome"] = "request_more_evidence"
+    safe_decision["promotion_state_after_decision"] = "not_promoted"
+    _write_json(decision_path, safe_decision)
+    comparison_without_contract = json.loads(
+        comparison_path.read_text(encoding="utf-8")
+    )
+    comparison_without_contract.pop("non_authority")
+    _write_json(comparison_path, comparison_without_contract)
+    with pytest.raises(
+        ProgramExternalAuthorityExportError,
+        match="program refinement candidate comparison must be local-only",
+    ):
+        build_program_external_authority_export_preflight(
+            manifest_path=manifest_path,
+            external_ref="AK-EXAMPLE",
+            decision_record_path=decision_path,
+            comparison_path=comparison_path,
+        )
 
 
 def test_agent_kernel_export_preflight_fails_closed_on_identity_mismatch(

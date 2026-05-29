@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional, Mapping, Any
 from typer.testing import CliRunner
 
@@ -53,3 +54,18 @@ def test_tools_run_dry_run_for_filesystem_write() -> None:
     assert res.exit_code == 0
     s = res.stdout.strip().lower()
     assert "tw3.write" in s and "filesystem.write" in s
+
+
+def test_tools_run_invokes_builtin_tools_with_native_kwargs(tmp_path: Path) -> None:
+    data = tmp_path / "sample.csv"
+    data.write_text("name,count\nalpha,1\n", encoding="utf-8")
+
+    res = runner.invoke(
+        app,
+        ["tools", "run", "data_preview", "--params", f"path={data},nrows=1"],
+        input="\n",
+    )
+
+    assert res.exit_code == 0, res.output
+    assert '"type": "csv"' in res.stdout
+    assert "alpha" in res.stdout

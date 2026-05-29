@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from dspx.security import ByteLimitExceededError, DEFAULT_HTTP_RESPONSE_MAX_BYTES
 from dspx.tools.registry import ensure_default_tools, get_tool
 
 
@@ -76,6 +77,19 @@ def test_web_scrape_respects_allowlist() -> None:
     )
     assert out["status_code"] == 200
     assert "Title" in out.get("text", "")
+
+
+def test_web_fetch_rejects_oversized_response_before_truncation() -> None:
+    ensure_default_tools()
+    fn = get_tool("web_fetch")
+    client = _mock_ok("x" * (DEFAULT_HTTP_RESPONSE_MAX_BYTES + 1))
+
+    with pytest.raises(ByteLimitExceededError):
+        fn(
+            "http://allowed.example/huge",
+            allowed_hosts={"allowed.example": True},
+            client=client,
+        )
 
 
 def test_web_fetch_rejects_redirect_to_unallowed_host() -> None:

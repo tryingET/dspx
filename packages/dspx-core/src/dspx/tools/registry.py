@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Mapping
 from pathlib import Path
+from functools import wraps
 import os
 import sqlite3
 import threading
@@ -11,6 +12,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from duckduckgo_search import DDGS
 from dspx.http_guard import host_allowed, send_with_host_allowlist
+from dspx.security import DEFAULT_HTTP_RESPONSE_MAX_BYTES, read_response_text_bounded
 from dspx.tools.descriptors import ToolDescriptor
 from dspx.tools.openapi.models import OpenAPIOperationInfo
 
@@ -56,6 +58,7 @@ def register_tool(
     name: str, func: Callable[..., Any], descriptor: Optional[ToolDescriptor] = None
 ) -> None:
     # Wrap with policy enforcement
+    @wraps(func)
     def _wrapped(*args: Any, **kwargs: Any) -> Any:
         # Import policy lazily; if unavailable, skip enforcement
         try:
@@ -388,13 +391,20 @@ def _web_fetch(
             client,
             req,
             allowed_hosts=allowed_hosts,
+            stream=True,
         )
-        text = resp.text
-        max_len = 100_000
-        if len(text) > max_len:
-            text = (
-                text[:max_len] + f"\n... [truncated {len(resp.text) - max_len} bytes]"
+        try:
+            text = read_response_text_bounded(
+                resp,
+                max_bytes=DEFAULT_HTTP_RESPONSE_MAX_BYTES,
+                label="web_fetch response",
             )
+        finally:
+            resp.close()
+        max_len = 100_000
+        original_len = len(text)
+        if original_len > max_len:
+            text = text[:max_len] + f"\n... [truncated {original_len - max_len} bytes]"
         # Redact sensitive tokens in URL and headers
         try:
             from dspx.redaction import (

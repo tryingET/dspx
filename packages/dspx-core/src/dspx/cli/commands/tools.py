@@ -5,13 +5,52 @@ Commands for listing, describing, searching, and running tools.
 
 from __future__ import annotations
 
+import inspect
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def _invoke_registered_tool(
+    fn: Any, *, pmap: dict[str, Any], body: Any, is_openapi: bool
+) -> Any:
+    """Invoke a registered tool using the descriptor-appropriate calling shape."""
+    if is_openapi:
+        return fn(params=pmap or None, body=body)
+
+    try:
+        signature = inspect.signature(fn)
+        parameters = signature.parameters
+    except (TypeError, ValueError):
+        parameters = {}
+
+    has_var_kwargs = any(
+        param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values()
+    )
+    accepts_payload_shape = "params" in parameters or "body" in parameters
+    accepts_native_kwargs = has_var_kwargs or any(key in parameters for key in pmap)
+
+    if accepts_native_kwargs and not accepts_payload_shape:
+        if body is not None and not has_var_kwargs and "body" not in parameters:
+            raise typer.BadParameter("--body-json is not supported by this tool")
+        kwargs = dict(pmap)
+        if body is not None and (has_var_kwargs or "body" in parameters):
+            kwargs["body"] = body
+        return fn(**kwargs)
+
+    if accepts_payload_shape:
+        kwargs: dict[str, Any] = {}
+        if "params" in parameters or has_var_kwargs:
+            kwargs["params"] = pmap or None
+        if "body" in parameters or has_var_kwargs:
+            kwargs["body"] = body
+        return fn(**kwargs)
+
+    return fn(**pmap)
 
 
 @app.command("list")
@@ -330,7 +369,7 @@ def tools_run(
                     )
                     raise typer.Exit(code=2)
 
-    out = fn(params=pmap or None, body=body)
+    out = _invoke_registered_tool(fn, pmap=pmap, body=body, is_openapi=is_openapi)
     try:
         typer.echo(json.dumps(out, ensure_ascii=False, indent=2))
     except Exception:

@@ -853,6 +853,9 @@ def test_program_service_binds_examples_when_present(
     ).read_text(encoding="utf-8")
     assert (root / "behavior_results.json").exists()
     assert (root / "eval_behavior.py").exists()
+    eval_behavior_source = (root / "eval_behavior.py").read_text(encoding="utf-8")
+    assert "DSPX_PROGRAM_HARNESS_TIMEOUT" in eval_behavior_source
+    assert "timeout=_harness_timeout_seconds()" in eval_behavior_source
     assert (root / "behavior_episode.json").exists()
     assert (root / "oracle_evidence.json").exists()
     assert (root / "execution_episode.json").exists()

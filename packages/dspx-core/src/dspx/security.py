@@ -7,11 +7,12 @@ for provider results.
 
 from __future__ import annotations
 
+import json
 import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:
     import httpx
@@ -35,6 +36,9 @@ class UnsafePathComponentError(ValueError):
 
 class ByteLimitExceededError(ValueError):
     """Raised when a bounded read exceeds its byte budget."""
+
+
+DEFAULT_HTTP_RESPONSE_MAX_BYTES = 1_000_000
 
 
 def confine_path(root: Path, user_path: str | Path, *, strict: bool = True) -> Path:
@@ -183,3 +187,14 @@ def read_response_text_bounded(
     data = b"".join(chunks)
     encoding = response.encoding or "utf-8"
     return data.decode(encoding, errors="replace")
+
+
+def response_json_or_raw_text_bounded(
+    response: "httpx.Response", *, max_bytes: int, label: str
+) -> Any:
+    """Read a response with a hard byte ceiling and parse JSON when possible."""
+    text = read_response_text_bounded(response, max_bytes=max_bytes, label=label)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {"raw_text": text}

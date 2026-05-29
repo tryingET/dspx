@@ -12,6 +12,10 @@ from dspx.capabilities import ProviderCapabilities
 from dspx.dtos import LMRequest, LMResponse
 from dspx.lm_base import LMBase
 from dspx.redaction import redact_headers, redact_url
+from dspx.security import (
+    DEFAULT_HTTP_RESPONSE_MAX_BYTES,
+    response_json_or_raw_text_bounded,
+)
 
 try:
     from dspx.policy import check_capability as _check_capability
@@ -235,17 +239,20 @@ class OpenAICompatibleLM(DSPyBaseLM, LMBase):
             raise RuntimeError("HTTP client is not initialized")
 
         started = time.time()
-        r = client.post(
-            "/chat/completions",
+        with client.stream(
+            "POST",
+            f"{self.base_url}/chat/completions",
             headers=self._headers(),
             json=self._request_payload(messages=msgs, kwargs=dict(kwargs)),
             timeout=float(kwargs.get("timeout", self.timeout)),
-        )
+        ) as r:
+            raw = response_json_or_raw_text_bounded(
+                r,
+                max_bytes=DEFAULT_HTTP_RESPONSE_MAX_BYTES,
+                label="OpenAI-compatible API response",
+            )
+            status_code = int(r.status_code)
         ended = time.time()
-        try:
-            raw = r.json()
-        except Exception:
-            raw = {"raw_text": r.text}
         text = _extract_text(raw)
         if not text and isinstance(raw, dict):
             err = raw.get("error")
@@ -255,16 +262,16 @@ class OpenAICompatibleLM(DSPyBaseLM, LMBase):
             OpenAICompatibleCall(
                 model=self.model_id,
                 base_url=self.base_url,
-                status_code=int(r.status_code),
+                status_code=status_code,
                 text=text,
                 raw=raw,
                 started_at=started,
                 ended_at=ended,
             )
         )
-        if r.status_code >= 400 and self.strict:
+        if status_code >= 400 and self.strict:
             raise RuntimeError(
-                f"OpenAI-compatible API error (status={r.status_code}): {text}"
+                f"OpenAI-compatible API error (status={status_code}): {text}"
             )
         usage_raw = raw.get("usage") if isinstance(raw, dict) else None
         usage: dict[str, Any] | None = None

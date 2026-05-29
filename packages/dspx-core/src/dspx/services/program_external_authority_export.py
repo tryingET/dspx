@@ -21,6 +21,34 @@ _EXTERNAL_APPLY_BLOCKING_REASONS = [
     "target_contract_not_bound_to_ak_runtime",
 ]
 
+_ALLOWED_NON_PROMOTE_DECISION_OUTCOMES = {
+    "withhold",
+    "reject",
+    "request_more_evidence",
+}
+_REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS = (
+    "automatic_promotion",
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "program_mutation",
+    "refined_review_mutation",
+    "new_candidate_generation",
+    "governance_authority",
+    "external_mutation",
+)
+_REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS = (
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "winner_selection",
+    "automatic_promotion",
+    "program_mutation",
+    "new_candidate_generation",
+    "governance_authority",
+    "external_mutation",
+)
+
 
 class ProgramExternalAuthorityExportError(ValueError):
     """Raised when an external-authority export preflight input is invalid."""
@@ -190,6 +218,16 @@ def _identity_exactly_matches(
     return True
 
 
+def _assert_false_flags(
+    non_authority: Mapping[str, Any], required_false: tuple[str, ...], *, label: str
+) -> None:
+    invalid = [key for key in required_false if non_authority.get(key) is not False]
+    if invalid:
+        raise ProgramExternalAuthorityExportError(
+            f"{label} widens non-authority flags: " + ", ".join(invalid)
+        )
+
+
 def _load_optional_decision_record(
     path: Path | None, *, manifest_identity: Mapping[str, str | None]
 ) -> tuple[dict[str, Any] | None, Path | None]:
@@ -211,6 +249,24 @@ def _load_optional_decision_record(
         manifest_identity,
         label="program promotion decision record",
     )
+    non_authority = _safe_mapping(record.get("non_authority"))
+    if non_authority.get("local_decision_record_only") is not True:
+        raise ProgramExternalAuthorityExportError(
+            "program promotion decision record must be local-only"
+        )
+    _assert_false_flags(
+        non_authority,
+        _REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS,
+        label="program promotion decision record",
+    )
+    if record.get("promotion_state_after_decision") != "not_promoted":
+        raise ProgramExternalAuthorityExportError(
+            "program promotion decision record promotion_state_after_decision must be not_promoted"
+        )
+    if record.get("outcome") not in _ALLOWED_NON_PROMOTE_DECISION_OUTCOMES:
+        raise ProgramExternalAuthorityExportError(
+            "program promotion decision record outcome must be non-promoting"
+        )
     return record, source
 
 
@@ -242,6 +298,16 @@ def _load_optional_comparison(
         raise ProgramExternalAuthorityExportError(
             "program refinement candidate comparison must mention manifest identity as source_identity or candidate_identity"
         )
+    non_authority = _safe_mapping(comparison.get("non_authority"))
+    if non_authority.get("local_comparison_only") is not True:
+        raise ProgramExternalAuthorityExportError(
+            "program refinement candidate comparison must be local-only"
+        )
+    _assert_false_flags(
+        non_authority,
+        _REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS,
+        label="program refinement candidate comparison",
+    )
     return comparison, source, mentions_identity
 
 
@@ -254,6 +320,14 @@ def _promotion_not_applied(
     )
     return (
         promotion_review.get("promotion_state") == "not_promoted"
+        and (
+            decision_record is None
+            or decision_record.get("promotion_state_after_decision") == "not_promoted"
+        )
+        and (
+            decision_record is None
+            or decision_record.get("outcome") in _ALLOWED_NON_PROMOTE_DECISION_OUTCOMES
+        )
         and decision_effect.get("external_authority_mutated", False) is False
         and decision_effect.get("governance_mutated", False) is False
     )

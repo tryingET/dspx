@@ -8,6 +8,11 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import httpx
 
+from dspx.security import (
+    DEFAULT_HTTP_RESPONSE_MAX_BYTES,
+    response_json_or_raw_text_bounded,
+)
+
 # Optional internal DTO/provider interface for services
 try:
     from dspx.dtos import LMRequest, LMResponse
@@ -248,19 +253,20 @@ class OpenRouterLM(DSPyBaseLM):
             raise RuntimeError("OpenRouter HTTP client is not initialized")
 
         t0 = time.time()
-        r = client.post(
+        with client.stream(
+            "POST",
             f"{self.base_url.rstrip('/')}/chat/completions",
             headers=self._headers(),
             json=self._request_payload(messages=msgs, kwargs=dict(kwargs)),
             timeout=float(kwargs.get("timeout", self.timeout)),
-        )
+        ) as r:
+            raw = response_json_or_raw_text_bounded(
+                r,
+                max_bytes=DEFAULT_HTTP_RESPONSE_MAX_BYTES,
+                label="OpenRouter API response",
+            )
+            status_code = int(r.status_code)
         t1 = time.time()
-
-        raw: Any
-        try:
-            raw = r.json()
-        except Exception:
-            raw = {"raw_text": r.text}
 
         text = _extract_text(raw)
         if not text and isinstance(raw, dict):
@@ -272,7 +278,7 @@ class OpenRouterLM(DSPyBaseLM):
             OpenRouterCall(
                 model=self.model_id,
                 messages=msgs,
-                status_code=int(r.status_code),
+                status_code=status_code,
                 text=text,
                 raw=raw,
                 started_at=t0,
@@ -280,8 +286,8 @@ class OpenRouterLM(DSPyBaseLM):
             )
         )
 
-        if r.status_code >= 400 and self.strict:
-            raise RuntimeError(f"OpenRouter API error (status={r.status_code}): {text}")
+        if status_code >= 400 and self.strict:
+            raise RuntimeError(f"OpenRouter API error (status={status_code}): {text}")
 
         usage: dict[str, Any] | None = None
         if isinstance(raw, dict):
