@@ -29,6 +29,8 @@ The goal is to see the current artifact contract clearly, not to claim a final p
 
 The current `program-gen` loop proves:
 
+Boundary map for MLflow, Oracle, runtime traces, receipts/replay, and activation authority: [[generated-program-evidence-surface-boundaries]].
+
 1. A prose request or structured intent can first be normalized through `program-gen normalize-intent`, which writes `program-intent-normalization-v1` with assumptions, missing evidence, topology/primitive hints, and generation risks without generating programs or mutating authority; direct `program-gen` materialization also writes `intent_normalization.json` before candidate surfaces so the same assumption/risk membrane is retained in generated assemblies.
 1. A structured intent can then be inspected through `program-architect plan`, which writes non-authoritative architecture candidates and optional materializable intent drafts without generating programs or mutating authority.
 1. A structured intent can materialize a deterministic program-shaped candidate assembly.
@@ -44,7 +46,7 @@ The current `program-gen` loop proves:
 1. `execution_episode.json` is a standalone `program-execution-episode-v1` contract artifact with source-indexed behavior evidence summaries.
 1. When examples exist, `eval_examples.py` invokes the generated program locally and writes `behavior_results.json`; `execution_episode.json` records whether that source came from inline examples or `examples_path`, plus result path/hash, count, provider, and metric facts already known.
 1. When a dataset is declared, `program-gen` writes `dataset_manifest.json`, deterministic `splits/train.jsonl`, `splits/validation.jsonl`, `splits/test.jsonl`, split-specific harnesses, and `behavior_results.train.json` / `.validation.json` / `.test.json` without merging them into inline examples; `execution_episode.json` records each split as a separate evidence source.
-1. `oracle_evidence.json` is source-aware Oracle-readable evidence derived from local behavior results without invoking Oracle: inline examples, `examples_path`, and dataset splits can all contribute evidence sources.
+1. `oracle_evidence.json` is source-aware Oracle-readable evidence derived from local behavior results without invoking Oracle: inline examples, `examples_path`, and dataset splits can all contribute evidence sources. It includes only a hash-bound `program_runtime_traces.json` summary so Oracle can report trace presence/coverage without becoming the replay validator.
 1. `oracle index --from-program-evidence` can be run explicitly as local CoordinateIndex ingestion; it is not part of `program-gen`.
 1. `oracle program-evidence report` can be run explicitly against that temp CoordinateIndex to summarize source-aware behavior evidence without authority effects; it is not part of `program-gen`.
 1. `program-architect tournament` can materialize each materializable architecture-plan candidate in isolated local directories, replay-check their receipts, summarize aggregate behavior/topology/artifact signals in `program-architecture-tournament-evidence-matrix-v1`, optionally write candidate-local Oracle indexes/reports with `--with-oracle-reports`, and write `program-architecture-tournament-v1`; it fail-closes before writing on candidate identity, source-intent/topology congruence, authority-flag, intent-integrity, or output-collision problems and does not select a winner or mutate authority.
@@ -408,7 +410,7 @@ How to read it:
 - `evaluation_sources` lists every local behavior evidence source that actually ran: inline examples, `examples_path`, and/or each dataset split. Each source records kind, source path or split path, result path/hash, count, status, summary, metric, provider, and harness return status.
 - `behavior_evidence_summary` aggregates totals/status counts across those sources without claiming quality, selecting a winner, or applying authority.
 - `behavioral_evaluation` remains the legacy inline-example summary pointer to `behavior_results.json` when examples existed and `eval_examples.py` wrote that evidence.
-- `oracle_readability` points to `oracle_evidence.json` when local behavior evidence existed; `oracle_invoked` remains `false`.
+- `oracle_readability` points to `oracle_evidence.json` when local behavior evidence existed; `oracle_invoked` remains `false`. The Oracle-readable payload includes a runtime-trace summary/hash but not full module-call/final-output trace records.
 - `non_authority` keeps evidence separate from ranking, pruning, promotion, governance, AK mutation, Oracle authority, winner selection, and external authority mutation.
 
 ## 7. Inspect actual behavior over examples
