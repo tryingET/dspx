@@ -72,6 +72,26 @@ rules:
     commands:
       - workflow_contract_check
 
+  - match: "packages/dspx-core/src/dspx/cli/commands/program_promote.py"
+    category: activation_packet_cli
+    impact_group: activation_evidence
+    risk: expanded
+    exclusive: true
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_activation_packet
+
+  - match: "packages/dspx-core/src/dspx/services/program_activation_packet.py"
+    category: activation_packet
+    impact_group: activation_evidence
+    risk: expanded
+    exclusive: true
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_activation_packet
+
   - match: "packages/dspx-core/src/dspx/cli/*.py"
     category: cli_boundary
     impact_group: boundary_hardening
@@ -79,7 +99,10 @@ rules:
     commands:
       - ruff_touched
       - typecheck_all
-      - pytest_boundary_hardening
+      - pytest_boundary_adversarial
+      - pytest_cli_dspx
+      - pytest_forge_cli_policy
+      - pytest_program_runtime_episode
       - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/cli/**/*.py"
@@ -89,7 +112,10 @@ rules:
     commands:
       - ruff_touched
       - typecheck_all
-      - pytest_boundary_hardening
+      - pytest_boundary_adversarial
+      - pytest_cli_dspx
+      - pytest_forge_cli_policy
+      - pytest_program_runtime_episode
       - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/cache.py"
@@ -109,7 +135,10 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_boundary_hardening
+      - pytest_boundary_adversarial
+      - pytest_cli_dspx
+      - pytest_forge_cli_policy
+      - pytest_program_runtime_episode
       - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/provider_runtime.py"
@@ -119,7 +148,10 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_boundary_hardening
+      - pytest_boundary_adversarial
+      - pytest_cli_dspx
+      - pytest_forge_cli_policy
+      - pytest_program_runtime_episode
       - pytest_provider_runtime
       - boundary_contract_check
 
@@ -150,7 +182,10 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_provider_runtime
-      - pytest_boundary_hardening
+      - pytest_boundary_adversarial
+      - pytest_cli_dspx
+      - pytest_forge_cli_policy
+      - pytest_program_runtime_episode
 
   - match: "packages/dspx-core/src/dspx/openrouter_lm.py"
     category: provider_boundary
@@ -215,7 +250,7 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_boundary_hardening
+      - pytest_program_runtime_episode
       - pytest_program_sidecar_boundaries
       - boundary_contract_check
 
@@ -236,7 +271,7 @@ rules:
     commands:
       - ruff_touched
       - typecheck_all
-      - pytest_boundary_hardening
+      - pytest_forge_cli_policy
 
   - match: "apps/forge/src/dspx_forge/**/*.py"
     category: forge_boundary
@@ -245,7 +280,7 @@ rules:
     commands:
       - ruff_touched
       - typecheck_all
-      - pytest_boundary_hardening
+      - pytest_forge_cli_policy
 
   - match: "packages/dspx-core/src/dspx/services/program_service.py"
     category: python_service

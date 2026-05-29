@@ -131,6 +131,58 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "CLI/provider/runtime boundary hardening changed",
     ),
+    "pytest_boundary_adversarial": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_adversarial_boundary_contracts.py",
+        ],
+        "adversarial boundary contract changed",
+    ),
+    "pytest_cli_dspx": CommandSpec(
+        ["uv", "run", "--no-sync", "-m", "pytest", "-q", "tests/test_cli_dspx.py"],
+        "DSPx CLI boundary changed",
+    ),
+    "pytest_forge_cli_policy": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_forge_cli_policy.py",
+        ],
+        "Forge CLI policy boundary changed",
+    ),
+    "pytest_program_runtime_episode": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_runtime_episode.py",
+        ],
+        "program runtime episode boundary changed",
+    ),
+    "pytest_program_activation_packet": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_activation_packet.py",
+        ],
+        "generated-program activation packet boundary changed",
+    ),
     "pytest_verify_changed": CommandSpec(
         [
             "uv",
@@ -584,6 +636,9 @@ def build_plan(
 
     for path in rel_paths:
         matched = [rule for rule in rules if _matches(str(rule["match"]), path)]
+        exclusive_matches = [rule for rule in matched if rule.get("exclusive") is True]
+        if exclusive_matches:
+            matched = exclusive_matches
         if not matched:
             classifications.append(
                 {
@@ -673,6 +728,11 @@ def build_plan(
         "pytest_touched",
         "pytest_verify_changed",
         "pytest_boundary_hardening",
+        "pytest_boundary_adversarial",
+        "pytest_cli_dspx",
+        "pytest_forge_cli_policy",
+        "pytest_program_runtime_episode",
+        "pytest_program_activation_packet",
         "pytest_generated_direct_runner",
         "pytest_program_direct_runner_generation",
         "pytest_program_generation_spine",

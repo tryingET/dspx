@@ -241,12 +241,20 @@ def test_generated_direct_runner_change_avoids_program_generation_spine() -> Non
     assert "pytest_program_generation_spine" not in _command_ids(plan)
 
 
-def test_cli_boundary_change_selects_boundary_hardening_tests() -> None:
+def test_cli_boundary_change_selects_split_boundary_hardening_tests() -> None:
     plan = _plan("packages/dspx-core/src/dspx/cli/dspx.py")
 
     assert plan["risk"] == "expanded"
     assert plan["full_verification_required"] is False
-    assert "pytest_boundary_hardening" in _command_ids(plan)
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_all",
+        "pytest_boundary_adversarial",
+        "pytest_cli_dspx",
+        "pytest_forge_cli_policy",
+        "pytest_program_runtime_episode",
+        "boundary_contract_check",
+    ]
     classification = plan["classifications"][0]
     assert classification["reasons"] == [
         "matched packages/dspx-core/src/dspx/cli/*.py",
@@ -259,10 +267,49 @@ def test_nested_cli_boundary_change_uses_nested_rule_only() -> None:
 
     assert plan["risk"] == "expanded"
     assert plan["full_verification_required"] is False
-    assert "pytest_boundary_hardening" in _command_ids(plan)
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_all",
+        "pytest_boundary_adversarial",
+        "pytest_cli_dspx",
+        "pytest_forge_cli_policy",
+        "pytest_program_runtime_episode",
+        "boundary_contract_check",
+    ]
     classification = plan["classifications"][0]
     assert classification["reasons"] == [
         "matched packages/dspx-core/src/dspx/cli/**/*.py"
+    ]
+
+
+def test_program_promote_cli_change_uses_activation_packet_override() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/cli/commands/program_promote.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_activation_packet",
+    ]
+    classification = plan["classifications"][0]
+    assert classification["category"] == "activation_packet_cli"
+    assert classification["reasons"] == [
+        "matched packages/dspx-core/src/dspx/cli/commands/program_promote.py"
+    ]
+
+
+def test_activation_packet_service_change_is_mapped_without_full_verification() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_activation_packet.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert "verify_full" not in _command_ids(plan)
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_activation_packet",
     ]
 
 

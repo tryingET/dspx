@@ -175,7 +175,10 @@ verify-boundary-hardening:
   uvx ruff format --check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
   uvx ruff check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
   uvx ty check packages/dspx-core/src apps/forge/src
-  uv run --no-sync -m pytest -q tests/test_adversarial_boundary_contracts.py tests/test_cli_dspx.py tests/test_forge_cli_policy.py tests/test_program_runtime_episode.py
+  uv run --no-sync -m pytest -q tests/test_adversarial_boundary_contracts.py
+  uv run --no-sync -m pytest -q tests/test_cli_dspx.py
+  uv run --no-sync -m pytest -q tests/test_forge_cli_policy.py
+  uv run --no-sync -m pytest -q tests/test_program_runtime_episode.py
 
 # Plan deterministic impact-aware local validation from changed files without running it
 verify-impact-plan base="auto":
