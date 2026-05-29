@@ -22,6 +22,20 @@ def test_cache_roundtrip(tmp_path: Path, monkeypatch) -> None:
     assert out == data
 
 
+def test_cache_write_uses_private_file_and_directory_modes(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    key = make_key({"secret": "shape"})
+
+    p = cache_write("unit", key, {"prompt": "api_key=sk-secret"})
+
+    assert p.stat().st_mode & 0o777 == 0o600
+    assert p.parent.stat().st_mode & 0o777 == 0o700
+    assert p.parent.parent.stat().st_mode & 0o777 == 0o700
+
+
 def test_cache_read_miss_does_not_create_kind_dir(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))

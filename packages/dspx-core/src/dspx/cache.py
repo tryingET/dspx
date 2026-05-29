@@ -70,7 +70,10 @@ def cache_kind_dir(kind: str, *, create: bool = False) -> Path:
     except ValueError as exc:
         raise ValueError("cache path escapes DSPX_CACHE_DIR") from exc
     if create:
+        root.mkdir(parents=True, exist_ok=True)
+        os.chmod(root, 0o700)
         base.mkdir(parents=True, exist_ok=True)
+        os.chmod(base, 0o700)
     return base
 
 
@@ -107,7 +110,18 @@ def read(kind: str, key: str) -> Optional[Dict[str, Any]]:
 def write(kind: str, key: str, data: Dict[str, Any]) -> Path:
     p = _path_for(kind, key)
     txt = _canonical_json(data)
-    p.write_text(txt, encoding="utf-8")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(p, flags, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fd = -1
+            fh.write(txt)
+        os.chmod(p, 0o600)
+    finally:
+        if fd >= 0:
+            os.close(fd)
     return p
 
 
