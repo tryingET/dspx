@@ -1,0 +1,22 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "af5d622ce1bebba19ec1fcd8986a88a7df1e056f"
+created_at: "2026-05-29T05:03:28Z"
+intent: "Restore generated-program evidence surface boundary documentation recovered from session JSONL"
+files:
+  - "README.md"
+  - "docs/project/program-gen-walkthrough.md"
+  - "docs/project/generated-program-evidence-surface-boundaries.md"
+validation:
+  fast_gate:
+    command: "uvx prek run --files README.md docs/project/program-gen-walkthrough.md docs/project/generated-program-evidence-surface-boundaries.md && git diff --cached --check -- README.md docs/project/program-gen-walkthrough.md docs/project/generated-program-evidence-surface-boundaries.md"
+    status: "pass"
+  full_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs docs/project --strict"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "Restore deleted boundary map and links without touching other agents' code changes."
