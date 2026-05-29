@@ -1,0 +1,27 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "manual-commit-workflow"
+actor: "pi"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "35ed7cce42465459d0dbdfcb56e9b33d34187282"
+created_at: "2026-05-29T03:27:37Z"
+intent: "Document runtime trace coverage replay checks in program-generation posture and walkthrough docs."
+files:
+  - "docs/project/product-posture.md"
+  - "docs/project/program-gen-walkthrough.md"
+validation:
+  impact_plan:
+    command: "just loop-impact-plan"
+    status: "pass"
+  impact_gate:
+    command: "just loop-impact-run"
+    status: "pass"
+  landing_gate:
+    command: "just loop-landing-check"
+    status: "pass"
+group:
+  index: 4
+  total: 4
+  rationale: "documentation alignment for runtime trace coverage semantics"
+links:
+  task_ids:
+    - 3415
