@@ -103,6 +103,19 @@ def test_openapi_enum_validation_preserves_json_types() -> None:
     _validate_json_value_against_schema("1", {"enum": ["1"]}, path="body")
 
 
+def test_openapi_union_type_rejects_values_outside_union() -> None:
+    from dspx.tools.openapi.caller import _validate_json_value_against_schema
+
+    schema = {"type": ["string", "integer"]}
+
+    _validate_json_value_against_schema("ok", schema, path="body")
+    _validate_json_value_against_schema(1, schema, path="body")
+    with pytest.raises(ValueError):
+        _validate_json_value_against_schema([], schema, path="body")
+    with pytest.raises(ValueError):
+        _validate_json_value_against_schema({"bad": True}, schema, path="body")
+
+
 def test_openapi_parameter_string_enum_rejects_numeric_lookalike(
     tmp_path: Path,
 ) -> None:

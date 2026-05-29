@@ -738,6 +738,39 @@ def _validate_json_value_against_schema(
             raise ValueError(f"{path}: value must be one of {allowed}")
 
     t = schema.get("type")
+    if isinstance(t, list):
+        allowed_types = [str(item) for item in t]
+        branch_errors: list[str] = []
+        for type_name in allowed_types:
+            if type_name == "null":
+                continue
+            if type_name not in {
+                "object",
+                "array",
+                "integer",
+                "number",
+                "boolean",
+                "string",
+            }:
+                branch_errors.append(f"{type_name}: unsupported type")
+                continue
+            branch_schema = dict(schema)
+            branch_schema["type"] = type_name
+            try:
+                _validate_json_value_against_schema(
+                    value,
+                    branch_schema,
+                    path=path,
+                    _depth=_depth + 1,
+                    _max=_max,
+                )
+                return
+            except ValueError as exc:
+                branch_errors.append(f"{type_name}: {exc}")
+        raise ValueError(
+            f"{path}: value did not match any allowed type {allowed_types}"
+            + (f" ({'; '.join(branch_errors)})" if branch_errors else "")
+        )
 
     # Object (t may be omitted in some specs when properties/required are present)
     if t == "object" or (
