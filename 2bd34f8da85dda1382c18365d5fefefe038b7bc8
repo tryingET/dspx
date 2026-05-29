@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "2bd34f8da85dda1382c18365d5fefefe038b7bc8"
-created_at: "2026-05-29T00:50:40Z"
+created_at: "2026-05-29T01:00:55Z"
 intent: "Harden generated artifact sidecar, runtime, Forge, and OpenAPI boundaries for AK-3415."
 files:
   - "apps/forge/src/dspx_forge/issues.py"
@@ -33,11 +33,11 @@ validation:
     status: "pass"
   full_gate:
     command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 2' just verify-impact-wide base=HEAD~1"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
-  rationale: "single boundary-hardening slice with tests, impact map, and AK-3415 scope projection"
+  rationale: "single boundary-hardening slice with tests, impact map, and AK-3415 scope projection; final gate timed out after 600s"
 links:
   task_ids:
     - 3415
