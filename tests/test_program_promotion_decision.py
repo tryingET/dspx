@@ -16,6 +16,7 @@ from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_promotion_decision import (
     ProgramPromotionDecisionError,
     build_program_promotion_decision_record,
+    write_program_promotion_decision_record,
 )
 from dspx.services.program_promotion_refinement import (
     build_program_promotion_refinement,
@@ -99,6 +100,33 @@ def _materialize_program_review(
     review_path = tmp_path / "promotion" / "promotion_review_refined.json"
     _write_json(review_path, refined_review)
     return program_root, review_path
+
+
+def test_program_promotion_decision_writer_refuses_to_overwrite_review_input(
+    tmp_path: Path,
+) -> None:
+    review_path = tmp_path / "custom_refined_review.json"
+    review_path.write_text(
+        '{"schema_version":"program-promotion-review-refined-v1"}\n',
+        encoding="utf-8",
+    )
+    record = {
+        "schema_version": "program-promotion-decision-record-v1",
+        "status": "recorded",
+        "created_from": {"refined_review_path": str(review_path)},
+    }
+
+    with pytest.raises(ProgramPromotionDecisionError, match="input artifact"):
+        write_program_promotion_decision_record(record, review_path)
+
+    assert json.loads(review_path.read_text(encoding="utf-8")) == {
+        "schema_version": "program-promotion-review-refined-v1"
+    }
+
+    protected_program = tmp_path / "program.py"
+    protected_program.write_text("# generated program\n", encoding="utf-8")
+    with pytest.raises(ProgramPromotionDecisionError, match="program.py"):
+        write_program_promotion_decision_record(record, protected_program)
 
 
 def test_program_promotion_decision_cli_records_local_sidecar_without_mutating_inputs(

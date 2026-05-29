@@ -705,6 +705,7 @@ def test_optimize_manifest_includes_provider_runtime_metadata(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_TRUSTED_PROGRAM_ROOTS", str(tmp_path))
 
     program = tmp_path / "prog.py"
     program.write_text(

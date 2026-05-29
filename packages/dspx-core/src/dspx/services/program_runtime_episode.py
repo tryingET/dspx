@@ -15,7 +15,9 @@ from dspx.services.program_oracle_publication_preflight import (
     build_program_oracle_publication_preflight,
     write_program_oracle_publication_preflight,
 )
+from dspx.security import confine_path
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
+from dspx.services.run_replay_service import check_run_receipt
 
 PROGRAM_RUNTIME_EPISODE_SCHEMA = "program-runtime-episode-v1"
 PROGRAM_BEHAVIOR_RESULTS_SCHEMA = "program-behavior-results-v1"
@@ -106,6 +108,61 @@ def _validated_manifest(path: Path) -> dict[str, Any]:
     return manifest
 
 
+def _verified_surface_declarations(manifest: Mapping[str, Any]) -> list[dict[str, str]]:
+    candidate = _safe_mapping(manifest.get("candidate_assembly"))
+    surfaces = candidate.get("surfaces")
+    declarations: list[dict[str, str]] = []
+    if not isinstance(surfaces, list):
+        return declarations
+    for item in surfaces:
+        if not isinstance(item, Mapping):
+            continue
+        path_text = str(item.get("path") or "").strip()
+        content_hash = str(item.get("content_hash") or "").strip()
+        if path_text and content_hash:
+            declarations.append(
+                {
+                    "kind": str(item.get("kind") or path_text),
+                    "path": path_text,
+                    "content_hash": content_hash,
+                }
+            )
+    return declarations
+
+
+def _verify_candidate_integrity(
+    manifest_path: Path, manifest: Mapping[str, Any]
+) -> None:
+    candidate_root = manifest_path.parent.resolve()
+    receipt_path = manifest_path.with_name(f"{manifest_path.name}.meta.json")
+    replay = check_run_receipt(receipt_path)
+    if replay.get("status") != "ok":
+        raw_errors = replay.get("errors")
+        errors: list[Any] = raw_errors if isinstance(raw_errors, list) else []
+        detail = "; ".join(str(item) for item in errors[:3]) or str(
+            replay.get("status")
+        )
+        raise ValueError(f"program candidate integrity check failed: {detail}")
+
+    declarations = _verified_surface_declarations(manifest)
+    if not declarations:
+        raise ValueError("program candidate manifest declares no hashable surfaces")
+    for declaration in declarations:
+        rel_path = declaration["path"]
+        if rel_path == manifest_path.name:
+            continue
+        artifact_path = confine_path(candidate_root, rel_path)
+        if not artifact_path.is_file():
+            raise ValueError(f"program candidate artifact missing: {rel_path}")
+        actual_hash = _sha256_file(artifact_path)
+        expected_hash = declaration["content_hash"]
+        if actual_hash != expected_hash:
+            raise ValueError(
+                "program candidate artifact hash mismatch for "
+                f"{rel_path}: expected={expected_hash} actual={actual_hash}"
+            )
+
+
 def _load_inputs(path: Path) -> dict[str, Any]:
     payload = _load_json_object(path, label="runtime inputs")
     nested = payload.get("inputs")
@@ -135,9 +192,7 @@ def _materialize_image_descriptor(value: Mapping[str, Any], *, base_dir: Path) -
         if not raw_path:
             raise ValueError("image_file descriptor requires path")
         candidate_path = Path(raw_path).expanduser()
-        if not candidate_path.is_absolute():
-            candidate_path = base_dir / candidate_path
-        image_path = candidate_path.resolve()
+        image_path = confine_path(base_dir, candidate_path)
         if not image_path.is_file():
             raise ValueError(f"image_file path does not exist: {image_path}")
         return str(dspy.Image(str(image_path)))
@@ -552,6 +607,7 @@ def run_program_runtime_episode(
     source_manifest_path = manifest_path.expanduser().resolve()
     candidate_root = source_manifest_path.parent
     manifest = _validated_manifest(source_manifest_path)
+    _verify_candidate_integrity(source_manifest_path, manifest)
     manifest_identity = _manifest_identity(manifest)
     runtime_inputs = _load_inputs(inputs_path)
     materialized_runtime_inputs = _materialize_runtime_inputs(

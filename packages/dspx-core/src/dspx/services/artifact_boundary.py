@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Iterable, Mapping
+
+PROTECTED_PROGRAM_ARTIFACT_NAMES = frozenset(
+    {
+        "manifest.json",
+        "manifest.json.meta.json",
+        "intent.json",
+        "intent_normalization.json",
+        "plan.json",
+        "module_surfaces.json",
+        "program_runtime_outcomes.json",
+        "program_runtime_traces.json",
+        "program_tool_contracts.json",
+        "program_capability_registry.json",
+        "generated_module_policy.json",
+        "signature.py",
+        "module.py",
+        "program.py",
+        "direct_run.py",
+        "eval_smoke.py",
+        "eval_examples.py",
+        "eval_behavior.py",
+        "eval_jury.py",
+        "eval_promotion.py",
+        "behavior_results.json",
+        "behavior_episode.json",
+        "oracle_evidence.json",
+        "execution_episode.json",
+        "dataset_manifest.json",
+        "jury.json",
+        "jury_selection.json",
+        "jury_rubric.json",
+        "promotion_review.json",
+        "promotion_adjudication_request.json",
+        "promotion_decision_template.json",
+        "promotion_review_refined.json",
+    }
+)
+
+
+def _iter_path_values(value: object) -> Iterable[str]:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            key_text = str(key)
+            if key_text.endswith("_path") and isinstance(item, str) and item.strip():
+                yield item
+            else:
+                yield from _iter_path_values(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _iter_path_values(item)
+
+
+def protected_paths_from_payload(payload: Mapping[str, Any]) -> set[Path]:
+    """Return resolved input/control paths declared by a sidecar payload."""
+
+    paths: set[Path] = set()
+    for raw_path in _iter_path_values(payload):
+        try:
+            paths.add(Path(raw_path).expanduser().resolve())
+        except (OSError, RuntimeError, ValueError):
+            continue
+    return paths
+
+
+def prepare_sidecar_output_path(
+    out_path: Path,
+    *,
+    payload: Mapping[str, Any],
+    artifact_label: str,
+    protected_names: Iterable[str] = PROTECTED_PROGRAM_ARTIFACT_NAMES,
+    extra_protected_paths: Iterable[Path] = (),
+) -> Path:
+    """Resolve and validate a local sidecar output path before writing.
+
+    Sidecars summarize or adjudicate generated artifacts. They must not overwrite
+    producer/control artifacts or any input path recorded in their own payload.
+    """
+
+    resolved = out_path.expanduser().resolve()
+    protected_name_set = {str(name) for name in protected_names}
+    if resolved.name in protected_name_set:
+        raise ValueError(f"{artifact_label} must not overwrite {resolved.name}")
+
+    protected_paths = protected_paths_from_payload(payload)
+    protected_paths.update(
+        path.expanduser().resolve() for path in extra_protected_paths
+    )
+    if resolved in protected_paths:
+        raise ValueError(
+            f"{artifact_label} output must not overwrite an input artifact: {resolved}"
+        )
+
+    return resolved

@@ -91,6 +91,30 @@ def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
     assert res2.status_code == 200 and (res2.raw_text or "").strip() == "hello"
 
 
+def test_openapi_call_enforces_response_byte_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="x" * 32, request=request)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setenv("DSPX_OPENAPI_RESPONSE_MAX_BYTES", "8")
+
+    with pytest.raises(
+        ValueError, match="OpenAPI operation response exceeded byte limit"
+    ):
+        call_operation(
+            OpenAPICallRequest(operation_id="ping"),
+            operation=ops["ping"],
+            allowed_hosts={"api.example.com": True},
+            client=client,
+        )
+
+
 def test_openapi_call_rejects_operation_identity_overrides(tmp_path: Path) -> None:
     spec_path = _make_spec(tmp_path)
     data = load_spec(spec_path)

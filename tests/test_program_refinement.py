@@ -15,6 +15,7 @@ from dspx.services.program_oracle_report import build_program_oracle_evidence_re
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     build_program_refinement_proposal,
+    write_program_refinement_proposal,
 )
 from dspx.services.program_service import materialize_program_from_intent
 
@@ -245,6 +246,26 @@ def test_program_refinement_proposes_from_dataset_split_evidence_without_inline_
     assert proposal["non_authority"]["generates_candidate"] is False
     assert _file_hashes(program_root) == before
     assert not (program_root / "refinement_proposal.json").exists()
+
+
+def test_program_refinement_writer_refuses_to_overwrite_source_manifest(
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        '{"schema_version":"program-candidate-assembly-v1"}\n', encoding="utf-8"
+    )
+    proposal = {
+        "schema_version": "program-refinement-proposal-v1",
+        "created_from": {"manifest_path": str(manifest_path)},
+    }
+
+    with pytest.raises(ValueError, match="manifest.json"):
+        write_program_refinement_proposal(proposal, manifest_path)
+
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == {
+        "schema_version": "program-candidate-assembly-v1"
+    }
 
 
 def test_program_refinement_rejects_authority_widened_oracle_report(

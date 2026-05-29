@@ -28,14 +28,14 @@ try:
     from dspx.security import confine_path, PathEscapeError
 except Exception:
     # Fallback when dspx-core is not installed.
-    class PathEscapeError(ValueError):  # type: ignore[no-redef]
+    class PathEscapeError(ValueError):
         def __init__(self, root: Path, resolved: Path, detail: str = "") -> None:
             msg = f"Path escapes confinement root: {resolved} is not under {root}"
             if detail:
                 msg = f"{msg} ({detail})"
             super().__init__(msg)
 
-    def confine_path(root, user_path, **kw):  # type: ignore[misc]
+    def confine_path(root, user_path, **kw):
         root_resolved = Path(root).resolve()
         resolved = (root_resolved / user_path).resolve()
         try:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 from dspx_forge.issues import (
     apply_issue_specs,
     build_issue_spec,
+    close_marked_duplicates,
     default_paths,
     write_issue_specs,
 )
@@ -112,6 +114,16 @@ def test_forge_workorder_redacts_colon_style_secrets() -> None:
     assert "sk-test" not in wo.work_order.sanitized_input
 
 
+def test_forge_workorder_redacts_common_provider_tokens() -> None:
+    wo = build_workorder(
+        "Build thing\nGitHub token ghp_abcdefghijklmnopqrstuvwxyz123456\nOpenAI sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+    )
+
+    assert wo.work_order.redaction_report.detected is True
+    assert "ghp_" not in wo.work_order.sanitized_input
+    assert "sk-proj-" not in wo.work_order.sanitized_input
+
+
 def test_forge_custom_out_root_persists_into_workorder_and_issue_specs(
     tmp_path: Path,
 ) -> None:
@@ -180,6 +192,65 @@ def test_forge_plan_marks_invalid_gitlab_map_as_unconfigured(
 
     assert plan.capabilities["status"]["forge.issues.read"]["configured"] is False
     assert plan.capabilities["status"]["forge.issues.write"]["configured"] is False
+
+
+def test_forge_close_duplicates_refuses_unmanaged_issue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "https://gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+
+    wo = build_workorder("Build thing\nDo it safely")
+    paths = write_workorder(tmp_path / "generated" / "forge", wo)
+    forge_paths = default_paths(paths.workorder_yaml)
+    forge_paths.overlaps_json.write_text(
+        json.dumps(
+            {
+                "decisions": [
+                    {"action": "close_duplicate", "project_key": "core", "iid": 1}
+                ]
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    import dspx_forge.issues as issues_mod
+    from dspx_forge.gitlab_client import GitLabConfig
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"gitlab.example.com"},
+        default_labels=[],
+    )
+    monkeypatch.setattr(issues_mod, "load_gitlab_config_from_env", lambda: cfg)
+    closed: list[int] = []
+
+    class FakeGitLabClient:
+        def __init__(self, _cfg):
+            pass
+
+        def project_id(self, project_key: str) -> int:
+            return 101
+
+        def get_issue(self, project_id: int, iid: int):
+            return {"iid": iid, "description": "human issue", "labels": []}
+
+        def close_issue(self, project_id: int, iid: int):
+            closed.append(iid)
+            return {"iid": iid}
+
+    monkeypatch.setattr(issues_mod, "GitLabClient", FakeGitLabClient)
+
+    with pytest.raises(RuntimeError, match="refusing to close issue"):
+        close_marked_duplicates(paths.workorder_yaml, wo, dry_run=False)
+
+    assert closed == []
 
 
 def test_forge_apply_same_title_different_workorder_creates_new_issue(

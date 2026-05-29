@@ -13,6 +13,7 @@ from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_oracle_publication_preflight import (
     ProgramOraclePublicationPreflightError,
     build_program_oracle_publication_preflight,
+    write_program_oracle_publication_preflight,
 )
 from dspx.services.program_service import materialize_program_from_intent
 
@@ -127,6 +128,27 @@ def test_program_oracle_publication_preflight_cli_writes_local_packet_only(
     assert payload["non_authority"]["oracle_authority"] is False
     assert out.exists()
     assert "super-secret-password" not in out.read_text(encoding="utf-8")
+
+
+def test_program_oracle_publication_preflight_writer_refuses_to_overwrite_evidence(
+    tmp_path: Path,
+) -> None:
+    evidence_path = tmp_path / "oracle_evidence.json"
+    evidence_path.write_text(
+        '{"schema_version":"program-oracle-evidence-v1"}\n', encoding="utf-8"
+    )
+    packet = {
+        "schema_version": "program-oracle-shared-publication-preflight-v1",
+        "created_from": {"oracle_evidence_path": str(evidence_path)},
+        "effect": {},
+    }
+
+    with pytest.raises(ValueError, match="oracle_evidence.json"):
+        write_program_oracle_publication_preflight(packet, evidence_path)
+
+    assert json.loads(evidence_path.read_text(encoding="utf-8")) == {
+        "schema_version": "program-oracle-evidence-v1"
+    }
 
 
 def test_program_oracle_publication_preflight_idempotency_is_stable(

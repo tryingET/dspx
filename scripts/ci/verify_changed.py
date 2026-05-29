@@ -223,6 +223,22 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "refinement candidate/comparison seam changed",
     ),
+    "pytest_program_sidecar_boundaries": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_refinement.py",
+            "tests/test_program_refinement_comparison.py",
+            "tests/test_program_promotion_decision.py",
+            "tests/test_program_oracle_publication_preflight.py",
+            "tests/test_program_runtime_episode.py",
+        ],
+        "program sidecar/output boundary guard changed",
+    ),
     "pytest_promotion_plan_adjacent": CommandSpec(
         [
             "uv",
@@ -651,6 +667,7 @@ def build_plan(
         "pytest_program_generated_policy",
         "pytest_program_oracle_refinement",
         "pytest_refinement_candidate_comparison",
+        "pytest_program_sidecar_boundaries",
         "pytest_promotion_plan_adjacent",
         "pytest_coordinates",
         "pytest_provider_runtime",

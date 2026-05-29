@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -703,9 +705,13 @@ def write_program_refinement_candidate_comparison(
 ) -> dict[str, Any]:
     """Write the local comparison sidecar and return its JSON payload."""
 
-    out_path = out_path.expanduser().resolve()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(comparison)
+    out_path = prepare_sidecar_output_path(
+        out_path,
+        payload=payload,
+        artifact_label="program refinement candidate comparison",
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

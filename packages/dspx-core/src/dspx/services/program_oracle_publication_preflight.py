@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+
 from dspx.services.program_oracle_index import (
     PROGRAM_ORACLE_EVIDENCE_SCHEMA,
     validate_program_oracle_evidence_non_authority,
@@ -505,9 +507,13 @@ def write_program_oracle_publication_preflight(
 ) -> dict[str, Any]:
     """Write a local shared-Oracle publication preflight packet."""
 
-    target = out_path.expanduser().resolve()
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
+    target = prepare_sidecar_output_path(
+        out_path,
+        payload=payload,
+        artifact_label="program Oracle publication preflight",
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
     if payload.get("schema_version") != PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA:
         raise ProgramOraclePublicationPreflightError(
             "program Oracle publication preflight schema_version is invalid"

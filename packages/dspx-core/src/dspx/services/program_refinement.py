@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
 PROGRAM_BEHAVIOR_RESULTS_SCHEMA = "program-behavior-results-v1"
@@ -639,8 +641,12 @@ def write_program_refinement_proposal(
 ) -> dict[str, Any]:
     """Write the proposal artifact and return the same JSON-compatible payload."""
 
-    out_path = out_path.expanduser().resolve()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(proposal)
+    out_path = prepare_sidecar_output_path(
+        out_path,
+        payload=payload,
+        artifact_label="program refinement proposal",
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(_json_text(payload), encoding="utf-8")
     return payload

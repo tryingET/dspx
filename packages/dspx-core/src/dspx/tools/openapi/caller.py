@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import os
+
 import httpx
 from typing import Any, Dict, Mapping, Optional, cast
 import math as _math
@@ -8,6 +11,7 @@ from urllib.parse import quote, urljoin
 
 from dspx.dtos import OpenAPICallRequest, OpenAPICallResult
 from dspx.http_guard import host_allowed, send_with_host_allowlist
+from dspx.security import read_response_text_bounded
 from dspx.policy import (
     bypass as _policy_bypass,
     allow_network_mutate as _policy_allow_mutate,
@@ -23,6 +27,25 @@ except Exception:  # pragma: no cover
 
     def _redact_url(u: str) -> str:
         return u
+
+
+_DEFAULT_OPERATION_RESPONSE_MAX_BYTES = 2_000_000
+
+
+def _operation_response_max_bytes() -> int:
+    raw = os.getenv("DSPX_OPENAPI_RESPONSE_MAX_BYTES") or os.getenv(
+        "DSPX_OPENAPI_MAX_BYTES",
+        str(_DEFAULT_OPERATION_RESPONSE_MAX_BYTES),
+    )
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "DSPX_OPENAPI_RESPONSE_MAX_BYTES must be an integer byte count"
+        ) from exc
+    if value < 1:
+        raise ValueError("DSPX_OPENAPI_RESPONSE_MAX_BYTES must be positive")
+    return value
 
 
 def _operation_identity(
@@ -521,14 +544,22 @@ def call_operation(
             client,
             req,
             allowed_hosts=allowed_hosts,
+            stream=True,
         )
+        try:
+            raw_text = read_response_text_bounded(
+                resp,
+                max_bytes=_operation_response_max_bytes(),
+                label="OpenAPI operation response",
+            )
+        finally:
+            resp.close()
         t1 = _time.time()
-        raw_text = resp.text
         content_type = resp.headers.get("content-type", "")
         parsed: Any = None
         if "json" in content_type:
             try:
-                parsed = resp.json()
+                parsed = json.loads(raw_text)
             except Exception:
                 parsed = None
         result = OpenAPICallResult(

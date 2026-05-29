@@ -4,6 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
@@ -152,6 +153,31 @@ def test_program_runtime_episode_can_write_shared_publication_preflight(
     assert packet["effect"]["shared_oracle_mutated"] is False
 
 
+def test_program_runtime_episode_rejects_tampered_candidate_surface(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    candidate = _generated_candidate(tmp_path)
+    program_path = candidate / "program.py"
+    program_path.write_text(
+        program_path.read_text(encoding="utf-8")
+        + "\n# tampered after manifest write\n",
+        encoding="utf-8",
+    )
+    inputs = tmp_path / "runtime-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"ticket_text": "Server is down for all users"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="program.py"):
+        run_program_runtime_episode(
+            manifest_path=candidate / "manifest.json",
+            inputs_path=inputs,
+            outdir=tmp_path / "runtime-episode",
+        )
+
+
 def test_runtime_input_materialization_converts_image_file_descriptors(
     tmp_path: Path,
 ) -> None:
@@ -183,6 +209,29 @@ def test_runtime_input_materialization_converts_image_file_descriptors(
     assert isinstance(visual_image_blocks, str)
     assert visual_image_blocks.count("CUSTOM-TYPE-START-IDENTIFIER") == 2
     assert "image_url" in visual_image_blocks
+
+
+def test_runtime_input_materialization_rejects_absolute_image_path_outside_inputs(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    image_path = outside / "ref.png"
+    image_path.write_bytes(
+        bytes.fromhex(
+            "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63f8cfc00000030101c9fe92ef0000000049454e44ae426082"
+        )
+    )
+    input_dir = tmp_path / "inputs"
+    input_dir.mkdir()
+    inputs_path = input_dir / "runtime-inputs.json"
+    inputs_path.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Path escapes confinement root"):
+        _materialize_runtime_inputs(
+            {"image": {"type": "image_file", "path": str(image_path)}},
+            inputs_path=inputs_path,
+        )
 
 
 def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:

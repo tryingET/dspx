@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
 PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA = "program-adjudicator-delegation-v1"
@@ -16,18 +18,6 @@ ALLOWED_PROGRAM_PROMOTION_DECISION_OUTCOMES = (
     "request_more_evidence",
     "promote",
 )
-
-_FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "promotion_review.json",
-    "promotion_adjudication_request.json",
-    "promotion_decision_template.json",
-    "promotion_review_refined.json",
-    "behavior_results.json",
-    "oracle_evidence.json",
-    "execution_episode.json",
-}
 
 _REQUIRED_FALSE_REFINED_REVIEW_NON_AUTHORITY_FLAGS = (
     "automatic_promotion",
@@ -481,13 +471,16 @@ def write_program_promotion_decision_record(
 ) -> dict[str, Any]:
     """Write the local decision sidecar and return its JSON-compatible payload."""
 
-    out_path = out_path.expanduser().resolve()
-    if out_path.name in _FORBIDDEN_OUTPUT_NAMES:
-        raise ProgramPromotionDecisionError(
-            f"program promotion decision record must not overwrite {out_path.name}"
-        )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(record)
+    try:
+        out_path = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="program promotion decision record",
+        )
+    except ValueError as exc:
+        raise ProgramPromotionDecisionError(str(exc)) from exc
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

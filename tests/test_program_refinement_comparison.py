@@ -23,6 +23,7 @@ from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_refinement_candidate import materialize_refinement_candidate
 from dspx.services.program_refinement_comparison import (
     build_program_refinement_candidate_comparison,
+    write_program_refinement_candidate_comparison,
 )
 from dspx.services.program_service import materialize_program_from_intent
 
@@ -150,6 +151,26 @@ def _materialize_full_refinement_path(
     candidate_manifest = Path(str(candidate["candidate"]["manifest_path"]))
     assert candidate_manifest.exists()
     return program_root, candidate_manifest.parent, proposal_path, decision_path
+
+
+def test_program_refinement_comparison_writer_refuses_to_overwrite_candidate_manifest(
+    tmp_path: Path,
+) -> None:
+    candidate_manifest = tmp_path / "candidate_manifest.json"
+    candidate_manifest.write_text(
+        '{"schema_version":"program-candidate-assembly-v1"}\n', encoding="utf-8"
+    )
+    comparison = {
+        "schema_version": "program-refinement-candidate-comparison-v1",
+        "created_from": {"candidate_manifest_path": str(candidate_manifest)},
+    }
+
+    with pytest.raises(ValueError, match="input artifact"):
+        write_program_refinement_candidate_comparison(comparison, candidate_manifest)
+
+    assert json.loads(candidate_manifest.read_text(encoding="utf-8")) == {
+        "schema_version": "program-candidate-assembly-v1"
+    }
 
 
 def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(

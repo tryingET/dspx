@@ -18,7 +18,9 @@ _SECRET_KEY = (
 _secret_patterns: list[tuple[str, re.Pattern[str]]] = [
     ("op_ref", re.compile(r"op://[A-Za-z0-9_./ -]+", re.IGNORECASE)),
     ("bearer", re.compile(r"(?i)authorization\s*:\s*bearer\s+[^\s]+")),
+    ("openai_sk_proj", re.compile(r"sk-proj-[A-Za-z0-9_-]{20,}")),
     ("openai_sk", re.compile(r"sk-[A-Za-z0-9]{20,}")),
+    ("github_pat", re.compile(r"ghp_[A-Za-z0-9_]{20,}")),
     ("gitlab_pat", re.compile(r"glpat-[A-Za-z0-9\-]{10,}")),
     (
         "env_key",

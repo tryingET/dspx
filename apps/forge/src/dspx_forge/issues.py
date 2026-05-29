@@ -21,7 +21,7 @@ try:
     from dspx.security import confine_relative_path
 except Exception:  # pragma: no cover - standalone forge fallback
 
-    def confine_relative_path(root: Path, *parts: str | Path) -> Path:  # type: ignore[misc]
+    def confine_relative_path(root: Path, *parts: str | Path) -> Path:
         resolved_root = root.resolve()
         safe_parts: list[str] = []
         for raw_part in parts:
@@ -190,6 +190,24 @@ def _issue_matches_workorder_fingerprint(
 ) -> bool:
     description = str(issue.get("description") or "")
     return f"<!-- DSPX_FINGERPRINT: {expected_fingerprint} -->" in description
+
+
+def _issue_labels(issue: dict[str, Any]) -> set[str]:
+    raw_labels = issue.get("labels")
+    if not isinstance(raw_labels, list):
+        return set()
+    return {str(label) for label in raw_labels}
+
+
+def _issue_is_safe_duplicate_close_target(
+    issue: dict[str, Any], *, doc: WorkOrderDoc
+) -> bool:
+    labels = _issue_labels(issue)
+    return (
+        _issue_matches_workorder_fingerprint(issue, doc.work_order.fingerprint)
+        and "dspx-forge" in labels
+        and _workorder_label(doc) in labels
+    )
 
 
 def _resolve_existing_issue(
@@ -433,6 +451,12 @@ def close_marked_duplicates(
     for it in to_close:
         project_id = gl.project_id(str(it["project_key"]))
         iid = int(it["iid"])
+        existing = gl.get_issue(project_id, iid)
+        if not _issue_is_safe_duplicate_close_target(existing, doc=doc):
+            raise RuntimeError(
+                "refusing to close issue that is not a Forge-managed duplicate "
+                f"for workorder {doc.work_order.id}: project_key={it['project_key']} iid={iid}"
+            )
         gl.close_issue(project_id, iid)
         results.append(
             {"project_key": it["project_key"], "iid": iid, "action": "close"}
