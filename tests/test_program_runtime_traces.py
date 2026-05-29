@@ -78,6 +78,11 @@ def test_runtime_traces_reconstruct_single_module_behavior_call() -> None:
     assert call["non_authority"]["promotion_authority"] is False
     assert payload["runtime_policy"]["tool_execution_allowed"] is False
     assert payload["trace_hashes"]["module_calls"] == [call["trace_hash"]]
+    assert payload["coverage"]["status"] == "complete"
+    assert payload["coverage"]["expected_module_ids"] == ["generated_module"]
+    assert payload["coverage"]["captured_module_ids"] == ["generated_module"]
+    assert payload["coverage"]["missing_module_ids"] == []
+    assert payload["coverage"]["captured_final_output_fields"] == ["answer"]
     assert validate_program_runtime_traces(payload) is True
 
 
@@ -115,6 +120,79 @@ def test_runtime_trace_semantic_validator_rejects_hash_and_tool_drift() -> None:
     bad_authority = json.loads(json.dumps(payload))
     bad_authority["non_authority"]["promotion_authority"] = True
     assert validate_program_runtime_traces(bad_authority) is False
+
+    bad_coverage = json.loads(json.dumps(payload))
+    bad_coverage["coverage"]["missing_module_ids"] = ["generated_module"]
+    assert validate_program_runtime_traces(bad_coverage) is False
+
+
+def test_runtime_trace_coverage_reports_missing_modules_and_outputs() -> None:
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="PartialTraceProgram",
+            objective="Capture partial pipeline traces.",
+            outputs=["answer", "confidence"],
+        ),
+        module_surfaces={
+            "schema_version": "program-module-surfaces-v1",
+            "module_surfaces": [
+                {
+                    "module_id": "extract",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "ExtractSignature",
+                        "inputs": ["question"],
+                        "outputs": ["facts"],
+                    },
+                },
+                {
+                    "module_id": "answer",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "AnswerSignature",
+                        "inputs": ["facts"],
+                        "outputs": ["answer", "confidence"],
+                    },
+                },
+            ],
+        },
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "executed",
+                    "inputs": {"question": "q"},
+                    "observed_outputs": {"answer": "a"},
+                    "runtime_trace": {
+                        "module_calls": [
+                            {
+                                "module_id": "extract",
+                                "inputs": {"question": "q"},
+                                "outputs": {"facts": "f"},
+                            }
+                        ]
+                    },
+                }
+            ],
+        },
+    )
+
+    assert payload["coverage"] == {
+        "schema_version": "program-runtime-trace-coverage-v1",
+        "status": "partial",
+        "source_count": 1,
+        "expected_module_ids": ["answer", "extract"],
+        "captured_module_ids": ["extract"],
+        "missing_module_ids": ["answer"],
+        "program_outputs": ["answer", "confidence"],
+        "captured_final_output_fields": ["answer"],
+        "missing_final_output_fields": ["confidence"],
+        "module_call_count": 1,
+        "final_output_trace_count": 1,
+        "non_authority": payload["non_authority"],
+    }
+    assert validate_program_runtime_traces(payload) is True
 
 
 def test_runtime_trace_missing_upstream_input_is_not_reported_as_present_source() -> (
