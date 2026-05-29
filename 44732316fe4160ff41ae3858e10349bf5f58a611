@@ -1,0 +1,27 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "manual-commit-workflow"
+actor: "pi"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "44732316fe4160ff41ae3858e10349bf5f58a611"
+created_at: "2026-05-29T03:27:37Z"
+intent: "Cover runtime trace coverage semantics for expected modules and final outputs."
+files:
+  - "README.md"
+  - "tests/test_program_runtime_traces.py"
+validation:
+  focused_tests:
+    command: "uv run --no-sync -m pytest -q tests/test_program_runtime_traces.py"
+    status: "pass"
+  impact_gate:
+    command: "just loop-impact-run"
+    status: "pass"
+  landing_gate:
+    command: "just loop-landing-check"
+    status: "pass"
+group:
+  index: 3
+  total: 4
+  rationale: "runtime trace coverage test and README alignment"
+links:
+  task_ids:
+    - 3415
