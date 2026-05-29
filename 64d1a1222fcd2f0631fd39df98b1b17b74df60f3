@@ -1,0 +1,39 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "manual-commit-workflow"
+actor: "pi"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "64d1a1222fcd2f0631fd39df98b1b17b74df60f3"
+created_at: "2026-05-29T04:40:00Z"
+intent: "Close atomic-completion runtime trace and Codex stream gaps surfaced by review."
+files:
+  - "README.md"
+  - "docs/project/product-posture.md"
+  - "docs/project/program-gen-walkthrough.md"
+  - "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+  - "scripts/ci/verification-impact.yml"
+  - "scripts/ci/verify_changed.py"
+  - "tests/test_program_runtime_traces.py"
+  - "tests/test_provider_v4.py"
+  - "tests/test_verify_changed.py"
+validation:
+  focused_tests:
+    command: "uv run --no-sync -m pytest -q tests/test_program_runtime_traces.py tests/test_provider_v4.py tests/test_verify_changed.py"
+    status: "pass"
+  hooks:
+    command: "just hooks-run files=\"...explicit changed files...\""
+    status: "pass"
+  impact_gate:
+    command: "LOOP_WIDE_REASON=... just loop-impact-wide"
+    status: "pass"
+  landing_gate:
+    command: "just loop-landing-check"
+    status: "resolved_by_followup"
+    followup_commit: "12930008a86ec2faa1ff4f77e639c3f5fe3776da"
+group:
+  index: 1
+  total: 2
+  rationale: "atomic-completion runtime trace/stream hardening before helper extraction"
+links:
+  task_ids:
+    - 3415
