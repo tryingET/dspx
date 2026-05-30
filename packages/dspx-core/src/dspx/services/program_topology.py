@@ -325,6 +325,125 @@ def _adapt_named_materializable_topology(intent: Any) -> dict[str, Any]:
     }
 
 
+def _role(module: Mapping[str, Any]) -> str:
+    return str(module.get("role") or "").strip()
+
+
+def _edge_exists(edges: list[dict[str, Any]], source: str, target: str) -> bool:
+    return any(
+        str(edge.get("from") or "") == source and str(edge.get("to") or "") == target
+        for edge in edges
+    )
+
+
+def _validate_generate_critique_revise_contract(
+    *,
+    modules: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    intent_outputs: list[str],
+) -> None:
+    """Validate named generate->critique->revise semantics, not just DAG shape."""
+
+    by_role = {_role(module): module for module in modules if _role(module)}
+    required_roles = ["generate_draft", "critique_draft", "revise_final"]
+    missing_roles = [role for role in required_roles if role not in by_role]
+    if missing_roles:
+        raise ProgramTopologyMaterializationError(
+            "generate_critique_revise topology requires stage roles "
+            f"{required_roles}; missing roles: {missing_roles}"
+        )
+    draft_module = by_role["generate_draft"]
+    critique_module = by_role["critique_draft"]
+    revise_module = by_role["revise_final"]
+    draft_id = _module_id(draft_module)
+    critique_id = _module_id(critique_module)
+    revise_id = _module_id(revise_module)
+    draft_outputs = set(_signature_outputs(draft_module))
+    critique_inputs = set(_signature_inputs(critique_module))
+    revise_inputs = set(_signature_inputs(revise_module))
+    revise_outputs = set(_signature_outputs(revise_module))
+    if not draft_outputs & critique_inputs:
+        raise ProgramTopologyMaterializationError(
+            "generate_critique_revise topology requires generate_draft outputs to feed critique_draft inputs"
+        )
+    if not draft_outputs & revise_inputs:
+        raise ProgramTopologyMaterializationError(
+            "generate_critique_revise topology requires generate_draft outputs to feed revise_final inputs"
+        )
+    if not set(_signature_outputs(critique_module)) & revise_inputs:
+        raise ProgramTopologyMaterializationError(
+            "generate_critique_revise topology requires critique_draft outputs to feed revise_final inputs"
+        )
+    required_edges = [
+        (draft_id, critique_id),
+        (draft_id, revise_id),
+        (critique_id, revise_id),
+        (revise_id, "output"),
+    ]
+    missing_edges = [edge for edge in required_edges if not _edge_exists(edges, *edge)]
+    if missing_edges:
+        raise ProgramTopologyMaterializationError(
+            "generate_critique_revise topology requires explicit draft/critique/revise edges; "
+            f"missing edges: {missing_edges}"
+        )
+    missing_outputs = sorted(set(intent_outputs) - revise_outputs)
+    if missing_outputs:
+        raise ProgramTopologyMaterializationError(
+            "generate_critique_revise topology requires revise_final to produce all declared outputs; "
+            f"missing outputs: {missing_outputs}"
+        )
+
+
+def _validate_extract_transform_validate_contract(
+    *,
+    modules: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    intent_outputs: list[str],
+) -> None:
+    by_role = {_role(module): module for module in modules if _role(module)}
+    required_roles = ["extract", "transform", "validate"]
+    missing_roles = [role for role in required_roles if role not in by_role]
+    if missing_roles:
+        raise ProgramTopologyMaterializationError(
+            "extract_transform_validate topology requires stage roles "
+            f"{required_roles}; missing roles: {missing_roles}"
+        )
+    extract_module = by_role["extract"]
+    transform_module = by_role["transform"]
+    validate_module = by_role["validate"]
+    if not set(_signature_outputs(extract_module)) & set(
+        _signature_inputs(transform_module)
+    ):
+        raise ProgramTopologyMaterializationError(
+            "extract_transform_validate topology requires extract outputs to feed transform inputs"
+        )
+    if not set(_signature_outputs(transform_module)) & set(
+        _signature_inputs(validate_module)
+    ):
+        raise ProgramTopologyMaterializationError(
+            "extract_transform_validate topology requires transform outputs to feed validate inputs"
+        )
+    required_edges = [
+        (_module_id(extract_module), _module_id(transform_module)),
+        (_module_id(transform_module), _module_id(validate_module)),
+        (_module_id(validate_module), "output"),
+    ]
+    missing_edges = [edge for edge in required_edges if not _edge_exists(edges, *edge)]
+    if missing_edges:
+        raise ProgramTopologyMaterializationError(
+            "extract_transform_validate topology requires explicit extract/transform/validate edges; "
+            f"missing edges: {missing_edges}"
+        )
+    missing_outputs = sorted(
+        set(intent_outputs) - set(_signature_outputs(validate_module))
+    )
+    if missing_outputs:
+        raise ProgramTopologyMaterializationError(
+            "extract_transform_validate topology requires validate stage to produce all declared outputs; "
+            f"missing outputs: {missing_outputs}"
+        )
+
+
 def _validate_retrieve_then_answer_contract(
     *, modules: list[dict[str, Any]], edges: list[dict[str, Any]]
 ) -> None:
@@ -561,6 +680,19 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
     )
     if declared_retrieve_then_answer_topology(intent):
         _validate_retrieve_then_answer_contract(modules=modules, edges=edges)
+    declared_kind = str(declared_materializable_topology(intent).get("kind") or "")
+    if declared_kind == "generate_critique_revise":
+        _validate_generate_critique_revise_contract(
+            modules=modules,
+            edges=edges,
+            intent_outputs=[str(item) for item in getattr(intent, "outputs", [])],
+        )
+    if declared_kind == "extract_transform_validate":
+        _validate_extract_transform_validate_contract(
+            modules=modules,
+            edges=edges,
+            intent_outputs=[str(item) for item in getattr(intent, "outputs", [])],
+        )
     return topology
 
 
@@ -828,9 +960,16 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
         elif primitive in {"ReAct", "ReActV2"}:
             react = dict(module.get("react") or {})
             max_iters = int(react.get("max_iters") or 1)
+            declared_tool_refs = [
+                str(item)
+                for item in react.get("declared_tool_refs", [])
+                if str(item).strip()
+            ]
             constructor = "ReActV2" if primitive == "ReActV2" else "ReAct"
             status_lines = [
                 f"    _MAX_ITERS = {max_iters!r}",
+                f"    _DECLARED_TOOL_REFS = {declared_tool_refs!r}",
+                "    _TOOL_BINDING_STATUS = 'declared_refs_only_not_bound'",
             ]
             if primitive == "ReActV2":
                 status_lines.extend(
@@ -1260,7 +1399,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"    def forward(self, {forward_params}) -> dspy.Prediction:",
             f"        state: dict[str, object] = {{{state_payload}}}",
             "        delivered_outputs: dict[str, object] = {}",
-            "        self._last_runtime_trace = {'schema_version': 'program-runtime-trace-fragment-v1', 'module_calls': [], 'final_outputs': {}}",
+            "        self._last_runtime_trace = {'schema_version': 'program-runtime-trace-fragment-v1', 'module_calls': [], 'final_outputs': {}, 'scheduler_events': []}",
             "        executed: set[str] = set()",
             "        pending: set[str] = set(MODULE_ORDER)",
             "        while pending:",
@@ -1305,6 +1444,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             "            if not progressed:",
             "                missing_outputs = _missing_declared_outputs(delivered_outputs)",
             "                if missing_outputs:",
+            "                    self._last_runtime_trace['scheduler_events'].append({'status': 'scheduler_stalled', 'missing_outputs': list(missing_outputs), 'pending': sorted(pending)})",
             "                    raise RuntimeError(",
             "                        'pipeline topology scheduler stalled before producing declared outputs: '",
             "                        f'missing_outputs={missing_outputs} pending={sorted(pending)}'",
@@ -1312,10 +1452,12 @@ def render_pipeline_program_code(intent: Any) -> str:
             "                break",
             "        missing_outputs = _missing_declared_outputs(delivered_outputs)",
             "        if missing_outputs:",
+            "            self._last_runtime_trace['scheduler_events'].append({'status': 'completed_missing_outputs', 'missing_outputs': list(missing_outputs), 'pending': sorted(pending)})",
             "            raise RuntimeError(",
             "                'pipeline topology completed without declared outputs: '",
             "                f'missing_outputs={missing_outputs}'",
             "            )",
+            "        self._last_runtime_trace['scheduler_events'].append({'status': 'completed', 'missing_outputs': [], 'pending': []})",
             "        self._last_runtime_trace['final_outputs'] = _jsonable(delivered_outputs)",
             f"        return dspy.Prediction({', '.join(f'{name}=_jsonable(delivered_outputs[{name!r}])' for name in getattr(intent, 'outputs', []))})",
             "",

@@ -64,11 +64,14 @@ def _module_surface_contract(
     inputs: list[str],
     outputs: list[str],
     module_class: str,
+    role: str | None = None,
     retriever: Mapping[str, Any] | None = None,
     react: Mapping[str, Any] | None = None,
     program_of_thought: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     capability_module: dict[str, Any] = {"primitive": primitive, "id": module_id}
+    if role:
+        capability_module["role"] = role
     if retriever is not None:
         capability_module["retriever"] = dict(retriever)
     if react is not None:
@@ -80,7 +83,8 @@ def _module_surface_contract(
         "inputs": list(inputs),
         "outputs": list(outputs),
     }
-    return {
+    stage_role = str(capability_module.get("role") or "").strip()
+    surface = {
         "schema_version": PROGRAM_MODULE_SURFACE_SCHEMA,
         "module_id": module_id,
         "source_kind": source_kind,
@@ -98,6 +102,18 @@ def _module_surface_contract(
         "authority": "module_surface_contract_only_non_authoritative",
         "non_authority": dict(_MODULE_SURFACE_NON_AUTHORITY),
     }
+    if stage_role:
+        surface["stage"] = {
+            "role": stage_role,
+            "metadata_source": "program_intent_topology_module.role",
+        }
+    if react is not None:
+        surface["react"] = dict(react)
+    if retriever is not None:
+        surface["retriever"] = dict(retriever)
+    if program_of_thought is not None:
+        surface["program_of_thought"] = dict(program_of_thought)
+    return surface
 
 
 def build_single_module_surface_contract(intent: Any) -> dict[str, Any]:
@@ -147,6 +163,7 @@ def build_pipeline_module_surface_contracts(intent: Any) -> list[dict[str, Any]]
                 inputs=_signature_inputs(module),
                 outputs=_signature_outputs(module),
                 module_class=module_class_name(module),
+                role=str(module.get("role") or "") or None,
                 retriever=retriever,
                 react=react,
                 program_of_thought=program_of_thought,

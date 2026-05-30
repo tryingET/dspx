@@ -50,6 +50,7 @@ from dspx.services.program_runtime_traces import (
 from dspx.services.program_tool_contracts import (
     PROGRAM_TOOL_CONTRACTS_SCHEMA,
     build_program_tool_contracts,
+    materialize_program_tool_adapter_blueprints,
 )
 from dspx.services.program_dataset import (
     SPLIT_NAMES,
@@ -148,6 +149,30 @@ def _build_pre_materialization_intent_normalization(
                 "This sidecar does not approve generation, promotion, activation, or external authority mutation.",
             ],
         },
+    }
+
+
+def _contract_verification_metadata(
+    path: Optional[Path], *, root: Path
+) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    source = path.expanduser().resolve()
+    text = source.read_text(encoding="utf-8")
+    payload = json.loads(text)
+    candidate_path = root / "program_architecture_contract_verification.json"
+    candidate_path.write_text(text, encoding="utf-8")
+    return {
+        "path": "program_architecture_contract_verification.json",
+        "source_path": str(source),
+        "content_hash": sha256_text(text),
+        "schema_version": str(
+            payload.get("schema_version")
+            or "program-architecture-contract-verification-v1"
+        ),
+        "status": str(payload.get("status") or "unknown"),
+        "materialization_gate": dict(payload.get("materialization_gate") or {}),
+        "non_authority": dict(payload.get("non_authority") or {}),
     }
 
 
@@ -1673,6 +1698,7 @@ def materialize_program_from_intent(
     *,
     outdir: Optional[Path] = None,
     intent_source: Optional[Path] = None,
+    contract_verification_path: Optional[Path] = None,
 ) -> ProgramArtifact:
     """Materialize a runnable program-shaped candidate assembly from one intent."""
 
@@ -1692,6 +1718,7 @@ def materialize_program_from_intent(
             intent,
             outdir=root,
             intent_source=intent_source,
+            contract_verification_path=contract_verification_path,
         )
     except Exception:
         _cleanup_failed_program_outdir(root)
@@ -1703,6 +1730,7 @@ def _materialize_program_from_intent_unchecked(
     *,
     outdir: Optional[Path] = None,
     intent_source: Optional[Path] = None,
+    contract_verification_path: Optional[Path] = None,
 ) -> ProgramArtifact:
     root = (
         (outdir if outdir is not None else _default_outdir(intent))
@@ -1760,7 +1788,9 @@ def _materialize_program_from_intent_unchecked(
     )
     runtime_outcomes_text = _json_text(runtime_outcomes_payload)
     runtime_outcomes_hash = sha256_text(runtime_outcomes_text)
-    tool_contracts_payload = build_program_tool_contracts(intent)
+    tool_contracts_payload = materialize_program_tool_adapter_blueprints(
+        build_program_tool_contracts(intent), root
+    )
     tool_contracts_text = _json_text(tool_contracts_payload)
     tool_contracts_hash = sha256_text(tool_contracts_text)
     capability_registry_payload = build_program_capability_registry(intent)
@@ -1854,6 +1884,9 @@ def _materialize_program_from_intent_unchecked(
         bundle_parts.append(eval_behavior_code)
     surface_bundle_text = "\n\n".join(bundle_parts)
     ids = _build_ids(intent, surface_bundle_text)
+    contract_verification_metadata = _contract_verification_metadata(
+        contract_verification_path, root=root
+    )
     intent_payload = _intent_payload(intent)
     intent_hash = sha256_text(json.dumps(intent_payload, sort_keys=True))
     surface_hashes = {
@@ -2791,6 +2824,8 @@ def _materialize_program_from_intent_unchecked(
             "schema_version": generated_module_policy_payload["schema_version"],
         },
         "intent_normalization": intent_normalization_payload,
+        "program_architecture_contract_verification": contract_verification_metadata,
+        "program_architecture_contract_verification_artifact": contract_verification_metadata,
         "intent_normalization_artifact": {
             "path": "intent_normalization.json",
             "content_hash": intent_normalization_hash,
@@ -2818,6 +2853,24 @@ def _materialize_program_from_intent_unchecked(
             ),
             "generation_risk_count": len(
                 intent_normalization_payload.get("generation_risks") or []
+            ),
+            "topology_candidate_count": len(
+                dict(
+                    intent_normalization_payload.get("generation_assumptions_preview")
+                    or {}
+                ).get("topology_candidates")
+                or []
+            ),
+            "capability_boundary_keys": sorted(
+                dict(
+                    dict(
+                        intent_normalization_payload.get(
+                            "generation_assumptions_preview"
+                        )
+                        or {}
+                    ).get("capability_boundaries")
+                    or {}
+                )
             ),
             "blocks_materialization": False,
             "non_authority": dict(
@@ -3127,10 +3180,12 @@ def run_generate_from_intent_path(
     intent_path: Path,
     *,
     outdir: Optional[Path] = None,
+    contract_verification_path: Optional[Path] = None,
 ) -> ProgramArtifact:
     intent = load_program_intent(intent_path)
     return materialize_program_from_intent(
         intent,
         outdir=outdir,
         intent_source=intent_path,
+        contract_verification_path=contract_verification_path,
     )

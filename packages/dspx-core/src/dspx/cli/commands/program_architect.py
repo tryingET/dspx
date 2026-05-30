@@ -27,12 +27,18 @@ def plan(
         "--portfolio-outdir",
         help="Optional directory for materializable candidate intent drafts only; does not materialize programs",
     ),
+    contract_outdir: Path | None = typer.Option(
+        None,
+        "--contract-outdir",
+        help="Optional directory for explicit contract draft intents from preview-only advisory rows; requires operator review before materialization",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print plan JSON"),
 ) -> None:
     """Plan architecture candidates without materializing or promoting programs."""
     from dspx.services.program_architecture import (
         ProgramArchitectureError,
         build_program_architecture_candidates_from_path,
+        write_architecture_contract_drafts,
         write_architecture_intent_portfolio,
         write_program_architecture_candidates,
     )
@@ -51,12 +57,66 @@ def plan(
                     "candidate_materialized": False,
                 },
             }
+        if contract_outdir is not None:
+            contract_drafts = write_architecture_contract_drafts(
+                written, contract_outdir
+            )
+            written = {
+                **written,
+                "contract_drafts": contract_drafts,
+                "effect": {
+                    **dict(written.get("effect") or {}),
+                    "contract_drafts_written": True,
+                    "candidate_materialized": False,
+                },
+            }
+        if portfolio_outdir is not None or contract_outdir is not None:
             written = write_program_architecture_candidates(written, out)
     except ProgramArchitectureError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=2) from exc
     except Exception as exc:
         typer.echo(f"Error: program architecture planning failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(written, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
+@app.command("verify-contract")
+def verify_contract(
+    intent: Path = typer.Option(
+        ...,
+        "--intent",
+        "-i",
+        help="Path to a review-required explicit contract draft intent",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the contract verification sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print verification JSON"),
+) -> None:
+    """Verify a contract draft intent without materializing a program."""
+    from dspx.services.program_architecture import (
+        ProgramArchitectureError,
+        verify_architecture_contract_intent,
+        write_architecture_contract_verification,
+    )
+
+    try:
+        payload = verify_architecture_contract_intent(intent)
+        written = write_architecture_contract_verification(payload, out)
+    except ProgramArchitectureError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program architecture contract verification failed: {exc}", err=True
+        )
         raise typer.Exit(code=2) from exc
 
     if json_out:

@@ -418,6 +418,24 @@ def normalize_capability_declaration(value: object) -> dict[str, Any]:
                 f"capability declaration {declaration_id!r} outputs must be a list"
             )
         normalized["outputs"] = [str(item) for item in raw.get("outputs") or []]
+    if kind == "retriever":
+        if raw.get("retriever") is not None:
+            if not isinstance(raw.get("retriever"), Mapping):
+                raise ValueError(
+                    f"capability declaration {declaration_id!r} retriever must be an object"
+                )
+            normalized["retriever"] = normalize_retriever_config(
+                raw.get("retriever"), module_id=declaration_id
+            )
+        elif raw.get("mode") is not None:
+            retriever_payload = {
+                key: raw[key]
+                for key in ("mode", "k", "documents", "path", "id_field", "text_field")
+                if key in raw
+            }
+            normalized["retriever"] = normalize_retriever_config(
+                retriever_payload, module_id=declaration_id
+            )
     if kind == "tool":
         for object_key in (
             "args_schema",
@@ -501,6 +519,74 @@ def _used_capability_refs(intent: Any) -> list[dict[str, Any]]:
     return refs
 
 
+def _external_retriever_readiness(declarations: list[dict[str, Any]]) -> dict[str, Any]:
+    retriever_declarations = [
+        item for item in declarations if item.get("kind") == "retriever"
+    ]
+    return {
+        "schema_version": "program-external-retriever-readiness-v1",
+        "status": "blocked_policy_only" if retriever_declarations else "not_requested",
+        "retriever_declaration_count": len(retriever_declarations),
+        "retriever_declaration_ids": [
+            str(item.get("id") or "") for item in retriever_declarations
+        ],
+        "safe_materializable_modes": ["inline_corpus", "local_corpus_snapshot"],
+        "live_retrievers_enabled": False,
+        "external_retriever_execution_allowed": False,
+        "required_before_enablement": [
+            "retriever adapter source hash and provenance must be recorded",
+            "retriever query/result schemas must be declared and replay-checked",
+            "network/file/system access policy must be explicit and denied by default",
+            "result redaction and retention policy must be enforced",
+            "runtime traces must record retrieval inputs/result ids without secrets",
+            "receipt replay must verify adapter hash and retrieval trace consistency",
+        ]
+        if retriever_declarations
+        else [],
+        "effect": {
+            "retriever_called": False,
+            "network": False,
+            "filesystem_read": False,
+            "subprocess": False,
+            "external_authority": False,
+        },
+    }
+
+
+def _custom_module_readiness(declarations: list[dict[str, Any]]) -> dict[str, Any]:
+    custom_declarations = [
+        item
+        for item in declarations
+        if item.get("kind") in {"custom_import", "custom_module"}
+    ]
+    return {
+        "schema_version": "program-custom-module-readiness-v1",
+        "status": "blocked_policy_only" if custom_declarations else "not_requested",
+        "custom_declaration_count": len(custom_declarations),
+        "custom_declaration_ids": [
+            str(item.get("id") or "") for item in custom_declarations
+        ],
+        "imports_enabled": False,
+        "custom_module_execution_allowed": False,
+        "required_before_enablement": [
+            "safe import allowlist policy must be reviewed",
+            "module source hash/provenance must be recorded",
+            "declared IO surface must match generated module surface contract",
+            "effect claims must be statically checked before import",
+            "receipt replay must verify source hash and no unauthorized effects",
+        ]
+        if custom_declarations
+        else [],
+        "effect": {
+            "custom_import_loaded": False,
+            "filesystem_read": False,
+            "network": False,
+            "subprocess": False,
+            "external_authority": False,
+        },
+    }
+
+
 def build_program_capability_registry(intent: Any) -> dict[str, Any]:
     declarations = list(
         dict(getattr(intent, "capabilities", {}) or {}).get("declarations") or []
@@ -528,6 +614,8 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
         },
         "builtin_capabilities": builtin_capability_contracts(),
         "declared_capabilities": declarations,
+        "custom_module_readiness": _custom_module_readiness(declarations),
+        "external_retriever_readiness": _external_retriever_readiness(declarations),
         "used_capability_refs": _used_capability_refs(intent),
         "effects": dict(_DESCRIPTOR_EFFECTS),
         "non_authority": dict(_NON_AUTHORITY),

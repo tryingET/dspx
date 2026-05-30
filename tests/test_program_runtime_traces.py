@@ -108,6 +108,53 @@ def test_runtime_traces_reconstruct_single_module_behavior_call() -> None:
     assert validate_program_runtime_traces(payload) is True
 
 
+def test_runtime_traces_preserve_react_v2_declared_tool_refs_without_execution() -> (
+    None
+):
+    module_surfaces = _module_surfaces()
+    surface = dict(module_surfaces["module_surfaces"][0])
+    surface["primitive"] = "ReActV2"
+    surface["react"] = {
+        "declared_tool_refs": ["lookup_policy"],
+        "tool_binding_status": "declared_refs_only_not_bound",
+        "tool_binding_allowed": False,
+    }
+    module_surfaces["module_surfaces"] = [surface]
+
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="TraceProgram",
+            objective="Capture ReActV2 runtime traces.",
+            outputs=["answer"],
+        ),
+        module_surfaces=module_surfaces,
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q"},
+                    "observed_outputs": {"answer": "a"},
+                }
+            ],
+            "summary": {"total": 1, "status": "passed"},
+        },
+        behavior_results_hash="abc",
+    )
+
+    call = payload["module_calls"][0]
+    assert call["trajectory_slots"]["tool_refs"] == {
+        "declared_tool_refs": ["lookup_policy"],
+        "tool_binding_status": "declared_refs_only_not_bound",
+        "tool_binding_allowed": False,
+        "executable_tools": [],
+    }
+    assert call["trajectory_slots"]["tool_calls_executed"] is False
+    assert call["effects"]["tool_called"] is False
+    assert validate_program_runtime_traces(payload) is True
+
+
 def test_runtime_trace_semantic_validator_rejects_hash_and_tool_drift() -> None:
     payload = build_program_runtime_traces(
         SimpleNamespace(
@@ -138,6 +185,22 @@ def test_runtime_trace_semantic_validator_rejects_hash_and_tool_drift() -> None:
     bad_tool_policy = json.loads(json.dumps(payload))
     bad_tool_policy["module_calls"][0]["trajectory_slots"]["tool_calls_executed"] = True
     assert validate_program_runtime_traces(bad_tool_policy) is False
+
+    bad_scheduler_event = json.loads(json.dumps(payload))
+    bad_scheduler_event["module_calls"][0]["scheduler_events"] = [
+        {"status": "called_external_tool", "missing_outputs": [], "pending": []}
+    ]
+    assert validate_program_runtime_traces(bad_scheduler_event) is False
+
+    bad_scheduler_shape = json.loads(json.dumps(payload))
+    bad_scheduler_shape["module_calls"][0]["scheduler_events"] = [
+        {
+            "status": "scheduler_stalled",
+            "missing_outputs": ["answer"],
+            "pending": "answer",
+        }
+    ]
+    assert validate_program_runtime_traces(bad_scheduler_shape) is False
 
     bad_authority = json.loads(json.dumps(payload))
     bad_authority["non_authority"]["promotion_authority"] = True
@@ -410,6 +473,123 @@ def test_runtime_trace_coverage_requires_outputs_on_each_record() -> None:
     assert payload["source_record_coverage"][0]["final_output_coverage_gaps"] == [
         {"record_index": 0, "missing_final_output_fields": ["confidence"]},
         {"record_index": 1, "missing_final_output_fields": ["answer"]},
+    ]
+    assert validate_program_runtime_traces(payload) is True
+
+
+def test_runtime_traces_record_stage_and_intermediate_lineage() -> None:
+    payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="GraphTraceProgram",
+            objective="Draft, critique, and revise.",
+            outputs=["answer"],
+        ),
+        module_surfaces={
+            "schema_version": "program-module-surfaces-v1",
+            "module_surfaces": [
+                {
+                    "module_id": "generate_draft",
+                    "primitive": "ChainOfThought",
+                    "stage": {
+                        "role": "generate_draft",
+                        "metadata_source": "program_intent_topology_module.role",
+                    },
+                    "signature": {
+                        "name": "GenerateDraft",
+                        "inputs": ["question"],
+                        "outputs": ["draft"],
+                    },
+                },
+                {
+                    "module_id": "critique_draft",
+                    "primitive": "ChainOfThought",
+                    "stage": {
+                        "role": "critique_draft",
+                        "metadata_source": "program_intent_topology_module.role",
+                    },
+                    "signature": {
+                        "name": "CritiqueDraft",
+                        "inputs": ["question", "draft"],
+                        "outputs": ["critique"],
+                    },
+                },
+                {
+                    "module_id": "revise_final",
+                    "primitive": "ChainOfThought",
+                    "stage": {
+                        "role": "revise_final",
+                        "metadata_source": "program_intent_topology_module.role",
+                    },
+                    "signature": {
+                        "name": "ReviseFinal",
+                        "inputs": ["question", "draft", "critique"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+        },
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q"},
+                    "observed_outputs": {"answer": "a"},
+                    "runtime_trace": {
+                        "scheduler_events": [
+                            {
+                                "status": "completed",
+                                "missing_outputs": [],
+                                "pending": [],
+                            }
+                        ],
+                        "module_calls": [
+                            {
+                                "module_id": "generate_draft",
+                                "inputs": {"question": "q"},
+                                "outputs": {"draft": "d"},
+                            },
+                            {
+                                "module_id": "critique_draft",
+                                "inputs": {"question": "q", "draft": "d"},
+                                "outputs": {"critique": "c"},
+                            },
+                            {
+                                "module_id": "revise_final",
+                                "inputs": {
+                                    "question": "q",
+                                    "draft": "d",
+                                    "critique": "c",
+                                },
+                                "outputs": {"answer": "a"},
+                            },
+                        ],
+                    },
+                }
+            ],
+        },
+    )
+
+    calls = payload["module_calls"]
+    assert [call["stage"]["role"] for call in calls] == [
+        "generate_draft",
+        "critique_draft",
+        "revise_final",
+    ]
+    assert calls[1]["intermediate_field_lineage"]["inputs"] == [
+        {
+            "field": "draft",
+            "source": "upstream_module_output",
+            "source_module_id": "generate_draft",
+        },
+        {"field": "question", "source": "program_input", "source_module_id": None},
+    ]
+    assert calls[2]["final_output_linkage"] == [
+        {"field": "answer", "source_module_id": "revise_final", "present": True}
+    ]
+    assert calls[0]["scheduler_events"] == [
+        {"status": "completed", "missing_outputs": [], "pending": []}
     ]
     assert validate_program_runtime_traces(payload) is True
 

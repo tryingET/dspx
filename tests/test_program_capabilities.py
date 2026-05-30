@@ -59,6 +59,39 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
         by_id["dspy.primitive.ProgramOfThought"]["conditional_materializable"] is True
     )
     assert by_id["dspy.primitive.Custom"]["materializable"] is False
+    assert registry["external_retriever_readiness"] == {
+        "schema_version": "program-external-retriever-readiness-v1",
+        "status": "not_requested",
+        "retriever_declaration_count": 0,
+        "retriever_declaration_ids": [],
+        "safe_materializable_modes": ["inline_corpus", "local_corpus_snapshot"],
+        "live_retrievers_enabled": False,
+        "external_retriever_execution_allowed": False,
+        "required_before_enablement": [],
+        "effect": {
+            "retriever_called": False,
+            "network": False,
+            "filesystem_read": False,
+            "subprocess": False,
+            "external_authority": False,
+        },
+    }
+    assert registry["custom_module_readiness"] == {
+        "schema_version": "program-custom-module-readiness-v1",
+        "status": "not_requested",
+        "custom_declaration_count": 0,
+        "custom_declaration_ids": [],
+        "imports_enabled": False,
+        "custom_module_execution_allowed": False,
+        "required_before_enablement": [],
+        "effect": {
+            "custom_import_loaded": False,
+            "filesystem_read": False,
+            "network": False,
+            "subprocess": False,
+            "external_authority": False,
+        },
+    }
     assert registry["effects"] == {
         "provider_called": False,
         "tool_called": False,
@@ -106,6 +139,8 @@ def test_react_v2_topology_declaration_is_preserved_but_not_bound() -> None:
     assert intent.topology["modules"][0]["primitive"] == "ReActV2"
     assert intent.topology["modules"][0]["react"] == {
         "tools": [],
+        "declared_tool_refs": [],
+        "tool_binding_status": "declared_refs_only_not_bound",
         "max_iters": 2,
         "version": "v2",
         "status": "experimental_declared_only_not_materializable",
@@ -116,6 +151,41 @@ def test_react_v2_topology_declaration_is_preserved_but_not_bound() -> None:
     assert ref["status"] == "experimental_declared_only_not_materializable"
     assert ref["materializable"] is False
     assert ref["runtime_binding"] == "none"
+
+
+def test_retriever_capability_declaration_preserves_bounded_inline_config() -> None:
+    intent = ProgramIntent(
+        name="BoundedRetrieverDeclarationProgram",
+        objective="Retrieve bounded local policy docs.",
+        inputs=["question"],
+        outputs=["answer"],
+        capabilities={
+            "declarations": [
+                {
+                    "id": "policy_docs",
+                    "kind": "retriever",
+                    "retriever": {
+                        "mode": "inline_corpus",
+                        "k": 1,
+                        "documents": [{"id": "p1", "text": "Policy document."}],
+                    },
+                }
+            ]
+        },
+    )
+
+    declaration = intent.capabilities["declarations"][0]
+    assert declaration["retriever"] == {
+        "mode": "inline_corpus",
+        "k": 1,
+        "documents": [{"id": "p1", "text": "Policy document."}],
+    }
+    registry = build_program_capability_registry(intent)
+    assert registry["external_retriever_readiness"]["live_retrievers_enabled"] is False
+    assert (
+        registry["external_retriever_readiness"]["external_retriever_execution_allowed"]
+        is False
+    )
 
 
 def test_capability_declarations_are_validated_but_not_bound() -> None:
@@ -150,6 +220,23 @@ def test_capability_declarations_are_validated_but_not_bound() -> None:
     assert registry["declared_capabilities"][0]["effects"]["tool_called"] is False
     assert (
         registry["declared_capabilities"][1]["effects"]["custom_import_loaded"] is False
+    )
+    assert registry["external_retriever_readiness"]["status"] == "blocked_policy_only"
+    assert registry["external_retriever_readiness"]["retriever_declaration_ids"] == [
+        "local_docs"
+    ]
+    assert registry["external_retriever_readiness"]["live_retrievers_enabled"] is False
+    assert (
+        registry["external_retriever_readiness"]["external_retriever_execution_allowed"]
+        is False
+    )
+    assert registry["custom_module_readiness"]["status"] == "blocked_policy_only"
+    assert registry["custom_module_readiness"]["custom_declaration_ids"] == [
+        "safe_helper"
+    ]
+    assert registry["custom_module_readiness"]["imports_enabled"] is False
+    assert (
+        registry["custom_module_readiness"]["custom_module_execution_allowed"] is False
     )
 
 

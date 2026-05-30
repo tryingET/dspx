@@ -455,6 +455,48 @@ def _echo_generation_payload(
         typer.echo(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 
 
+def _load_allowed_contract_verification(
+    path: Path, *, intent_path: Path | None = None
+) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"contract verification not found: {path}")
+    payload = json.loads(path.expanduser().resolve().read_text(encoding="utf-8"))
+    if payload.get("schema_version") != "program-architecture-contract-verification-v1":
+        raise ValueError("invalid contract verification schema_version")
+    if payload.get("status") != "verified_contract_intent":
+        raise ValueError("contract verification is not verified")
+    if payload.get("materialization_allowed_by_contract_verification") is not True:
+        raise ValueError("contract verification does not allow materialization")
+    gate = payload.get("materialization_gate")
+    if not isinstance(gate, dict) or gate.get("status") != (
+        "verified_for_explicit_program_gen_materialization"
+    ):
+        raise ValueError("contract verification materialization gate is not open")
+    if (
+        gate.get("allows_live_tools")
+        or gate.get("allows_custom_imports")
+        or gate.get("allows_external_retrievers")
+    ):
+        raise ValueError("contract verification unexpectedly allows live effects")
+    if intent_path is not None:
+        import hashlib
+
+        expected_hash = str(
+            gate.get("program_gen_must_match_intent_hash") or ""
+        ).strip()
+        if not expected_hash:
+            raise ValueError("contract verification missing intent hash")
+        actual_hash = hashlib.sha256(
+            intent_path.expanduser()
+            .resolve()
+            .read_text(encoding="utf-8")
+            .encode("utf-8")
+        ).hexdigest()
+        if actual_hash != expected_hash:
+            raise ValueError("contract verification intent_hash_mismatch")
+    return payload
+
+
 def _load_allowed_generation_gate(
     path: Path, *, intent_path: Path | None = None
 ) -> dict[str, Any]:
@@ -621,6 +663,11 @@ def program_gen(
         "--generation-gate-preflight",
         help="Require a successful gen-generation-gate-preflight-v1 sidecar before candidate creation",
     ),
+    contract_verification: Optional[Path] = typer.Option(
+        None,
+        "--contract-verification",
+        help="Require a verified program-architecture-contract-verification-v1 sidecar matching this intent",
+    ),
 ) -> None:
     """Generate a program-shaped DSPy candidate assembly from one intent."""
     if ctx.invoked_subcommand is not None:
@@ -642,11 +689,21 @@ def program_gen(
         except Exception as exc:
             typer.echo(f"Error: generation gate preflight failed: {exc}", err=True)
             raise typer.Exit(code=2) from exc
+    if contract_verification is not None:
+        try:
+            _load_allowed_contract_verification(
+                contract_verification, intent_path=intent
+            )
+        except Exception as exc:
+            typer.echo(f"Error: contract verification failed: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
 
     ensure_env(None)
 
     try:
-        artifact = run_generate_from_intent_path(intent, outdir=outdir)
+        artifact = run_generate_from_intent_path(
+            intent, outdir=outdir, contract_verification_path=contract_verification
+        )
     except Exception as exc:
         typer.echo(f"Error: program intent generation failed: {exc}", err=True)
         raise typer.Exit(code=2) from exc

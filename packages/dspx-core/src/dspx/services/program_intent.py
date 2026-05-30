@@ -108,8 +108,27 @@ def _normalize_react_config(
         raise ValueError(
             f"topology ReAct module {module_id!r} supports only an empty tools list in this renderer"
         )
+    raw_tool_refs = module.get("tool_refs", [])
+    if raw_tool_refs is None:
+        raw_tool_refs = []
+    if not isinstance(raw_tool_refs, list):
+        raise ValueError(
+            f"topology ReAct module {module_id!r} tool_refs must be a list"
+        )
+    tool_refs = [
+        _validate_identifier(
+            item, label=f"topology ReAct module {module_id!r} tool_refs"
+        )
+        for item in raw_tool_refs
+    ]
+    if len(set(tool_refs)) != len(tool_refs):
+        raise ValueError(
+            f"topology ReAct module {module_id!r} tool_refs must be unique"
+        )
     return {
         "tools": [],
+        "declared_tool_refs": tool_refs,
+        "tool_binding_status": "declared_refs_only_not_bound",
         "max_iters": _bounded_int(
             module.get("max_iters"),
             label=f"topology ReAct module {module_id!r} max_iters",
@@ -159,13 +178,15 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
                 f"topology Retriever module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
             )
     elif primitive in {"ReAct", "ReActV2"}:
-        extra_keys = set(module) - common_keys - {"tools", "max_iters"}
+        extra_keys = (
+            set(module) - common_keys - {"tools", "tool_refs", "max_iters", "react"}
+        )
         if extra_keys:
             raise ValueError(
                 f"topology {primitive} module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
             )
     elif primitive == "ProgramOfThought":
-        extra_keys = set(module) - common_keys - {"max_iters"}
+        extra_keys = set(module) - common_keys - {"max_iters", "program_of_thought"}
         if extra_keys:
             raise ValueError(
                 f"topology ProgramOfThought module {module_id!r} has unsupported keys: {sorted(extra_keys)}"
@@ -189,7 +210,14 @@ def _normalize_topology_module(value: object) -> dict[str, Any]:
             module.get("retriever"), module_id=module_id
         )
     if primitive in {"ReAct", "ReActV2"}:
-        normalized["react"] = _normalize_react_config(module, module_id=module_id)
+        react_source = (
+            dict(module.get("react") or {})
+            if isinstance(module.get("react"), Mapping)
+            else {}
+        )
+        normalized["react"] = _normalize_react_config(
+            {**react_source, **module}, module_id=module_id
+        )
         if primitive == "ReActV2":
             normalized["react"]["version"] = "v2"
             normalized["react"]["status"] = (

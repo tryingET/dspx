@@ -132,6 +132,19 @@ def test_program_service_materializes_candidate_assembly(
         "generation_risk_count": len(
             manifest["intent_normalization"]["generation_risks"]
         ),
+        "topology_candidate_count": len(
+            manifest["intent_normalization"]["generation_assumptions_preview"][
+                "topology_candidates"
+            ]
+        ),
+        "capability_boundary_keys": [
+            "custom_modules",
+            "program_of_thought",
+            "react",
+            "react_v2",
+            "retrievers",
+            "tools",
+        ],
         "blocks_materialization": False,
         "non_authority": manifest["intent_normalization"]["non_authority"],
     }
@@ -642,6 +655,102 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "eval_jury.py").exists()
     assert (outdir / "eval_promotion.py").exists()
     assert (outdir / "manifest.json.meta.json").exists()
+
+
+def test_program_replay_fails_when_generated_module_policy_drifts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="GeneratedPolicyDriftReplayProgram",
+            objective="Answer safely.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    root = Path(artifact.root_path)
+    policy_path = root / "generated_module_policy.json"
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    policy["violations"] = [{"code": "dspy_call_not_allowed", "detail": "dspy.Tool"}]
+    policy_path.write_text(
+        json.dumps(policy, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert replay["status"] == "failed"
+    assert replay["checks"]["program_generated_module_policy_semantic_valid"] is False
+    assert "program_evidence_declaration_mismatch" in replay["error_codes"]
+
+
+def test_program_replay_fails_when_runtime_outcomes_claim_tool_binding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="UnsafeRuntimeOutcomeReplayProgram",
+            objective="Answer safely.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    root = Path(artifact.root_path)
+    outcomes_path = root / "program_runtime_outcomes.json"
+    outcomes = json.loads(outcomes_path.read_text(encoding="utf-8"))
+    outcomes["runtime_policy"]["tool_binding_allowed"] = True
+    outcomes_path.write_text(
+        json.dumps(outcomes, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert replay["status"] == "failed"
+    assert replay["checks"]["program_runtime_outcomes_semantic_valid"] is False
+    assert "program_evidence_declaration_mismatch" in replay["error_codes"]
+
+
+def test_program_replay_fails_when_module_surfaces_claim_unsafe_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="UnsafeModuleSurfaceReplayProgram",
+            objective="Answer safely.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    root = Path(artifact.root_path)
+    surfaces_path = root / "module_surfaces.json"
+    surfaces = json.loads(surfaces_path.read_text(encoding="utf-8"))
+    surfaces["module_surfaces"][0]["effects"]["network"] = True
+    surfaces_path.write_text(
+        json.dumps(surfaces, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert replay["status"] == "failed"
+    assert replay["checks"]["program_module_surfaces_semantic_valid"] is False
+    assert "program_evidence_declaration_mismatch" in replay["error_codes"]
 
 
 def test_program_service_rejects_empty_or_overlapping_io() -> None:

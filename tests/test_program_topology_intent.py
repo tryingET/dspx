@@ -507,6 +507,9 @@ def test_pipeline_dag_scheduler_executes_out_of_order_fan_in_modules(
 
     assert calls == ["extract_facts", "score_risk", "compose_answer"]
     assert prediction.answer == "known facts / low"
+    assert program._last_runtime_trace["scheduler_events"] == [
+        {"status": "completed", "missing_outputs": [], "pending": []}
+    ]
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
@@ -665,6 +668,15 @@ def test_pipeline_scheduler_raises_when_no_branch_produces_output(
         program.classify_intent = ClassifierStub()
         with pytest.raises(RuntimeError, match="scheduler stalled"):
             program(ticket_text="not billing")
+        trace = program._last_runtime_trace
+        assert trace["scheduler_events"] == [
+            {
+                "status": "scheduler_stalled",
+                "missing_outputs": ["answer"],
+                "pending": ["answer_billing"],
+            }
+        ]
+        assert trace["module_calls"][0]["module_id"] == "classify_intent"
     finally:
         try:
             sys.path.remove(str(root))
@@ -1194,10 +1206,7 @@ def test_retrieve_then_answer_topology_materializes_bounded_inline_adapter(
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
-@pytest.mark.parametrize(
-    "kind",
-    ["router", "extract_transform_validate", "generate_critique_revise"],
-)
+@pytest.mark.parametrize("kind", ["router"])
 def test_named_bounded_topologies_materialize_as_declared_dags(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1260,6 +1269,111 @@ def test_named_bounded_topologies_materialize_as_declared_dags(
         surface["source_kind"] for surface in module_surfaces["module_surfaces"]
     } == {"generated_topology_module"}
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
+
+
+def test_generate_critique_revise_named_topology_requires_semantic_stage_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="BrokenGenerateCritiqueReviseProgram",
+        objective="Draft, critique, and revise an answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "generate_critique_revise",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "generate_draft",
+                    "primitive": "ChainOfThought",
+                    "role": "generate_draft",
+                    "signature": {
+                        "name": "GenerateDraftBroken",
+                        "inputs": ["question"],
+                        "outputs": ["draft"],
+                    },
+                },
+                {
+                    "id": "critique_draft",
+                    "primitive": "ChainOfThought",
+                    "role": "critique_draft",
+                    "signature": {
+                        "name": "CritiqueDraftBroken",
+                        "inputs": ["question", "draft"],
+                        "outputs": ["critique"],
+                    },
+                },
+                {
+                    "id": "revise_final",
+                    "primitive": "ChainOfThought",
+                    "role": "revise_final",
+                    "signature": {
+                        "name": "ReviseFinalBroken",
+                        "inputs": ["question", "critique"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "generate_draft"},
+                {"from": "generate_draft", "to": "critique_draft"},
+                {"from": "critique_draft", "to": "revise_final"},
+                {"from": "revise_final", "to": "output"},
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match="generate_draft outputs to feed revise_final"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+
+
+def test_extract_transform_validate_named_topology_requires_semantic_stage_roles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    intent = ProgramIntent(
+        name="BrokenExtractTransformValidateProgram",
+        objective="Extract, transform, and validate an answer.",
+        inputs=["text"],
+        outputs=["answer"],
+        topology={
+            "kind": "extract_transform_validate",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "extract_evidence",
+                    "primitive": "Predict",
+                    "role": "extract",
+                    "signature": {
+                        "name": "ExtractEvidenceBroken",
+                        "inputs": ["text"],
+                        "outputs": ["evidence"],
+                    },
+                },
+                {
+                    "id": "validate_final",
+                    "primitive": "ChainOfThought",
+                    "role": "validate",
+                    "signature": {
+                        "name": "ValidateFinalBroken",
+                        "inputs": ["text", "evidence"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "extract_evidence"},
+                {"from": "extract_evidence", "to": "validate_final"},
+                {"from": "validate_final", "to": "output"},
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match=r"missing roles: \['transform'\]"):
+        materialize_program_from_intent(intent, outdir=tmp_path / "program")
 
 
 def test_retrieve_then_answer_fails_closed_when_retriever_does_not_feed_answer(
@@ -1590,6 +1704,57 @@ def test_react_v2_pipeline_fails_closed_when_dspy_lacks_react_v2(
         materialize_program_from_intent(
             _react_v2_intent(opt_in=True), outdir=tmp_path / "program"
         )
+
+
+def test_react_v2_explicit_opt_in_renders_declared_tool_refs_not_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(program_topology, "_dspy_react_v2_available", lambda: True)
+    intent = ProgramIntent(
+        name="ReActV2ToolRefProgram",
+        objective="Use explicitly enabled experimental ReActV2 reasoning with a future tool ref.",
+        inputs=["question"],
+        outputs=["answer"],
+        options={"enable_react_v2_materialization": True},
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "reason_answer",
+                    "primitive": "react_v2",
+                    "signature": {
+                        "name": "ReasonAnswer",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    },
+                    "tools": [],
+                    "tool_refs": ["lookup_policy"],
+                    "max_iters": 2,
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "reason_answer"},
+                {"from": "reason_answer", "to": "output"},
+            ],
+        },
+        capabilities={
+            "declarations": [
+                {"id": "lookup_policy", "kind": "tool", "effect_class": "pure"}
+            ]
+        },
+    )
+
+    module_text, _metadata = program_topology.render_pipeline_module_surface(intent)
+    module_surfaces = build_program_module_surfaces(intent)
+
+    assert "_DECLARED_TOOL_REFS = ['lookup_policy']" in module_text
+    assert "_TOOL_BINDING_STATUS = 'declared_refs_only_not_bound'" in module_text
+    assert "dspy.ReActV2(ReasonAnswer, tools=[], max_iters=2)" in module_text
+    assert "dspy.Tool" not in module_text
+    surface = module_surfaces["module_surfaces"][0]
+    assert surface["react"]["declared_tool_refs"] == ["lookup_policy"]
+    assert surface["react"]["tool_binding_allowed"] is False
 
 
 def test_react_v2_explicit_opt_in_renders_no_tool_shape(

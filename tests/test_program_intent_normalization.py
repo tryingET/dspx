@@ -40,6 +40,12 @@ def test_prompt_normalization_emits_valid_intent_hints_and_missing_evidence() ->
         "Predict",
         "ChainOfThought",
     ]
+    preview = payload["generation_assumptions_preview"]
+    assert preview["schema_version"] == "program-generation-assumptions-preview-v1"
+    assert [candidate["kind"] for candidate in preview["topology_candidates"]] == [
+        "router"
+    ]
+    assert preview["capability_boundaries"]["tools"]["enabled"] is False
     assert payload["effect"]["program_materialized"] is False
     assert payload["effect"]["provider_called"] is False
     assert payload["effect"]["oracle_index_mutated"] is False
@@ -57,12 +63,170 @@ def test_prompt_normalization_surfaces_unsupported_primitive_risk() -> None:
     primitive_hints = payload["primitive_hints"]
     assert any(hint["primitive"] == "Retriever" for hint in primitive_hints)
     assert any(hint["primitive"] == "ReAct" for hint in primitive_hints)
+    preview = payload["generation_assumptions_preview"]
+    assert {candidate["kind"] for candidate in preview["topology_candidates"]} >= {
+        "retrieve_then_answer",
+        "ReAct",
+    }
+    assert preview["capability_boundaries"]["tools"] == {
+        "need_detected": True,
+        "enabled": False,
+        "status": "disabled_descriptor_only",
+        "boundary": "Tool declarations may be recorded, but dspy.Tool/live tool execution is not bound by program-gen.",
+    }
+    assert preview["capability_boundaries"]["react"]["requested"] is True
+    assert preview["capability_boundaries"]["react_v2"]["requested"] is False
+    assert preview["capability_boundaries"]["react_v2"]["tools_enabled"] is False
+    assert preview["capability_boundaries"]["retrievers"]["need_detected"] is True
     assert any(
         risk["kind"] == "unsupported_primitive" for risk in payload["generation_risks"]
     )
     intent = ProgramIntent.model_validate(payload["normalized_intent"])
     assert intent.inputs == ["question", "document_text"]
     assert intent.outputs == ["answer"]
+
+
+def test_generation_assumptions_preview_uses_capability_declarations() -> None:
+    intent = ProgramIntent(
+        name="CapabilityDeclaredProgram",
+        objective="Answer the question.",
+        inputs=["question"],
+        outputs=["answer"],
+        capabilities={
+            "declarations": [
+                {
+                    "id": "docs",
+                    "kind": "retriever",
+                    "module": "company.safe.docs",
+                },
+                {
+                    "id": "agent",
+                    "kind": "dspy_primitive",
+                    "primitive": "ReActV2",
+                },
+            ]
+        },
+    )
+
+    payload = build_program_intent_normalization(
+        intent, source={"kind": "test", "content_hash": "sha256:test"}
+    )
+
+    preview = payload["generation_assumptions_preview"]
+    by_kind = {
+        candidate["kind"]: candidate for candidate in preview["topology_candidates"]
+    }
+    assert {"retrieve_then_answer", "ReActV2"}.issubset(by_kind)
+    assert "single_module" not in by_kind
+    assert by_kind["retrieve_then_answer"]["materializable_now"] is False
+    assert by_kind["ReActV2"]["materializable_now"] is False
+    assert preview["capability_boundaries"]["retrievers"]["need_detected"] is True
+    assert preview["capability_boundaries"]["react_v2"]["requested"] is True
+
+
+def test_generation_assumptions_preview_recognizes_spaced_react_v2() -> None:
+    payload = normalize_program_intent_from_prompt(
+        "Use ReAct V2 tools to answer the question.",
+        inputs=["question"],
+        outputs=["answer"],
+    )
+
+    assert any(hint["primitive"] == "ReActV2" for hint in payload["primitive_hints"])
+    assert not any(hint["primitive"] == "ReAct" for hint in payload["primitive_hints"])
+    preview = payload["generation_assumptions_preview"]
+    by_kind = {
+        candidate["kind"]: candidate for candidate in preview["topology_candidates"]
+    }
+    assert "ReActV2" in by_kind
+    assert "ReAct" not in by_kind
+    assert by_kind["ReActV2"]["materializable_now"] is False
+    assert preview["capability_boundaries"]["react"]["requested"] is False
+    assert preview["capability_boundaries"]["react_v2"]["requested"] is True
+    assert preview["capability_boundaries"]["react_v2"]["tool_need_detected"] is True
+
+
+def test_generation_assumptions_preview_keeps_react_v2_declared_only() -> None:
+    intent = ProgramIntent(
+        name="DeclaredReactV2Program",
+        objective="Declare a ReActV2 agent.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "agent",
+                    "primitive": "ReActV2",
+                    "signature": {
+                        "name": "Agent",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    },
+                    "tools": [],
+                    "max_iters": 1,
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "agent"},
+                {"from": "agent", "to": "output"},
+            ],
+        },
+    )
+
+    payload = build_program_intent_normalization(
+        intent, source={"kind": "test", "content_hash": "sha256:test"}
+    )
+
+    by_kind = {
+        candidate["kind"]: candidate
+        for candidate in payload["generation_assumptions_preview"][
+            "topology_candidates"
+        ]
+    }
+    assert by_kind["pipeline"]["materializable_now"] is False
+    assert by_kind["ReActV2"]["materializable_now"] is False
+
+
+def test_generation_assumptions_preview_surfaces_pot_custom_boundaries() -> None:
+    intent = ProgramIntent(
+        name="CustomProgramOfThoughtProgram",
+        objective="Use ProgramOfThought with a custom imported calculator module to compute an answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        capabilities={
+            "declarations": [
+                {
+                    "id": "calculator",
+                    "kind": "custom_import",
+                    "import": "company.safe.calculator",
+                }
+            ]
+        },
+    )
+
+    payload = build_program_intent_normalization(
+        intent, source={"kind": "test", "content_hash": "sha256:test"}
+    )
+
+    preview = payload["generation_assumptions_preview"]
+    assert {candidate["kind"] for candidate in preview["topology_candidates"]} >= {
+        "ProgramOfThought",
+        "custom",
+    }
+    assert preview["capability_boundaries"]["program_of_thought"] == {
+        "requested": True,
+        "sandbox": "empty",
+        "status": "empty_sandbox_boundary",
+        "boundary": "No filesystem, network, env vars, tools, or sync files are exposed.",
+    }
+    assert (
+        preview["capability_boundaries"]["custom_modules"]["imports_enabled"] is False
+    )
+    assert any(
+        item["feature"] == "custom_modules" and item["status"] == "blocked_policy_only"
+        for item in preview["unsupported_or_preserved_declared_only_features"]
+    )
 
 
 def test_explicit_bounded_retriever_normalization_is_not_reported_unsupported() -> None:

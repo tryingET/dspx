@@ -9,6 +9,10 @@ from dspx.cache import sha256_text
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_contracts import sanitize_ident
 from dspx.services.program_intent import ProgramIntent, load_program_intent
+from dspx.services.program_generation_preview import (
+    build_generation_assumption_preview,
+    preview_tokens,
+)
 
 PROGRAM_INTENT_NORMALIZATION_SCHEMA = "program-intent-normalization-v1"
 _FORBIDDEN_OUTPUT_NAMES = set(PROTECTED_PROGRAM_ARTIFACT_NAMES)
@@ -39,6 +43,9 @@ _EXTRACT_CUES = {"extract", "parse", "summarize", "summarise"}
 _VALIDATE_CUES = {"check", "validate", "verify"}
 _UNSUPPORTED_PRIMITIVE_CUES = {
     "react": "ReAct",
+    "reactv2": "ReActV2",
+    "react-v2": "ReActV2",
+    "react_v2": "ReActV2",
     "tool": "tool_using_module",
     "tools": "tool_using_module",
     "retrieve": "Retriever",
@@ -81,15 +88,7 @@ def _intent_hash(intent_payload: Mapping[str, Any]) -> str:
 
 
 def _tokens(text: str) -> set[str]:
-    words = set(re.findall(r"[a-z][a-z0-9_\-]*", text.casefold()))
-    if "step" in words and "by" in words:
-        words.add("step-by-step")
-    if "multi" in words and "step" in words:
-        words.add("multi-step")
-    compact = text.casefold().replace(" ", "")
-    if "programofthought" in compact:
-        words.add("programofthought")
-    return words
+    return preview_tokens(text)
 
 
 def _name_from_prompt(prompt: str) -> str:
@@ -392,6 +391,9 @@ def build_program_intent_normalization(
         "missing_evidence": _missing_evidence(intent),
         "topology_hints": _topology_hints(token_set),
         "primitive_hints": _primitive_hints(token_set, intent),
+        "generation_assumptions_preview": build_generation_assumption_preview(
+            token_set, intent
+        ),
         "generation_risks": _generation_risks(token_set, intent),
         "next_actions": [
             "Inspect assumptions, missing evidence, topology hints, and generation risks before materialization.",

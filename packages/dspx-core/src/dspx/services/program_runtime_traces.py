@@ -95,13 +95,36 @@ def _surface_effects(surface: Mapping[str, Any]) -> dict[str, bool]:
     return {key: bool(effects.get(key, False)) for key in sorted(_EFFECT_KEYS)}
 
 
-def _trajectory_slots(primitive: str, call: Mapping[str, Any]) -> dict[str, Any]:
+def _surface_react_tool_refs(surface: Mapping[str, Any]) -> dict[str, Any]:
+    react = (
+        dict(surface.get("react") or {})
+        if isinstance(surface.get("react"), Mapping)
+        else {}
+    )
+    return {
+        "declared_tool_refs": [
+            str(item)
+            for item in react.get("declared_tool_refs", [])
+            if str(item).strip()
+        ],
+        "tool_binding_status": str(
+            react.get("tool_binding_status") or "declared_refs_only_not_bound"
+        ),
+        "tool_binding_allowed": bool(react.get("tool_binding_allowed", False)),
+        "executable_tools": [],
+    }
+
+
+def _trajectory_slots(
+    primitive: str, call: Mapping[str, Any], surface: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
     if primitive == "ReAct":
         return {
             "react_steps": _jsonable(call.get("react_steps") or []),
             "react_history": _jsonable(call.get("history") or []),
             "tool_call_intents": [],
             "tool_call_results": [],
+            "tool_refs": _surface_react_tool_refs(surface or {}),
             "tool_calls_executed": False,
         }
     if primitive == "ReActV2":
@@ -111,6 +134,7 @@ def _trajectory_slots(primitive: str, call: Mapping[str, Any]) -> dict[str, Any]
             "final_submit": _jsonable(call.get("final_submit") or {}),
             "tool_call_intents": [],
             "tool_call_results": [],
+            "tool_refs": _surface_react_tool_refs(surface or {}),
             "tool_calls_executed": False,
             "experimental": True,
         }
@@ -168,6 +192,38 @@ def _output_linkage(
         }
         for field in fields
     ]
+
+
+def _stage_metadata(surface: Mapping[str, Any]) -> dict[str, Any]:
+    stage = surface.get("stage")
+    if isinstance(stage, Mapping):
+        return {str(key): _jsonable(value) for key, value in stage.items()}
+    return {"role": None, "metadata_source": "not_declared"}
+
+
+def _intermediate_field_lineage(
+    *,
+    inputs: Mapping[str, Any],
+    outputs: Mapping[str, Any],
+    prior_output_sources: Mapping[str, str],
+) -> dict[str, Any]:
+    input_lineage = []
+    for field in sorted(str(key) for key in inputs):
+        source_module = prior_output_sources.get(field)
+        input_lineage.append(
+            {
+                "field": field,
+                "source": "upstream_module_output"
+                if source_module
+                else "program_input",
+                "source_module_id": source_module,
+            }
+        )
+    output_lineage = [
+        {"field": str(field), "source": "module_output"}
+        for field in sorted(str(key) for key in outputs)
+    ]
+    return {"inputs": input_lineage, "outputs": output_lineage}
 
 
 def _final_linkage(
@@ -267,6 +323,29 @@ def _trajectory_slots_safe(value: object) -> bool:
     return True
 
 
+def _scheduler_events_safe(value: object) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, list):
+        return False
+    allowed_statuses = {"completed", "scheduler_stalled", "completed_missing_outputs"}
+    for raw_event in value:
+        if not isinstance(raw_event, Mapping):
+            return False
+        event = dict(raw_event)
+        if event.get("status") not in allowed_statuses:
+            return False
+        for key in ("missing_outputs", "pending"):
+            raw_items = event.get(key)
+            if not isinstance(raw_items, list):
+                return False
+            if any(not isinstance(item, str) for item in raw_items):
+                return False
+        if set(event) - {"status", "missing_outputs", "pending"}:
+            return False
+    return True
+
+
 def validate_program_runtime_traces(payload: Mapping[str, Any]) -> bool:
     """Return whether a runtime-traces artifact satisfies replay semantics.
 
@@ -356,6 +435,8 @@ def validate_program_runtime_traces(payload: Mapping[str, Any]) -> bool:
             return False
         if not _trajectory_slots_safe(call.get("trajectory_slots")):
             return False
+        if not _scheduler_events_safe(call.get("scheduler_events")):
+            return False
         if not _non_authority_valid(call.get("non_authority")):
             return False
         if not isinstance(call.get("input_field_linkage"), list):
@@ -411,6 +492,7 @@ def _module_calls_from_runtime_trace(
         return []
     calls: list[dict[str, Any]] = []
     prior_outputs: set[str] = set()
+    prior_output_sources: dict[str, str] = {}
     for call_index, raw_call in enumerate(raw_calls):
         if not isinstance(raw_call, Mapping):
             continue
@@ -435,6 +517,7 @@ def _module_calls_from_runtime_trace(
         primitive = str(
             surface.get("primitive") or raw_call_map.get("primitive") or "Predict"
         )
+        scheduler_events = _jsonable(trace.get("scheduler_events") or [])
         call = {
             "schema_version": PROGRAM_RUNTIME_MODULE_CALL_SCHEMA,
             "source": dict(source),
@@ -446,6 +529,8 @@ def _module_calls_from_runtime_trace(
                 raw_call_map.get("status") or record.get("status") or "unknown"
             ),
             "capture_status": "actual_module_call_captured",
+            "stage": _stage_metadata(surface),
+            "scheduler_events": scheduler_events,
             "inputs": _jsonable(inputs),
             "input_field_linkage": _input_linkage(
                 fields=input_fields, inputs=inputs, prior_outputs=prior_outputs
@@ -459,12 +544,19 @@ def _module_calls_from_runtime_trace(
             "final_output_linkage": _final_linkage(
                 outputs=outputs, module_id=module_id, program_outputs=program_outputs
             ),
-            "trajectory_slots": _trajectory_slots(primitive, raw_call_map),
+            "intermediate_field_lineage": _intermediate_field_lineage(
+                inputs=inputs,
+                outputs=outputs,
+                prior_output_sources=prior_output_sources,
+            ),
+            "trajectory_slots": _trajectory_slots(primitive, raw_call_map, surface),
             "effects": _surface_effects(surface),
             "non_authority": dict(_NON_AUTHORITY),
         }
         calls.append(_with_trace_hash(call))
-        prior_outputs.update(str(key) for key in outputs)
+        for key in outputs:
+            prior_outputs.add(str(key))
+            prior_output_sources[str(key)] = module_id
     return calls
 
 
@@ -493,6 +585,7 @@ def _synthetic_single_module_call(
         "primitive": primitive,
         "status": str(record.get("status") or "unknown"),
         "capture_status": "actual_single_module_call_reconstructed_from_behavior_result",
+        "stage": _stage_metadata(surface),
         "inputs": _jsonable(
             {field: inputs[field] for field in input_fields if field in inputs}
         ),
@@ -508,7 +601,14 @@ def _synthetic_single_module_call(
         "final_output_linkage": _final_linkage(
             outputs=outputs, module_id=module_id, program_outputs=program_outputs
         ),
-        "trajectory_slots": _trajectory_slots(primitive, {}),
+        "intermediate_field_lineage": _intermediate_field_lineage(
+            inputs={field: inputs[field] for field in input_fields if field in inputs},
+            outputs={
+                field: outputs[field] for field in output_fields if field in outputs
+            },
+            prior_output_sources={},
+        ),
+        "trajectory_slots": _trajectory_slots(primitive, {}, surface),
         "effects": _surface_effects(surface),
         "non_authority": dict(_NON_AUTHORITY),
     }

@@ -7,8 +7,13 @@ from typing import Any, Mapping
 
 from dspx.cache import sha256_text
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
+from dspx.services.program_generation_preview import (
+    build_generation_assumption_preview,
+    preview_tokens,
+)
 from dspx.services.program_intent import ProgramIntent, load_program_intent
 from dspx.services.program_module_surface import build_program_module_surfaces
+from dspx.services.program_tool_contracts import build_program_tool_contracts
 from dspx.services.program_topology import (
     MATERIALIZABLE_DECLARED_TOPOLOGY_KINDS,
     prompt_inferred_pipeline_topology,
@@ -119,6 +124,7 @@ def _candidate(
     materializable: bool,
     why: list[str],
     limitations: list[str],
+    topology_preview: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     intent_text = _json_text(dict(candidate_intent))
     module_surfaces = (
@@ -134,6 +140,7 @@ def _candidate(
         "recommendation": recommendation,
         "topology_source": topology_source,
         "topology": dict(candidate_intent.get("topology") or {}),
+        "topology_preview": dict(topology_preview or {}),
         "intent_hash": sha256_text(intent_text),
         "intent_payload": dict(candidate_intent),
         "module_surface_preview": module_surfaces,
@@ -165,11 +172,78 @@ def _non_authority() -> dict[str, bool]:
     }
 
 
+def _preview_advisory_candidates(
+    *,
+    intent: ProgramIntent,
+    source_payload: Mapping[str, Any],
+    preview: Mapping[str, Any],
+    existing_families: set[str],
+) -> list[dict[str, Any]]:
+    advisory: list[dict[str, Any]] = []
+    preview_candidates = preview.get("topology_candidates")
+    if not isinstance(preview_candidates, list):
+        return advisory
+    advisory_kinds = {
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise",
+        "ReAct",
+        "ReActV2",
+        "ProgramOfThought",
+        "custom",
+    }
+    for raw_candidate in preview_candidates:
+        if not isinstance(raw_candidate, Mapping):
+            continue
+        kind = str(raw_candidate.get("kind") or "")
+        if kind not in advisory_kinds or kind in existing_families:
+            continue
+        if (
+            kind in {"router", "extract_transform_validate"}
+            and "pipeline" in existing_families
+        ):
+            continue
+        candidate_id = f"preview_{kind.lower()}_declared_only".replace(" ", "_")
+        advisory.append(
+            _candidate(
+                candidate_id=candidate_id,
+                label=f"Preview-only {kind} architecture",
+                family=kind,
+                recommendation="declare_explicit_contract_before_materialization",
+                candidate_intent=deepcopy(dict(source_payload)),
+                topology_source="generation_assumptions_preview",
+                materializable=False,
+                why=[
+                    str(
+                        raw_candidate.get("reason")
+                        or "Preview detected this topology candidate."
+                    )
+                ],
+                limitations=[
+                    str(
+                        raw_candidate.get("safety_boundary")
+                        or "Preview-only candidate requires an explicit safe contract before materialization."
+                    ),
+                    "This architecture-plan row is advisory only until the required_explicit_contract is accepted and validated as a real intent patch.",
+                ],
+                topology_preview=raw_candidate,
+            )
+        )
+    return advisory
+
+
 def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, Any]:
     """Build a non-authoritative architecture candidate plan for one intent."""
 
     source_payload = _intent_payload(intent)
     source_hash = _intent_hash(source_payload)
+    token_set = preview_tokens(
+        " ".join([intent.objective, intent.task_type, " ".join(intent.constraints)])
+    )
+    generation_assumptions_preview = build_generation_assumption_preview(
+        token_set, intent
+    )
     candidates: list[dict[str, Any]] = []
 
     baseline_payload = _candidate_intent_payload(
@@ -289,6 +363,16 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
             )
         )
 
+    existing_families = {str(candidate.get("family") or "") for candidate in candidates}
+    candidates.extend(
+        _preview_advisory_candidates(
+            intent=intent,
+            source_payload=source_payload,
+            preview=generation_assumptions_preview,
+            existing_families=existing_families,
+        )
+    )
+
     return {
         "schema_version": PROGRAM_ARCHITECTURE_CANDIDATES_SCHEMA,
         "status": "planned_not_materialized",
@@ -302,6 +386,7 @@ def build_program_architecture_candidates(intent: ProgramIntent) -> dict[str, An
             "intent_hash": source_hash,
         },
         "source_intent_payload": source_payload,
+        "generation_assumptions_preview": generation_assumptions_preview,
         "recommended_candidate_id": recommended_candidate_id,
         "candidate_count": len(candidates),
         "candidates": candidates,
@@ -369,6 +454,391 @@ def write_program_architecture_candidates(
     }
     target.write_text(_json_text(updated), encoding="utf-8")
     return updated
+
+
+def _merge_intent_patch(
+    source_payload: Mapping[str, Any], patch: Mapping[str, Any], *, candidate_id: str
+) -> dict[str, Any]:
+    draft = deepcopy(dict(source_payload))
+    draft["schema_version"] = _PROGRAM_INTENT_SCHEMA
+    draft["name"] = (
+        f"{draft.get('name') or 'Program'}{candidate_id.title().replace('_', '')}"
+    )
+    for key, value in patch.items():
+        if key == "options" and isinstance(value, Mapping):
+            draft["options"] = {**dict(draft.get("options") or {}), **dict(value)}
+        else:
+            draft[key] = deepcopy(value)
+    ProgramIntent.model_validate(draft)
+    return draft
+
+
+def _react_tool_preflight_for_intent(intent: ProgramIntent) -> dict[str, Any]:
+    contracts = build_program_tool_contracts(intent)
+    readiness = dict(contracts.get("react_v2_tool_readiness") or {})
+    preflight = dict(readiness.get("pure_tool_adapter_preflight") or {})
+    return {
+        "schema_version": "program-react-v2-pure-tool-preflight-v1",
+        "status": preflight.get("materialization_status")
+        or "not_requested_or_no_tool_refs",
+        "referenced_tool_ids": preflight.get("referenced_tool_ids", []),
+        "all_referenced_tools_have_pure_contracts": preflight.get(
+            "all_referenced_tools_have_pure_contracts", False
+        ),
+        "all_referenced_tool_schemas_bounded": preflight.get(
+            "all_referenced_tool_schemas_bounded", False
+        ),
+        "all_referenced_adapter_blueprints_hash_bound": preflight.get(
+            "all_referenced_adapter_blueprints_hash_bound", False
+        ),
+        "all_referenced_tools_have_replay_policy_preconditions": preflight.get(
+            "all_referenced_tools_have_replay_policy_preconditions", False
+        ),
+        "ready_for_tool_adapter_materialization": preflight.get(
+            "ready_for_tool_adapter_materialization", False
+        ),
+        "tool_binding_allowed": False,
+        "tool_execution_allowed": False,
+        "tool_contracts": {
+            "schema_version": contracts.get("schema_version"),
+            "tool_contract_count": contracts.get("tool_contract_count"),
+            "tool_adapter_policy": contracts.get("tool_adapter_policy"),
+        },
+    }
+
+
+def verify_architecture_contract_intent(path: Path) -> dict[str, Any]:
+    source = path.expanduser().resolve()
+    source_text = source.read_text(encoding="utf-8")
+    source_hash = sha256_text(source_text)
+    try:
+        intent = load_program_intent(source)
+    except Exception as exc:
+        violation = str(exc)
+        if "topology.modules must include at least one module" in violation:
+            violation = "contract intent must declare topology modules"
+        return {
+            "schema_version": "program-architecture-contract-verification-v1",
+            "status": "failed",
+            "intent_path": str(source),
+            "intent_hash": source_hash,
+            "intent": None,
+            "safe_modules": [],
+            "violations": [violation],
+            "materialization_allowed_by_contract_verification": False,
+            "live_tool_binding_allowed": False,
+            "custom_import_allowed": False,
+            "external_retriever_allowed": False,
+            "effect": {
+                "candidate_program_materialized": False,
+                "tool_called": False,
+                "custom_import_loaded": False,
+                "oracle_index_mutated": False,
+                "ak_called": False,
+                "governance_mutated": False,
+                "external_authority_mutated": False,
+            },
+            "non_authority": _non_authority(),
+        }
+    topology = dict(intent.topology or {})
+    modules = topology.get("modules") if isinstance(topology, Mapping) else None
+    if not isinstance(modules, list) or not modules:
+        return {
+            "schema_version": "program-architecture-contract-verification-v1",
+            "status": "failed",
+            "intent_path": str(source),
+            "intent_hash": source_hash,
+            "intent": intent.model_dump(mode="json", exclude_none=True),
+            "safe_modules": [],
+            "violations": ["contract intent must declare topology modules"],
+            "materialization_allowed_by_contract_verification": False,
+            "materialization_gate": {
+                "status": "blocked_by_contract_verification",
+                "allows_live_tools": False,
+                "allows_custom_imports": False,
+                "allows_external_retrievers": False,
+                "requires_review": True,
+            },
+            "live_tool_binding_allowed": False,
+            "custom_import_allowed": False,
+            "external_retriever_allowed": False,
+            "effect": {
+                "candidate_program_materialized": False,
+                "tool_called": False,
+                "custom_import_loaded": False,
+                "oracle_index_mutated": False,
+                "ak_called": False,
+                "governance_mutated": False,
+                "external_authority_mutated": False,
+            },
+            "non_authority": _non_authority(),
+        }
+    declarations = dict(intent.capabilities or {}).get("declarations") or []
+    pure_tool_ids = {
+        str(item.get("id") or item.get("name") or "")
+        for item in declarations
+        if isinstance(item, Mapping)
+        and item.get("kind") == "tool"
+        and str(item.get("effect_class") or "pure").strip().lower() == "pure"
+    }
+    react_v2_tool_preflight = _react_tool_preflight_for_intent(intent)
+    violations: list[str] = []
+    safe_modules: list[dict[str, Any]] = []
+    for raw_module in modules:
+        if not isinstance(raw_module, Mapping):
+            violations.append("topology module is not an object")
+            continue
+        module = dict(raw_module)
+        primitive = str(module.get("primitive") or "")
+        module_id = str(module.get("id") or "")
+        if primitive == "ReActV2":
+            react = (
+                module.get("react") if isinstance(module.get("react"), Mapping) else {}
+            )
+            tools = module.get(
+                "tools", react.get("tools") if isinstance(react, Mapping) else []
+            )
+            if tools != []:
+                violations.append(f"ReActV2 module {module_id!r} must keep tools=[]")
+            declared_tool_refs = (
+                react.get("declared_tool_refs") if isinstance(react, Mapping) else []
+            )
+            if isinstance(declared_tool_refs, list):
+                declared_tool_ref_ids = sorted(str(item) for item in declared_tool_refs)
+                missing_tool_refs = sorted(set(declared_tool_ref_ids) - pure_tool_ids)
+                if missing_tool_refs:
+                    violations.append(
+                        f"ReActV2 module {module_id!r} tool_refs require matching pure tool declarations: {missing_tool_refs}"
+                    )
+                if declared_tool_ref_ids:
+                    if not react_v2_tool_preflight[
+                        "all_referenced_tool_schemas_bounded"
+                    ]:
+                        violations.append(
+                            f"ReActV2 module {module_id!r} tool_refs require bounded args/return schemas: {declared_tool_ref_ids}"
+                        )
+                    if not react_v2_tool_preflight[
+                        "all_referenced_adapter_blueprints_hash_bound"
+                    ]:
+                        violations.append(
+                            f"ReActV2 module {module_id!r} tool_refs require hash-bound adapter blueprints: {declared_tool_ref_ids}"
+                        )
+                    if not react_v2_tool_preflight[
+                        "all_referenced_tools_have_replay_policy_preconditions"
+                    ]:
+                        violations.append(
+                            f"ReActV2 module {module_id!r} tool_refs require replay-policy preconditions: {declared_tool_ref_ids}"
+                        )
+            if not bool(
+                dict(intent.options or {}).get("enable_react_v2_materialization")
+                or dict(intent.options or {}).get("react_v2_materialization")
+            ):
+                violations.append(
+                    f"ReActV2 module {module_id!r} requires explicit opt-in option"
+                )
+        elif primitive == "ReAct":
+            react = (
+                module.get("react") if isinstance(module.get("react"), Mapping) else {}
+            )
+            tools = module.get(
+                "tools", react.get("tools") if isinstance(react, Mapping) else []
+            )
+            if tools != []:
+                violations.append(f"ReAct module {module_id!r} must keep tools=[]")
+            declared_tool_refs = (
+                react.get("declared_tool_refs") if isinstance(react, Mapping) else []
+            )
+            if isinstance(declared_tool_refs, list):
+                missing_tool_refs = sorted(
+                    set(str(item) for item in declared_tool_refs) - pure_tool_ids
+                )
+                if missing_tool_refs:
+                    violations.append(
+                        f"ReAct module {module_id!r} tool_refs require matching pure tool declarations: {missing_tool_refs}"
+                    )
+        elif primitive in {"Predict", "ChainOfThought"}:
+            pass
+        elif primitive == "Retriever":
+            retriever = module.get("retriever")
+            if not isinstance(retriever, Mapping):
+                violations.append(
+                    f"Retriever module {module_id!r} requires bounded retriever config"
+                )
+            else:
+                mode = str(retriever.get("mode") or "")
+                if mode not in {"inline_corpus", "local_corpus_snapshot"}:
+                    violations.append(
+                        f"Retriever module {module_id!r} must use inline_corpus or local_corpus_snapshot mode"
+                    )
+        elif primitive == "ProgramOfThought":
+            config = module.get("program_of_thought")
+            sandbox = (
+                dict(config.get("sandbox") or {}) if isinstance(config, Mapping) else {}
+            )
+            if any(
+                sandbox.get(key)
+                for key in [
+                    "read_paths",
+                    "write_paths",
+                    "env_vars",
+                    "network_access",
+                    "tools",
+                ]
+            ):
+                violations.append(
+                    f"ProgramOfThought module {module_id!r} must keep an empty sandbox"
+                )
+            if sandbox.get("sync_files"):
+                violations.append(
+                    f"ProgramOfThought module {module_id!r} must keep sync_files=false"
+                )
+        else:
+            violations.append(
+                f"contract draft module {module_id!r} primitive {primitive!r} is not a supported contract-draft primitive"
+            )
+        safe_modules.append({"module_id": module_id, "primitive": primitive})
+    if not violations and not any(
+        str(module.get("primitive") or "") == "ReActV2"
+        for module in modules
+        if isinstance(module, Mapping)
+    ):
+        try:
+            validate_materializable_pipeline_topology(intent)
+        except Exception as exc:
+            violations.append(str(exc))
+    return {
+        "schema_version": "program-architecture-contract-verification-v1",
+        "status": "verified_contract_intent" if not violations else "failed",
+        "intent_path": str(source),
+        "intent_hash": source_hash,
+        "intent": {
+            "schema_version": intent.schema_version,
+            "name": intent.name,
+            "objective": intent.objective,
+        },
+        "safe_modules": safe_modules,
+        "react_v2_tool_preflight": react_v2_tool_preflight,
+        "violations": violations,
+        "materialization_gate": {
+            "status": "verified_for_explicit_program_gen_materialization"
+            if not violations
+            else "blocked",
+            "program_gen_must_match_intent_hash": source_hash,
+            "allows_live_tools": False,
+            "allows_custom_imports": False,
+            "allows_external_retrievers": False,
+        },
+        "materialization_allowed_by_contract_verification": not violations,
+        "live_tool_binding_allowed": False,
+        "custom_import_allowed": False,
+        "external_retriever_allowed": False,
+        "effect": {
+            "candidate_program_materialized": False,
+            "tool_called": False,
+            "custom_import_loaded": False,
+            "oracle_index_mutated": False,
+            "ak_called": False,
+            "governance_mutated": False,
+            "external_authority_mutated": False,
+        },
+        "non_authority": _non_authority(),
+    }
+
+
+def write_architecture_contract_verification(
+    payload: Mapping[str, Any], out: Path
+) -> dict[str, Any]:
+    target = _validate_output_path(out)
+    payload_without_artifact = dict(payload)
+    payload_without_artifact.pop("artifact", None)
+    payload_hash = sha256_text(_json_text(payload_without_artifact))
+    updated = dict(payload_without_artifact)
+    updated["artifact"] = {
+        "path": str(target),
+        "payload_hash_excluding_artifact": payload_hash,
+        "schema_version": "program-architecture-contract-verification-v1",
+    }
+    target.write_text(_json_text(updated), encoding="utf-8")
+    return updated
+
+
+def write_architecture_contract_drafts(
+    payload: Mapping[str, Any], contract_outdir: Path
+) -> dict[str, Any]:
+    root = contract_outdir.expanduser().resolve()
+    if root.name in _FORBIDDEN_OUTPUT_NAMES:
+        raise ProgramArchitectureError(
+            f"refusing to write contract drafts to generated candidate artifact path: {root.name}"
+        )
+    root.mkdir(parents=True, exist_ok=True)
+    intents_dir = root / "contract_intents"
+    intents_dir.mkdir(parents=True, exist_ok=True)
+    source_payload = payload.get("source_intent_payload")
+    if not isinstance(source_payload, Mapping):
+        raise ProgramArchitectureError(
+            "architecture plan missing source_intent_payload"
+        )
+    records: list[dict[str, Any]] = []
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list):
+        raise ProgramArchitectureError("architecture plan candidates must be a list")
+    for raw_candidate in candidates:
+        if not isinstance(raw_candidate, Mapping):
+            continue
+        candidate_id = _safe_candidate_id(raw_candidate.get("candidate_id"))
+        preview = raw_candidate.get("topology_preview")
+        if not isinstance(preview, Mapping):
+            continue
+        contract = preview.get("required_explicit_contract")
+        if not isinstance(contract, Mapping):
+            continue
+        patch = contract.get("intent_patch")
+        if not isinstance(patch, Mapping):
+            continue
+        draft = _merge_intent_patch(source_payload, patch, candidate_id=candidate_id)
+        path = intents_dir / f"{candidate_id}.json"
+        text = _json_text(draft)
+        path.write_text(text, encoding="utf-8")
+        records.append(
+            {
+                "candidate_id": candidate_id,
+                "intent_path": str(path),
+                "intent_hash": sha256_text(text),
+                "status": "explicit_contract_draft_requires_operator_review",
+                "materializable_claimed": False,
+                "preconditions": list(
+                    contract.get("production_readiness_missing") or []
+                ),
+                "materialize_command_after_review": f"dspx program-gen --intent {path} --outdir <outdir>/{candidate_id}",
+            }
+        )
+    index = {
+        "schema_version": "program-architecture-contract-drafts-v1",
+        "status": "explicit_contract_drafts_only_not_materialized",
+        "architecture_plan_schema": payload.get("schema_version"),
+        "contract_draft_count": len(records),
+        "contract_drafts": records,
+        "effect": {
+            "candidate_program_materialized": False,
+            "provider_called": False,
+            "tool_called": False,
+            "oracle_index_mutated": False,
+            "ak_called": False,
+            "governance_mutated": False,
+            "external_authority_mutated": False,
+        },
+        "non_authority": _non_authority(),
+    }
+    index_text = _json_text(index)
+    index["artifact"] = {
+        "path": str(root / "contract_drafts_index.json"),
+        "payload_hash_excluding_artifact": sha256_text(index_text),
+        "schema_version": index["schema_version"],
+    }
+    (root / "contract_drafts_index.json").write_text(
+        _json_text(index), encoding="utf-8"
+    )
+    return index
 
 
 def write_architecture_intent_portfolio(

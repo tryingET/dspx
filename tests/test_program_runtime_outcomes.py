@@ -17,7 +17,7 @@ def _surface(
     primitive: str,
     outputs: list[str] | None = None,
 ) -> dict[str, object]:
-    return {
+    surface: dict[str, object] = {
         "schema_version": "program-module-surface-v1",
         "module_id": module_id,
         "source_kind": "generated_topology_module",
@@ -38,6 +38,13 @@ def _surface(
             "external_authority": False,
         },
     }
+    if primitive in {"ReAct", "ReActV2"}:
+        surface["react"] = {
+            "declared_tool_refs": [],
+            "tool_binding_status": "declared_refs_only_not_bound",
+            "tool_binding_allowed": False,
+        }
+    return surface
 
 
 def _outcomes_for(*surfaces: dict[str, object]) -> dict[str, object]:
@@ -110,6 +117,12 @@ def test_predict_runtime_outcome_contract_is_declared_not_trace() -> None:
                 "records_tool_call_results": False,
                 "termination_reason": "finish_or_max_iters",
                 "tool_policy": "tools_empty",
+                "tool_refs": {
+                    "declared_tool_refs": [],
+                    "tool_binding_status": "declared_refs_only_not_bound",
+                    "tool_binding_allowed": False,
+                    "executable_tools": [],
+                },
             },
         ),
         (
@@ -123,6 +136,12 @@ def test_predict_runtime_outcome_contract_is_declared_not_trace() -> None:
                 "termination_reason": "submit_or_max_iters",
                 "tool_policy": "tools_empty_until_program_tool_contracts_exists",
                 "experimental": True,
+                "tool_refs": {
+                    "declared_tool_refs": [],
+                    "tool_binding_status": "declared_refs_only_not_bound",
+                    "tool_binding_allowed": False,
+                    "executable_tools": [],
+                },
             },
         ),
         (
@@ -152,6 +171,26 @@ def test_runtime_outcome_contracts_cover_bounded_primitives(
     assert all(value is False for value in outcome["effects"].values())
     assert outcome["non_authority"]["canonical_mutation"] is False
     assert outcome["non_authority"]["external_mutation"] is False
+
+
+def test_react_v2_runtime_outcome_preserves_declared_tool_refs_not_bound() -> None:
+    surface = _surface(module_id="agent", primitive="ReActV2")
+    surface["react"] = {
+        "declared_tool_refs": ["lookup_policy"],
+        "tool_binding_status": "declared_refs_only_not_bound",
+        "tool_binding_allowed": False,
+    }
+
+    payload = _outcomes_for(surface)
+    outcome = _by_module(payload)["agent"]
+
+    assert outcome["trace_contract"]["tool_refs"] == {
+        "declared_tool_refs": ["lookup_policy"],
+        "tool_binding_status": "declared_refs_only_not_bound",
+        "tool_binding_allowed": False,
+        "executable_tools": [],
+    }
+    assert outcome["effects"]["tool_called"] is False
 
 
 def test_runtime_outcomes_preserve_explicit_effect_flags_without_authority() -> None:

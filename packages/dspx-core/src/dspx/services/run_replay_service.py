@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -97,6 +98,227 @@ def _as_list(value: Any) -> list[Any]:
     if isinstance(value, tuple):
         return list(value)
     return []
+
+
+def _generated_tool_adapter_source_semantic_valid(
+    source: str,
+    *,
+    tool_id: str,
+    effect_class: str,
+    args_schema: Mapping[str, Any],
+    return_schema: Mapping[str, Any],
+) -> bool:
+    try:
+        tree = ast.parse(source, filename="tool_adapter.py")
+    except SyntaxError:
+        return False
+    constants: dict[str, Any] = {}
+    required_functions = {"validate_args", "validate_return", "adapter"}
+    seen_functions: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom, ast.ClassDef, ast.Lambda)):
+            return False
+        if isinstance(node, ast.FunctionDef):
+            seen_functions.add(node.name)
+            if node.name not in required_functions:
+                return False
+            if node.decorator_list:
+                return False
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            if isinstance(target, ast.Name):
+                try:
+                    constants[target.id] = ast.literal_eval(node.value)
+                except (ValueError, TypeError):
+                    return False
+    if not required_functions <= seen_functions:
+        return False
+    if constants.get("TOOL_ID") != tool_id:
+        return False
+    if constants.get("EFFECT_CLASS") != effect_class:
+        return False
+    if constants.get("ARGS_SCHEMA") != dict(args_schema):
+        return False
+    if constants.get("RETURN_SCHEMA") != dict(return_schema):
+        return False
+    if constants.get("EXECUTION_ALLOWED") is not False:
+        return False
+    if constants.get("DSPY_TOOL_BINDING_ALLOWED") is not False:
+        return False
+    if constants.get("IMPORTED_BY_GENERATED_PROGRAM") is not False:
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Name) and func.id in {
+                "eval",
+                "exec",
+                "open",
+                "__import__",
+            }:
+                return False
+            if isinstance(func, ast.Attribute):
+                root = func.value
+                if isinstance(root, ast.Name) and root.id in {
+                    "os",
+                    "sys",
+                    "subprocess",
+                    "socket",
+                    "requests",
+                    "httpx",
+                }:
+                    return False
+    return True
+
+
+def _program_runtime_outcomes_semantic_valid(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("schema_version") != "program-runtime-outcomes-v1":
+        return False
+    if payload.get("status") != "outcome_contracts_declared":
+        return False
+    outcomes = payload.get("outcomes")
+    if not isinstance(outcomes, list):
+        return False
+    if payload.get("module_outcome_count") != len(outcomes):
+        return False
+    policy = payload.get("runtime_policy")
+    if not isinstance(policy, Mapping):
+        return False
+    for key in [
+        "materialization_executed_modules",
+        "records_actual_runtime_trace",
+        "tool_binding_allowed",
+        "live_external_retriever_allowed",
+        "network_allowed",
+        "filesystem_access_allowed",
+    ]:
+        if policy.get(key) is not False:
+            return False
+    if policy.get("react_v2_tools_require_program_tool_contracts") is not True:
+        return False
+    for raw_outcome in outcomes:
+        if not isinstance(raw_outcome, Mapping):
+            return False
+        outcome = dict(raw_outcome)
+        if outcome.get("status") != "outcome_contract_declared_not_runtime_trace":
+            return False
+        if not isinstance(outcome.get("module_id"), str) or not outcome.get(
+            "module_id"
+        ):
+            return False
+        if not isinstance(outcome.get("primitive"), str) or not outcome.get(
+            "primitive"
+        ):
+            return False
+        signature = outcome.get("signature")
+        if not isinstance(signature, Mapping):
+            return False
+        outputs = signature.get("outputs")
+        if not isinstance(outputs, list):
+            return False
+        if outcome.get("final_outputs") != outputs:
+            return False
+        effects = outcome.get("effects")
+        if not isinstance(effects, Mapping):
+            return False
+        for key in [
+            "tool_called",
+            "custom_import_loaded",
+            "network",
+            "filesystem_write",
+            "subprocess",
+            "external_authority",
+        ]:
+            if effects.get(key) is not False:
+                return False
+        if not isinstance(outcome.get("trace_contract"), Mapping):
+            return False
+        trace_contract = dict(outcome["trace_contract"])
+        if outcome.get("primitive") in {"ReAct", "ReActV2"}:
+            tool_refs = trace_contract.get("tool_refs")
+            if not isinstance(tool_refs, Mapping):
+                return False
+            if tool_refs.get("tool_binding_allowed") is not False:
+                return False
+            if tool_refs.get("tool_binding_status") != "declared_refs_only_not_bound":
+                return False
+            if tool_refs.get("executable_tools") != []:
+                return False
+    return True
+
+
+def _program_module_surfaces_semantic_valid(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("schema_version") != "program-module-surfaces-v1":
+        return False
+    surfaces = payload.get("module_surfaces")
+    if not isinstance(surfaces, list):
+        return False
+    if payload.get("module_surface_count") != len(surfaces):
+        return False
+    for raw_surface in surfaces:
+        if not isinstance(raw_surface, Mapping):
+            return False
+        surface = dict(raw_surface)
+        if surface.get("schema_version") != "program-module-surface-v1":
+            return False
+        if not isinstance(surface.get("module_id"), str) or not surface.get(
+            "module_id"
+        ):
+            return False
+        if not isinstance(surface.get("primitive"), str) or not surface.get(
+            "primitive"
+        ):
+            return False
+        signature = surface.get("signature")
+        if not isinstance(signature, Mapping):
+            return False
+        if not isinstance(signature.get("inputs"), list) or not isinstance(
+            signature.get("outputs"), list
+        ):
+            return False
+        effects = surface.get("effects")
+        if not isinstance(effects, Mapping):
+            return False
+        for key in [
+            "tool_called",
+            "custom_import_loaded",
+            "network",
+            "filesystem_write",
+            "subprocess",
+            "external_authority",
+        ]:
+            if effects.get(key) is not False:
+                return False
+        stage = surface.get("stage")
+        if stage is not None:
+            if not isinstance(stage, Mapping):
+                return False
+            if set(stage) - {"role", "metadata_source"}:
+                return False
+            if not isinstance(stage.get("role"), str) or not stage.get("role"):
+                return False
+            if stage.get("metadata_source") != "program_intent_topology_module.role":
+                return False
+        react = surface.get("react")
+        if isinstance(react, Mapping):
+            if react.get("tool_binding_allowed", False) is not False:
+                return False
+            if (
+                react.get("tool_binding_status", "declared_refs_only_not_bound")
+                != "declared_refs_only_not_bound"
+            ):
+                return False
+        retriever = surface.get("retriever")
+        if isinstance(retriever, Mapping) and retriever.get("mode") not in {
+            "inline_corpus",
+            "local_corpus_snapshot",
+        }:
+            return False
+    return True
 
 
 def _infer_output_path_from_meta(meta_path: Path) -> Path | None:
@@ -384,6 +606,7 @@ def _program_evidence_declarations(
             "capability_registry",
             "generated_module_policy",
             "intent_normalization",
+            "contract_verification",
             "execution_episode",
             "behavior_results",
             "oracle_evidence",
@@ -405,6 +628,16 @@ def _program_evidence_declarations(
             content_hash=surface.get("content_hash"),
             source=f"manifest.candidate_assembly.surfaces.{kind}",
         )
+
+    contract_verification_artifact = _nested_dict(
+        manifest, "program_architecture_contract_verification_artifact"
+    )
+    add(
+        "contract_verification",
+        path=contract_verification_artifact.get("path"),
+        content_hash=contract_verification_artifact.get("content_hash"),
+        source="manifest.program_architecture_contract_verification_artifact.content_hash",
+    )
 
     evidence = _nested_dict(manifest, "receipt_bundle", "evidence")
     add(
@@ -791,15 +1024,24 @@ def _check_program_evidence_artifacts(
                 ),
                 check=hash_check,
             )
+        if kind == "module_surfaces":
+            surfaces_payload = _load_json_object(artifact_path)
+            semantic_check = "program_module_surfaces_semantic_valid"
+            checks[semantic_check] = _program_module_surfaces_semantic_valid(
+                surfaces_payload
+            )
+            if not checks[semantic_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program module surfaces semantic check failed: {artifact_path}",
+                    check=semantic_check,
+                )
         if kind == "runtime_outcomes":
             outcomes_payload = _load_json_object(artifact_path)
             semantic_check = "program_runtime_outcomes_semantic_valid"
-            checks[semantic_check] = (
-                isinstance(outcomes_payload, dict)
-                and outcomes_payload.get("schema_version")
-                == "program-runtime-outcomes-v1"
-                and outcomes_payload.get("status") == "outcome_contracts_declared"
-                and isinstance(outcomes_payload.get("outcomes"), list)
+            checks[semantic_check] = _program_runtime_outcomes_semantic_valid(
+                outcomes_payload
             )
             if not checks[semantic_check]:
                 _add_error(
@@ -828,6 +1070,33 @@ def _check_program_evidence_artifacts(
                 if isinstance(tool_payload, dict)
                 else None
             )
+            readiness = (
+                tool_payload.get("react_v2_tool_readiness")
+                if isinstance(tool_payload, dict)
+                else None
+            )
+            preflight = (
+                readiness.get("pure_tool_adapter_preflight")
+                if isinstance(readiness, Mapping)
+                else None
+            )
+            preflight_ready = (
+                isinstance(preflight, Mapping)
+                and preflight.get("ready_for_tool_adapter_materialization") is True
+            )
+            preflight_map = dict(preflight) if isinstance(preflight, Mapping) else {}
+            preflight_ready_valid = (not preflight_ready) or (
+                preflight_map.get("all_referenced_tools_have_pure_contracts") is True
+                and preflight_map.get("all_referenced_tool_schemas_bounded") is True
+                and preflight_map.get("all_referenced_adapter_blueprints_hash_bound")
+                is True
+                and preflight_map.get(
+                    "all_referenced_tools_have_replay_policy_preconditions"
+                )
+                is True
+                and preflight_map.get("materialization_status")
+                == "ready_for_generated_adapter_materialization"
+            )
             semantic_check = "program_tool_contracts_semantic_valid"
             checks[semantic_check] = (
                 isinstance(tool_payload, dict)
@@ -836,7 +1105,179 @@ def _check_program_evidence_artifacts(
                 and isinstance(tool_payload.get("contracts"), list)
                 and isinstance(runtime_policy, dict)
                 and runtime_policy.get("tool_execution_allowed") is False
+                and isinstance(tool_payload.get("tool_adapter_policy"), dict)
+                and tool_payload["tool_adapter_policy"].get("dspy_tool_binding_allowed")
+                is False
+                and tool_payload["tool_adapter_policy"].get("tool_execution_allowed")
+                is False
+                and (
+                    int(
+                        tool_payload["tool_adapter_policy"].get(
+                            "generated_adapter_count"
+                        )
+                        or 0
+                    )
+                    == 0
+                    or tool_payload["tool_adapter_policy"].get(
+                        "all_adapters_hash_bound"
+                    )
+                    is True
+                )
+                and isinstance(readiness, Mapping)
+                and readiness.get("ready_for_react_v2_tool_binding") is False
+                and isinstance(readiness.get("effect"), Mapping)
+                and readiness["effect"].get("tool_called") is False
+                and readiness["effect"].get("dspy_tool_bound") is False
+                and readiness["effect"].get("network") is False
+                and readiness["effect"].get("subprocess") is False
+                and isinstance(preflight, Mapping)
+                and preflight_ready_valid
             )
+            adapter_artifact_check = "program_tool_adapter_artifacts_valid"
+            adapter_artifacts_valid = True
+            blueprint_check = "program_tool_adapter_blueprints_valid"
+            blueprint_valid = True
+            if isinstance(tool_payload, dict):
+                for raw_contract in _as_list(tool_payload.get("contracts")):
+                    if not isinstance(raw_contract, Mapping):
+                        continue
+                    contract = dict(raw_contract)
+                    generated_adapter_policy = _as_dict(
+                        contract.get("generated_adapter_policy")
+                    )
+                    generated_adapter = _as_dict(contract.get("generated_adapter"))
+                    adapter_validation = _as_dict(generated_adapter.get("validation"))
+                    adapter_artifact = _as_dict(generated_adapter.get("artifact"))
+                    if generated_adapter.get("exists") is True:
+                        adapter_rel = str(adapter_artifact.get("path") or "")
+                        adapter_hash = str(adapter_artifact.get("content_hash") or "")
+                        if not adapter_rel or not adapter_hash:
+                            adapter_artifacts_valid = False
+                        else:
+                            adapter_path = _resolve_path(
+                                adapter_rel, meta_path=meta_path
+                            )
+                            if (
+                                not adapter_path.exists()
+                                or not adapter_path.is_file()
+                                or _sha256_file(adapter_path) != adapter_hash
+                            ):
+                                adapter_artifacts_valid = False
+                        if adapter_path.exists() and adapter_path.is_file():
+                            try:
+                                adapter_source = adapter_path.read_text(
+                                    encoding="utf-8"
+                                )
+                            except OSError:
+                                adapter_artifacts_valid = False
+                            else:
+                                if not _generated_tool_adapter_source_semantic_valid(
+                                    adapter_source,
+                                    tool_id=str(contract.get("tool_id") or ""),
+                                    effect_class=str(
+                                        contract.get("effect_class") or ""
+                                    ),
+                                    args_schema=_as_dict(contract.get("args_schema")),
+                                    return_schema=_as_dict(
+                                        contract.get("return_schema")
+                                    ),
+                                ):
+                                    adapter_artifacts_valid = False
+                        if generated_adapter.get(
+                            "source_hash"
+                        ) != generated_adapter.get("content_hash"):
+                            adapter_artifacts_valid = False
+                        if adapter_validation.get("schema_version") != (
+                            "program-tool-generated-adapter-validation-v1"
+                        ):
+                            adapter_artifacts_valid = False
+                        if adapter_validation.get("status") != (
+                            "validated_not_bound_not_executed"
+                        ):
+                            adapter_artifacts_valid = False
+                        for key in [
+                            "source_compiles",
+                            "constants_match_contract",
+                            "source_hash_matches_artifact",
+                        ]:
+                            if adapter_validation.get(key) is not True:
+                                adapter_artifacts_valid = False
+                        for key in [
+                            "execution_allowed",
+                            "dspy_tool_binding_allowed",
+                            "imported_by_generated_program",
+                        ]:
+                            if adapter_validation.get(key) is not False:
+                                adapter_artifacts_valid = False
+                        if generated_adapter_policy.get("status") != (
+                            "adapter_source_materialized_not_bound"
+                        ):
+                            adapter_artifacts_valid = False
+                        if (
+                            generated_adapter_policy.get("source_hash_bound")
+                            is not True
+                        ):
+                            adapter_artifacts_valid = False
+                        if (
+                            generated_adapter_policy.get("artifact_hash_bound")
+                            is not True
+                        ):
+                            adapter_artifacts_valid = False
+                        if (
+                            generated_adapter_policy.get("execution_allowed")
+                            is not False
+                        ):
+                            adapter_artifacts_valid = False
+                        if (
+                            generated_adapter_policy.get("dspy_tool_binding_allowed")
+                            is not False
+                        ):
+                            adapter_artifacts_valid = False
+                        if generated_adapter.get("execution_allowed") is not False:
+                            adapter_artifacts_valid = False
+                        if (
+                            generated_adapter.get("dspy_tool_binding_allowed")
+                            is not False
+                        ):
+                            adapter_artifacts_valid = False
+                        if (
+                            generated_adapter.get("imported_by_generated_program")
+                            is not False
+                        ):
+                            adapter_artifacts_valid = False
+                        if adapter_artifact.get("executable") is not False:
+                            adapter_artifacts_valid = False
+                        if (
+                            adapter_artifact.get("imported_by_generated_program")
+                            is not False
+                        ):
+                            adapter_artifacts_valid = False
+                    blueprint = _as_dict(contract.get("generated_adapter_blueprint"))
+                    artifact = _as_dict(blueprint.get("artifact"))
+                    if not artifact:
+                        if (
+                            blueprint.get("status")
+                            == "blueprint_recorded_not_executable"
+                        ):
+                            blueprint_valid = False
+                        continue
+                    artifact_rel = str(artifact.get("path") or "")
+                    artifact_hash = str(artifact.get("content_hash") or "")
+                    if not artifact_rel or not artifact_hash:
+                        blueprint_valid = False
+                        continue
+                    blueprint_path = _resolve_path(artifact_rel, meta_path=meta_path)
+                    if not blueprint_path.exists() or not blueprint_path.is_file():
+                        blueprint_valid = False
+                        continue
+                    if _sha256_file(blueprint_path) != artifact_hash:
+                        blueprint_valid = False
+                    if artifact.get("executable") is not False:
+                        blueprint_valid = False
+                    if artifact.get("imported_by_generated_program") is not False:
+                        blueprint_valid = False
+            checks[adapter_artifact_check] = adapter_artifacts_valid
+            checks[blueprint_check] = blueprint_valid
             if not checks[semantic_check]:
                 _add_error(
                     report,
@@ -844,15 +1285,109 @@ def _check_program_evidence_artifacts(
                     message=f"program tool contracts semantic check failed: {artifact_path}",
                     check=semantic_check,
                 )
+            if not checks[adapter_artifact_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program tool adapter artifact check failed: {artifact_path}",
+                    check=adapter_artifact_check,
+                )
+            if not checks[blueprint_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program tool adapter blueprint check failed: {artifact_path}",
+                    check=blueprint_check,
+                )
+        if kind == "capability_registry":
+            registry_payload = _load_json_object(artifact_path)
+            custom_readiness = (
+                registry_payload.get("custom_module_readiness")
+                if isinstance(registry_payload, dict)
+                else None
+            )
+            retriever_readiness = (
+                registry_payload.get("external_retriever_readiness")
+                if isinstance(registry_payload, dict)
+                else None
+            )
+            semantic_check = "program_capability_registry_semantic_valid"
+            checks[semantic_check] = (
+                isinstance(registry_payload, dict)
+                and registry_payload.get("schema_version")
+                == "program-capability-registry-v1"
+                and registry_payload.get("status")
+                == "descriptor_only_no_runtime_binding"
+                and isinstance(custom_readiness, dict)
+                and custom_readiness.get("imports_enabled") is False
+                and custom_readiness.get("custom_module_execution_allowed") is False
+                and isinstance(retriever_readiness, dict)
+                and retriever_readiness.get("live_retrievers_enabled") is False
+                and retriever_readiness.get("external_retriever_execution_allowed")
+                is False
+            )
+            if not checks[semantic_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program capability registry semantic check failed: {artifact_path}",
+                    check=semantic_check,
+                )
+        if kind == "contract_verification":
+            verification_payload = _load_json_object(artifact_path)
+            gate = (
+                verification_payload.get("materialization_gate")
+                if isinstance(verification_payload, dict)
+                else None
+            )
+            semantic_check = "program_contract_verification_semantic_valid"
+            checks[semantic_check] = (
+                isinstance(verification_payload, dict)
+                and verification_payload.get("schema_version")
+                == "program-architecture-contract-verification-v1"
+                and verification_payload.get("status") == "verified_contract_intent"
+                and verification_payload.get(
+                    "materialization_allowed_by_contract_verification"
+                )
+                is True
+                and isinstance(gate, dict)
+                and gate.get("status")
+                == "verified_for_explicit_program_gen_materialization"
+                and gate.get("allows_live_tools") is False
+                and gate.get("allows_custom_imports") is False
+                and gate.get("allows_external_retrievers") is False
+            )
+            if not checks[semantic_check]:
+                _add_error(
+                    report,
+                    code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                    message=f"program contract verification semantic check failed: {artifact_path}",
+                    check=semantic_check,
+                )
         if kind == "generated_module_policy":
             policy_payload = _load_json_object(artifact_path)
             semantic_check = "program_generated_module_policy_semantic_valid"
+            policy_effects = (
+                policy_payload.get("effects")
+                if isinstance(policy_payload, dict)
+                else None
+            )
             checks[semantic_check] = (
                 isinstance(policy_payload, dict)
                 and policy_payload.get("schema_version")
                 == "program-generated-module-policy-v1"
                 and policy_payload.get("status") == "passed"
                 and policy_payload.get("checked_surface") == "module.py"
+                and policy_payload.get("violations") == []
+                and isinstance(policy_payload.get("denied_dspy_calls"), list)
+                and "dspy.Tool" in policy_payload.get("denied_dspy_calls", [])
+                and isinstance(policy_effects, Mapping)
+                and policy_effects.get("tool_called") is False
+                and policy_effects.get("custom_import_loaded") is False
+                and policy_effects.get("network") is False
+                and policy_effects.get("filesystem_write") is False
+                and policy_effects.get("subprocess") is False
+                and policy_effects.get("external_authority") is False
             )
             if not checks[semantic_check]:
                 _add_error(

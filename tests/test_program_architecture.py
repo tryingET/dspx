@@ -11,6 +11,8 @@ from dspx.cli.dspx import app
 from dspx.services.program_architecture import (
     ProgramArchitectureError,
     build_program_architecture_candidates,
+    verify_architecture_contract_intent,
+    write_architecture_contract_drafts,
     write_architecture_intent_portfolio,
 )
 from dspx.services.program_architecture_tournament import (
@@ -108,6 +110,73 @@ def test_architecture_planner_emits_non_authoritative_prompt_inferred_candidates
         surface["source_kind"]
         for surface in inferred["module_surface_preview"]["module_surfaces"]
     ] == ["generated_topology_module", "generated_topology_module"]
+    assert plan["generation_assumptions_preview"]["schema_version"] == (
+        "program-generation-assumptions-preview-v1"
+    )
+
+
+def test_architecture_planner_adds_preview_only_capability_advisories() -> None:
+    intent = ProgramIntent(
+        name="AgenticRetrievalProgram",
+        objective=(
+            "Use ReActV2 tools and retrieval over documents, with ProgramOfThought "
+            "python computation and a custom imported helper, to answer the question."
+        ),
+        inputs=["question"],
+        outputs=["answer"],
+    )
+
+    plan = build_program_architecture_candidates(intent)
+
+    assert plan["recommended_candidate_id"] == "baseline_single_predict"
+    by_id = {candidate["candidate_id"]: candidate for candidate in plan["candidates"]}
+    assert {
+        "preview_retrieve_then_answer_declared_only",
+        "preview_reactv2_declared_only",
+        "preview_programofthought_declared_only",
+        "preview_custom_declared_only",
+    }.issubset(by_id)
+    for candidate_id in [
+        "preview_retrieve_then_answer_declared_only",
+        "preview_reactv2_declared_only",
+        "preview_programofthought_declared_only",
+        "preview_custom_declared_only",
+    ]:
+        candidate = by_id[candidate_id]
+        assert candidate["status"] == "declared_only_not_materializable"
+        assert candidate["topology_source"] == "generation_assumptions_preview"
+        assert candidate["module_surface_preview"] is None
+        assert candidate["effect"]["candidate_materialized"] is False
+    assert (
+        plan["generation_assumptions_preview"]["capability_boundaries"]["tools"][
+            "enabled"
+        ]
+        is False
+    )
+    react_v2_boundary = plan["generation_assumptions_preview"]["capability_boundaries"][
+        "react_v2"
+    ]
+    assert react_v2_boundary["status"] == (
+        "experimental_no_tool_explicit_opt_in_boundary"
+    )
+    assert react_v2_boundary["tool_need_detected"] is True
+    assert react_v2_boundary["tools_enabled"] is False
+    assert react_v2_boundary["tool_binding_status"] == (
+        "blocked_until_safe_tool_adapter_contract"
+    )
+    react_v2_contract = by_id["preview_reactv2_declared_only"]["topology_preview"][
+        "required_explicit_contract"
+    ]
+    assert react_v2_contract["intent_patch"]["options"] == {
+        "enable_react_v2_materialization": True,
+        "react_v2_materialization": True,
+    }
+    module = react_v2_contract["intent_patch"]["topology"]["modules"][0]
+    assert module["primitive"] == "ReActV2"
+    assert module["tools"] == []
+    assert module["tool_refs"] == []
+    assert "public dspy.ReActV2" in react_v2_contract["production_readiness_missing"][0]
+    assert plan["effect"]["candidate_materialized"] is False
 
 
 def test_architecture_planner_preserves_bounded_inline_retriever_as_materializable_candidate() -> (
@@ -241,10 +310,7 @@ def test_architecture_planner_preserves_retrieve_then_answer_as_materializable_c
     ] == ["Retriever", "ChainOfThought"]
 
 
-@pytest.mark.parametrize(
-    "kind",
-    ["router", "extract_transform_validate", "generate_critique_revise"],
-)
+@pytest.mark.parametrize("kind", ["router"])
 def test_architecture_planner_preserves_named_bounded_topologies_as_materializable(
     kind: str,
 ) -> None:
@@ -340,6 +406,181 @@ def test_architecture_planner_preserves_unsupported_declared_pipeline_as_declare
     assert declared["effect"]["candidate_materialized"] is False
 
 
+def test_architecture_contract_verification_accepts_bounded_retrieve_then_answer_draft(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="RetrieveThenAnswerVerifyProgram",
+            objective="Retrieve from documents, then answer the question.",
+            inputs=["question"],
+            outputs=["answer"],
+            capabilities={
+                "declarations": [
+                    {
+                        "id": "policy_docs",
+                        "kind": "retriever",
+                        "retriever": {
+                            "mode": "inline_corpus",
+                            "k": 1,
+                            "documents": [
+                                {"id": "policy", "text": "Policy text for answers."}
+                            ],
+                        },
+                    }
+                ]
+            },
+        )
+    )
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_retrieve_then_answer_declared_only"
+    )
+
+    verification = verify_architecture_contract_intent(Path(record["intent_path"]))
+
+    assert verification["status"] == "verified_contract_intent"
+    assert verification["materialization_allowed_by_contract_verification"] is True
+    assert verification["external_retriever_allowed"] is False
+    assert verification["materialization_gate"]["allows_external_retrievers"] is False
+    assert [module["primitive"] for module in verification["safe_modules"]] == [
+        "Retriever",
+        "ChainOfThought",
+    ]
+
+
+def test_architecture_contract_drafts_write_materializable_retrieve_then_answer_from_bounded_retriever(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="RetrieveThenAnswerDraftProgram",
+            objective="Retrieve from documents, then answer the question.",
+            inputs=["question"],
+            outputs=["answer"],
+            capabilities={
+                "declarations": [
+                    {
+                        "id": "policy_docs",
+                        "kind": "retriever",
+                        "retriever": {
+                            "mode": "inline_corpus",
+                            "k": 1,
+                            "documents": [
+                                {"id": "policy", "text": "Policy text for answers."}
+                            ],
+                        },
+                    }
+                ]
+            },
+        )
+    )
+
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_retrieve_then_answer_declared_only"
+    )
+    draft = json.loads(Path(record["intent_path"]).read_text(encoding="utf-8"))
+    loaded = ProgramIntent.model_validate(draft)
+    assert loaded.topology["kind"] == "retrieve_then_answer"
+    modules = loaded.topology["modules"]
+    assert [module["primitive"] for module in modules] == [
+        "Retriever",
+        "ChainOfThought",
+    ]
+    assert modules[0]["retriever"]["mode"] == "inline_corpus"
+    assert modules[0]["retriever"]["documents"] == [
+        {"id": "policy", "text": "Policy text for answers."}
+    ]
+    plan = build_program_architecture_candidates(loaded)
+    declared = next(
+        item
+        for item in plan["candidates"]
+        if item["candidate_id"] == "declared_pipeline"
+    )
+    assert declared["status"] == "materializable"
+    assert declared["family"] == "retrieve_then_answer"
+
+
+def test_architecture_contract_drafts_write_materializable_generate_critique_revise_intent(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="DraftCritiqueReviseProgram",
+            objective="Draft an answer, critique it, review issues, and revise the final response.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_generate_critique_revise_declared_only"
+    )
+    draft = json.loads(Path(record["intent_path"]).read_text(encoding="utf-8"))
+    loaded = ProgramIntent.model_validate(draft)
+    assert loaded.topology["kind"] == "generate_critique_revise"
+    assert [module["role"] for module in loaded.topology["modules"]] == [
+        "generate_draft",
+        "critique_draft",
+        "revise_final",
+    ]
+    candidate_intent = ProgramIntent.model_validate(draft)
+    plan = build_program_architecture_candidates(candidate_intent)
+    declared = next(
+        item
+        for item in plan["candidates"]
+        if item["candidate_id"] == "declared_pipeline"
+    )
+    assert declared["status"] == "materializable"
+
+
+def test_architecture_contract_drafts_write_reviewable_react_v2_intent(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ReactV2DraftProgram",
+            objective="Use ReActV2 to answer with tools later.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+
+    assert index["schema_version"] == "program-architecture-contract-drafts-v1"
+    assert index["status"] == "explicit_contract_drafts_only_not_materialized"
+    assert index["effect"]["candidate_program_materialized"] is False
+    assert index["effect"]["tool_called"] is False
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_reactv2_declared_only"
+    )
+    assert record["status"] == "explicit_contract_draft_requires_operator_review"
+    assert record["materializable_claimed"] is False
+    draft = json.loads(Path(record["intent_path"]).read_text(encoding="utf-8"))
+    loaded = ProgramIntent.model_validate(draft)
+    assert loaded.options["enable_react_v2_materialization"] is True
+    assert loaded.options["react_v2_materialization"] is True
+    assert loaded.topology["kind"] == "pipeline"
+    assert loaded.topology["modules"][0]["primitive"] == "ReActV2"
+    assert loaded.topology["modules"][0]["react"]["tools"] == []
+    assert loaded.topology["modules"][0]["react"]["declared_tool_refs"] == []
+    assert "public dspy.ReActV2" in record["preconditions"][0]
+    assert not (tmp_path / "contracts" / "manifest.json").exists()
+
+
 def test_architecture_intent_portfolio_rejects_path_hostile_candidate_id(
     tmp_path: Path,
 ) -> None:
@@ -417,6 +658,431 @@ def test_architecture_planner_cli_writes_plan_and_intent_portfolio(
         "baseline_single_predict.json",
         "prompt_inferred_pipeline.json",
     ]
+
+
+def test_architecture_contract_draft_links_react_v2_tool_refs_to_pure_tool_contracts(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ReactV2ToolRefProgram",
+            objective="Use ReActV2 tools later to answer.",
+            inputs=["question"],
+            outputs=["answer"],
+            capabilities={
+                "declarations": [
+                    {
+                        "id": "lookup_policy",
+                        "kind": "tool",
+                        "effect_class": "pure",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    },
+                    {
+                        "id": "mutate_ticket",
+                        "kind": "tool",
+                        "effect_class": "mutate",
+                    },
+                ]
+            },
+        )
+    )
+
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_reactv2_declared_only"
+    )
+    draft = json.loads(Path(record["intent_path"]).read_text(encoding="utf-8"))
+    loaded = ProgramIntent.model_validate(draft)
+    react = loaded.topology["modules"][0]["react"]
+    assert react["tools"] == []
+    assert react["declared_tool_refs"] == ["lookup_policy"]
+    assert react["tool_binding_status"] == "declared_refs_only_not_bound"
+
+
+def test_architecture_contract_verification_rejects_tool_refs_without_pure_contract(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ReactV2MissingToolContractProgram",
+            objective="Use ReActV2 tools later to answer.",
+            inputs=["question"],
+            outputs=["answer"],
+            capabilities={
+                "declarations": [
+                    {
+                        "id": "mutate_ticket",
+                        "kind": "tool",
+                        "effect_class": "mutate",
+                    }
+                ]
+            },
+        )
+    )
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_reactv2_declared_only"
+    )
+    draft_path = Path(record["intent_path"])
+    draft = json.loads(draft_path.read_text(encoding="utf-8"))
+    draft["topology"]["modules"][0]["tool_refs"] = ["mutate_ticket", "missing"]
+    draft_path.write_text(json.dumps(draft, indent=2, sort_keys=True), encoding="utf-8")
+
+    verification = verify_architecture_contract_intent(draft_path)
+
+    assert verification["status"] == "failed"
+    assert verification["materialization_allowed_by_contract_verification"] is False
+    assert any(
+        "matching pure tool declarations" in item for item in verification["violations"]
+    )
+
+
+def test_architecture_contract_verification_accepts_safe_react_v2_tool_ref_preflight(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ReactV2ToolPreflightProgram",
+            objective="Use ReActV2 tools later to answer.",
+            inputs=["question"],
+            outputs=["answer"],
+            capabilities={
+                "declarations": [
+                    {
+                        "id": "lookup_policy",
+                        "kind": "tool",
+                        "effect_class": "pure",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    }
+                ]
+            },
+        )
+    )
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_reactv2_declared_only"
+    )
+
+    verification = verify_architecture_contract_intent(Path(record["intent_path"]))
+
+    assert verification["status"] == "verified_contract_intent"
+    preflight = verification["react_v2_tool_preflight"]
+    assert preflight["referenced_tool_ids"] == ["lookup_policy"]
+    assert preflight["all_referenced_tools_have_pure_contracts"] is True
+    assert preflight["all_referenced_tool_schemas_bounded"] is True
+    assert preflight["all_referenced_adapter_blueprints_hash_bound"] is True
+    assert preflight["all_referenced_tools_have_replay_policy_preconditions"] is True
+    assert preflight["ready_for_tool_adapter_materialization"] is True
+    assert preflight["tool_binding_allowed"] is False
+    assert preflight["tool_execution_allowed"] is False
+    assert verification["materialization_gate"]["allows_live_tools"] is False
+
+
+def test_architecture_contract_verification_accepts_safe_react_v2_draft(
+    tmp_path: Path,
+) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ReactV2VerifyProgram",
+            objective="Use ReActV2 to answer with tools later.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_reactv2_declared_only"
+    )
+
+    verification = verify_architecture_contract_intent(Path(record["intent_path"]))
+
+    assert verification["schema_version"] == (
+        "program-architecture-contract-verification-v1"
+    )
+    assert verification["status"] == "verified_contract_intent"
+    assert verification["materialization_allowed_by_contract_verification"] is True
+    assert verification["live_tool_binding_allowed"] is False
+    assert verification["custom_import_allowed"] is False
+    assert verification["external_retriever_allowed"] is False
+    assert verification["effect"]["candidate_program_materialized"] is False
+    assert verification["violations"] == []
+
+
+def test_architecture_contract_verification_rejects_react_v2_tools(
+    tmp_path: Path,
+) -> None:
+    intent_path = tmp_path / "unsafe_react_v2.json"
+    intent_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-intent-v2",
+                "name": "UnsafeReActV2Contract",
+                "objective": "Use unsafe tools.",
+                "inputs": ["question"],
+                "outputs": ["answer"],
+                "options": {"enable_react_v2_materialization": True},
+                "topology": {
+                    "kind": "pipeline",
+                    "execution_status": "declared_not_materialized",
+                    "modules": [
+                        {
+                            "id": "agent",
+                            "primitive": "ReActV2",
+                            "signature": {
+                                "name": "Agent",
+                                "inputs": ["question"],
+                                "outputs": ["answer"],
+                            },
+                            "tools": ["lookup"],
+                        }
+                    ],
+                    "edges": [
+                        {"from": "input", "to": "agent"},
+                        {"from": "agent", "to": "output"},
+                    ],
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    verification = verify_architecture_contract_intent(intent_path)
+
+    assert verification["status"] == "failed"
+    assert verification["materialization_allowed_by_contract_verification"] is False
+    assert any("empty tools list" in item for item in verification["violations"])
+
+
+def test_contract_verification_returns_failed_payload_for_missing_modules(
+    tmp_path: Path,
+) -> None:
+    intent_path = tmp_path / "no_modules.json"
+    intent_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-intent-v2",
+                "name": "NoModulesContract",
+                "objective": "Verify without modules.",
+                "inputs": ["question"],
+                "outputs": ["answer"],
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    verification = verify_architecture_contract_intent(intent_path)
+
+    assert verification["status"] == "failed"
+    assert verification["violations"] == [
+        "contract intent must declare topology modules"
+    ]
+    assert verification["materialization_allowed_by_contract_verification"] is False
+    assert verification["materialization_gate"] == {
+        "status": "blocked_by_contract_verification",
+        "allows_live_tools": False,
+        "allows_custom_imports": False,
+        "allows_external_retrievers": False,
+        "requires_review": True,
+    }
+    assert verification["effect"]["candidate_program_materialized"] is False
+    assert verification["non_authority"]["planning_only"] is True
+
+
+def test_architecture_planner_cli_writes_contract_drafts(tmp_path: Path) -> None:
+    intent_path = tmp_path / "intent.yaml"
+    plan_path = tmp_path / "architecture_plan.json"
+    contract_dir = tmp_path / "contracts"
+    _write_intent(intent_path, "Use ReActV2 tools later to answer the question.")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "plan",
+            "--intent",
+            str(intent_path),
+            "--out",
+            str(plan_path),
+            "--contract-outdir",
+            str(contract_dir),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    assert plan["contract_drafts"]["schema_version"] == (
+        "program-architecture-contract-drafts-v1"
+    )
+    assert plan["effect"]["contract_drafts_written"] is True
+    assert plan["effect"]["candidate_materialized"] is False
+    index = json.loads((contract_dir / "contract_drafts_index.json").read_text())
+    assert index["contract_draft_count"] >= 1
+    assert (
+        contract_dir / "contract_intents" / "preview_reactv2_declared_only.json"
+    ).exists()
+    assert not (contract_dir / "manifest.json").exists()
+    assert not (contract_dir / "program.py").exists()
+
+
+def test_program_gen_records_matching_contract_verification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ReactContractMaterializeProgram",
+            objective="Use ReAct to answer without tools.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_react_declared_only"
+    )
+    verification = verify_architecture_contract_intent(Path(record["intent_path"]))
+    verification_path = tmp_path / "contract_verification.json"
+    verification_path.write_text(
+        json.dumps(verification, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            record["intent_path"],
+            "--outdir",
+            str(tmp_path / "program"),
+            "--contract-verification",
+            str(verification_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    manifest = json.loads((tmp_path / "program" / "manifest.json").read_text())
+    recorded = manifest["program_architecture_contract_verification"]
+    assert recorded["schema_version"] == (
+        "program-architecture-contract-verification-v1"
+    )
+    assert recorded["status"] == "verified_contract_intent"
+    assert recorded["content_hash"] == sha256_text(
+        verification_path.read_text(encoding="utf-8")
+    )
+    assert recorded["materialization_gate"]["allows_live_tools"] is False
+    replay = check_run_receipt(tmp_path / "program" / "manifest.json.meta.json")
+    assert replay["status"] == "ok"
+    assert replay["checks"]["program_contract_verification_exists"] is True
+    assert replay["checks"]["program_contract_verification_hash_match"] is True
+    assert replay["checks"]["program_contract_verification_semantic_valid"] is True
+
+
+def test_program_gen_rejects_mismatched_contract_verification(tmp_path: Path) -> None:
+    intent_path = tmp_path / "intent.json"
+    other_intent_path = tmp_path / "other_intent.json"
+    base_intent = {
+        "schema_version": "program-intent-v2",
+        "name": "MismatchProgram",
+        "objective": "Answer safely.",
+        "inputs": ["question"],
+        "outputs": ["answer"],
+    }
+    intent_path.write_text(json.dumps(base_intent), encoding="utf-8")
+    other_intent_path.write_text(
+        json.dumps({**base_intent, "name": "OtherProgram"}), encoding="utf-8"
+    )
+    verification = {
+        "schema_version": "program-architecture-contract-verification-v1",
+        "status": "verified_contract_intent",
+        "materialization_allowed_by_contract_verification": True,
+        "materialization_gate": {
+            "status": "verified_for_explicit_program_gen_materialization",
+            "program_gen_must_match_intent_hash": sha256_text(
+                other_intent_path.read_text(encoding="utf-8")
+            ),
+            "allows_live_tools": False,
+            "allows_custom_imports": False,
+            "allows_external_retrievers": False,
+        },
+    }
+    verification_path = tmp_path / "verification.json"
+    verification_path.write_text(json.dumps(verification), encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(tmp_path / "program"),
+            "--contract-verification",
+            str(verification_path),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "intent_hash_mismatch" in result.output
+    assert not (tmp_path / "program").exists()
+
+
+def test_architecture_planner_cli_verifies_contract_draft(tmp_path: Path) -> None:
+    payload = build_program_architecture_candidates(
+        ProgramIntent(
+            name="ReactV2CliVerifyProgram",
+            objective="Use ReActV2 to answer with tools later.",
+            inputs=["question"],
+            outputs=["answer"],
+        )
+    )
+    index = write_architecture_contract_drafts(payload, tmp_path / "contracts")
+    record = next(
+        item
+        for item in index["contract_drafts"]
+        if item["candidate_id"] == "preview_reactv2_declared_only"
+    )
+    out = tmp_path / "contract_verification.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-architect",
+            "verify-contract",
+            "--intent",
+            record["intent_path"],
+            "--out",
+            str(out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    verification = json.loads(out.read_text(encoding="utf-8"))
+    assert verification["status"] == "verified_contract_intent"
+    assert verification["effect"]["candidate_program_materialized"] is False
+    assert not (tmp_path / "manifest.json").exists()
 
 
 def test_architecture_planner_refuses_candidate_artifact_output(tmp_path: Path) -> None:

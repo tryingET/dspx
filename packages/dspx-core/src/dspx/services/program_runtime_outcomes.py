@@ -98,9 +98,31 @@ def _trace_contract_for_primitive(primitive: str) -> dict[str, Any]:
     }
 
 
+def _react_tool_contract(surface: Mapping[str, Any]) -> dict[str, Any]:
+    react = (
+        dict(surface.get("react") or {})
+        if isinstance(surface.get("react"), Mapping)
+        else {}
+    )
+    declared_tool_refs = [
+        str(item) for item in react.get("declared_tool_refs", []) if str(item).strip()
+    ]
+    return {
+        "declared_tool_refs": declared_tool_refs,
+        "tool_binding_status": str(
+            react.get("tool_binding_status") or "declared_refs_only_not_bound"
+        ),
+        "tool_binding_allowed": bool(react.get("tool_binding_allowed", False)),
+        "executable_tools": [],
+    }
+
+
 def _outcome_contract(surface: Mapping[str, Any]) -> dict[str, Any]:
     primitive = str(surface.get("primitive") or "Predict")
     signature = dict(surface.get("signature") or {})
+    trace_contract = _trace_contract_for_primitive(primitive)
+    if primitive in {"ReAct", "ReActV2"}:
+        trace_contract = {**trace_contract, "tool_refs": _react_tool_contract(surface)}
     return {
         "module_id": str(surface.get("module_id") or ""),
         "primitive": primitive,
@@ -112,7 +134,7 @@ def _outcome_contract(surface: Mapping[str, Any]) -> dict[str, Any]:
         },
         "status": "outcome_contract_declared_not_runtime_trace",
         "final_outputs": [str(item) for item in signature.get("outputs", [])],
-        "trace_contract": _trace_contract_for_primitive(primitive),
+        "trace_contract": trace_contract,
         "effects": _effects(surface),
         "non_authority": dict(_NON_AUTHORITY),
     }
