@@ -1,0 +1,62 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "delegated-commit-workflow"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "449ebc8fb4b8f1b44a527dd1de5d990f30e378c9"
+created_at: "2026-05-30T11:35:27Z"
+intent: "Add program generation assumption previews, architecture contract verification, descriptor-only tool readiness, replay checks, and adapter validation record coverage."
+files:
+  - "README.md"
+  - "docs/project/product-posture.md"
+  - "docs/project/program-gen-walkthrough.md"
+  - "governance/task-scopes/AK-3415.snapshot.json"
+  - "packages/dspx-core/src/dspx/cli/commands/program_architect.py"
+  - "packages/dspx-core/src/dspx/cli/dspx.py"
+  - "packages/dspx-core/src/dspx/services/program_architecture.py"
+  - "packages/dspx-core/src/dspx/services/program_capabilities.py"
+  - "packages/dspx-core/src/dspx/services/program_generation_preview.py"
+  - "packages/dspx-core/src/dspx/services/program_intent.py"
+  - "packages/dspx-core/src/dspx/services/program_intent_normalization.py"
+  - "packages/dspx-core/src/dspx/services/program_module_surface.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_outcomes.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+  - "packages/dspx-core/src/dspx/services/program_service.py"
+  - "packages/dspx-core/src/dspx/services/program_surfaces.py"
+  - "packages/dspx-core/src/dspx/services/program_tool_contracts.py"
+  - "packages/dspx-core/src/dspx/services/program_topology.py"
+  - "packages/dspx-core/src/dspx/services/run_replay_service.py"
+  - "tests/test_program_architecture.py"
+  - "tests/test_program_capabilities.py"
+  - "tests/test_program_intent_normalization.py"
+  - "tests/test_program_runtime_outcomes.py"
+  - "tests/test_program_runtime_traces.py"
+  - "tests/test_program_service.py"
+  - "tests/test_program_tool_contracts.py"
+  - "tests/test_program_topology_intent.py"
+validation:
+  focused_gate:
+    command: "uv run --no-sync -m pytest -q tests/test_program_service.py::test_program_replay_fails_when_generated_module_policy_drifts tests/test_program_tool_contracts.py"
+    status: "pass"
+  final_gate:
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mpof543h-f1fd7b01 iteration 7' just verify-impact-wide HEAD~1"
+    status: "pass"
+    summary:
+      - "task-scope-check pass for AK-3415"
+      - "ruff touched files pass"
+      - "ty core/all pass"
+      - "impact pytest groups pass"
+      - "boundary-contract-check pass"
+      - "verify-runtime-replay pass"
+      - "docs strict pass"
+      - "verify-full pass: 1317 passed, 8 skipped"
+group:
+  index: 1
+  total: 1
+  rationale: "Single coherent program-generation contract/preview/replay and adapter-validation slice."
+links:
+  task_ids:
+    - 3415
+  visible_loop:
+    run_id: "nexus-loop-mpof543h-f1fd7b01"
+    iteration: 7
+  supersedes_provenance_note_for_commit: "93e054b520d8016be500ccc3f4089872fd69a9b5"
