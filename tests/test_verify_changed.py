@@ -368,6 +368,11 @@ def test_dynamic_touched_commands_skip_deleted_paths() -> None:
             "pytest_coordinates",
         ),
         (
+            "packages/dspx-core/src/dspx/coordinates/postgres_store.py",
+            "oracle_coordinate_store",
+            "pytest_coordinates",
+        ),
+        (
             "packages/dspx-core/src/dspx/cache.py",
             "cache_boundary",
             "pytest_cache_boundary",
@@ -379,6 +384,11 @@ def test_dynamic_touched_commands_skip_deleted_paths() -> None:
         ),
         (
             "packages/dspx-core/src/dspx/openrouter_lm.py",
+            "provider_boundary",
+            "pytest_provider_runtime",
+        ),
+        (
+            "packages/dspx-core/src/dspx/openai_compatible_lm.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
@@ -438,6 +448,28 @@ def test_provider_v4_auth_adapter_change_stays_bounded() -> None:
         "typecheck_core",
         "pytest_provider_v4",
     ]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_test_harness_change_runs_default_contract_without_full_verification() -> None:
+    plan = _plan("tests/conftest.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_test_defaults"]
+    assert "verify_full" not in _command_ids(plan)
+
+
+@pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock"])
+def test_dependency_metadata_change_runs_fast_defaults_without_forcing_full(
+    path: str,
+) -> None:
+    plan = _plan(path)
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == ["pytest_test_defaults", "verify_fast"]
     assert "verify_full" not in _command_ids(plan)
 
 

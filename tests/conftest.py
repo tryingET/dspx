@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -16,10 +18,22 @@ for _p in (
         sys.path.insert(0, s)
 
 
+def _default_mlflow_tracking_uri() -> str:
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    safe_worker = "".join(
+        char if char.isalnum() or char in {"-", "_", "."} else "_" for char in worker
+    )
+    db_path = (
+        Path(tempfile.gettempdir())
+        / f"dspx_mlflow_tests_{safe_worker}_{os.getpid()}.db"
+    )
+    return f"sqlite:///{db_path}"
+
+
 @pytest.fixture(autouse=True)
 def _default_provider_stub(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     # Avoid accidental MLflow HTTP calls from third-party libraries (e.g., DSPy)
     # when a user has an HTTP tracking URI in a local config.
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", "sqlite:////tmp/dspx_mlflow_tests.db")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", _default_mlflow_tracking_uri())

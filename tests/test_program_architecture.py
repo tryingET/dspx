@@ -940,6 +940,7 @@ def test_architecture_planner_cli_writes_contract_drafts(tmp_path: Path) -> None
     assert not (contract_dir / "program.py").exists()
 
 
+@pytest.mark.slow
 def test_program_gen_records_matching_contract_verification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -999,6 +1000,7 @@ def test_program_gen_records_matching_contract_verification(
     assert replay["checks"]["program_contract_verification_semantic_valid"] is True
 
 
+@pytest.mark.slow
 def test_program_gen_rejects_mismatched_contract_verification(tmp_path: Path) -> None:
     intent_path = tmp_path / "intent.json"
     other_intent_path = tmp_path / "other_intent.json"
@@ -1105,6 +1107,7 @@ def test_architecture_planner_refuses_candidate_artifact_output(tmp_path: Path) 
     assert "refusing to write architecture plan" in result.output
 
 
+@pytest.mark.slow
 def test_program_architect_loop_runs_guided_local_architecture_flow(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1155,6 +1158,7 @@ def test_program_architect_loop_runs_guided_local_architecture_flow(
     assert not (outdir / "program.py").exists()
 
 
+@pytest.mark.slow
 def test_program_architect_loop_rejects_unknown_candidate_without_partial_sidecars(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1189,6 +1193,7 @@ def test_program_architect_loop_rejects_unknown_candidate_without_partial_sideca
     assert not (outdir / "tournament" / "candidates").exists()
 
 
+@pytest.mark.slow
 def test_program_architect_loop_rejects_non_empty_outdir_before_partial_overwrite(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1228,6 +1233,7 @@ def test_program_architect_loop_rejects_non_empty_outdir_before_partial_overwrit
     assert (outdir / "normalized_intent.json").read_text() == before
 
 
+@pytest.mark.slow
 def test_program_architect_loop_with_oracle_reports_is_candidate_local(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1269,6 +1275,7 @@ def test_program_architect_loop_with_oracle_reports_is_candidate_local(
     assert recommendation["effect"]["promotion_applied"] is False
 
 
+@pytest.mark.slow
 def test_program_architect_tournament_materializes_plan_candidates_locally(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1370,6 +1377,7 @@ def test_program_architect_tournament_materializes_plan_candidates_locally(
         assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
+@pytest.mark.slow
 def test_program_architect_tournament_with_oracle_reports_writes_candidate_local_reports(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1458,6 +1466,7 @@ def test_program_architect_tournament_with_oracle_reports_writes_candidate_local
     assert not (tournament_outdir / "candidates" / "baseline_single_predict").exists()
 
 
+@pytest.mark.slow
 def test_program_architect_recommend_emits_next_moves_without_winner_selection(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -2018,6 +2027,7 @@ def test_program_architect_recommend_rejects_widened_candidate_row_effect(
     assert not recommendation_out.exists()
 
 
+@pytest.mark.slow
 def test_program_architect_tournament_materializes_declared_inline_retriever_candidate(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -2120,6 +2130,7 @@ def test_program_architect_tournament_materializes_declared_inline_retriever_can
     assert skipped["status"] == "skipped"
 
 
+@pytest.mark.slow
 def test_program_architect_tournament_skips_declared_only_candidates(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -3123,6 +3134,7 @@ def test_program_architect_tournament_rejects_candidate_intent_hash_mismatch_wit
     assert not outdir.exists()
 
 
+@pytest.mark.slow
 def test_architecture_plan_portfolio_dogfoods_program_gen_and_replay(
     tmp_path: Path, monkeypatch
 ) -> None:

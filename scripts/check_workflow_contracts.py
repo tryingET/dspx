@@ -291,6 +291,9 @@ def collect_issues(root: Path) -> list[Issue]:
                 "governance-check:",
                 "check:",
                 "test:",
+                'test-parallel jobs="auto":',
+                'test-slow-parallel jobs="auto":',
+                "test-residual-serial:",
                 "build:",
                 "lint:",
                 "fmt:",
@@ -396,6 +399,48 @@ def collect_issues(root: Path) -> list[Issue]:
                 relpath,
                 "test:",
                 ["uv run --no-sync -m pytest -q tests"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                'test-parallel jobs="auto":',
+                [
+                    "uv run --no-sync -m pytest -q tests -n",
+                    "not slow and not live and not network and not model and not gpu and not postgres",
+                ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                'test-slow-parallel jobs="auto":',
+                [
+                    "uv run --no-sync -m pytest -q tests -n",
+                    "slow and not live and not network and not model and not gpu and not postgres",
+                ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "test-residual-serial:",
+                [
+                    "uv run --no-sync -m pytest -q tests -m",
+                    "live or network or model or gpu or postgres",
+                ],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
+                "verify-tests:",
+                [
+                    "just typecheck",
+                    "just test-parallel",
+                    "just test-slow-parallel",
+                    "just test-residual-serial",
+                ],
                 issues,
             )
             _check_recipe_body_contains(

@@ -37,6 +37,8 @@ from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
 
+pytestmark = pytest.mark.slow
+
 
 class FakeSharedOracleStore:
     backend_name = "fake_shared_oracle"

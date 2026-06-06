@@ -59,6 +59,7 @@ def test_behavior_results_retry_rejects_mixed_or_non_codex_errors() -> None:
     )
 
 
+@pytest.mark.slow
 def test_program_service_materializes_candidate_assembly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -500,6 +501,7 @@ def test_program_service_materializes_candidate_assembly(
     assert replay["checks"]["program_tool_contracts_semantic_valid"] is True
 
 
+@pytest.mark.slow
 def test_program_service_refuses_non_empty_outdir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -522,6 +524,7 @@ def test_program_service_refuses_non_empty_outdir(
     assert not (outdir / "manifest.json").exists()
 
 
+@pytest.mark.slow
 def test_program_gen_cli_materializes_from_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -657,6 +660,7 @@ def test_program_gen_cli_materializes_from_yaml(
     assert (outdir / "manifest.json.meta.json").exists()
 
 
+@pytest.mark.slow
 def test_program_replay_fails_when_generated_module_policy_drifts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -689,6 +693,7 @@ def test_program_replay_fails_when_generated_module_policy_drifts(
     assert "program_evidence_declaration_mismatch" in replay["error_codes"]
 
 
+@pytest.mark.slow
 def test_program_replay_fails_when_runtime_outcomes_claim_tool_binding(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -721,6 +726,7 @@ def test_program_replay_fails_when_runtime_outcomes_claim_tool_binding(
     assert "program_evidence_declaration_mismatch" in replay["error_codes"]
 
 
+@pytest.mark.slow
 def test_program_replay_fails_when_module_surfaces_claim_unsafe_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -766,6 +772,7 @@ def test_program_service_rejects_empty_or_overlapping_io() -> None:
         )
 
 
+@pytest.mark.slow
 def test_program_service_handles_docstring_hostile_objective(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -793,6 +800,7 @@ def test_program_service_handles_docstring_hostile_objective(
     assert smoke.returncode == 0, smoke.stderr
 
 
+@pytest.mark.slow
 def test_program_service_uses_structured_field_specs_in_signature(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -840,6 +848,7 @@ def test_program_service_uses_structured_field_specs_in_signature(
     assert plan["topology"]["kind"] == "single_module"
 
 
+@pytest.mark.slow
 def test_program_gen_cli_binds_examples_path_relative_to_intent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -907,6 +916,7 @@ def test_program_gen_cli_binds_examples_path_relative_to_intent(
     assert manifest["receipt_bundle"]["evidence"]["examples"]["returncode"] == 0
 
 
+@pytest.mark.slow
 def test_program_service_binds_examples_when_present(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1390,6 +1400,7 @@ def test_program_service_binds_examples_when_present(
     )
 
 
+@pytest.mark.slow
 def test_program_replay_detects_behavior_result_artifact_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1439,6 +1450,7 @@ def test_program_replay_detects_behavior_result_artifact_drift(
     )
 
 
+@pytest.mark.slow
 def test_program_replay_detects_oracle_evidence_artifact_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1483,6 +1495,7 @@ def test_program_replay_detects_oracle_evidence_artifact_drift(
     )
 
 
+@pytest.mark.slow
 def test_program_replay_detects_execution_episode_artifact_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1527,6 +1540,7 @@ def test_program_replay_detects_execution_episode_artifact_drift(
     )
 
 
+@pytest.mark.slow
 def test_program_replay_detects_missing_execution_episode_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1563,6 +1577,7 @@ def test_program_replay_detects_missing_execution_episode_artifact(
     )
 
 
+@pytest.mark.slow
 def test_program_replay_detects_execution_episode_declaration_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1607,6 +1622,7 @@ def test_program_replay_detects_execution_episode_declaration_mismatch(
     )
 
 
+@pytest.mark.slow
 def test_program_replay_detects_missing_program_evidence_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1643,6 +1659,7 @@ def test_program_replay_detects_missing_program_evidence_artifact(
     )
 
 
+@pytest.mark.slow
 def test_program_replay_detects_program_evidence_declaration_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1687,6 +1704,7 @@ def test_program_replay_detects_program_evidence_declaration_mismatch(
     )
 
 
+@pytest.mark.slow
 def test_program_gen_cli_materializes_explicit_perspectives_without_bound_jurors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1772,6 +1790,7 @@ def test_program_gen_cli_materializes_explicit_perspectives_without_bound_jurors
     ]
 
 
+@pytest.mark.slow
 def test_program_gen_cli_carries_explicit_jury_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1925,6 +1944,7 @@ def test_program_gen_cli_carries_explicit_jury_contract(
     assert receipt["program_promotion_decision_template"] == decision_template
 
 
+@pytest.mark.slow
 def test_program_gen_cli_preserves_external_authority_refs_without_adapter_coupling(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2043,6 +2063,7 @@ def test_program_gen_cli_preserves_external_authority_refs_without_adapter_coupl
     assert receipt["program_promotion_decision_template"] == decision_template
 
 
+@pytest.mark.slow
 def test_program_service_rejects_external_adapter_as_adjudicator(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

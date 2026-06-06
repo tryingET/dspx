@@ -196,6 +196,15 @@ rules:
       - typecheck_core
       - pytest_provider_runtime
 
+  - match: "packages/dspx-core/src/dspx/openai_compatible_lm.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
+
   - match: "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py"
     category: provider_boundary
     impact_group: provider_runtime
@@ -206,6 +215,15 @@ rules:
       - pytest_provider_v4
 
   - match: "packages/dspx-core/src/dspx/coordinates/storage.py"
+    category: oracle_coordinate_store
+    impact_group: oracle_storage
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_coordinates
+
+  - match: "packages/dspx-core/src/dspx/coordinates/postgres_store.py"
     category: oracle_coordinate_store
     impact_group: oracle_storage
     risk: expanded
@@ -528,6 +546,14 @@ rules:
       - pytest_program_runtime_traces
       - verify_runtime_replay
 
+  - match: "tests/conftest.py"
+    category: test_harness
+    impact_group: tests
+    risk: expanded
+    commands:
+      - ruff_touched
+      - pytest_test_defaults
+
   - match: "tests/test_*.py"
     category: test
     impact_group: tests
@@ -623,14 +649,14 @@ rules:
     category: dependency
     impact_group: dependency
     risk: wide
-    requires_full_verification: true
     commands:
       - verify_fast
+      - pytest_test_defaults
 
   - match: "uv.lock"
     category: dependency
     impact_group: dependency
     risk: wide
-    requires_full_verification: true
     commands:
       - verify_fast
+      - pytest_test_defaults

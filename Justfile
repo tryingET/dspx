@@ -116,6 +116,32 @@ test:
     echo "no local tests"; \
   fi
 
+# Opt-in parallel fast test run. Defaults stay serial; this excludes slow/live slices.
+test-parallel jobs="auto":
+  workers="{{jobs}}"; workers="${workers#jobs=}"; \
+  if [ -d tests ]; then \
+    uv run --no-sync -m pytest -q tests -n "$workers" --dist loadfile -m "not slow and not live and not network and not model and not gpu and not postgres"; \
+  else \
+    echo "no local tests"; \
+  fi
+
+# Parallel offline slow test run. `loadfile` preserves file-level ordering.
+test-slow-parallel jobs="auto":
+  workers="{{jobs}}"; workers="${workers#jobs=}"; \
+  if [ -d tests ]; then \
+    uv run --no-sync -m pytest -q tests -n "$workers" --dist load -m "slow and not live and not network and not model and not gpu and not postgres"; \
+  else \
+    echo "no local tests"; \
+  fi
+
+# Serial complement for live/infrastructure tests intentionally excluded from xdist.
+test-residual-serial:
+  if [ -d tests ]; then \
+    uv run --no-sync -m pytest -q tests -m "live or network or model or gpu or postgres"; \
+  else \
+    echo "no local tests"; \
+  fi
+
 # Deterministic replay provenance guard (receipt-first CI signal)
 replay-provenance-check:
   uv run --no-sync -q python scripts/check_replay_provenance.py
@@ -216,10 +242,13 @@ loop-landing-check:
 verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":
   uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --result-out "{{out}}"
 
-# Full static + test branch
+# Full static + test branch. Keep `just test` serial for compatibility, but use
+# the behavior-preserving xdist split here so wide loop/full validation uses cores.
 verify-tests:
   just typecheck
-  just test
+  just test-parallel jobs=16
+  just test-slow-parallel jobs=16
+  just test-residual-serial
 
 # Hook-facing pre-push gate
 verify-pre-push:

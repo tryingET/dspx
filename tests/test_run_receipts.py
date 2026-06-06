@@ -7,6 +7,7 @@ import subprocess
 import warnings
 from typing import Any, cast
 
+import pytest
 from typer.testing import CliRunner
 
 import dspx.cli.utils as dspx_utils
@@ -226,6 +227,7 @@ def test_run_replay_prefers_receipt_relative_paths_over_ambient_cwd(
     assert report["error_codes"] == []
 
 
+@pytest.mark.slow
 def test_capture_git_dirty_includes_untracked_files(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -290,6 +292,7 @@ def test_run_receipt_roundtrip(tmp_path: Path) -> None:
     assert "python_version" in loaded["execution_context"]
 
 
+@pytest.mark.slow
 def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -587,6 +590,7 @@ def test_cli_meta_receipts_are_versioned(tmp_path: Path, monkeypatch) -> None:
     )
 
 
+@pytest.mark.slow
 def test_cli_meta_receipts_normalize_relative_paths_to_absolute(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -615,6 +619,7 @@ def test_cli_meta_receipts_normalize_relative_paths_to_absolute(
     assert sig_meta["cache_file"] == str(Path(str(sig_meta["cache_file"])).resolve())
 
 
+@pytest.mark.slow
 def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -659,6 +664,7 @@ def test_run_replay_check_only_passes_and_is_local(tmp_path: Path, monkeypatch) 
     assert payload["error_codes"] == []
 
 
+@pytest.mark.slow
 def test_run_replay_check_only_is_stable_without_parent_lineage_metadata(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -693,6 +699,7 @@ def test_run_replay_check_only_is_stable_without_parent_lineage_metadata(
     assert all("lineage" not in str(w) for w in payload["warnings"])
 
 
+@pytest.mark.slow
 def test_run_replay_fails_on_output_hash_drift(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -740,6 +747,7 @@ def test_run_replay_fails_on_output_hash_drift(tmp_path: Path, monkeypatch) -> N
     )
 
 
+@pytest.mark.slow
 def test_run_replay_fails_on_cache_provenance_drift(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -798,6 +806,7 @@ def test_run_replay_fails_on_cache_provenance_drift(
     )
 
 
+@pytest.mark.slow
 def test_run_replay_fails_on_missing_cache_file(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -846,6 +855,7 @@ def test_run_replay_fails_on_missing_cache_file(tmp_path: Path, monkeypatch) -> 
     )
 
 
+@pytest.mark.slow
 def test_run_replay_fails_on_wrong_cache_kind_folder(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -903,6 +913,7 @@ def test_run_replay_fails_on_wrong_cache_kind_folder(
     )
 
 
+@pytest.mark.slow
 def test_run_replay_fails_on_malformed_cache_json(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -970,6 +981,7 @@ def test_run_replay_invalid_receipt_exit_code(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.slow
 def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -1020,6 +1032,7 @@ def test_run_explain_local_first_without_mlflow(tmp_path: Path, monkeypatch) -> 
     assert payload["mlflow_context"]["degrade_reason_codes"] == []
 
 
+@pytest.mark.slow
 def test_run_explain_with_mlflow_requires_explicit_tracking_uri(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1067,6 +1080,7 @@ def test_run_explain_with_mlflow_requires_explicit_tracking_uri(
     assert not (tmp_path / "mlruns").exists()
 
 
+@pytest.mark.slow
 def test_run_explain_is_stable_with_partial_lineage_metadata(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1106,6 +1120,7 @@ def test_run_explain_is_stable_with_partial_lineage_metadata(
     assert all("lineage" not in str(w) for w in payload["warnings"])
 
 
+@pytest.mark.slow
 def test_run_explain_degraded_status_on_drift(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -1158,6 +1173,7 @@ def test_run_explain_degraded_status_on_drift(tmp_path: Path, monkeypatch) -> No
     )
 
 
+@pytest.mark.slow
 def test_run_explain_with_mlflow_flag_is_graceful(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "1")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -1208,6 +1224,7 @@ def test_run_explain_with_mlflow_flag_is_graceful(tmp_path: Path, monkeypatch) -
         _end_active_mlflow_runs()
 
 
+@pytest.mark.slow
 def test_run_explain_with_mlflow_sqlite_custom_artifact_root(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1281,6 +1298,7 @@ def test_run_explain_with_mlflow_sqlite_custom_artifact_root(
         _end_active_mlflow_runs()
 
 
+@pytest.mark.slow
 def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1345,6 +1363,7 @@ def test_run_explain_local_mlflow_filters_same_artifacts_by_expected_tags(
     )
 
 
+@pytest.mark.slow
 def test_run_explain_local_mlflow_accepts_partial_matching_tags(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1395,6 +1414,7 @@ def test_run_explain_local_mlflow_accepts_partial_matching_tags(
     )
 
 
+@pytest.mark.slow
 def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1448,6 +1468,7 @@ def test_run_explain_local_mlflow_accepts_nested_artifact_paths(
     )
 
 
+@pytest.mark.slow
 def test_run_explain_rejects_filesystem_tracking_uri_without_linking_runs(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1501,6 +1522,7 @@ def test_run_explain_rejects_filesystem_tracking_uri_without_linking_runs(
     assert "unsupported-run" not in json.dumps(ctx)
 
 
+@pytest.mark.slow
 def test_run_explain_rejects_local_path_tracking_uri(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1533,6 +1555,7 @@ def test_run_explain_rejects_local_path_tracking_uri(
     assert ctx["degrade_reason_codes"] == ["mlflow_filesystem_backend_unsupported"]
 
 
+@pytest.mark.slow
 def test_run_explain_remote_uri_default_off_lookup(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -1575,6 +1598,7 @@ def test_run_explain_remote_uri_default_off_lookup(tmp_path: Path, monkeypatch) 
     assert "mlflow_remote_lookup_not_enabled" in (ctx.get("degrade_reason_codes") or [])
 
 
+@pytest.mark.slow
 def test_run_explain_remote_lookup_flag_graceful(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -2102,6 +2126,7 @@ def test_current_receipt_lineage_allows_explicit_empty_chain_override(
     assert lineage == {"branch": "feature-a"}
 
 
+@pytest.mark.slow
 def test_cli_generated_receipt_includes_execution_id_and_branch(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -2130,6 +2155,7 @@ def test_cli_generated_receipt_includes_execution_id_and_branch(
     assert receipt["execution_id"]
 
 
+@pytest.mark.slow
 def test_run_receipt_phase_c_defaults_omit_empty_fields(tmp_path: Path) -> None:
     """Test that default/empty Phase C+ fields are omitted from receipt."""
     out = tmp_path / "artifact.py"
@@ -2160,6 +2186,7 @@ def test_run_receipt_phase_c_defaults_omit_empty_fields(tmp_path: Path) -> None:
     assert "execution_context" in receipt
 
 
+@pytest.mark.slow
 def test_module_receipts_use_canonical_default_oracle_index_with_outfile(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -2234,6 +2261,7 @@ def test_module_receipts_use_canonical_default_oracle_index_with_outfile(
     assert diagnostics["evidence_bundle"]["oracle_index_path"] == str(oracle_index)
 
 
+@pytest.mark.slow
 def test_module_receipts_align_default_oracle_index_with_outfile_root_when_cwd_differs(
     tmp_path: Path, monkeypatch
 ) -> None:

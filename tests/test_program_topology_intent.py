@@ -106,6 +106,7 @@ def test_explicit_single_module_with_declared_module_requires_edges() -> None:
         )
 
 
+@pytest.mark.slow
 def test_explicit_pipeline_topology_is_normalized_and_persisted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -227,6 +228,7 @@ def test_explicit_pipeline_topology_is_normalized_and_persisted(
     )
 
 
+@pytest.mark.slow
 def test_explicit_router_pipeline_materializes_three_modules_and_runs_harnesses(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -437,6 +439,7 @@ def test_invalid_explicit_topology_fails_validation(
         )
 
 
+@pytest.mark.slow
 def test_pipeline_dag_scheduler_executes_out_of_order_fan_in_modules(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -623,6 +626,7 @@ def test_pipeline_topology_rejects_missing_direct_data_dependency(
     assert not (tmp_path / "program" / "manifest.json").exists()
 
 
+@pytest.mark.slow
 def test_pipeline_scheduler_raises_when_no_branch_produces_output(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -710,6 +714,7 @@ def test_pipeline_scheduler_raises_when_no_branch_produces_output(
             sys.modules.pop(module_name, None)
 
 
+@pytest.mark.slow
 def test_pipeline_scheduler_honors_conditional_output_edges(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -779,6 +784,7 @@ def test_pipeline_scheduler_honors_conditional_output_edges(
             sys.modules.pop(module_name, None)
 
 
+@pytest.mark.slow
 def test_pipeline_inline_retriever_materializes_bounded_local_adapter(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -893,6 +899,7 @@ def test_pipeline_inline_retriever_materializes_bounded_local_adapter(
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
+@pytest.mark.slow
 def test_pipeline_local_corpus_snapshot_retriever_materializes_bounded_adapter(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1149,6 +1156,7 @@ def test_local_corpus_snapshot_retriever_rejects_oversized_source_file(
     assert not (tmp_path / "program" / "manifest.json").exists()
 
 
+@pytest.mark.slow
 def test_retrieve_then_answer_topology_materializes_bounded_inline_adapter(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1231,6 +1239,7 @@ def test_retrieve_then_answer_topology_materializes_bounded_inline_adapter(
 
 
 @pytest.mark.parametrize("kind", ["router"])
+@pytest.mark.slow
 def test_named_bounded_topologies_materialize_as_declared_dags(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1583,6 +1592,7 @@ def test_pipeline_retriever_rejects_external_module_level_keys(extra_key: str) -
         ("ProgramOfThought", "dspy.ProgramOfThought", {"max_iters": 1}),
     ],
 )
+@pytest.mark.slow
 def test_bounded_reasoning_primitives_materialize_without_external_tools(
     primitive: str,
     expected_call: str,
@@ -1874,6 +1884,7 @@ def test_unsupported_pipeline_primitive_fails_when_materializing(
     assert not (tmp_path / "program" / "manifest.json").exists()
 
 
+@pytest.mark.slow
 def test_prompt_inferred_modules_choose_richer_pipeline_when_prompt_cues_are_clear(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1952,6 +1963,7 @@ def test_prompt_inferred_modules_choose_richer_pipeline_when_prompt_cues_are_cle
     assert replay["status"] == "ok"
 
 
+@pytest.mark.slow
 def test_prompt_inferred_reasoning_intent_uses_chain_of_thought_module(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1993,6 +2005,7 @@ def test_prompt_inferred_reasoning_intent_uses_chain_of_thought_module(
     ).read_text(encoding="utf-8")
 
 
+@pytest.mark.slow
 def test_prompt_module_inference_can_be_disabled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2025,6 +2038,7 @@ def test_prompt_module_inference_can_be_disabled(
     assert module_surfaces["module_surfaces"][0]["primitive"] == "Predict"
 
 
+@pytest.mark.slow
 def test_classification_only_prompt_does_not_infer_generation_pipeline_from_output_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2045,6 +2059,7 @@ def test_classification_only_prompt_does_not_infer_generation_pipeline_from_outp
     assert plan["topology"]["kind"] == "single_module"
 
 
+@pytest.mark.slow
 def test_default_single_module_intent_keeps_current_materialization_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

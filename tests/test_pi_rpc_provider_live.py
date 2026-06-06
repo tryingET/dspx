@@ -8,6 +8,9 @@ import pytest
 from dspx.pi_rpc_lm import PiRPCLM
 
 
+pytestmark = [pytest.mark.live, pytest.mark.model]
+
+
 @pytest.mark.skipif(
     os.getenv("DSPX_RUN_LIVE_TESTS", "0").lower() not in {"1", "true", "yes"},
     reason="set DSPX_RUN_LIVE_TESTS=1 to run live pi rpc tests",

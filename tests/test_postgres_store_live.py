@@ -12,6 +12,9 @@ from dspx.coordinates.embeddings import ExecutionEmbedding
 from dspx.coordinates.postgres_store import PostgresPgvectorCoordinateStore
 
 
+pytestmark = [pytest.mark.live, pytest.mark.network, pytest.mark.postgres]
+
+
 def _require_live_postgres() -> str:
     if os.getenv("DSPX_ORACLE_LIVE_POSTGRES") != "1":
         pytest.skip("set DSPX_ORACLE_LIVE_POSTGRES=1 for live Postgres/pgvector smoke")

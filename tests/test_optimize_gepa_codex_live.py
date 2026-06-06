@@ -13,6 +13,9 @@ import dspy
 from dspx.services.optimize_service import run_gepa_optimize
 
 
+pytestmark = [pytest.mark.live, pytest.mark.model]
+
+
 def _codex_ready() -> bool:
     if shutil.which("codex") is None:
         return False

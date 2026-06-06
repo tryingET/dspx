@@ -7,6 +7,9 @@ import pytest
 from dspx.openrouter_lm import OpenRouterLM
 
 
+pytestmark = [pytest.mark.live, pytest.mark.network, pytest.mark.model]
+
+
 @pytest.mark.skipif(
     os.getenv("DSPX_RUN_LIVE_TESTS", "0") not in {"1", "true", "yes"},
     reason="set DSPX_RUN_LIVE_TESTS=1 to run live network tests",

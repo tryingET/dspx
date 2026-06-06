@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
@@ -188,6 +189,7 @@ def _index_receipt(meta_path: Path, *, index_path: Path) -> None:
     assert index.upsert(embedding) is True
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_collects_exact_match_receipts_and_oracle_neighbors(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -340,6 +342,7 @@ def test_retrieve_module_synthesis_evidence_collects_exact_match_receipts_and_or
     assert all(item["run_kind"] == "module-gen" for item in payload["oracle_neighbors"])
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_exposes_missing_historical_diagnostics_to_readiness_rollup(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -373,6 +376,7 @@ def test_retrieve_module_synthesis_evidence_exposes_missing_historical_diagnosti
     assert readiness["history_summary"]["unusable_receipt_count"] == 1
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_rejects_malformed_shadow_surface(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -410,6 +414,7 @@ def test_retrieve_module_synthesis_evidence_rejects_malformed_shadow_surface(
     )
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_rejects_malformed_governed_policy_receipts(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -448,6 +453,7 @@ def test_retrieve_module_synthesis_evidence_rejects_malformed_governed_policy_re
     assert bundle.receipt_scan_errors[0]["surface"] == "governed_policy_evaluations"
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_rejects_wrongly_typed_governed_policy_fields(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -501,6 +507,7 @@ def test_retrieve_module_synthesis_evidence_rejects_wrongly_typed_governed_polic
     assert bundle.receipt_scan_errors[0]["field"] == "policy_evaluation_receipt_version"
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_rejects_wrongly_typed_run_summary_fields(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -536,6 +543,7 @@ def test_retrieve_module_synthesis_evidence_rejects_wrongly_typed_run_summary_fi
     )
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_handles_missing_oracle_index(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -565,6 +573,7 @@ def test_retrieve_module_synthesis_evidence_handles_missing_oracle_index(
     assert bundle.positive_evidence_count == 1
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_respects_use_signature_in_exact_match(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -608,6 +617,7 @@ def test_retrieve_module_synthesis_evidence_respects_use_signature_in_exact_matc
     assert signed_receipt["replay_inputs"]["use_signature"] is True
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_skips_malformed_exact_match_receipt_and_records_error(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -675,6 +685,7 @@ def test_retrieve_module_synthesis_evidence_skips_malformed_exact_match_receipt_
     assert advisory["status"] == "degraded_history_only"
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_records_invalid_json_receipts_as_scan_errors(
     tmp_path: Path,
 ) -> None:
@@ -712,6 +723,7 @@ def test_retrieve_module_synthesis_evidence_records_invalid_json_receipts_as_sca
     )
 
 
+@pytest.mark.slow
 def test_retrieve_module_synthesis_evidence_reports_unavailable_oracle_lookup(
     tmp_path: Path,
 ) -> None:
@@ -739,6 +751,7 @@ def test_retrieve_module_synthesis_evidence_reports_unavailable_oracle_lookup(
     assert bundle.oracle_lookup_error["type"]
 
 
+@pytest.mark.slow
 def test_build_module_synthesis_history_advisory_statuses(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -815,6 +828,7 @@ def test_build_module_synthesis_history_advisory_statuses(
     assert len(divergent["divergent_positive_receipts"]) == 1
 
 
+@pytest.mark.slow
 def test_build_module_synthesis_candidate_winner_priors_statuses(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -900,6 +914,7 @@ def test_build_module_synthesis_candidate_winner_priors_statuses(
     )
 
 
+@pytest.mark.slow
 def test_build_module_synthesis_candidate_prior_audit_statuses(
     tmp_path: Path, monkeypatch
 ) -> None:

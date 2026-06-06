@@ -195,6 +195,21 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "verification impact planner changed",
     ),
+    "pytest_test_defaults": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_test_defaults.py",
+            "-n",
+            "2",
+            "--dist=loadfile",
+        ],
+        "test harness defaults changed",
+    ),
     "pytest_generated_direct_runner": CommandSpec(
         [
             "uv",
@@ -735,6 +750,7 @@ def build_plan(
         "impact_plan_smoke",
         "pytest_touched",
         "pytest_verify_changed",
+        "pytest_test_defaults",
         "pytest_boundary_hardening",
         "pytest_boundary_adversarial",
         "pytest_cli_dspx",

@@ -7,11 +7,18 @@ dev = [
     "ty>=0.0.11",
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.6.0",
 ]
 
 [tool.pytest.ini_options]
 markers = [
   "forge: forge-app and forge/core boundary focused tests",
+  "slow: long-running or oversized test modules excluded from opt-in fast parallel runs",
+  "live: opt-in tests that require external services, network, live model providers, or local authenticated CLIs",
+  "network: tests that may call external network services",
+  "model: tests that may invoke live LLM/model provider runtimes",
+  "gpu: tests that require GPU resources",
+  "postgres: tests that require a live Postgres/pgvector service",
 ]
 filterwarnings = [
   # Silence upstream MLflow/protobuf deprecation warning during tests

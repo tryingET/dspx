@@ -136,6 +136,12 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  echo lint\n"
         "test:\n"
         "  uv run --no-sync -m pytest -q tests\n"
+        'test-parallel jobs="auto":\n'
+        '  workers="{{jobs}}"; workers="${workers#jobs=}"; uv run --no-sync -m pytest -q tests -n "$workers" --dist loadfile -m "not slow and not live and not network and not model and not gpu and not postgres"\n'
+        'test-slow-parallel jobs="auto":\n'
+        '  workers="{{jobs}}"; workers="${workers#jobs=}"; uv run --no-sync -m pytest -q tests -n "$workers" --dist load -m "slow and not live and not network and not model and not gpu and not postgres"\n'
+        "test-residual-serial:\n"
+        '  uv run --no-sync -m pytest -q tests -m "live or network or model or gpu or postgres"\n'
         "build:\n"
         "  echo build\n"
         "# working tree when the repo is dirty\n"
@@ -182,7 +188,10 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "loop-landing-check:\n"
         "  just check\n"
         "verify-tests:\n"
-        "  echo tests\n"
+        "  just typecheck\n"
+        "  just test-parallel jobs=16\n"
+        "  just test-slow-parallel jobs=16\n"
+        "  just test-residual-serial\n"
         "verify-pre-push:\n"
         "  just verify-fast\n"
         "verify-full:\n"
