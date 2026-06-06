@@ -2,7 +2,7 @@ kind: "ai-society/commit-provenance/v1"
 tool: "delegated-commit-workflow"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
-commit: "afed567ee2dc5d2d699f23701e92bd852a016c57"
+commit: "afed5678e429f652b857161f953214c288f814e2"
 created_at: "2026-06-06T03:29:44Z"
 intent: "Broaden program-gen safe capability support by recording the blocker implementation frame, support taxonomy previews, descriptor-only/custom/tool boundaries, replay checks, and aligned workflow/direction validation updates."
 files:
