@@ -1,0 +1,72 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "delegated-commit-workflow"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "afed567ee2dc5d2d699f23701e92bd852a016c57"
+created_at: "2026-06-06T03:29:44Z"
+intent: "Broaden program-gen safe capability support by recording the blocker implementation frame, support taxonomy previews, descriptor-only/custom/tool boundaries, replay checks, and aligned workflow/direction validation updates."
+files:
+  - "AGENTS.md"
+  - "Justfile"
+  - "PROJECT_STATUS.md"
+  - "README.md"
+  - "docs/MONOREPO_TRANSITION.md"
+  - "docs/SIGNATURE_NATIVE_PIPELINE.md"
+  - "docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md"
+  - "docs/project/product-posture.md"
+  - "docs/project/program-gen-broadening-strategic-frame.md"
+  - "docs/project/program-gen-walkthrough.md"
+  - "docs/project/program-synthesis-boundary.md"
+  - "docs/project/strategic_goals.md"
+  - "docs/project/tactical_goals.md"
+  - "docs/system4d/fog.md"
+  - "packages/dspx-core/src/dspx/services/program_intent.py"
+  - "packages/dspx-core/src/dspx/services/program_intent_normalization.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_traces.py"
+  - "packages/dspx-core/src/dspx/services/program_tool_contracts.py"
+  - "packages/dspx-core/src/dspx/services/program_topology.py"
+  - "packages/dspx-core/src/dspx/services/run_replay_service.py"
+  - "scripts/check_direction_to_execution.py"
+  - "scripts/check_workflow_contracts.py"
+  - "scripts/ci/verify_changed.py"
+  - "tests/test_direction_to_execution.py"
+  - "tests/test_nexus_adversarial_fixes.py"
+  - "tests/test_program_architecture.py"
+  - "tests/test_program_intent_normalization.py"
+  - "tests/test_program_runtime_traces.py"
+  - "tests/test_program_tool_contracts.py"
+  - "tests/test_program_topology_intent.py"
+  - "tests/test_verify_changed.py"
+  - "tests/test_workflow_contracts.py"
+validation:
+  staged_preflight:
+    - command: "git diff --cached --name-status"
+      status: "pass"
+    - command: "git diff --cached --stat && git diff --cached --check && git status --short --untracked-files=no"
+      status: "pass"
+  hook_direct:
+    command: ".git/hooks/pre-commit && git status --short && git diff --cached --check"
+    status: "pass"
+    summary:
+      - "ruff format passed"
+      - "ruff passed"
+      - "trim trailing whitespace passed"
+      - "fix end of files passed"
+      - "check for merge conflicts passed"
+  commit_hook:
+    command: "git commit -m 'feat(program-gen): broaden safe capability support'"
+    status: "pass"
+    summary:
+      - "pre-commit hook passed during commit"
+group:
+  index: 1
+  total: 1
+  rationale: "Single staged visible-loop delegated commit set; no regrouping or implementation broadening after blocker resolution."
+links:
+  task_ids:
+    - 3486
+  related_task_ids:
+    - 3415
+  visible_loop:
+    run_id: "nexus-loop-mq1deqet-f3cda0e1"
+    iteration: 1
