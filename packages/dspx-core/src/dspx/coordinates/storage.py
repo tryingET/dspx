@@ -25,6 +25,40 @@ logger = logging.getLogger(__name__)
 SCHEMA_VERSION = 2  # Bumped for embedding_version column
 
 
+def _parse_created_at_instant(value: str) -> datetime:
+    """Parse a stored timestamp as a comparable UTC instant."""
+    normalized = value.replace("Z", "+00:00")
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _normalize_filter_instant(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _created_at_matches(
+    created_at: str,
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> bool:
+    if since is None and until is None:
+        return True
+    try:
+        created = _parse_created_at_instant(created_at)
+    except ValueError:
+        return False
+    if since is not None and created < _normalize_filter_instant(since):
+        return False
+    if until is not None and created > _normalize_filter_instant(until):
+        return False
+    return True
+
+
 def get_default_index_path() -> Path:
     """Get default path for coordinate index database."""
     base = os.getenv("DSPX_ORACLE_INDEX_PATH")
@@ -550,7 +584,8 @@ class CoordinateIndex:
         results = []
         dimension_mismatch_count = 0
 
-        # Build query with filters
+        # Build query with non-temporal filters. Temporal filters are applied
+        # after parsing timestamps so offsets compare as instants, not strings.
         sql = "SELECT * FROM coordinates WHERE 1=1"
         params: list[Any] = []
 
@@ -560,12 +595,6 @@ class CoordinateIndex:
         if provider:
             sql += " AND provider = ?"
             params.append(provider)
-        if since:
-            sql += " AND created_at >= ?"
-            params.append(since.isoformat())
-        if until:
-            sql += " AND created_at <= ?"
-            params.append(until.isoformat())
         if embedding_version is not None:
             sql += " AND embedding_version = ?"
             params.append(embedding_version)
@@ -581,6 +610,11 @@ class CoordinateIndex:
                         logger.warning(
                             f"Failed to parse embedding {row['run_id']}: {e}"
                         )
+                        continue
+
+                    if not _created_at_matches(
+                        emb.created_at, since=since, until=until
+                    ):
                         continue
 
                     if emb.dimension != len(query_vector):
@@ -712,18 +746,11 @@ class CoordinateIndex:
         if provider:
             sql += " AND provider = ?"
             params.append(provider)
-        if since:
-            sql += " AND created_at >= ?"
-            params.append(since.isoformat())
-        if until:
-            sql += " AND created_at <= ?"
-            params.append(until.isoformat())
         if embedding_version is not None:
             sql += " AND embedding_version = ?"
             params.append(embedding_version)
 
-        sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
+        sql += " ORDER BY created_at DESC"
 
         embeddings = []
         try:
@@ -731,7 +758,11 @@ class CoordinateIndex:
                 rows = conn.execute(sql, params).fetchall()
                 for row in rows:
                     try:
-                        embeddings.append(self._row_to_embedding(row))
+                        emb = self._row_to_embedding(row)
+                        if _created_at_matches(
+                            emb.created_at, since=since, until=until
+                        ):
+                            embeddings.append(emb)
                     except (json.JSONDecodeError, ValueError) as e:
                         logger.warning(
                             f"Failed to parse embedding {row['run_id']}: {e}"
@@ -739,7 +770,11 @@ class CoordinateIndex:
         except sqlite3.OperationalError:
             pass
 
-        return embeddings
+        if since is not None or until is not None:
+            embeddings.sort(
+                key=lambda emb: _parse_created_at_instant(emb.created_at), reverse=True
+            )
+        return embeddings[offset : offset + limit]
 
     def count(
         self,
@@ -751,7 +786,7 @@ class CoordinateIndex:
         embedding_version: int | None = None,
     ) -> int:
         """Count embeddings matching filters."""
-        sql = "SELECT COUNT(*) FROM coordinates WHERE 1=1"
+        sql = "SELECT * FROM coordinates WHERE 1=1"
         params: list[Any] = []
 
         if run_kind:
@@ -760,19 +795,24 @@ class CoordinateIndex:
         if provider:
             sql += " AND provider = ?"
             params.append(provider)
-        if since:
-            sql += " AND created_at >= ?"
-            params.append(since.isoformat())
-        if until:
-            sql += " AND created_at <= ?"
-            params.append(until.isoformat())
         if embedding_version is not None:
             sql += " AND embedding_version = ?"
             params.append(embedding_version)
 
         try:
             with self._read_conn() as conn:
-                return conn.execute(sql, params).fetchone()[0]
+                total = 0
+                for row in conn.execute(sql, params).fetchall():
+                    try:
+                        emb = self._row_to_embedding(row)
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.warning(
+                            f"Failed to parse embedding {row['run_id']}: {e}"
+                        )
+                        continue
+                    if _created_at_matches(emb.created_at, since=since, until=until):
+                        total += 1
+                return total
         except sqlite3.OperationalError:
             return 0
 

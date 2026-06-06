@@ -138,7 +138,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
 
     def _import_module(self):
         try:
-            import dspy_lm_auth
+            dspy_lm_auth = importlib.import_module("dspy_lm_auth")
         except ImportError as e:  # pragma: no cover - exercised in tests via message
             raise RuntimeError(
                 "dspy-lm-auth is not installed. Install with 'pip install dspx-core[lm-auth]' "

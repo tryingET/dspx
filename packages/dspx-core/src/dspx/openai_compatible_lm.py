@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
@@ -122,7 +121,7 @@ class OpenAICompatibleLM(DSPyBaseLM, LMBase):
         )
         self.base_url = base_url.rstrip("/")
         self.model_id = model
-        self.api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY")
+        self.api_key = api_key
         self.timeout = timeout
         self.extra_headers = dict(extra_headers or {})
         self.strict = strict

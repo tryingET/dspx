@@ -390,3 +390,247 @@ class TestReplayPathConfinement:
 
         with pytest.raises(PathEscapeError):
             _resolve_path("../../etc/shadow", meta_path=meta)
+
+
+# ── 9. Program evidence binding and boundary regressions ───────────────────
+
+
+def test_openai_compatible_does_not_leak_ambient_openai_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from dspx.openai_compatible_lm import OpenAICompatibleLM
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-secret")
+
+    lm = OpenAICompatibleLM(
+        base_url="http://127.0.0.1:8000/v1",
+        model="local",
+        api_key=None,
+        provider_label="vllm-local",
+    )
+
+    assert "Authorization" not in lm._headers()
+
+
+def test_openapi_caller_strips_caller_supplied_host_header() -> None:
+    import httpx
+
+    from dspx.dtos import OpenAPICallRequest
+    from dspx.tools.openapi.caller import call_operation
+
+    seen: list[dict[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(dict(request.headers))
+        return httpx.Response(200, json={"ok": True})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    operation = {"method": "GET", "server": "http://allowed.test", "path": "/x"}
+    request = OpenAPICallRequest(operation_id="op", headers={"Host": "evil.test"})
+
+    call_operation(
+        request,
+        operation=operation,
+        allowed_hosts={"allowed.test": True},
+        client=client,
+    )
+
+    assert seen[0]["host"] == "allowed.test"
+
+
+def test_coordinate_time_filters_compare_instants_not_iso_strings(
+    tmp_path: Path,
+) -> None:
+    from datetime import datetime, timezone
+
+    from dspx.coordinates.embeddings import ExecutionEmbedding
+    from dspx.coordinates.storage import CoordinateIndex
+
+    index = CoordinateIndex(tmp_path / "coordinates.db")
+    index.upsert(
+        ExecutionEmbedding(
+            run_id="before-cutoff",
+            vector=[1.0, 0.0],
+            input_text="",
+            output_text="",
+            config_text="",
+            run_kind="k",
+            provider="p",
+            template_version=None,
+            created_at="2026-01-01T01:00:00+02:00",
+            dimension=2,
+        )
+    )
+    index.upsert(
+        ExecutionEmbedding(
+            run_id="after-cutoff",
+            vector=[1.0, 0.0],
+            input_text="",
+            output_text="",
+            config_text="",
+            run_kind="k",
+            provider="p",
+            template_version=None,
+            created_at="2026-01-01T00:30:00+00:00",
+            dimension=2,
+        )
+    )
+
+    since = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+    assert [record.run_id for record in index.list_all(since=since)] == ["after-cutoff"]
+    assert index.count(since=since) == 1
+    assert [result.run_id for result in index.search([1.0, 0.0], since=since)] == [
+        "after-cutoff"
+    ]
+
+
+def test_activation_identity_rejects_partial_matches() -> None:
+    from dspx.services.program_activation_packet import (
+        ProgramActivationPacketError,
+        _validate_artifact_identity,
+        _validate_oracle_report_identity,
+    )
+
+    identity = {
+        "request_id": "request-1",
+        "candidate_id": "candidate-1",
+        "assembly_id": "assembly-1",
+        "episode_id": "episode-1",
+    }
+
+    with pytest.raises(
+        ProgramActivationPacketError, match="matching candidate identity"
+    ):
+        _validate_oracle_report_identity(
+            identity, {"records": [{"identity": {"request_id": "request-1"}}]}
+        )
+
+    with pytest.raises(ProgramActivationPacketError, match="identity is incomplete"):
+        _validate_artifact_identity(
+            identity,
+            {"identity": {"request_id": "request-1"}},
+            label="artifact",
+        )
+
+
+def test_program_plan_binds_runtime_traces_hash(tmp_path: Path) -> None:
+    import json
+
+    from dspx.cache import sha256_text
+    from dspx.services.program_service import (
+        ProgramIntent,
+        materialize_program_from_intent,
+    )
+
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="AnswerQuestion",
+            objective="Answer the question.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    root = Path(artifact.root_path)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+
+    runtime_traces_hash = sha256_text(
+        (root / "program_runtime_traces.json").read_text(encoding="utf-8")
+    )
+    plan_hash = sha256_text((root / "plan.json").read_text(encoding="utf-8"))
+
+    assert (
+        manifest["program_plan"]["runtime_traces"]["content_hash"]
+        == runtime_traces_hash
+    )
+    assert manifest["request"]["runtime_traces_hash"] == runtime_traces_hash
+    assert manifest["request"]["plan_hash"] == plan_hash
+    assert manifest["candidate_assembly"]["surfaces"][0]["content_hash"] == plan_hash
+
+
+def test_candidate_assembly_hash_binds_advertised_surfaces(tmp_path: Path) -> None:
+    import json
+
+    from dspx.cache import sha256_text
+    from dspx.services import program_service
+    from dspx.services.program_service import (
+        ProgramIntent,
+        materialize_program_from_intent,
+    )
+
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="AnswerQuestion",
+            objective="Answer the question.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    manifest = json.loads((Path(artifact.root_path) / "manifest.json").read_text())
+    assembly = manifest["candidate_assembly"]
+
+    expected = sha256_text(
+        program_service._json_text(
+            {
+                "surface_kinds": assembly["surface_kinds"],
+                "surfaces": [
+                    {
+                        "kind": surface.get("kind"),
+                        "path": surface.get("path"),
+                        "content_hash": surface.get("content_hash"),
+                    }
+                    for surface in assembly["surfaces"]
+                ],
+            }
+        )
+    )
+
+    assert assembly["content_hash"] == expected
+
+
+def test_direct_service_rejects_forged_contract_verification(tmp_path: Path) -> None:
+    import json
+
+    from dspx.services import program_service
+
+    intent_path = tmp_path / "intent.json"
+    intent_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-intent-v2",
+                "name": "AnswerQuestion",
+                "objective": "Answer.",
+                "inputs": ["question"],
+                "outputs": ["answer"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    forged = tmp_path / "forged_contract_verification.json"
+    forged.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-architecture-contract-verification-v1",
+                "status": "verified_contract_intent",
+                "materialization_allowed_by_contract_verification": True,
+                "materialization_gate": {
+                    "status": "verified_for_explicit_program_gen_materialization",
+                    "program_gen_must_match_intent_hash": "deadbeef",
+                    "allows_live_tools": False,
+                    "allows_custom_imports": False,
+                    "allows_external_retrievers": False,
+                },
+                "non_authority": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="intent_hash_mismatch"):
+        program_service.run_generate_from_intent_path(
+            intent_path,
+            outdir=tmp_path / "out",
+            contract_verification_path=forged,
+        )

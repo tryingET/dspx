@@ -226,6 +226,18 @@ def _identity_mismatch(
     return mismatched
 
 
+def _missing_identity_keys(
+    candidate_identity: Mapping[str, Any],
+    artifact_identity: Mapping[str, Any],
+) -> list[str]:
+    return [
+        key
+        for key, candidate_value in candidate_identity.items()
+        if candidate_value not in {None, ""}
+        and artifact_identity.get(key) in {None, ""}
+    ]
+
+
 def _validate_artifact_identity(
     candidate_identity: Mapping[str, Any],
     artifact: Mapping[str, Any] | None,
@@ -237,6 +249,12 @@ def _validate_artifact_identity(
     artifact_identity = _safe_mapping(artifact.get("identity"))
     if not artifact_identity:
         raise ProgramActivationPacketError(f"{label} missing identity object")
+    missing = _missing_identity_keys(candidate_identity, artifact_identity)
+    if missing:
+        raise ProgramActivationPacketError(
+            f"{label} identity is incomplete for candidate identity: "
+            + ", ".join(missing)
+        )
     mismatched = _identity_mismatch(candidate_identity, artifact_identity)
     if mismatched:
         raise ProgramActivationPacketError(
@@ -928,14 +946,10 @@ def _validate_oracle_report_identity(
         record_identity = _safe_mapping(record.get("identity"))
         if not record_identity:
             continue
+        if _missing_identity_keys(identity, record_identity):
+            continue
         if not _identity_mismatch(identity, record_identity):
-            matched_keys = [
-                key
-                for key, value in identity.items()
-                if value not in {None, ""} and record_identity.get(key) == value
-            ]
-            if matched_keys:
-                return
+            return
     raise ProgramActivationPacketError(
         "oracle_report does not contain a record matching candidate identity"
     )

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "exported_at": "2026-05-26T18:30:24.963492737+00:00",
   "task_id": 3415,
-  "entity_version": 29,
-  "commit_sha": "afed5678e429f652b857161f953214c288f814e2",
+  "entity_version": 30,
+  "commit_sha": null,
   "scope": {
     "allowed_paths": [
       "AGENTS.md",
@@ -50,6 +50,7 @@
       "packages/dspx-core/src/dspx/cli/viberefine.py",
       "packages/dspx-core/src/dspx/config_loader.py",
       "packages/dspx-core/src/dspx/contract_scalars.py",
+      "packages/dspx-core/src/dspx/coordinates/postgres_store.py",
       "packages/dspx-core/src/dspx/coordinates/storage.py",
       "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
       "packages/dspx-core/src/dspx/gemini_cli_lm.py",

@@ -7,6 +7,7 @@ redacted diagnostics rather than silently falling back or leaking secrets.
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import re
@@ -116,13 +117,12 @@ class PostgresPgvectorCoordinateStore:
 
     def _load_psycopg(self) -> Any:
         try:
-            import psycopg
+            return importlib.import_module("psycopg")
         except ModuleNotFoundError as exc:
             raise StoreUnavailableError(
                 "Postgres Oracle store requires optional dependency 'psycopg'. "
                 "Install a Postgres driver before enabling postgres_pgvector."
             ) from exc
-        return psycopg
 
     @contextmanager
     def _conn(self) -> Iterator[Any]:

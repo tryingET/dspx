@@ -287,7 +287,11 @@ def call_operation(
     method, server, path = _operation_identity(request, operation)
     params = dict(request.params or {})
     body = request.body if request.body is not None else None
-    headers = request.headers or {}
+    headers = {
+        str(name): value
+        for name, value in (request.headers or {}).items()
+        if str(name).lower() != "host"
+    }
     # Validate required path/query parameters and request body schema
     # Validate required path parameters when present in operation description
     try:

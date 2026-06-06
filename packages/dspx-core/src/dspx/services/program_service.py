@@ -152,14 +152,50 @@ def _build_pre_materialization_intent_normalization(
     }
 
 
+def _validate_contract_verification_payload(
+    payload: Mapping[str, Any],
+    *,
+    intent_source: Path | None,
+) -> None:
+    if payload.get("schema_version") != "program-architecture-contract-verification-v1":
+        raise ValueError("invalid contract verification schema_version")
+    if payload.get("status") != "verified_contract_intent":
+        raise ValueError("contract verification is not verified")
+    if payload.get("materialization_allowed_by_contract_verification") is not True:
+        raise ValueError("contract verification does not allow materialization")
+    gate = payload.get("materialization_gate")
+    if not isinstance(gate, Mapping) or gate.get("status") != (
+        "verified_for_explicit_program_gen_materialization"
+    ):
+        raise ValueError("contract verification materialization gate is not open")
+    if (
+        gate.get("allows_live_tools")
+        or gate.get("allows_custom_imports")
+        or gate.get("allows_external_retrievers")
+    ):
+        raise ValueError("contract verification unexpectedly allows live effects")
+    if intent_source is not None:
+        expected_hash = str(
+            gate.get("program_gen_must_match_intent_hash") or ""
+        ).strip()
+        if not expected_hash:
+            raise ValueError("contract verification missing intent hash")
+        actual_hash = sha256_text(
+            intent_source.expanduser().resolve().read_text(encoding="utf-8")
+        )
+        if actual_hash != expected_hash:
+            raise ValueError("contract verification intent_hash_mismatch")
+
+
 def _contract_verification_metadata(
-    path: Optional[Path], *, root: Path
+    path: Optional[Path], *, root: Path, intent_source: Path | None
 ) -> dict[str, Any] | None:
     if path is None:
         return None
     source = path.expanduser().resolve()
     text = source.read_text(encoding="utf-8")
     payload = json.loads(text)
+    _validate_contract_verification_payload(payload, intent_source=intent_source)
     candidate_path = root / "program_architecture_contract_verification.json"
     candidate_path.write_text(text, encoding="utf-8")
     return {
@@ -1885,7 +1921,7 @@ def _materialize_program_from_intent_unchecked(
     surface_bundle_text = "\n\n".join(bundle_parts)
     ids = _build_ids(intent, surface_bundle_text)
     contract_verification_metadata = _contract_verification_metadata(
-        contract_verification_path, root=root
+        contract_verification_path, root=root, intent_source=intent_source
     )
     intent_payload = _intent_payload(intent)
     intent_hash = sha256_text(json.dumps(intent_payload, sort_keys=True))
@@ -2100,6 +2136,18 @@ def _materialize_program_from_intent_unchecked(
     )
     runtime_traces_hash = sha256_text(runtime_traces_text)
     surface_hashes["program_runtime_traces.json"] = runtime_traces_hash
+    program_plan = build_program_plan(
+        intent,
+        examples_hash=examples_hash,
+        retriever_snapshots_hash=retriever_snapshots_hash,
+        runtime_outcomes_hash=runtime_outcomes_hash,
+        runtime_traces_hash=runtime_traces_hash,
+        tool_contracts_hash=tool_contracts_hash,
+    )
+    plan_text = _json_text(program_plan)
+    plan_hash = sha256_text(plan_text)
+    surface_hashes["plan.json"] = plan_hash
+    (root / "plan.json").write_text(plan_text, encoding="utf-8")
     if evaluation_sources:
         oracle_evidence_payload = _build_oracle_evidence(
             intent=intent,
@@ -2569,6 +2617,23 @@ def _materialize_program_from_intent_unchecked(
             ),
         ],
     }
+    assembly_hash = sha256_text(
+        _json_text(
+            {
+                "surface_kinds": candidate_assembly["surface_kinds"],
+                "surfaces": [
+                    {
+                        "kind": surface.get("kind"),
+                        "path": surface.get("path"),
+                        "content_hash": surface.get("content_hash"),
+                    }
+                    for surface in candidate_assembly["surfaces"]
+                ],
+            }
+        )
+    )
+    candidate_assembly["content_hash"] = assembly_hash
+
     receipt_bundle = {
         "receipt_bundle_id": ids["receipt_bundle_id"],
         "request_id": ids["request_id"],

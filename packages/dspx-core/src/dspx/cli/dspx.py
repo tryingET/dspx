@@ -461,39 +461,9 @@ def _load_allowed_contract_verification(
     if not path.exists():
         raise FileNotFoundError(f"contract verification not found: {path}")
     payload = json.loads(path.expanduser().resolve().read_text(encoding="utf-8"))
-    if payload.get("schema_version") != "program-architecture-contract-verification-v1":
-        raise ValueError("invalid contract verification schema_version")
-    if payload.get("status") != "verified_contract_intent":
-        raise ValueError("contract verification is not verified")
-    if payload.get("materialization_allowed_by_contract_verification") is not True:
-        raise ValueError("contract verification does not allow materialization")
-    gate = payload.get("materialization_gate")
-    if not isinstance(gate, dict) or gate.get("status") != (
-        "verified_for_explicit_program_gen_materialization"
-    ):
-        raise ValueError("contract verification materialization gate is not open")
-    if (
-        gate.get("allows_live_tools")
-        or gate.get("allows_custom_imports")
-        or gate.get("allows_external_retrievers")
-    ):
-        raise ValueError("contract verification unexpectedly allows live effects")
-    if intent_path is not None:
-        import hashlib
+    from dspx.services.program_service import _validate_contract_verification_payload
 
-        expected_hash = str(
-            gate.get("program_gen_must_match_intent_hash") or ""
-        ).strip()
-        if not expected_hash:
-            raise ValueError("contract verification missing intent hash")
-        actual_hash = hashlib.sha256(
-            intent_path.expanduser()
-            .resolve()
-            .read_text(encoding="utf-8")
-            .encode("utf-8")
-        ).hexdigest()
-        if actual_hash != expected_hash:
-            raise ValueError("contract verification intent_hash_mismatch")
+    _validate_contract_verification_payload(payload, intent_source=intent_path)
     return payload
 
 
