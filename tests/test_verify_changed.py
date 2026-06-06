@@ -350,6 +350,15 @@ def test_ci_planner_change_runs_planner_checks_without_full_verification() -> No
     ]
 
 
+def test_dynamic_touched_commands_skip_deleted_paths() -> None:
+    loaded = _load_module()
+    deleted_path = "tests/test_verify_changed_missing_deleted_path.py"
+    assert not (ROOT / deleted_path).exists()
+
+    assert loaded._command_from_id("ruff_touched", [deleted_path], "") is None
+    assert loaded._command_from_id("pytest_touched", [deleted_path], "") is None
+
+
 @pytest.mark.parametrize(
     ("path", "category", "expected_command"),
     [

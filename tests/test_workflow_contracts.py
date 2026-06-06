@@ -65,7 +65,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         tmp_path,
         "AGENTS.md",
         "See docs/project/developer_workflow.md and run just hooks-install.\n"
-        "Canonical reads: docs/project/vision.md docs/project/strategic_goals.md docs/project/tactical_goals.md\n",
+        "Canonical reads: docs/project/vision.md docs/project/product-posture.md; active direction uses AK direction runtime\n",
     )
     _write(
         tmp_path,
@@ -322,7 +322,7 @@ def test_collect_issues_rejects_broken_standardized_recipe_bodies(
         tmp_path,
         "AGENTS.md",
         "See docs/project/developer_workflow.md and run just hooks-install.\n"
-        "Canonical reads: docs/project/vision.md docs/project/strategic_goals.md docs/project/tactical_goals.md\n",
+        "Canonical reads: docs/project/vision.md docs/project/product-posture.md; active direction uses AK direction runtime\n",
     )
     _write(
         tmp_path,

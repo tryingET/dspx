@@ -26,35 +26,27 @@ def _write(root: Path, relpath: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _agents_text() -> str:
+    return (
+        "docs/project/vision.md\n"
+        "docs/project/product-posture.md\n"
+        "Active direction lives in AK direction runtime.\n"
+    )
+
+
 def test_collect_issues_reports_missing_required_files(tmp_path: Path) -> None:
     issues = MODULE.collect_issues(tmp_path)
     messages = {f"{issue.path}: {issue.message}" for issue in issues}
 
     assert "AGENTS.md: missing required file" in messages
-    assert "docs/project/strategic_goals.md: missing required file" in messages
-    assert "docs/project/tactical_goals.md: missing required file" in messages
-    assert "next_session_prompt.md: missing required file" not in messages
-    assert "docs/project/operational_goals.md: missing required file" not in messages
+    assert not any(
+        "next_session_prompt.md: missing required file" in item for item in messages
+    )
+    assert not any("_goals.md: missing required file" in item for item in messages)
 
 
-def test_collect_issues_accepts_ak_native_direction_docs(tmp_path: Path) -> None:
-    _write(
-        tmp_path,
-        "AGENTS.md",
-        "docs/project/vision.md\n"
-        "docs/project/strategic_goals.md\n"
-        "docs/project/tactical_goals.md\n",
-    )
-    _write(
-        tmp_path,
-        "docs/project/strategic_goals.md",
-        "Active strategic goal: `SG2`\n",
-    )
-    _write(
-        tmp_path,
-        "docs/project/tactical_goals.md",
-        "Active strategic goal: `SG2`\nActive tactical goal: `TG10`\n",
-    )
+def test_collect_issues_accepts_ak_native_direction_posture(tmp_path: Path) -> None:
+    _write(tmp_path, "AGENTS.md", _agents_text())
 
     issues = MODULE.collect_issues(tmp_path)
 
@@ -65,60 +57,62 @@ def test_collect_issues_rejects_retired_direction_files(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "AGENTS.md",
-        "docs/project/vision.md\n"
-        "docs/project/strategic_goals.md\n"
-        "docs/project/tactical_goals.md\n"
-        "docs/project/operational_goals.md\n",
-    )
-    _write(
-        tmp_path,
-        "docs/project/strategic_goals.md",
-        "Active strategic goal: `SG2`\n",
-    )
-    _write(
-        tmp_path,
-        "docs/project/tactical_goals.md",
-        "Active strategic goal: `SG2`\nActive tactical goal: `TG10`\n",
+        _agents_text() + "docs/project/legacy_goals.md\n" + "next_session_prompt.md\n",
     )
     _write(tmp_path, "next_session_prompt.md", "legacy handoff\n")
-    _write(tmp_path, "docs/project/operational_goals.md", "legacy active slice\n")
+    _write(tmp_path, "docs/project/legacy_goals.md", "legacy direction ladder\n")
 
     issues = MODULE.collect_issues(tmp_path)
     messages = {f"{issue.path}: {issue.message}" for issue in issues}
 
     assert (
-        "next_session_prompt.md: retired AK-native direction file still exists"
+        "next_session_prompt.md: retired file still exists; use AK direction runtime"
         in messages
     )
     assert (
-        "docs/project/operational_goals.md: retired AK-native direction file still exists"
+        "docs/project/legacy_goals.md: retired file still exists; use AK direction runtime"
         in messages
     )
     assert (
-        "AGENTS.md: retired read-order reference remains: docs/project/operational_goals.md"
+        "AGENTS.md: retired read-order reference remains: docs/project/legacy_goals.md"
+        in messages
+    )
+    assert (
+        "AGENTS.md: retired read-order reference remains: next_session_prompt.md"
         in messages
     )
 
 
-def test_collect_issues_rejects_tactical_strategic_mismatch(tmp_path: Path) -> None:
+def test_collect_issues_requires_product_posture_read_order(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "AGENTS.md",
-        "docs/project/vision.md\n"
-        "docs/project/strategic_goals.md\n"
-        "docs/project/tactical_goals.md\n",
-    )
-    _write(
-        tmp_path,
-        "docs/project/strategic_goals.md",
-        "Active strategic goal: `SG2`\n",
-    )
-    _write(
-        tmp_path,
-        "docs/project/tactical_goals.md",
-        "Active strategic goal: `SG3`\nActive tactical goal: `TG10`\n",
+        "docs/project/vision.md\nActive direction lives in AK direction runtime.\n",
     )
 
     issues = MODULE.collect_issues(tmp_path)
 
-    assert any("active strategic goal mismatch" in issue.message for issue in issues)
+    assert any(
+        issue.path == Path("AGENTS.md")
+        and "missing read-order reference: docs/project/product-posture.md"
+        in issue.message
+        for issue in issues
+    )
+
+
+def test_collect_issues_requires_ak_direction_authority_reminder(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path,
+        "AGENTS.md",
+        "docs/project/vision.md\ndocs/project/product-posture.md\n",
+    )
+
+    issues = MODULE.collect_issues(tmp_path)
+
+    assert any(
+        issue.path == Path("AGENTS.md")
+        and issue.message == "missing AK direction authority reminder"
+        for issue in issues
+    )

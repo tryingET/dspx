@@ -332,6 +332,282 @@ def _generation_risks(
     return risks
 
 
+_SUPPORT_LEVEL_TAXONOMY: tuple[dict[str, Any], ...] = (
+    {
+        "level": "descriptor_only",
+        "label": "Descriptor-only",
+        "meaning": "Capability is represented in the normalized intent/preview evidence but is not executed.",
+        "allowed_in_blocker": True,
+        "effect_allowed": False,
+    },
+    {
+        "level": "local_dry_run_evaluation",
+        "label": "Local dry-run/evaluation",
+        "meaning": "Capability may be checked locally through schema/hash/preview validation without live tool, retriever, import, or authority effects.",
+        "allowed_in_blocker": True,
+        "effect_allowed": False,
+    },
+    {
+        "level": "executable_local",
+        "label": "Executable local",
+        "meaning": "Capability may execute only inside the generated candidate's declared local runtime/evaluation boundary.",
+        "allowed_in_blocker": True,
+        "effect_allowed": True,
+    },
+    {
+        "level": "production_activation",
+        "label": "Production activation",
+        "meaning": "Capability affects live routing, canonical state, source-owner systems, or external authority.",
+        "allowed_in_blocker": False,
+        "effect_allowed": False,
+    },
+)
+
+
+def _support_level_taxonomy() -> list[dict[str, Any]]:
+    return [dict(item) for item in _SUPPORT_LEVEL_TAXONOMY]
+
+
+def _primitive_support_level(status: str) -> str:
+    if status.startswith("declared_only"):
+        return "descriptor_only"
+    if status.startswith("conditionally_materializable"):
+        return "executable_local"
+    if status.startswith("supported"):
+        return "executable_local"
+    return "local_dry_run_evaluation"
+
+
+def _primitive_support_blockers(primitive: str, status: str) -> list[str]:
+    if status.startswith("declared_only"):
+        return [
+            f"{primitive} is preserved as a declaration because the current "
+            "renderer cannot execute it safely.",
+            "Do not bind live tools, live retrievers, arbitrary imports, "
+            "filesystem, network, subprocess, or authority effects.",
+        ]
+    if status.startswith("conditionally_materializable"):
+        return [
+            "Materialization requires an explicit bounded local adapter declaration and receipt replay evidence.",
+            "External/live retrievers and authority effects remain disabled.",
+        ]
+    return []
+
+
+def _safe_next_actions_for_support(level: str, *, capability: str) -> list[str]:
+    if level == "descriptor_only":
+        return [
+            f"Keep {capability} hash-bound in the preview/intent contract.",
+            "Add an explicit safe adapter policy before allowing execution.",
+        ]
+    if level == "local_dry_run_evaluation":
+        return [
+            f"Validate {capability} through local schema/hash/preview checks only.",
+            "Promote to executable-local only after an explicit renderer/adapter contract exists.",
+        ]
+    if level == "executable_local":
+        return [
+            f"Materialize {capability} only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence.",
+        ]
+    return [
+        "Route production activation through the owner-authorized governance boundary; "
+        "this blocker does not grant activation authority."
+    ]
+
+
+def _primitive_support_classifications(
+    primitive_hints: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    classifications: list[dict[str, Any]] = []
+    for hint in primitive_hints:
+        primitive = str(hint.get("primitive") or "unknown")
+        status = str(hint.get("status") or "review_required")
+        level = _primitive_support_level(status)
+        classifications.append(
+            {
+                "capability_kind": "primitive",
+                "name": primitive,
+                "source_status": status,
+                "support_level": level,
+                "materialization_effects_allowed": level == "executable_local",
+                "blockers": _primitive_support_blockers(primitive, status),
+                "safe_next_actions": _safe_next_actions_for_support(
+                    level, capability=primitive
+                ),
+            }
+        )
+    return classifications
+
+
+def _topology_support_classifications(
+    generation_preview: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    classifications: list[dict[str, Any]] = []
+    candidates = generation_preview.get("topology_candidates")
+    if not isinstance(candidates, list):
+        return classifications
+    for raw_candidate in candidates:
+        if not isinstance(raw_candidate, Mapping):
+            continue
+        candidate = dict(raw_candidate)
+        kind = str(candidate.get("kind") or "unknown")
+        materializable_now = bool(candidate.get("materializable_now"))
+        level = "executable_local" if materializable_now else "descriptor_only"
+        blockers: list[str] = []
+        if not materializable_now:
+            blockers.append(
+                "Candidate is preview/contract evidence only until a bounded renderer "
+                "validates an executable subset."
+            )
+        boundary = str(candidate.get("safety_boundary") or "")
+        if boundary:
+            blockers.append(boundary)
+        classifications.append(
+            {
+                "capability_kind": "topology_candidate",
+                "name": kind,
+                "source": str(candidate.get("source") or "unknown"),
+                "support_level": level,
+                "materialization_effects_allowed": materializable_now,
+                "renderer": str(candidate.get("renderer") or ""),
+                "blockers": blockers,
+                "safe_next_actions": _safe_next_actions_for_support(
+                    level, capability=kind
+                ),
+            }
+        )
+    return classifications
+
+
+def _feature_support_level(
+    feature: str, *, intent: ProgramIntent, boundary: Mapping[str, Any]
+) -> str:
+    declared_module_primitives = _declared_module_primitives_for_support(intent)
+    if feature == "retrievers":
+        return (
+            "executable_local"
+            if _has_bounded_inline_retriever(intent)
+            else "descriptor_only"
+        )
+    if feature == "react":
+        return (
+            "executable_local"
+            if "ReAct" in declared_module_primitives
+            else "descriptor_only"
+        )
+    if feature == "program_of_thought":
+        return (
+            "executable_local"
+            if "ProgramOfThought" in declared_module_primitives
+            else "descriptor_only"
+        )
+    if feature in {"tools", "react_v2", "custom_modules"}:
+        return "descriptor_only"
+    status = str(boundary.get("status") or "")
+    if status == "not_requested":
+        return "descriptor_only"
+    return "local_dry_run_evaluation"
+
+
+def _declared_module_primitives_for_support(intent: ProgramIntent) -> set[str]:
+    modules = dict(intent.topology or {}).get("modules")
+    if not isinstance(modules, list):
+        return set()
+    return {
+        str(module.get("primitive") or "")
+        for module in modules
+        if isinstance(module, Mapping)
+    }
+
+
+def _feature_support_classifications(
+    generation_preview: Mapping[str, Any], intent: ProgramIntent
+) -> list[dict[str, Any]]:
+    boundaries = generation_preview.get("capability_boundaries")
+    if not isinstance(boundaries, Mapping):
+        return []
+    classifications: list[dict[str, Any]] = []
+    for feature, raw_boundary in boundaries.items():
+        if not isinstance(raw_boundary, Mapping):
+            continue
+        boundary = dict(raw_boundary)
+        requested = bool(boundary.get("need_detected") or boundary.get("requested"))
+        if not requested:
+            continue
+        feature_name = str(feature)
+        level = _feature_support_level(feature_name, intent=intent, boundary=boundary)
+        blockers = [str(boundary.get("boundary") or "Review before materialization.")]
+        if level == "descriptor_only":
+            blockers.append(
+                "No executable local adapter is enabled for this feature in the "
+                "current preview slice."
+            )
+        classifications.append(
+            {
+                "capability_kind": "feature_boundary",
+                "name": feature_name,
+                "source_status": str(boundary.get("status") or "review_required"),
+                "support_level": level,
+                "materialization_effects_allowed": level == "executable_local",
+                "blockers": blockers,
+                "safe_next_actions": _safe_next_actions_for_support(
+                    level, capability=feature_name
+                ),
+            }
+        )
+    return classifications
+
+
+def _support_level_preview(
+    *,
+    intent: ProgramIntent,
+    primitive_hints: list[dict[str, Any]],
+    generation_preview: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "schema_version": "program-support-level-preview-v1",
+        "status": "preview_only_not_materialization_authority",
+        "taxonomy": _support_level_taxonomy(),
+        "classifications": {
+            "primitives": _primitive_support_classifications(primitive_hints),
+            "topology_candidates": _topology_support_classifications(
+                generation_preview
+            ),
+            "features": _feature_support_classifications(generation_preview, intent),
+            "production_activation": {
+                "capability_kind": "authority_boundary",
+                "name": "production_activation",
+                "support_level": "production_activation",
+                "in_scope": False,
+                "materialization_effects_allowed": False,
+                "blockers": [
+                    "Generated-program artifacts remain non-authoritative.",
+                    "Activation requires a separate owner-authorized governance path.",
+                ],
+                "safe_next_actions": _safe_next_actions_for_support(
+                    "production_activation", capability="production_activation"
+                ),
+            },
+        },
+        "safe_next_actions": [
+            "Review support levels, blockers, missing evidence, and topology "
+            "candidates before materialization.",
+            "Treat descriptor-only capabilities as preserved contracts, not "
+            "executable behavior.",
+            "Keep production activation outside program-gen blocker #1 unless the "
+            "owning governance surface explicitly authorizes it.",
+        ],
+        "effect": {
+            "program_materialized": False,
+            "tool_called": False,
+            "retriever_called": False,
+            "custom_import_loaded": False,
+            "authority_mutated": False,
+        },
+    }
+
+
 def _effect() -> dict[str, bool]:
     return {
         "normalized_intent_written": False,
@@ -381,6 +657,8 @@ def build_program_intent_normalization(
         all_assumptions.append(
             "No explicit topology was supplied; topology hints are advisory only."
         )
+    primitive_hints = _primitive_hints(token_set, intent)
+    generation_preview = build_generation_assumption_preview(token_set, intent)
     return {
         "schema_version": PROGRAM_INTENT_NORMALIZATION_SCHEMA,
         "status": "normalized",
@@ -390,9 +668,12 @@ def build_program_intent_normalization(
         "assumptions": all_assumptions,
         "missing_evidence": _missing_evidence(intent),
         "topology_hints": _topology_hints(token_set),
-        "primitive_hints": _primitive_hints(token_set, intent),
-        "generation_assumptions_preview": build_generation_assumption_preview(
-            token_set, intent
+        "primitive_hints": primitive_hints,
+        "generation_assumptions_preview": generation_preview,
+        "support_level_preview": _support_level_preview(
+            intent=intent,
+            primitive_hints=primitive_hints,
+            generation_preview=generation_preview,
         ),
         "generation_risks": _generation_risks(token_set, intent),
         "next_actions": [

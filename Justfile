@@ -239,7 +239,7 @@ doctor:
   @uv --version
   @just --version
   @cue version
-  @command -v ak
+  @command -v ak || printf 'ak not found (AK runtime unavailable; continuing diagnostic)\n'
   @uv run --no-sync --package dspx-core -q python -m dspx.cli.dspx --help >/dev/null
   @uv run --no-sync --package dspx-forge -q python -m dspx_forge.cli --help >/dev/null
 

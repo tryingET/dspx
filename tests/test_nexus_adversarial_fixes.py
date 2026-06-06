@@ -1,4 +1,4 @@
-"""Tests for TG25 adversarial review fixes.
+"""Tests for adversarial review fixes.
 
 Validates each bug fix from the NEXUS implementation:
 1. Sanitize regex correctness

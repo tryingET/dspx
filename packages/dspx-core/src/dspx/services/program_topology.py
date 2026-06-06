@@ -815,6 +815,73 @@ def materializes_pipeline_topology(intent: Any) -> bool:
     return True
 
 
+def _scheduler_plan_for_topology(topology: Mapping[str, Any]) -> dict[str, Any]:
+    modules = [
+        dict(item) for item in topology.get("modules", []) if isinstance(item, Mapping)
+    ]
+    edges = [
+        dict(item) for item in topology.get("edges", []) if isinstance(item, Mapping)
+    ]
+    module_ids = [_module_id(module) for module in modules]
+    module_id_set = set(module_ids)
+    adjacency: dict[str, set[str]] = {module_id: set() for module_id in module_ids}
+    indegree: dict[str, int] = {module_id: 0 for module_id in module_ids}
+    inbound_edges: dict[str, list[dict[str, Any]]] = {
+        module_id: [] for module_id in module_ids
+    }
+    output_producers: list[str] = []
+    for edge in edges:
+        source = str(edge.get("from") or "")
+        target = str(edge.get("to") or "")
+        if target in module_id_set:
+            inbound_edges[target].append(edge)
+        if source in module_id_set and target in module_id_set:
+            if target not in adjacency[source]:
+                adjacency[source].add(target)
+                indegree[target] += 1
+        if source in module_id_set and target == "output":
+            output_producers.append(source)
+
+    declaration_index = {module_id: index for index, module_id in enumerate(module_ids)}
+    ready = [module_id for module_id in module_ids if indegree[module_id] == 0]
+    scheduled: list[str] = []
+    while ready:
+        ready.sort(key=lambda module_id: declaration_index[module_id])
+        module_id = ready.pop(0)
+        scheduled.append(module_id)
+        for target in sorted(
+            adjacency[module_id], key=lambda item: declaration_index[item]
+        ):
+            indegree[target] -= 1
+            if indegree[target] == 0:
+                ready.append(target)
+
+    return {
+        "schema_version": "program-topology-scheduler-plan-v1",
+        "status": "deterministic_local_dag_schedule",
+        "scheduler": "bounded_ready_queue",
+        "module_order": scheduled,
+        "declaration_order": module_ids,
+        "output_producers": output_producers,
+        "module_readiness": {
+            module_id: {
+                "required_inputs": _signature_inputs(module),
+                "produced_outputs": _signature_outputs(module),
+                "inbound_edges": inbound_edges[module_id],
+                "primitive": str(module.get("primitive") or "Predict"),
+            }
+            for module_id, module in zip(module_ids, modules, strict=True)
+        },
+        "effect": {
+            "provider_called": False,
+            "tool_called": False,
+            "retriever_called": False,
+            "custom_import_loaded": False,
+            "authority_mutated": False,
+        },
+    }
+
+
 def materialized_pipeline_topology(intent: Any) -> dict[str, Any]:
     topology = validate_materializable_pipeline_topology(intent)
     if not topology:
@@ -828,6 +895,7 @@ def materialized_pipeline_topology(intent: Any) -> dict[str, Any]:
         materialized["renderer"] = _renderer_for_kind(declared_kind)
     else:
         materialized["execution_status"] = PIPELINE_MATERIALIZED_STATUS
+    materialized["scheduler_plan"] = _scheduler_plan_for_topology(materialized)
     return materialized
 
 
@@ -1166,6 +1234,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"MATERIALIZED_TOPOLOGY = {materialized_topology!r}",
             f"TOPOLOGY_EXECUTION_STATUS = {materialized_topology.get('execution_status', PIPELINE_MATERIALIZED_STATUS)!r}",
             f"MATERIALIZATION_SCOPE = {materialization_scope!r}",
+            f"SCHEDULER_PLAN = {dict(materialized_topology.get('scheduler_plan') or {})!r}",
             f"MODULE_ORDER = {[_module_id(module) for module in modules]!r}",
             f"MODULE_SIGNATURES = {module_signatures!r}",
             f"MODULE_PRIMITIVES = {module_primitives!r}",
@@ -1492,6 +1561,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             "        'materialized_topology': dict(MATERIALIZED_TOPOLOGY),",
             "        'topology_execution_status': TOPOLOGY_EXECUTION_STATUS,",
             "        'materialization_scope': dict(MATERIALIZATION_SCOPE),",
+            "        'scheduler_plan': dict(SCHEDULER_PLAN),",
             "        'module_order': list(MODULE_ORDER),",
             f"        'program_class': {program_class!r},",
             "    }",

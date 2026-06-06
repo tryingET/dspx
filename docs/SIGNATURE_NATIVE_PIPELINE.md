@@ -135,7 +135,7 @@ Rollback posture:
 
 Publish
 -------
-- Update docs and status files (`README.md`, `PROJECT_STATUS.md`, and the project direction stack under `docs/project/`).
+- Update docs and status files (`README.md`, `PROJECT_STATUS.md`, and relevant `docs/project/` projections while keeping AK direction runtime authoritative where landed).
 - Release core package (`dspx-core`) using package-scoped flow:
   - `just release-core new=X.Y.Z`
   - `just tag-core v=X.Y.Z`

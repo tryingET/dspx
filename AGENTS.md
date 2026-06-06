@@ -25,12 +25,14 @@ Provide behavioral intelligence for DSPy programs through Oracle analysis and re
 - The owning domain or delegated governing body is the judge; AK/current accepted runtime authority records canonical decision/evidence/transition truth where landed.
 
 ## Read Order
-1. `docs/system4d/compass.md` — Direction
+1. `docs/system4d/compass.md` — Direction projection
 2. `docs/ARCHITECTURE.md` — System design
 3. `docs/project/vision.md` — Canonical long-horizon direction
-4. `docs/project/strategic_goals.md` — Current strategic frontier
-5. `docs/project/tactical_goals.md` — Current tactical frontier
+4. `docs/project/product-posture.md` — Shipped-vs-target product posture
+5. `docs/project/program-gen-broadening-strategic-frame.md` — Program-gen blocker #1 implementation frame when relevant
 6. `docs/learnings/` — Crystallized patterns
+
+Active direction and execution truth live in AK direction/task/decision runtime where landed. Checked-in direction docs are projections/orientation, not a parallel authority.
 
 ## Stack
 - Python 3.13 + uv + just

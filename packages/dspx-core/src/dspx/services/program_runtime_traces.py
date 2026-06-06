@@ -115,6 +115,29 @@ def _surface_react_tool_refs(surface: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _surface_tool_call_intents(surface: Mapping[str, Any]) -> list[dict[str, Any]]:
+    tool_refs = _surface_react_tool_refs(surface)
+    return [
+        {
+            "schema_version": "program-runtime-tool-call-intent-v1",
+            "tool_id": tool_id,
+            "status": "declared_intent_shape_not_executed",
+            "adapter_dry_run_required": True,
+            "tool_call_executed": False,
+            "dspy_tool_bound": False,
+            "result_recorded": False,
+            "effects": {
+                "tool_called": False,
+                "network": False,
+                "filesystem": False,
+                "subprocess": False,
+                "external_authority_mutated": False,
+            },
+        }
+        for tool_id in tool_refs["declared_tool_refs"]
+    ]
+
+
 def _trajectory_slots(
     primitive: str, call: Mapping[str, Any], surface: Mapping[str, Any] | None = None
 ) -> dict[str, Any]:
@@ -122,7 +145,7 @@ def _trajectory_slots(
         return {
             "react_steps": _jsonable(call.get("react_steps") or []),
             "react_history": _jsonable(call.get("history") or []),
-            "tool_call_intents": [],
+            "tool_call_intents": _surface_tool_call_intents(surface or {}),
             "tool_call_results": [],
             "tool_refs": _surface_react_tool_refs(surface or {}),
             "tool_calls_executed": False,
@@ -132,7 +155,7 @@ def _trajectory_slots(
             "react_v2_steps": _jsonable(call.get("react_v2_steps") or []),
             "react_v2_history": _jsonable(call.get("history") or []),
             "final_submit": _jsonable(call.get("final_submit") or {}),
-            "tool_call_intents": [],
+            "tool_call_intents": _surface_tool_call_intents(surface or {}),
             "tool_call_results": [],
             "tool_refs": _surface_react_tool_refs(surface or {}),
             "tool_calls_executed": False,
@@ -310,15 +333,69 @@ def _effects_safe(value: object) -> bool:
     return all(payload.get(key) is False for key in forbidden_true)
 
 
+def _tool_call_intents_safe(value: object) -> bool:
+    if value in (None, []):
+        return True
+    if not isinstance(value, list):
+        return False
+    allowed_keys = {
+        "schema_version",
+        "tool_id",
+        "status",
+        "adapter_dry_run_required",
+        "tool_call_executed",
+        "dspy_tool_bound",
+        "result_recorded",
+        "effects",
+    }
+    effect_keys = {
+        "tool_called",
+        "network",
+        "filesystem",
+        "subprocess",
+        "external_authority_mutated",
+    }
+    for raw_intent in value:
+        if not isinstance(raw_intent, Mapping):
+            return False
+        intent = dict(raw_intent)
+        if set(intent) != allowed_keys:
+            return False
+        if intent.get("schema_version") != "program-runtime-tool-call-intent-v1":
+            return False
+        if not isinstance(intent.get("tool_id"), str) or not intent.get("tool_id"):
+            return False
+        if intent.get("status") != "declared_intent_shape_not_executed":
+            return False
+        if intent.get("adapter_dry_run_required") is not True:
+            return False
+        for key in ("tool_call_executed", "dspy_tool_bound", "result_recorded"):
+            if intent.get(key) is not False:
+                return False
+        effects = intent.get("effects")
+        if not isinstance(effects, Mapping) or set(effects) != effect_keys:
+            return False
+        if any(effects.get(key) is not False for key in effect_keys):
+            return False
+    return True
+
+
 def _trajectory_slots_safe(value: object) -> bool:
     if not isinstance(value, Mapping):
         return False
     payload = dict(value)
     if payload.get("tool_calls_executed") is not False:
         return False
-    for key in ("tool_call_intents", "tool_call_results"):
-        raw = payload.get(key, [])
-        if raw not in ([], None):
+    if not _tool_call_intents_safe(payload.get("tool_call_intents", [])):
+        return False
+    raw_results = payload.get("tool_call_results", [])
+    if raw_results not in ([], None):
+        return False
+    tool_refs = payload.get("tool_refs")
+    if isinstance(tool_refs, Mapping):
+        if tool_refs.get("tool_binding_allowed") is not False:
+            return False
+        if tool_refs.get("executable_tools") != []:
             return False
     return True
 

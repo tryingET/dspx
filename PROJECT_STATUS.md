@@ -90,7 +90,7 @@ Executed on current working tree:
 - Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
 - **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side work: capabilities infrastructure DONE (`11dd6ee`), CLI fast-fail DONE (`a191016`), implementation review DONE (`ac571b5`), TemplateAdapterConfig DTO DONE (`220e0ae` with 21 tests), YAML schema validation DONE (`f4e1408` with 14 tests), --dry-run flag DONE (`aca0912` with 3 tests). **All DSPx-side prerequisites complete.** Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
 
-## Strategic next direction
+## Next direction
 
 - **Behavioral Oracle Phase B COMPLETE:** Territory mapping, contracts, frontiers, and attractors now implemented. 47 Phase B tests + integration tests.
 - **Tech debt addressed:** Long CLI command functions refactored into focused action handlers (~60% reduction in individual function size for contract/frontiers/attractors commands).
@@ -106,9 +106,8 @@ Executed on current working tree:
 - `docs/SUBAGENT_WORKFLOW.md`
 - `PROJECT_STATUS.md`
 - `docs/project/vision.md`
-- `docs/project/strategic_goals.md`
-- `docs/project/tactical_goals.md`
-- `docs/project/operational_goals.md`
+- `docs/project/product-posture.md`
+- AK direction/task/decision runtime where landed
 
 ## Recommended posture
 

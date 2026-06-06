@@ -2086,6 +2086,12 @@ def test_program_architect_tournament_materializes_declared_inline_retriever_can
     assert materialized["replay_check"]["status"] == "ok"
     assert manifest["topology_execution"]["status"] == "pipeline_materialized"
     assert manifest["topology_execution"]["materialized"] is True
+    scheduler_plan = manifest["program_plan"]["materialized_topology"]["scheduler_plan"]
+    assert scheduler_plan["schema_version"] == "program-topology-scheduler-plan-v1"
+    assert scheduler_plan["status"] == "deterministic_local_dag_schedule"
+    assert scheduler_plan["module_order"] == ["retrieve_context"]
+    assert scheduler_plan["output_producers"] == ["retrieve_context"]
+    assert scheduler_plan["effect"]["retriever_called"] is False
     assert (root / "program_capability_registry.json").exists()
     capability_registry = json.loads(
         (root / "program_capability_registry.json").read_text()

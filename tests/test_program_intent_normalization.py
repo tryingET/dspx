@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from dspx.cache import sha256_text
@@ -15,6 +16,13 @@ from dspx.services.program_intent_normalization import (
 )
 
 runner = CliRunner()
+
+
+def _support_by_name(payload: dict, bucket: str) -> dict[str, dict]:
+    return {
+        item["name"]: item
+        for item in payload["support_level_preview"]["classifications"][bucket]
+    }
 
 
 def test_prompt_normalization_emits_valid_intent_hints_and_missing_evidence() -> None:
@@ -46,6 +54,23 @@ def test_prompt_normalization_emits_valid_intent_hints_and_missing_evidence() ->
         "router"
     ]
     assert preview["capability_boundaries"]["tools"]["enabled"] is False
+    support_preview = payload["support_level_preview"]
+    assert support_preview["schema_version"] == "program-support-level-preview-v1"
+    assert [item["level"] for item in support_preview["taxonomy"]] == [
+        "descriptor_only",
+        "local_dry_run_evaluation",
+        "executable_local",
+        "production_activation",
+    ]
+    primitive_support = _support_by_name(payload, "primitives")
+    assert primitive_support["Predict"]["support_level"] == "executable_local"
+    assert primitive_support["ChainOfThought"]["support_level"] == "executable_local"
+    topology_support = _support_by_name(payload, "topology_candidates")
+    assert topology_support["router"]["support_level"] == "executable_local"
+    production = support_preview["classifications"]["production_activation"]
+    assert production["in_scope"] is False
+    assert production["materialization_effects_allowed"] is False
+    assert support_preview["effect"]["authority_mutated"] is False
     assert payload["effect"]["program_materialized"] is False
     assert payload["effect"]["provider_called"] is False
     assert payload["effect"]["oracle_index_mutated"] is False
@@ -80,6 +105,17 @@ def test_prompt_normalization_surfaces_unsupported_primitive_risk() -> None:
     assert preview["capability_boundaries"]["retrievers"]["need_detected"] is True
     assert any(
         risk["kind"] == "unsupported_primitive" for risk in payload["generation_risks"]
+    )
+    primitive_support = _support_by_name(payload, "primitives")
+    assert primitive_support["Retriever"]["support_level"] == "descriptor_only"
+    assert primitive_support["ReAct"]["support_level"] == "descriptor_only"
+    assert primitive_support["ReAct"]["blockers"]
+    feature_support = _support_by_name(payload, "features")
+    assert feature_support["tools"]["support_level"] == "descriptor_only"
+    assert feature_support["retrievers"]["support_level"] == "descriptor_only"
+    assert all(
+        not item["materialization_effects_allowed"]
+        for item in [feature_support["tools"], feature_support["retrievers"]]
     )
     intent = ProgramIntent.model_validate(payload["normalized_intent"])
     assert intent.inputs == ["question", "document_text"]
@@ -285,6 +321,10 @@ def test_explicit_bounded_retriever_normalization_is_not_reported_unsupported() 
     assert not any(
         risk["kind"] == "unsupported_primitive" for risk in payload["generation_risks"]
     )
+    primitive_support = _support_by_name(payload, "primitives")
+    assert primitive_support["Retriever"]["support_level"] == "executable_local"
+    assert primitive_support["Retriever"]["materialization_effects_allowed"] is True
+    assert primitive_support["Retriever"]["safe_next_actions"]
 
 
 def test_normalize_intent_cli_writes_sidecar_and_loadable_intent(
@@ -394,3 +434,163 @@ def test_normalize_intent_cli_requires_exactly_one_source(tmp_path: Path) -> Non
 
     assert result.exit_code == 2
     assert "exactly one" in result.output
+
+
+def _topology_intent(topology: dict) -> dict:
+    return {
+        "name": "TopologyContractProgram",
+        "objective": "Validate a declared topology contract.",
+        "inputs": ["question"],
+        "outputs": ["answer"],
+        "topology": topology,
+    }
+
+
+def test_program_intent_topology_contract_rejects_missing_final_output_producer() -> (
+    None
+):
+    with pytest.raises(ValueError, match="final-output producer"):
+        ProgramIntent.model_validate(
+            _topology_intent(
+                {
+                    "kind": "pipeline",
+                    "execution_status": "declared_not_materialized",
+                    "modules": [
+                        {
+                            "id": "answer_question",
+                            "primitive": "ChainOfThought",
+                            "signature": {
+                                "name": "AnswerQuestion",
+                                "inputs": ["question"],
+                                "outputs": ["answer"],
+                            },
+                        }
+                    ],
+                    "edges": [{"from": "input", "to": "answer_question"}],
+                }
+            )
+        )
+
+
+def test_program_intent_topology_contract_rejects_disconnected_modules() -> None:
+    with pytest.raises(ValueError, match="disconnected"):
+        ProgramIntent.model_validate(
+            _topology_intent(
+                {
+                    "kind": "pipeline",
+                    "execution_status": "declared_not_materialized",
+                    "modules": [
+                        {
+                            "id": "extract_question",
+                            "primitive": "Predict",
+                            "signature": {
+                                "name": "ExtractQuestion",
+                                "inputs": ["question"],
+                                "outputs": ["extracted_question"],
+                            },
+                        },
+                        {
+                            "id": "answer_question",
+                            "primitive": "ChainOfThought",
+                            "signature": {
+                                "name": "AnswerQuestion",
+                                "inputs": ["question"],
+                                "outputs": ["answer"],
+                            },
+                        },
+                    ],
+                    "edges": [
+                        {"from": "input", "to": "answer_question"},
+                        {"from": "answer_question", "to": "output"},
+                    ],
+                }
+            )
+        )
+
+
+def test_program_intent_topology_contract_rejects_cycles() -> None:
+    with pytest.raises(ValueError, match="acyclic"):
+        ProgramIntent.model_validate(
+            _topology_intent(
+                {
+                    "kind": "pipeline",
+                    "execution_status": "declared_not_materialized",
+                    "modules": [
+                        {
+                            "id": "draft_answer",
+                            "primitive": "ChainOfThought",
+                            "signature": {
+                                "name": "DraftAnswer",
+                                "inputs": ["question"],
+                                "outputs": ["draft"],
+                            },
+                        },
+                        {
+                            "id": "revise_answer",
+                            "primitive": "ChainOfThought",
+                            "signature": {
+                                "name": "ReviseAnswer",
+                                "inputs": ["question", "draft"],
+                                "outputs": ["answer"],
+                            },
+                        },
+                    ],
+                    "edges": [
+                        {"from": "input", "to": "draft_answer"},
+                        {"from": "draft_answer", "to": "revise_answer"},
+                        {"from": "revise_answer", "to": "draft_answer"},
+                        {"from": "revise_answer", "to": "output"},
+                    ],
+                }
+            )
+        )
+
+
+def test_program_intent_topology_contract_accepts_fan_in_dag() -> None:
+    intent = ProgramIntent.model_validate(
+        _topology_intent(
+            {
+                "kind": "generate_critique_revise",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "generate_draft",
+                        "primitive": "ChainOfThought",
+                        "signature": {
+                            "name": "GenerateDraft",
+                            "inputs": ["question"],
+                            "outputs": ["draft"],
+                        },
+                    },
+                    {
+                        "id": "critique_draft",
+                        "primitive": "ChainOfThought",
+                        "signature": {
+                            "name": "CritiqueDraft",
+                            "inputs": ["question", "draft"],
+                            "outputs": ["critique"],
+                        },
+                    },
+                    {
+                        "id": "revise_final",
+                        "primitive": "ChainOfThought",
+                        "signature": {
+                            "name": "ReviseFinal",
+                            "inputs": ["question", "draft", "critique"],
+                            "outputs": ["answer"],
+                        },
+                    },
+                ],
+                "edges": [
+                    {"from": "input", "to": "generate_draft"},
+                    {"from": "generate_draft", "to": "critique_draft"},
+                    {"from": "generate_draft", "to": "revise_final"},
+                    {"from": "critique_draft", "to": "revise_final"},
+                    {"from": "revise_final", "to": "output"},
+                ],
+            }
+        )
+    )
+
+    assert intent.topology["kind"] == "generate_critique_revise"
+    assert intent.topology["edges"][-1] == {"from": "revise_final", "to": "output"}

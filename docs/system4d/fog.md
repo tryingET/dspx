@@ -34,7 +34,7 @@ read_when:
 |------|----------|-------------|
 | Template adapter upstream issues | Exact-fidelity adapter remains deferred | Monitor upstream while using provider-runtime v4 for the supported local path |
 | Oracle coverage heuristics are approximate | May mislead users | Document as heuristic, improve with data |
-| Knowledge crystallization and roadmap notes previously embedded in `NEXT_STEPS.md` | Mixed concerns | Migrated to `docs/learnings/` and the canonical `docs/project/` direction stack; `NEXT_STEPS.md` retired |
+| Knowledge crystallization and roadmap notes previously embedded in `NEXT_STEPS.md` | Mixed concerns | Migrated to `docs/learnings/` and AK direction/projection surfaces; `NEXT_STEPS.md` retired |
 
 ## What's Clear
 

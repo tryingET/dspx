@@ -575,14 +575,22 @@ def _risk_max(risks: list[str]) -> str:
     return max(risks, key=lambda item: RISK_ORDER[item])
 
 
+def _existing_repo_paths(paths: list[str]) -> list[str]:
+    return [path for path in paths if (ROOT / path).exists()]
+
+
 def _lintable(paths: list[str]) -> list[str]:
-    return [path for path in paths if Path(path).suffix in LINTABLE_SUFFIXES]
+    return [
+        path
+        for path in _existing_repo_paths(paths)
+        if Path(path).suffix in LINTABLE_SUFFIXES
+    ]
 
 
 def _touched_tests(paths: list[str]) -> list[str]:
     return [
         path
-        for path in paths
+        for path in _existing_repo_paths(paths)
         if path.startswith("tests/test_") and path.endswith(".py")
     ]
 

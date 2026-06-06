@@ -12,9 +12,21 @@ class Issue:
     message: str
 
 
-RETIRED_DIRECTION_FILES = (
+RETIRED_DIRECTION_GLOBS = (
     "next_session_prompt.md",
-    "docs/project/operational_goals.md",
+    "docs/project/*_goals.md",
+)
+
+REQUIRED_READ_ORDER = (
+    "docs/project/vision.md",
+    "docs/project/product-posture.md",
+)
+
+REQUIRED_AK_DIRECTION_TEXT = "AK direction"
+
+
+_RETIRED_READ_ORDER_PATTERN = re.compile(
+    r"next_session_prompt\.md|docs/project/[A-Za-z0-9_-]+_goals\.md"
 )
 
 
@@ -26,83 +38,57 @@ def _require_text(root: Path, relpath: str, issues: list[Issue]) -> str | None:
     return path.read_text(encoding="utf-8")
 
 
-def _extract_marker(
-    text: str, label: str, relpath: str, issues: list[Issue]
-) -> str | None:
-    pattern = rf"{re.escape(label)}\s*`([^`]+)`"
-    match = re.search(pattern, text)
-    if match:
-        return match.group(1)
-    issues.append(Issue(Path(relpath), f"missing marker: {label} `...`"))
-    return None
+def _iter_retired_paths(root: Path) -> list[Path]:
+    paths: list[Path] = []
+    for pattern in RETIRED_DIRECTION_GLOBS:
+        paths.extend(path for path in root.glob(pattern) if path.exists())
+    return sorted(set(paths))
 
 
 def collect_issues(root: Path) -> list[Issue]:
     root = root.resolve()
     issues: list[Issue] = []
 
-    for relpath in RETIRED_DIRECTION_FILES:
-        if (root / relpath).exists():
-            issues.append(
-                Issue(Path(relpath), "retired AK-native direction file still exists")
-            )
-
-    agents = _require_text(root, "AGENTS.md", issues)
-    strategic = _require_text(root, "docs/project/strategic_goals.md", issues)
-    tactical = _require_text(root, "docs/project/tactical_goals.md", issues)
-    if any(item is None for item in (agents, strategic, tactical)):
-        return issues
-
-    assert agents is not None
-    assert strategic is not None
-    assert tactical is not None
-
-    strategic_active = _extract_marker(
-        strategic, "Active strategic goal:", "docs/project/strategic_goals.md", issues
-    )
-    tactical_strategic = _extract_marker(
-        tactical, "Active strategic goal:", "docs/project/tactical_goals.md", issues
-    )
-    _extract_marker(
-        tactical, "Active tactical goal:", "docs/project/tactical_goals.md", issues
-    )
-    if (
-        strategic_active
-        and tactical_strategic
-        and strategic_active != tactical_strategic
-    ):
+    for path in _iter_retired_paths(root):
         issues.append(
             Issue(
-                Path("docs/project/tactical_goals.md"),
-                f"active strategic goal mismatch with strategic_goals.md ({tactical_strategic} != {strategic_active})",
+                path.relative_to(root),
+                "retired file still exists; use AK direction runtime",
             )
         )
 
-    required_read_order = [
-        "docs/project/vision.md",
-        "docs/project/strategic_goals.md",
-        "docs/project/tactical_goals.md",
-    ]
-    for needle in required_read_order:
+    agents = _require_text(root, "AGENTS.md", issues)
+    if agents is None:
+        return issues
+
+    for needle in REQUIRED_READ_ORDER:
         if needle not in agents:
             issues.append(
                 Issue(Path("AGENTS.md"), f"missing read-order reference: {needle}")
             )
-    for retired in RETIRED_DIRECTION_FILES:
-        if retired in agents:
-            issues.append(
-                Issue(
-                    Path("AGENTS.md"),
-                    f"retired read-order reference remains: {retired}",
-                )
+
+    if REQUIRED_AK_DIRECTION_TEXT not in agents:
+        issues.append(
+            Issue(
+                Path("AGENTS.md"),
+                "missing AK direction authority reminder",
             )
+        )
+
+    for match in _RETIRED_READ_ORDER_PATTERN.finditer(agents):
+        issues.append(
+            Issue(
+                Path("AGENTS.md"),
+                f"retired read-order reference remains: {match.group(0)}",
+            )
+        )
 
     return issues
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Check DSPx direction-to-execution coherence across AK-native direction docs"
+        description="Check DSPx direction-to-execution coherence against AK-native direction posture"
     )
     parser.add_argument("--root", type=Path, default=Path("."))
     args = parser.parse_args()

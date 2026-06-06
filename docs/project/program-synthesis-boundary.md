@@ -355,16 +355,13 @@ This document does **not**:
 - define the final code/API surface for every runtime object,
 - authorize implementation work by itself,
 - define live promotion policy,
-- replace current active SG/TG repo truth,
+- replace AK direction/task/decision authority,
 - collapse Oracle into governance authority,
 - require immediate changes to `module_service`, `program_service`, or `optimize_service`.
 
 ## Relationship to current repo direction
 
-Current repo direction remains truthful as-is unless explicitly refreshed:
-- active strategic goal remains `SG2`,
-- active tactical goal remains `TG25`,
-- `docs/project/operational_goals.md` currently says no repo-scoped implementation slice is pinned.
+AK direction/task/decision runtime is the active direction and execution authority where landed. Checked-in docs such as [[vision]] and [[product-posture]] are projections/orientation unless imported or reconciled through AK.
 
 This document clarifies the target-state runtime ontology.
 It does not by itself change active execution truth.

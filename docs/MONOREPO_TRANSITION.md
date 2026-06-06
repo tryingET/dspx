@@ -61,4 +61,4 @@ When bumping Forge lower bound:
 1. Update `apps/forge/pyproject.toml` bound.
 2. Create/push matching core lower-bound tag (`dspx-core-v<new-lower-bound>`).
 3. Re-run `just forge-core-compat-matrix`.
-4. Update docs: `README.md`, `PROJECT_STATUS.md`, and the project direction stack under `docs/project/`.
+4. Update docs: `README.md`, `PROJECT_STATUS.md`, and relevant `docs/project/` projections while keeping AK direction runtime authoritative where landed.

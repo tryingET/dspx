@@ -279,6 +279,125 @@ def _normalize_topology_edge(
     return normalized
 
 
+def _reachable_from(start: str, adjacency: Mapping[str, set[str]]) -> set[str]:
+    seen: set[str] = set()
+    stack = [start]
+    while stack:
+        current = stack.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        stack.extend(sorted(adjacency.get(current, set()) - seen))
+    return seen
+
+
+def _topology_module_cycle(
+    module_ids: set[str], edges: list[dict[str, Any]]
+) -> list[str]:
+    adjacency: dict[str, set[str]] = {module_id: set() for module_id in module_ids}
+    for edge in edges:
+        source = str(edge["from"])
+        target = str(edge["to"])
+        if source in module_ids and target in module_ids:
+            adjacency[source].add(target)
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    path: list[str] = []
+
+    def visit(node: str) -> list[str]:
+        if node in visiting:
+            start = path.index(node) if node in path else 0
+            return [*path[start:], node]
+        if node in visited:
+            return []
+        visiting.add(node)
+        path.append(node)
+        for target in sorted(adjacency.get(node, set())):
+            cycle = visit(target)
+            if cycle:
+                return cycle
+        path.pop()
+        visiting.remove(node)
+        visited.add(node)
+        return []
+
+    for module_id in sorted(module_ids):
+        cycle = visit(module_id)
+        if cycle:
+            return cycle
+    return []
+
+
+def _validate_topology_graph_contract(
+    *, kind: str, modules: list[dict[str, Any]], edges: list[dict[str, Any]]
+) -> None:
+    """Fail closed on malformed declared topology graphs before materialization.
+
+    The topology remains a declared planning contract in this slice. These checks
+    make the contract explicit enough for later renderers by rejecting graphs that
+    cannot be interpreted without inventing hidden execution semantics.
+    """
+
+    module_ids = {str(module["id"]) for module in modules}
+    if kind == "single_module" and not edges:
+        if not modules:
+            return
+        raise ValueError(
+            "program intent topology.edges must connect input, declared modules, "
+            "and output when single_module topology declares modules"
+        )
+    if kind != "single_module" and not edges:
+        raise ValueError(
+            "program intent topology.edges must include at least one edge when "
+            "topology.kind is not single_module"
+        )
+    if not modules:
+        return
+    if not any(str(edge["from"]) == "input" for edge in edges):
+        raise ValueError(
+            "program intent topology.edges must include an input edge to at least "
+            "one declared module"
+        )
+    if not any(str(edge["to"]) == "output" for edge in edges):
+        raise ValueError(
+            "program intent topology.edges must include at least one final-output "
+            "producer edge to output"
+        )
+
+    adjacency: dict[str, set[str]] = {"input": set(), "output": set()}
+    reverse_adjacency: dict[str, set[str]] = {"input": set(), "output": set()}
+    for module_id in module_ids:
+        adjacency[module_id] = set()
+        reverse_adjacency[module_id] = set()
+    for edge in edges:
+        source = str(edge["from"])
+        target = str(edge["to"])
+        adjacency[source].add(target)
+        reverse_adjacency[target].add(source)
+
+    reachable = _reachable_from("input", adjacency)
+    can_reach_output = _reachable_from("output", reverse_adjacency)
+    unreachable = sorted(module_ids - reachable)
+    dead_ends = sorted(module_ids - can_reach_output)
+    if unreachable or dead_ends:
+        details: list[str] = []
+        if unreachable:
+            details.append(f"unreachable from input: {unreachable}")
+        if dead_ends:
+            details.append(f"cannot reach output: {dead_ends}")
+        raise ValueError(
+            "program intent topology graph is disconnected; " + "; ".join(details)
+        )
+
+    cycle = _topology_module_cycle(module_ids, edges)
+    if cycle:
+        raise ValueError(
+            "program intent topology graph must be acyclic; cycle detected: "
+            + " -> ".join(cycle)
+        )
+
+
 def normalize_program_topology(value: object) -> dict[str, Any]:
     """Normalize and validate a declared program-intent topology contract.
 
@@ -336,6 +455,7 @@ def normalize_program_topology(value: object) -> dict[str, Any]:
     edges = [
         _normalize_topology_edge(item, allowed_refs=allowed_refs) for item in raw_edges
     ]
+    _validate_topology_graph_contract(kind=kind, modules=modules, edges=edges)
 
     return {
         "kind": kind,

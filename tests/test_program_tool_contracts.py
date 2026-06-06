@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -10,7 +11,11 @@ from dspx.services.program_generated_policy import build_program_generated_modul
 from dspx.services.program_service import ProgramIntent, materialize_program_from_intent
 from dspx.services.program_promotion import promotion_policy
 from dspx.services.program_tool_contracts import build_program_tool_contracts
-from dspx.services.run_replay_service import check_run_receipt
+from dspx.services.run_replay_service import (
+    _generated_tool_adapter_dry_run_valid,
+    _generated_tool_adapter_source_semantic_valid,
+    check_run_receipt,
+)
 
 
 MODULE_SURFACES = {
@@ -39,6 +44,16 @@ def _configure_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
+
+
+def _stable_json_hash(payload: object) -> str:
+    text = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _tool_intent() -> ProgramIntent:
@@ -224,6 +239,52 @@ def test_promotion_policy_preserves_quoted_false_values() -> None:
     }
 
 
+def test_replay_tool_adapter_dry_run_validation_is_structural_not_executing() -> None:
+    contracts = build_program_tool_contracts(_tool_intent())
+    contract = contracts["contracts"][0]
+    source = contract["generated_adapter"]["source_preview"]
+    source_with_top_level_effect = (
+        source + "\nraise RuntimeError('top-level execution')\n"
+    )
+    expected_result = {
+        "schema_version": "program-tool-adapter-dry-run-v1",
+        "tool_id": "lookup_policy",
+        "status": "validated_not_executed",
+        "args_fields": ["question"],
+        "return_fields": ["answer"],
+        "return_validated": True,
+        "effects": {
+            "tool_called": False,
+            "dspy_tool_bound": False,
+            "network": False,
+            "filesystem": False,
+            "subprocess": False,
+            "external_authority_mutated": False,
+        },
+    }
+
+    assert (
+        _generated_tool_adapter_dry_run_valid(
+            source_with_top_level_effect,
+            tool_id="lookup_policy",
+            args_schema=contract["args_schema"],
+            return_schema=contract["return_schema"],
+            expected_result=expected_result,
+        )
+        is True
+    )
+    assert (
+        _generated_tool_adapter_source_semantic_valid(
+            source_with_top_level_effect,
+            tool_id="lookup_policy",
+            effect_class="pure",
+            args_schema=contract["args_schema"],
+            return_schema=contract["return_schema"],
+        )
+        is False
+    )
+
+
 def test_program_gen_writes_and_replay_checks_tool_contracts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -253,17 +314,63 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
     generated_adapter = contracts["contracts"][0]["generated_adapter"]
     original_adapter_hash = str(generated_adapter["content_hash"])
     assert generated_adapter["exists"] is True
+    expected_dry_run_effects = {
+        "tool_called": False,
+        "dspy_tool_bound": False,
+        "network": False,
+        "filesystem": False,
+        "subprocess": False,
+        "external_authority_mutated": False,
+    }
+    expected_dry_run_with_return = {
+        "schema_version": "program-tool-adapter-dry-run-v1",
+        "tool_id": "lookup_policy",
+        "status": "validated_not_executed",
+        "args_fields": ["question"],
+        "return_fields": ["answer"],
+        "return_validated": True,
+        "effects": expected_dry_run_effects,
+    }
     assert generated_adapter["validation"] == {
         "schema_version": "program-tool-generated-adapter-validation-v1",
         "status": "validated_not_bound_not_executed",
         "source_compiles": True,
         "constants_match_contract": True,
         "source_hash_matches_artifact": True,
+        "dry_run_supported": True,
+        "dry_run_expected_result": expected_dry_run_with_return,
         "execution_allowed": False,
         "dspy_tool_binding_allowed": False,
         "imported_by_generated_program": False,
     }
-    compile(generated_adapter["source_preview"], "lookup_policy_adapter.py", "exec")
+    namespace: dict[str, object] = {}
+    exec(
+        compile(
+            generated_adapter["source_preview"], "lookup_policy_adapter.py", "exec"
+        ),
+        namespace,
+    )
+    assert namespace["validate_args"]({"question": "q"}) == {"question": "q"}
+    assert namespace["validate_return"]({"answer": "a"}) == {"answer": "a"}
+    assert namespace["adapter_dry_run"]({"question": "q"}) == {
+        "schema_version": "program-tool-adapter-dry-run-v1",
+        "tool_id": "lookup_policy",
+        "status": "validated_not_executed",
+        "args_fields": ["question"],
+        "return_fields": [],
+        "return_validated": False,
+        "effects": expected_dry_run_effects,
+    }
+    assert (
+        namespace["adapter_dry_run"]({"question": "q"}, expected_return={"answer": "a"})
+        == expected_dry_run_with_return
+    )
+    with pytest.raises(RuntimeError, match="not execution-enabled"):
+        namespace["adapter"]({"question": "q"})
+    with pytest.raises(ValueError, match="unexpected tool args fields"):
+        namespace["validate_args"]({"question": "q", "extra": "nope"})
+    with pytest.raises(TypeError, match="does not match schema type"):
+        namespace["validate_return"]({"answer": 3})
     assert generated_adapter["artifact"] == {
         "path": "tool_adapters/lookup_policy_adapter.py",
         "content_hash": generated_adapter["source_hash"],
@@ -315,6 +422,32 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
     assert replay["checks"]["program_tool_adapter_blueprints_valid"] is True
     assert replay["checks"]["program_tool_adapter_artifacts_valid"] is True
 
+    contracts["contracts"][0]["generated_adapter"]["artifact"] = {}
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    missing_adapter_artifact = check_run_receipt(root / "manifest.json.meta.json")
+    assert missing_adapter_artifact["status"] == "failed"
+    assert (
+        missing_adapter_artifact["checks"]["program_tool_adapter_artifacts_valid"]
+        is False
+    )
+    assert (
+        "program_evidence_declaration_mismatch"
+        in missing_adapter_artifact["error_codes"]
+    )
+    contracts["contracts"][0]["generated_adapter"]["artifact"] = {
+        "path": "tool_adapters/lookup_policy_adapter.py",
+        "content_hash": generated_adapter["source_hash"],
+        "executable": False,
+        "imported_by_generated_program": False,
+    }
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
     adapter_path.write_text("# drifted\n", encoding="utf-8")
     adapter_drift = check_run_receipt(root / "manifest.json.meta.json")
     assert adapter_drift["status"] == "failed"
@@ -322,6 +455,35 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
     assert adapter_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
     assert "program_evidence_declaration_mismatch" in adapter_drift["error_codes"]
     adapter_path.write_text(generated_adapter["source_preview"], encoding="utf-8")
+
+    broken_dry_run_source = generated_adapter["source_preview"].replace(
+        "'status': 'validated_not_executed'", "'status': 'executed'"
+    )
+    broken_dry_run_hash = sha256_text(broken_dry_run_source)
+    adapter_path.write_text(broken_dry_run_source, encoding="utf-8")
+    contracts["contracts"][0]["generated_adapter"]["content_hash"] = broken_dry_run_hash
+    contracts["contracts"][0]["generated_adapter"]["artifact"]["content_hash"] = (
+        broken_dry_run_hash
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    broken_dry_run = check_run_receipt(root / "manifest.json.meta.json")
+    assert broken_dry_run["status"] == "failed"
+    assert broken_dry_run["checks"]["program_tool_adapter_artifacts_valid"] is False
+    assert "program_evidence_declaration_mismatch" in broken_dry_run["error_codes"]
+    adapter_path.write_text(generated_adapter["source_preview"], encoding="utf-8")
+    contracts["contracts"][0]["generated_adapter"]["content_hash"] = (
+        original_adapter_hash
+    )
+    contracts["contracts"][0]["generated_adapter"]["artifact"]["content_hash"] = (
+        original_adapter_hash
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
     unsafe_source = generated_adapter["source_preview"].replace(
         "EXECUTION_ALLOWED = False", "EXECUTION_ALLOWED = True"
@@ -385,6 +547,24 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
     contracts["contracts"][0]["generated_adapter"]["validation"][
         "constants_match_contract"
     ] = True
+    contracts["contracts"][0]["generated_adapter"]["validation"][
+        "dry_run_expected_result"
+    ]["status"] = "executed"
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    dry_run_record_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert dry_run_record_drift["status"] == "failed"
+    assert (
+        dry_run_record_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    )
+    assert (
+        "program_evidence_declaration_mismatch" in dry_run_record_drift["error_codes"]
+    )
+    contracts["contracts"][0]["generated_adapter"]["validation"][
+        "dry_run_expected_result"
+    ]["status"] = "validated_not_executed"
     contracts["contracts"][0]["generated_adapter_policy"]["source_hash_bound"] = False
     contracts_path.write_text(
         json.dumps(contracts, indent=2, sort_keys=True) + "\n",
@@ -395,6 +575,58 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
     assert policy_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
     assert "program_evidence_declaration_mismatch" in policy_drift["error_codes"]
     contracts["contracts"][0]["generated_adapter_policy"]["source_hash_bound"] = True
+
+    contracts["contracts"][0]["generated_adapter_policy"]["adapter_kind"] = (
+        "live_adapter"
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    adapter_kind_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert adapter_kind_drift["status"] == "failed"
+    assert adapter_kind_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    contracts["contracts"][0]["generated_adapter_policy"]["adapter_kind"] = (
+        "future_dspy_tool_adapter"
+    )
+
+    required_policy = contracts["contracts"][0]["generated_adapter_policy"][
+        "required_before_enablement"
+    ]
+    contracts["contracts"][0]["generated_adapter_policy"][
+        "required_before_enablement"
+    ] = [
+        item
+        for item in required_policy
+        if item != "timeout and redaction policy must be enforced before tool call"
+    ]
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    required_policy_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert required_policy_drift["status"] == "failed"
+    assert (
+        required_policy_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    )
+    contracts["contracts"][0]["generated_adapter_policy"][
+        "required_before_enablement"
+    ] = required_policy
+
+    contracts["contracts"][0]["generated_adapter"]["provenance"]["status"] = (
+        "materialized_and_bound"
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    provenance_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert provenance_drift["status"] == "failed"
+    assert provenance_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    contracts["contracts"][0]["generated_adapter"]["provenance"]["status"] = (
+        "materialized_not_bound_not_executed"
+    )
+
     contracts["contracts"][0]["generated_adapter"]["content_hash"] = (
         original_adapter_hash
     )
@@ -406,10 +638,147 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
         encoding="utf-8",
     )
 
+    contracts["contracts"][0]["generated_adapter"]["source_preview"] += (
+        "\n# preview drift"
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    adapter_preview_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert adapter_preview_drift["status"] == "failed"
+    assert (
+        adapter_preview_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    )
+    assert (
+        "program_evidence_declaration_mismatch" in adapter_preview_drift["error_codes"]
+    )
+    contracts["contracts"][0]["generated_adapter"]["source_preview"] = (
+        generated_adapter["source_preview"]
+    )
+
+    forbidden_call_source = generated_adapter["source_preview"].replace(
+        "    validated = validate_args(payload)",
+        "    globals()\n    validated = validate_args(payload)",
+    )
+    forbidden_call_hash = sha256_text(forbidden_call_source)
+    adapter_path.write_text(forbidden_call_source, encoding="utf-8")
+    contracts["contracts"][0]["generated_adapter"]["source_preview"] = (
+        forbidden_call_source
+    )
+    contracts["contracts"][0]["generated_adapter"]["source_hash"] = forbidden_call_hash
+    contracts["contracts"][0]["generated_adapter"]["content_hash"] = forbidden_call_hash
+    contracts["contracts"][0]["generated_adapter"]["artifact"]["content_hash"] = (
+        forbidden_call_hash
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    forbidden_call_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert forbidden_call_drift["status"] == "failed"
+    assert (
+        forbidden_call_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    )
+    adapter_path.write_text(generated_adapter["source_preview"], encoding="utf-8")
+    contracts["contracts"][0]["generated_adapter"]["source_preview"] = (
+        generated_adapter["source_preview"]
+    )
+    contracts["contracts"][0]["generated_adapter"]["source_hash"] = (
+        original_adapter_hash
+    )
+    contracts["contracts"][0]["generated_adapter"]["content_hash"] = (
+        original_adapter_hash
+    )
+    contracts["contracts"][0]["generated_adapter"]["artifact"]["content_hash"] = (
+        original_adapter_hash
+    )
+
+    contracts["tool_adapter_policy"]["status"] = "execution_ready"
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    top_policy_status_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert top_policy_status_drift["status"] == "failed"
+    assert (
+        top_policy_status_drift["checks"]["program_tool_contracts_semantic_valid"]
+        is False
+    )
+    contracts["tool_adapter_policy"]["status"] = (
+        "adapter_source_artifacts_written_not_bound"
+    )
+
+    contracts["tool_adapter_policy"]["generated_adapter_count"] = 2
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    adapter_count_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert adapter_count_drift["status"] == "failed"
+    assert (
+        adapter_count_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    )
+    contracts["tool_adapter_policy"]["generated_adapter_count"] = 1
+
+    contracts["tool_adapter_policy"]["adapter_blueprint_artifact_count"] = 2
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    blueprint_count_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert blueprint_count_drift["status"] == "failed"
+    assert (
+        blueprint_count_drift["checks"]["program_tool_adapter_blueprints_valid"]
+        is False
+    )
+    contracts["tool_adapter_policy"]["adapter_blueprint_artifact_count"] = 1
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    adapter_copy_path = root / "tool_adapters" / "lookup_policy_adapter_copy.py"
+    adapter_copy_path.write_text(generated_adapter["source_preview"], encoding="utf-8")
+    contracts["contracts"][0]["generated_adapter"]["artifact"]["path"] = (
+        "tool_adapters/lookup_policy_adapter_copy.py"
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    adapter_path_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert adapter_path_drift["status"] == "failed"
+    assert adapter_path_drift["checks"]["program_tool_adapter_artifacts_valid"] is False
+    contracts["contracts"][0]["generated_adapter"]["artifact"]["path"] = (
+        "tool_adapters/lookup_policy_adapter.py"
+    )
+
+    blueprint_copy_path = root / "tool_adapters" / "lookup_policy_blueprint_copy.py"
+    blueprint_copy_path.write_text(blueprint["source_preview"], encoding="utf-8")
+    contracts["contracts"][0]["generated_adapter_blueprint"]["artifact"]["path"] = (
+        "tool_adapters/lookup_policy_blueprint_copy.py"
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    blueprint_path_drift = check_run_receipt(root / "manifest.json.meta.json")
+    assert blueprint_path_drift["status"] == "failed"
+    assert (
+        blueprint_path_drift["checks"]["program_tool_adapter_blueprints_valid"] is False
+    )
+    contracts["contracts"][0]["generated_adapter_blueprint"]["artifact"]["path"] = (
+        "tool_adapters/lookup_policy_adapter_blueprint.py"
+    )
+    contracts_path.write_text(
+        json.dumps(contracts, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
     blueprint_path.write_text("# drifted\n", encoding="utf-8")
     blueprint_drift = check_run_receipt(root / "manifest.json.meta.json")
     assert blueprint_drift["status"] == "failed"
-    assert blueprint_drift["checks"]["program_tool_contracts_hash_match"] is True
     assert blueprint_drift["checks"]["program_tool_adapter_blueprints_valid"] is False
     assert "program_evidence_declaration_mismatch" in blueprint_drift["error_codes"]
     blueprint_path.write_text(blueprint["source_preview"], encoding="utf-8")
@@ -448,6 +817,201 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
     assert drift["checks"]["program_tool_contracts_hash_match"] is False
     assert drift["checks"]["program_tool_contracts_semantic_valid"] is False
     assert "program_evidence_hash_mismatch" in drift["error_codes"]
+    assert "program_evidence_declaration_mismatch" in drift["error_codes"]
+
+
+def test_generated_tool_adapter_validates_nested_bounded_schema_and_replay(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_local(tmp_path, monkeypatch)
+    intent = _tool_intent()
+    intent.capabilities["declarations"][0]["args_schema"] = {
+        "type": "object",
+        "properties": {
+            "question": {"type": "string", "enum": ["q"]},
+            "filters": {
+                "type": "object",
+                "properties": {"scope": {"type": "string", "const": "policy"}},
+                "required": ["scope"],
+                "additionalProperties": False,
+            },
+            "tags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "maxItems": 3,
+            },
+        },
+        "required": ["question", "filters", "tags"],
+        "additionalProperties": False,
+    }
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    contracts = json.loads(
+        (root / "program_tool_contracts.json").read_text(encoding="utf-8")
+    )
+    source = contracts["contracts"][0]["generated_adapter"]["source_preview"]
+    namespace: dict[str, object] = {}
+    exec(compile(source, "lookup_policy_adapter.py", "exec"), namespace)
+
+    valid_payload = {
+        "question": "q",
+        "filters": {"scope": "policy"},
+        "tags": ["safe"],
+    }
+    assert namespace["validate_args"](valid_payload) == valid_payload
+    with pytest.raises(ValueError, match="schema enum"):
+        namespace["validate_args"]({**valid_payload, "question": "other"})
+    with pytest.raises(ValueError, match="schema const"):
+        namespace["validate_args"]({**valid_payload, "filters": {"scope": "other"}})
+    with pytest.raises(TypeError, match="schema type"):
+        namespace["validate_args"]({**valid_payload, "tags": [3]})
+    with pytest.raises(ValueError, match="fewer items"):
+        namespace["validate_args"]({**valid_payload, "tags": []})
+    with pytest.raises(ValueError, match="more items"):
+        namespace["validate_args"]({**valid_payload, "tags": ["a", "b", "c", "d"]})
+
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert replay["status"] == "ok"
+    assert replay["checks"]["program_tool_adapter_artifacts_valid"] is True
+
+
+def test_replay_cross_checks_runtime_trace_tool_intents_against_contracts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_local(tmp_path, monkeypatch)
+    intent = _tool_intent()
+    intent.examples = [
+        {"inputs": {"question": "hello"}, "outputs": {"answer": "hello"}}
+    ]
+    artifact = materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    root = Path(artifact.root_path)
+    traces_path = root / "program_runtime_traces.json"
+    surfaces_path = root / "module_surfaces.json"
+    contracts_path = root / "program_tool_contracts.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    surfaces = json.loads(surfaces_path.read_text(encoding="utf-8"))
+    contracts = json.loads(contracts_path.read_text(encoding="utf-8"))
+
+    replay = check_run_receipt(root / "manifest.json.meta.json")
+    assert replay["status"] == "ok"
+    assert (
+        replay["checks"]["program_runtime_trace_tool_intents_match_contracts"] is True
+    )
+
+    surfaces["module_surfaces"][0]["primitive"] = "ReActV2"
+    surfaces["module_surfaces"][0]["react"] = {
+        "declared_tool_refs": ["lookup_policy"],
+        "tool_binding_status": "declared_refs_only_not_bound",
+        "tool_binding_allowed": False,
+    }
+    surfaces_path.write_text(json.dumps(surfaces, indent=2, sort_keys=True) + "\n")
+    contracts["react_v2_tool_readiness"].update(
+        {
+            "react_v2_requested": True,
+            "react_v2_module_count": 1,
+            "react_v2_module_tool_refs": ["lookup_policy"],
+            "missing_tool_contracts": [],
+            "status": "blocked_until_generated_tool_adapter_policy",
+        }
+    )
+    contracts["react_v2_tool_readiness"]["pure_tool_adapter_preflight"].update(
+        {
+            "referenced_tool_ids": ["lookup_policy"],
+            "all_referenced_tools_have_pure_contracts": True,
+            "all_referenced_tool_schemas_bounded": True,
+            "all_referenced_adapter_blueprints_hash_bound": True,
+            "all_referenced_tools_have_replay_policy_preconditions": True,
+            "ready_for_tool_adapter_materialization": True,
+            "materialization_status": "ready_for_generated_adapter_materialization",
+        }
+    )
+    contracts_path.write_text(json.dumps(contracts, indent=2, sort_keys=True) + "\n")
+
+    slots = traces["module_calls"][0]["trajectory_slots"]
+    slots["tool_refs"] = {
+        "declared_tool_refs": ["lookup_policy"],
+        "tool_binding_status": "declared_refs_only_not_bound",
+        "tool_binding_allowed": False,
+        "executable_tools": [],
+    }
+    slots["tool_call_intents"] = [
+        {
+            "schema_version": "program-runtime-tool-call-intent-v1",
+            "tool_id": "lookup_policy",
+            "status": "declared_intent_shape_not_executed",
+            "adapter_dry_run_required": True,
+            "tool_call_executed": False,
+            "dspy_tool_bound": False,
+            "result_recorded": False,
+            "effects": {
+                "tool_called": False,
+                "network": False,
+                "filesystem": False,
+                "subprocess": False,
+                "external_authority_mutated": False,
+            },
+        }
+    ]
+    call_without_hash = {
+        key: value
+        for key, value in traces["module_calls"][0].items()
+        if key != "trace_hash"
+    }
+    traces["module_calls"][0]["trace_hash"] = _stable_json_hash(call_without_hash)
+    traces["trace_hashes"]["module_calls"] = [traces["module_calls"][0]["trace_hash"]]
+    traces_path.write_text(json.dumps(traces, indent=2, sort_keys=True) + "\n")
+
+    valid_intent_shape = check_run_receipt(root / "manifest.json.meta.json")
+    assert valid_intent_shape["status"] == "failed"
+    assert valid_intent_shape["checks"]["program_runtime_traces_semantic_valid"] is True
+    assert (
+        valid_intent_shape["checks"][
+            "program_runtime_trace_tool_intents_match_contracts"
+        ]
+        is True
+    )
+    assert (
+        valid_intent_shape["checks"]["program_react_v2_tool_readiness_matches_surfaces"]
+        is True
+    )
+
+    surfaces["module_surfaces"][0]["react"]["declared_tool_refs"] = []
+    surfaces_path.write_text(json.dumps(surfaces, indent=2, sort_keys=True) + "\n")
+    surface_mismatch = check_run_receipt(root / "manifest.json.meta.json")
+    assert (
+        surface_mismatch["checks"]["program_runtime_trace_tool_intents_match_contracts"]
+        is False
+    )
+    assert (
+        surface_mismatch["checks"]["program_react_v2_tool_readiness_matches_surfaces"]
+        is False
+    )
+    surfaces["module_surfaces"][0]["react"]["declared_tool_refs"] = ["lookup_policy"]
+    surfaces_path.write_text(json.dumps(surfaces, indent=2, sort_keys=True) + "\n")
+
+    traces["module_calls"][0]["trajectory_slots"]["tool_call_intents"][0]["tool_id"] = (
+        "missing_policy"
+    )
+    call_without_hash = {
+        key: value
+        for key, value in traces["module_calls"][0].items()
+        if key != "trace_hash"
+    }
+    traces["module_calls"][0]["trace_hash"] = _stable_json_hash(call_without_hash)
+    traces["trace_hashes"]["module_calls"] = [traces["module_calls"][0]["trace_hash"]]
+    traces_path.write_text(json.dumps(traces, indent=2, sort_keys=True) + "\n")
+
+    drift = check_run_receipt(root / "manifest.json.meta.json")
+
+    assert drift["status"] == "failed"
+    assert drift["checks"]["program_runtime_traces_semantic_valid"] is True
+    assert (
+        drift["checks"]["program_runtime_trace_tool_intents_match_contracts"] is False
+    )
     assert "program_evidence_declaration_mismatch" in drift["error_codes"]
 
 

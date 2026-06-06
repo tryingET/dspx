@@ -164,11 +164,15 @@ def _check_loop_validation_policy(
 def collect_issues(root: Path) -> list[Issue]:
     root = root.resolve()
     issues: list[Issue] = []
-    for retired in ("next_session_prompt.md", "docs/project/operational_goals.md"):
-        if (root / retired).exists():
-            issues.append(
-                Issue(retired, "retired AK-native workflow file still exists")
-            )
+    for pattern in ("next_session_prompt.md", "docs/project/*_goals.md"):
+        for retired_path in root.glob(pattern):
+            if retired_path.exists():
+                issues.append(
+                    Issue(
+                        retired_path.relative_to(root),
+                        "retired AK-native workflow file still exists",
+                    )
+                )
 
     gitignore = _require_file(root, ".gitignore", issues)
     if gitignore is not None:
@@ -202,8 +206,8 @@ def collect_issues(root: Path) -> list[Issue]:
                 "docs/project/developer_workflow.md",
                 "just hooks-install",
                 "docs/project/vision.md",
-                "docs/project/strategic_goals.md",
-                "docs/project/tactical_goals.md",
+                "docs/project/product-posture.md",
+                "AK direction",
             ],
             "forbidden": ["./scripts/install-hooks.sh"],
         },

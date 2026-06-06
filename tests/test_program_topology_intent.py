@@ -80,6 +80,32 @@ def test_program_intent_rejects_stale_schema_version() -> None:
         )
 
 
+def test_explicit_single_module_with_declared_module_requires_edges() -> None:
+    with pytest.raises(ValueError, match="topology.edges must connect"):
+        ProgramIntent(
+            name="DisconnectedSingleModuleProgram",
+            objective="Declare one module but omit its graph edges.",
+            inputs=["question"],
+            outputs=["answer"],
+            topology={
+                "kind": "single_module",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "answer_question",
+                        "primitive": "Predict",
+                        "signature": {
+                            "name": "AnswerQuestion",
+                            "inputs": ["question"],
+                            "outputs": ["answer"],
+                        },
+                    }
+                ],
+                "edges": [],
+            },
+        )
+
+
 def test_explicit_pipeline_topology_is_normalized_and_persisted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -534,21 +560,21 @@ def test_pipeline_topology_rejects_cyclic_module_graph(
             },
         ],
         "edges": [
+            {"from": "input", "to": "module_a"},
             {"from": "module_a", "to": "module_b"},
             {"from": "module_b", "to": "module_a"},
             {"from": "module_a", "to": "output"},
         ],
     }
-    intent = ProgramIntent(
-        name="CyclicPipelineProgram",
-        objective="Reject cyclic topology.",
-        inputs=["question"],
-        outputs=["a"],
-        topology=topology,
-    )
 
     with pytest.raises(ValueError, match="must be acyclic"):
-        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+        ProgramIntent(
+            name="CyclicPipelineProgram",
+            objective="Reject cyclic topology.",
+            inputs=["question"],
+            outputs=["a"],
+            topology=topology,
+        )
     assert not (tmp_path / "program" / "manifest.json").exists()
 
 
@@ -586,16 +612,14 @@ def test_pipeline_topology_rejects_missing_direct_data_dependency(
             {"from": "compose_answer", "to": "output"},
         ],
     }
-    intent = ProgramIntent(
-        name="MissingDependencyPipelineProgram",
-        objective="Reject missing direct dependency edge.",
-        inputs=["ticket_text"],
-        outputs=["answer"],
-        topology=topology,
-    )
-
-    with pytest.raises(ValueError, match="direct inbound module outputs"):
-        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    with pytest.raises(ValueError, match="disconnected"):
+        ProgramIntent(
+            name="MissingDependencyPipelineProgram",
+            objective="Reject missing direct dependency edge.",
+            inputs=["ticket_text"],
+            outputs=["answer"],
+            topology=topology,
+        )
     assert not (tmp_path / "program" / "manifest.json").exists()
 
 
@@ -1383,51 +1407,49 @@ def test_retrieve_then_answer_fails_closed_when_retriever_does_not_feed_answer(
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
-    intent = ProgramIntent(
-        name="DisconnectedRetrieveThenAnswerProgram",
-        objective="Retrieve local inline passages, then answer.",
-        inputs=["question"],
-        outputs=["answer"],
-        topology={
-            "kind": "retrieve_then_answer",
-            "execution_status": "declared_not_materialized",
-            "modules": [
-                {
-                    "id": "retrieve_context",
-                    "primitive": "Retriever",
-                    "signature": {
-                        "name": "RetrieveContext",
-                        "inputs": ["question"],
-                        "outputs": ["passages"],
+    with pytest.raises(ValueError, match="disconnected"):
+        ProgramIntent(
+            name="DisconnectedRetrieveThenAnswerProgram",
+            objective="Retrieve local inline passages, then answer.",
+            inputs=["question"],
+            outputs=["answer"],
+            topology={
+                "kind": "retrieve_then_answer",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "retrieve_context",
+                        "primitive": "Retriever",
+                        "signature": {
+                            "name": "RetrieveContext",
+                            "inputs": ["question"],
+                            "outputs": ["passages"],
+                        },
+                        "retriever": {
+                            "mode": "inline_corpus",
+                            "k": 1,
+                            "documents": [
+                                {"id": "billing_doc", "text": "Billing invoices."}
+                            ],
+                        },
                     },
-                    "retriever": {
-                        "mode": "inline_corpus",
-                        "k": 1,
-                        "documents": [
-                            {"id": "billing_doc", "text": "Billing invoices."}
-                        ],
+                    {
+                        "id": "answer_question",
+                        "primitive": "ChainOfThought",
+                        "signature": {
+                            "name": "AnswerQuestion",
+                            "inputs": ["question"],
+                            "outputs": ["answer"],
+                        },
                     },
-                },
-                {
-                    "id": "answer_question",
-                    "primitive": "ChainOfThought",
-                    "signature": {
-                        "name": "AnswerQuestion",
-                        "inputs": ["question"],
-                        "outputs": ["answer"],
-                    },
-                },
-            ],
-            "edges": [
-                {"from": "input", "to": "retrieve_context"},
-                {"from": "input", "to": "answer_question"},
-                {"from": "answer_question", "to": "output"},
-            ],
-        },
-    )
-
-    with pytest.raises(ValueError, match="Retriever output to feed"):
-        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+                ],
+                "edges": [
+                    {"from": "input", "to": "retrieve_context"},
+                    {"from": "input", "to": "answer_question"},
+                    {"from": "answer_question", "to": "output"},
+                ],
+            },
+        )
 
     assert not (tmp_path / "program" / "intent_normalization.json").exists()
 
@@ -1437,31 +1459,29 @@ def test_pipeline_retriever_fails_closed_without_bounded_inline_contract(
 ) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
-    intent = ProgramIntent(
-        name="InvalidRetrieverProgram",
-        objective="Reject unbounded retriever modules.",
-        inputs=["question"],
-        outputs=["answer"],
-        topology={
-            "kind": "pipeline",
-            "execution_status": "declared_not_materialized",
-            "modules": [
-                {
-                    "id": "retrieve_context",
-                    "primitive": "Retriever",
-                    "signature": {
-                        "name": "RetrieveContext",
-                        "inputs": ["question"],
-                        "outputs": ["passages"],
-                    },
-                }
-            ],
-            "edges": [{"from": "input", "to": "retrieve_context"}],
-        },
-    )
-
-    with pytest.raises(ValueError, match="supports only module primitives"):
-        materialize_program_from_intent(intent, outdir=tmp_path / "program")
+    with pytest.raises(ValueError, match="final-output producer"):
+        ProgramIntent(
+            name="InvalidRetrieverProgram",
+            objective="Reject unbounded retriever modules.",
+            inputs=["question"],
+            outputs=["answer"],
+            topology={
+                "kind": "pipeline",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "retrieve_context",
+                        "primitive": "Retriever",
+                        "signature": {
+                            "name": "RetrieveContext",
+                            "inputs": ["question"],
+                            "outputs": ["passages"],
+                        },
+                    }
+                ],
+                "edges": [{"from": "input", "to": "retrieve_context"}],
+            },
+        )
     assert not (tmp_path / "program" / "manifest.json").exists()
 
 

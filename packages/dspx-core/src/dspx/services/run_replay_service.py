@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 from dspx.cache import make_key
 from dspx.run_receipts import RUN_RECEIPT_VERSION, load_run_receipt
+from dspx.services.program_contracts import sanitize_ident
 from dspx.services.program_runtime_traces import validate_program_runtime_traces
 
 
@@ -100,6 +101,239 @@ def _as_list(value: Any) -> list[Any]:
     return []
 
 
+def _schema_required_fields(schema: Mapping[str, Any]) -> list[str]:
+    required = schema.get("required")
+    if not isinstance(required, list):
+        return []
+    return sorted(str(item) for item in required if isinstance(item, str))
+
+
+def _expected_tool_adapter_dry_run_result(
+    *, tool_id: str, args_schema: Mapping[str, Any], return_schema: Mapping[str, Any]
+) -> dict[str, Any]:
+    return {
+        "schema_version": "program-tool-adapter-dry-run-v1",
+        "tool_id": tool_id,
+        "status": "validated_not_executed",
+        "args_fields": _schema_required_fields(args_schema),
+        "return_fields": _schema_required_fields(return_schema),
+        "return_validated": True,
+        "effects": {
+            "tool_called": False,
+            "dspy_tool_bound": False,
+            "network": False,
+            "filesystem": False,
+            "subprocess": False,
+            "external_authority_mutated": False,
+        },
+    }
+
+
+def _generated_tool_adapter_dry_run_valid(
+    source: str,
+    *,
+    tool_id: str,
+    args_schema: Mapping[str, Any],
+    return_schema: Mapping[str, Any],
+    expected_result: Mapping[str, Any],
+) -> bool:
+    """Validate the adapter dry-run receipt contract without executing source.
+
+    Replay verification must never execute generated candidate artifacts. The dry-run
+    contract is therefore checked by comparing the recorded expected result against
+    the bounded schema-derived shape and by requiring the source to declare the dry
+    run and disabled adapter entrypoints. Full source safety is enforced separately
+    by ``_generated_tool_adapter_source_semantic_valid``.
+    """
+
+    try:
+        tree = ast.parse(source, filename="tool_adapter.py")
+    except SyntaxError:
+        return False
+    function_names = {
+        node.name for node in tree.body if isinstance(node, ast.FunctionDef)
+    }
+    if {"adapter_dry_run", "adapter"} - function_names:
+        return False
+    expected = _expected_tool_adapter_dry_run_result(
+        tool_id=tool_id,
+        args_schema=args_schema,
+        return_schema=return_schema,
+    )
+    if dict(expected_result) != expected:
+        return False
+    effects = expected_result.get("effects")
+    return isinstance(effects, Mapping) and all(
+        value is False for value in effects.values()
+    )
+
+
+def _runtime_trace_tool_intents_match_contracts(
+    traces_payload: Mapping[str, Any],
+    tool_payload: Mapping[str, Any],
+    module_surfaces_payload: Mapping[str, Any] | None = None,
+) -> bool:
+    contracts_by_id: dict[str, Mapping[str, Any]] = {}
+    for raw_contract in _as_list(tool_payload.get("contracts")):
+        if not isinstance(raw_contract, Mapping):
+            return False
+        tool_id = str(raw_contract.get("tool_id") or "")
+        if not tool_id:
+            return False
+        contracts_by_id[tool_id] = raw_contract
+
+    surface_refs_by_module: dict[str, list[str]] = {}
+    if module_surfaces_payload is not None:
+        for raw_surface in _as_list(module_surfaces_payload.get("module_surfaces")):
+            if not isinstance(raw_surface, Mapping):
+                return False
+            module_id = str(raw_surface.get("module_id") or "")
+            if not module_id:
+                return False
+            primitive = str(raw_surface.get("primitive") or "")
+            react = raw_surface.get("react")
+            if primitive in {"ReAct", "ReActV2"}:
+                if not isinstance(react, Mapping):
+                    return False
+                surface_refs_by_module[module_id] = sorted(
+                    str(item)
+                    for item in _as_list(react.get("declared_tool_refs"))
+                    if str(item).strip()
+                )
+            else:
+                surface_refs_by_module[module_id] = []
+
+    for raw_call in _as_list(traces_payload.get("module_calls")):
+        if not isinstance(raw_call, Mapping):
+            return False
+        slots = raw_call.get("trajectory_slots")
+        if not isinstance(slots, Mapping):
+            return False
+        tool_refs = slots.get("tool_refs")
+        declared_refs = []
+        if isinstance(tool_refs, Mapping):
+            declared_refs = [
+                str(item)
+                for item in _as_list(tool_refs.get("declared_tool_refs"))
+                if str(item).strip()
+            ]
+        module_id = str(raw_call.get("module_id") or "")
+        if module_surfaces_payload is not None:
+            if module_id not in surface_refs_by_module:
+                return False
+            if sorted(declared_refs) != surface_refs_by_module[module_id]:
+                return False
+        raw_intents = slots.get("tool_call_intents", [])
+        if raw_intents in (None, []):
+            if declared_refs:
+                return False
+            continue
+        if not isinstance(raw_intents, list):
+            return False
+        intent_ids: list[str] = []
+        for raw_intent in raw_intents:
+            if not isinstance(raw_intent, Mapping):
+                return False
+            tool_id = str(raw_intent.get("tool_id") or "")
+            intent_ids.append(tool_id)
+            contract = contracts_by_id.get(tool_id)
+            if contract is None:
+                return False
+            if str(contract.get("effect_class") or "") != "pure":
+                return False
+            generated_adapter = _as_dict(contract.get("generated_adapter"))
+            validation = _as_dict(generated_adapter.get("validation"))
+            generated_adapter_policy = _as_dict(
+                contract.get("generated_adapter_policy")
+            )
+            if generated_adapter.get("exists") is not True:
+                return False
+            if validation.get("dry_run_supported") is not True:
+                return False
+            if not isinstance(validation.get("dry_run_expected_result"), Mapping):
+                return False
+            if generated_adapter_policy.get("source_hash_bound") is not True:
+                return False
+            if generated_adapter_policy.get("artifact_hash_bound") is not True:
+                return False
+            for key in ("tool_call_executed", "dspy_tool_bound", "result_recorded"):
+                if raw_intent.get(key) is not False:
+                    return False
+        if sorted(intent_ids) != sorted(set(declared_refs)):
+            return False
+    return True
+
+
+def _react_v2_readiness_matches_surfaces_and_contracts(
+    tool_payload: Mapping[str, Any], module_surfaces_payload: Mapping[str, Any]
+) -> bool:
+    readiness = tool_payload.get("react_v2_tool_readiness")
+    if not isinstance(readiness, Mapping):
+        return False
+    preflight = readiness.get("pure_tool_adapter_preflight")
+    if not isinstance(preflight, Mapping):
+        return False
+
+    contract_ids: list[str] = []
+    contracts_by_id: dict[str, Mapping[str, Any]] = {}
+    for raw_contract in _as_list(tool_payload.get("contracts")):
+        if not isinstance(raw_contract, Mapping):
+            return False
+        tool_id = str(raw_contract.get("tool_id") or "")
+        if not tool_id:
+            return False
+        contract_ids.append(tool_id)
+        contracts_by_id[tool_id] = raw_contract
+
+    surface_refs: list[str] = []
+    react_v2_module_count = 0
+    for raw_surface in _as_list(module_surfaces_payload.get("module_surfaces")):
+        if not isinstance(raw_surface, Mapping):
+            return False
+        if str(raw_surface.get("primitive") or "") != "ReActV2":
+            continue
+        react_v2_module_count += 1
+        react = raw_surface.get("react")
+        if not isinstance(react, Mapping):
+            return False
+        surface_refs.extend(
+            str(item)
+            for item in _as_list(react.get("declared_tool_refs"))
+            if str(item).strip()
+        )
+
+    referenced_tool_ids = sorted(set(surface_refs))
+    missing_contracts = sorted(set(surface_refs) - set(contract_ids))
+    if sorted(_as_list(readiness.get("declared_tool_ids"))) != sorted(contract_ids):
+        return False
+    if readiness.get("react_v2_module_count") != react_v2_module_count:
+        return False
+    if sorted(_as_list(readiness.get("react_v2_module_tool_refs"))) != sorted(
+        surface_refs
+    ):
+        return False
+    if sorted(_as_list(readiness.get("missing_tool_contracts"))) != missing_contracts:
+        return False
+    if sorted(_as_list(preflight.get("referenced_tool_ids"))) != referenced_tool_ids:
+        return False
+    if readiness.get("ready_for_react_v2_tool_binding") is not False:
+        return False
+    if referenced_tool_ids:
+        if preflight.get("ready_for_tool_adapter_materialization") is not True:
+            return False
+        for tool_id in referenced_tool_ids:
+            contract = contracts_by_id.get(tool_id)
+            if contract is None or str(contract.get("effect_class") or "") != "pure":
+                return False
+            generated_adapter = _as_dict(contract.get("generated_adapter"))
+            validation = _as_dict(generated_adapter.get("validation"))
+            if generated_adapter.get("exists") is not True:
+                return False
+            if validation.get("dry_run_supported") is not True:
+                return False
+    return True
+
+
 def _generated_tool_adapter_source_semantic_valid(
     source: str,
     *,
@@ -113,24 +347,43 @@ def _generated_tool_adapter_source_semantic_valid(
     except SyntaxError:
         return False
     constants: dict[str, Any] = {}
-    required_functions = {"validate_args", "validate_return", "adapter"}
+    required_functions = {
+        "_type_matches",
+        "_validate_value",
+        "_validate_object",
+        "validate_args",
+        "validate_return",
+        "adapter_dry_run",
+        "adapter",
+    }
     seen_functions: set[str] = set()
+    allowed_constants = {
+        "TOOL_ID",
+        "EFFECT_CLASS",
+        "ARGS_SCHEMA",
+        "RETURN_SCHEMA",
+        "EXECUTION_ALLOWED",
+        "DSPY_TOOL_BINDING_ALLOWED",
+        "IMPORTED_BY_GENERATED_PROGRAM",
+    }
     for node in tree.body:
-        if isinstance(node, (ast.Import, ast.ImportFrom, ast.ClassDef, ast.Lambda)):
-            return False
         if isinstance(node, ast.FunctionDef):
             seen_functions.add(node.name)
             if node.name not in required_functions:
                 return False
             if node.decorator_list:
                 return False
+            continue
         if isinstance(node, ast.Assign) and len(node.targets) == 1:
             target = node.targets[0]
-            if isinstance(target, ast.Name):
-                try:
-                    constants[target.id] = ast.literal_eval(node.value)
-                except (ValueError, TypeError):
-                    return False
+            if not isinstance(target, ast.Name) or target.id not in allowed_constants:
+                return False
+            try:
+                constants[target.id] = ast.literal_eval(node.value)
+            except (ValueError, TypeError):
+                return False
+            continue
+        return False
     if not required_functions <= seen_functions:
         return False
     if constants.get("TOOL_ID") != tool_id:
@@ -147,27 +400,33 @@ def _generated_tool_adapter_source_semantic_valid(
         return False
     if constants.get("IMPORTED_BY_GENERATED_PROGRAM") is not False:
         return False
+    allowed_call_names = {
+        "RuntimeError",
+        "TypeError",
+        "ValueError",
+        "_type_matches",
+        "_validate_object",
+        "_validate_value",
+        "dict",
+        "enumerate",
+        "isinstance",
+        "len",
+        "set",
+        "sorted",
+        "validate_args",
+        "validate_return",
+    }
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             func = node.func
-            if isinstance(func, ast.Name) and func.id in {
-                "eval",
-                "exec",
-                "open",
-                "__import__",
-            }:
-                return False
-            if isinstance(func, ast.Attribute):
-                root = func.value
-                if isinstance(root, ast.Name) and root.id in {
-                    "os",
-                    "sys",
-                    "subprocess",
-                    "socket",
-                    "requests",
-                    "httpx",
-                }:
+            if isinstance(func, ast.Name):
+                if func.id not in allowed_call_names:
                     return False
+            elif isinstance(func, ast.Attribute):
+                if func.attr not in {"get", "items"}:
+                    return False
+            else:
+                return False
     return True
 
 
@@ -965,6 +1224,8 @@ def _check_program_evidence_artifacts(
         return
     checks["program_evidence_artifacts_declared"] = True
 
+    payloads_by_kind: dict[str, dict[str, Any]] = {}
+
     for declaration in declarations:
         kind = declaration["kind"]
         artifact_path = _resolve_path(str(declaration["path"]), meta_path=meta_path)
@@ -1026,6 +1287,8 @@ def _check_program_evidence_artifacts(
             )
         if kind == "module_surfaces":
             surfaces_payload = _load_json_object(artifact_path)
+            if isinstance(surfaces_payload, dict):
+                payloads_by_kind["module_surfaces"] = surfaces_payload
             semantic_check = "program_module_surfaces_semantic_valid"
             checks[semantic_check] = _program_module_surfaces_semantic_valid(
                 surfaces_payload
@@ -1052,6 +1315,8 @@ def _check_program_evidence_artifacts(
                 )
         if kind == "runtime_traces":
             traces_payload = _load_json_object(artifact_path)
+            if isinstance(traces_payload, dict):
+                payloads_by_kind["runtime_traces"] = traces_payload
             semantic_check = "program_runtime_traces_semantic_valid"
             checks[semantic_check] = isinstance(
                 traces_payload, dict
@@ -1065,6 +1330,8 @@ def _check_program_evidence_artifacts(
                 )
         if kind == "tool_contracts":
             tool_payload = _load_json_object(artifact_path)
+            if isinstance(tool_payload, dict):
+                payloads_by_kind["tool_contracts"] = tool_payload
             runtime_policy = (
                 tool_payload.get("runtime_policy")
                 if isinstance(tool_payload, dict)
@@ -1106,6 +1373,14 @@ def _check_program_evidence_artifacts(
                 and isinstance(runtime_policy, dict)
                 and runtime_policy.get("tool_execution_allowed") is False
                 and isinstance(tool_payload.get("tool_adapter_policy"), dict)
+                and tool_payload["tool_adapter_policy"].get("schema_version")
+                == "program-tool-adapter-policy-v1"
+                and tool_payload["tool_adapter_policy"].get("status")
+                in {
+                    "no_generated_adapters_present",
+                    "adapter_blueprints_recorded_not_executable",
+                    "adapter_source_artifacts_written_not_bound",
+                }
                 and tool_payload["tool_adapter_policy"].get("dspy_tool_binding_allowed")
                 is False
                 and tool_payload["tool_adapter_policy"].get("tool_execution_allowed")
@@ -1137,6 +1412,8 @@ def _check_program_evidence_artifacts(
             adapter_artifacts_valid = True
             blueprint_check = "program_tool_adapter_blueprints_valid"
             blueprint_valid = True
+            generated_adapter_count = 0
+            blueprint_artifact_count = 0
             if isinstance(tool_payload, dict):
                 for raw_contract in _as_list(tool_payload.get("contracts")):
                     if not isinstance(raw_contract, Mapping):
@@ -1148,9 +1425,25 @@ def _check_program_evidence_artifacts(
                     generated_adapter = _as_dict(contract.get("generated_adapter"))
                     adapter_validation = _as_dict(generated_adapter.get("validation"))
                     adapter_artifact = _as_dict(generated_adapter.get("artifact"))
+                    adapter_provenance = _as_dict(generated_adapter.get("provenance"))
+                    tool_id = str(contract.get("tool_id") or "")
+                    adapter_source_preview = generated_adapter.get("source_preview")
+                    if isinstance(adapter_source_preview, str):
+                        adapter_source_preview_hash = hashlib.sha256(
+                            adapter_source_preview.encode("utf-8")
+                        ).hexdigest()
+                        if adapter_source_preview_hash != generated_adapter.get(
+                            "source_hash"
+                        ):
+                            adapter_artifacts_valid = False
                     if generated_adapter.get("exists") is True:
+                        generated_adapter_count += 1
                         adapter_rel = str(adapter_artifact.get("path") or "")
                         adapter_hash = str(adapter_artifact.get("content_hash") or "")
+                        expected_adapter_rel = f"tool_adapters/{sanitize_ident(tool_id, fallback='tool')}_adapter.py"
+                        adapter_path: Path | None = None
+                        if adapter_rel != expected_adapter_rel:
+                            adapter_artifacts_valid = False
                         if not adapter_rel or not adapter_hash:
                             adapter_artifacts_valid = False
                         else:
@@ -1163,7 +1456,11 @@ def _check_program_evidence_artifacts(
                                 or _sha256_file(adapter_path) != adapter_hash
                             ):
                                 adapter_artifacts_valid = False
-                        if adapter_path.exists() and adapter_path.is_file():
+                        if (
+                            adapter_path is not None
+                            and adapter_path.exists()
+                            and adapter_path.is_file()
+                        ):
                             try:
                                 adapter_source = adapter_path.read_text(
                                     encoding="utf-8"
@@ -1171,18 +1468,36 @@ def _check_program_evidence_artifacts(
                             except OSError:
                                 adapter_artifacts_valid = False
                             else:
+                                args_schema = _as_dict(contract.get("args_schema"))
+                                return_schema = _as_dict(contract.get("return_schema"))
                                 if not _generated_tool_adapter_source_semantic_valid(
                                     adapter_source,
-                                    tool_id=str(contract.get("tool_id") or ""),
+                                    tool_id=tool_id,
                                     effect_class=str(
                                         contract.get("effect_class") or ""
                                     ),
-                                    args_schema=_as_dict(contract.get("args_schema")),
-                                    return_schema=_as_dict(
-                                        contract.get("return_schema")
+                                    args_schema=args_schema,
+                                    return_schema=return_schema,
+                                ):
+                                    adapter_artifacts_valid = False
+                                if not _generated_tool_adapter_dry_run_valid(
+                                    adapter_source,
+                                    tool_id=tool_id,
+                                    args_schema=args_schema,
+                                    return_schema=return_schema,
+                                    expected_result=_as_dict(
+                                        adapter_validation.get(
+                                            "dry_run_expected_result"
+                                        )
                                     ),
                                 ):
                                     adapter_artifacts_valid = False
+                        if adapter_provenance != {
+                            "source": "program_tool_contracts.generated_adapter.source_preview",
+                            "materialized_by": "program-gen",
+                            "status": "materialized_not_bound_not_executed",
+                        }:
+                            adapter_artifacts_valid = False
                         if generated_adapter.get(
                             "source_hash"
                         ) != generated_adapter.get("content_hash"):
@@ -1199,6 +1514,7 @@ def _check_program_evidence_artifacts(
                             "source_compiles",
                             "constants_match_contract",
                             "source_hash_matches_artifact",
+                            "dry_run_supported",
                         ]:
                             if adapter_validation.get(key) is not True:
                                 adapter_artifacts_valid = False
@@ -1209,6 +1525,31 @@ def _check_program_evidence_artifacts(
                         ]:
                             if adapter_validation.get(key) is not False:
                                 adapter_artifacts_valid = False
+                        required_before_enablement = set(
+                            _as_list(
+                                generated_adapter_policy.get(
+                                    "required_before_enablement"
+                                )
+                            )
+                        )
+                        required_policy_items = {
+                            "adapter source hash and provenance must be recorded",
+                            "tool input/output schemas must be enforced at adapter boundary",
+                            "timeout and redaction policy must be enforced before tool call",
+                            "effect class and allowlists must be checked before tool call",
+                            "runtime trace must record dry-run/tool-call posture without secrets",
+                            "receipt replay must verify adapter hash and trace consistency",
+                        }
+                        if generated_adapter_policy.get("schema_version") != (
+                            "program-tool-generated-adapter-policy-v1"
+                        ):
+                            adapter_artifacts_valid = False
+                        if generated_adapter_policy.get("adapter_kind") != (
+                            "future_dspy_tool_adapter"
+                        ):
+                            adapter_artifacts_valid = False
+                        if not required_policy_items <= required_before_enablement:
+                            adapter_artifacts_valid = False
                         if generated_adapter_policy.get("status") != (
                             "adapter_source_materialized_not_bound"
                         ):
@@ -1253,6 +1594,15 @@ def _check_program_evidence_artifacts(
                         ):
                             adapter_artifacts_valid = False
                     blueprint = _as_dict(contract.get("generated_adapter_blueprint"))
+                    blueprint_source_preview = blueprint.get("source_preview")
+                    if isinstance(blueprint_source_preview, str):
+                        blueprint_source_preview_hash = hashlib.sha256(
+                            blueprint_source_preview.encode("utf-8")
+                        ).hexdigest()
+                        if blueprint_source_preview_hash != blueprint.get(
+                            "source_hash"
+                        ):
+                            blueprint_valid = False
                     artifact = _as_dict(blueprint.get("artifact"))
                     if not artifact:
                         if (
@@ -1263,6 +1613,10 @@ def _check_program_evidence_artifacts(
                         continue
                     artifact_rel = str(artifact.get("path") or "")
                     artifact_hash = str(artifact.get("content_hash") or "")
+                    expected_blueprint_rel = f"tool_adapters/{sanitize_ident(str(contract.get('tool_id') or ''), fallback='tool')}_adapter_blueprint.py"
+                    if artifact_rel != expected_blueprint_rel:
+                        blueprint_valid = False
+                    blueprint_artifact_count += 1
                     if not artifact_rel or not artifact_hash:
                         blueprint_valid = False
                         continue
@@ -1276,6 +1630,24 @@ def _check_program_evidence_artifacts(
                         blueprint_valid = False
                     if artifact.get("imported_by_generated_program") is not False:
                         blueprint_valid = False
+                tool_adapter_policy = _as_dict(tool_payload.get("tool_adapter_policy"))
+                if (
+                    int(tool_adapter_policy.get("generated_adapter_count") or 0)
+                    != generated_adapter_count
+                ):
+                    adapter_artifacts_valid = False
+                if (
+                    int(
+                        tool_adapter_policy.get("adapter_blueprint_artifact_count") or 0
+                    )
+                    != blueprint_artifact_count
+                ):
+                    blueprint_valid = False
+                if (
+                    generated_adapter_count > 0
+                    and tool_adapter_policy.get("all_adapters_hash_bound") is not True
+                ):
+                    adapter_artifacts_valid = False
             checks[adapter_artifact_check] = adapter_artifacts_valid
             checks[blueprint_check] = blueprint_valid
             if not checks[semantic_check]:
@@ -1396,6 +1768,45 @@ def _check_program_evidence_artifacts(
                     message=f"program generated module policy semantic check failed: {artifact_path}",
                     check=semantic_check,
                 )
+
+    trace_contract_check = "program_runtime_trace_tool_intents_match_contracts"
+    traces_payload = payloads_by_kind.get("runtime_traces")
+    tool_payload = payloads_by_kind.get("tool_contracts")
+    surfaces_payload = payloads_by_kind.get("module_surfaces")
+    if traces_payload is not None or tool_payload is not None:
+        checks[trace_contract_check] = (
+            traces_payload is not None
+            and tool_payload is not None
+            and _runtime_trace_tool_intents_match_contracts(
+                traces_payload,
+                tool_payload,
+                module_surfaces_payload=surfaces_payload,
+            )
+        )
+        if not checks[trace_contract_check]:
+            _add_error(
+                report,
+                code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                message="program runtime trace tool intents do not match tool contracts",
+                check=trace_contract_check,
+            )
+
+    readiness_surface_check = "program_react_v2_tool_readiness_matches_surfaces"
+    if tool_payload is not None or surfaces_payload is not None:
+        checks[readiness_surface_check] = (
+            tool_payload is not None
+            and surfaces_payload is not None
+            and _react_v2_readiness_matches_surfaces_and_contracts(
+                tool_payload, surfaces_payload
+            )
+        )
+        if not checks[readiness_surface_check]:
+            _add_error(
+                report,
+                code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+                message="program ReActV2 tool readiness does not match module surfaces/contracts",
+                check=readiness_surface_check,
+            )
 
 
 def _expected_cache_payload(receipt: Mapping[str, Any]) -> dict[str, Any] | None:

@@ -150,6 +150,24 @@ def test_runtime_traces_preserve_react_v2_declared_tool_refs_without_execution()
         "tool_binding_allowed": False,
         "executable_tools": [],
     }
+    assert call["trajectory_slots"]["tool_call_intents"] == [
+        {
+            "schema_version": "program-runtime-tool-call-intent-v1",
+            "tool_id": "lookup_policy",
+            "status": "declared_intent_shape_not_executed",
+            "adapter_dry_run_required": True,
+            "tool_call_executed": False,
+            "dspy_tool_bound": False,
+            "result_recorded": False,
+            "effects": {
+                "tool_called": False,
+                "network": False,
+                "filesystem": False,
+                "subprocess": False,
+                "external_authority_mutated": False,
+            },
+        }
+    ]
     assert call["trajectory_slots"]["tool_calls_executed"] is False
     assert call["effects"]["tool_called"] is False
     assert validate_program_runtime_traces(payload) is True
@@ -185,6 +203,50 @@ def test_runtime_trace_semantic_validator_rejects_hash_and_tool_drift() -> None:
     bad_tool_policy = json.loads(json.dumps(payload))
     bad_tool_policy["module_calls"][0]["trajectory_slots"]["tool_calls_executed"] = True
     assert validate_program_runtime_traces(bad_tool_policy) is False
+
+    react_v2_payload = build_program_runtime_traces(
+        SimpleNamespace(
+            name="TraceProgram",
+            objective="Capture ReActV2 runtime traces.",
+            outputs=["answer"],
+        ),
+        module_surfaces={
+            "module_surfaces": [
+                {
+                    **_module_surfaces()["module_surfaces"][0],
+                    "primitive": "ReActV2",
+                    "react": {
+                        "declared_tool_refs": ["lookup_policy"],
+                        "tool_binding_status": "declared_refs_only_not_bound",
+                        "tool_binding_allowed": False,
+                    },
+                }
+            ]
+        },
+        behavior_results={
+            "schema_version": "program-behavior-results-v1",
+            "examples": [
+                {
+                    "index": 0,
+                    "status": "passed",
+                    "inputs": {"question": "q"},
+                    "observed_outputs": {"answer": "a"},
+                }
+            ],
+            "summary": {"total": 1, "status": "passed"},
+        },
+    )
+    bad_tool_intent = json.loads(json.dumps(react_v2_payload))
+    bad_tool_intent["module_calls"][0]["trajectory_slots"]["tool_call_intents"][0][
+        "tool_call_executed"
+    ] = True
+    assert validate_program_runtime_traces(bad_tool_intent) is False
+
+    bad_tool_result = json.loads(json.dumps(react_v2_payload))
+    bad_tool_result["module_calls"][0]["trajectory_slots"]["tool_call_results"] = [
+        {"tool_id": "lookup_policy"}
+    ]
+    assert validate_program_runtime_traces(bad_tool_result) is False
 
     bad_scheduler_event = json.loads(json.dumps(payload))
     bad_scheduler_event["module_calls"][0]["scheduler_events"] = [
