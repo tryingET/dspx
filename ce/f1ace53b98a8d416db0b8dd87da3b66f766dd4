@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "cef1ace53b98a8d416db0b8dd87da3b66f766dd4"
-created_at: "2026-06-06T06:52:41Z"
+created_at: "2026-06-06T07:12:58Z"
 intent: "Harden nexus adversarial boundary bindings and update AK-3415 scope projection."
 files:
   - "governance/task-scopes/AK-3415.snapshot.json"
@@ -22,7 +22,7 @@ validation:
     status: "pass"
   full_gate:
     command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq1deqet-f3cda0e1 iteration 2' just loop-impact-wide"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
