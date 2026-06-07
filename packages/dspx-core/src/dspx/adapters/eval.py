@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from numbers import Integral
 from typing import Any, Dict, List, Sequence, cast
 
 
@@ -405,6 +406,11 @@ def expected_calibration_error_binary(
     """
     if len(y_true) != len(y_scores):
         raise ValueError("y_true and y_scores must have the same length")
+    if isinstance(n_bins, bool) or not isinstance(n_bins, Integral):
+        raise ValueError("n_bins must be a positive integer")
+    bin_count = int(n_bins)
+    if bin_count < 1:
+        raise ValueError("n_bins must be a positive integer")
     n = len(y_true)
     if n == 0:
         return 0.0
@@ -428,13 +434,13 @@ def expected_calibration_error_binary(
     # Bin edges
 
     ece = 0.0
-    for b in range(n_bins):
-        lo = b / n_bins
-        hi = (b + 1) / n_bins
+    for b in range(bin_count):
+        lo = b / bin_count
+        hi = (b + 1) / bin_count
         idxs = [
             i
             for i, s in enumerate(scores)
-            if (s >= lo and (s < hi or (b == n_bins - 1 and s <= hi)))
+            if (s >= lo and (s < hi or (b == bin_count - 1 and s <= hi)))
         ]
         if not idxs:
             continue

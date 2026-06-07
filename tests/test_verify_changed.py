@@ -455,6 +455,16 @@ def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
             "pytest_server_security",
         ),
         (
+            "packages/dspx-core/src/dspx/adapters/eval.py",
+            "adapter_evaluation_boundary",
+            "pytest_adapters_eval",
+        ),
+        (
+            "packages/dspx-core/src/dspx/tools/registry.py",
+            "tool_registry_boundary",
+            "pytest_tools_registry",
+        ),
+        (
             "packages/dspx-core/src/dspx/services/program_promotion.py",
             "python_service",
             "pytest_promotion_plan_adjacent",

@@ -6,6 +6,7 @@ import pytest
 from dspx.openai_compatible_lm import OpenAICompatibleLM
 from dspx.openrouter_lm import OpenRouterLM
 from dspx.security import ByteLimitExceededError, DEFAULT_HTTP_RESPONSE_MAX_BYTES
+from dspx.server.security import AuthConfig, AuthGuard, UnauthorizedError
 
 
 def _huge_client() -> httpx.Client:
@@ -31,6 +32,13 @@ def test_openai_compatible_provider_rejects_oversized_response() -> None:
 
     with pytest.raises(ByteLimitExceededError):
         lm.forward(prompt="hi")
+
+
+def test_auth_guard_treats_non_ascii_bearer_token_as_auth_failure() -> None:
+    guard = AuthGuard(AuthConfig(tokens={"abc"}, required=True))
+
+    with pytest.raises(UnauthorizedError, match="invalid token"):
+        guard.check("Bearer é")
 
 
 def test_openai_compatible_provider_uses_absolute_url_for_injected_client() -> None:

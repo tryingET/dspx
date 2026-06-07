@@ -3,7 +3,38 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from dspx_forge.gitlab_client import GitLabClient, GitLabConfig
+from dspx_forge.gitlab_client import (
+    GitLabClient,
+    GitLabConfig,
+    load_gitlab_config_from_env,
+)
+
+
+@pytest.mark.forge
+def test_gitlab_config_rejects_schemeless_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+    monkeypatch.setenv("DSPX_GITLAB_PROJECT_MAP_JSON", '{"core": 101}')
+
+    with pytest.raises(RuntimeError, match=r"absolute http\(s\) URL"):
+        load_gitlab_config_from_env()
+
+
+@pytest.mark.forge
+def test_gitlab_client_rejects_manually_constructed_schemeless_base_url() -> None:
+    cfg = GitLabConfig(
+        base_url="gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"gitlab.example.com"},
+        default_labels=[],
+    )
+
+    with pytest.raises(RuntimeError, match=r"absolute http\(s\) URL"):
+        GitLabClient(cfg)
 
 
 @pytest.mark.forge

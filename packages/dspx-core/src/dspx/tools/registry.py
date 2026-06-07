@@ -619,6 +619,18 @@ def _repo_summary(root: str = ".", max_files: int = 20, depth: int = 2) -> str:
     return "\n".join(parts)
 
 
+def _quote_sqlite_identifier(identifier: str) -> str:
+    return '"' + identifier.replace('"', '""') + '"'
+
+
+def _bounded_sqlite_sample_rows(sample_rows: int) -> int:
+    try:
+        value = int(sample_rows)
+    except Exception:
+        return 0
+    return max(0, min(value, _MAX_PREVIEW_ROWS))
+
+
 def _detect_sqlite_url(url: Optional[str]) -> Optional[Path]:
     if url and url.startswith("sqlite:///"):
         return Path(url[len("sqlite:///") :])
@@ -674,7 +686,8 @@ def _db_schema(
             parts.append(f"\n## table: {t}")
             # columns
             try:
-                cur.execute(f"PRAGMA table_info({t})")
+                quoted_table = _quote_sqlite_identifier(str(t))
+                cur.execute(f"PRAGMA table_info({quoted_table})")
                 cols = cur.fetchall()
                 col_line = ", ".join([f"{c[1]}:{c[2]}" for c in cols])
                 parts.append(f"columns: {col_line}")
@@ -682,7 +695,10 @@ def _db_schema(
                 pass
             # sample
             try:
-                cur.execute(f"SELECT * FROM {t} LIMIT {int(sample_rows)}")
+                cur.execute(
+                    f"SELECT * FROM {_quote_sqlite_identifier(str(t))} LIMIT ?",
+                    (_bounded_sqlite_sample_rows(sample_rows),),
+                )
                 rows = cur.fetchall()
                 parts.append(f"sample_rows: {rows}")
             except Exception:

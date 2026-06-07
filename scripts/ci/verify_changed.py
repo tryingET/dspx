@@ -520,6 +520,34 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "server security boundary changed",
     ),
+    "pytest_adapters_eval": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_adapters_eval.py",
+            "tests/test_adapters_eval_cli.py",
+            "tests/test_eval_exporters_cli.py",
+        ],
+        "adapter evaluation metrics changed",
+    ),
+    "pytest_tools_registry": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_tools_registry.py",
+            "tests/test_tool_capability_wrapper.py",
+            "tests/test_web_tools_allowlist.py",
+        ],
+        "tool registry boundary changed",
+    ),
     "pytest_openapi_tooling": CommandSpec(
         [
             "uv",
@@ -912,6 +940,8 @@ def build_plan(
         "pytest_provider_v4",
         "pytest_cache_boundary",
         "pytest_server_security",
+        "pytest_adapters_eval",
+        "pytest_tools_registry",
         "pytest_openapi_tooling",
         "pytest_openapi_boundary_contracts",
         "pytest_authority_boundary_contracts",

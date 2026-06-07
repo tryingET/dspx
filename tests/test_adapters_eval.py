@@ -70,6 +70,17 @@ def test_macro_text_metrics() -> None:
     assert b_macro == pytest.approx(0.6839, rel=1e-3)
 
 
+def test_ece_rejects_invalid_bin_counts() -> None:
+    with pytest.raises(ValueError, match="n_bins must be a positive integer"):
+        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=0)
+    with pytest.raises(ValueError, match="n_bins must be a positive integer"):
+        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=-2)
+    with pytest.raises(ValueError, match="n_bins must be a positive integer"):
+        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=1.5)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="n_bins must be a positive integer"):
+        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=True)  # type: ignore[arg-type]
+
+
 def test_pr_curve_and_ece() -> None:
     y_true = [0, 0, 1, 1]
     scores = [0.1, 0.4, 0.35, 0.8]

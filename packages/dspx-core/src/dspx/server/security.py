@@ -116,8 +116,15 @@ class AuthGuard:
 
     @staticmethod
     def _const_time_eq(a: str, b: str) -> bool:
-        # hmac.compare_digest avoids timing leaks
-        return hmac.compare_digest(a, b)
+        # hmac.compare_digest avoids timing leaks, but its str mode raises
+        # TypeError for non-ASCII text. Compare UTF-8 bytes so malformed user
+        # input remains an auth failure instead of escaping as a server error.
+        try:
+            a_bytes = a.encode("utf-8")
+            b_bytes = b.encode("utf-8")
+        except UnicodeEncodeError:
+            return False
+        return hmac.compare_digest(a_bytes, b_bytes)
 
     def _extract_bearer(self, authorization_header: Optional[str]) -> Optional[str]:
         return _extract_bearer_token(authorization_header)

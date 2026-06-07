@@ -35,6 +35,17 @@ def _capability_for_method(method: str) -> str:
     )
 
 
+def _base_url_host(base_url: str) -> str:
+    parsed = urlparse(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise RuntimeError("DSPX_GITLAB_BASE_URL must be an absolute http(s) URL")
+    if parsed.params or parsed.query or parsed.fragment:
+        raise RuntimeError(
+            "DSPX_GITLAB_BASE_URL must not include params, query, or fragment"
+        )
+    return parsed.hostname
+
+
 @dataclass(frozen=True)
 class GitLabConfig:
     base_url: str
@@ -80,8 +91,8 @@ def load_gitlab_config_from_env() -> GitLabConfig:
 
     allowed_keys = _as_set(os.getenv("DSPX_GITLAB_ALLOWED_PROJECT_KEYS"))
     allowed_hosts = _as_set(os.getenv("DSPX_GITLAB_ALLOWED_HOSTS"))
-    host = urlparse(base_url).hostname or ""
-    allowed_hosts = allowed_hosts or ({host} if host else set())
+    host = _base_url_host(base_url)
+    allowed_hosts = allowed_hosts or {host}
     if host and host not in allowed_hosts:
         raise RuntimeError(f"GitLab host '{host}' not in DSPX_GITLAB_ALLOWED_HOSTS")
 
@@ -102,6 +113,9 @@ def load_gitlab_config_from_env() -> GitLabConfig:
 
 class GitLabClient:
     def __init__(self, cfg: GitLabConfig, *, client: Optional[httpx.Client] = None):
+        host = _base_url_host(cfg.base_url)
+        if host not in cfg.allowed_hosts:
+            raise PermissionError(f"Host not allowed: {host}")
         self.cfg = cfg
         self._client = client
 
