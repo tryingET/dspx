@@ -110,6 +110,7 @@ A passed target-fidelity or fitness result for a dependency-intelligence review 
 - Receipt/replay infrastructure gives the product a durable evidence spine.
 - `program-loop` now dogfoods that spine as a single local command: materialize candidate, replay-check receipt, index/report Oracle-readable behavior evidence in a candidate-local index, and write a candidate-state summary without authority effects.
 - The local validation spine is now more trustworthy for agent/operator iteration: impact-aware routing has explicit boundary rules and regression coverage for docs, provider/runtime, OpenAPI, Oracle, promotion/refinement, and program-generation seams.
+- The latest nexus hardening pass tightened boundary-confirmation semantics: generated-code smoke checks reject dunder-reflection escape paths, program Oracle non-authority confirmation now requires positive indexed evidence and remains false when combined indexing modes have errors, and workflow contracts reject stale machine-local prompt-source instructions so Prompt Vault remains the reusable prompt/procedure source.
 - Oracle already has behavioral coordinate, search, neighbor, drift, territory, frontier, attractor, and contract concepts in the product surface.
 - The docs already separate runtime evidence, Oracle interpretation, and governance authority.
 
@@ -121,6 +122,7 @@ A passed target-fidelity or fitness result for a dependency-intelligence review 
 - GEPA/search is now present as an explicit local sidecar seam over program candidate manifests, but it is not automatic and does not yet turn optimizer output into a new `program-candidate-assembly-v1`; proposal acceptance remains separate from this GEPA path.
 - The operator experience now has a first `program-loop` command for the core one-intent to evidence/state path, but still requires knowing separate CLI surfaces for refinement, GEPA/search, review, decision recording, second-candidate generation, comparison, promotion planning, external preflight, and activation packets.
 - Impact-aware validation is a stronger local routing aid after the boundary-hardening wave, but it remains evidence for local iteration only; next slices must still choose scoped verification from runtime risk, and live provider/shared Oracle behavior remains opt-in rather than implied by local checks.
+- Loop closeout coordination still depends on the owning loop harness delivering the product-posture refresh and completion/report-back prompts in the right order; when that harness omits posture refresh from a specialized loop, the product frontier can drift even if the implementation and validation are complete.
 - Current docs can make the target architecture legible, but without this posture file the shipped-vs-target gap is easy to blur.
 
 ## Target product experience
