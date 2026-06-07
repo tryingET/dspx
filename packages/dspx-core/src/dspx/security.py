@@ -287,6 +287,28 @@ def read_response_text_bounded(
     return data.decode(encoding, errors="replace")
 
 
+def read_file_text_bounded(
+    path: Path, *, max_bytes: int, label: str, encoding: str = "utf-8"
+) -> str:
+    """Read a local text file with the same hard byte ceiling used for HTTP bodies."""
+    if max_bytes < 1:
+        raise ValueError("max_bytes must be positive")
+    chunks: list[bytes] = []
+    total = 0
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(min(64 * 1024, max_bytes + 1))
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                raise ByteLimitExceededError(
+                    f"{label} exceeded byte limit: {total} > {max_bytes}"
+                )
+            chunks.append(chunk)
+    return b"".join(chunks).decode(encoding, errors="replace")
+
+
 def response_json_or_raw_text_bounded(
     response: "httpx.Response", *, max_bytes: int, label: str
 ) -> Any:

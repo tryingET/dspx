@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib
 import json
@@ -27,6 +28,57 @@ PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
 
 CONTRACT_MODES = {"none", "pdf_transition_review"}
 _GENERATED_PROGRAM_IMPORT_LOCK = threading.RLock()
+_ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS = {
+    "__future__",
+    "dspy",
+    "dspx.tracing",
+    "hashlib",
+    "json",
+    "module",
+    "pathlib",
+    "signature",
+    "typing",
+}
+_ALLOWED_GENERATED_PROGRAM_TOP_LEVEL_NODES = (
+    ast.Assign,
+    ast.AnnAssign,
+    ast.Expr,
+    ast.FunctionDef,
+    ast.Import,
+    ast.ImportFrom,
+)
+_ALLOWED_GENERATED_SIBLING_TOP_LEVEL_NODES = (
+    *_ALLOWED_GENERATED_PROGRAM_TOP_LEVEL_NODES,
+    ast.ClassDef,
+)
+_GENERATED_SURFACE_TOP_LEVEL_NODES = {
+    "program.py": _ALLOWED_GENERATED_PROGRAM_TOP_LEVEL_NODES,
+    "module.py": _ALLOWED_GENERATED_SIBLING_TOP_LEVEL_NODES,
+    "signature.py": _ALLOWED_GENERATED_SIBLING_TOP_LEVEL_NODES,
+}
+_DENIED_GENERATED_PROGRAM_CALLS = {
+    "__import__",
+    "compile",
+    "eval",
+    "exec",
+    "open",
+}
+_DENIED_GENERATED_PROGRAM_METHODS = {
+    "check_call",
+    "check_output",
+    "chmod",
+    "mkdir",
+    "popen",
+    "remove",
+    "rename",
+    "replace",
+    "rmdir",
+    "run",
+    "system",
+    "unlink",
+    "write_bytes",
+    "write_text",
+}
 
 
 def _json_text(payload: Mapping[str, Any]) -> str:
@@ -259,9 +311,336 @@ def _materialize_runtime_inputs(
     }
 
 
+def _import_roots(node: ast.Import | ast.ImportFrom) -> list[str]:
+    if isinstance(node, ast.ImportFrom):
+        return [str(node.module or "")]
+    return [str(alias.name).split(".", 1)[0] for alias in node.names]
+
+
+def _literal_only(node: ast.AST | None) -> bool:
+    if node is None:
+        return True
+    if isinstance(node, ast.Constant):
+        return True
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return all(_literal_only(item) for item in node.elts)
+    if isinstance(node, ast.Dict):
+        return all(_literal_only(item) for item in [*node.keys, *node.values])
+    if isinstance(node, ast.UnaryOp):
+        return _literal_only(node.operand)
+    return False
+
+
+_SAFE_ANNOTATION_NAMES = {
+    "Any",
+    "Exception",
+    "Path",
+    "bool",
+    "dict",
+    "float",
+    "int",
+    "list",
+    "None",
+    "object",
+    "set",
+    "str",
+    "tuple",
+}
+
+
+def _safe_annotation(node: ast.AST | None) -> bool:
+    if node is None:
+        return True
+    if isinstance(node, ast.Constant):
+        if node.value is None:
+            return True
+        if isinstance(node.value, str):
+            text = node.value.strip()
+            if text in _SAFE_ANNOTATION_NAMES:
+                return True
+            try:
+                parsed = ast.parse(text, mode="eval")
+            except SyntaxError:
+                return False
+            return not isinstance(parsed.body, ast.Constant) and _safe_annotation(
+                parsed.body
+            )
+        return False
+    if isinstance(node, ast.Name):
+        return node.id in _SAFE_ANNOTATION_NAMES
+    if isinstance(node, ast.Attribute):
+        return isinstance(node.value, ast.Name) and node.value.id == "dspy"
+    if isinstance(node, ast.Subscript):
+        return _safe_annotation(node.value) and _safe_annotation(node.slice)
+    if isinstance(node, ast.Tuple):
+        return all(_safe_annotation(item) for item in node.elts)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        return _safe_annotation(node.left) and _safe_annotation(node.right)
+    return False
+
+
+def _safe_dspy_field_call(node: ast.AST | None) -> bool:
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return False
+    if not isinstance(node.func.value, ast.Name) or node.func.value.id != "dspy":
+        return False
+    if node.func.attr not in {"InputField", "OutputField"}:
+        return False
+    return all(_literal_only(arg) for arg in node.args) and all(
+        _literal_only(keyword.value) for keyword in node.keywords
+    )
+
+
+def _safe_class_assignment_value(node: ast.AST | None) -> bool:
+    return _literal_only(node) or _safe_dspy_field_call(node)
+
+
+def _safe_assignment_target(node: ast.AST) -> bool:
+    if isinstance(node, ast.Name):
+        return True
+    if isinstance(node, (ast.Tuple, ast.List)):
+        return all(_safe_assignment_target(item) for item in node.elts)
+    return False
+
+
+def _safe_assignment_targets(nodes: list[ast.expr]) -> bool:
+    return all(_safe_assignment_target(node) for node in nodes)
+
+
+def _safe_class_base(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "dspy"
+        and node.attr in {"Module", "Signature"}
+    )
+
+
+def _function_header_violations(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, *, filename: str
+) -> list[str]:
+    violations: list[str] = []
+    if node.decorator_list:
+        violations.append(
+            f"{filename} line {node.lineno}: decorators are not import-safe"
+        )
+    defaults: list[ast.AST | None] = [*node.args.defaults, *node.args.kw_defaults]
+    if any(not _literal_only(default) for default in defaults):
+        violations.append(
+            f"{filename} line {node.lineno}: function defaults must be literal"
+        )
+    args = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+    if node.args.vararg is not None:
+        args.append(node.args.vararg)
+    if node.args.kwarg is not None:
+        args.append(node.args.kwarg)
+    annotations = [arg.annotation for arg in args]
+    annotations.append(node.returns)
+    if any(not _safe_annotation(annotation) for annotation in annotations):
+        violations.append(
+            f"{filename} line {node.lineno}: function annotations are not import-safe"
+        )
+    return violations
+
+
+def _class_header_violations(node: ast.ClassDef, *, filename: str) -> list[str]:
+    violations: list[str] = []
+    if node.decorator_list:
+        violations.append(
+            f"{filename} line {node.lineno}: decorators are not import-safe"
+        )
+    if any(not _safe_class_base(base) for base in node.bases):
+        violations.append(
+            f"{filename} line {node.lineno}: class bases must be dspy.Module or dspy.Signature"
+        )
+    if node.keywords:
+        violations.append(
+            f"{filename} line {node.lineno}: class keywords are not import-safe"
+        )
+    return violations
+
+
+def _class_body_violations(node: ast.ClassDef, *, filename: str) -> list[str]:
+    violations: list[str] = []
+    for item in node.body:
+        if isinstance(item, ast.Expr) and isinstance(item.value, ast.Constant):
+            continue
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            violations.extend(_function_header_violations(item, filename=filename))
+            continue
+        if (
+            isinstance(item, ast.Assign)
+            and _safe_assignment_targets(item.targets)
+            and _safe_class_assignment_value(item.value)
+        ):
+            continue
+        if (
+            isinstance(item, ast.AnnAssign)
+            and _safe_assignment_target(item.target)
+            and _safe_annotation(item.annotation)
+            and _safe_class_assignment_value(item.value)
+        ):
+            continue
+        violations.append(
+            f"{filename} line {getattr(item, 'lineno', '?')}: class body "
+            f"{type(item).__name__} is not import-safe"
+        )
+    return violations
+
+
+def _generated_surface_static_violations(
+    source: str,
+    *,
+    filename: str,
+    allowed_top_level_nodes: tuple[type[ast.AST], ...],
+) -> list[str]:
+    try:
+        tree = ast.parse(source, filename=filename)
+    except SyntaxError as exc:
+        return [f"{filename} syntax error at line {exc.lineno}: {exc.msg}"]
+
+    violations: list[str] = []
+    top_level_node_ids = {id(node) for node in tree.body}
+    for node in tree.body:
+        if not isinstance(node, allowed_top_level_nodes):
+            violations.append(
+                f"{filename} line {getattr(node, 'lineno', '?')}: top-level "
+                f"{type(node).__name__} is not allowed"
+            )
+            continue
+        if isinstance(node, ast.Expr) and not isinstance(
+            getattr(node, "value", None), ast.Constant
+        ):
+            violations.append(
+                f"{filename} line {node.lineno}: top-level expression is not allowed"
+            )
+        if isinstance(node, ast.Assign):
+            if not _safe_assignment_targets(node.targets):
+                violations.append(
+                    f"{filename} line {node.lineno}: assignment target is not import-safe"
+                )
+            if not _literal_only(node.value):
+                violations.append(
+                    f"{filename} line {node.lineno}: top-level assignment must be literal"
+                )
+        if isinstance(node, ast.AnnAssign):
+            if not _safe_assignment_target(node.target):
+                violations.append(
+                    f"{filename} line {node.lineno}: assignment target is not import-safe"
+                )
+            if not _literal_only(node.value):
+                violations.append(
+                    f"{filename} line {node.lineno}: top-level assignment must be literal"
+                )
+            if not _safe_annotation(node.annotation):
+                violations.append(
+                    f"{filename} line {node.lineno}: annotation is not import-safe"
+                )
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for root in _import_roots(node):
+                if root not in _ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS:
+                    violations.append(
+                        f"{filename} line {node.lineno}: import is not allowed: {root}"
+                    )
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            violations.extend(_function_header_violations(node, filename=filename))
+        if isinstance(node, ast.ClassDef):
+            violations.extend(_class_header_violations(node, filename=filename))
+            violations.extend(_class_body_violations(node, filename=filename))
+
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, (ast.Import, ast.ImportFrom))
+            and id(node) not in top_level_node_ids
+        ):
+            for root in _import_roots(node):
+                if root not in _ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS:
+                    violations.append(
+                        f"{filename} line {node.lineno}: import is not allowed: {root}"
+                    )
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in _DENIED_GENERATED_PROGRAM_CALLS:
+            violations.append(
+                f"{filename} line {node.lineno}: call is not allowed: {func.id}"
+            )
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr in _DENIED_GENERATED_PROGRAM_METHODS
+        ):
+            violations.append(
+                f"{filename} line {node.lineno}: method is not allowed: {func.attr}"
+            )
+    return violations
+
+
+def _surface_import_roots(source: str) -> set[str]:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    roots: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            roots.update(_import_roots(node))
+    return roots
+
+
+def _candidate_shadowing_violations(candidate_root: Path) -> list[str]:
+    violations: list[str] = []
+    sibling_roots = {"module", "signature"}
+    for root in _ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS:
+        segment = root.split(".", 1)[0]
+        if segment == "__future__":
+            continue
+        if segment in sibling_roots:
+            if (candidate_root / segment).exists():
+                violations.append(
+                    f"candidate artifact shadows generated sibling module file: {segment}"
+                )
+            continue
+        if (candidate_root / f"{segment}.py").exists() or (
+            candidate_root / segment
+        ).exists():
+            violations.append(
+                f"candidate artifact shadows allowed external import root: {segment}"
+            )
+    return violations
+
+
+def _verify_generated_program_surfaces_safety(candidate_root: Path) -> None:
+    violations: list[str] = _candidate_shadowing_violations(candidate_root)
+    for filename, allowed_nodes in _GENERATED_SURFACE_TOP_LEVEL_NODES.items():
+        surface_path = candidate_root / filename
+        if not surface_path.exists():
+            if filename == "program.py":
+                violations.append("program.py is missing")
+            continue
+        source = surface_path.read_text(encoding="utf-8")
+        for root in _surface_import_roots(source) & {"module", "signature"}:
+            if not (candidate_root / f"{root}.py").is_file():
+                violations.append(
+                    f"{filename} imports generated sibling {root}, but {root}.py is missing"
+                )
+        violations.extend(
+            _generated_surface_static_violations(
+                source,
+                filename=filename,
+                allowed_top_level_nodes=allowed_nodes,
+            )
+        )
+    if violations:
+        raise ValueError(
+            "generated program surface safety policy failed: "
+            + "; ".join(violations[:5])
+        )
+
+
 @contextmanager
 def _generated_program_module(candidate_root: Path) -> Iterator[Any]:
     names = ("program", "module", "signature")
+    _verify_generated_program_surfaces_safety(candidate_root)
     root_text = str(candidate_root)
     # Generated program candidates import sibling modules by process-global names
     # (program/module/signature). Keep the whole candidate context serialized so

@@ -8,7 +8,10 @@ import httpx
 import pytest
 
 from dspx.tools.openapi import load_spec, extract_operations
-from dspx.tools.openapi.caller import call_operation
+from dspx.tools.openapi.caller import (
+    _validate_json_value_against_schema,
+    call_operation,
+)
 from dspx.dtos import OpenAPICallRequest
 
 
@@ -176,6 +179,46 @@ def test_openapi_call_url_encodes_reserved_path_chars(tmp_path: Path) -> None:
 
     assert res.status_code == 200
     assert seen == ["http://api.example.com/echo/a%2Fb"]
+
+
+def test_openapi_call_strips_hop_by_hop_headers(tmp_path: Path) -> None:
+    spec_path = _make_spec(tmp_path)
+    data = load_spec(spec_path)
+    ops = extract_operations(data)
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(dict(request.headers))
+        return httpx.Response(200, json={"ok": True})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    res = call_operation(
+        OpenAPICallRequest(
+            operation_id="ping",
+            headers={
+                "Connection": "keep-alive, X-Test",
+                "Transfer-Encoding": "chunked",
+                "X-Test": "ok",
+            },
+        ),
+        operation=ops["ping"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+
+    assert res.status_code == 200
+    assert "x-test" not in seen
+    assert seen.get("connection") != "keep-alive, X-Test"
+    assert "transfer-encoding" not in seen
+
+
+def test_openapi_schema_pattern_timeout_fails_closed() -> None:
+    with pytest.raises(ValueError, match="unsafe regex pattern timed out"):
+        _validate_json_value_against_schema(
+            "a" * 30_000 + "!",
+            {"type": "string", "pattern": "^(a+)+$"},
+            path="$.name",
+        )
 
 
 def test_openapi_call_with_body_and_headers(tmp_path: Path) -> None:

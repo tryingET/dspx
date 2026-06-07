@@ -26,9 +26,10 @@ def test_generated_program_module_serializes_concurrent_global_imports(
         candidate = tmp_path / name
         candidate.mkdir()
         (candidate / "program.py").write_text(
-            "import time\n"
-            "time.sleep(0.02)\n"
-            f"def io_spec(): return {{'outputs': ['{value}']}}\n",
+            "def io_spec():\n"
+            "    for _ in range(10000):\n"
+            "        pass\n"
+            f"    return {{'outputs': ['{value}']}}\n",
             encoding="utf-8",
         )
 

@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, reset_embedding_engine
 from dspx.services.program_runtime_episode import (
+    _generated_program_module,
     _materialize_runtime_inputs,
     run_program_runtime_episode,
 )
@@ -176,6 +177,261 @@ def test_program_runtime_episode_rejects_tampered_candidate_surface(
             inputs_path=inputs,
             outdir=tmp_path / "runtime-episode",
         )
+
+
+def test_generated_program_module_rejects_import_time_side_effects(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('ran')\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError, match="generated program surface safety policy failed"
+    ):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_rejects_sibling_import_time_side_effects(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from module import io_spec\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+    (candidate / "module.py").write_text(
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('ran')\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="module.py"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_rejects_class_body_side_effects(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from module import io_spec\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+    (candidate / "module.py").write_text(
+        "from pathlib import Path\n"
+        "class Unsafe:\n"
+        f"    marker = Path({str(marker)!r}).touch()\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="class body"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_rejects_import_time_assignment_targets(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from module import io_spec\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+    (candidate / "module.py").write_text(
+        "from pathlib import Path\n"
+        "x = {}\n"
+        f"x[Path({str(marker)!r}).touch()] = 1\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="assignment target is not import-safe"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_rejects_import_time_header_expressions(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    cases = {
+        "decorator": "@Path({marker!r}).touch()\ndef io_spec():\n    return {{'inputs': [], 'outputs': []}}\n",
+        "default": "def io_spec(x=Path({marker!r}).touch()):\n    return {{'inputs': [], 'outputs': []}}\n",
+        "annotation": "def io_spec(x: Path({marker!r}).touch()):\n    return {{'inputs': [], 'outputs': []}}\n",
+        "string_annotation": "def io_spec(x: \"Path({marker!r}).touch()\"):\n    return {{'inputs': [], 'outputs': []}}\n",
+        "base": "class Unsafe(Path({marker!r}).touch()):\n    pass\ndef io_spec():\n    return {{'inputs': [], 'outputs': []}}\n",
+    }
+    for name, module_template in cases.items():
+        candidate = tmp_path / name
+        candidate.mkdir()
+        (candidate / "program.py").write_text(
+            "from module import io_spec\n"
+            "def intent_summary():\n"
+            "    return {}\n"
+            "def build_program():\n"
+            "    return lambda **kwargs: {}\n",
+            encoding="utf-8",
+        )
+        (candidate / "module.py").write_text(
+            "from pathlib import Path\n" + module_template.format(marker=str(marker)),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="import-safe|literal|class bases"):
+            with _generated_program_module(candidate):
+                pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_rejects_missing_sibling_import(
+    tmp_path: Path,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from module import io_spec\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="module.py is missing"):
+        with _generated_program_module(candidate):
+            pass
+
+
+def test_generated_program_module_rejects_sibling_package_shadowing(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    module_dir = candidate / "module"
+    module_dir.mkdir(parents=True)
+    (module_dir / "__init__.py").write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).write_text('ran')\n",
+        encoding="utf-8",
+    )
+    (candidate / "program.py").write_text(
+        "from module import io_spec\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="shadows generated sibling module file"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_rejects_external_import_shadowing(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "dspy.py").write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).write_text('ran')\n",
+        encoding="utf-8",
+    )
+    (candidate / "program.py").write_text(
+        "import dspy\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="shadows allowed external import root"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_allows_signature_sibling_import(
+    tmp_path: Path,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "signature.py").write_text(
+        "import dspy\n"
+        "class DemoSignature(dspy.Signature):\n"
+        "    text: str = dspy.InputField()\n"
+        "    answer: str = dspy.OutputField()\n",
+        encoding="utf-8",
+    )
+    (candidate / "module.py").write_text(
+        "from signature import DemoSignature\n"
+        "def io_spec():\n"
+        "    return {'inputs': ['text'], 'outputs': ['answer']}\n",
+        encoding="utf-8",
+    )
+    (candidate / "program.py").write_text(
+        "from module import io_spec\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+
+    with _generated_program_module(candidate) as module:
+        assert module.io_spec()["outputs"] == ["answer"]
 
 
 def test_runtime_input_materialization_converts_image_file_descriptors(

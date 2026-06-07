@@ -21,6 +21,14 @@ from dspx.policy import (
 )
 import time as _time
 
+_safe_regex: Any = None
+try:
+    import regex as _regex_module
+except Exception:  # pragma: no cover - stdlib fallback is intentionally conservative
+    pass
+else:
+    _safe_regex = _regex_module
+
 try:
     from dspx.redaction import redact_url as _redact_url
 except Exception:  # pragma: no cover
@@ -30,6 +38,20 @@ except Exception:  # pragma: no cover
 
 
 _DEFAULT_OPERATION_RESPONSE_MAX_BYTES = 2_000_000
+_DEFAULT_OPERATION_TIMEOUT_SECONDS = 20.0
+_DEFAULT_SCHEMA_REGEX_TIMEOUT_SECONDS = 0.05
+_FALLBACK_REGEX_INPUT_MAX_CHARS = 4096
+_BLOCKED_REQUEST_HEADERS = {
+    "connection",
+    "content-length",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+}
 
 
 def _operation_response_max_bytes() -> int:
@@ -45,6 +67,41 @@ def _operation_response_max_bytes() -> int:
         ) from exc
     if value < 1:
         raise ValueError("DSPX_OPENAPI_RESPONSE_MAX_BYTES must be positive")
+    return value
+
+
+def _operation_timeout_seconds() -> float:
+    raw = os.getenv(
+        "DSPX_OPENAPI_OPERATION_TIMEOUT", str(_DEFAULT_OPERATION_TIMEOUT_SECONDS)
+    )
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "DSPX_OPENAPI_OPERATION_TIMEOUT must be a positive number"
+        ) from exc
+    if not _math.isfinite(value) or value <= 0:
+        raise ValueError(
+            "DSPX_OPENAPI_OPERATION_TIMEOUT must be a positive finite number"
+        )
+    return value
+
+
+def _schema_regex_timeout_seconds() -> float:
+    raw = os.getenv(
+        "DSPX_OPENAPI_SCHEMA_REGEX_TIMEOUT",
+        str(_DEFAULT_SCHEMA_REGEX_TIMEOUT_SECONDS),
+    )
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "DSPX_OPENAPI_SCHEMA_REGEX_TIMEOUT must be a positive number"
+        ) from exc
+    if not _math.isfinite(value) or value <= 0:
+        raise ValueError(
+            "DSPX_OPENAPI_SCHEMA_REGEX_TIMEOUT must be a positive finite number"
+        )
     return value
 
 
@@ -271,6 +328,49 @@ def _enum_contains(value: Any, enum: list[Any]) -> bool:
     return any(_json_enum_equal(value, item) for item in enum)
 
 
+def _connection_header_tokens(headers: Mapping[str, str]) -> set[str]:
+    tokens: set[str] = set()
+    for name, value in headers.items():
+        if str(name).strip().lower() != "connection":
+            continue
+        tokens.update(
+            token.strip().lower() for token in str(value).split(",") if token.strip()
+        )
+    return tokens
+
+
+def _request_headers(headers: Mapping[str, str]) -> dict[str, str]:
+    blocked = _BLOCKED_REQUEST_HEADERS | {"host"} | _connection_header_tokens(headers)
+    return {
+        str(name): value
+        for name, value in headers.items()
+        if str(name).strip().lower() not in blocked
+    }
+
+
+def _schema_pattern_matches(pattern: str, value: str, *, path: str) -> bool:
+    if _safe_regex is not None:
+        try:
+            return bool(
+                _safe_regex.compile(pattern).search(
+                    value, timeout=_schema_regex_timeout_seconds()
+                )
+            )
+        except TimeoutError as exc:
+            raise ValueError(f"{path}: unsafe regex pattern timed out") from exc
+        except Exception as exc:
+            raise ValueError(f"{path}: invalid regex pattern") from exc
+    if len(value) > _FALLBACK_REGEX_INPUT_MAX_CHARS:
+        raise ValueError(
+            f"{path}: regex input exceeds fallback safety limit "
+            f"({_FALLBACK_REGEX_INPUT_MAX_CHARS} chars)"
+        )
+    try:
+        return bool(_re.compile(pattern).search(value))
+    except Exception as exc:
+        raise ValueError(f"{path}: invalid regex pattern") from exc
+
+
 def call_operation(
     request: OpenAPICallRequest,
     *,
@@ -287,11 +387,7 @@ def call_operation(
     method, server, path = _operation_identity(request, operation)
     params = dict(request.params or {})
     body = request.body if request.body is not None else None
-    headers = {
-        str(name): value
-        for name, value in (request.headers or {}).items()
-        if str(name).lower() != "host"
-    }
+    headers = _request_headers(request.headers or {})
     # Validate required path/query parameters and request body schema
     # Validate required path parameters when present in operation description
     try:
@@ -535,7 +631,11 @@ def call_operation(
 
     close_client = False
     if client is None:
-        client = httpx.Client(timeout=request.timeout)
+        client = httpx.Client(
+            timeout=request.timeout
+            if request.timeout is not None
+            else _operation_timeout_seconds()
+        )
         close_client = True
     try:
         req = client.build_request(
@@ -818,7 +918,9 @@ def _validate_json_value_against_schema(
                             if isinstance(ps.get("pattern"), str) and isinstance(
                                 v, str
                             ):
-                                if not _re.compile(str(ps.get("pattern"))).search(v):
+                                if not _schema_pattern_matches(
+                                    str(ps.get("pattern")), v, path=f"{path}.{name}"
+                                ):
                                     raise ValueError(
                                         f"{path}.{name}: does not match pattern"
                                     )
@@ -903,7 +1005,7 @@ def _validate_json_value_against_schema(
                 raise ValueError(f"{path}: longer than maxLength")
             if isinstance(schema.get("pattern"), str):
                 pat = schema["pattern"]
-                if not _re.compile(pat).search(value):
+                if not _schema_pattern_matches(pat, value, path=path):
                     raise ValueError(f"{path}: does not match pattern")
         except ValueError:
             raise

@@ -74,6 +74,17 @@ def test_load_spec_url_enforces_remote_byte_limit(tmp_path: Path, monkeypatch) -
     assert not list((tmp_path / "cache").glob("*.json"))
 
 
+def test_load_spec_local_file_enforces_byte_limit(tmp_path: Path, monkeypatch) -> None:
+    spec_path = tmp_path / "oversized.json"
+    spec_path.write_text(
+        '{"openapi":"3.0.0","paths":{}}' + (" " * 64), encoding="utf-8"
+    )
+    monkeypatch.setenv("DSPX_OPENAPI_MAX_BYTES", "16")
+
+    with pytest.raises(ValueError, match="OpenAPI local spec exceeded byte limit"):
+        load_spec(str(spec_path))
+
+
 def test_load_spec_cache_fallback_is_opt_in(tmp_path: Path, monkeypatch) -> None:
     good_spec = '{"openapi":"3.0.0","paths":{"/ping":{"get":{"operationId":"ping","responses":{"200":{"description":"ok"}}}}}}'
     calls = {"count": 0}

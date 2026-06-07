@@ -4,11 +4,12 @@ import json
 from typing import Any, Dict, Mapping, Optional
 from .models import OpenAPIOperationInfo
 import os
+from pathlib import Path
 from urllib.parse import unquote, urlparse
 import httpx
 
 from dspx.http_guard import host_allowed, send_with_host_allowlist
-from dspx.security import read_response_text_bounded
+from dspx.security import read_file_text_bounded, read_response_text_bounded
 
 _DEFAULT_REMOTE_SPEC_MAX_BYTES = 2_000_000
 
@@ -144,8 +145,14 @@ def load_spec(
                 and os.path.exists(pth)
             ):
                 try:
-                    with open(pth, "r", encoding="utf-8") as rf:
-                        return _load_text(rf.read(), pth)
+                    return _load_text(
+                        read_file_text_bounded(
+                            Path(pth),
+                            max_bytes=_remote_spec_max_bytes(),
+                            label="OpenAPI cached spec",
+                        ),
+                        pth,
+                    )
                 except Exception:
                     pass
             raise
@@ -153,8 +160,11 @@ def load_spec(
             if close_client:
                 client.close()
     # Local file path
-    with open(path, "r", encoding="utf-8") as f:
-        text = f.read()
+    text = read_file_text_bounded(
+        Path(path),
+        max_bytes=_remote_spec_max_bytes(),
+        label="OpenAPI local spec",
+    )
     return _load_text(text, path)
 
 
