@@ -317,6 +317,42 @@ def _literalish(node: ast.AST | None) -> bool:
     return False
 
 
+def _annotationish(
+    node: ast.AST | None, *, literal_value_context: bool = False
+) -> bool:
+    """Return True for passive type syntax that cannot execute code.
+
+    Python evaluates annotations at class/function definition time unless a
+    future-annotations import is present. Generated-code smoke checks therefore
+    treat annotations as a separate executable surface instead of relying on the
+    runtime guard to catch dangerous calls after the AST gate has passed.
+    """
+    if node is None:
+        return True
+    if isinstance(node, ast.Name):
+        return not node.id.startswith("__")
+    if isinstance(node, ast.Attribute):
+        return not node.attr.startswith("__") and _annotationish(node.value)
+    if isinstance(node, ast.Subscript):
+        value_name = _call_name(node.value)
+        literal_context = value_name in {"Literal", "typing.Literal"}
+        return _annotationish(node.value) and _annotationish(
+            node.slice, literal_value_context=literal_context
+        )
+    if isinstance(node, ast.Tuple | ast.List):
+        return all(
+            _annotationish(item, literal_value_context=literal_value_context)
+            for item in node.elts
+        )
+    if isinstance(node, ast.Constant):
+        if literal_value_context:
+            return node.value is None or isinstance(node.value, (str, int, float, bool))
+        return node.value is None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        return _annotationish(node.left) and _annotationish(node.right)
+    return False
+
+
 def _validate_signature_field(node: ast.stmt, *, errors: list[str]) -> None:
     if isinstance(node, ast.Pass):
         return
@@ -324,6 +360,9 @@ def _validate_signature_field(node: ast.stmt, *, errors: list[str]) -> None:
         return
     if not isinstance(node, ast.AnnAssign) or not isinstance(node.target, ast.Name):
         errors.append(f"signature_stmt_not_allowed:{node.__class__.__name__}")
+        return
+    if not _annotationish(node.annotation):
+        errors.append(f"signature_annotation_not_allowed:{node.target.id}")
         return
     if not isinstance(node.value, ast.Call):
         errors.append("signature_field_missing_call")
@@ -392,6 +431,28 @@ def _validate_function_defaults(
         errors.append(f"{label}_defaults_not_literal:{node.name}")
 
 
+def _validate_function_annotations(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    errors: list[str],
+    label: str,
+) -> None:
+    args = [
+        *node.args.posonlyargs,
+        *node.args.args,
+        *node.args.kwonlyargs,
+    ]
+    if node.args.vararg is not None:
+        args.append(node.args.vararg)
+    if node.args.kwarg is not None:
+        args.append(node.args.kwarg)
+    for arg in args:
+        if not _annotationish(arg.annotation):
+            errors.append(f"{label}_annotation_not_allowed:{node.name}.{arg.arg}")
+    if not _annotationish(node.returns):
+        errors.append(f"{label}_return_annotation_not_allowed:{node.name}")
+
+
 def _validate_generated_function_body(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     *,
@@ -450,6 +511,11 @@ def _validate_module_class(node: ast.ClassDef, *, errors: list[str]) -> None:
             errors=errors,
             label="method",
         )
+        _validate_function_annotations(
+            child,
+            errors=errors,
+            label="method",
+        )
         _validate_generated_function_body(
             child,
             errors=errors,
@@ -491,6 +557,11 @@ def _validate_module_source(code: str) -> list[str]:
                 )
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 _validate_function_defaults(
+                    node,
+                    errors=errors,
+                    label="top_level_function",
+                )
+                _validate_function_annotations(
                     node,
                     errors=errors,
                     label="top_level_function",

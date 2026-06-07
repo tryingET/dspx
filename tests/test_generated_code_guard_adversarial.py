@@ -2,7 +2,102 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dspx.generated_code_guard import _validate_module_source, smoke_module_code
+from dspx.generated_code_guard import (
+    _validate_module_source,
+    _validate_signature_source,
+    smoke_module_code,
+    smoke_signature_code,
+)
+
+
+def test_generated_signature_guard_allows_passive_type_annotations() -> None:
+    code = """
+from __future__ import annotations
+from typing import Literal
+import dspy
+
+class SafeSig(dspy.Signature):
+    text: str = dspy.InputField()
+    maybe_summary: str | None = dspy.OutputField()
+    tags: list[str] = dspy.OutputField()
+    label: Literal['positive', 'negative'] = dspy.OutputField()
+"""
+
+    errors = _validate_signature_source(code)
+
+    assert errors == []
+
+
+def test_generated_signature_guard_rejects_executable_annotations() -> None:
+    code = """
+import dspy
+
+class UnsafeSig(dspy.Signature):
+    text: eval("str") = dspy.InputField()
+    summary: str = dspy.OutputField()
+"""
+
+    errors = _validate_signature_source(code)
+
+    assert "signature_annotation_not_allowed:text" in errors
+
+
+def test_generated_signature_guard_rejects_string_forwardref_annotations() -> None:
+    code = """
+import dspy
+
+class UnsafeSig(dspy.Signature):
+    text: "__import__('os').system('touch /tmp/dspx-forwardref')" = dspy.InputField()
+    summary: str = dspy.OutputField()
+"""
+
+    errors = _validate_signature_source(code)
+
+    assert "signature_annotation_not_allowed:text" in errors
+
+
+def test_generated_signature_smoke_does_not_allow_annotation_file_read() -> None:
+    code = """
+import dspy
+
+class UnsafeSig(dspy.Signature):
+    text: eval("open('/etc/hosts').read().__class__") = dspy.InputField()
+    summary: str = dspy.OutputField()
+"""
+
+    ok, errors = smoke_signature_code(code, expected_class_name="UnsafeSig")
+
+    assert ok is False
+    assert "signature_annotation_not_allowed:text" in errors
+
+
+def test_generated_module_guard_rejects_executable_method_annotations() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x: eval("str")):
+        return self.predict(x=x)
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    errors = _validate_module_source(code)
+
+    assert "method_annotation_not_allowed:forward.x" in errors
 
 
 def test_generated_module_guard_rejects_dunder_reflection_escape() -> None:
