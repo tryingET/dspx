@@ -1,0 +1,32 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "f2f05fdcb742b0eef4330447effcf8f88e3e553d"
+created_at: "2026-06-07T03:35:13Z"
+intent: "Split test_coordinates_phase_b and test_task_scope into focused concern modules with CI impact verification"
+files:
+  - "scripts/ci/verification-impact.yml"
+  - "scripts/ci/verify_changed.py"
+  - "tests/task_scope_helpers.py"
+  - "tests/test_coordinates_phase_b.py"
+  - "tests/test_coordinates_phase_b_frontiers_attractors.py"
+  - "tests/test_coordinates_phase_b_real_embeddings.py"
+  - "tests/test_coordinates_phase_b_regressions.py"
+  - "tests/test_coordinates_phase_b_territory_contracts.py"
+  - "tests/test_task_scope.py"
+  - "tests/test_task_scope_cli_contract.py"
+  - "tests/test_task_scope_head_mode.py"
+  - "tests/test_task_scope_manifest_and_binding.py"
+  - "tests/test_task_scope_working_tree.py"
+  - "tests/test_verify_changed.py"
+validation:
+  fast_gate:
+    command: "uv run --no-sync -m pytest -q tests/test_verify_changed.py -n 4 --dist=loadfile"
+    status: "pass"
+  full_gate:
+    command: "just verify-tests"
+    status: "pending"
+group:
+  index: 1
+  total: 1
