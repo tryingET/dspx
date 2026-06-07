@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "2d1d34c3941da25700144b6ab34040768878a871"
+created_at: "2026-06-07T05:24:02Z"
+intent: "Refresh DSPx product posture after nexus boundary hardening"
+files:
+  - "docs/project/product-posture.md"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "posture refresh required before nexus-loop final report"
+links:
+  task_ids:
+    - 3415
