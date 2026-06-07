@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "a1c77cb42aba07d3c9e6b42af81ef7353844be00"
-created_at: "2026-06-07T14:43:57Z"
+created_at: "2026-06-07T14:44:03Z"
 intent: "Refresh product posture for generated-runtime import-boundary validation coverage."
 files:
   - "docs/project/product-posture.md"
@@ -12,8 +12,8 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "pending: just loop-impact-plan then just loop-impact-run/loop-impact-wide as indicated"
-    status: "pending"
+    command: "just loop-impact-plan && just loop-impact-run"
+    status: "pass"
 group:
   index: 1
   total: 1
