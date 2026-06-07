@@ -227,7 +227,6 @@ def issues_apply(
     doc = load_workorder(workorder)
     paths = default_paths(workorder)
     specs = [build_issue_spec(doc, project_key=project)]
-    write_issue_specs(paths, specs)
 
     if apply:
         from dspx_forge.gitlab_client import load_gitlab_config_from_env
@@ -243,6 +242,8 @@ def issues_apply(
         except Exception as e:
             typer.echo(f"GitLab not configured: {e}", err=True)
             raise typer.Exit(code=2) from e
+
+    write_issue_specs(paths, specs)
 
     import json as _json
 

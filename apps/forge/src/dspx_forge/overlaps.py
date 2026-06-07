@@ -5,7 +5,7 @@ from typing import Any
 
 from dspx_forge.io import write_json
 from dspx_forge.models import WorkOrderDoc
-from dspx_forge.fingerprints import slugify
+from dspx_forge.issues import _issue_local_id
 
 
 def compute_overlaps(doc: WorkOrderDoc) -> dict[str, Any]:
@@ -23,7 +23,7 @@ def compute_overlaps(doc: WorkOrderDoc) -> dict[str, Any]:
 
         cfg = load_gitlab_config_from_env()
         gl = GitLabClient(cfg)
-        local_id = "iss_" + slugify(wo.title, max_len=24)
+        local_id = _issue_local_id(doc)
         label = f"dspx-iss:{local_id}"
         project_key = wo.routing.primary_project or "core"
         project_id = gl.project_id(project_key)

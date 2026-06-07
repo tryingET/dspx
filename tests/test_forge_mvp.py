@@ -12,6 +12,7 @@ from dspx_forge.issues import (
     default_paths,
     write_issue_specs,
 )
+from dspx_forge.overlaps import compute_overlaps
 from dspx_forge.issue_text import build_managed_block, upsert_managed_block
 from dspx_forge.plan import build_plan
 from dspx_forge.workorder import build_workorder, load_workorder, write_workorder
@@ -40,6 +41,50 @@ def test_forge_issue_spec_fingerprint_stable() -> None:
     i1 = build_issue_spec(wo)
     i2 = build_issue_spec(wo)
     assert i1.issue_spec.fingerprint == i2.issue_spec.fingerprint
+
+
+def test_forge_overlaps_uses_digestful_issue_label(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wo = build_workorder("Build thing\nDo it safely")
+    spec = build_issue_spec(wo)
+    issue_label = [
+        label for label in spec.issue_spec.labels if label.startswith("dspx-iss:")
+    ][0]
+
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "https://gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+
+    import dspx_forge.gitlab_client as gitlab_mod
+    from dspx_forge.gitlab_client import GitLabConfig
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"gitlab.example.com"},
+        default_labels=[],
+    )
+    monkeypatch.setattr(gitlab_mod, "load_gitlab_config_from_env", lambda: cfg)
+    seen_labels: list[list[str]] = []
+
+    class FakeGitLabClient:
+        def __init__(self, _cfg):
+            pass
+
+        def project_id(self, project_key: str) -> int:
+            return 101
+
+        def list_issues(self, project_id: int, *, labels: list[str]):
+            seen_labels.append(labels)
+            return []
+
+    monkeypatch.setattr(gitlab_mod, "GitLabClient", FakeGitLabClient)
+
+    compute_overlaps(wo)
+
+    assert seen_labels == [[issue_label]]
 
 
 def test_forge_issue_local_id_differs_for_same_title_different_workorders() -> None:
@@ -251,6 +296,71 @@ def test_forge_close_duplicates_refuses_unmanaged_issue(
         close_marked_duplicates(paths.workorder_yaml, wo, dry_run=False)
 
     assert closed == []
+
+
+def test_forge_apply_refuses_stale_manifest_iid_without_managed_labels(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "https://gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+
+    wo = build_workorder("Build thing\nDo it safely")
+    spec = build_issue_spec(wo)
+    paths = write_workorder(tmp_path / "generated" / "forge", wo)
+    forge_paths = default_paths(paths.workorder_yaml)
+    forge_paths.manifest_json.write_text(
+        json.dumps(
+            {
+                "schema_version": 0,
+                "workorder_id": wo.work_order.id,
+                "workorder_fingerprint": wo.work_order.fingerprint,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "run_id": wo.work_order.run_id,
+                "gitlab": {},
+                "issue_map": {f"core/{spec.issue_spec.local_id}": {"iid": 99}},
+                "decisions": {"overlaps": [], "routing_overrides": []},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    import dspx_forge.issues as issues_mod
+    from dspx_forge.gitlab_client import GitLabConfig
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"gitlab.example.com"},
+        default_labels=[],
+    )
+    monkeypatch.setattr(issues_mod, "load_gitlab_config_from_env", lambda: cfg)
+    updated: list[int] = []
+
+    class FakeGitLabClient:
+        def __init__(self, _cfg):
+            pass
+
+        def project_id(self, project_key: str) -> int:
+            return 101
+
+        def get_issue(self, project_id: int, iid: int):
+            return {"iid": iid, "description": "unrelated human issue", "labels": []}
+
+        def update_issue(self, project_id: int, iid: int, **_kwargs):
+            updated.append(iid)
+            return {"iid": iid}
+
+    monkeypatch.setattr(issues_mod, "GitLabClient", FakeGitLabClient)
+
+    with pytest.raises(RuntimeError, match="refusing to update"):
+        issues_mod.apply_issue_specs(paths.workorder_yaml, wo, [spec], dry_run=False)
+
+    assert updated == []
 
 
 def test_forge_apply_same_title_different_workorder_creates_new_issue(

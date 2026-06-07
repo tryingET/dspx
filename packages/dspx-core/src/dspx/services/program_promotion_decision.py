@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.security import identity_mismatch_keys
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_refinement import load_program_manifest
 
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
@@ -85,6 +88,14 @@ def _safe_string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value if str(item).strip()]
+
+
+def _first_text(*values: object) -> str | None:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return None
 
 
 def _utc_now_iso() -> str:
@@ -189,6 +200,62 @@ def _load_program_evidence_adjudication(path: Path) -> dict[str, Any]:
                 f"program evidence adjudication must not widen non_authority.{key}"
             )
     return adjudication
+
+
+def _manifest_identity(manifest: Mapping[str, Any]) -> dict[str, str | None]:
+    request = _safe_mapping(manifest.get("request"))
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    return {
+        "request_id": _first_text(
+            request.get("request_id"),
+            candidate_assembly.get("request_id"),
+            execution_episode.get("request_id"),
+            receipt_bundle.get("request_id"),
+        ),
+        "candidate_id": _first_text(
+            candidate_assembly.get("candidate_id"),
+            execution_episode.get("candidate_id"),
+            receipt_bundle.get("candidate_id"),
+        ),
+        "assembly_id": _first_text(
+            candidate_assembly.get("assembly_id"), execution_episode.get("assembly_id")
+        ),
+        "episode_id": _first_text(
+            execution_episode.get("episode_id"), receipt_bundle.get("episode_id")
+        ),
+        "receipt_bundle_id": _first_text(receipt_bundle.get("receipt_bundle_id")),
+    }
+
+
+def _assert_delegation_binds_adjudication(
+    delegation: Mapping[str, Any], adjudication: Mapping[str, Any]
+) -> None:
+    manifest_ref = _safe_mapping(delegation.get("manifest"))
+    manifest_path = _first_text(manifest_ref.get("path"))
+    if not manifest_path:
+        return
+    manifest_file = Path(manifest_path)
+    expected_hash = _first_text(manifest_ref.get("sha256"))
+    if expected_hash:
+        actual_hash = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
+        if actual_hash != expected_hash:
+            raise ProgramPromotionDecisionError(
+                "program adjudicator delegation manifest hash does not match referenced manifest"
+            )
+    try:
+        manifest = load_program_manifest(manifest_file)
+    except ValueError as exc:
+        raise ProgramPromotionDecisionError(str(exc)) from exc
+    expected_identity = _manifest_identity(manifest)
+    actual_identity = _safe_mapping(adjudication.get("identity"))
+    mismatches = identity_mismatch_keys(actual_identity, expected_identity)
+    if mismatches:
+        raise ProgramPromotionDecisionError(
+            "program adjudicator delegation manifest identity does not match evidence adjudication identity: "
+            + ", ".join(sorted(mismatches))
+        )
 
 
 def _dspx_adjudicator_outcome(aggregate: Mapping[str, Any]) -> str:
@@ -338,6 +405,7 @@ def build_generated_program_adjudicator_decision_record(
     adjudicator_delegation_path = adjudicator_delegation_path.expanduser().resolve()
     adjudication = _load_program_evidence_adjudication(evidence_adjudication_path)
     delegation = _load_program_adjudicator_delegation(adjudicator_delegation_path)
+    _assert_delegation_binds_adjudication(delegation, adjudication)
     generated_adjudicator = _safe_mapping(
         delegation.get("generated_program_adjudicator")
     )

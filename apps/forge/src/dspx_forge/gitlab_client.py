@@ -35,6 +35,17 @@ def _capability_for_method(method: str) -> str:
     )
 
 
+def _gitlab_auth_headers(token: str) -> dict[str, str]:
+    mode = (os.getenv("DSPX_GITLAB_TOKEN_HEADER") or "").strip().lower()
+    if mode in {"private-token", "private_token", "pat"}:
+        return {"PRIVATE-TOKEN": token}
+    if mode in {"authorization-bearer", "authorization", "bearer"}:
+        return {"Authorization": f"Bearer {token}"}
+    if token.startswith(("glpat-", "glptt-", "glcbt-", "glsoat-")):
+        return {"PRIVATE-TOKEN": token}
+    return {"Authorization": f"Bearer {token}"}
+
+
 def _base_url_host(base_url: str) -> str:
     parsed = urlparse(base_url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -160,7 +171,7 @@ class GitLabClient:
             host = urlparse(url).hostname or ""
             if host and host not in self.cfg.allowed_hosts:
                 raise PermissionError(f"Host not allowed: {host}")
-            headers = {"Authorization": f"Bearer {self.cfg.token}"}
+            headers = _gitlab_auth_headers(self.cfg.token)
             for _attempt in range(3):
                 req = client.build_request(
                     method,

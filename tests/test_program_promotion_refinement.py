@@ -15,6 +15,7 @@ from dspx.services.program_oracle_report import build_program_oracle_evidence_re
 from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_promotion_refinement import (
     ProgramPromotionRefinementError,
+    _identity_matches,
     build_program_promotion_refinement,
     write_program_promotion_refinement,
 )
@@ -95,6 +96,22 @@ def _materialize_program_report_and_proposal(
     proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
     _write_json(proposal_path, proposal)
     return program_root, report_path, proposal_path
+
+
+def test_program_promotion_refinement_rejects_partial_oracle_identity_match() -> None:
+    assert (
+        _identity_matches(
+            {"candidate_id": "cand-1"},
+            {
+                "request_id": "req-1",
+                "candidate_id": "cand-1",
+                "assembly_id": "asm-1",
+                "episode_id": "ep-1",
+                "receipt_bundle_id": "rb-1",
+            },
+        )
+        is False
+    )
 
 
 def test_program_promotion_refinement_cli_builds_local_review_packet(

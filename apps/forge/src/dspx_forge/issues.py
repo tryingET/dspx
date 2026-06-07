@@ -210,6 +210,18 @@ def _issue_is_safe_duplicate_close_target(
     )
 
 
+def _issue_is_safe_manifest_update_target(
+    issue: dict[str, Any], *, spec: IssueSpecDoc, doc: WorkOrderDoc
+) -> bool:
+    labels = _issue_labels(issue)
+    return (
+        _issue_matches_workorder_fingerprint(issue, doc.work_order.fingerprint)
+        and "dspx-forge" in labels
+        and _workorder_label(doc) in labels
+        and f"dspx-iss:{spec.issue_spec.local_id}" in labels
+    )
+
+
 def _resolve_existing_issue(
     gl: GitLabClient,
     *,
@@ -318,6 +330,10 @@ def apply_issue_specs(
         if iid:
             iid_int = int(cast(Any, iid))
             existing = gl.get_issue(project_id, iid_int)
+            if not _issue_is_safe_manifest_update_target(existing, spec=sdoc, doc=doc):
+                raise RuntimeError(
+                    f"refusing to update GitLab issue {iid_int} from manifest: managed fingerprint/labels do not match"
+                )
             desc_existing = str(existing.get("description") or "")
             desc_new = upsert_managed_block(
                 desc_existing, iss.description_md.split("\n\n", 1)[0]

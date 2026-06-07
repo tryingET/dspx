@@ -12,7 +12,8 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     import httpx
@@ -39,6 +40,103 @@ class ByteLimitExceededError(ValueError):
 
 
 DEFAULT_HTTP_RESPONSE_MAX_BYTES = 1_000_000
+
+IDENTITY_BOUNDARY_KEYS = (
+    "receipt_bundle_id",
+    "episode_id",
+    "assembly_id",
+    "candidate_id",
+    "request_id",
+)
+
+
+def _normalize_identity_value(value: object) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
+def identity_matches_exact(
+    actual: Mapping[str, Any],
+    expected: Mapping[str, Any],
+    *,
+    keys: Iterable[str] = IDENTITY_BOUNDARY_KEYS,
+    require_all_expected: bool = True,
+) -> bool:
+    """Return True only when identity fields are conflict-free and sufficiently bound.
+
+    By default every non-empty expected field must be present and equal in *actual*.
+    This is intentionally stricter than "any shared field matches" for evidence and
+    authority-boundary sidecars, where partial identity is ambiguous rather than useful.
+    """
+    matched = False
+    for key in keys:
+        wanted = _normalize_identity_value(expected.get(key))
+        got = _normalize_identity_value(actual.get(key))
+        if wanted is None:
+            continue
+        if got is None:
+            if require_all_expected:
+                return False
+            continue
+        if got != wanted:
+            return False
+        matched = True
+    return matched
+
+
+def identity_mismatch_keys(
+    actual: Mapping[str, Any],
+    expected: Mapping[str, Any],
+    *,
+    keys: Iterable[str] = IDENTITY_BOUNDARY_KEYS,
+) -> list[str]:
+    """Return expected identity keys missing from or conflicting with *actual*."""
+    mismatches: list[str] = []
+    for key in keys:
+        wanted = _normalize_identity_value(expected.get(key))
+        if wanted is None:
+            continue
+        got = _normalize_identity_value(actual.get(key))
+        if got != wanted:
+            mismatches.append(key)
+    return mismatches
+
+
+def url_origin_allowed(
+    url: str,
+    allowed_origins: Mapping[str, bool] | set[str] | None,
+    *,
+    default_scheme: str = "https",
+) -> bool:
+    """Check a URL against a host/origin allowlist with scheme and port semantics.
+
+    Legacy host-only entries remain supported for default HTTP/HTTPS ports. To
+    constrain scheme or allow non-default ports, use an exact origin entry such
+    as ``https://api.example.com`` or ``http://localhost:8080``.
+    """
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    scheme = (parsed.scheme or "").lower()
+    if not host or not scheme or allowed_origins is None:
+        return False
+    port = parsed.port
+    default_port = 443 if scheme == "https" else 80 if scheme == "http" else None
+    origin = f"{scheme}://{host}" + (
+        f":{port}" if port is not None and port != default_port else ""
+    )
+
+    if isinstance(allowed_origins, set):
+        origin_allowed = origin in allowed_origins
+        host_allowed = host in allowed_origins
+    else:
+        origin_allowed = bool(allowed_origins.get(origin, False))
+        host_allowed = bool(allowed_origins.get(host, False))
+
+    if origin_allowed:
+        return True
+    if port is not None and port != default_port:
+        return False
+    return scheme in {"http", default_scheme} and host_allowed
 
 
 def confine_path(root: Path, user_path: str | Path, *, strict: bool = True) -> Path:

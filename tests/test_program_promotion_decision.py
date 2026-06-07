@@ -15,6 +15,7 @@ from dspx.services.program_oracle_report import build_program_oracle_evidence_re
 from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_promotion_decision import (
     ProgramPromotionDecisionError,
+    build_generated_program_adjudicator_decision_record,
     build_program_promotion_decision_record,
     write_program_promotion_decision_record,
 )
@@ -100,6 +101,68 @@ def _materialize_program_review(
     review_path = tmp_path / "promotion" / "promotion_review_refined.json"
     _write_json(review_path, refined_review)
     return program_root, review_path
+
+
+def test_generated_adjudicator_decision_rejects_delegation_manifest_identity_mismatch(
+    tmp_path: Path,
+) -> None:
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "request": {"request_id": "req-1"},
+        "candidate_assembly": {"candidate_id": "cand-A", "assembly_id": "asm-A"},
+        "execution_episode": {"episode_id": "ep-A"},
+        "receipt_bundle": {"receipt_bundle_id": "rb-A"},
+    }
+    manifest_path = tmp_path / "manifest.json"
+    _write_json(manifest_path, manifest)
+    evidence_path = tmp_path / "evidence_adjudication.json"
+    _write_json(
+        evidence_path,
+        {
+            "schema_version": "program-evidence-adjudication-v1",
+            "status": "evidence_adjudicated",
+            "identity": {
+                "request_id": "req-1",
+                "candidate_id": "cand-B",
+                "assembly_id": "asm-B",
+                "episode_id": "ep-B",
+                "receipt_bundle_id": "rb-B",
+            },
+            "aggregate": {"ready_for_domain_decision": True},
+            "non_authority": {
+                "activation_authority": False,
+                "governance_authority": False,
+                "oracle_authority": False,
+                "promotion_authority": False,
+            },
+        },
+    )
+    delegation_path = tmp_path / "program_adjudicator_delegation.json"
+    _write_json(
+        delegation_path,
+        {
+            "schema_version": "program-adjudicator-delegation-v1",
+            "status": "delegated",
+            "dspx_meta_adjudicator": {"id": "dspx_meta_adjudicator_v1"},
+            "generated_program_adjudicator": {
+                "id": "dspx_program_adjudicator_v1",
+                "approved_to_decide": True,
+            },
+            "manifest": {"path": str(manifest_path)},
+            "non_authority": {
+                "activation_authority": False,
+                "governance_authority": False,
+                "oracle_authority": False,
+                "promotion_authority": False,
+            },
+        },
+    )
+
+    with pytest.raises(ProgramPromotionDecisionError, match="does not match"):
+        build_generated_program_adjudicator_decision_record(
+            evidence_adjudication_path=evidence_path,
+            adjudicator_delegation_path=delegation_path,
+        )
 
 
 def test_program_promotion_decision_writer_refuses_to_overwrite_review_input(

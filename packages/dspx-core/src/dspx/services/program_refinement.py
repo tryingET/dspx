@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.security import confine_path, identity_matches_exact
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
 
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
@@ -158,9 +159,16 @@ def _declared_behavior_path(
     if behavior_path is None:
         return None
     path = Path(behavior_path)
-    if not path.is_absolute():
-        path = _manifest_root(manifest_path) / path
-    return path
+    if path.is_absolute():
+        raise ProgramRefinementError(
+            "program behavior results path must be candidate-relative"
+        )
+    try:
+        return confine_path(_manifest_root(manifest_path), path, strict=True)
+    except ValueError as exc:
+        raise ProgramRefinementError(
+            "program behavior results path escapes candidate root"
+        ) from exc
 
 
 def _declared_behavior_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
@@ -212,6 +220,10 @@ def load_program_behavior_results(
         )
     actual_hash = _sha256_file(behavior_path)
     declared_hashes = _declared_behavior_hashes(manifest)
+    if not declared_hashes:
+        raise ProgramRefinementError(
+            "program behavior results must have a manifest-declared content hash"
+        )
     mismatches = [
         name
         for name, declared_hash in declared_hashes.items()
@@ -265,15 +277,10 @@ def _matching_oracle_record(
     ]
     if not records:
         return None, False
-    match_order = ("receipt_bundle_id", "episode_id", "assembly_id", "candidate_id")
-    for key in match_order:
-        wanted = identity.get(key)
-        if not wanted:
-            continue
-        for raw_record in records:
-            record_identity = _safe_mapping(raw_record.get("identity"))
-            if record_identity.get(key) == wanted:
-                return dict(raw_record), True
+    for raw_record in records:
+        record_identity = _safe_mapping(raw_record.get("identity"))
+        if identity_matches_exact(record_identity, identity):
+            return dict(raw_record), True
     return None, False
 
 

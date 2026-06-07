@@ -1,23 +1,16 @@
 from __future__ import annotations
 
 from typing import Mapping, Optional
-from urllib.parse import urlparse
-
 import httpx
+
+from dspx.security import url_origin_allowed
 
 
 AllowedHosts = Optional[Mapping[str, bool] | set[str]]
 
 
 def host_allowed(url: str, allowed_hosts: AllowedHosts) -> bool:
-    host = urlparse(url).hostname or ""
-    if not host:
-        return False
-    if allowed_hosts is None:
-        return False
-    if isinstance(allowed_hosts, set):
-        return host in allowed_hosts
-    return bool(allowed_hosts.get(host, False))
+    return url_origin_allowed(url, allowed_hosts)
 
 
 def send_with_host_allowlist(

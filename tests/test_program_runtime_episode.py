@@ -211,6 +211,26 @@ def test_runtime_input_materialization_converts_image_file_descriptors(
     assert "image_url" in visual_image_blocks
 
 
+def test_runtime_input_materialization_rejects_remote_image_url(
+    tmp_path: Path,
+) -> None:
+    inputs_path = tmp_path / "runtime-inputs.json"
+    inputs_path.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="only accepts data:image"):
+        _materialize_runtime_inputs(
+            {
+                "visual_image_blocks": [
+                    {
+                        "type": "image_url",
+                        "url": "http://169.254.169.254/latest/meta-data/",
+                    }
+                ]
+            },
+            inputs_path=inputs_path,
+        )
+
+
 def test_runtime_input_materialization_rejects_absolute_image_path_outside_inputs(
     tmp_path: Path,
 ) -> None:

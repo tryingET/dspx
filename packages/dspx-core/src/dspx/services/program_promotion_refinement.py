@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.security import identity_matches_exact, identity_mismatch_keys
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -281,47 +282,17 @@ def _load_program_behavior_episode(
 
 
 def _identity_matches(left: Mapping[str, Any], right: Mapping[str, str | None]) -> bool:
-    matched = False
-    for key in (
-        "receipt_bundle_id",
-        "episode_id",
-        "assembly_id",
-        "candidate_id",
-        "request_id",
-    ):
-        wanted = right.get(key)
-        actual = left.get(key)
-        if wanted and actual:
-            if actual != wanted:
-                return False
-            matched = True
-    return matched
+    return identity_matches_exact(left, right)
 
 
 def _assert_identity_matches(
     actual: Mapping[str, Any], expected: Mapping[str, str | None], *, label: str
 ) -> None:
-    mismatches = [
-        key
-        for key, expected_value in expected.items()
-        if expected_value is not None
-        and actual.get(key) is not None
-        and actual.get(key) != expected_value
-    ]
+    mismatches = identity_mismatch_keys(actual, expected)
     if mismatches:
         raise ProgramPromotionRefinementError(
-            f"{label} identity does not match manifest identity: "
+            f"{label} identity does not exactly match manifest identity: "
             + ", ".join(sorted(mismatches))
-        )
-    missing = [
-        key
-        for key, expected_value in expected.items()
-        if expected_value and not actual.get(key)
-    ]
-    if missing:
-        raise ProgramPromotionRefinementError(
-            f"{label} identity is missing manifest identity fields: "
-            + ", ".join(sorted(missing))
         )
 
 

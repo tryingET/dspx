@@ -74,6 +74,33 @@ def test_gitlab_client_rejects_redirect_to_unallowed_host() -> None:
 
 
 @pytest.mark.forge
+def test_gitlab_client_uses_private_token_header_for_gitlab_pat() -> None:
+    seen_headers: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_headers.update(request.headers)
+        return httpx.Response(200, json=[], request=request)
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="glpat-xxxxxxxxxx",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"gitlab.example.com"},
+        default_labels=[],
+    )
+    client = GitLabClient(
+        cfg,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    client.list_issues(101, labels=["dspx-wo:abc12345"])
+
+    assert seen_headers.get("private-token") == "glpat-xxxxxxxxxx"
+    assert seen_headers.get("authorization") is None
+
+
+@pytest.mark.forge
 def test_gitlab_client_list_issues_follows_pagination() -> None:
     seen_pages: list[str] = []
 

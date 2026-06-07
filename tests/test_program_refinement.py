@@ -14,7 +14,9 @@ from dspx.services.program_oracle_index import index_program_oracle_evidence_pat
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_refinement import (
     ProgramRefinementError,
+    _matching_oracle_record,
     build_program_refinement_proposal,
+    load_program_behavior_results,
     write_program_refinement_proposal,
 )
 from dspx.services.program_service import materialize_program_from_intent
@@ -81,6 +83,76 @@ def _materialize_program_with_report(
     report_path = tmp_path / "oracle" / "program-evidence-report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     return program_root, report_path
+
+
+def test_program_refinement_rejects_absolute_hashless_behavior_path(
+    tmp_path: Path,
+) -> None:
+    behavior = tmp_path / "forged_behavior_results.json"
+    behavior.write_text(
+        json.dumps({"schema_version": "program-behavior-results-v1", "status": "ok"}),
+        encoding="utf-8",
+    )
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "candidate_assembly": {
+            "surfaces": [{"kind": "behavior_results", "path": str(behavior)}]
+        },
+    }
+    manifest_path = tmp_path / "candidate" / "manifest.json"
+    manifest_path.parent.mkdir()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ProgramRefinementError, match="candidate-relative"):
+        load_program_behavior_results(manifest, manifest_path)
+
+
+def test_program_refinement_rejects_hashless_behavior_evidence(
+    tmp_path: Path,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    behavior = candidate / "behavior_results.json"
+    behavior.write_text(
+        json.dumps({"schema_version": "program-behavior-results-v1", "status": "ok"}),
+        encoding="utf-8",
+    )
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "candidate_assembly": {
+            "surfaces": [{"kind": "behavior_results", "path": "behavior_results.json"}]
+        },
+    }
+    manifest_path = candidate / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ProgramRefinementError, match="content hash"):
+        load_program_behavior_results(manifest, manifest_path)
+
+
+def test_program_refinement_rejects_oracle_record_with_conflicting_stronger_identity() -> (
+    None
+):
+    identity = {
+        "receipt_bundle_id": "rb-real",
+        "episode_id": "ep-real",
+        "assembly_id": "asm-real",
+        "candidate_id": "cand-real",
+    }
+    report = {
+        "records": [
+            {
+                "identity": {
+                    "receipt_bundle_id": "rb-other",
+                    "episode_id": "ep-other",
+                    "assembly_id": "asm-other",
+                    "candidate_id": "cand-real",
+                }
+            }
+        ]
+    }
+
+    assert _matching_oracle_record(report, identity) == (None, False)
 
 
 def test_program_refinement_cli_proposes_from_manifest_behavior_and_oracle_report(

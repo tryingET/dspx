@@ -214,6 +214,10 @@ def _materialize_image_descriptor(value: Mapping[str, Any], *, base_dir: Path) -
         url = str(value.get("url") or value.get("image_url") or "").strip()
         if not url:
             raise ValueError("image_url descriptor requires url")
+        if not url.startswith("data:image/"):
+            raise ValueError(
+                "image_url descriptor only accepts data:image/* URLs; use image_file for local artifacts"
+            )
         return str(dspy.Image(url))
 
     raise ValueError(f"unsupported image descriptor type: {descriptor_type}")
