@@ -785,7 +785,7 @@ def _command_from_id(
             return None
         return {
             "id": command_id,
-            "command": ["uvx", "ruff", "check", *lintable],
+            "command": ["uv", "run", "--no-sync", "ruff", "check", *lintable],
             "reason": reason or "lintable file changed",
         }
     if command_id == "pytest_touched":

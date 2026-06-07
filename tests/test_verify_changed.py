@@ -795,6 +795,18 @@ def test_justfile_change_runs_workflow_gates_and_full_verification() -> None:
     ]
 
 
+def test_pre_commit_config_change_runs_workflow_gates_and_full_verification() -> None:
+    plan = _plan(".pre-commit-config.yaml")
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is True
+    assert _command_ids(plan) == [
+        "workflow_contract_check",
+        "verify_fast",
+        "verify_full",
+    ]
+
+
 def test_workflow_contract_checker_change_runs_fast_contract_gates_and_full_verification() -> (
     None
 ):
@@ -917,7 +929,7 @@ def test_main_run_writes_result_receipt_from_cli_args(tmp_path, monkeypatch) -> 
 
     assert exit_code == 0
     assert calls == [
-        ["uvx", "ruff", "check", "tests/test_verify_changed.py"],
+        ["uv", "run", "--no-sync", "ruff", "check", "tests/test_verify_changed.py"],
         [
             "uv",
             "run",

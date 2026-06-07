@@ -486,7 +486,7 @@ def test_program_dataset_invalid_inputs_fail_closed(
     _setup_env(tmp_path, monkeypatch)
     dataset_path = tmp_path / "data" / "bad.jsonl"
     _write_jsonl(dataset_path, rows)
-    dataset = {
+    dataset: dict[str, Any] = {
         "path": str(dataset_path),
         "input_fields": ["ticket_text"],
         "output_fields": ["urgency"],

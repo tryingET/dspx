@@ -19,7 +19,7 @@ runner = CliRunner()
 def _write_packet(
     path: Path, *, record_override: dict[str, object] | None = None
 ) -> Path:
-    record = {
+    record: dict[str, Any] = {
         "recordKind": "autoresearch.campaign_run.oracle_evidence.v1",
         "recordId": "ar-oracle-001",
         "campaign": "latency-campaign",

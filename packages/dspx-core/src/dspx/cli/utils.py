@@ -199,7 +199,7 @@ def write_receipt_for_output(
         extra: Additional metadata
         class_name: Optional class name for signatures
     """
-    from dspx.cache import cache_dir, sha256_text
+    from dspx.cache import cache_dir, cache_enabled, sha256_text
     from dspx.run_receipts import (
         build_mlflow_hints,
         build_run_receipt,
@@ -208,12 +208,7 @@ def write_receipt_for_output(
     )
 
     cfile = cache_dir() / run_kind.split("-")[0] / f"{cache_key}.json"
-    cache_enabled = os.getenv("DSPX_CACHE_ENABLE", "1") not in {
-        "0",
-        "false",
-        "False",
-        "",
-    }
+    cache_is_enabled = cache_enabled()
     output_hash = sha256_text(code)
 
     meta = build_run_receipt(
@@ -223,7 +218,7 @@ def write_receipt_for_output(
         template_version=template_version,
         cache_key=cache_key,
         cache_file=str(cfile),
-        cache_enabled=cache_enabled,
+        cache_enabled=cache_is_enabled,
         replay_inputs=replay_inputs,
         run_summary=run_summary,
         extra={

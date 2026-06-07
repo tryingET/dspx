@@ -322,7 +322,7 @@ def test_module_service_signature_mode_preserves_requested_io_contract(
     )
     art = run_generate(spec, use_signature=True)
 
-    namespace: dict[str, object] = {}
+    namespace: dict[str, Any] = {}
     exec(art.code, namespace, namespace)
     student = namespace["build_student"]()  # type: ignore[index, operator]
     assert list(student.predict.signature.input_fields.keys()) == [

@@ -158,7 +158,7 @@ def test_pi_rpc_client_drains_stale_buffer_before_prompt() -> None:
             )
         )
 
-    client._send = _send  # type: ignore[method-assign]
+    cast(Any, client)._send = _send
 
     result = client.prompt("new-request", timeout=1.0)
 
@@ -219,8 +219,8 @@ def test_pi_rpc_client_timeout_restarts_before_next_prompt() -> None:
                 )
             )
 
-    client.restart = _restart  # type: ignore[method-assign]
-    client._send = _send  # type: ignore[method-assign]
+    cast(Any, client).restart = _restart
+    cast(Any, client)._send = _send
 
     raised = False
     try:

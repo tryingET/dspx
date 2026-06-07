@@ -376,7 +376,7 @@ def _write_signature_output(
 
     # Write a versioned run receipt for replay/explain
     try:
-        from dspx.cache import cache_dir, make_key, sha256_text
+        from dspx.cache import cache_dir, cache_enabled, make_key, sha256_text
         from dspx.run_receipts import (
             build_mlflow_hints,
             build_run_receipt,
@@ -395,12 +395,7 @@ def _write_signature_output(
             }
         )
         cfile = cache_dir() / "signature" / f"{cache_key}.json"
-        cache_enabled = os.getenv("DSPX_CACHE_ENABLE", "1") not in {
-            "0",
-            "false",
-            "False",
-            "",
-        }
+        cache_is_enabled = cache_enabled()
         output_hash = sha256_text(code)
         meta = build_run_receipt(
             run_kind="signature-gen",
@@ -409,7 +404,7 @@ def _write_signature_output(
             template_version=template_version,
             cache_key=cache_key,
             cache_file=str(cfile),
-            cache_enabled=cache_enabled,
+            cache_enabled=cache_is_enabled,
             replay_inputs={
                 "prompt": prompt,
                 "template_version": template_version,

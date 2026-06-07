@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from typing import Any
 
 from dspx.services.program_intent import ProgramIntent
 
 
-PIPELINE_TOPOLOGY = {
+PIPELINE_TOPOLOGY: dict[str, Any] = {
     "kind": "pipeline",
     "execution_status": "declared_not_materialized",
     "modules": [

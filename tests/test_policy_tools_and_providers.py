@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 import httpx
 import pytest
 
@@ -139,7 +140,7 @@ def test_codex_provider_defaults_to_safe_auto_mode(monkeypatch) -> None:
     monkeypatch.delenv("DSPX_SANDBOX_WORKTREE", raising=False)
     from dspx.provider_registry import create as create_provider
 
-    lm = create_provider("codex-exec")
+    lm = cast(Any, create_provider("codex-exec"))
     assert getattr(lm, "dangerously_bypass", None) is False
     assert "--dangerously-bypass-approvals-and-sandbox" not in lm._build_command("noop")
 

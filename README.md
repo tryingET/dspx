@@ -874,6 +874,7 @@ Repo-local quality commands:
 just fmt
 just lint
 just typecheck
+just typecheck-tests
 just test
 ```
 
@@ -922,7 +923,7 @@ Validation tiers:
 #   - prek all-files
 # explicit full gate:
 # - just verify-full
-#   - runs verify-fast first, then executes runtime/invariant and typecheck/test branches in parallel
+#   - runs verify-fast first, then executes runtime/invariant and package+test typecheck/test branches in parallel
 ```
 
 Batch-commit flow (run once before push):

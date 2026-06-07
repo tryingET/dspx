@@ -212,6 +212,7 @@ def collect_issues(root: Path) -> list[Issue]:
             pre_commit_text,
             ".pre-commit-config.yaml",
             [
+                "rev: v0.15.4",
                 "id: verify-pre-push",
                 "entry: just verify-pre-push",
                 "stages: [pre-push]",
@@ -336,6 +337,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 'verify-impact-plan base="auto":',
                 'verify-impact base="auto":',
                 'verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":',
+                "typecheck-tests:",
                 "verify-tests:",
                 "verify-pre-push:",
                 "bash scripts/ci/verify-full.sh",
@@ -455,9 +457,17 @@ def collect_issues(root: Path) -> list[Issue]:
             _check_recipe_body_contains(
                 text,
                 relpath,
+                "typecheck-tests:",
+                ["uvx ty check tests"],
+                issues,
+            )
+            _check_recipe_body_contains(
+                text,
+                relpath,
                 "verify-tests:",
                 [
                     "just typecheck",
+                    "just typecheck-tests",
                     "just test-parallel",
                     "just test-slow-parallel",
                     "just test-residual-serial",

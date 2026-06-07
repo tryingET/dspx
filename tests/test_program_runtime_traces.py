@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 from dspx.services.program_runtime_traces import (
     build_program_runtime_traces,
@@ -12,7 +13,7 @@ from dspx.services.program_service import ProgramIntent, materialize_program_fro
 from dspx.services.run_replay_service import check_run_receipt
 
 
-def _module_surfaces() -> dict[str, object]:
+def _module_surfaces() -> dict[str, Any]:
     return {
         "schema_version": "program-module-surfaces-v1",
         "module_surfaces": [

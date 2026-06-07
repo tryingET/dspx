@@ -81,19 +81,19 @@ upstream-reset:
 
 # Format code with ruff
 fmt:
-  uvx ruff format packages/dspx-core/src apps/forge/src docs
+  uv run --no-sync ruff format packages/dspx-core/src apps/forge/src docs
 
 # Lint with ruff (all package code + docs)
 lint:
-  uvx ruff check packages/dspx-core/src apps/forge/src docs
+  uv run --no-sync ruff check packages/dspx-core/src apps/forge/src docs
 
 # Lint core package only
 lint-core:
-  uvx ruff check packages/dspx-core/src
+  uv run --no-sync ruff check packages/dspx-core/src
 
 # Lint forge app package only
 lint-forge:
-  uvx ruff check apps/forge/src
+  uv run --no-sync ruff check apps/forge/src
 
 # Type-check with ty (all package code)
 typecheck:
@@ -106,6 +106,10 @@ typecheck-core:
 # Type-check forge app package only
 typecheck-forge:
   uvx ty check apps/forge/src
+
+# Type-check test harnesses and contract tests
+typecheck-tests:
+  uvx ty check tests
 
 # Run tests (if present)
 test:
@@ -198,8 +202,8 @@ scope-doctor:
 
 # Focused adversarial boundary-hardening validation for CLI/provider/runtime/generated-program seams.
 verify-boundary-hardening:
-  uvx ruff format --check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
-  uvx ruff check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
+  uv run --no-sync ruff format --check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
+  uv run --no-sync ruff check apps/forge/src/dspx_forge/cli.py packages/dspx-core/src/dspx/cli packages/dspx-core/src/dspx/provider_registry.py packages/dspx-core/src/dspx/provider_runtime.py packages/dspx-core/src/dspx/services/program_runtime_episode.py packages/dspx-core/src/dspx/services/program_service.py packages/dspx-core/src/dspx/services/program_surfaces.py tests/test_adversarial_boundary_contracts.py
   uvx ty check packages/dspx-core/src apps/forge/src
   uv run --no-sync -m pytest -q tests/test_adversarial_boundary_contracts.py
   uv run --no-sync -m pytest -q tests/test_cli_dspx.py
@@ -246,6 +250,7 @@ verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":
 # the behavior-preserving xdist split here so wide loop/full validation uses cores.
 verify-tests:
   just typecheck
+  just typecheck-tests
   just test-parallel jobs=16
   just test-slow-parallel jobs=16
   just test-residual-serial

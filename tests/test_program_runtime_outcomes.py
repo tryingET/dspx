@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -16,8 +17,8 @@ def _surface(
     module_id: str,
     primitive: str,
     outputs: list[str] | None = None,
-) -> dict[str, object]:
-    surface: dict[str, object] = {
+) -> dict[str, Any]:
+    surface: dict[str, Any] = {
         "schema_version": "program-module-surface-v1",
         "module_id": module_id,
         "source_kind": "generated_topology_module",
@@ -47,14 +48,14 @@ def _surface(
     return surface
 
 
-def _outcomes_for(*surfaces: dict[str, object]) -> dict[str, object]:
+def _outcomes_for(*surfaces: dict[str, Any]) -> dict[str, Any]:
     return build_program_runtime_outcomes(
         SimpleNamespace(name="RuntimeOutcomeProgram", objective="Declare outcomes."),
         module_surfaces={"module_surfaces": list(surfaces)},
     )
 
 
-def _by_module(payload: dict[str, object]) -> dict[str, dict[str, object]]:
+def _by_module(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {
         str(item["module_id"]): item
         for item in payload["outcomes"]
@@ -161,7 +162,7 @@ def test_predict_runtime_outcome_contract_is_declared_not_trace() -> None:
 def test_runtime_outcome_contracts_cover_bounded_primitives(
     primitive: str,
     trace_kind: str,
-    extra: dict[str, object],
+    extra: dict[str, Any],
 ) -> None:
     payload = _outcomes_for(_surface(module_id="module", primitive=primitive))
     outcome = _by_module(payload)["module"]

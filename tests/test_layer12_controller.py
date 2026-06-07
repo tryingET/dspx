@@ -4,6 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Sequence
+from typing import Any
 
 from typer.testing import CliRunner
 
@@ -12,7 +13,7 @@ from dspx.services.layer12_controller import evaluate_layer12_proposals
 
 
 def _write_fixture(path: Path, transition: str | None) -> None:
-    payload = {"schema_version": 1, "read_only": True}
+    payload: dict[str, Any] = {"schema_version": 1, "read_only": True}
     if transition is not None:
         payload["transition"] = transition
     path.write_text(json.dumps(payload), encoding="utf-8")

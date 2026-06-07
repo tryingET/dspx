@@ -36,6 +36,11 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         tmp_path,
         ".pre-commit-config.yaml",
         "repos:\n"
+        "  - repo: https://github.com/astral-sh/ruff-pre-commit\n"
+        "    rev: v0.15.4\n"
+        "    hooks:\n"
+        "      - id: ruff-format\n"
+        "      - id: ruff\n"
         "  - repo: local\n"
         "    hooks:\n"
         "      - id: verify-pre-push\n"
@@ -187,8 +192,11 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "  just verify-impact-wide\n"
         "loop-landing-check:\n"
         "  just check\n"
+        "typecheck-tests:\n"
+        "  uvx ty check tests\n"
         "verify-tests:\n"
         "  just typecheck\n"
+        "  just typecheck-tests\n"
         "  just test-parallel jobs=16\n"
         "  just test-slow-parallel jobs=16\n"
         "  just test-residual-serial\n"

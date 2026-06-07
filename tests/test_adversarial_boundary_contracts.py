@@ -6,6 +6,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -189,7 +190,7 @@ def build_program(): return P()
 def test_generated_direct_batch_records_internal_worker_exception(
     tmp_path: Path,
 ) -> None:
-    namespace: dict[str, object] = {"__file__": str(tmp_path / "direct_run.py")}
+    namespace: dict[str, Any] = {"__file__": str(tmp_path / "direct_run.py")}
     exec(render_direct_run_code(object()), namespace, namespace)
 
     def boom(*args: object, **kwargs: object) -> dict[str, object]:

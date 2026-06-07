@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from dspx.cache import (
+    cache_enabled,
     make_key,
     write as cache_write,
     read as cache_read,
@@ -42,6 +43,17 @@ def test_cache_read_miss_does_not_create_kind_dir(tmp_path: Path, monkeypatch) -
 
     assert cache_read("unit", "missing") is None
     assert not (tmp_path / "cache" / "unit").exists()
+
+
+@pytest.mark.parametrize(
+    "raw", ["0", "false", "False", "FALSE", "no", "No", "NO", "off", "OFF", ""]
+)
+def test_cache_enabled_accepts_case_insensitive_false_values(
+    raw: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", raw)
+
+    assert cache_enabled() is False
 
 
 def test_cache_rejects_path_traversal(tmp_path: Path, monkeypatch) -> None:

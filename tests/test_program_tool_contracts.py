@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -343,7 +344,7 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
         "dspy_tool_binding_allowed": False,
         "imported_by_generated_program": False,
     }
-    namespace: dict[str, object] = {}
+    namespace: dict[str, Any] = {}
     exec(
         compile(
             generated_adapter["source_preview"], "lookup_policy_adapter.py", "exec"
@@ -852,7 +853,7 @@ def test_generated_tool_adapter_validates_nested_bounded_schema_and_replay(
         (root / "program_tool_contracts.json").read_text(encoding="utf-8")
     )
     source = contracts["contracts"][0]["generated_adapter"]["source_preview"]
-    namespace: dict[str, object] = {}
+    namespace: dict[str, Any] = {}
     exec(compile(source, "lookup_policy_adapter.py", "exec"), namespace)
 
     valid_payload = {

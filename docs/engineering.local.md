@@ -37,7 +37,7 @@ Local notes for DSPx:
   - pre-commit hook = fast staged checks (ruff/whitespace)
   - pre-push hook = `just verify-pre-push`
   - `just verify-fast` runs workflow/governance/task-scope/prek all-files checks and fails closed on unresolved task binding
-  - `just verify-full` runs `verify-fast` first, then executes the heavier runtime/invariant branch and the typecheck/test branch in parallel
+  - `just verify-full` runs `verify-fast` first, then executes the heavier runtime/invariant branch and the package+test typecheck/test branch in parallel
   - explicit batch gate before merge/release: `just verify-full`
 
 ## Repo loop validation

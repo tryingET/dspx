@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Callable, Iterator
+from typing import Callable, Iterator, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -205,7 +205,7 @@ class TestBodySizeMiddleware:
         ]
 
         async def receive() -> dict[str, object]:
-            return messages.pop(0)
+            return cast(dict[str, object], messages.pop(0))
 
         async def send(message: dict[str, object]) -> None:
             sent.append(message)

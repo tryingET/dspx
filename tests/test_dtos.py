@@ -123,9 +123,8 @@ class TestTemplateAdapterConfig:
 
     def test_extra_fields_allowed(self) -> None:
         """Test that extra fields are allowed for future extensibility."""
-        config = TemplateAdapterConfig(
-            parse_mode="json",
-            future_field="future_value",  # type: ignore[call-arg]
+        config = TemplateAdapterConfig.model_validate(
+            {"parse_mode": "json", "future_field": "future_value"}
         )
         assert config.parse_mode == "json"
         # Extra fields are stored in model.__pydantic_extra__
@@ -135,7 +134,7 @@ class TestTemplateAdapterConfig:
     def test_invalid_parse_mode(self) -> None:
         """Test that invalid parse_mode raises ValidationError."""
         with pytest.raises(ValidationError):
-            TemplateAdapterConfig(parse_mode="invalid")  # type: ignore[call-arg]
+            TemplateAdapterConfig(parse_mode=cast(Any, "invalid"))
 
 
 class TestSignatureGenRequestTemplateAdapter:
@@ -160,7 +159,7 @@ class TestSignatureGenRequestTemplateAdapter:
         """Test that template_adapter accepts dict input."""
         req = SignatureGenRequest(
             prompt="Test prompt",
-            template_adapter={"parse_mode": "xml"},  # type: ignore[arg-type]
+            template_adapter=cast(Any, {"parse_mode": "xml"}),
         )
         assert req.template_adapter is not None
         assert req.template_adapter.parse_mode == "xml"

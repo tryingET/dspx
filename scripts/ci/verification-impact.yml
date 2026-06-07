@@ -731,6 +731,14 @@ rules:
       - workflow_contract_check
       - verify_fast
 
+  - match: ".pre-commit-config.yaml"
+    category: ci_contract
+    impact_group: ci
+    risk: wide
+    commands:
+      - workflow_contract_check
+      - verify_fast
+
   - match: "pyproject.toml"
     category: dependency
     impact_group: dependency

@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 def _truthy(v: Optional[str]) -> bool:
     if v is None:
         return True
-    return v not in {"", "0", "false", "False", "no", "No"}
+    return str(v).strip().lower() not in {"", "0", "false", "no", "off"}
 
 
 def cache_enabled() -> bool:

@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 import pytest
 
 from dspx.adapters.eval import (
@@ -77,9 +79,9 @@ def test_ece_rejects_invalid_bin_counts() -> None:
     with pytest.raises(ValueError, match="n_bins must be a positive integer"):
         expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=-2)
     with pytest.raises(ValueError, match="n_bins must be a positive integer"):
-        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=1.5)  # type: ignore[arg-type]
+        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=cast(Any, 1.5))
     with pytest.raises(ValueError, match="n_bins must be a positive integer"):
-        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=True)  # type: ignore[arg-type]
+        expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=cast(Any, True))
 
 
 @pytest.mark.parametrize(

@@ -134,7 +134,8 @@ Validation contract:
   - does not replace `just verify-full`; a blocked-wide receipt is an escalation signal, not validation success
 - `just verify-full`
   - runs `just verify-fast` first
-  - then runs the heavier runtime/invariant branch and the typecheck/test branch in parallel
+  - then runs the heavier runtime/invariant branch and the package+test typecheck/test branch in parallel
+  - includes `just typecheck-tests` so test harness contracts are type-checked alongside package code
   - keeps `uv.lock` clean for the read-only validation commands it delegates through `uv run --no-sync`
   - remains the explicit full confidence gate before merge/release or when the current slice needs the whole suite
 - `just loop-*`
