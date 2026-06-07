@@ -233,6 +233,11 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
     _write(tmp_path, "CONTRIBUTING.md", "uv pip install -e .\n")
     _write(
         tmp_path,
+        "docs/_core/README.md",
+        'Invoke: "Read `~/steve/prompts/triggers/nexus.md`, apply to context"\n',
+    )
+    _write(
+        tmp_path,
         "README.md",
         "changed manifest path, or next_session checkpoint\n",
     )
@@ -258,6 +263,14 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
     )
     assert (
         "CONTRIBUTING.md: contains forbidden stale text: 'uv pip install -e .'"
+        in messages
+    )
+    assert (
+        "docs/_core/README.md: contains forbidden stale text: '~/steve/prompts'"
+        in messages
+    )
+    assert (
+        "docs/_core/README.md: contains forbidden stale text: 'prompts/triggers'"
         in messages
     )
     assert (

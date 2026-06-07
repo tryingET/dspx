@@ -93,6 +93,12 @@ LOOP_VALIDATION_COMMANDS = [
     "loop-landing-check",
 ]
 
+STALE_PROMPT_SOURCE_SUBSTRINGS = [
+    "~/steve/prompts",
+    "prompts/triggers",
+    "prompt-snippets.md",
+]
+
 
 def _check_loop_validation_policy(
     root: Path, justfile_text: str, issues: list[Issue]
@@ -173,6 +179,21 @@ def collect_issues(root: Path) -> list[Issue]:
                         "retired AK-native workflow file still exists",
                     )
                 )
+
+    for markdown_path in root.rglob("*.md"):
+        parts = set(markdown_path.relative_to(root).parts)
+        if parts & {".git", ".venv", "__pycache__"}:
+            continue
+        try:
+            markdown_text = markdown_path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        _check_forbidden_substrings(
+            markdown_text,
+            markdown_path.relative_to(root).as_posix(),
+            STALE_PROMPT_SOURCE_SUBSTRINGS,
+            issues,
+        )
 
     gitignore = _require_file(root, ".gitignore", issues)
     if gitignore is not None:

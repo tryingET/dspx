@@ -725,6 +725,7 @@ def oracle_index(
                 if verbose:
                     typer.echo(f"Error processing {receipt_file}: {e}", err=True)
 
+    program_non_authority_confirmed: bool | None = None
     if from_program_evidence:
         from dspx.services.program_oracle_index import (
             index_program_oracle_evidence_path,
@@ -737,6 +738,9 @@ def oracle_index(
             scan_path,
             index_path=index_path,
             limit=limit,
+        )
+        program_non_authority_confirmed = bool(
+            program_result.get("non_authority_confirmed")
         )
         scanned += int(program_result.get("scanned") or 0)
         indexed += int(program_result.get("indexed") or 0)
@@ -851,7 +855,11 @@ def oracle_index(
         "index_stats": stats,
         "backend": engine.backend,
         "dimension": engine.dimension,
-        "non_authority_confirmed": errors == 0,
+        "non_authority_confirmed": (
+            bool(program_non_authority_confirmed) and errors == 0
+            if from_program_evidence
+            else errors == 0
+        ),
     }
 
     if json_out:

@@ -144,6 +144,54 @@ def test_oracle_index_from_program_evidence_cli_indexes_coordinate_record(
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
+def test_oracle_index_combined_mode_does_not_confirm_non_authority_when_receipts_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    (root / "bad.meta.json").write_text("not json\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "index",
+            "--from-receipts",
+            "--from-program-evidence",
+            "--path",
+            str(root),
+            "--index-path",
+            str(tmp_path / "combined" / "coordinates.db"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["indexed"] >= 1
+    assert payload["errors"] == 1
+    assert payload["non_authority_confirmed"] is False
+
+
+def test_program_oracle_index_empty_scan_does_not_confirm_non_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    reset_embedding_engine()
+    empty_root = tmp_path / "empty"
+    empty_root.mkdir()
+
+    result = index_program_oracle_evidence_path(
+        empty_root,
+        index_path=tmp_path / "empty-index" / "coordinates.db",
+    )
+
+    assert result["scanned"] == 0
+    assert result["indexed"] == 0
+    assert result["errors"] == 0
+    assert result["non_authority_confirmed"] is False
+
+
 def test_oracle_index_does_not_read_runtime_trace_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

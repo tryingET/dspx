@@ -409,6 +409,12 @@ def _validate_generated_function_body(
                 f"{label}_body_node_not_allowed:{node.name}:{child.__class__.__name__}"
             )
             continue
+        if isinstance(child, ast.Attribute):
+            if child.attr.startswith("__") and child.attr != "__init__":
+                errors.append(
+                    f"{label}_dunder_attribute_not_allowed:{node.name}:{child.attr}"
+                )
+                continue
         if isinstance(child, ast.Call):
             callee = _call_name(child.func) or "unknown"
             root = callee.split(".", 1)[0]

@@ -38,17 +38,13 @@ node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --task "<task>" --top
 uv tool run --from ~/ai-society/core/engineering-core engineering-core show py --prefer-repo
 ```
 
-## Cognitive Triggers
+## Cognitive Prompts
 
-Available at `~/steve/prompts/triggers/`:
+Prompt Vault is canonical for reusable cognitive prompts and procedures.
 
-| Trigger | When to Use |
-|---------|-------------|
-| `nexus` | Finding highest-leverage intervention |
-| `inversion` | Before solving any problem (shadow analysis) |
-| `audit` | Code quality (bugs/debt/smells/gaps) |
-| `blast-radius` | Before making changes |
-| `escape-hatch` | Before implementing risky changes |
-| `first-principles` | When stuck or constraints feel wrong |
+When applying named prompts such as `nexus`, `inversion`, `audit`, `blast-radius`, `escape-hatch`, or `knowledge-crystallization`:
 
-Invoke: "Read `~/steve/prompts/triggers/nexus.md`, apply to [context]"
+1. discover or confirm the template with `vault_query` unless the exact vault name is already known;
+2. run `vault_dispatch_check` before applying it;
+3. retrieve/use template text only when dispatch posture permits text-only use;
+4. use the required orchestrator/workflow binding when dispatch check says text-only execution is not lawful.

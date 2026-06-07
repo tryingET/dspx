@@ -283,5 +283,5 @@ def index_program_oracle_evidence_path(
         "index_stats": index.stats(),
         "backend": engine.backend,
         "dimension": engine.dimension,
-        "non_authority_confirmed": errors == 0,
+        "non_authority_confirmed": indexed > 0 and errors == 0,
     }
