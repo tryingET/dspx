@@ -235,15 +235,20 @@ def _assert_delegation_binds_adjudication(
     manifest_ref = _safe_mapping(delegation.get("manifest"))
     manifest_path = _first_text(manifest_ref.get("path"))
     if not manifest_path:
-        return
+        raise ProgramPromotionDecisionError(
+            "program adjudicator delegation must include manifest.path for identity binding"
+        )
     manifest_file = Path(manifest_path)
     expected_hash = _first_text(manifest_ref.get("sha256"))
-    if expected_hash:
-        actual_hash = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
-        if actual_hash != expected_hash:
-            raise ProgramPromotionDecisionError(
-                "program adjudicator delegation manifest hash does not match referenced manifest"
-            )
+    if not expected_hash:
+        raise ProgramPromotionDecisionError(
+            "program adjudicator delegation must include manifest.sha256 for identity binding"
+        )
+    actual_hash = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
+    if actual_hash != expected_hash:
+        raise ProgramPromotionDecisionError(
+            "program adjudicator delegation manifest hash does not match referenced manifest"
+        )
     try:
         manifest = load_program_manifest(manifest_file)
     except ValueError as exc:

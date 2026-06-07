@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from dspx.security import identity_matches_exact, identity_mismatch_keys
+from dspx.security import confine_path, identity_matches_exact, identity_mismatch_keys
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -207,9 +207,16 @@ def _declared_behavior_episode_path(
     if episode_path is None:
         return None
     path = Path(episode_path)
-    if not path.is_absolute():
-        path = _manifest_root(manifest_path) / path
-    return path
+    if path.is_absolute():
+        raise ProgramPromotionRefinementError(
+            "program behavior episode path must be candidate-relative"
+        )
+    try:
+        return confine_path(_manifest_root(manifest_path), path, strict=True)
+    except ValueError as exc:
+        raise ProgramPromotionRefinementError(
+            "program behavior episode path escapes candidate root"
+        ) from exc
 
 
 def _declared_behavior_episode_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
@@ -268,6 +275,10 @@ def _load_program_behavior_episode(
     )
     actual_hash = hashlib.sha256(episode_path.read_bytes()).hexdigest()
     declared_hashes = _declared_behavior_episode_hashes(manifest)
+    if not declared_hashes:
+        raise ProgramPromotionRefinementError(
+            "program behavior episode must have a manifest-declared content hash"
+        )
     mismatches = [
         name
         for name, declared_hash in declared_hashes.items()

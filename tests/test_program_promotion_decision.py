@@ -148,7 +148,10 @@ def test_generated_adjudicator_decision_rejects_delegation_manifest_identity_mis
                 "id": "dspx_program_adjudicator_v1",
                 "approved_to_decide": True,
             },
-            "manifest": {"path": str(manifest_path)},
+            "manifest": {
+                "path": str(manifest_path),
+                "sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+            },
             "non_authority": {
                 "activation_authority": False,
                 "governance_authority": False,

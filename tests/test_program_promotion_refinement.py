@@ -16,6 +16,7 @@ from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_promotion_refinement import (
     ProgramPromotionRefinementError,
     _identity_matches,
+    _load_program_behavior_episode,
     build_program_promotion_refinement,
     write_program_promotion_refinement,
 )
@@ -96,6 +97,47 @@ def _materialize_program_report_and_proposal(
     proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
     _write_json(proposal_path, proposal)
     return program_root, report_path, proposal_path
+
+
+def test_program_promotion_refinement_rejects_absolute_behavior_episode_path(
+    tmp_path: Path,
+) -> None:
+    episode = tmp_path / "forged_behavior_episode.json"
+    _write_json(
+        episode,
+        {"schema_version": "program-behavior-episode-v1", "summary": {}},
+    )
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "behavior_episode_artifact": {"path": str(episode)},
+    }
+    manifest_path = tmp_path / "candidate" / "manifest.json"
+    manifest_path.parent.mkdir()
+    _write_json(manifest_path, manifest)
+
+    with pytest.raises(ProgramPromotionRefinementError, match="candidate-relative"):
+        _load_program_behavior_episode(manifest, manifest_path)
+
+
+def test_program_promotion_refinement_rejects_hashless_behavior_episode(
+    tmp_path: Path,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    episode = candidate / "behavior_episode.json"
+    _write_json(
+        episode,
+        {"schema_version": "program-behavior-episode-v1", "summary": {}},
+    )
+    manifest = {
+        "schema_version": "program-candidate-assembly-v1",
+        "behavior_episode_artifact": {"path": "behavior_episode.json"},
+    }
+    manifest_path = candidate / "manifest.json"
+    _write_json(manifest_path, manifest)
+
+    with pytest.raises(ProgramPromotionRefinementError, match="content hash"):
+        _load_program_behavior_episode(manifest, manifest_path)
 
 
 def test_program_promotion_refinement_rejects_partial_oracle_identity_match() -> None:

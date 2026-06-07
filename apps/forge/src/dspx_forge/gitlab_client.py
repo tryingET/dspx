@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import httpx
 
 from dspx.http_guard import send_with_host_allowlist
+from dspx.security import url_origin_allowed
 from dspx.policy import (
     allow_network_mutate as _policy_allow_mutate,
     allowed_http_methods as _policy_allowed_methods,
@@ -55,6 +56,16 @@ def _base_url_host(base_url: str) -> str:
             "DSPX_GITLAB_BASE_URL must not include params, query, or fragment"
         )
     return parsed.hostname
+
+
+def _base_url_origin(base_url: str) -> str:
+    parsed = urlparse(base_url)
+    host = _base_url_host(base_url)
+    default_port = 443 if parsed.scheme == "https" else 80
+    port = parsed.port
+    return f"{parsed.scheme}://{host}" + (
+        f":{port}" if port is not None and port != default_port else ""
+    )
 
 
 @dataclass(frozen=True)
@@ -103,9 +114,10 @@ def load_gitlab_config_from_env() -> GitLabConfig:
     allowed_keys = _as_set(os.getenv("DSPX_GITLAB_ALLOWED_PROJECT_KEYS"))
     allowed_hosts = _as_set(os.getenv("DSPX_GITLAB_ALLOWED_HOSTS"))
     host = _base_url_host(base_url)
-    allowed_hosts = allowed_hosts or {host}
-    if host and host not in allowed_hosts:
-        raise RuntimeError(f"GitLab host '{host}' not in DSPX_GITLAB_ALLOWED_HOSTS")
+    origin = _base_url_origin(base_url)
+    allowed_hosts = allowed_hosts or {host, origin}
+    if not url_origin_allowed(base_url, allowed_hosts):
+        raise RuntimeError(f"GitLab origin '{origin}' not in DSPX_GITLAB_ALLOWED_HOSTS")
 
     default_labels: list[str] = [
         s.strip()
@@ -124,9 +136,9 @@ def load_gitlab_config_from_env() -> GitLabConfig:
 
 class GitLabClient:
     def __init__(self, cfg: GitLabConfig, *, client: Optional[httpx.Client] = None):
-        host = _base_url_host(cfg.base_url)
-        if host not in cfg.allowed_hosts:
-            raise PermissionError(f"Host not allowed: {host}")
+        _base_url_host(cfg.base_url)
+        if not url_origin_allowed(cfg.base_url, cfg.allowed_hosts):
+            raise PermissionError(f"Host not allowed: {cfg.base_url}")
         self.cfg = cfg
         self._client = client
 
@@ -168,9 +180,8 @@ class GitLabClient:
             close_client = True
         try:
             url = f"{self.cfg.base_url}{path}"
-            host = urlparse(url).hostname or ""
-            if host and host not in self.cfg.allowed_hosts:
-                raise PermissionError(f"Host not allowed: {host}")
+            if not url_origin_allowed(url, self.cfg.allowed_hosts):
+                raise PermissionError(f"Host not allowed: {url}")
             headers = _gitlab_auth_headers(self.cfg.token)
             for _attempt in range(3):
                 req = client.build_request(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -347,6 +348,19 @@ def test_generated_program_adjudicator_decision_uses_dspx_meta_delegation(
 ) -> None:
     evidence_path = tmp_path / "program_evidence_adjudication.json"
     delegation_path = tmp_path / "program_adjudicator_delegation.json"
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-candidate-assembly-v1",
+                "candidate_assembly": {"candidate_id": "prog-cand-ready"},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     evidence_path.write_text(
         json.dumps(
             {
@@ -385,6 +399,10 @@ def test_generated_program_adjudicator_decision_uses_dspx_meta_delegation(
                     "kind": "ai_agent",
                     "approved_to_decide": True,
                     "decision_scope": "generated_program_local_promotion_decision_only",
+                },
+                "manifest": {
+                    "path": str(manifest_path),
+                    "sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
                 },
                 "non_authority": {
                     "activation_authority": False,

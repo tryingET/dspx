@@ -74,6 +74,34 @@ def test_gitlab_client_rejects_redirect_to_unallowed_host() -> None:
 
 
 @pytest.mark.forge
+def test_gitlab_client_allows_non_default_port_when_origin_is_allowed() -> None:
+    seen_urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_urls.append(str(request.url))
+        return httpx.Response(200, json=[], request=request)
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com:8443",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"https://gitlab.example.com:8443"},
+        default_labels=[],
+    )
+    client = GitLabClient(
+        cfg,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    client.list_issues(101, labels=["dspx-wo:abc12345"])
+
+    assert seen_urls == [
+        "https://gitlab.example.com:8443/api/v4/projects/101/issues?labels=dspx-wo%3Aabc12345&page=1&per_page=100"
+    ]
+
+
+@pytest.mark.forge
 def test_gitlab_client_uses_private_token_header_for_gitlab_pat() -> None:
     seen_headers: dict[str, str] = {}
 
