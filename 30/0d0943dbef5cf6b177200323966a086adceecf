@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "300d0943dbef5cf6b177200323966a086adceecf"
-created_at: "2026-06-07T16:34:37Z"
+created_at: "2026-06-07T18:59:09Z"
 intent: "Harden local validation tooling, test typing, and cache enablement contracts."
 files:
   - ".pre-commit-config.yaml"
@@ -44,9 +44,9 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq3r54of-13ccdbf2 iteration 2' just loop-impact-wide"
-    status: "fail"
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq3r54of-13ccdbf2 iteration 2 rerun after timeout' just loop-impact-wide"
+    status: "pass"
 group:
   index: 1
   total: 1
-  rationale: "single cohesive validation/cache hardening slice; final gate timed out in boundary_contract_check"
+  rationale: "single cohesive validation/cache hardening slice; final gate passed on rerun after prior timeout"
