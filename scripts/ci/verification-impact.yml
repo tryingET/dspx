@@ -602,6 +602,14 @@ rules:
       - ruff_touched
       - pytest_program_meta_adjudication
 
+  - match: "tests/task_scope_helpers.py"
+    category: test_harness
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_task_scope
+
   - match: "tests/test_*.py"
     category: test
     impact_group: tests
@@ -636,6 +644,7 @@ rules:
     requires_full_verification: true
     commands:
       - ruff_touched
+      - pytest_task_scope
       - verify_fast
 
   - match: "packages/dspx-core/src/dspx/task_scope.py"
@@ -646,7 +655,7 @@ rules:
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_touched
+      - pytest_task_scope
       - verify_fast
 
   - match: "scripts/ci/**"

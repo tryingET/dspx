@@ -485,6 +485,20 @@ def test_coordinate_storage_does_not_run_aggregate_runtime_gate() -> None:
     assert "verify_runtime_module_synthesis" not in _command_ids(plan)
 
 
+def test_coordinates_command_uses_split_phase_b_suite() -> None:
+    loaded = _load_module()
+
+    command = loaded.COMMAND_REGISTRY["pytest_coordinates"].command
+
+    assert "tests/test_coordinates.py" in command
+    assert "tests/test_coordinates_phase_b_territory_contracts.py" in command
+    assert "tests/test_coordinates_phase_b_frontiers_attractors.py" in command
+    assert "tests/test_coordinates_phase_b_regressions.py" in command
+    assert "tests/test_coordinates_phase_b_real_embeddings.py" in command
+    assert "tests/test_coordinates_phase_b.py" not in command
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+
+
 def test_provider_v4_auth_adapter_change_stays_bounded() -> None:
     plan = _plan("packages/dspx-core/src/dspx/dspy_lm_auth_lm.py")
 
@@ -587,6 +601,53 @@ def test_program_meta_adjudication_helper_runs_split_meta_suite() -> None:
     assert "tests/test_program_meta_adjudication.py" not in command
     assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
     assert "verify_full" not in _command_ids(plan)
+
+
+def test_task_scope_helper_runs_split_task_scope_suite() -> None:
+    plan = _plan("tests/task_scope_helpers.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_task_scope"]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_task_scope_manifest_and_binding.py" in command
+    assert "tests/test_task_scope_head_mode.py" in command
+    assert "tests/test_task_scope_working_tree.py" in command
+    assert "tests/test_task_scope_cli_contract.py" in command
+    assert "tests/test_task_scope.py" not in command
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_task_scope_source_change_runs_split_task_scope_suite() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/task_scope.py")
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is True
+    assert "pytest_task_scope" in _command_ids(plan)
+    command = next(
+        command["command"]
+        for command in plan["commands"]
+        if command["id"] == "pytest_task_scope"
+    )
+    assert "tests/test_task_scope_manifest_and_binding.py" in command
+    assert "tests/test_task_scope.py" not in command
+
+
+def test_task_scope_checker_script_change_runs_split_task_scope_suite() -> None:
+    plan = _plan("scripts/check_task_scope.py")
+
+    assert plan["risk"] == "wide"
+    assert plan["full_verification_required"] is True
+    assert "pytest_task_scope" in _command_ids(plan)
+    command = next(
+        command["command"]
+        for command in plan["commands"]
+        if command["id"] == "pytest_task_scope"
+    )
+    assert "tests/test_task_scope_cli_contract.py" in command
+    assert "tests/test_task_scope.py" not in command
 
 
 @pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock"])
