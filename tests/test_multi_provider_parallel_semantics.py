@@ -108,13 +108,40 @@ class _RecordingGenerateProvider:
     def __init__(self, model: str) -> None:
         self.model = model
         self.requests: list[LMRequest] = []
+        self.seen_kwargs: list[dict[str, object]] = []
 
-    def generate(self, request: LMRequest):
+    def generate(self, request: LMRequest, **kwargs):
         self.requests.append(request)
+        self.seen_kwargs.append(dict(kwargs))
         text = " | ".join(
             f"{message.role}:{message.content}" for message in (request.messages or [])
         )
         return SimpleNamespace(outputs=[text or self.model])
+
+
+class _RecordingKwargsForwardProvider(_SyncProvider):
+    def __init__(self, model: str) -> None:
+        super().__init__(model)
+        self.seen_kwargs: list[dict[str, object]] = []
+
+    def forward(self, prompt=None, messages=None, **kwargs):
+        self.seen_kwargs.append(dict(kwargs))
+        return super().forward(prompt=prompt, messages=messages)
+
+
+class _InternalTypeErrorForwardProvider(_SyncProvider):
+    def forward(self, prompt=None, messages=None, **kwargs):
+        raise TypeError("internal provider bug")
+
+
+class _NoKwargsGenerateProvider:
+    def __init__(self, model: str) -> None:
+        self.model = model
+        self.requests: list[LMRequest] = []
+
+    def generate(self, request: LMRequest):
+        self.requests.append(request)
+        return SimpleNamespace(outputs=[self.model])
 
 
 class _PolicyAwareProvider(_SyncProvider):
@@ -263,6 +290,46 @@ def test_generate_preserves_message_history_for_generate_only_providers() -> Non
         seen = [message.model_dump() for message in provider.requests[0].messages or []]
         assert seen == expected
         assert provider.requests[0].prompt is None
+
+
+def test_generate_propagates_runtime_options_to_child_providers() -> None:
+    provider = _RecordingGenerateProvider("child")
+    lm = MultiProviderLM([provider], names=["child"])
+
+    lm.generate(LMRequest(prompt="hello", options={"temperature": 0}), max_tokens=7)
+
+    assert provider.requests[0].options == {"temperature": 0, "max_tokens": 7}
+    assert provider.seen_kwargs == [{"temperature": 0, "max_tokens": 7}]
+
+
+def test_forward_propagates_runtime_options_to_child_providers() -> None:
+    provider = _RecordingKwargsForwardProvider("child")
+    lm = MultiProviderLM([provider], names=["child"])
+
+    lm.forward(prompt="hello", max_tokens=7)
+
+    assert provider.seen_kwargs == [{"max_tokens": 7}]
+
+
+def test_generate_preserves_options_for_provider_without_kwargs() -> None:
+    provider = _NoKwargsGenerateProvider("child")
+    lm = MultiProviderLM([provider], names=["child"])
+
+    lm.generate(LMRequest(prompt="hello"), max_tokens=7)
+
+    assert provider.requests[0].options == {"max_tokens": 7}
+
+
+def test_forward_does_not_mask_provider_internal_type_error() -> None:
+    lm = MultiProviderLM([_InternalTypeErrorForwardProvider("child")], names=["child"])
+
+    try:
+        lm.forward(prompt="hello", max_tokens=7)
+    except RuntimeError as exc:
+        assert "All providers failed" in str(exc)
+        assert "internal provider bug" in str(exc)
+    else:  # pragma: no cover - defensive assertion clarity
+        raise AssertionError("internal TypeError should remain a provider failure")
 
 
 def test_policy_overrides_are_restored_after_run() -> None:

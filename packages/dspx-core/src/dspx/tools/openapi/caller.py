@@ -7,7 +7,7 @@ import httpx
 from typing import Any, Dict, Mapping, Optional, cast
 import math as _math
 import re as _re
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, unquote, urljoin
 
 from dspx.dtos import OpenAPICallRequest, OpenAPICallResult
 from dspx.http_guard import host_allowed, send_with_host_allowlist
@@ -1016,6 +1016,11 @@ def _validate_json_value_against_schema(
     return
 
 
+def _decode_json_pointer_token(token: str) -> str:
+    """Decode one RFC 6901 JSON Pointer token, including URL escapes."""
+    return unquote(token.replace("~1", "/").replace("~0", "~"))
+
+
 def _resolve_schema(
     schema: Mapping[str, Any],
     components: Mapping[str, Any],
@@ -1044,7 +1049,7 @@ def _resolve_schema(
             if ref.startswith("#/components/schemas/") and isinstance(
                 components, Mapping
             ):
-                key = ref.split("/schemas/")[-1]
+                key = _decode_json_pointer_token(ref.split("/schemas/")[-1])
                 target = (components.get("schemas") or {}).get(key)
         except Exception:
             target = None

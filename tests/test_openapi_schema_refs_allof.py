@@ -146,3 +146,70 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path) -> None:
         ),
     )
     assert res.status_code == 200 and res.body == {"ok": True}
+
+
+def test_openapi_json_pointer_escaped_component_refs_are_resolved() -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "https://api.example.com"}],
+        "components": {
+            "parameters": {
+                "A/B": {
+                    "in": "path",
+                    "name": "id",
+                    "required": True,
+                    "schema": {"type": "string"},
+                }
+            },
+            "schemas": {
+                "Payload/Body": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {"name": {"type": "string"}},
+                }
+            },
+        },
+        "paths": {
+            "/items/{id}": {
+                "post": {
+                    "operationId": "updateEscaped",
+                    "parameters": [{"$ref": "#/components/parameters/A~1B"}],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/Payload~1Body"}
+                            }
+                        },
+                    },
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    ops = extract_operations(spec)
+    operation = ops["updateEscaped"]
+
+    with pytest.raises(ValueError, match="Missing required path parameter: id"):
+        call_operation(
+            OpenAPICallRequest(operation_id="updateEscaped", body={"name": "ok"}),
+            operation=operation,
+            allowed_hosts={"api.example.com": True},
+            client=httpx.Client(
+                transport=httpx.MockTransport(lambda r: httpx.Response(200))
+            ),
+        )
+
+    with pytest.raises(ValueError, match="missing required property 'name'"):
+        call_operation(
+            OpenAPICallRequest(
+                operation_id="updateEscaped",
+                params={"id": "abc"},
+                body={},
+            ),
+            operation=operation,
+            allowed_hosts={"api.example.com": True},
+            client=httpx.Client(
+                transport=httpx.MockTransport(lambda r: httpx.Response(200))
+            ),
+        )

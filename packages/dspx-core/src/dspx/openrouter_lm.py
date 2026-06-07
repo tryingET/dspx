@@ -318,4 +318,7 @@ class OpenRouterLM(DSPyBaseLM):
             text = str(((resp.get("choices") or [{}])[0]).get("text") or "").strip()
         except Exception:
             text = str(resp)
-        return LMResponse(outputs=[text], model=self.model, usage=None, raw=None)
+        usage = None
+        if isinstance(resp, dict) and isinstance(resp.get("usage"), dict):
+            usage = resp.get("usage") or None
+        return LMResponse(outputs=[text], model=self.model, usage=usage, raw=None)

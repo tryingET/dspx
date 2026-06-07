@@ -237,8 +237,7 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                         if ref.startswith("#/components/parameters/") and isinstance(
                             comp_params, dict
                         ):
-                            key = ref.split("/parameters/")[-1]
-                            cand = comp_params.get(key)
+                            cand = _resolve_local_ref(ref, spec)
                             if isinstance(cand, dict):
                                 pr = cand
                     except Exception:

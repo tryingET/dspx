@@ -117,6 +117,22 @@ def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -
     assert runtime["resolved_headers"]["Authorization"] == "[REDACTED]"
 
 
+def test_dspy_lm_auth_generate_preserves_non_strict_error_payload(monkeypatch) -> None:
+    class BadInner:
+        def forward(self, **kwargs):
+            raise RuntimeError("boom")
+
+    lm = DspyLMAuthLM(strict=False)
+    monkeypatch.setattr(lm, "_build_inner", lambda: BadInner())
+
+    result = lm.generate(LMRequest(prompt="hello"))
+
+    assert result.outputs == ["boom"]
+    assert result.raw is not None
+    assert result.raw["_dspx_error"] is True
+    assert result.raw["_dspx_error_type"] == "RuntimeError"
+
+
 def test_dspy_lm_auth_wrapper_import_error_mentions_repo_helper(monkeypatch) -> None:
     monkeypatch.delitem(sys.modules, "dspy_lm_auth", raising=False)
     real_import = builtins.__import__

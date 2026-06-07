@@ -541,6 +541,17 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 {"role": m.role, "content": m.content} for m in (request.messages or [])
             ]
             resp = self.forward(messages=msgs, **kwargs)
+        if isinstance(resp, dict) and resp.get("_dspx_error"):
+            choices = resp.get("choices") or [{}]
+            first = choices[0] if isinstance(choices, list) and choices else {}
+            text = first.get("text") if isinstance(first, dict) else None
+            usage = resp.get("usage") if isinstance(resp.get("usage"), dict) else None
+            return LMResponse(
+                outputs=[str(text or resp.get("error") or "")],
+                model=getattr(self, "model", None),
+                usage=usage,
+                raw=resp,
+            )
         return LMResponse(
             outputs=[self._extract_text(resp)],
             model=getattr(self, "model", None),

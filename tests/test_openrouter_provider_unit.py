@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from dspx.dtos import LMRequest
 from dspx.openrouter_lm import OpenRouterLM, _extract_text
 from dspx.provider_registry import ensure_default_providers, create
 
@@ -45,3 +46,20 @@ def test_openrouter_injected_client_does_not_require_preconfigured_base_url() ->
 
     assert result.choices[0]["text"] == "ok"
     assert seen_urls == ["https://openrouter.ai/api/v1/chat/completions"]
+
+
+def test_openrouter_generate_preserves_usage_from_forward(monkeypatch) -> None:
+    lm = OpenRouterLM(api_key="test-key")
+    monkeypatch.setattr(
+        lm,
+        "forward",
+        lambda **kwargs: {
+            "choices": [{"text": "ok"}],
+            "usage": {"total_tokens": 3},
+        },
+    )
+
+    result = lm.generate(LMRequest(prompt="hello"))
+
+    assert result.outputs == ["ok"]
+    assert result.usage == {"total_tokens": 3}

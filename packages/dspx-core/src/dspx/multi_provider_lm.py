@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import inspect
 import queue
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 # Internal DTO/provider base (optional)
 try:
@@ -111,6 +122,27 @@ def _materialize_messages(
             }
         )
     return materialized
+
+
+def _call_accepts_options(callable_obj: Any, options: Mapping[str, Any]) -> bool:
+    """Return whether a callable can receive the supplied runtime options.
+
+    This avoids masking provider-internal TypeError exceptions with a broad
+    "retry without kwargs" fallback while preserving compatibility for providers
+    whose signatures do not accept optional runtime kwargs.
+    """
+    if not options:
+        return False
+    try:
+        signature = inspect.signature(callable_obj)
+    except (TypeError, ValueError):
+        return True
+    parameters = signature.parameters
+    if any(
+        param.kind is inspect.Parameter.VAR_KEYWORD for param in parameters.values()
+    ):
+        return True
+    return all(option in parameters for option in options)
 
 
 def _safe_diagnostic_text(value: object, *, fallback: str = "error") -> str:
@@ -370,7 +402,12 @@ class MultiProviderLM(DSPyBaseLM):
         messages: Optional[Iterable[Dict[str, Any]]] = None,
         **kwargs: Any,
     ):
-        results = self._run_all(prompt=prompt, messages=messages)
+        call_options = dict(kwargs)
+        results = self._run_all(
+            prompt=prompt,
+            messages=messages,
+            call_options=call_options,
+        )
         self.last_results = list(results)
 
         # If every provider failed, raise an aggregated error instead of
@@ -400,7 +437,13 @@ class MultiProviderLM(DSPyBaseLM):
             if msgs is not None:
                 messages = [{"role": m.role, "content": m.content} for m in msgs]
 
-        results = self._run_all(prompt=prompt, messages=messages)
+        call_options = dict(getattr(request, "options", None) or {})
+        call_options.update(kwargs)
+        results = self._run_all(
+            prompt=prompt,
+            messages=messages,
+            call_options=call_options,
+        )
         self.last_results = list(results)
         _raise_if_all_failed(results)
         text = self._reduce_text(results)
@@ -417,7 +460,11 @@ class MultiProviderLM(DSPyBaseLM):
 
     # Execution helpers
     def _run_all(
-        self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
+        self,
+        *,
+        prompt: Optional[str],
+        messages: Optional[Iterable[Dict[str, Any]]],
+        call_options: Optional[Mapping[str, Any]] = None,
     ) -> List[ProviderResult]:
         materialized_messages = _materialize_messages(messages)
         self._refresh_capabilities()
@@ -426,6 +473,7 @@ class MultiProviderLM(DSPyBaseLM):
             return self._run_parallel_first(
                 prompt=prompt,
                 messages=materialized_messages,
+                call_options=call_options,
             )
         if strat in {"collect_concat", "collect_longest"}:
             # sequential collection to avoid simultaneous side-effects
@@ -437,6 +485,7 @@ class MultiProviderLM(DSPyBaseLM):
                         p,
                         prompt=prompt,
                         messages=materialized_messages,
+                        call_options=call_options,
                     )
                 )
             return outs
@@ -448,6 +497,7 @@ class MultiProviderLM(DSPyBaseLM):
                 p,
                 prompt=prompt,
                 messages=materialized_messages,
+                call_options=call_options,
             )
             outs2.append(res)
             if (res.error is None) and res.text.strip():
@@ -462,6 +512,7 @@ class MultiProviderLM(DSPyBaseLM):
         prompt: Optional[str],
         messages: Optional[Iterable[Dict[str, Any]]],
         cwd_override: Optional[str] = None,
+        call_options: Optional[Mapping[str, Any]] = None,
     ) -> ProviderResult:
         name = (
             self.names[idx]
@@ -473,15 +524,25 @@ class MultiProviderLM(DSPyBaseLM):
         )
         t0 = time.time()
         try:
+            options = dict(call_options or {})
             if hasattr(provider, "forward"):
-                resp = provider.forward(prompt=prompt, messages=messages)
+                forward = provider.forward
+                if _call_accepts_options(forward, options):
+                    resp = forward(prompt=prompt, messages=messages, **options)
+                else:
+                    resp = forward(prompt=prompt, messages=messages)
                 text = _extract_text_from_response(resp)
             elif LMRequest is not None and hasattr(provider, "generate"):
                 req = LMRequest(
                     prompt=prompt,
                     messages=_build_lm_request_messages(messages),
+                    options=options,
                 )
-                r = provider.generate(req)
+                generate = provider.generate
+                if _call_accepts_options(generate, options):
+                    r = generate(req, **options)
+                else:
+                    r = generate(req)
                 text = (
                     (r.outputs or [""])[0] if r and getattr(r, "outputs", None) else ""
                 )
@@ -511,7 +572,11 @@ class MultiProviderLM(DSPyBaseLM):
             self._exit_provider_overrides(provider, lock, prev_cwd, policy_state)
 
     def _run_parallel_first(
-        self, *, prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
+        self,
+        *,
+        prompt: Optional[str],
+        messages: Optional[Iterable[Dict[str, Any]]],
+        call_options: Optional[Mapping[str, Any]] = None,
     ) -> List[ProviderResult]:
         # Prefer async-capable providers (our wrappers) to allow termination,
         # but still race sync-only providers in background threads so mixed stacks
@@ -621,6 +686,7 @@ class MultiProviderLM(DSPyBaseLM):
                     prompt=prompt,
                     messages=messages,
                     cwd_override=cwd_override,
+                    call_options=call_options,
                 )
                 sync_results.put((i, res))
 
@@ -665,7 +731,12 @@ class MultiProviderLM(DSPyBaseLM):
                     prov, cwd_override
                 )
                 try:
-                    run = prov.start(prompt=prompt, messages=messages)
+                    start = prov.start
+                    options = dict(call_options or {})
+                    if _call_accepts_options(start, options):
+                        run = start(prompt=prompt, messages=messages, **options)
+                    else:
+                        run = start(prompt=prompt, messages=messages)
                 except Exception as _start_exc:
                     self._exit_provider_overrides(prov, lock, prev_cwd, policy_state)
                     # Record startup failure so it surfaces in results instead of
@@ -1211,6 +1282,15 @@ class MultiProviderLM(DSPyBaseLM):
         sync_threads: Sequence[threading.Thread],
         async_runs: Sequence[Any],
     ) -> None:
+        # Give fast-returning sync workers one short grace join so ordinary
+        # parallel_first calls clean isolated directories synchronously. Truly
+        # slow/hung workers still fall through to the background reaper.
+        for th in sync_threads:
+            if th.is_alive():
+                try:
+                    th.join(timeout=self._async_cleanup_poll_s)
+                except Exception:
+                    pass
         pending_sync = [th for th in sync_threads if th.is_alive()]
         pending_async = []
         for run in async_runs:

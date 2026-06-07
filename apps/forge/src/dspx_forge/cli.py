@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+import os
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Iterator, Optional, cast
 
 import typer
 
@@ -36,6 +38,21 @@ def _ensure_env(*, tracing: bool = False) -> None:
         raise typer.Exit(code=2) from exc
     if tracing:
         enable_mlflow_from_env()
+
+
+@contextmanager
+def _network_mutate_invocation(enabled: bool) -> Iterator[None]:
+    previous = os.environ.get("DSPX_POLICY_ALLOW_NETWORK_MUTATE")
+    if enabled:
+        os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = "1"
+    try:
+        yield
+    finally:
+        if enabled:
+            if previous is None:
+                os.environ.pop("DSPX_POLICY_ALLOW_NETWORK_MUTATE", None)
+            else:
+                os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = previous
 
 
 @app.command("intake")
@@ -222,32 +239,38 @@ def issues_apply(
     project: Optional[str] = typer.Option(
         None, "--project", help="Override project_key for generated IssueSpecs"
     ),
+    allow_network_mutate_flag: bool = typer.Option(
+        False,
+        "--allow-network-mutate",
+        help="Allow GitLab/network mutations for this command invocation",
+    ),
 ) -> None:
     _ensure_env()
     doc = load_workorder(workorder)
     paths = default_paths(workorder)
     specs = [build_issue_spec(doc, project_key=project)]
 
-    if apply:
-        from dspx_forge.gitlab_client import load_gitlab_config_from_env
+    with _network_mutate_invocation(apply and allow_network_mutate_flag):
+        if apply:
+            from dspx_forge.gitlab_client import load_gitlab_config_from_env
 
-        if not allow_network_mutate():
-            typer.echo(
-                "refusing to apply without --allow-network-mutate (or DSPX_POLICY_ALLOW_NETWORK_MUTATE=1)",
-                err=True,
-            )
-            raise typer.Exit(code=2)
-        try:
-            load_gitlab_config_from_env()
-        except Exception as e:
-            typer.echo(f"GitLab not configured: {e}", err=True)
-            raise typer.Exit(code=2) from e
+            if not allow_network_mutate():
+                typer.echo(
+                    "refusing to apply without --allow-network-mutate (or DSPX_POLICY_ALLOW_NETWORK_MUTATE=1)",
+                    err=True,
+                )
+                raise typer.Exit(code=2)
+            try:
+                load_gitlab_config_from_env()
+            except Exception as e:
+                typer.echo(f"GitLab not configured: {e}", err=True)
+                raise typer.Exit(code=2) from e
 
-    write_issue_specs(paths, specs)
+        write_issue_specs(paths, specs)
 
-    import json as _json
+        import json as _json
 
-    manifest, results = apply_issue_specs(workorder, doc, specs, dry_run=not apply)
+        manifest, results = apply_issue_specs(workorder, doc, specs, dry_run=not apply)
     typer.echo(
         _json.dumps(
             {"manifest": manifest.model_dump(), "results": results},
@@ -270,31 +293,39 @@ def issues_close_duplicates(
         "--allow-issue-close",
         help="Required to close any issues (separate gate from --allow-network-mutate)",
     ),
+    allow_network_mutate_flag: bool = typer.Option(
+        False,
+        "--allow-network-mutate",
+        help="Allow GitLab/network mutations for this command invocation",
+    ),
 ) -> None:
     _ensure_env()
 
-    if apply:
-        from dspx_forge.gitlab_client import load_gitlab_config_from_env
+    with _network_mutate_invocation(apply and allow_network_mutate_flag):
+        if apply:
+            from dspx_forge.gitlab_client import load_gitlab_config_from_env
 
-        if not allow_network_mutate():
-            typer.echo(
-                "refusing to close issues without --allow-network-mutate (or DSPX_POLICY_ALLOW_NETWORK_MUTATE=1)",
-                err=True,
-            )
-            raise typer.Exit(code=2)
-        if not allow_issue_close:
-            typer.echo("refusing to close issues without --allow-issue-close", err=True)
-            raise typer.Exit(code=2)
-        try:
-            load_gitlab_config_from_env()
-        except Exception as e:
-            typer.echo(f"GitLab not configured: {e}", err=True)
-            raise typer.Exit(code=2) from e
+            if not allow_network_mutate():
+                typer.echo(
+                    "refusing to close issues without --allow-network-mutate (or DSPX_POLICY_ALLOW_NETWORK_MUTATE=1)",
+                    err=True,
+                )
+                raise typer.Exit(code=2)
+            if not allow_issue_close:
+                typer.echo(
+                    "refusing to close issues without --allow-issue-close", err=True
+                )
+                raise typer.Exit(code=2)
+            try:
+                load_gitlab_config_from_env()
+            except Exception as e:
+                typer.echo(f"GitLab not configured: {e}", err=True)
+                raise typer.Exit(code=2) from e
 
-    import json as _json
+        import json as _json
 
-    doc = load_workorder(workorder)
-    manifest, results = close_marked_duplicates(workorder, doc, dry_run=not apply)
+        doc = load_workorder(workorder)
+        manifest, results = close_marked_duplicates(workorder, doc, dry_run=not apply)
     typer.echo(
         _json.dumps(
             {"manifest": manifest.model_dump(), "results": results},
