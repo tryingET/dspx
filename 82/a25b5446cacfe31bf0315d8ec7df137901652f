@@ -1,0 +1,31 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "82a25b5446cacfe31bf0315d8ec7df137901652f"
+created_at: "2026-06-07T07:41:46Z"
+intent: "Harden ingress validation seams and route impact checks for adapter/tool boundaries"
+files:
+  - "apps/forge/src/dspx_forge/gitlab_client.py"
+  - "docs/project/product-posture.md"
+  - "packages/dspx-core/src/dspx/adapters/eval.py"
+  - "packages/dspx-core/src/dspx/server/security.py"
+  - "packages/dspx-core/src/dspx/tools/registry.py"
+  - "scripts/ci/verification-impact.yml"
+  - "scripts/ci/verify_changed.py"
+  - "tests/test_adapters_eval.py"
+  - "tests/test_forge_gitlab_client.py"
+  - "tests/test_http_response_bounds.py"
+  - "tests/test_tools_registry.py"
+  - "tests/test_verify_changed.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq3d3n0j-81a39a4a iteration 2' just loop-impact-wide"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "single boundary-hardening slice across code, tests, impact map, and product posture"
