@@ -563,9 +563,22 @@ def generate_programs(
 
     base = name or f"workflow_{_slug(diagram)}"
     out_root = Path(out_dir or (Path.cwd() / "generated" / "workflows" / base))
-    out_root.mkdir(parents=True, exist_ok=True)
+
+    selected = list(variants) if variants else ["predict", "cot", "react"]
+    supported_variants = {"predict", "cot", "react", "clarity"}
+    normalized_variants = [str(v).strip().lower() for v in selected]
+    invalid_variants = [v for v in normalized_variants if v not in supported_variants]
+    if invalid_variants:
+        raise ValueError(
+            "Unsupported Mermaid variant(s): "
+            + ", ".join(sorted(dict.fromkeys(invalid_variants)))
+            + f". Supported variants: {', '.join(sorted(supported_variants))}"
+        )
+    if not normalized_variants:
+        raise ValueError("At least one Mermaid program variant must be selected")
 
     graph_lit = _emit_graph_literal(nodes, edges)
+    out_root.mkdir(parents=True, exist_ok=True)
 
     def build(impl: str, variant: str) -> str:
         parts = [
@@ -579,10 +592,8 @@ def generate_programs(
         path.write_text(code, encoding="utf-8")
         return str(path)
 
-    selected = list(variants) if variants else ["predict", "cot", "react"]
     produced: List[str] = []
-    for v in selected:
-        v = v.strip().lower()
+    for v in normalized_variants:
         if v == "predict":
             produced.append(build(_emit_predict_impl(), v))
         elif v == "cot":
@@ -591,8 +602,6 @@ def generate_programs(
             produced.append(build(_emit_react2_impl(), v))
         elif v == "clarity":
             produced.append(build(_emit_clarity_impl(), v))
-        else:
-            continue
     # Write a brief README
     readme = []
     readme.append(f"# Generated DSPy Programs for {base}")

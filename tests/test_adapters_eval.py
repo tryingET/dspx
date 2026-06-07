@@ -9,6 +9,7 @@ from dspx.adapters.eval import (
     bleu1_macro,
     pr_curve_binary,
     expected_calibration_error_binary,
+    roc_curve_binary,
 )
 
 
@@ -79,6 +80,22 @@ def test_ece_rejects_invalid_bin_counts() -> None:
         expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=1.5)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="n_bins must be a positive integer"):
         expected_calibration_error_binary([1, 0], [0.9, 0.1], n_bins=True)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "metric",
+    [
+        roc_auc_binary,
+        pr_curve_binary,
+        expected_calibration_error_binary,
+        roc_curve_binary,
+    ],
+)
+def test_score_metrics_reject_non_finite_scores(metric) -> None:
+    with pytest.raises(ValueError, match="finite numeric"):
+        metric([1, 0], [float("nan"), 0.2])
+    with pytest.raises(ValueError, match="finite numeric"):
+        metric([1, 0], [float("inf"), 0.2])
 
 
 def test_pr_curve_and_ece() -> None:

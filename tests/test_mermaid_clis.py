@@ -3,6 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 import os
 
+import pytest
+
+from dspx.services.mermaid_workflow_service import generate_programs
+
 
 MERMAID_DECISIONS_ONLY = """
 graph TD
@@ -15,6 +19,19 @@ def _write_mermaid(tmp_path: Path, name: str = "flow.mmd") -> Path:
     p = tmp_path / name
     p.write_text(MERMAID_DECISIONS_ONLY, encoding="utf-8")
     return p
+
+
+def test_generate_programs_rejects_invalid_variant_without_output_side_effect(
+    tmp_path: Path,
+) -> None:
+    outdir = tmp_path / "invalid_variant_output"
+
+    with pytest.raises(ValueError, match="Unsupported Mermaid variant"):
+        generate_programs(
+            MERMAID_DECISIONS_ONLY, name="bad", out_dir=str(outdir), variants=["nope"]
+        )
+
+    assert not outdir.exists()
 
 
 def test_dspx_mermaid_sig_cli_runs_on_decisions_only(tmp_path: Path) -> None:

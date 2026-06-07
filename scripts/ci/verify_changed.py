@@ -360,6 +360,19 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "program generation spine changed",
     ),
+    "pytest_mermaid_workflow": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_mermaid_clis.py",
+            "tests/test_server_api.py",
+        ],
+        "Mermaid workflow generation or server boundary changed",
+    ),
     "pytest_program_generated_policy": CommandSpec(
         [
             "uv",
@@ -894,8 +907,8 @@ def build_plan(
         )
 
     risk = _risk_max(risks)
-    full_verification_required = full_required
     wide_reason = "; ".join(dict.fromkeys(wide_reasons)) or None
+    full_verification_required = full_required or risk == "wide"
     if full_verification_required:
         command_reasons.setdefault("verify_full", []).append(
             wide_reason or "wide/full verification required"
@@ -929,6 +942,7 @@ def build_plan(
         "pytest_generated_direct_runner",
         "pytest_program_direct_runner_generation",
         "pytest_program_generation_spine",
+        "pytest_mermaid_workflow",
         "pytest_program_generated_policy",
         "pytest_program_runtime_traces",
         "pytest_program_oracle_refinement",

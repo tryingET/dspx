@@ -185,9 +185,7 @@ def test_program_generated_policy_selects_targeted_policy_checks() -> None:
     ]
 
 
-def test_wide_threshold_does_not_force_full_verification_for_mapped_program_slice() -> (
-    None
-):
+def test_wide_threshold_forces_full_verification_for_mapped_program_slice() -> None:
     plan = _plan(
         "README.md",
         "docs/project/program-synthesis-boundary.md",
@@ -202,10 +200,10 @@ def test_wide_threshold_does_not_force_full_verification_for_mapped_program_slic
     )
 
     assert plan["risk"] == "wide"
-    assert plan["full_verification_required"] is False
+    assert plan["full_verification_required"] is True
     assert "impact group count" in str(plan.get("wide_reason"))
     assert "unmapped path" not in str(plan.get("wide_reason"))
-    assert "verify_full" not in _command_ids(plan)
+    assert "verify_full" in _command_ids(plan)
 
 
 def test_openapi_tooling_command_includes_enum_array_regressions() -> None:
@@ -225,6 +223,20 @@ def test_openapi_tooling_uses_targeted_boundary_contracts() -> None:
         "pytest_openapi_boundary_contracts",
     ]
     assert "boundary_contract_check" not in _command_ids(plan)
+
+
+def test_mermaid_workflow_service_uses_targeted_boundary_contracts() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/mermaid_workflow_service.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_mermaid_workflow",
+        "boundary_contract_check",
+    ]
 
 
 def test_generated_direct_runner_change_avoids_program_generation_spine() -> None:
@@ -661,15 +673,14 @@ def test_task_scope_checker_script_change_runs_split_task_scope_suite() -> None:
 
 
 @pytest.mark.parametrize("path", ["pyproject.toml", "uv.lock"])
-def test_dependency_metadata_change_runs_fast_defaults_without_forcing_full(
+def test_dependency_metadata_change_runs_fast_defaults_and_full_gate(
     path: str,
 ) -> None:
     plan = _plan(path)
 
     assert plan["risk"] == "wide"
-    assert plan["full_verification_required"] is False
-    assert _command_ids(plan) == ["pytest_test_defaults", "verify_fast"]
-    assert "verify_full" not in _command_ids(plan)
+    assert plan["full_verification_required"] is True
+    assert _command_ids(plan) == ["pytest_test_defaults", "verify_fast", "verify_full"]
 
 
 def test_replay_service_selects_replay_runtime_and_program_trace_checks() -> None:
@@ -715,7 +726,7 @@ def test_unknown_file_fails_wide() -> None:
     assert _command_ids(plan) == ["verify_full"]
 
 
-def test_cross_group_threshold_blocks_without_forcing_verify_full() -> None:
+def test_cross_group_threshold_requires_verify_full() -> None:
     module = _load_module()
     plan = _plan(
         "docs/project/developer_workflow.md",
@@ -725,9 +736,9 @@ def test_cross_group_threshold_blocks_without_forcing_verify_full() -> None:
     )
 
     assert plan["risk"] == "wide"
-    assert plan["full_verification_required"] is False
+    assert plan["full_verification_required"] is True
     assert "impact group count 4 exceeds threshold 3" in str(plan["wide_reason"])
-    assert "verify_full" not in _command_ids(plan)
+    assert "verify_full" in _command_ids(plan)
 
     exit_code, result = module.execute_plan(plan, allow_wide=False)
 
@@ -772,30 +783,30 @@ def test_full_required_plan_without_commands_fails_even_when_wide_allowed() -> N
     assert result["note"] == "full-required impact plan selected no commands"
 
 
-def test_justfile_change_runs_workflow_gates_without_forcing_full_verification() -> (
-    None
-):
+def test_justfile_change_runs_workflow_gates_and_full_verification() -> None:
     plan = _plan("Justfile")
 
     assert plan["risk"] == "wide"
-    assert plan["full_verification_required"] is False
+    assert plan["full_verification_required"] is True
     assert _command_ids(plan) == [
         "workflow_contract_check",
         "verify_fast",
+        "verify_full",
     ]
 
 
-def test_workflow_contract_checker_change_runs_fast_contract_gates_without_full_verification() -> (
+def test_workflow_contract_checker_change_runs_fast_contract_gates_and_full_verification() -> (
     None
 ):
     plan = _plan("scripts/check_workflow_contracts.py")
 
     assert plan["risk"] == "wide"
-    assert plan["full_verification_required"] is False
+    assert plan["full_verification_required"] is True
     assert _command_ids(plan) == [
         "workflow_contract_check",
         "ruff_touched",
         "verify_fast",
+        "verify_full",
     ]
 
 
@@ -939,7 +950,7 @@ def test_run_plan_writes_blocked_wide_receipt(tmp_path) -> None:
     assert payload["status"] == "blocked_wide"
     assert payload["summary"]["blocked_wide"] is True
     assert payload["commands"] == []
-    assert payload["plan"]["full_verification_required"] is False
+    assert payload["plan"]["full_verification_required"] is True
 
 
 def test_plan_json_is_serializable() -> None:

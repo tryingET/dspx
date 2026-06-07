@@ -104,6 +104,26 @@ def test_server_signature_and_module_and_mermaid(monkeypatch, tmp_path: Path) ->
     assert manifest_path is None or manifest_path.exists()
 
 
+def test_server_mermaid_rejects_unknown_variants(monkeypatch) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    app = create_app()
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.post(
+        "/mermaid",
+        json={
+            "mermaid": "\n".join(["graph TD", "  A[Start] --> B{Done}"]),
+            "name": "bad-variant",
+            "variants": ["nope"],
+        },
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error"] == "invalid_request"
+    assert "Unsupported Mermaid variant" in payload["detail"]
+
+
 def test_server_module_rejects_invalid_field_names(monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     app = create_app()

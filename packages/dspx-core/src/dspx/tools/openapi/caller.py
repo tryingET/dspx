@@ -445,8 +445,10 @@ def call_operation(
                 _validate_json_value_against_schema(body, schema, path="body")
     except ValueError:
         raise
-    except Exception:
-        pass
+    except Exception as exc:
+        raise ValueError(
+            f"request body schema validation failed before completion: {exc}"
+        ) from exc
 
     url = _build_url(server, path, params)
 
@@ -625,7 +627,10 @@ def _validate_json_value_against_schema(
     Raises ValueError with a helpful message on the first failure.
     """
     if _depth > _max:
-        return
+        raise ValueError(
+            f"{path}: schema validation depth exceeded {_max}; "
+            "rejecting unsupported nested schema instead of accepting without validation"
+        )
     if not isinstance(schema, Mapping):
         return
 
@@ -913,6 +918,8 @@ def _resolve_schema(
     schema: Mapping[str, Any],
     components: Mapping[str, Any],
     _seen: Optional[set[str]] = None,
+    _depth: int = 0,
+    _max: int = 32,
 ) -> Mapping[str, Any]:
     """Resolve $ref recursively while preserving combinator semantics.
 
@@ -920,13 +927,15 @@ def _resolve_schema(
     """
     if _seen is None:
         _seen = set()
+    if _depth > _max:
+        raise ValueError(f"schema resolution depth exceeded {_max}")
     if not isinstance(schema, Mapping):
         return schema
     # $ref resolution
     if "$ref" in schema and isinstance(schema.get("$ref"), str):
         ref = str(schema.get("$ref"))
         if ref in _seen:
-            return {}
+            raise ValueError(f"schema reference cycle detected: {ref}")
         next_seen = {*_seen, ref}
         target: Optional[Mapping[str, Any]] = None
         try:
@@ -938,7 +947,7 @@ def _resolve_schema(
         except Exception:
             target = None
         if isinstance(target, Mapping):
-            return _resolve_schema(target, components, next_seen)
+            return _resolve_schema(target, components, next_seen, _depth + 1, _max)
         # Unresolvable: return as-is
         return schema
     # Preserve composition semantics; resolve refs within each branch.
@@ -948,7 +957,9 @@ def _resolve_schema(
         if isinstance(parts, list):
             out[key] = [
                 (
-                    _resolve_schema(part or {}, components, set(_seen))
+                    _resolve_schema(
+                        part or {}, components, set(_seen), _depth + 1, _max
+                    )
                     if isinstance(part, Mapping)
                     else part
                 )
@@ -958,14 +969,18 @@ def _resolve_schema(
     if isinstance(schema.get("properties"), Mapping):
         new_props: Dict[str, Any] = {}
         for k, v in schema["properties"].items():
-            new_props[k] = _resolve_schema(v, components, set(_seen))
+            new_props[k] = _resolve_schema(v, components, set(_seen), _depth + 1, _max)
         out["properties"] = new_props
     if isinstance(schema.get("items"), Mapping):
-        out["items"] = _resolve_schema(schema["items"], components, set(_seen))
+        out["items"] = _resolve_schema(
+            schema["items"], components, set(_seen), _depth + 1, _max
+        )
     if isinstance(schema.get("additionalProperties"), Mapping):
         out["additionalProperties"] = _resolve_schema(
             schema["additionalProperties"],
             components,
             set(_seen),
+            _depth + 1,
+            _max,
         )
     return out

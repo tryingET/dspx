@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from numbers import Integral
 from typing import Any, Dict, List, Sequence, cast
 
@@ -25,6 +26,16 @@ def _to_binary(seq: Sequence[object], positive_label: object) -> List[int]:
     for v in seq:
         out.append(1 if v == positive_label else 0)
     return out
+
+
+def _finite_scores(y_scores: Sequence[object]) -> List[float]:
+    try:
+        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
+    except Exception as e:
+        raise ValueError("y_scores must be numeric") from e
+    if not all(math.isfinite(score) for score in scores):
+        raise ValueError("y_scores must contain only finite numeric values")
+    return scores
 
 
 def f1_binary(
@@ -273,10 +284,7 @@ def roc_auc_binary(
 
     # Convert y_true to 0/1 and scores to float
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
-    try:
-        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
-    except Exception as e:
-        raise ValueError("y_scores must be numeric") from e
+    scores = _finite_scores(y_scores)
 
     n_pos = sum(yb)
     n_neg = len(yb) - n_pos
@@ -361,10 +369,7 @@ def pr_curve_binary(
                 "positive_label must be provided for non-bool/non-int labels"
             )
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
-    try:
-        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
-    except Exception as e:
-        raise ValueError("y_scores must be numeric") from e
+    scores = _finite_scores(y_scores)
 
     # Sort by score descending
     order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
@@ -425,10 +430,7 @@ def expected_calibration_error_binary(
                 "positive_label must be provided for non-bool/non-int labels"
             )
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
-    try:
-        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
-    except Exception as e:
-        raise ValueError("y_scores must be numeric") from e
+    scores = _finite_scores(y_scores)
     # Clamp to [0,1]
     scores = [0.0 if s < 0.0 else 1.0 if s > 1.0 else s for s in scores]
     # Bin edges
@@ -552,10 +554,7 @@ def roc_curve_binary(
                 "positive_label must be provided for non-bool/non-int labels"
             )
     yb: List[int] = [1 if v == inferred else 0 for v in y_true]
-    try:
-        scores: List[float] = [float(cast(Any, s)) for s in y_scores]
-    except Exception as e:
-        raise ValueError("y_scores must be numeric") from e
+    scores = _finite_scores(y_scores)
     # Sort by score descending
     order = sorted(range(n), key=lambda i: scores[i], reverse=True)
     sorted_scores = [scores[i] for i in order]
