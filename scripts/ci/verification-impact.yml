@@ -554,6 +554,54 @@ rules:
       - ruff_touched
       - pytest_test_defaults
 
+  - match: "tests/program_architecture_shared.py"
+    category: test_harness
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_program_architecture
+
+  - match: "tests/program_activation_packet_shared.py"
+    category: test_harness
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_program_activation_packet
+
+  - match: "tests/module_synthesis_evidence_helpers.py"
+    category: test_harness
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_module_synthesis_evidence
+
+  - match: "tests/run_receipts_helpers.py"
+    category: test_harness
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_run_receipts
+
+  - match: "tests/program_topology_intent_helpers.py"
+    category: test_harness
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_program_generation_spine
+
+  - match: "tests/program_meta_adjudication_helpers.py"
+    category: test_harness
+    impact_group: tests
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_program_meta_adjudication
+
   - match: "tests/test_*.py"
     category: test
     impact_group: tests

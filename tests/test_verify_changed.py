@@ -198,7 +198,7 @@ def test_wide_threshold_does_not_force_full_verification_for_mapped_program_slic
         "packages/dspx-core/src/dspx/services/program_retrievers.py",
         "packages/dspx-core/src/dspx/services/program_service.py",
         "tests/test_program_capabilities.py",
-        "tests/test_program_topology_intent.py",
+        "tests/test_program_topology_intent_validation.py",
     )
 
     assert plan["risk"] == "wide"
@@ -239,6 +239,31 @@ def test_generated_direct_runner_change_avoids_program_generation_spine() -> Non
         "pytest_program_direct_runner_generation",
     ]
     assert "pytest_program_generation_spine" not in _command_ids(plan)
+
+
+def test_program_generation_spine_uses_split_program_service_tests() -> None:
+    loaded = _load_module()
+
+    direct_runner_command = loaded.COMMAND_REGISTRY[
+        "pytest_program_direct_runner_generation"
+    ].command
+    spine_command = loaded.COMMAND_REGISTRY["pytest_program_generation_spine"].command
+
+    assert (
+        "tests/test_program_service_cli_examples.py::test_program_gen_cli_materializes_from_yaml"
+        in direct_runner_command
+    )
+    assert "tests/test_program_service.py" not in direct_runner_command
+    assert "tests/test_program_service_core.py" in spine_command
+    assert "tests/test_program_service_cli_examples.py" in spine_command
+    assert "tests/test_program_service_replay_integrity.py" in spine_command
+    assert "tests/test_program_service_jury_authority.py" in spine_command
+    assert "tests/test_program_service.py" not in spine_command
+    assert "tests/test_program_topology_intent_validation.py" in spine_command
+    assert "tests/test_program_topology_intent_pipeline.py" in spine_command
+    assert "tests/test_program_topology_intent_react_v2.py" in spine_command
+    assert "tests/test_program_topology_intent_prompt_inference.py" in spine_command
+    assert "tests/test_program_topology_intent.py" not in spine_command
 
 
 def test_cli_boundary_change_selects_split_boundary_hardening_tests() -> None:
@@ -359,6 +384,28 @@ def test_dynamic_touched_commands_skip_deleted_paths() -> None:
     assert loaded._command_from_id("pytest_touched", [deleted_path], "") is None
 
 
+def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
+    loaded = _load_module()
+
+    command = loaded._command_from_id(
+        "pytest_touched", ["tests/test_verify_changed.py"], ""
+    )
+
+    assert command is not None
+    assert command["command"] == [
+        "uv",
+        "run",
+        "--no-sync",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_verify_changed.py",
+        "-n",
+        "auto",
+        "--dist=loadfile",
+    ]
+
+
 @pytest.mark.parametrize(
     ("path", "category", "expected_command"),
     [
@@ -458,6 +505,87 @@ def test_test_harness_change_runs_default_contract_without_full_verification() -
     assert plan["full_verification_required"] is False
     assert "unmapped path" not in str(plan.get("wide_reason"))
     assert _command_ids(plan) == ["ruff_touched", "pytest_test_defaults"]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_program_architecture_shared_helper_runs_split_architecture_suite() -> None:
+    plan = _plan("tests/program_architecture_shared.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_program_architecture"]
+    assert plan["commands"][1]["command"][-3:] == [
+        "-n",
+        "auto",
+        "--dist=loadfile",
+    ]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_program_activation_packet_shared_helper_runs_split_packet_suite() -> None:
+    plan = _plan("tests/program_activation_packet_shared.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_program_activation_packet"]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_program_activation_packet_core_review.py" in command
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_module_synthesis_evidence_helper_runs_split_evidence_suite() -> None:
+    plan = _plan("tests/module_synthesis_evidence_helpers.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_module_synthesis_evidence"]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_module_synthesis_evidence_retrieval.py" in command
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_run_receipts_helper_runs_split_receipt_suite() -> None:
+    plan = _plan("tests/run_receipts_helpers.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_run_receipts"]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_run_receipts_replay.py" in command
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_program_topology_helper_runs_program_generation_spine() -> None:
+    plan = _plan("tests/program_topology_intent_helpers.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_program_generation_spine"]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_program_topology_intent_validation.py" in command
+    assert "tests/test_program_topology_intent.py" not in command
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_program_meta_adjudication_helper_runs_split_meta_suite() -> None:
+    plan = _plan("tests/program_meta_adjudication_helpers.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == ["ruff_touched", "pytest_program_meta_adjudication"]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_program_meta_adjudication_target_jury.py" in command
+    assert "tests/test_program_meta_adjudication.py" not in command
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
     assert "verify_full" not in _command_ids(plan)
 
 
@@ -716,6 +844,9 @@ def test_main_run_writes_result_receipt_from_cli_args(tmp_path, monkeypatch) -> 
             "pytest",
             "-q",
             "tests/test_verify_changed.py",
+            "-n",
+            "auto",
+            "--dist=loadfile",
         ],
     ]
     payload = json.loads(result_out.read_text(encoding="utf-8"))
