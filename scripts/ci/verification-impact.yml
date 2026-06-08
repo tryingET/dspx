@@ -128,6 +128,17 @@ rules:
       - pytest_cache_boundary
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/generated_code_guard.py"
+    category: generated_code_guard_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_generated_code_guard_adversarial
+      - pytest_boundary_adversarial
+      - boundary_contract_check
+
   - match: "packages/dspx-core/src/dspx/provider_registry.py"
     category: provider_boundary
     impact_group: boundary_hardening

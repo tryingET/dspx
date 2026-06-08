@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, Mapping, Optional
 from .models import OpenAPIOperationInfo
 import os
+import re
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 import httpx
@@ -13,6 +14,7 @@ from dspx.redaction import redact_url
 from dspx.security import read_file_text_bounded, read_response_text_bounded
 
 _DEFAULT_REMOTE_SPEC_MAX_BYTES = 2_000_000
+_SERVER_VARIABLE_RE = re.compile(r"\{([^{}]+)\}")
 
 
 def _is_url(s: str) -> bool:
@@ -186,7 +188,19 @@ def _first_server_url(servers: Any) -> str | None:
     if isinstance(servers, list) and servers:
         s0 = servers[0]
         if isinstance(s0, dict) and "url" in s0:
-            return str(s0["url"]).rstrip("/")
+            url = str(s0["url"])
+            variables = s0.get("variables")
+            if isinstance(variables, Mapping):
+
+                def _replace(match: re.Match[str]) -> str:
+                    name = match.group(1)
+                    spec = variables.get(name)
+                    if isinstance(spec, Mapping) and "default" in spec:
+                        return str(spec["default"])
+                    return match.group(0)
+
+                url = _SERVER_VARIABLE_RE.sub(_replace, url)
+            return url.rstrip("/")
     return None
 
 

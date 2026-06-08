@@ -225,6 +225,21 @@ def test_openapi_tooling_uses_targeted_boundary_contracts() -> None:
     assert "boundary_contract_check" not in _command_ids(plan)
 
 
+def test_generated_code_guard_change_uses_adversarial_boundary_matrix() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/generated_code_guard.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_boundary_adversarial",
+        "pytest_generated_code_guard_adversarial",
+        "boundary_contract_check",
+    ]
+
+
 def test_mermaid_workflow_service_uses_targeted_boundary_contracts() -> None:
     plan = _plan("packages/dspx-core/src/dspx/services/mermaid_workflow_service.py")
 

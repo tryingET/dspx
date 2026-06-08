@@ -6,13 +6,18 @@ from typing import Any
 
 import httpx
 import pytest
+from typer.testing import CliRunner
 
+from dspx.cli.dspx import app
 from dspx.tools.openapi import load_spec, extract_operations
 from dspx.tools.openapi.caller import (
     _validate_json_value_against_schema,
     call_operation,
 )
 from dspx.dtos import OpenAPICallRequest
+
+
+runner = CliRunner()
 
 
 def _make_spec(tmp_path: Path) -> str:
@@ -92,6 +97,55 @@ def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
         client=client,
     )
     assert res2.status_code == 200 and (res2.raw_text or "").strip() == "hello"
+
+
+def test_openapi_call_parses_json_content_type_case_insensitively(
+    tmp_path: Path,
+) -> None:
+    spec_path = _make_spec(tmp_path)
+    ops = extract_operations(load_spec(spec_path))
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                headers={"Content-Type": "Application/JSON"},
+                text='{"ok": true}',
+                request=request,
+            )
+        )
+    )
+
+    res = call_operation(
+        OpenAPICallRequest(operation_id="ping"),
+        operation=ops["ping"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+
+    assert res.body == {"ok": True}
+
+
+def test_openapi_load_preserves_remote_spec_url(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "tools",
+            "openapi",
+            "load",
+            "--prefix",
+            "remote",
+            "--spec",
+            "https://api.example.com/openapi.json",
+            "--allow-host",
+            "api.example.com",
+            "--outdir",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads((tmp_path / "remote.json").read_text(encoding="utf-8"))
+    assert payload["spec"] == "https://api.example.com/openapi.json"
 
 
 def test_openapi_call_enforces_response_byte_limit(

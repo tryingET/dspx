@@ -204,24 +204,31 @@ def _run_worker(
             json.dumps(dict(payload), sort_keys=True),
             encoding="utf-8",
         )
-        proc = subprocess.run(
-            [
-                sys.executable,
-                "-I",
-                "-m",
-                "dspx.generated_code_guard",
-                mode,
-                str(code_path),
-                str(payload_path),
-                str(result_path),
-            ],
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-            env=isolated_subprocess_env(),
-        )
+        try:
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-m",
+                    "dspx.generated_code_guard",
+                    mode,
+                    str(code_path),
+                    str(payload_path),
+                    str(result_path),
+                ],
+                cwd=workdir,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                env=isolated_subprocess_env(),
+            )
+        except subprocess.TimeoutExpired:
+            return {
+                "ok": False,
+                "checks": {"module-smoke": False} if mode == "module" else {},
+                "errors": [f"smoke_runner_timeout:{timeout}s"],
+            }
         if not result_path.exists():
             errors = [f"smoke_runner_no_result:rc={proc.returncode}"]
             stderr = (proc.stderr or "").strip()
@@ -476,8 +483,16 @@ def _validate_generated_function_body(
                     f"{label}_dunder_attribute_not_allowed:{node.name}:{child.attr}"
                 )
                 continue
+        if isinstance(child, ast.Subscript):
+            value_name = _call_name(child.value)
+            if value_name == "__builtins__":
+                errors.append(f"{label}_builtins_subscript_not_allowed:{node.name}")
+                continue
         if isinstance(child, ast.Call):
-            callee = _call_name(child.func) or "unknown"
+            callee = _call_name(child.func)
+            if callee is None:
+                errors.append(f"{label}_call_not_allowed:{node.name}:unknown")
+                continue
             root = callee.split(".", 1)[0]
             if callee in _DENIED_FUNCTION_CALLS or root in _DENIED_CALL_ROOTS:
                 errors.append(f"{label}_call_not_allowed:{node.name}:{callee}")
@@ -595,6 +610,8 @@ def _install_runtime_guards() -> Mapping[str, Any]:
     original_os_rmdir = os.rmdir
     original_os_rename = os.rename
     original_os_replace = os.replace
+    original_os_open = os.open
+    original_os_write = os.write
     original_os_process_functions = {
         name: getattr(os, name) for name in _OS_PROCESS_FUNCTIONS if hasattr(os, name)
     }
@@ -656,6 +673,8 @@ def _install_runtime_guards() -> Mapping[str, Any]:
     os.rmdir = _deny("filesystem_write_denied_during_smoke")
     os.rename = _deny("filesystem_write_denied_during_smoke")
     os.replace = _deny("filesystem_write_denied_during_smoke")
+    os.open = _deny("filesystem_write_denied_during_smoke")
+    os.write = _deny("filesystem_write_denied_during_smoke")
     for name in original_os_process_functions:
         setattr(os, name, _deny("subprocess_denied_during_smoke"))
     socket.create_connection = _deny("network_access_denied_during_smoke")
@@ -683,6 +702,8 @@ def _install_runtime_guards() -> Mapping[str, Any]:
         "os_rmdir": original_os_rmdir,
         "os_rename": original_os_rename,
         "os_replace": original_os_replace,
+        "os_open": original_os_open,
+        "os_write": original_os_write,
         "os_process_functions": original_os_process_functions,
         "socket_create_connection": original_socket_create_connection,
         "socket_connect": original_socket_connect,
@@ -711,6 +732,8 @@ def _restore_runtime_guards(originals: Mapping[str, Any]) -> None:
     os.rmdir = originals["os_rmdir"]
     os.rename = originals["os_rename"]
     os.replace = originals["os_replace"]
+    os.open = originals["os_open"]
+    os.write = originals["os_write"]
     for name, value in originals["os_process_functions"].items():
         setattr(os, name, value)
     socket.create_connection = originals["socket_create_connection"]

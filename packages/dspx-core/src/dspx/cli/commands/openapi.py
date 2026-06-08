@@ -470,7 +470,7 @@ def openapi_load(
     prefix: str = typer.Option(
         ..., "--prefix", "-p", help="Registration prefix (e.g., gh)"
     ),
-    spec: Path = typer.Option(..., "--spec", help="OpenAPI JSON spec path"),
+    spec: str = typer.Option(..., "--spec", help="OpenAPI JSON spec path or URL"),
     allow_host: Optional[str] = typer.Option(
         None, help="Allowlisted host (e.g., api.github.com)"
     ),

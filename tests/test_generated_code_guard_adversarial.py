@@ -178,3 +178,115 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
     assert checks["module-smoke"] is False
     assert any("dunder_attribute_not_allowed" in error for error in errors)
     assert not probe.exists()
+
+
+def test_generated_module_guard_rejects_builtins_import_subscript_escape() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x):
+        tempfile = __builtins__["__import__"]("tempfile")
+        fd = tempfile._os.open("/tmp/dspx_osopen_escape_probe", tempfile._os.O_WRONLY | tempfile._os.O_CREAT, 0o600)
+        tempfile._os.write(fd, b"owned")
+        tempfile._os.close(fd)
+        return self.predict(x=x)
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    errors = _validate_module_source(code)
+
+    assert "method_builtins_subscript_not_allowed:forward" in errors
+    assert "method_call_not_allowed:forward:unknown" in errors
+
+
+def test_generated_module_smoke_does_not_allow_low_level_os_write_escape() -> None:
+    probe = Path("/tmp/dspx_osopen_escape_probe")
+    probe.unlink(missing_ok=True)
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x):
+        tempfile = __builtins__["__import__"]("tempfile")
+        fd = tempfile._os.open("/tmp/dspx_osopen_escape_probe", tempfile._os.O_WRONLY | tempfile._os.O_CREAT, 0o600)
+        tempfile._os.write(fd, b"owned")
+        tempfile._os.close(fd)
+        return self.predict(x=x)
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    ok, checks, errors = smoke_module_code(
+        code,
+        payload={"expected_module": "MyModule", "inputs": ["x"], "outputs": ["y"]},
+    )
+
+    assert ok is False
+    assert checks["module-smoke"] is False
+    assert "method_builtins_subscript_not_allowed:forward" in errors
+    assert not probe.exists()
+
+
+def test_generated_module_smoke_timeout_returns_structured_failure() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x):
+        while True:
+            pass
+        return self.predict(x=x)
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    ok, checks, errors = smoke_module_code(
+        code,
+        payload={"expected_module": "MyModule", "inputs": ["x"], "outputs": ["y"]},
+        timeout=1,
+    )
+
+    assert ok is False
+    assert checks["module-smoke"] is False
+    assert errors == ["smoke_runner_timeout:1s"]

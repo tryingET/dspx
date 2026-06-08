@@ -123,6 +123,33 @@ def test_load_spec_url_rejects_empty_allowlist(tmp_path: Path) -> None:
         load_spec(url, allowed_hosts={})
 
 
+def test_extract_operations_substitutes_server_variable_defaults() -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [
+            {
+                "url": "https://{env}.example.com/{basePath}",
+                "variables": {
+                    "env": {"default": "api"},
+                    "basePath": {"default": "v1"},
+                },
+            }
+        ],
+        "paths": {
+            "/ping": {
+                "get": {
+                    "operationId": "ping",
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+
+    ops = extract_operations(spec)
+
+    assert ops["ping"]["server"] == "https://api.example.com/v1"
+
+
 def test_load_spec_url_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None:
     seen: list[str] = []
 

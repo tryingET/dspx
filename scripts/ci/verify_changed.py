@@ -161,6 +161,18 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "adversarial boundary contract changed",
     ),
+    "pytest_generated_code_guard_adversarial": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_generated_code_guard_adversarial.py",
+        ],
+        "generated-code guard boundary changed",
+    ),
     "pytest_cli_dspx": CommandSpec(
         ["uv", "run", "--no-sync", "-m", "pytest", "-q", "tests/test_cli_dspx.py"],
         "DSPx CLI boundary changed",
@@ -931,6 +943,7 @@ def build_plan(
         "pytest_task_scope",
         "pytest_boundary_hardening",
         "pytest_boundary_adversarial",
+        "pytest_generated_code_guard_adversarial",
         "pytest_cli_dspx",
         "pytest_forge_cli_policy",
         "pytest_program_runtime_episode",

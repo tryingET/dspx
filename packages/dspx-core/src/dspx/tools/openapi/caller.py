@@ -665,7 +665,7 @@ def call_operation(
         finally:
             resp.close()
         t1 = _time.time()
-        content_type = resp.headers.get("content-type", "")
+        content_type = resp.headers.get("content-type", "").lower()
         parsed: Any = None
         if "json" in content_type:
             try:
