@@ -1,0 +1,36 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "164d507b9adf1325af15165318469296743c1b48"
+created_at: "2026-06-08T19:33:14Z"
+intent: "Harden artifact ingest and sidecar validation seams"
+files:
+  - "docs/project/product-posture.md"
+  - "packages/dspx-core/src/dspx/cache.py"
+  - "packages/dspx-core/src/dspx/cli/commands/oracle.py"
+  - "packages/dspx-core/src/dspx/cli/dspx.py"
+  - "packages/dspx-core/src/dspx/coordinates/embeddings.py"
+  - "packages/dspx-core/src/dspx/services/program_generation_contract.py"
+  - "packages/dspx-core/src/dspx/services/program_intent.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_index.py"
+  - "packages/dspx-core/src/dspx/services/program_surfaces.py"
+  - "packages/dspx-core/src/dspx/services/run_replay_service.py"
+  - "tests/test_adversarial_boundary_contracts.py"
+  - "tests/test_cache.py"
+  - "tests/test_coordinates.py"
+  - "tests/test_program_generation_contract_cli.py"
+  - "tests/test_program_oracle_index.py"
+  - "tests/test_program_topology_intent_validation.py"
+  - "tests/test_run_receipts_replay.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "pending: impact-aware final gate"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "Single artifact-ingest hardening slice across code, tests, and posture documentation"
