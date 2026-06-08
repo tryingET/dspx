@@ -54,6 +54,33 @@ def test_adapters_eval_run_accuracy_and_f1(tmp_path: Path) -> None:
     assert data2["metric"] == "f1" and abs(data2["value"] - 0.5) < 1e-6
 
 
+def test_adapters_eval_run_f1_string_labels_require_positive_label(
+    tmp_path: Path,
+) -> None:
+    p = tmp_path / "labels.csv"
+    p.write_text("y,yhat\ncat,cat\ndog,cat\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "adapters",
+            "eval",
+            "run",
+            "--csv",
+            str(p),
+            "--truth-col",
+            "y",
+            "--pred-col",
+            "yhat",
+            "--metric",
+            "f1",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "positive_label must be provided" in result.stderr
+
+
 def test_adapters_eval_run_roc_auc_and_macro_text(tmp_path: Path) -> None:
     # roc_auc with numeric predictions
     p = tmp_path / "scores.csv"

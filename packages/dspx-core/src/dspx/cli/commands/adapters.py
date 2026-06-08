@@ -9,7 +9,7 @@ import csv as csv_module
 import json
 import os
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, NoReturn, Optional, cast
 
 import typer
 
@@ -30,6 +30,11 @@ app.add_typer(eval_app, name="eval", help="Evaluation helpers")
 app.add_typer(
     authority_app, name="authority", help="External authority export planning"
 )
+
+
+def _raise_cli_input_error(exc: Exception) -> NoReturn:
+    typer.echo(f"error: {exc}", err=True)
+    raise typer.Exit(code=2) from exc
 
 
 @app.command("list")
@@ -407,10 +412,16 @@ def adapters_eval_run(
         val = accuracy(y_true, y_pred)
         out: dict[str, Any] = {"metric": m, "value": float(val)}
     elif m == "f1":
-        val = f1_binary(y_true, y_pred, positive_label=positive_label)
+        try:
+            val = f1_binary(y_true, y_pred, positive_label=positive_label)
+        except ValueError as exc:
+            _raise_cli_input_error(exc)
         out = {"metric": m, "value": float(val)}
     elif m == "confusion":
-        cm = confusion_matrix_binary(y_true, y_pred, positive_label=positive_label)
+        try:
+            cm = confusion_matrix_binary(y_true, y_pred, positive_label=positive_label)
+        except ValueError as exc:
+            _raise_cli_input_error(exc)
         out = {"metric": m, **cm}
         if json_out:
             typer.echo(json.dumps(out, ensure_ascii=False, indent=2))
@@ -593,10 +604,16 @@ def adapters_eval_run2(
             "count": int(len(merged)),
         }
     elif m == "f1":
-        val = f1_binary(y_true, y_pred, positive_label=positive_label)
+        try:
+            val = f1_binary(y_true, y_pred, positive_label=positive_label)
+        except ValueError as exc:
+            _raise_cli_input_error(exc)
         out = {"metric": m, "value": float(val), "count": int(len(merged))}
     elif m == "confusion":
-        cm = confusion_matrix_binary(y_true, y_pred, positive_label=positive_label)
+        try:
+            cm = confusion_matrix_binary(y_true, y_pred, positive_label=positive_label)
+        except ValueError as exc:
+            _raise_cli_input_error(exc)
         out = {"metric": m, **cm, "count": int(len(merged))}
     elif m == "roc_auc":
         try:

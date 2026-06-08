@@ -4,7 +4,7 @@ import os
 
 from dspx.capabilities import ProviderCapabilities
 from dspx.dspy_lm_auth_lm import DspyLMAuthLM
-from dspx.provider_registry import register_provider
+from dspx.provider_registry import mark_default_provider_factory, register_provider
 
 
 def _truthy(name: str, default: bool) -> bool:
@@ -71,4 +71,8 @@ def register() -> None:
         structured_output_format="json",
         supports_vision=_model_supports_vision(model, auth_provider),
     )
-    register_provider("dspy-lm-auth", _factory, caps)
+    register_provider(
+        "dspy-lm-auth",
+        mark_default_provider_factory(_factory, "dspx.default.dspy-lm-auth"),
+        caps,
+    )

@@ -52,7 +52,7 @@ _ALLOWED_GENERATED_SIBLING_TOP_LEVEL_NODES = (
     ast.ClassDef,
 )
 _GENERATED_SURFACE_TOP_LEVEL_NODES = {
-    "program.py": _ALLOWED_GENERATED_PROGRAM_TOP_LEVEL_NODES,
+    "program.py": _ALLOWED_GENERATED_SIBLING_TOP_LEVEL_NODES,
     "module.py": _ALLOWED_GENERATED_SIBLING_TOP_LEVEL_NODES,
     "signature.py": _ALLOWED_GENERATED_SIBLING_TOP_LEVEL_NODES,
 }
@@ -75,6 +75,7 @@ _DENIED_GENERATED_PROGRAM_METHODS = {
     "rmdir",
     "run",
     "system",
+    "touch",
     "unlink",
     "write_bytes",
     "write_text",

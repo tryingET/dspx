@@ -135,7 +135,9 @@ def ensure_default_providers() -> None:
                 _reg_vllm_local()
         except Exception:
             pass
-        if "dspy-lm-auth" not in _REGISTRY:
+        if "dspy-lm-auth" not in _REGISTRY or _factory_owned_by_default_owner(
+            "dspy-lm-auth", "dspx.default.dspy-lm-auth"
+        ):
             try:
                 from .providers_register_dspy_lm_auth import (
                     register as _reg_dspy_lm_auth,

@@ -9,12 +9,16 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, reset_embedding_engine
+from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_runtime_episode import (
     _generated_program_module,
     _materialize_runtime_inputs,
     run_program_runtime_episode,
 )
-from dspx.services.program_service import run_generate_from_intent_path
+from dspx.services.program_service import (
+    materialize_program_from_intent,
+    run_generate_from_intent_path,
+)
 
 runner = CliRunner()
 
@@ -58,6 +62,56 @@ def _generated_candidate(tmp_path: Path) -> Path:
     _write_intent(intent)
     run_generate_from_intent_path(intent, outdir=outdir)
     return outdir
+
+
+def _explicit_pipeline_candidate(tmp_path: Path) -> Path:
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="SupportRouterProgram",
+            objective="Route support tickets and draft a response.",
+            inputs=["ticket_text"],
+            outputs=["response"],
+            metric="exact_match",
+            constraints=["preserve the original ticket facts"],
+            topology={
+                "kind": "pipeline",
+                "execution_status": "declared_not_materialized",
+                "modules": [
+                    {
+                        "id": "classify_ticket",
+                        "primitive": "Predict",
+                        "signature": {
+                            "name": "ClassifyTicket",
+                            "inputs": ["ticket_text"],
+                            "outputs": ["route"],
+                        },
+                    },
+                    {
+                        "id": "draft_response",
+                        "primitive": "chain_of_thought",
+                        "signature": {
+                            "name": "DraftResponse",
+                            "inputs": ["ticket_text", "route"],
+                            "outputs": ["response"],
+                        },
+                    },
+                ],
+                "edges": [
+                    {"from": "input", "to": "classify_ticket"},
+                    {"from": "classify_ticket", "to": "draft_response"},
+                    {"from": "draft_response", "to": "output"},
+                ],
+            },
+            examples=[
+                {
+                    "inputs": {"ticket_text": "Billing invoice is wrong"},
+                    "outputs": {"response": "We will help review the billing invoice."},
+                }
+            ],
+        ),
+        outdir=tmp_path / "pipeline-candidate",
+    )
+    return Path(artifact.root_path)
 
 
 def test_program_runtime_episode_runs_existing_candidate_without_mutating_manifest(
@@ -121,6 +175,35 @@ def test_program_runtime_episode_runs_existing_candidate_without_mutating_manife
     assert run_id == f"program-oracle-evidence:{payload['runtime_episode_id']}"
 
 
+def test_program_runtime_episode_round_trips_explicit_pipeline_candidate(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    candidate = _explicit_pipeline_candidate(tmp_path)
+    inputs = tmp_path / "pipeline-runtime-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"ticket_text": "Billing invoice is wrong"}}),
+        encoding="utf-8",
+    )
+
+    payload = run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=tmp_path / "pipeline-runtime-episode",
+        skip_oracle_index=True,
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["steps"]["runtime_execution"]["status"] == "executed"
+    behavior = json.loads(
+        (tmp_path / "pipeline-runtime-episode" / "behavior_results.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert behavior["summary"]["status"] == "executed"
+    assert behavior["examples"][0]["observed_outputs"]["response"]
+
+
 def test_program_runtime_episode_can_write_shared_publication_preflight(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -177,6 +260,61 @@ def test_program_runtime_episode_rejects_tampered_candidate_surface(
             inputs_path=inputs,
             outdir=tmp_path / "runtime-episode",
         )
+
+
+def test_generated_program_module_rejects_program_class_body_side_effects(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from pathlib import Path\n"
+        "import dspy\n"
+        "class UnsafeProgram(dspy.Module):\n"
+        f"    marker = Path({str(marker)!r}).touch()\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return UnsafeProgram()\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="program.py"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_generated_program_module_rejects_program_class_method_side_effects(
+    tmp_path: Path,
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from pathlib import Path\n"
+        "import dspy\n"
+        "class UnsafeProgram(dspy.Module):\n"
+        "    def __init__(self):\n"
+        f"        Path({str(marker)!r}).touch()\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    return UnsafeProgram()\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="touch"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
 
 
 def test_generated_program_module_rejects_import_time_side_effects(

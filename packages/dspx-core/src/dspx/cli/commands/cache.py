@@ -235,12 +235,14 @@ def cache_prune(
         cutoff = now - older_than_days * 86400.0
         for mt, sz, path in list(targets):
             if mt < cutoff:
+                removed += 1
                 if not dry_run:
                     try:
                         _Path(path).unlink()
-                        removed += 1
                     except Exception:
-                        pass
+                        removed -= 1
+                        keep.add(path)
+                        saved += sz
             else:
                 keep.add(path)
                 saved += sz
@@ -256,12 +258,14 @@ def cache_prune(
         for mt, sz, path in kept_list:
             if saved <= max_size_mb * 1024 * 1024:
                 break
+            removed += 1
             if not dry_run:
                 try:
                     _Path(path).unlink()
-                    removed += 1
                 except Exception:
-                    pass
+                    removed -= 1
+                    continue
             saved -= sz
 
-    typer.echo(f"pruned: {removed} files; remaining_bytes: {int(saved)}")
+    action = "would_prune" if dry_run else "pruned"
+    typer.echo(f"{action}: {removed} files; remaining_bytes: {int(saved)}")

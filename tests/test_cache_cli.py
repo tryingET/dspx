@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
 from typer.testing import CliRunner
 
@@ -16,6 +18,25 @@ def _make_cache(tmp_path: Path, kind: str, key: str, payload: dict) -> Path:
     f = d / f"{key}.json"
     f.write_text(json.dumps(payload), encoding="utf-8")
     return f
+
+
+def test_cache_prune_dry_run_reports_would_prune_without_deleting(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path))
+    old_file = _make_cache(tmp_path, "signature", "old", {"x": 1})
+    old_mtime = time.time() - 2 * 86400
+    os.utime(old_file, (old_mtime, old_mtime))
+
+    result = runner.invoke(
+        app,
+        ["cache", "prune", "--older-than-days", "0", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert "would_prune: 1 files" in result.stdout
+    assert "remaining_bytes: 0" in result.stdout
+    assert old_file.exists()
 
 
 def test_cache_cli_list_show_clear(tmp_path: Path, monkeypatch) -> None:

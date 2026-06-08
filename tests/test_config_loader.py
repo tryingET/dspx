@@ -122,6 +122,7 @@ def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) 
         "DSPX_LM_AUTH_PROVIDER",
         "DSPX_LM_AUTH_STORAGE",
         "DSPX_LM_AUTH_TIMEOUT",
+        "DSPX_LM_AUTH_REASONING_EFFORT",
         "DSPX_VLLM_API_BASE",
         "DSPX_VLLM_MODEL",
         "DSPX_VLLM_TIMEOUT",
@@ -137,6 +138,7 @@ def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) 
         auth_provider = "codex"
         auth_storage = "~/.pi/agent/auth.json"
         timeout_s = 75
+        reasoning_effort = "low"
 
         [vllm]
         api_base = "http://127.0.0.1:8000/v1"
@@ -156,6 +158,7 @@ def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) 
     assert os.environ["DSPX_LM_AUTH_PROVIDER"] == "codex"
     assert os.environ["DSPX_LM_AUTH_STORAGE"] == "~/.pi/agent/auth.json"
     assert os.environ["DSPX_LM_AUTH_TIMEOUT"] == "75"
+    assert os.environ["DSPX_LM_AUTH_REASONING_EFFORT"] == "low"
     assert os.environ["DSPX_VLLM_API_BASE"] == "http://127.0.0.1:8000/v1"
     assert os.environ["DSPX_VLLM_MODEL"] == "local-student"
     assert os.environ["DSPX_VLLM_TIMEOUT"] == "33"

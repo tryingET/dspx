@@ -314,6 +314,11 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
         str(lm_auth.get("max_tokens")) if "max_tokens" in lm_auth else None,
         seen_keys=seen_keys,
     )
+    _set_config_value(
+        "DSPX_LM_AUTH_REASONING_EFFORT",
+        lm_auth.get("reasoning_effort"),
+        seen_keys=seen_keys,
+    )
 
     # Generic OpenAI-compatible envs (useful for local vLLM)
     _set_config_value(

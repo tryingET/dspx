@@ -91,6 +91,25 @@ def test_dspy_lm_auth_registry_declares_default_codex_vision_support(
         provider_registry._REGISTRY.update(saved_registry)
 
 
+def test_dspy_lm_auth_default_capabilities_refresh_with_env_changes(
+    monkeypatch,
+) -> None:
+    saved_registry = dict(provider_registry._REGISTRY)
+    try:
+        provider_registry._REGISTRY.clear()
+        monkeypatch.setenv("DSPX_LM_AUTH_MODEL", "openai/gpt-4o")
+        monkeypatch.delenv("DSPX_LM_AUTH_PROVIDER", raising=False)
+        ensure_default_providers()
+        assert provider_registry.capabilities("dspy-lm-auth").supports_vision is False
+
+        monkeypatch.setenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.5")
+        ensure_default_providers()
+        assert provider_registry.capabilities("dspy-lm-auth").supports_vision is True
+    finally:
+        provider_registry._REGISTRY.clear()
+        provider_registry._REGISTRY.update(saved_registry)
+
+
 def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -> None:
     fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)

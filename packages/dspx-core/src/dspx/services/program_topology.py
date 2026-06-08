@@ -1483,7 +1483,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             "                kwargs = {name: state[name] for name in signature['inputs']}",
             "                prediction = module(**kwargs)",
             "                executed.add(module_id)",
-            "                pending.remove(module_id)",
+            "                pending = pending - {module_id}",
             "                progressed = True",
             "                mapped = _prediction_mapping(prediction)",
             "                call_outputs: dict[str, object] = {}",
