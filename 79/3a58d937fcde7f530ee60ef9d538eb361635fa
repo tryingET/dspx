@@ -1,0 +1,32 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "793a58d937fcde7f530ee60ef9d538eb361635fa"
+created_at: "2026-06-08T05:16:01Z"
+intent: "Harden adapter/cache/provider/runtime boundaries and refresh product posture"
+files:
+  - "docs/project/product-posture.md"
+  - "packages/dspx-core/src/dspx/cli/commands/adapters.py"
+  - "packages/dspx-core/src/dspx/cli/commands/cache.py"
+  - "packages/dspx-core/src/dspx/config_loader.py"
+  - "packages/dspx-core/src/dspx/provider_registry.py"
+  - "packages/dspx-core/src/dspx/providers_register_dspy_lm_auth.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
+  - "packages/dspx-core/src/dspx/services/program_topology.py"
+  - "tests/test_adapters_eval_cli.py"
+  - "tests/test_cache_cli.py"
+  - "tests/test_config_loader.py"
+  - "tests/test_program_runtime_episode.py"
+  - "tests/test_provider_v4.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq4ob4h5-cb12298e iteration 1' just loop-impact-wide"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "single boundary-hardening change set across runtime/provider/CLI seams"
