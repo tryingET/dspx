@@ -58,7 +58,7 @@ def io_spec(): return {"inputs": ["q"], "outputs": ["answer"]}
 def configure_observability(**kw): return False
 def end_observability_run(started, status="FINISHED"): pass
 class P:
-    def __call__(self, **kw): return {"answer": "hello"}
+    def __call__(self, **kw): return "hello"
 def build_program(): return P()
 """,
         encoding="utf-8",

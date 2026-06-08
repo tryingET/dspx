@@ -173,6 +173,126 @@ def test_oracle_index_combined_mode_does_not_confirm_non_authority_when_receipts
     assert payload["non_authority_confirmed"] is False
 
 
+def test_oracle_index_from_receipts_rejects_unvalidated_receipt_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    reset_embedding_engine()
+    receipts = tmp_path / "receipts"
+    receipts.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("SECRET_SENTINEL\n", encoding="utf-8")
+    (receipts / "fake.meta.json").write_text(
+        json.dumps(
+            {
+                "created_at": "2026-06-08T00:00:00Z",
+                "run_kind": "signature-gen",
+                "provider": "fake",
+                "template_version": "fake",
+                "output_path": str(outside),
+                "replay_inputs": {"prompt": "x"},
+                "cache_key": "fake",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "index",
+            "--from-receipts",
+            "--path",
+            str(receipts),
+            "--index-path",
+            str(tmp_path / "oracle" / "coordinates.db"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["scanned"] == 1
+    assert payload["indexed"] == 0
+    assert payload["errors"] == 1
+    assert payload["error_details"][0]["error_type"] == "ValueError"
+    assert "receipt_version must be v2" in payload["error_details"][0]["error"]
+    assert payload["index_stats"]["total"] == 0
+
+
+def test_oracle_index_from_mlflow_rejects_unvalidated_receipt_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    reset_embedding_engine()
+    run_dir = tmp_path / "mlruns" / "0" / "run-1"
+    artifacts = run_dir / "artifacts"
+    artifacts.mkdir(parents=True)
+    (run_dir / "meta.yaml").write_text("start_time: 1704067200000\n", encoding="utf-8")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("SECRET_SENTINEL\n", encoding="utf-8")
+    (artifacts / "fake.meta.json").write_text(
+        json.dumps(
+            {
+                "created_at": "2026-06-08T00:00:00Z",
+                "run_kind": "signature-gen",
+                "provider": "fake",
+                "template_version": "fake",
+                "output_path": str(outside),
+                "replay_inputs": {"prompt": "x"},
+                "cache_key": "fake",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "index",
+            "--from-mlflow",
+            "--path",
+            str(tmp_path / "mlruns"),
+            "--index-path",
+            str(tmp_path / "mlflow-oracle" / "coordinates.db"),
+            "--since",
+            "2023-01-01T00:00:00Z",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["scanned"] == 1
+    assert payload["indexed"] == 0
+    assert payload["errors"] == 1
+    assert payload["error_details"][0]["error_type"] == "ValueError"
+    assert "receipt_version must be v2" in payload["error_details"][0]["error"]
+    assert payload["index_stats"]["total"] == 0
+
+
+def test_oracle_index_rejects_negative_limit(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "index",
+            "--from-receipts",
+            "--path",
+            str(tmp_path),
+            "--index-path",
+            str(tmp_path / "coordinates.db"),
+            "--limit",
+            "-1",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+
+
 def test_program_oracle_index_empty_scan_does_not_confirm_non_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -241,6 +361,30 @@ def test_program_oracle_index_rejects_authority_widening(
     assert result["non_authority_confirmed"] is False
     assert "oracle_ranking" in result["error_details"][0]["error"]
     assert result["index_stats"]["total"] == 0
+
+
+def test_program_oracle_index_rejects_malformed_source_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    evidence = json.loads((root / "oracle_evidence.json").read_text())
+    evidence["source_artifacts"] = "not-a-list"
+    bad_root = tmp_path / "bad-source-artifacts"
+    bad_root.mkdir()
+    (bad_root / "oracle_evidence.json").write_text(
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    result = index_program_oracle_evidence_path(
+        bad_root,
+        index_path=tmp_path / "bad-source-artifacts-index" / "coordinates.db",
+    )
+
+    assert result["scanned"] == 1
+    assert result["indexed"] == 0
+    assert result["errors"] == 1
+    assert "source_artifacts must be a list" in result["error_details"][0]["error"]
 
 
 def test_oracle_index_requires_explicit_index_mode(tmp_path: Path) -> None:

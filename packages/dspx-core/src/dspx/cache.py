@@ -101,7 +101,8 @@ def read(kind: str, key: str) -> Optional[Dict[str, Any]]:
         return None
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
-        assert isinstance(data, dict)
+        if not isinstance(data, dict):
+            return None
         return data
     except Exception:
         return None

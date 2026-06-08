@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import typer
 
@@ -40,6 +40,29 @@ app.add_typer(
     name="adjudication-trace",
     help="Program adjudication behavior trace publication",
 )
+
+
+def _load_indexable_v2_receipt(receipt_path: Path) -> tuple[dict[str, Any], str | None]:
+    """Load a receipt for Oracle indexing and confine any output artifact read."""
+
+    from dspx.run_receipts import load_run_receipt
+    from dspx.security import confine_path
+
+    receipt_data = load_run_receipt(receipt_path)
+    if receipt_data is None:
+        raise ValueError("receipt is not valid JSON object")
+    if receipt_data.get("receipt_version") != "v2":
+        raise ValueError("receipt_version must be v2 for Oracle indexing")
+
+    output_content = None
+    raw_output_path = str(receipt_data.get("output_path") or "").strip()
+    if raw_output_path:
+        output_path = confine_path(receipt_path.parent, raw_output_path)
+        if output_path.exists() and output_path.is_file():
+            output_content = output_path.read_text(encoding="utf-8", errors="replace")[
+                :10000
+            ]
+    return receipt_data, output_content
 
 
 @app.command("backend-status")
@@ -623,6 +646,7 @@ def oracle_index(
     limit: int = typer.Option(
         1000,
         "--limit",
+        min=0,
         help="Maximum number of runs to index",
     ),
     json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
@@ -676,7 +700,7 @@ def oracle_index(
         for receipt_file in receipt_files[:limit]:
             scanned += 1
             try:
-                receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+                receipt_data, output_content = _load_indexable_v2_receipt(receipt_file)
 
                 # Check date filter
                 created_at = receipt_data.get("created_at", "")
@@ -701,6 +725,7 @@ def oracle_index(
                 # Embed the receipt
                 embedding = engine.embed_receipt(
                     receipt_data,
+                    output_content=output_content,
                     receipt_path=receipt_file,
                 )
                 if embedding:
@@ -803,11 +828,12 @@ def oracle_index(
                             for artifact in artifacts_dir.rglob("*.meta.json"):
                                 scanned += 1
                                 try:
-                                    receipt_data = json.loads(
-                                        artifact.read_text(encoding="utf-8")
+                                    receipt_data, output_content = (
+                                        _load_indexable_v2_receipt(artifact)
                                     )
                                     embedding = engine.embed_receipt(
                                         receipt_data,
+                                        output_content=output_content,
                                         receipt_path=artifact,
                                     )
                                     if embedding:
@@ -815,8 +841,13 @@ def oracle_index(
                                             indexed += 1
                                         else:
                                             errors += 1
-                                except (json.JSONDecodeError, OSError, KeyError) as e:
-                                    # Malformed JSON, file read error, or missing fields
+                                except (
+                                    json.JSONDecodeError,
+                                    OSError,
+                                    KeyError,
+                                    ValueError,
+                                ) as e:
+                                    # Malformed JSON, file read error, invalid receipt, or missing fields
                                     errors += 1
                                     error_details.append(
                                         {

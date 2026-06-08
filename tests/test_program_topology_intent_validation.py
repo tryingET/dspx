@@ -25,6 +25,19 @@ def test_program_intent_rejects_stale_schema_version() -> None:
         )
 
 
+def test_program_intent_rejects_unknown_top_level_fields() -> None:
+    with pytest.raises(ValueError, match="extra_forbidden"):
+        ProgramIntent.model_validate(
+            {
+                "schema_version": "program-intent-v2",
+                "objective": "x",
+                "inputs": ["question"],
+                "outputs": ["answer"],
+                "example_path": "./typoed-examples.jsonl",
+            }
+        )
+
+
 def test_explicit_single_module_with_declared_module_requires_edges() -> None:
     with pytest.raises(ValueError, match="topology.edges must connect"):
         ProgramIntent(

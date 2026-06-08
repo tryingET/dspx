@@ -397,6 +397,7 @@ class EmbeddingEngine:
         output_content: str | None = None,
         *,
         receipt_path: Path | None = None,
+        allow_unconfined_output_path: bool = False,
     ) -> ExecutionEmbedding | None:
         """Embed from a run receipt dictionary.
 
@@ -414,6 +415,7 @@ class EmbeddingEngine:
             receipt,
             output_content,
             receipt_path=receipt_path,
+            allow_unconfined_output_path=allow_unconfined_output_path,
         )
         return result.embedding
 
@@ -423,6 +425,7 @@ class EmbeddingEngine:
         output_content: str | None = None,
         *,
         receipt_path: Path | None = None,
+        allow_unconfined_output_path: bool = False,
     ) -> EmbeddingResult:
         """Embed from a run receipt dictionary with detailed result.
 
@@ -448,7 +451,11 @@ class EmbeddingEngine:
 
         # Get output text
         if output_content is None:
-            output_content = self._read_output_from_receipt(receipt)
+            output_content = self._read_output_from_receipt(
+                receipt,
+                receipt_path=receipt_path,
+                allow_unconfined_output_path=allow_unconfined_output_path,
+            )
         output_text = output_content or ""
 
         # Build config text
@@ -505,17 +512,35 @@ class EmbeddingEngine:
 
         return "\n".join(parts) if parts else json.dumps(replay_inputs, sort_keys=True)
 
-    def _read_output_from_receipt(self, receipt: dict[str, Any]) -> str | None:
-        """Try to read output content from receipt path.
-
-        BUG 7 FIX: Log exceptions for debugging.
-        """
+    def _read_output_from_receipt(
+        self,
+        receipt: dict[str, Any],
+        *,
+        receipt_path: Path | None = None,
+        allow_unconfined_output_path: bool = False,
+    ) -> str | None:
+        """Try to read output content from a receipt-confined path."""
         output_path = receipt.get("output_path")
         if not output_path:
             return None
 
         try:
-            path = Path(output_path)
+            raw_path = Path(str(output_path)).expanduser()
+            if receipt_path is not None:
+                from dspx.security import confine_path
+
+                root = receipt_path.expanduser().resolve().parent
+                path = confine_path(root, raw_path)
+            elif raw_path.is_absolute():
+                if not allow_unconfined_output_path:
+                    logger.debug(
+                        "Skipping unconfined receipt output read without receipt root: %s",
+                        output_path,
+                    )
+                    return None
+                path = raw_path
+            else:
+                path = raw_path
             if path.exists() and path.is_file():
                 # Limit read size
                 content = path.read_text(encoding="utf-8", errors="replace")

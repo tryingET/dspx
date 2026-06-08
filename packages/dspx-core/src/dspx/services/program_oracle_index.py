@@ -39,7 +39,9 @@ def iter_program_oracle_evidence_files(
         candidates = sorted(root.rglob("oracle_evidence.json"))
     else:
         candidates = []
-    if limit is not None and limit >= 0:
+    if limit is not None:
+        if limit < 0:
+            raise ValueError("program Oracle evidence limit must be non-negative")
         candidates = candidates[:limit]
     yield from candidates
 
@@ -77,6 +79,27 @@ def validate_program_oracle_evidence_non_authority(payload: Mapping[str, Any]) -
             "program Oracle evidence non_authority flags must be false: "
             + ", ".join(invalid)
         )
+    source_artifacts = payload.get("source_artifacts")
+    if not isinstance(source_artifacts, list):
+        raise ValueError("program Oracle evidence source_artifacts must be a list")
+    for index, artifact in enumerate(source_artifacts):
+        if not isinstance(artifact, Mapping):
+            raise ValueError(
+                f"program Oracle evidence source_artifacts[{index}] must be an object"
+            )
+        artifact_item = dict(artifact)
+        if not isinstance(artifact_item.get("kind"), str) or not artifact_item.get(
+            "kind"
+        ):
+            raise ValueError(
+                f"program Oracle evidence source_artifacts[{index}] missing kind"
+            )
+        if not isinstance(artifact_item.get("path"), str) or not artifact_item.get(
+            "path"
+        ):
+            raise ValueError(
+                f"program Oracle evidence source_artifacts[{index}] missing path"
+            )
 
 
 def _json_compact(value: object) -> str:

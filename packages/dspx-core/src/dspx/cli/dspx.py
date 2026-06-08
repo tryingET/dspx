@@ -470,31 +470,62 @@ def _load_allowed_contract_verification(
 def _load_allowed_generation_gate(
     path: Path, *, intent_path: Path | None = None
 ) -> dict[str, Any]:
-    from dspx.services.program_generation_contract import load_generation_gate_preflight
+    from dspx.services.program_generation_contract import (
+        build_generation_gate_preflight,
+        load_generation_fitness_suite,
+        load_generation_gate_preflight,
+        load_generation_target_contract,
+        validate_generation_gate_preflight_payload,
+    )
 
     if not path.exists():
         raise FileNotFoundError(f"generation gate preflight not found: {path}")
     payload = load_generation_gate_preflight(path)
-    if payload.get("schema_version") != "gen-generation-gate-preflight-v1":
-        raise ValueError("invalid generation gate preflight schema_version")
-    if payload.get("generation_allowed") is not True:
-        reasons = payload.get("fail_closed_reasons") or []
-        raise ValueError(f"generation gate blocked candidate creation: {reasons}")
+    intent_sha256: str | None = None
     if intent_path is not None:
         import hashlib
 
-        raw_identity = payload.get("identity")
-        identity: dict[str, Any] = (
-            raw_identity if isinstance(raw_identity, dict) else {}
-        )
-        expected_intent_sha = str(identity.get("intent_sha256") or "").strip()
-        if not expected_intent_sha:
-            raise ValueError("generation gate preflight missing identity.intent_sha256")
-        actual_intent_sha = hashlib.sha256(
+        intent_sha256 = hashlib.sha256(
             intent_path.expanduser().resolve().read_bytes()
         ).hexdigest()
-        if actual_intent_sha != expected_intent_sha:
-            raise ValueError("generation gate preflight intent_sha256_mismatch")
+    if payload.get("generation_allowed") is not True:
+        reasons = payload.get("fail_closed_reasons") or []
+        raise ValueError(f"generation gate blocked candidate creation: {reasons}")
+    validate_generation_gate_preflight_payload(payload, intent_sha256=intent_sha256)
+
+    preflight_dir = path.expanduser().resolve().parent
+    target_contract_path = preflight_dir / "generation_target_contract.json"
+    fitness_suite_path = preflight_dir / "generation_fitness_suite.json"
+    if not target_contract_path.exists() or not fitness_suite_path.exists():
+        raise ValueError(
+            "generation gate preflight requires sibling generation_target_contract.json "
+            "and generation_fitness_suite.json for provenance verification"
+        )
+    expected_payload = build_generation_gate_preflight(
+        target_contract=load_generation_target_contract(target_contract_path),
+        fitness_suite=load_generation_fitness_suite(fitness_suite_path),
+    )
+    for key in (
+        "schema_version",
+        "status",
+        "generation_allowed",
+        "fail_closed_reasons",
+        "target_contract_validation",
+        "fitness_suite_validation",
+        "non_authority",
+        "effect",
+    ):
+        if payload.get(key) != expected_payload.get(key):
+            raise ValueError(f"generation gate preflight {key}_mismatch")
+    raw_identity = payload.get("identity")
+    raw_expected_identity = expected_payload.get("identity")
+    identity = raw_identity if isinstance(raw_identity, dict) else {}
+    expected_identity = (
+        raw_expected_identity if isinstance(raw_expected_identity, dict) else {}
+    )
+    for key in ("target_contract_sha256", "fitness_suite_sha256"):
+        if identity.get(key) != expected_identity.get(key):
+            raise ValueError(f"generation gate preflight identity.{key}_mismatch")
     return payload
 
 

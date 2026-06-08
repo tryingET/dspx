@@ -601,7 +601,23 @@ def _resolve_path(
     root = meta_path.parent.resolve()
     p = Path(raw_path).expanduser()
     if p.is_absolute() and allow_external_absolute:
-        return p.resolve()
+        resolved_absolute = p.resolve()
+        allowed_roots = [root]
+        try:
+            from dspx.cache import cache_dir
+
+            allowed_roots.append(cache_dir().resolve())
+        except Exception:
+            pass
+        for allowed_root in allowed_roots:
+            try:
+                resolved_absolute.relative_to(allowed_root)
+                return resolved_absolute
+            except ValueError:
+                continue
+        raise ValueError(
+            f"receipt path escapes allowed receipt/cache roots: {raw_path}"
+        )
 
     candidates: list[Path] = [confine_path(root, p)]
 

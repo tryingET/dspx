@@ -84,6 +84,56 @@ def test_run_replay_prefers_receipt_relative_paths_over_ambient_cwd(
     assert report["error_codes"] == []
 
 
+def test_run_replay_rejects_external_absolute_cache_file(tmp_path: Path) -> None:
+    receipt_dir = tmp_path / "receipt-dir"
+    receipt_dir.mkdir()
+    actual_output = receipt_dir / "artifact.py"
+    actual_output.write_text("print('right')\n", encoding="utf-8")
+
+    replay_inputs = {
+        "prompt": "Extract names from text",
+        "template_version": "simple-v1",
+        "options": {},
+        "class_name": "GeneratedSignature",
+    }
+    cache_key = make_key(
+        {
+            "kind": "signature",
+            "prompt": replay_inputs["prompt"],
+            "template_version": replay_inputs["template_version"],
+            "class_name": replay_inputs["class_name"],
+            "options": replay_inputs["options"],
+        }
+    )
+    external_cache = tmp_path / "outside-cache" / "signature" / f"{cache_key}.json"
+    external_cache.parent.mkdir(parents=True)
+    external_cache.write_text(
+        json.dumps({"code": actual_output.read_text(encoding="utf-8")}),
+        encoding="utf-8",
+    )
+    receipt = {
+        "receipt_version": "v2",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "run_kind": "signature-gen",
+        "provider": "stub",
+        "output_path": "artifact.py",
+        "hash": hashlib.sha256(
+            actual_output.read_text(encoding="utf-8").encode("utf-8")
+        ).hexdigest(),
+        "template_version": "simple-v1",
+        "cache_key": cache_key,
+        "cache_file": str(external_cache),
+        "cache_enabled": True,
+        "replay_inputs": replay_inputs,
+    }
+    meta_path = write_run_receipt(actual_output, receipt)
+
+    report = check_run_receipt(meta_path)
+
+    assert report["status"] == "invalid"
+    assert "receipt_invalid_cache_file" in report["error_codes"]
+
+
 @pytest.mark.slow
 def test_capture_git_dirty_includes_untracked_files(
     tmp_path: Path, monkeypatch

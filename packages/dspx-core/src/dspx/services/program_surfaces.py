@@ -127,7 +127,12 @@ def _prediction_mapping(prediction: object, output_fields: list[str]) -> dict[st
             payload = method()
             if isinstance(payload, Mapping):
                 return dict(payload)
-    return {field: getattr(prediction, field) for field in output_fields if hasattr(prediction, field)}
+    mapped = {field: getattr(prediction, field) for field in output_fields if hasattr(prediction, field)}
+    if mapped:
+        return mapped
+    if len(output_fields) == 1:
+        return {output_fields[0]: prediction}
+    return {}
 
 
 def _data_uri_from_base64(*, data: str, media_type: str) -> str:

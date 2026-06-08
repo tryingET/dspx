@@ -811,10 +811,32 @@ class TestReceiptEmbedding:
             "output_path": str(output_file),
         }
 
-        emb = engine.embed_receipt(receipt)
+        emb = engine.embed_receipt(
+            receipt, receipt_path=tmp_path / "output.py.meta.json"
+        )
 
         assert emb is not None
         assert "TicketClassifier" in emb.output_text
+
+    def test_embed_receipt_does_not_read_absolute_output_without_receipt_root(
+        self, tmp_path: Path
+    ) -> None:
+        """Untrusted receipt payloads need a receipt root or explicit content."""
+        engine = EmbeddingEngine(backend="mock", mock_dimension=32)
+        output_file = tmp_path / "output.py"
+        output_file.write_text("class TicketClassifier: pass")
+        receipt = {
+            "hash": "abc123",
+            "run_kind": "signature-gen",
+            "provider": "claude",
+            "replay_inputs": {"prompt": "create classifier"},
+            "output_path": str(output_file),
+        }
+
+        emb = engine.embed_receipt(receipt)
+
+        assert emb is not None
+        assert emb.output_text == ""
 
     def test_embed_receipt_no_id(self) -> None:
         """Receipt without ID returns None."""

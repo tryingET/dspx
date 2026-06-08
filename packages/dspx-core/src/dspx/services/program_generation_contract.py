@@ -827,6 +827,87 @@ def build_generation_fitness_results(
     return payload
 
 
+def validate_generation_gate_preflight_payload(
+    payload: Mapping[str, Any], *, intent_sha256: str | None = None
+) -> None:
+    """Fail unless a loaded generation-gate sidecar is complete and allowed.
+
+    This validates the consumer-side contract for candidate creation. It does not
+    re-prove semantic target truth, but it prevents thin/forged sidecars from
+    unlocking generation without the nested deterministic validator outputs that
+    ``verify-generation-gate`` produces.
+    """
+
+    reasons: list[str] = []
+    if payload.get("schema_version") != GEN_GENERATION_GATE_PREFLIGHT_SCHEMA:
+        reasons.append("invalid_schema_version")
+    if payload.get("status") != "generation_allowed":
+        reasons.append("status_not_generation_allowed")
+    if payload.get("generation_allowed") is not True:
+        reasons.append("generation_allowed_not_true")
+    if payload.get("fail_closed_reasons") != []:
+        reasons.append("fail_closed_reasons_not_empty")
+
+    contract_validation = _safe_mapping(payload.get("target_contract_validation"))
+    if (
+        contract_validation.get("schema_version")
+        != GEN_TARGET_CONTRACT_VALIDATION_SCHEMA
+    ):
+        reasons.append("missing_valid_target_contract_validation")
+    if (
+        contract_validation.get("status") != "valid"
+        or contract_validation.get("valid") is not True
+    ):
+        reasons.append("target_contract_validation_not_valid")
+    if contract_validation.get("fail_closed_reasons") != []:
+        reasons.append("target_contract_validation_has_fail_closed_reasons")
+
+    suite_validation = _safe_mapping(payload.get("fitness_suite_validation"))
+    if suite_validation.get("schema_version") != GEN_FITNESS_SUITE_VALIDATION_SCHEMA:
+        reasons.append("missing_valid_fitness_suite_validation")
+    if (
+        suite_validation.get("status") != "valid"
+        or suite_validation.get("valid") is not True
+    ):
+        reasons.append("fitness_suite_validation_not_valid")
+    if suite_validation.get("fail_closed_reasons") != []:
+        reasons.append("fitness_suite_validation_has_fail_closed_reasons")
+
+    identity = _safe_mapping(payload.get("identity"))
+    for key in (
+        "intent_sha256",
+        "target_contract_sha256",
+        "fitness_suite_sha256",
+        "preflight_sha256",
+    ):
+        value = _first_text(identity.get(key))
+        if not value:
+            reasons.append(f"missing_{key}")
+        elif not re.fullmatch(r"[0-9a-f]{64}", value):
+            reasons.append(f"invalid_{key}")
+    if (
+        intent_sha256 is not None
+        and _first_text(identity.get("intent_sha256")) != intent_sha256
+    ):
+        reasons.append("intent_sha256_mismatch")
+
+    non_authority_missing = _false_fields_missing(
+        payload.get("non_authority"), _REQUIRED_NON_AUTHORITY_FALSE
+    )
+    reasons.extend(f"non_authority_{key}_not_false" for key in non_authority_missing)
+    effect_missing = _false_fields_missing(
+        payload.get("effect"),
+        _REQUIRED_EFFECT_FALSE | {"provider_called", "shared_oracle_mutated"},
+    )
+    reasons.extend(f"effect_{key}_not_false" for key in effect_missing)
+
+    if reasons:
+        raise ProgramGenerationContractError(
+            "generation gate preflight is not a complete allowed preflight: "
+            + ", ".join(sorted(set(reasons)))
+        )
+
+
 def build_generation_gate_preflight(
     *, target_contract: Mapping[str, Any], fitness_suite: Mapping[str, Any]
 ) -> dict[str, Any]:

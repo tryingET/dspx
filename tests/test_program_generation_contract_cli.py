@@ -528,6 +528,128 @@ def test_program_gen_blocks_candidate_creation_when_preflight_blocks(
     assert not tmp_path.joinpath("program", "manifest.json").exists()
 
 
+def test_program_gen_blocks_candidate_creation_when_preflight_allows_but_is_incomplete(
+    tmp_path: Path,
+) -> None:
+    fake = tmp_path / "fake_generation_gate_preflight.json"
+    fake.write_text(
+        json.dumps(
+            {
+                "schema_version": "gen-generation-gate-preflight-v1",
+                "status": "generation_allowed",
+                "generation_allowed": True,
+                "identity": {
+                    "intent_sha256": hashlib.sha256(
+                        FIXTURE_INTENT.read_bytes()
+                    ).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(FIXTURE_INTENT),
+            "--outdir",
+            str(tmp_path / "program"),
+            "--generation-gate-preflight",
+            str(fake),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "not a complete allowed preflight" in result.output
+    assert "missing_valid_target_contract_validation" in result.output
+    assert not tmp_path.joinpath("program", "manifest.json").exists()
+
+
+def test_program_gen_blocks_candidate_creation_when_preflight_lacks_sibling_sources(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    isolated_dir = tmp_path / "isolated"
+    source_dir.mkdir()
+    isolated_dir.mkdir()
+    contract = source_dir / "generation_target_contract.json"
+    suite = source_dir / "generation_fitness_suite.json"
+    preflight = source_dir / "generation_gate_preflight.json"
+
+    assert (
+        runner.invoke(
+            app,
+            [
+                "program-gen",
+                "target-contract",
+                "--intent",
+                str(FIXTURE_INTENT),
+                "--out",
+                str(contract),
+                "--json",
+            ],
+        ).exit_code
+        == 0
+    )
+    assert (
+        runner.invoke(
+            app,
+            [
+                "program-gen",
+                "fitness-suite",
+                "--target-contract",
+                str(contract),
+                "--out",
+                str(suite),
+                "--json",
+            ],
+        ).exit_code
+        == 0
+    )
+    assert (
+        runner.invoke(
+            app,
+            [
+                "program-gen",
+                "verify-generation-gate",
+                "--intent",
+                str(FIXTURE_INTENT),
+                "--target-contract",
+                str(contract),
+                "--fitness-suite",
+                str(suite),
+                "--out",
+                str(preflight),
+                "--json",
+            ],
+        ).exit_code
+        == 0
+    )
+    isolated_preflight = isolated_dir / "generation_gate_preflight.json"
+    isolated_preflight.write_text(
+        preflight.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-gen",
+            "--intent",
+            str(FIXTURE_INTENT),
+            "--outdir",
+            str(tmp_path / "program"),
+            "--generation-gate-preflight",
+            str(isolated_preflight),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "requires sibling generation_target_contract.json" in result.output
+    assert not tmp_path.joinpath("program", "manifest.json").exists()
+
+
 def test_program_gen_blocks_candidate_creation_when_preflight_intent_mismatches(
     tmp_path: Path,
 ) -> None:

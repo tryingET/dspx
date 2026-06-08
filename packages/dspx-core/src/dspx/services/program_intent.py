@@ -468,7 +468,7 @@ def normalize_program_topology(value: object) -> dict[str, Any]:
 class ProgramIntent(BaseModel):
     """Structured one-intent contract for materializing a DSPy program assembly."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     schema_version: str = "program-intent-v2"
     name: str = "IntentProgram"

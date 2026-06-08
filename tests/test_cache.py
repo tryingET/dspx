@@ -37,6 +37,16 @@ def test_cache_write_uses_private_file_and_directory_modes(
     assert p.parent.parent.stat().st_mode & 0o777 == 0o700
 
 
+def test_cache_read_rejects_non_object_payload(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    cache_file = tmp_path / "cache" / "unit" / "key.json"
+    cache_file.parent.mkdir(parents=True)
+    cache_file.write_text("[]\n", encoding="utf-8")
+
+    assert cache_read("unit", "key") is None
+
+
 def test_cache_read_miss_does_not_create_kind_dir(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
