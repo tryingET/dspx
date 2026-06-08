@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import unquote, urlparse
 
+from dspx.redaction import redact_url
 from dspx.run_receipts import load_run_receipt
 from dspx.services.run_replay_service import check_run_receipt
 
@@ -852,7 +853,7 @@ def _mlflow_context(
         "requested": bool(with_mlflow),
         "mode": "disabled",
         "lookup_mode": "disabled",
-        "tracking_uri": os.getenv("MLFLOW_TRACKING_URI") or "",
+        "tracking_uri": redact_url(os.getenv("MLFLOW_TRACKING_URI") or ""),
         "linked_runs": [],
         "warnings": [],
         "lookup_steps": [],
@@ -875,7 +876,7 @@ def _mlflow_context(
         os.getenv("MLFLOW_TRACKING_URI")
     )
     out["mode"] = mode
-    out["tracking_uri"] = tracking_display
+    out["tracking_uri"] = redact_url(tracking_display)
 
     if mode == "unconfigured":
         out["lookup_mode"] = "disabled"

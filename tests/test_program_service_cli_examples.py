@@ -147,6 +147,15 @@ def test_program_gen_cli_materializes_from_yaml(
         in direct_run_text
     )
     assert "def _write_direct_run_receipt(" in direct_run_text
+    assert "def _redact_url(value: object) -> str | None:" in direct_run_text
+    assert (
+        "'tracking_uri': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None)"
+        in direct_run_text
+    )
+    assert (
+        "'MLFLOW_TRACKING_URI': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None)"
+        in direct_run_text
+    )
     assert "status='failed'" in direct_run_text
     assert (outdir / "direct_run.py").exists()
     assert (outdir / "eval_jury.py").exists()

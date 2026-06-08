@@ -631,11 +631,12 @@ def build_mlflow_hints(
     for key, val in (extra_expected_tags or {}).items():
         expected_tags[str(key)] = _json_safe(val)
 
-    observed_uri = (
+    observed_uri_raw = (
         str(tracking_uri)
         if tracking_uri is not None
         else str(os.getenv("MLFLOW_TRACKING_URI") or "")
     )
+    observed_uri = redact_url(observed_uri_raw)
 
     return {
         "tracking_uri_observed": observed_uri,

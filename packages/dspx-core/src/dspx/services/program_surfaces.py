@@ -108,6 +108,16 @@ OUTPUT_RECEIPT = 'direct_run_receipt.json'
 CONFIG_CANDIDATES = ('dspx-local.config.toml', 'config.toml')
 
 
+def _redact_url(value: object) -> str | None:
+    if value is None:
+        return None
+    try:
+        from dspx.redaction import redact_url
+    except Exception:
+        return str(value)
+    return redact_url(str(value))
+
+
 def _prediction_mapping(prediction: object, output_fields: list[str]) -> dict[str, object]:
     if isinstance(prediction, Mapping):
         return {str(key): value for key, value in prediction.items()}
@@ -363,7 +373,7 @@ def _log_output_artifacts(outdir: Path) -> bool:
 def _mlflow_receipt() -> dict[str, Any]:
     return {
         'enabled': str(os.getenv('MLFLOW_ENABLE', '1')).strip().lower() not in {'', '0', 'false', 'no'},
-        'tracking_uri': os.getenv('MLFLOW_TRACKING_URI') or None,
+        'tracking_uri': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None),
         'experiment': os.getenv('MLFLOW_EXPERIMENT') or None,
     }
 
@@ -583,7 +593,7 @@ def _preflight(config_path: Path | None = None) -> dict[str, Any]:
             'DSPX_LM_AUTH_MODEL': os.getenv('DSPX_LM_AUTH_MODEL') or None,
             'DSPX_LM_AUTH_PROVIDER': os.getenv('DSPX_LM_AUTH_PROVIDER') or None,
             'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
-            'MLFLOW_TRACKING_URI': os.getenv('MLFLOW_TRACKING_URI') or None,
+            'MLFLOW_TRACKING_URI': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None),
             'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
             'MLFLOW_ARTIFACT_ROOT': os.getenv('MLFLOW_ARTIFACT_ROOT') or None,
         },

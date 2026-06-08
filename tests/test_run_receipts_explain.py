@@ -117,6 +117,30 @@ def test_run_explain_with_mlflow_requires_explicit_tracking_uri(
     assert not (tmp_path / "mlruns").exists()
 
 
+def test_run_explain_mlflow_context_redacts_tracking_uri_secrets(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from dspx.services.run_explain_service import _mlflow_context
+
+    monkeypatch.setenv(
+        "MLFLOW_TRACKING_URI",
+        "https://user:super-secret-token@mlflow.example/path?token=super-secret-token",
+    )
+
+    context = _mlflow_context(
+        meta_path=tmp_path / "sig.py.meta.json",
+        receipt={"run_kind": "codegen"},
+        with_mlflow=True,
+        mlflow_remote_lookup=False,
+    )
+
+    assert context["mode"] == "remote-uri"
+    assert context["tracking_uri"] == (
+        "https://[REDACTED]@mlflow.example/path?token=[REDACTED]"
+    )
+    assert "super-secret-token" not in repr(context)
+
+
 @pytest.mark.slow
 def test_run_explain_is_stable_with_partial_lineage_metadata(
     tmp_path: Path, monkeypatch

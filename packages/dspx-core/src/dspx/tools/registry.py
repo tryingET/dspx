@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from duckduckgo_search import DDGS
 from dspx.http_guard import host_allowed, send_with_host_allowlist
+from dspx.redaction import redact_url
 from dspx.security import DEFAULT_HTTP_RESPONSE_MAX_BYTES, read_response_text_bounded
 from dspx.tools.descriptors import ToolDescriptor
 from dspx.tools.openapi.models import OpenAPIOperationInfo
@@ -379,7 +380,7 @@ def _web_fetch(
     if _cap is not None:
         _cap("network.read")
     if not host_allowed(url, allowed_hosts):
-        raise PermissionError(f"Host not allowed for URL: {url}")
+        raise PermissionError(f"Host not allowed for URL: {redact_url(url)}")
 
     close_client = False
     if client is None:

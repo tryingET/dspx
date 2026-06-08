@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Mapping, Optional
 import httpx
 
+from dspx.redaction import redact_url
 from dspx.security import url_origin_allowed
 
 
@@ -30,7 +31,7 @@ def send_with_host_allowlist(
     while True:
         current_url = str(current.url)
         if not host_allowed(current_url, allowed_hosts):
-            raise PermissionError(f"{blocked_error_prefix}: {current_url}")
+            raise PermissionError(f"{blocked_error_prefix}: {redact_url(current_url)}")
 
         response = client.send(current, follow_redirects=False, stream=stream)
         next_request = response.next_request
@@ -40,9 +41,9 @@ def send_with_host_allowlist(
         response.close()
         redirects += 1
         if redirects > max_redirects:
-            raise RuntimeError(f"too many redirects for URL: {current_url}")
+            raise RuntimeError(f"too many redirects for URL: {redact_url(current_url)}")
 
         next_url = str(next_request.url)
         if not host_allowed(next_url, allowed_hosts):
-            raise PermissionError(f"{redirect_error_prefix}: {next_url}")
+            raise PermissionError(f"{redirect_error_prefix}: {redact_url(next_url)}")
         current = next_request

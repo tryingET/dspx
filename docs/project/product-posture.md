@@ -81,6 +81,12 @@ DSPx's program-gen, target-contract, fitness-suite, execution-episode, receipt/r
 
 A passed target-fidelity or fitness result for a dependency-intelligence review program means eligible for downstream evidence review only. It does not grant dependency truth or source-owner acceptance.
 
+## Redaction-boundary posture — 2026-06-08
+
+DSPx's local evidence and tool surfaces are more mature at the egress boundary: OpenAPI allowlist failures, OpenAPI result headers, web-fetch allowlist failures, MLflow run-receipt hints, run-explain MLflow context, and generated direct-run receipt/preflight surfaces now redact secret-bearing URLs/headers before they cross exception, DTO, receipt, or generated-artifact boundaries. Proof now exists in focused redaction/web/OpenAPI/run-explain/generated-runner regressions plus repo loop validation through `just loop-verify-fast`, `just loop-impact-wide` (wide because shared guards/receipts/run-explain crossed multiple impact groups), and `just loop-landing-check`.
+
+This does not make receipts, logs, or generated artifacts authority surfaces for secrets; it clarifies the opposite boundary: DSPx may emit replay/diagnostic evidence, but any externally originated URL/header/env-derived URI crossing an output boundary must be sanitized by construction and covered by tests. The main remaining gap is systematic coverage for future egress sinks beyond the touched URL/header/MLflow paths; the next high-leverage slice should treat redaction as a product-wide boundary invariant when adding providers, tools, receipts, generated runners, or publication/export seams.
+
 ## Product maturity map
 
 | Area | Current posture | Target posture | Main gap | Proof of closure |

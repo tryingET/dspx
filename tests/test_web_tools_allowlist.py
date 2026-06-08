@@ -19,12 +19,16 @@ def test_web_fetch_denies_unallowed_host() -> None:
     fn = get_tool("web_fetch")
     client = _mock_ok("hello")
     # not in allowlist
-    with pytest.raises(PermissionError):
+    with pytest.raises(PermissionError) as excinfo:
         _ = fn(
-            "http://blocked.example/path",
+            "http://blocked.example/path?api_key=super-secret-token",
             allowed_hosts={"allowed.example": True},
             client=client,
         )
+
+    message = str(excinfo.value)
+    assert "api_key=[REDACTED]" in message
+    assert "super-secret-token" not in message
 
 
 def test_web_fetch_allows_allowed_host() -> None:
@@ -102,7 +106,9 @@ def test_web_fetch_rejects_redirect_to_unallowed_host() -> None:
         if request.url.host == "allowed.example":
             return httpx.Response(
                 302,
-                headers={"location": "http://evil.example/secret"},
+                headers={
+                    "location": "http://evil.example/secret?token=super-secret-token"
+                },
                 request=request,
             )
         if request.url.host == "evil.example":
@@ -114,11 +120,16 @@ def test_web_fetch_rejects_redirect_to_unallowed_host() -> None:
         follow_redirects=True,
     )
 
-    with pytest.raises(PermissionError):
+    with pytest.raises(PermissionError) as excinfo:
         fn(
             "http://allowed.example/start",
             allowed_hosts={"allowed.example": True},
             client=client,
         )
+
+    message = str(excinfo.value)
+    assert "Redirect target host not allowed" in message
+    assert "token=[REDACTED]" in message
+    assert "super-secret-token" not in message
 
     assert seen == ["http://allowed.example/start"]

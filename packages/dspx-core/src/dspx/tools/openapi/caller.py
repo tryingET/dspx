@@ -30,11 +30,15 @@ else:
     _safe_regex = _regex_module
 
 try:
+    from dspx.redaction import redact_headers as _redact_headers
     from dspx.redaction import redact_url as _redact_url
 except Exception:  # pragma: no cover
 
     def _redact_url(u: str) -> str:
         return u
+
+    def _redact_headers(h: Mapping[str, str]) -> dict[str, str]:
+        return dict(h)
 
 
 _DEFAULT_OPERATION_RESPONSE_MAX_BYTES = 2_000_000
@@ -549,7 +553,7 @@ def call_operation(
     url = _build_url(server, path, params)
 
     if not host_allowed(url, allowed_hosts):
-        raise PermissionError(f"Host not allowed for URL: {url}")
+        raise PermissionError(f"Host not allowed for URL: {_redact_url(url)}")
 
     # Remove path params from query
     query: Dict[str, Any] = {}
@@ -671,7 +675,7 @@ def call_operation(
         result = OpenAPICallResult(
             status_code=resp.status_code,
             body=parsed,
-            headers=dict(resp.headers),
+            headers=_redact_headers(dict(resp.headers)),
             raw_text=raw_text,
         )
         # Best-effort MLflow logging if enabled via env; avoid starting runs unless requested

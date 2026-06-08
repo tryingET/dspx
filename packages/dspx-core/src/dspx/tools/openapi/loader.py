@@ -9,6 +9,7 @@ from urllib.parse import unquote, urlparse
 import httpx
 
 from dspx.http_guard import host_allowed, send_with_host_allowlist
+from dspx.redaction import redact_url
 from dspx.security import read_file_text_bounded, read_response_text_bounded
 
 _DEFAULT_REMOTE_SPEC_MAX_BYTES = 2_000_000
@@ -101,7 +102,7 @@ def load_spec(
         if _cap is not None:
             _cap("network.read")
         if not allowed_hosts or not host_allowed(path, allowed_hosts):
-            raise PermissionError(f"Host not allowed for spec URL: {path}")
+            raise PermissionError(f"Host not allowed for spec URL: {redact_url(path)}")
         pth = _cache_path(path)
         close_client = False
         if client is None:
