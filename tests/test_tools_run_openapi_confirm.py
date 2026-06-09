@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
+from dspx.dtos import OpenAPICallResult
 from dspx.tools.registry import register_openapi_operations
 
 
@@ -37,6 +39,42 @@ def test_tools_run_skips_confirmation_with_yes() -> None:
     res = runner.invoke(app, ["tools", "run", name, "--yes"], input="\n")
     # It proceeds past the confirmation; network may fail but exit code should not be 2
     assert res.exit_code != 2
+
+
+def test_tools_run_prompt_confirmation_satisfies_mutation_policy(monkeypatch) -> None:
+    from dspx.tools.openapi import caller
+
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "0")
+
+    def fake_call_operation(*args, **kwargs):
+        assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "1"
+        return OpenAPICallResult(status_code=200, raw_text="ok")
+
+    monkeypatch.setattr(caller, "call_operation", fake_call_operation)
+    name = _register_mutating_tool(prefix="t_prompt_env")
+    res = runner.invoke(app, ["tools", "run", name], input="y\n")
+
+    assert res.exit_code == 0, res.output
+    assert res.stdout.strip().endswith('"ok"')
+    assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "0"
+
+
+def test_tools_run_yes_overrides_falsey_mutation_env_then_restores(monkeypatch) -> None:
+    from dspx.tools.openapi import caller
+
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "0")
+
+    def fake_call_operation(*args, **kwargs):
+        assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "1"
+        return OpenAPICallResult(status_code=200, raw_text="ok")
+
+    monkeypatch.setattr(caller, "call_operation", fake_call_operation)
+    name = _register_mutating_tool(prefix="t_yes_env")
+    res = runner.invoke(app, ["tools", "run", name, "--yes"], input="\n")
+
+    assert res.exit_code == 0, res.output
+    assert json.loads(res.stdout) == "ok"
+    assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "0"
 
 
 def test_tools_run_coerces_openapi_typed_params(monkeypatch) -> None:

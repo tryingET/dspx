@@ -116,6 +116,60 @@ def test_openapi_union_type_rejects_values_outside_union() -> None:
         _validate_json_value_against_schema({"bad": True}, schema, path="body")
 
 
+def test_openapi_query_string_constraints_reject_invalid_values(tmp_path: Path) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "items",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "q",
+                            "required": True,
+                            "schema": {
+                                "type": "string",
+                                "minLength": 3,
+                                "pattern": "^[A-Z]+$",
+                            },
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "spec_string_constraints.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+
+    with pytest.raises(ValueError, match="shorter than minLength"):
+        call_operation(
+            OpenAPICallRequest(operation_id="items", params={"q": "A"}),
+            operation=ops["items"],
+            allowed_hosts={"api.example.com": True},
+            client=client,
+        )
+    with pytest.raises(ValueError, match="does not match pattern"):
+        call_operation(
+            OpenAPICallRequest(operation_id="items", params={"q": "abc"}),
+            operation=ops["items"],
+            allowed_hosts={"api.example.com": True},
+            client=client,
+        )
+
+    res = call_operation(
+        OpenAPICallRequest(operation_id="items", params={"q": "ABC"}),
+        operation=ops["items"],
+        allowed_hosts={"api.example.com": True},
+        client=client,
+    )
+    assert res.status_code == 200
+
+
 def test_openapi_parameter_string_enum_rejects_numeric_lookalike(
     tmp_path: Path,
 ) -> None:
@@ -163,7 +217,9 @@ def test_openapi_parameter_string_enum_rejects_numeric_lookalike(
     assert res.status_code == 200
 
 
-def test_body_arrays_and_nested_objects(tmp_path: Path) -> None:
+def test_body_arrays_and_nested_objects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     spec = {
         "openapi": "3.0.0",
         "servers": [{"url": "http://api.example.com"}],
@@ -209,6 +265,7 @@ def test_body_arrays_and_nested_objects(tmp_path: Path) -> None:
     p = tmp_path / "spec2.json"
     p.write_text(json.dumps(spec), encoding="utf-8")
     ops = extract_operations(load_spec(str(p)))
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
 
     # Missing required
     with pytest.raises(ValueError):

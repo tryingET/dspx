@@ -136,9 +136,8 @@ The server rejects request bodies that exceed a configurable size limit.
 Fail-closed behavior:
 - If `Content-Length` exceeds the limit, the server rejects with `413 Payload Too Large` before the request body is read
 - Invalid `Content-Length` headers are rejected with `400 Bad Request`
-
-Known limitation:
-- The current middleware enforces the limit from the `Content-Length` header only. Requests streamed without `Content-Length` (for example `Transfer-Encoding: chunked`) are not rejected by this middleware yet; stream-level body-size enforcement would need a deeper ASGI receive wrapper in a follow-up change.
+- Duplicate `Content-Length` headers are rejected with `400 Bad Request`, even when duplicate values match
+- Requests streamed without `Content-Length` are counted as ASGI body chunks are received and rejected with `413 Payload Too Large` once the configured limit is exceeded
 
 Error response:
 ```json

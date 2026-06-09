@@ -17,7 +17,6 @@ from dspx.policy import (
     allow_network_mutate as _policy_allow_mutate,
     allowed_http_methods as _policy_allowed_methods,
     disallowed_http_methods as _policy_disallowed_methods,
-    enforce_network_mutate as _policy_enforce_mutate,
 )
 import time as _time
 
@@ -454,6 +453,12 @@ def call_operation(
                         raise ValueError(
                             f"Invalid type for query param {p.get('name')}: expected boolean"
                         )
+                elif t == "string":
+                    _validate_json_value_against_schema(
+                        val,
+                        schema,
+                        path=f"{param_kind} {p.get('name')}",
+                    )
                 elif t == "array":
                     items = schema.get("items") or {}
                     itype = items.get("type")
@@ -625,9 +630,9 @@ def call_operation(
         else:
             _cap("network.read")
         if (
-            _policy_enforce_mutate()
-            and method in {"POST", "PUT", "PATCH", "DELETE"}
+            method in {"POST", "PUT", "PATCH", "DELETE"}
             and not _policy_allow_mutate()
+            and not _policy_bypass()
         ):
             raise PermissionError(
                 f"Mutating HTTP method '{method}' requires DSPX_POLICY_ALLOW_NETWORK_MUTATE=1"

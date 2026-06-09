@@ -22,6 +22,13 @@ def mock_client() -> httpx.Client:
     )
 
 
+@pytest.fixture(autouse=True)
+def _allow_openapi_mutation_for_schema_combinator_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+
+
 def _ops_from_spec(tmp_path: Path, spec: dict) -> dict[str, dict]:
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(spec), encoding="utf-8")

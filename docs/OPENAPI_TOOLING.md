@@ -18,10 +18,12 @@ Key Features
   - JSON and YAML (via PyYAML). URLs enforce per‑call host allowlists, fail closed on an explicit empty allowlist, and support on‑disk caching (`DSPX_OPENAPI_CACHE[=_1_]`, `DSPX_OPENAPI_CACHE_DIR`).
 - Operation extraction: `extract_operation_infos(spec)`
   - Merges path‑level and op‑level params; captures method, path, server, tags, summary, requestBody schema, and response schemas.
+  - Rejects duplicate `operationId` values instead of silently overwriting one operation with another.
 - Caller: `call_operation(request, operation, allowed_hosts, client=None)`
   - Builds URL from path params; passes others as query; executes via `httpx`.
-  - Validates required path/query params and enforces basic typing and enums.
+  - Validates required path/query params and enforces basic typing, enums, and string `minLength|maxLength|pattern` constraints.
   - Deep(er) JSON Schema validation for request bodies (see below).
+  - Fails closed for mutating methods unless `DSPX_POLICY_ALLOW_NETWORK_MUTATE=1` or policy bypass is active; CLI confirmation/`--yes` supplies that allowance only for the confirmed invocation.
   - Returns `OpenAPICallResult(status_code, body, headers, raw_text)`.
 - Registry integration: `register_openapi_operations(prefix, spec, allowed_hosts=None)`
   - Registers `<prefix>.<operationId>` tools with capability tags and policy gates.
@@ -50,7 +52,7 @@ Policy & Safety
 Validation Coverage (Current)
 -----------------------------
 - Query params: required flags; type checks for `integer|number|boolean|array`; array item types; enum constraints.
-- Request bodies (application/json):
+- Request bodies (`application/json` and JSON-compatible `application/*+json` media types):
   - Object: required properties, per‑property types (`string|integer|number|boolean|array|object`), and enums.
   - Array: item validation for primitives and objects (arrays of objects supported).
   - Nested objects: validates nested required/primitive types recursively.
@@ -69,7 +71,7 @@ Limitations (Deliberate)
 - Schema-composition support is still conservative: DSPx validates resolved `allOf|oneOf|anyOf` branches plus enclosing constraints, but it does not attempt full schema normalization or advanced conflict explanation across deeply composed branches.
 - No advanced constraints (`format`, `not`, tuple-typed arrays, etc.).
 - Arrays with tuple typing (`items: [..]`) are treated as unconstrained.
-- Only `application/json` request bodies are validated.
+- Only JSON request-body media types (`application/json` and `application/*+json`) are validated.
 
 Examples
 --------

@@ -11,7 +11,7 @@ from dspx.tools.openapi.caller import call_operation
 from dspx.dtos import OpenAPICallRequest
 
 
-def test_openapi_ref_and_allof_and_bounds(tmp_path: Path) -> None:
+def test_openapi_ref_and_allof_and_bounds(tmp_path: Path, monkeypatch) -> None:
     spec = {
         "openapi": "3.0.0",
         "servers": [{"url": "http://api.example.com"}],
@@ -71,6 +71,7 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path) -> None:
     p = tmp_path / "spec.json"
     p.write_text(json.dumps(spec), encoding="utf-8")
     ops = extract_operations(load_spec(str(p)))
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
 
     # Missing required path param
     with pytest.raises(ValueError):

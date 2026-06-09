@@ -357,7 +357,7 @@ Configuration:
   - `DSPX_GITLAB_PROJECT_MAP_JSON` or `DSPX_GITLAB_PROJECT_MAP_FILE`
 - blast radius:
   - `DSPX_GITLAB_ALLOWED_PROJECT_KEYS`
-  - `DSPX_GITLAB_ALLOWED_HOSTS` (defaults to host in base url)
+  - `DSPX_GITLAB_ALLOWED_HOSTS` (defaults to the exact origin from `DSPX_GITLAB_BASE_URL`; legacy host-only entries matching that base host are normalized to the exact origin, and other host-only entries are rejected)
 - optional:
   - `DSPX_GITLAB_DEFAULT_LABELS`
   - `DSPX_GITLAB_PROGRAM_LABEL_TEMPLATE` (default `program:{name}`)

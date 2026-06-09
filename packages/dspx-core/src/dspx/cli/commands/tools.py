@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -224,6 +225,10 @@ def tools_run(
         is_openapi = bool(getattr(fn, "_dspx_is_openapi_tool", False))
     except Exception:
         is_openapi = False
+    openapi_method = str(getattr(fn, "_dspx_openapi_method", "") or "").upper()
+    openapi_confirmed_mutation = (
+        is_openapi and yes and openapi_method in {"POST", "PUT", "PATCH", "DELETE"}
+    )
 
     if is_openapi:
         try:
@@ -260,9 +265,12 @@ def tools_run(
             if not need and getattr(desc, "kind", "") == "openapi" and opi is not None:
                 try:
                     m = str(getattr(opi, "method", "") or "").upper()
+                    openapi_method = m or openapi_method
                     need = m in {"POST", "PUT", "PATCH", "DELETE"}
                 except Exception:
                     need = False
+            if yes and openapi_method in {"POST", "PUT", "PATCH", "DELETE"}:
+                openapi_confirmed_mutation = True
             if need and not yes:
                 preview = build_preview(desc, pmap)
                 if not typer.confirm(
@@ -274,17 +282,21 @@ def tools_run(
                         err=True,
                     )
                     raise typer.Exit(code=2)
+                openapi_confirmed_mutation = True
         else:
             # Fallback to method-based prompt
             try:
                 method_eff = str(getattr(fn, "_dspx_openapi_method", "GET")).upper()
             except Exception:
                 method_eff = "GET"
+            openapi_method = method_eff or openapi_method
             from dspx.policy import (
                 bypass as _p_bypass,
                 allow_network_mutate as _p_allow,
             )
 
+            if yes and method_eff in {"POST", "PUT", "PATCH", "DELETE"}:
+                openapi_confirmed_mutation = True
             if (
                 method_eff in {"POST", "PUT", "PATCH", "DELETE"}
                 and not _p_bypass()
@@ -302,6 +314,7 @@ def tools_run(
                         err=True,
                     )
                     raise typer.Exit(code=2)
+                openapi_confirmed_mutation = True
 
     # Generic capability-based confirmation for other tools
     if dry_run and not is_openapi:
@@ -369,7 +382,18 @@ def tools_run(
                     )
                     raise typer.Exit(code=2)
 
-    out = _invoke_registered_tool(fn, pmap=pmap, body=body, is_openapi=is_openapi)
+    old_allow_mutate = os.environ.get("DSPX_POLICY_ALLOW_NETWORK_MUTATE")
+    injected_allow_mutate = False
+    if openapi_confirmed_mutation:
+        os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = "1"
+        injected_allow_mutate = True
+    try:
+        out = _invoke_registered_tool(fn, pmap=pmap, body=body, is_openapi=is_openapi)
+    finally:
+        if injected_allow_mutate and old_allow_mutate is None:
+            os.environ.pop("DSPX_POLICY_ALLOW_NETWORK_MUTATE", None)
+        elif old_allow_mutate is not None:
+            os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = old_allow_mutate
     try:
         typer.echo(json.dumps(out, ensure_ascii=False, indent=2))
     except Exception:

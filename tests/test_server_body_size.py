@@ -158,6 +158,48 @@ class TestBodySizeMiddleware:
         assert body["status"] == 413
         assert "200 bytes exceeds" in body["detail"]
 
+    def test_duplicate_content_length_rejected_even_when_values_match(self) -> None:
+        called_downstream = False
+
+        async def app(scope, receive, send):
+            nonlocal called_downstream
+            called_downstream = True
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ok"})
+
+        middleware = BodySizeLimitMiddleware(
+            app,
+            BodySizeLimitConfig(max_bytes=10, enabled=True),
+        )
+        sent: list[dict[str, object]] = []
+        messages = [{"type": "http.request", "body": b"a", "more_body": False}]
+
+        async def receive() -> dict[str, object]:
+            return cast(dict[str, object], messages.pop(0))
+
+        async def send(message: dict[str, object]) -> None:
+            sent.append(message)
+
+        asyncio.run(
+            middleware(
+                {
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/signature",
+                    "headers": [
+                        (b"content-length", b"1"),
+                        (b"content-length", b"1"),
+                    ],
+                },
+                receive,
+                send,
+            )
+        )
+
+        assert called_downstream is False
+        assert sent[0]["type"] == "http.response.start"
+        assert sent[0]["status"] == 400
+
     def test_invalid_content_length_rejected(
         self, make_client: Callable[..., TestClient]
     ) -> None:

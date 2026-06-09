@@ -605,11 +605,22 @@ class BodySizeLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        headers = {
-            key.decode("latin1").lower(): value.decode("latin1")
+        content_lengths = [
+            value.decode("latin1")
             for key, value in scope.get("headers", [])
-        }
-        raw_content_length = headers.get("content-length")
+            if key.decode("latin1").lower() == "content-length"
+        ]
+        if len(content_lengths) > 1:
+            await JSONResponse(
+                status_code=400,
+                content={
+                    "error": "invalid_request",
+                    "detail": "duplicate Content-Length headers are not allowed",
+                    "status": 400,
+                },
+            )(scope, receive, send)
+            return
+        raw_content_length = content_lengths[0] if content_lengths else None
         if raw_content_length is not None:
             try:
                 content_length = int(raw_content_length)

@@ -93,8 +93,8 @@ def test_openapi_mutation_denied_without_flag(tmp_path: Path, monkeypatch) -> No
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     req = OpenAPICallRequest(operation_id="create", timeout=5)
-    # ensure mutation enforcement is enabled and not allowed
-    monkeypatch.setenv("DSPX_POLICY_ENFORCE_NETWORK_MUTATE", "1")
+    # Mutating OpenAPI calls fail closed by default unless explicitly allowed.
+    monkeypatch.delenv("DSPX_POLICY_ENFORCE_NETWORK_MUTATE", raising=False)
     monkeypatch.delenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", raising=False)
     with pytest.raises(PermissionError):
         _ = call_operation(

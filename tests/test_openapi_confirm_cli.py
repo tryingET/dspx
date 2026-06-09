@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
+from dspx.dtos import OpenAPICallResult
 
 
 runner = CliRunner()
@@ -68,3 +70,72 @@ def test_openapi_call_skips_confirmation_with_yes(tmp_path: Path, monkeypatch) -
     )
     # Either network attempt fails (non-zero) or returns; key is not exit code 2 due to confirmation
     assert res.exit_code != 2
+
+
+def test_openapi_call_prompt_confirmation_satisfies_mutation_policy(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from dspx.tools.openapi import caller
+
+    spec = _make_post_spec(tmp_path)
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "0")
+
+    def fake_call_operation(*args, **kwargs):
+        assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "1"
+        return OpenAPICallResult(status_code=200, raw_text="ok")
+
+    monkeypatch.setattr(caller, "call_operation", fake_call_operation)
+    res = runner.invoke(
+        app,
+        [
+            "tools",
+            "openapi",
+            "call",
+            "--spec",
+            spec,
+            "--op",
+            "send",
+            "--allow-host",
+            "api.example.com",
+        ],
+        input="y\n",
+    )
+
+    assert res.exit_code == 0, res.output
+    assert res.stdout.strip().endswith("ok")
+    assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "0"
+
+
+def test_openapi_call_yes_overrides_falsey_mutation_env_then_restores(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from dspx.tools.openapi import caller
+
+    spec = _make_post_spec(tmp_path)
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "0")
+
+    def fake_call_operation(*args, **kwargs):
+        assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "1"
+        return OpenAPICallResult(status_code=200, raw_text="ok")
+
+    monkeypatch.setattr(caller, "call_operation", fake_call_operation)
+    res = runner.invoke(
+        app,
+        [
+            "tools",
+            "openapi",
+            "call",
+            "--spec",
+            spec,
+            "--op",
+            "send",
+            "--allow-host",
+            "api.example.com",
+            "--yes",
+        ],
+        input="\n",
+    )
+
+    assert res.exit_code == 0, res.output
+    assert res.stdout.strip().endswith("ok")
+    assert os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] == "0"

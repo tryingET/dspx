@@ -13,7 +13,11 @@ import pandas as pd
 from duckduckgo_search import DDGS
 from dspx.http_guard import host_allowed, send_with_host_allowlist
 from dspx.redaction import redact_url
-from dspx.security import DEFAULT_HTTP_RESPONSE_MAX_BYTES, read_response_text_bounded
+from dspx.security import (
+    DEFAULT_HTTP_RESPONSE_MAX_BYTES,
+    confine_path,
+    read_response_text_bounded,
+)
 from dspx.tools.descriptors import ToolDescriptor
 from dspx.tools.openapi.models import OpenAPIOperationInfo
 
@@ -23,6 +27,14 @@ _TOOL_DESCRIPTORS: Dict[str, ToolDescriptor] = {}
 _TOOLS_LOCK = threading.RLock()
 _MAX_PREVIEW_ROWS = 50
 _MAX_PREVIEW_VALUE_CHARS = 240
+
+
+def _filesystem_read_root() -> Path:
+    return Path(os.getenv("DSPX_FILESYSTEM_ROOT") or os.getcwd()).resolve()
+
+
+def _confine_filesystem_read(user_path: str | Path) -> Path:
+    return confine_path(_filesystem_read_root(), user_path, strict=True)
 
 
 def _bounded_preview_rows(nrows: int) -> int:
@@ -498,10 +510,11 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
         _cap("filesystem.read")
     """Preview a local data file (CSV, JSON, Parquet). Returns schema + head."""
     bounded_rows = _bounded_preview_rows(nrows)
-    lower = path.lower()
-    out: Dict[str, Any] = {"path": path, "preview_rows": bounded_rows}
+    confined_path = _confine_filesystem_read(path)
+    lower = str(confined_path).lower()
+    out: Dict[str, Any] = {"path": str(confined_path), "preview_rows": bounded_rows}
     if lower.endswith(".csv"):
-        df = pd.read_csv(path, nrows=bounded_rows)
+        df = pd.read_csv(confined_path, nrows=bounded_rows)
         out.update(
             {
                 "type": "csv",
@@ -511,9 +524,9 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
         )
     elif lower.endswith(".json") or lower.endswith(".jsonl"):
         try:
-            df = pd.read_json(path, lines=True, nrows=bounded_rows)
+            df = pd.read_json(confined_path, lines=True, nrows=bounded_rows)
         except ValueError:
-            df = pd.read_json(path)
+            df = pd.read_json(confined_path)
         out.update(
             {
                 "type": "json",
@@ -522,7 +535,7 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
             }
         )
     elif lower.endswith(".parquet"):
-        df = pd.read_parquet(path)
+        df = pd.read_parquet(confined_path)
         out.update(
             {
                 "type": "parquet",
@@ -548,6 +561,16 @@ def _read_head(path: Path, nbytes: int = 2000) -> str:
         return ""
 
 
+def _read_head_confined(root: Path, path: Path, nbytes: int = 2000) -> str:
+    try:
+        root_resolved = root.resolve()
+        resolved = path.resolve()
+        resolved.relative_to(root_resolved)
+    except Exception:
+        return ""
+    return _read_head(resolved, nbytes=nbytes)
+
+
 def _repo_summary(root: str = ".", max_files: int = 20, depth: int = 2) -> str:
     # Capability: filesystem.read
     try:
@@ -562,7 +585,7 @@ def _repo_summary(root: str = ".", max_files: int = 20, depth: int = 2) -> str:
     - Reads heads of common metadata files and a few code files
     - Skips heavy dirs (.git, .venv, submodules)
     """
-    base = Path(root).resolve()
+    base = _confine_filesystem_read(root)
     skip = {".git", ".venv", "venv", "node_modules", "submodules", "__pycache__"}
     parts: List[str] = []
     parts.append(f"Repo: {base}")
@@ -614,7 +637,7 @@ def _repo_summary(root: str = ".", max_files: int = 20, depth: int = 2) -> str:
 
     # Emit heads
     for p in candidates[:max_files]:
-        head = _read_head(p)
+        head = _read_head_confined(base, p)
         if head.strip():
             parts.append(f"\n# {p.relative_to(base)}\n{head.strip()}\n")
     return "\n".join(parts)
@@ -666,6 +689,8 @@ def _db_schema(
     accessed via a future SQLAlchemy-based implementation.
     """
     p = _detect_sqlite_url(url)
+    if p is not None:
+        p = _confine_filesystem_read(p)
     if p is None or not p.exists():
         return (
             "[db_schema] No SQLite database detected. Set DATABASE_URL or SIXE_DB_URL."
@@ -717,7 +742,7 @@ def _kb_summary(root: str = ".", *, max_files: int = 12) -> str:
         _cap = None  # type: ignore
     if _cap is not None:
         _cap("filesystem.read")
-    base = Path(root).resolve()
+    base = _confine_filesystem_read(root)
     dirs = [
         base / "kb",
         base / "knowledge",
@@ -732,7 +757,7 @@ def _kb_summary(root: str = ".", *, max_files: int = 12) -> str:
         parts.append(f"Knowledge dir: {d}")
         files = [p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in exts]
         for p in files[:max_files]:
-            head = _read_head(p)
+            head = _read_head_confined(base, p)
             if head.strip():
                 parts.append(f"\n# {p.relative_to(base)}\n{head.strip()}\n")
     return "\n".join(parts) if parts else "[kb_summary] No local knowledge files found."
@@ -746,7 +771,7 @@ def _ontology_summary(root: str = ".", *, max_files: int = 8) -> str:
         _cap = None  # type: ignore
     if _cap is not None:
         _cap("filesystem.read")
-    base = Path(root).resolve()
+    base = _confine_filesystem_read(root)
     dirs = [
         base / "ontology",
         base / "ontologies",
@@ -760,7 +785,7 @@ def _ontology_summary(root: str = ".", *, max_files: int = 8) -> str:
         parts.append(f"Ontology dir: {d}")
         files = [p for p in d.rglob("*") if p.is_file() and p.suffix.lower() in exts]
         for p in files[:max_files]:
-            head = _read_head(p)
+            head = _read_head_confined(base, p)
             if head.strip():
                 parts.append(f"\n# {p.relative_to(base)}\n{head.strip()}\n")
     return "\n".join(parts) if parts else "[ontology_summary] No ontology files found."

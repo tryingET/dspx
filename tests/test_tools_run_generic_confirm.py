@@ -64,6 +64,7 @@ def test_tools_run_invokes_builtin_tools_with_native_kwargs(tmp_path: Path) -> N
         app,
         ["tools", "run", "data_preview", "--params", f"path={data},nrows=1"],
         input="\n",
+        env={"DSPX_FILESYSTEM_ROOT": str(tmp_path)},
     )
 
     assert res.exit_code == 0, res.output

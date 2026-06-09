@@ -184,6 +184,19 @@ def _resolve_local_ref(ref: str, spec: Mapping[str, Any]) -> Any:
     return current
 
 
+def _json_schema_from_content(content: Any) -> Any:
+    if not isinstance(content, Mapping):
+        return None
+    preferred = content.get("application/json")
+    if isinstance(preferred, Mapping) and "schema" in preferred:
+        return preferred.get("schema")
+    for media_type, desc in content.items():
+        mt = str(media_type).split(";", 1)[0].strip().lower()
+        if mt.endswith("+json") and isinstance(desc, Mapping) and "schema" in desc:
+            return desc.get("schema")
+    return None
+
+
 def _first_server_url(servers: Any) -> str | None:
     if isinstance(servers, list) and servers:
         s0 = servers[0]
@@ -280,8 +293,7 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                 schema = None
                 try:
                     content = rb.get("content") or {}
-                    app_json = content.get("application/json") or {}
-                    schema = app_json.get("schema")
+                    schema = _json_schema_from_content(content)
                 except Exception:
                     schema = None
                 req_body = {
@@ -319,7 +331,10 @@ def extract_operations(spec: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
                     }
             tags = op.get("tags") if isinstance(op.get("tags"), list) else []
             operation_server = _first_server_url(op.get("servers")) or item_server
-            ops[str(op_id)] = {
+            op_id_key = str(op_id)
+            if op_id_key in ops:
+                raise ValueError(f"duplicate OpenAPI operationId: {op_id_key}")
+            ops[op_id_key] = {
                 "method": method.upper(),
                 "path": path,
                 "server": operation_server or "",

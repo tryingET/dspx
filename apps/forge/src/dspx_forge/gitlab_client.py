@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Optional
 from urllib.parse import urlparse
@@ -68,6 +68,33 @@ def _base_url_origin(base_url: str) -> str:
     )
 
 
+def _normalize_gitlab_allowed_hosts(base_url: str, allowed_hosts: set[str]) -> set[str]:
+    """Constrain Forge GitLab allowlists to explicit origins.
+
+    A host-only entry matching the configured base host is treated as a legacy
+    spelling for the exact configured origin. Other host-only entries are
+    rejected so redirect policy cannot silently widen to HTTP default ports.
+    """
+    base_host = _base_url_host(base_url)
+    base_origin = _base_url_origin(base_url)
+    normalized: set[str] = set()
+    for raw in allowed_hosts:
+        entry = str(raw).strip().rstrip("/")
+        if not entry:
+            continue
+        parsed = urlparse(entry)
+        if parsed.scheme:
+            normalized.add(entry)
+        elif entry == base_host:
+            normalized.add(base_origin)
+        else:
+            raise RuntimeError(
+                "DSPX_GITLAB_ALLOWED_HOSTS must use exact origins; "
+                f"host-only entry {entry!r} does not match the configured GitLab host"
+            )
+    return normalized
+
+
 @dataclass(frozen=True)
 class GitLabConfig:
     base_url: str
@@ -113,9 +140,8 @@ def load_gitlab_config_from_env() -> GitLabConfig:
 
     allowed_keys = _as_set(os.getenv("DSPX_GITLAB_ALLOWED_PROJECT_KEYS"))
     allowed_hosts = _as_set(os.getenv("DSPX_GITLAB_ALLOWED_HOSTS"))
-    host = _base_url_host(base_url)
     origin = _base_url_origin(base_url)
-    allowed_hosts = allowed_hosts or {host, origin}
+    allowed_hosts = _normalize_gitlab_allowed_hosts(base_url, allowed_hosts or {origin})
     if not url_origin_allowed(base_url, allowed_hosts):
         raise RuntimeError(f"GitLab origin '{origin}' not in DSPX_GITLAB_ALLOWED_HOSTS")
 
@@ -136,7 +162,10 @@ def load_gitlab_config_from_env() -> GitLabConfig:
 
 class GitLabClient:
     def __init__(self, cfg: GitLabConfig, *, client: Optional[httpx.Client] = None):
-        _base_url_host(cfg.base_url)
+        allowed_hosts = _normalize_gitlab_allowed_hosts(
+            cfg.base_url, set(cfg.allowed_hosts)
+        )
+        cfg = replace(cfg, allowed_hosts=allowed_hosts)
         if not url_origin_allowed(cfg.base_url, cfg.allowed_hosts):
             raise PermissionError(f"Host not allowed: {cfg.base_url}")
         self.cfg = cfg

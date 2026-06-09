@@ -81,7 +81,7 @@ def test_cyclic_request_body_schema_ref_fails_closed() -> None:
         )
 
 
-def test_body_array_of_objects_and_nested_required(tmp_path: Path) -> None:
+def test_body_array_of_objects_and_nested_required(tmp_path: Path, monkeypatch) -> None:
     spec = {
         "openapi": "3.0.0",
         "servers": [{"url": "http://api.example.com"}],
@@ -131,6 +131,7 @@ def test_body_array_of_objects_and_nested_required(tmp_path: Path) -> None:
     p = tmp_path / "spec.json"
     p.write_text(json.dumps(spec), encoding="utf-8")
     ops = extract_operations(load_spec(str(p)))
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
 
     # Missing nested required field 'id'
     with pytest.raises(ValueError):

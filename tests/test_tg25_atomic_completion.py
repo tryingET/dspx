@@ -70,13 +70,15 @@ def test_pi_rpc_lm_does_not_retry_timeout() -> None:
     assert calls == {"prompt": 1, "restart": 0}
 
 
-def test_data_preview_bounds_rows_and_cell_sizes(tmp_path) -> None:
+def test_data_preview_bounds_rows_and_cell_sizes(tmp_path, monkeypatch) -> None:
     path = tmp_path / "data.csv"
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=["id", "note"])
         writer.writeheader()
         for idx in range(80):
             writer.writerow({"id": idx, "note": "x" * 400})
+
+    monkeypatch.setenv("DSPX_FILESYSTEM_ROOT", str(tmp_path))
 
     preview = _data_preview(str(path), nrows=500)
 

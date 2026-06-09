@@ -9,6 +9,13 @@ from dspx.tools.openapi import load_spec
 from dspx.tools.registry import register_openapi_operations, get_tool
 
 
+@pytest.fixture(autouse=True)
+def _allow_openapi_mutation_for_registry_tool_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+
+
 def _spec(tmp_path: Path) -> str:
     data = {
         "openapi": "3.0.0",

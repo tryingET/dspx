@@ -6,6 +6,7 @@ Commands for loading, inspecting, and calling OpenAPI operations.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shlex
 from pathlib import Path
@@ -277,6 +278,7 @@ def openapi_call(
         typer.echo(f"[dry-run] {preview}")
         return
 
+    confirmed_mutation = yes and method in {"POST", "PUT", "PATCH", "DELETE"}
     if needs_confirmation(desc) and not yes:
         if not typer.confirm(
             f"About to perform {preview}. Continue? [y/N]", default=False
@@ -287,6 +289,7 @@ def openapi_call(
                 err=True,
             )
             raise typer.Exit(code=2)
+        confirmed_mutation = method in {"POST", "PUT", "PATCH", "DELETE"}
 
     # Start an MLflow run for traceability when enabled
     try:
@@ -305,7 +308,20 @@ def openapi_call(
     except Exception:
         pass
 
-    res = call_operation(req, operation=operation.model_dump(), allowed_hosts=allowed)
+    old_allow_mutate = os.environ.get("DSPX_POLICY_ALLOW_NETWORK_MUTATE")
+    injected_allow_mutate = False
+    if confirmed_mutation:
+        os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = "1"
+        injected_allow_mutate = True
+    try:
+        res = call_operation(
+            req, operation=operation.model_dump(), allowed_hosts=allowed
+        )
+    finally:
+        if injected_allow_mutate and old_allow_mutate is None:
+            os.environ.pop("DSPX_POLICY_ALLOW_NETWORK_MUTATE", None)
+        elif old_allow_mutate is not None:
+            os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = old_allow_mutate
     typer.echo(res.raw_text or "")
 
 

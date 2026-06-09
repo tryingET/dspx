@@ -74,6 +74,67 @@ def test_gitlab_client_rejects_redirect_to_unallowed_host() -> None:
 
 
 @pytest.mark.forge
+def test_gitlab_config_defaults_allowed_hosts_to_exact_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "https://gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+    monkeypatch.setenv("DSPX_GITLAB_PROJECT_MAP_JSON", '{"core": 101}')
+    monkeypatch.delenv("DSPX_GITLAB_ALLOWED_HOSTS", raising=False)
+
+    cfg = load_gitlab_config_from_env()
+
+    assert cfg.allowed_hosts == {"https://gitlab.example.com"}
+
+
+def test_gitlab_config_normalizes_matching_host_only_allowlist_to_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "https://gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+    monkeypatch.setenv("DSPX_GITLAB_PROJECT_MAP_JSON", '{"core": 101}')
+    monkeypatch.setenv("DSPX_GITLAB_ALLOWED_HOSTS", "gitlab.example.com")
+
+    cfg = load_gitlab_config_from_env()
+
+    assert cfg.allowed_hosts == {"https://gitlab.example.com"}
+
+
+def test_gitlab_client_rejects_https_to_http_same_host_redirect() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.scheme == "https":
+            return httpx.Response(
+                302,
+                headers={"location": "http://gitlab.example.com/leak"},
+                request=request,
+            )
+        return httpx.Response(200, json={"ok": True}, request=request)
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"gitlab.example.com"},
+        default_labels=[],
+    )
+    client = GitLabClient(
+        cfg,
+        client=httpx.Client(
+            transport=httpx.MockTransport(handler),
+            follow_redirects=True,
+        ),
+    )
+
+    with pytest.raises(PermissionError):
+        client._request("GET", "/api/v4/projects/101/issues")
+
+    assert seen == ["https://gitlab.example.com/api/v4/projects/101/issues"]
+
+
 def test_gitlab_client_allows_non_default_port_when_origin_is_allowed() -> None:
     seen_urls: list[str] = []
 

@@ -61,6 +61,62 @@ def test_openapi_loader_and_ops(tmp_path: Path) -> None:
     assert ops["ping"]["method"] == "GET"
 
 
+def test_openapi_loader_extracts_json_suffix_request_body_schema() -> None:
+    spec: dict[str, Any] = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/items": {
+                "post": {
+                    "operationId": "createItem",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/vnd.api+json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["name"],
+                                    "properties": {"name": {"type": "string"}},
+                                    "additionalProperties": False,
+                                }
+                            }
+                        },
+                    },
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+
+    ops = extract_operations(spec)
+
+    assert ops["createItem"]["requestBody"]["schema"]["required"] == ["name"]
+
+
+def test_openapi_loader_rejects_duplicate_operation_id() -> None:
+    spec: dict[str, Any] = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/safe": {
+                "get": {
+                    "operationId": "same",
+                    "responses": {"200": {"description": "ok"}},
+                }
+            },
+            "/danger": {
+                "delete": {
+                    "operationId": "same",
+                    "responses": {"200": {"description": "ok"}},
+                }
+            },
+        },
+    }
+
+    with pytest.raises(ValueError, match="duplicate OpenAPI operationId: same"):
+        extract_operations(spec)
+
+
 def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
     spec_path = _make_spec(tmp_path)
     data = load_spec(spec_path)
@@ -275,7 +331,9 @@ def test_openapi_schema_pattern_timeout_fails_closed() -> None:
         )
 
 
-def test_openapi_call_with_body_and_headers(tmp_path: Path) -> None:
+def test_openapi_call_with_body_and_headers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     spec = {
         "openapi": "3.0.0",
         "servers": [{"url": "http://api.example.com"}],
@@ -292,6 +350,7 @@ def test_openapi_call_with_body_and_headers(tmp_path: Path) -> None:
     p.write_text(json.dumps(spec), encoding="utf-8")
     data = load_spec(str(p))
     ops = extract_operations(data)
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
 
     def handler(request: httpx.Request) -> httpx.Response:
         # echo back header and json body
@@ -356,7 +415,9 @@ def test_openapi_call_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None
     assert seen == ["http://api.example.com/ping"]
 
 
-def test_openapi_call_accepts_array_json_body_and_response(tmp_path: Path) -> None:
+def test_openapi_call_accepts_array_json_body_and_response(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     spec = {
         "openapi": "3.0.0",
         "servers": [{"url": "http://api.example.com"}],
@@ -387,6 +448,7 @@ def test_openapi_call_accepts_array_json_body_and_response(tmp_path: Path) -> No
     p = tmp_path / "bulk.json"
     p.write_text(json.dumps(spec), encoding="utf-8")
     ops = extract_operations(load_spec(str(p)))
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
@@ -404,7 +466,9 @@ def test_openapi_call_accepts_array_json_body_and_response(tmp_path: Path) -> No
     assert res.body == [{"ok": True}]
 
 
-def test_openapi_call_preserves_falsey_json_body(tmp_path: Path) -> None:
+def test_openapi_call_preserves_falsey_json_body(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     spec = {
         "openapi": "3.0.0",
         "servers": [{"url": "http://api.example.com"}],
@@ -431,6 +495,7 @@ def test_openapi_call_preserves_falsey_json_body(tmp_path: Path) -> None:
     p = tmp_path / "bulk-empty.json"
     p.write_text(json.dumps(spec), encoding="utf-8")
     ops = extract_operations(load_spec(str(p)))
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.content.decode("utf-8") == "[]"

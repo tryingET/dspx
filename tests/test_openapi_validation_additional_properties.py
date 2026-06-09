@@ -11,6 +11,13 @@ from dspx.tools.openapi import extract_operations, load_spec
 from dspx.tools.openapi.caller import call_operation
 
 
+@pytest.fixture(autouse=True)
+def _allow_openapi_mutation_for_additional_properties_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+
+
 def _ok_client() -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
 

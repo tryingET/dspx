@@ -152,7 +152,7 @@ def test_request_body_ref_schema_validation(tmp_path: Path) -> None:
         )
 
 
-def test_request_body_schema_validation(tmp_path: Path) -> None:
+def test_request_body_schema_validation(tmp_path: Path, monkeypatch) -> None:
     yml = textwrap.dedent(
         """
         openapi: 3.0.0
@@ -183,6 +183,7 @@ def test_request_body_schema_validation(tmp_path: Path) -> None:
     p.write_text(yml, encoding="utf-8")
     data = load_spec(str(p))
     ops = extract_operations(data)
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
     # Missing body should raise
     req = OpenAPICallRequest(operation_id="createItem")
     with pytest.raises(ValueError):
