@@ -35,6 +35,10 @@ class UnsafePathComponentError(ValueError):
     """Raised when a path component is not safe for confined joins."""
 
 
+class UnsafeURLError(ValueError):
+    """Raised when a URL violates an explicit boundary contract."""
+
+
 class ByteLimitExceededError(ValueError):
     """Raised when a bounded read exceeds its byte budget."""
 
@@ -110,9 +114,10 @@ def url_origin_allowed(
 ) -> bool:
     """Check a URL against a host/origin allowlist with scheme and port semantics.
 
-    Legacy host-only entries remain supported for default HTTP/HTTPS ports. To
-    constrain scheme or allow non-default ports, use an exact origin entry such
-    as ``https://api.example.com`` or ``http://localhost:8080``.
+    Host-only entries are constrained to *default_scheme* on default ports. Use
+    an exact origin entry such as ``https://api.example.com`` or
+    ``http://localhost:8080`` when a different scheme or non-default port is
+    intentional.
     """
     parsed = urlparse(url)
     host = parsed.hostname or ""
@@ -136,7 +141,14 @@ def url_origin_allowed(
         return True
     if port is not None and port != default_port:
         return False
-    return scheme in {"http", default_scheme} and host_allowed
+    return scheme == default_scheme and host_allowed
+
+
+def reject_url_userinfo(url: str, *, label: str = "URL") -> None:
+    """Reject URLs containing embedded username/password credentials."""
+    parsed = urlparse(url)
+    if parsed.username is not None or parsed.password is not None:
+        raise UnsafeURLError(f"{label} must not include embedded credentials")
 
 
 def confine_path(root: Path, user_path: str | Path, *, strict: bool = True) -> Path:

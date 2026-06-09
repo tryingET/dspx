@@ -11,7 +11,10 @@ from dspx.cache import sha256_text
 from dspx.services.program_generated_policy import build_program_generated_module_policy
 from dspx.services.program_service import ProgramIntent, materialize_program_from_intent
 from dspx.services.program_promotion import promotion_policy
-from dspx.services.program_tool_contracts import build_program_tool_contracts
+from dspx.services.program_tool_contracts import (
+    build_program_tool_contracts,
+    materialize_program_tool_adapter_blueprints,
+)
 from dspx.services.run_replay_service import (
     _generated_tool_adapter_dry_run_valid,
     _generated_tool_adapter_source_semantic_valid,
@@ -819,6 +822,42 @@ def test_program_gen_writes_and_replay_checks_tool_contracts(
     assert drift["checks"]["program_tool_contracts_semantic_valid"] is False
     assert "program_evidence_hash_mismatch" in drift["error_codes"]
     assert "program_evidence_declaration_mismatch" in drift["error_codes"]
+
+
+def test_tool_adapter_materialization_rejects_sanitized_path_collisions(
+    tmp_path: Path,
+) -> None:
+    payload = {
+        "contracts": [
+            {
+                "tool_id": "a-b",
+                "generated_adapter_blueprint": {
+                    "status": "blueprint_recorded_not_executable",
+                    "source_preview": "# first\n",
+                },
+                "generated_adapter": {
+                    "execution_allowed": False,
+                    "dspy_tool_binding_allowed": False,
+                    "source_preview": "TOOL_ID = 'a-b'\n",
+                },
+            },
+            {
+                "tool_id": "a_b",
+                "generated_adapter_blueprint": {
+                    "status": "blueprint_recorded_not_executable",
+                    "source_preview": "# second\n",
+                },
+                "generated_adapter": {
+                    "execution_allowed": False,
+                    "dspy_tool_binding_allowed": False,
+                    "source_preview": "TOOL_ID = 'a_b'\n",
+                },
+            },
+        ]
+    }
+
+    with pytest.raises(ValueError, match="artifact path collision"):
+        materialize_program_tool_adapter_blueprints(payload, tmp_path)
 
 
 def test_generated_tool_adapter_validates_nested_bounded_schema_and_replay(

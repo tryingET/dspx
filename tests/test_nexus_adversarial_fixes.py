@@ -431,7 +431,7 @@ def test_openapi_caller_strips_caller_supplied_host_header() -> None:
     call_operation(
         request,
         operation=operation,
-        allowed_hosts={"allowed.test": True},
+        allowed_hosts={"http://allowed.test": True},
         client=client,
     )
 

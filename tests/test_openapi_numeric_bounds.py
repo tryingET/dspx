@@ -53,7 +53,7 @@ def test_query_numeric_bounds_fail_closed(
         call_operation(
             OpenAPICallRequest(operation_id="search", params={"limit": 1}),
             operation=ops["search"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -61,7 +61,7 @@ def test_query_numeric_bounds_fail_closed(
         call_operation(
             OpenAPICallRequest(operation_id="search", params={"limit": 11}),
             operation=ops["search"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -101,14 +101,14 @@ def test_path_exclusive_numeric_bounds_enforced(
         call_operation(
             OpenAPICallRequest(operation_id="getItem", params={"id": 5}),
             operation=ops["getItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
     result = call_operation(
         OpenAPICallRequest(operation_id="getItem", params={"id": 6}),
         operation=ops["getItem"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=mock_client,
     )
     assert result.status_code == 200
@@ -150,7 +150,7 @@ def test_numeric_exclusive_bounds_support_openapi_31_form(
         call_operation(
             OpenAPICallRequest(operation_id="search31", params={"limit": 5}),
             operation=ops["search31"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -158,14 +158,14 @@ def test_numeric_exclusive_bounds_support_openapi_31_form(
         call_operation(
             OpenAPICallRequest(operation_id="search31", params={"limit": 10}),
             operation=ops["search31"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
     result = call_operation(
         OpenAPICallRequest(operation_id="search31", params={"limit": 7.5}),
         operation=ops["search31"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=mock_client,
     )
     assert result.status_code == 200
@@ -202,7 +202,7 @@ def test_integer_query_params_reject_float_and_non_finite_values(
         call_operation(
             OpenAPICallRequest(operation_id="listItems", params={"limit": 5.0}),
             operation=ops["listItems"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -220,7 +220,7 @@ def test_integer_query_params_reject_float_and_non_finite_values(
                     }
                 ],
             },
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -256,14 +256,14 @@ def test_query_numeric_params_enforce_multiple_of(
         call_operation(
             OpenAPICallRequest(operation_id="listEvenItems", params={"limit": "3"}),
             operation=ops["listEvenItems"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
     result = call_operation(
         OpenAPICallRequest(operation_id="listEvenItems", params={"limit": "4"}),
         operation=ops["listEvenItems"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=mock_client,
     )
     assert result.status_code == 200
@@ -311,7 +311,7 @@ def test_request_body_numeric_validation_rejects_bool_float_and_string_integers(
                 body={"count": True, "ratio": 1.0},
             ),
             operation=ops["createItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -323,7 +323,7 @@ def test_request_body_numeric_validation_rejects_bool_float_and_string_integers(
                 body={"count": 5.0, "ratio": 1.0},
             ),
             operation=ops["createItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -335,7 +335,7 @@ def test_request_body_numeric_validation_rejects_bool_float_and_string_integers(
                 body={"count": "5", "ratio": 1.0},
             ),
             operation=ops["createItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -347,6 +347,6 @@ def test_request_body_numeric_validation_rejects_bool_float_and_string_integers(
                 body={"count": 5, "ratio": float("inf")},
             ),
             operation=ops["createItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )

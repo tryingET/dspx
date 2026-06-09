@@ -30,7 +30,9 @@ def test_tools_list_json_shows_openapi_metadata() -> None:
         "servers": [{"url": "http://api.example.com"}],
         "paths": {"/send": {"post": {"operationId": "send", "responses": {"200": {}}}}},
     }
-    register_openapi_operations("tlist", spec, allowed_hosts={"api.example.com": True})
+    register_openapi_operations(
+        "tlist", spec, allowed_hosts={"http://api.example.com": True}
+    )
     res = runner.invoke(app, ["tools", "list", "--json"])
     assert res.exit_code == 0
     data = json.loads(res.stdout)

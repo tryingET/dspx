@@ -19,7 +19,7 @@ def _huge_client() -> httpx.Client:
 
 def test_host_allowlist_constrains_ports_and_supports_exact_origin_entries() -> None:
     assert host_allowed("https://api.example.com/v1", {"api.example.com"}) is True
-    assert host_allowed("http://api.example.com/v1", {"api.example.com"}) is True
+    assert host_allowed("http://api.example.com/v1", {"api.example.com"}) is False
     assert host_allowed("https://api.example.com:8443/v1", {"api.example.com"}) is False
     assert (
         host_allowed("http://api.example.com/v1", {"https://api.example.com"}) is False

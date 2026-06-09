@@ -87,7 +87,7 @@ def test_request_body_oneof_resolves_refs_and_fails_closed_when_no_branch_matche
         call_operation(
             OpenAPICallRequest(operation_id="createOneOfRefItem", body={}),
             operation=ops["createOneOfRefItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -95,14 +95,14 @@ def test_request_body_oneof_resolves_refs_and_fails_closed_when_no_branch_matche
         call_operation(
             OpenAPICallRequest(operation_id="createOneOfRefItem", body={"gamma": 3}),
             operation=ops["createOneOfRefItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
     result = call_operation(
         OpenAPICallRequest(operation_id="createOneOfRefItem", body={"alpha": 1}),
         operation=ops["createOneOfRefItem"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=mock_client,
     )
     assert result.status_code == 200
@@ -159,7 +159,7 @@ def test_request_body_oneof_requires_exactly_one_matching_branch(
                 body={"alpha": 1, "beta": 2},
             ),
             operation=ops["createExclusiveItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -216,14 +216,14 @@ def test_request_body_anyof_resolves_refs_and_requires_one_passing_branch(
         call_operation(
             OpenAPICallRequest(operation_id="createAnyOfRefItem", body={}),
             operation=ops["createAnyOfRefItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
     result = call_operation(
         OpenAPICallRequest(operation_id="createAnyOfRefItem", body={"beta": 2}),
         operation=ops["createAnyOfRefItem"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=mock_client,
     )
     assert result.status_code == 200
@@ -275,7 +275,7 @@ def test_request_body_repeated_ref_branches_do_not_collapse_to_unconstrained_sch
         call_operation(
             OpenAPICallRequest(operation_id="createRepeatedRefOneOfItem", body={}),
             operation=ops["createRepeatedRefOneOfItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -286,7 +286,7 @@ def test_request_body_repeated_ref_branches_do_not_collapse_to_unconstrained_sch
                 body={"y": 1},
             ),
             operation=ops["createRepeatedRefOneOfItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -297,7 +297,7 @@ def test_request_body_repeated_ref_branches_do_not_collapse_to_unconstrained_sch
                 body={"x": 1},
             ),
             operation=ops["createRepeatedRefOneOfItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -358,7 +358,7 @@ def test_request_body_reused_property_refs_validate_each_sibling_independently(
                 body={"a": {"x": 1}, "b": {}},
             ),
             operation=ops["createRepeatedPropertyRefItem"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=mock_client,
         )
 
@@ -368,7 +368,7 @@ def test_request_body_reused_property_refs_validate_each_sibling_independently(
             body={"a": {"x": 1}, "b": {"x": 2}},
         ),
         operation=ops["createRepeatedPropertyRefItem"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=mock_client,
     )
     assert result.status_code == 200

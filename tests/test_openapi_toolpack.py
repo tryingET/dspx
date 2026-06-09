@@ -139,7 +139,7 @@ def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
     res = call_operation(
         req,
         operation=ops["ping"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
     assert res.status_code == 200 and res.body == {"ok": True}
@@ -149,7 +149,7 @@ def test_openapi_call_with_mock_transport(tmp_path: Path) -> None:
     res2 = call_operation(
         req2,
         operation=ops["echo"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
     assert res2.status_code == 200 and (res2.raw_text or "").strip() == "hello"
@@ -174,7 +174,7 @@ def test_openapi_call_parses_json_content_type_case_insensitively(
     res = call_operation(
         OpenAPICallRequest(operation_id="ping"),
         operation=ops["ping"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
 
@@ -193,7 +193,7 @@ def test_openapi_load_preserves_remote_spec_url(tmp_path: Path) -> None:
             "--spec",
             "https://api.example.com/openapi.json",
             "--allow-host",
-            "api.example.com",
+            "http://api.example.com",
             "--outdir",
             str(tmp_path),
         ],
@@ -223,7 +223,7 @@ def test_openapi_call_enforces_response_byte_limit(
         call_operation(
             OpenAPICallRequest(operation_id="ping"),
             operation=ops["ping"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
 
@@ -238,7 +238,7 @@ def test_openapi_call_rejects_operation_identity_overrides(tmp_path: Path) -> No
         call_operation(
             OpenAPICallRequest(operation_id="ping", method="DELETE", path="/admin"),
             operation=ops["ping"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
 
@@ -283,7 +283,7 @@ def test_openapi_call_url_encodes_reserved_path_chars(tmp_path: Path) -> None:
     res = call_operation(
         OpenAPICallRequest(operation_id="echo", params={"msg": "a/b"}),
         operation=ops["echo"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
 
@@ -312,7 +312,7 @@ def test_openapi_call_strips_hop_by_hop_headers(tmp_path: Path) -> None:
             },
         ),
         operation=ops["ping"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
 
@@ -368,7 +368,7 @@ def test_openapi_call_with_body_and_headers(
     res = call_operation(
         req,
         operation=ops["send"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
     raw = res.raw_text or ""
@@ -404,7 +404,7 @@ def test_openapi_call_rejects_redirect_to_unallowed_host(tmp_path: Path) -> None
         call_operation(
             OpenAPICallRequest(operation_id="ping"),
             operation=ops["ping"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
     except PermissionError as exc:
@@ -459,7 +459,7 @@ def test_openapi_call_accepts_array_json_body_and_response(
     res = call_operation(
         OpenAPICallRequest(operation_id="bulkCreate", body=[{"id": 1}, {"id": 2}]),
         operation=ops["bulkCreate"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
     assert res.status_code == 200
@@ -505,7 +505,7 @@ def test_openapi_call_preserves_falsey_json_body(
     res = call_operation(
         OpenAPICallRequest(operation_id="bulkCreate", body=[]),
         operation=ops["bulkCreate"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
     assert res.status_code == 200

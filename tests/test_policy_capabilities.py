@@ -24,7 +24,9 @@ def test_network_read_capability_allows_get_blocks_post(
     client = httpx.Client(transport=httpx.MockTransport(handler))
     tool = get_tool("web_fetch")
     out = tool(
-        url="http://example.com/x", allowed_hosts={"example.com": True}, client=client
+        url="http://example.com/x",
+        allowed_hosts={"http://example.com": True},
+        client=client,
     )
     assert out["status_code"] == 200
 
@@ -47,7 +49,7 @@ def test_network_read_capability_allows_get_blocks_post(
         _ = call_operation(
             req,
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client2,
         )
 
@@ -56,7 +58,7 @@ def test_network_read_capability_allows_get_blocks_post(
     out2 = call_operation(
         req2,
         operation=ops["read"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client2,
     )
     assert out2.status_code in {

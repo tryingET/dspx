@@ -16,7 +16,7 @@ from dspx.services.program_oracle_publication_preflight import (
     build_program_oracle_publication_preflight,
     write_program_oracle_publication_preflight,
 )
-from dspx.security import confine_path
+from dspx.security import confine_path, confine_relative_path
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_runtime_traces import build_program_runtime_traces
 from dspx.services.run_replay_service import check_run_receipt
@@ -61,8 +61,14 @@ _DENIED_GENERATED_PROGRAM_CALLS = {
     "compile",
     "eval",
     "exec",
+    "globals",
+    "locals",
     "open",
+    "setattr",
+    "vars",
 }
+_DENIED_GENERATED_PROGRAM_ALIAS_CALLS = {"getattr"}
+
 _DENIED_GENERATED_PROGRAM_METHODS = {
     "check_call",
     "check_output",
@@ -318,6 +324,65 @@ def _import_roots(node: ast.Import | ast.ImportFrom) -> list[str]:
     return [str(alias.name).split(".", 1)[0] for alias in node.names]
 
 
+def _call_name(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _call_name(node.value)
+        return f"{parent}.{node.attr}" if parent else node.attr
+    if isinstance(node, ast.Subscript):
+        return _call_name(node.value)
+    return None
+
+
+def _target_names(node: ast.AST) -> set[str]:
+    names: set[str] = set()
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name):
+            names.add(child.id)
+    return names
+
+
+def _denied_generated_call_target(value: ast.AST | None) -> str | None:
+    if value is None or isinstance(value, ast.Call):
+        return None
+    name = _call_name(value)
+    if name is None:
+        return None
+    if name in _DENIED_GENERATED_PROGRAM_CALLS | _DENIED_GENERATED_PROGRAM_ALIAS_CALLS:
+        return name
+    if name.rsplit(".", 1)[-1] in _DENIED_GENERATED_PROGRAM_METHODS:
+        return name
+    return None
+
+
+def _is_path_constructor_call(node: ast.AST) -> bool:
+    return isinstance(node, ast.Call) and _call_name(node.func) in {
+        "Path",
+        "pathlib.Path",
+    }
+
+
+def _assigned_denied_generated_call_aliases(tree: ast.AST) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        value: ast.AST | None = None
+        targets: list[ast.AST] = []
+        if isinstance(node, ast.Assign):
+            value = node.value
+            targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            value = node.value
+            targets = [node.target]
+        denied_target = _denied_generated_call_target(value)
+        if denied_target is None:
+            continue
+        for target in targets:
+            for name in _target_names(target):
+                aliases[name] = denied_target
+    return aliases
+
+
 def _literal_only(node: ast.AST | None) -> bool:
     if node is None:
         return True
@@ -501,6 +566,7 @@ def _generated_surface_static_violations(
         return [f"{filename} syntax error at line {exc.lineno}: {exc.msg}"]
 
     violations: list[str] = []
+    denied_aliases = _assigned_denied_generated_call_aliases(tree)
     top_level_node_ids = {id(node) for node in tree.body}
     for node in tree.body:
         if not isinstance(node, allowed_top_level_nodes):
@@ -537,6 +603,12 @@ def _generated_surface_static_violations(
                 violations.append(
                     f"{filename} line {node.lineno}: annotation is not import-safe"
                 )
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            denied_target = _denied_generated_call_target(node.value)
+            if denied_target is not None:
+                violations.append(
+                    f"{filename} line {node.lineno}: denied call alias is not allowed: {denied_target}"
+                )
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             for root in _import_roots(node):
                 if root not in _ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS:
@@ -565,6 +637,23 @@ def _generated_surface_static_violations(
         if isinstance(func, ast.Name) and func.id in _DENIED_GENERATED_PROGRAM_CALLS:
             violations.append(
                 f"{filename} line {node.lineno}: call is not allowed: {func.id}"
+            )
+        if isinstance(func, ast.Name) and func.id == "getattr" and len(node.args) >= 2:
+            if _is_path_constructor_call(node.args[0]):
+                violations.append(
+                    f"{filename} line {node.lineno}: dynamic filesystem lookup is not allowed: getattr(Path(...), ...)"
+                )
+            elif (
+                isinstance(node.args[1], ast.Constant)
+                and isinstance(node.args[1].value, str)
+                and node.args[1].value in _DENIED_GENERATED_PROGRAM_METHODS
+            ):
+                violations.append(
+                    f"{filename} line {node.lineno}: dynamic method lookup is not allowed: getattr(..., {node.args[1].value!r})"
+                )
+        if isinstance(func, ast.Name) and func.id in denied_aliases:
+            violations.append(
+                f"{filename} line {node.lineno}: denied call alias is not allowed: {func.id}->{denied_aliases[func.id]}"
             )
         if (
             isinstance(func, ast.Attribute)
@@ -788,14 +877,15 @@ def _write_observed_output_files(
 ) -> list[str]:
     written: list[str] = []
     for field, value in observed.items():
-        path = outdir / field
+        path = confine_relative_path(outdir, field)
+        path.parent.mkdir(parents=True, exist_ok=True)
         text = (
             value
             if isinstance(value, str)
             else json.dumps(value, ensure_ascii=False, indent=2)
         )
         path.write_text(str(text).rstrip() + "\n", encoding="utf-8")
-        written.append(path.name)
+        written.append(path.relative_to(outdir.resolve()).as_posix())
     return sorted(written)
 
 

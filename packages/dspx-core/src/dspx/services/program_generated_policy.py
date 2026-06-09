@@ -239,6 +239,45 @@ def _assigned_sensitive_dspy_aliases(tree: ast.AST) -> set[str]:
     return aliases
 
 
+def _denied_call_alias_target(value: ast.AST | None) -> str | None:
+    if value is None or isinstance(value, ast.Call):
+        return None
+    name = _call_name(value)
+    if not name:
+        return None
+    root = _root_name(name)
+    if name in _DENIED_CALL_NAMES or root in _DENIED_CALL_ROOTS:
+        return name
+    if name in _DENIED_DSPY_CALLS or name in _SENSITIVE_DSPY_CONSTRUCTORS:
+        return name
+    if any(
+        name == suffix or name.endswith(f".{suffix}")
+        for suffix in _DENIED_CALL_SUFFIXES
+    ):
+        return name
+    return None
+
+
+def _assigned_denied_call_aliases(tree: ast.AST) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        value: ast.AST | None = None
+        targets: list[ast.AST] = []
+        if isinstance(node, ast.Assign):
+            value = node.value
+            targets = list(node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            value = node.value
+            targets = [node.target]
+        denied_target = _denied_call_alias_target(value)
+        if denied_target is None:
+            continue
+        for target in targets:
+            for name in _target_names(target):
+                aliases[name] = denied_target
+    return aliases
+
+
 def _validate_special_dspy_call(
     node: ast.Call,
     *,
@@ -330,6 +369,7 @@ def build_program_generated_module_policy(
     surfaces = _module_surfaces(module_surfaces)
     primitives = _surface_primitives(surfaces)
     sensitive_aliases = _assigned_sensitive_dspy_aliases(tree)
+    denied_call_aliases = _assigned_denied_call_aliases(tree)
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -428,6 +468,14 @@ def build_program_generated_module_policy(
                     detail=name,
                 )
                 continue
+            if name in denied_call_aliases:
+                _add_violation(
+                    violations,
+                    code="denied_call_alias_not_allowed",
+                    node=node,
+                    detail=f"{name}->{denied_call_aliases[name]}",
+                )
+                continue
             root = _root_name(name)
             if name in _DENIED_CALL_NAMES:
                 _add_violation(
@@ -479,6 +527,14 @@ def build_program_generated_module_policy(
                 )
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
             value = node.value
+            denied_alias_target = _denied_call_alias_target(value)
+            if denied_alias_target is not None:
+                _add_violation(
+                    violations,
+                    code="denied_call_alias_not_allowed",
+                    node=node,
+                    detail=denied_alias_target,
+                )
             if (
                 value is not None
                 and not isinstance(value, ast.Call)

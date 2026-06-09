@@ -43,7 +43,7 @@ def test_deep_request_body_schema_fails_closed_instead_of_skipping_validation() 
                 "requestBody": {"required": True, "schema": schema},
                 "responses": {"200": {"description": "ok"}},
             },
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -74,7 +74,7 @@ def test_cyclic_request_body_schema_ref_fails_closed() -> None:
                     }
                 },
             },
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -141,7 +141,7 @@ def test_body_array_of_objects_and_nested_required(tmp_path: Path, monkeypatch) 
                 body={"items": [{"meta": {"tag": "new"}}]},
             ),
             operation=ops["bulkCreate"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -155,7 +155,7 @@ def test_body_array_of_objects_and_nested_required(tmp_path: Path, monkeypatch) 
                 body={"items": [{"id": "x", "meta": {"tag": "new"}}]},
             ),
             operation=ops["bulkCreate"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -169,7 +169,7 @@ def test_body_array_of_objects_and_nested_required(tmp_path: Path, monkeypatch) 
                 body={"items": [{"id": 1, "meta": {"tag": "bad"}}]},
             ),
             operation=ops["bulkCreate"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -182,7 +182,7 @@ def test_body_array_of_objects_and_nested_required(tmp_path: Path, monkeypatch) 
             body={"items": [{"id": 1, "meta": {"tag": "new"}}]},
         ),
         operation=ops["bulkCreate"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=httpx.Client(
             transport=httpx.MockTransport(
                 lambda r: httpx.Response(200, json={"ok": True})

@@ -38,7 +38,7 @@ def test_load_spec_from_url_with_allowlist_and_cache(
     monkeypatch.setenv("DSPX_OPENAPI_CACHE_DIR", str(tmp_path / "cache"))
 
     url = "http://api.example.com/spec.json"
-    data = load_spec(url, allowed_hosts={"api.example.com": True}, client=client)
+    data = load_spec(url, allowed_hosts={"http://api.example.com": True}, client=client)
     ops = extract_operations(data)
     assert "ping" in ops
 
@@ -47,7 +47,9 @@ def test_load_spec_from_url_with_allowlist_and_cache(
         return httpx.Response(503, text="unavailable")
 
     client2 = httpx.Client(transport=httpx.MockTransport(handler_fail))
-    data2 = load_spec(url, allowed_hosts={"api.example.com": True}, client=client2)
+    data2 = load_spec(
+        url, allowed_hosts={"http://api.example.com": True}, client=client2
+    )
     ops2 = extract_operations(data2)
     assert "ping" in ops2
 
@@ -67,7 +69,7 @@ def test_load_spec_url_enforces_remote_byte_limit(tmp_path: Path, monkeypatch) -
     with pytest.raises(ValueError, match="OpenAPI remote spec exceeded byte limit"):
         load_spec(
             "http://api.example.com/spec.json",
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
 
@@ -102,10 +104,10 @@ def test_load_spec_cache_fallback_is_opt_in(tmp_path: Path, monkeypatch) -> None
     url = "http://api.example.com/spec.json"
 
     assert "ping" in extract_operations(
-        load_spec(url, allowed_hosts={"api.example.com": True}, client=client)
+        load_spec(url, allowed_hosts={"http://api.example.com": True}, client=client)
     )
     with pytest.raises(httpx.HTTPStatusError):
-        load_spec(url, allowed_hosts={"api.example.com": True}, client=client)
+        load_spec(url, allowed_hosts={"http://api.example.com": True}, client=client)
 
 
 def test_load_spec_url_rejects_unallowed_host(tmp_path: Path) -> None:
@@ -175,7 +177,7 @@ def test_load_spec_url_rejects_redirect_to_unallowed_host(tmp_path: Path) -> Non
     with pytest.raises(PermissionError):
         load_spec(
             "http://api.example.com/spec.json",
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
 
@@ -201,8 +203,12 @@ def test_load_spec_keeps_last_good_cache_on_malformed_success(
     monkeypatch.setenv("DSPX_OPENAPI_CACHE_DIR", str(tmp_path / "cache"))
 
     url = "http://api.example.com/spec.json"
-    first = load_spec(url, allowed_hosts={"api.example.com": True}, client=client)
+    first = load_spec(
+        url, allowed_hosts={"http://api.example.com": True}, client=client
+    )
     assert "ping" in extract_operations(first)
 
-    second = load_spec(url, allowed_hosts={"api.example.com": True}, client=client)
+    second = load_spec(
+        url, allowed_hosts={"http://api.example.com": True}, client=client
+    )
     assert "ping" in extract_operations(second)

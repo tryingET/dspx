@@ -24,7 +24,9 @@ def test_tools_describe_openapi_examples_json() -> None:
         "servers": [{"url": "http://api.example.com"}],
         "paths": {"/x": {"get": {"operationId": "getX", "responses": {"200": {}}}}},
     }
-    register_openapi_operations("tdesc2", spec, allowed_hosts={"api.example.com": True})
+    register_openapi_operations(
+        "tdesc2", spec, allowed_hosts={"http://api.example.com": True}
+    )
     res = runner.invoke(
         app, ["tools", "describe", "tdesc2.getX", "--json", "--examples"]
     )

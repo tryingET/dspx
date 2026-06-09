@@ -38,7 +38,7 @@ def test_register_openapi_operations_and_run(tmp_path: Path) -> None:
     spec_path = _spec(tmp_path)
     spec = load_spec(spec_path)
     names = register_openapi_operations(
-        "ex", spec, allowed_hosts={"api.example.com": True}
+        "ex", spec, allowed_hosts={"http://api.example.com": True}
     )
     assert any(n.endswith(".echo") for n in names)
     tool = get_tool("ex.echo")
@@ -56,7 +56,7 @@ def test_register_openapi_operations_and_run(tmp_path: Path) -> None:
 def test_registered_openapi_tool_rejects_operation_overrides(tmp_path: Path) -> None:
     spec = load_spec(_spec(tmp_path))
     register_openapi_operations(
-        "ex_lock", spec, allowed_hosts={"api.example.com": True}
+        "ex_lock", spec, allowed_hosts={"http://api.example.com": True}
     )
     tool = get_tool("ex_lock.echo")
 
@@ -91,7 +91,7 @@ def test_register_openapi_operations_preserves_array_json_body(tmp_path: Path) -
     p = tmp_path / "bulk.json"
     p.write_text(json.dumps(spec), encoding="utf-8")
     names = register_openapi_operations(
-        "bulk", load_spec(str(p)), allowed_hosts={"api.example.com": True}
+        "bulk", load_spec(str(p)), allowed_hosts={"http://api.example.com": True}
     )
     assert "bulk.bulkCreate" in names
     tool = get_tool("bulk.bulkCreate")

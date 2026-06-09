@@ -47,7 +47,7 @@ def test_tool_policy_allow_and_deny(tmp_path: Path, monkeypatch) -> None:
     spec_path = _spec(tmp_path)
     spec = load_spec(spec_path)
     names = register_openapi_operations(
-        "ex", spec, allowed_hosts={"api.example.com": True}
+        "ex", spec, allowed_hosts={"http://api.example.com": True}
     )
     assert any(n.endswith(".echo") for n in names)
     tool = get_tool("ex.echo")
@@ -100,7 +100,7 @@ def test_openapi_mutation_denied_without_flag(tmp_path: Path, monkeypatch) -> No
         _ = call_operation(
             req,
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
     # allow and then it should pass
@@ -108,7 +108,7 @@ def test_openapi_mutation_denied_without_flag(tmp_path: Path, monkeypatch) -> No
     out = call_operation(
         req,
         operation=ops["create"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
     assert out.status_code == 201

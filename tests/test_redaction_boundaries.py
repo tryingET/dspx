@@ -18,7 +18,7 @@ def test_openapi_spec_host_denial_redacts_secret_url_query() -> None:
     with pytest.raises(PermissionError) as excinfo:
         load_spec(
             f"https://evil.example/openapi.json?api_key={SECRET}",
-            allowed_hosts={"api.example": True},
+            allowed_hosts={"http://api.example": True},
         )
 
     message = str(excinfo.value)
@@ -51,7 +51,7 @@ def test_openapi_redirect_denial_redacts_secret_url_query() -> None:
         call_operation(
             OpenAPICallRequest(operation_id="ping"),
             operation=operation,
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
 
@@ -87,7 +87,7 @@ def test_openapi_call_result_redacts_sensitive_response_headers() -> None:
     result = call_operation(
         OpenAPICallRequest(operation_id="ping"),
         operation=operation,
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
 

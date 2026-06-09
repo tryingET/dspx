@@ -317,6 +317,47 @@ def test_generated_program_module_rejects_program_class_method_side_effects(
     assert not marker.exists()
 
 
+@pytest.mark.parametrize("method_expr", ["'touch'", "method"])
+def test_generated_program_module_rejects_dynamic_lookup_side_effects(
+    tmp_path: Path, method_expr: str
+) -> None:
+    marker = tmp_path / "marker.txt"
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "program.py").write_text(
+        "from pathlib import Path\n"
+        "import dspy\n"
+        "def io_spec():\n"
+        "    return {'inputs': [], 'outputs': []}\n"
+        "def intent_summary():\n"
+        "    return {}\n"
+        "def build_program():\n"
+        "    method = 'touch'\n"
+        f"    f = getattr(Path({str(marker)!r}), {method_expr})\n"
+        "    f()\n"
+        "    return lambda **kwargs: {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="getattr"):
+        with _generated_program_module(candidate):
+            pass
+
+    assert not marker.exists()
+
+
+def test_runtime_observed_output_files_reject_path_escape(tmp_path: Path) -> None:
+    from dspx.services.program_runtime_episode import _write_observed_output_files
+
+    outdir = tmp_path / "out"
+    outdir.mkdir()
+
+    with pytest.raises(ValueError, match="unsafe path component|escapes"):
+        _write_observed_output_files(outdir, {"../escape.json": {"ok": True}})
+
+    assert not (tmp_path / "escape.json").exists()
+
+
 def test_generated_program_module_rejects_import_time_side_effects(
     tmp_path: Path,
 ) -> None:

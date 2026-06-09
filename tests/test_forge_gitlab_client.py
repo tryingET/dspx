@@ -23,6 +23,18 @@ def test_gitlab_config_rejects_schemeless_base_url(
 
 
 @pytest.mark.forge
+def test_gitlab_config_rejects_credential_bearing_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_GITLAB_BASE_URL", "https://user:pass@gitlab.example.com")
+    monkeypatch.setenv("DSPX_GITLAB_TOKEN", "tok")
+    monkeypatch.setenv("DSPX_GITLAB_PROJECT_MAP_JSON", '{"core": 101}')
+
+    with pytest.raises(RuntimeError, match="embedded credentials"):
+        load_gitlab_config_from_env()
+
+
+@pytest.mark.forge
 def test_gitlab_client_rejects_manually_constructed_schemeless_base_url() -> None:
     cfg = GitLabConfig(
         base_url="gitlab.example.com",

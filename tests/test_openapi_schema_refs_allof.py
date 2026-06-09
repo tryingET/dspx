@@ -80,7 +80,7 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path, monkeypatch) -> None:
                 operation_id="updateUser", body={"name": "abc", "active": True}
             ),
             operation=ops["updateUser"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -95,7 +95,7 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path, monkeypatch) -> None:
                 body={"name": "abc", "active": True},
             ),
             operation=ops["updateUser"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -110,7 +110,7 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path, monkeypatch) -> None:
                 body={"name": "bc", "active": True},
             ),
             operation=ops["updateUser"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -125,7 +125,7 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path, monkeypatch) -> None:
                 body={"name": "abc", "active": True, "extra": "nope"},
             ),
             operation=ops["updateUser"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -139,7 +139,7 @@ def test_openapi_ref_and_allof_and_bounds(tmp_path: Path, monkeypatch) -> None:
             body={"name": "abc", "active": False, "age": 10},
         ),
         operation=ops["updateUser"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=httpx.Client(
             transport=httpx.MockTransport(
                 lambda r: httpx.Response(200, json={"ok": True})
@@ -195,7 +195,7 @@ def test_openapi_json_pointer_escaped_component_refs_are_resolved() -> None:
         call_operation(
             OpenAPICallRequest(operation_id="updateEscaped", body={"name": "ok"}),
             operation=operation,
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -209,7 +209,7 @@ def test_openapi_json_pointer_escaped_component_refs_are_resolved() -> None:
                 body={},
             ),
             operation=operation,
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),

@@ -593,6 +593,7 @@ def materialize_program_tool_adapter_blueprints(
 
     updated = dict(payload)
     contracts: list[dict[str, Any]] = []
+    used_artifact_paths: dict[str, str] = {}
     adapter_dir = root / "tool_adapters"
     for raw_contract in payload.get("contracts") or []:
         if not isinstance(raw_contract, Mapping):
@@ -602,15 +603,23 @@ def materialize_program_tool_adapter_blueprints(
         generated_adapter = dict(contract.get("generated_adapter") or {})
         tool_id = str(contract.get("tool_id") or blueprint.get("tool_id") or "tool")
         adapter_dir.mkdir(parents=True, exist_ok=True)
+        sanitized_tool_id = sanitize_ident(tool_id, fallback="tool")
         if blueprint.get("status") == "blueprint_recorded_not_executable":
-            blueprint_filename = (
-                f"{sanitize_ident(tool_id, fallback='tool')}_adapter_blueprint.py"
+            blueprint_filename = f"{sanitized_tool_id}_adapter_blueprint.py"
+            blueprint_artifact_path = f"tool_adapters/{blueprint_filename}"
+            prior_tool_id = used_artifact_paths.setdefault(
+                blueprint_artifact_path, tool_id
             )
+            if prior_tool_id != tool_id:
+                raise ValueError(
+                    "tool adapter artifact path collision after sanitization: "
+                    f"{prior_tool_id!r} and {tool_id!r} -> {blueprint_artifact_path}"
+                )
             blueprint_path = adapter_dir / blueprint_filename
             blueprint_source = str(blueprint.get("source_preview") or "")
             blueprint_path.write_text(blueprint_source, encoding="utf-8")
             blueprint["artifact"] = {
-                "path": f"tool_adapters/{blueprint_filename}",
+                "path": blueprint_artifact_path,
                 "content_hash": sha256_text(blueprint_source),
                 "executable": False,
                 "imported_by_generated_program": False,
@@ -620,7 +629,16 @@ def materialize_program_tool_adapter_blueprints(
             and generated_adapter.get("execution_allowed") is False
             and generated_adapter.get("dspy_tool_binding_allowed") is False
         ):
-            adapter_filename = f"{sanitize_ident(tool_id, fallback='tool')}_adapter.py"
+            adapter_filename = f"{sanitized_tool_id}_adapter.py"
+            adapter_artifact_path = f"tool_adapters/{adapter_filename}"
+            prior_tool_id = used_artifact_paths.setdefault(
+                adapter_artifact_path, tool_id
+            )
+            if prior_tool_id != tool_id:
+                raise ValueError(
+                    "tool adapter artifact path collision after sanitization: "
+                    f"{prior_tool_id!r} and {tool_id!r} -> {adapter_artifact_path}"
+                )
             adapter_path = adapter_dir / adapter_filename
             adapter_source = str(generated_adapter.get("source_preview") or "")
             compile(adapter_source, f"tool_adapters/{adapter_filename}", "exec")
@@ -632,7 +650,7 @@ def materialize_program_tool_adapter_blueprints(
                     "content_hash": adapter_hash,
                     "source_hash": adapter_hash,
                     "artifact": {
-                        "path": f"tool_adapters/{adapter_filename}",
+                        "path": adapter_artifact_path,
                         "content_hash": adapter_hash,
                         "executable": False,
                         "imported_by_generated_program": False,

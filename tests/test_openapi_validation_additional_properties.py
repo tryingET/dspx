@@ -55,7 +55,7 @@ def test_body_additional_properties_false_rejects_unknown_keys(tmp_path: Path) -
         call_operation(
             OpenAPICallRequest(operation_id="create", body={"a": "x", "b": "y"}),
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=_ok_client(),
         )
 
@@ -95,14 +95,14 @@ def test_body_additional_properties_schema_validates_unknown_keys(
         call_operation(
             OpenAPICallRequest(operation_id="create", body={"a": "x", "extra": "nope"}),
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=_ok_client(),
         )
 
     res = call_operation(
         OpenAPICallRequest(operation_id="create", body={"a": "x", "extra": 123}),
         operation=ops["create"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=httpx.Client(
             transport=httpx.MockTransport(
                 lambda r: httpx.Response(200, json={"ok": True})
@@ -146,7 +146,7 @@ def test_body_nullable_accepts_null(tmp_path: Path) -> None:
     res = call_operation(
         OpenAPICallRequest(operation_id="create", body={"note": None}),
         operation=ops["create"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=httpx.Client(
             transport=httpx.MockTransport(
                 lambda r: httpx.Response(200, json={"ok": True})

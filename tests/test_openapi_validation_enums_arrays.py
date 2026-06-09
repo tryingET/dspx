@@ -45,7 +45,7 @@ def test_query_param_enum_and_array_validation(tmp_path: Path) -> None:
         call_operation(
             OpenAPICallRequest(operation_id="search", params={"mode": "invalid"}),
             operation=ops["search"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -57,7 +57,7 @@ def test_query_param_enum_and_array_validation(tmp_path: Path) -> None:
                 operation_id="search", params={"mode": "all", "ids": "1,2"}
             ),
             operation=ops["search"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -69,7 +69,7 @@ def test_query_param_enum_and_array_validation(tmp_path: Path) -> None:
                 operation_id="search", params={"mode": "all", "ids": ["a"]}
             ),
             operation=ops["search"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -80,7 +80,7 @@ def test_query_param_enum_and_array_validation(tmp_path: Path) -> None:
             operation_id="search", params={"mode": "any", "ids": [1, 2]}
         ),
         operation=ops["search"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=httpx.Client(
             transport=httpx.MockTransport(
                 lambda r: httpx.Response(200, json={"ok": True})
@@ -150,21 +150,21 @@ def test_openapi_query_string_constraints_reject_invalid_values(tmp_path: Path) 
         call_operation(
             OpenAPICallRequest(operation_id="items", params={"q": "A"}),
             operation=ops["items"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
     with pytest.raises(ValueError, match="does not match pattern"):
         call_operation(
             OpenAPICallRequest(operation_id="items", params={"q": "abc"}),
             operation=ops["items"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=client,
         )
 
     res = call_operation(
         OpenAPICallRequest(operation_id="items", params={"q": "ABC"}),
         operation=ops["items"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=client,
     )
     assert res.status_code == 200
@@ -200,7 +200,7 @@ def test_openapi_parameter_string_enum_rejects_numeric_lookalike(
         call_operation(
             OpenAPICallRequest(operation_id="items", params={"mode": 1}),
             operation=ops["items"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -209,7 +209,7 @@ def test_openapi_parameter_string_enum_rejects_numeric_lookalike(
     res = call_operation(
         OpenAPICallRequest(operation_id="items", params={"mode": "1"}),
         operation=ops["items"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=httpx.Client(
             transport=httpx.MockTransport(lambda r: httpx.Response(200))
         ),
@@ -272,7 +272,7 @@ def test_body_arrays_and_nested_objects(
         call_operation(
             OpenAPICallRequest(operation_id="create", body={"scores": [0.1]}),
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -285,7 +285,7 @@ def test_body_arrays_and_nested_objects(
                 body={"tags": [1], "scores": [0.1], "meta": {"flag": True}},
             ),
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -298,7 +298,7 @@ def test_body_arrays_and_nested_objects(
                 body={"tags": ["a"], "scores": [0.1], "meta": {"flag": "yes"}},
             ),
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -316,7 +316,7 @@ def test_body_arrays_and_nested_objects(
                 },
             ),
             operation=ops["create"],
-            allowed_hosts={"api.example.com": True},
+            allowed_hosts={"http://api.example.com": True},
             client=httpx.Client(
                 transport=httpx.MockTransport(lambda r: httpx.Response(200))
             ),
@@ -333,7 +333,7 @@ def test_body_arrays_and_nested_objects(
             },
         ),
         operation=ops["create"],
-        allowed_hosts={"api.example.com": True},
+        allowed_hosts={"http://api.example.com": True},
         client=httpx.Client(
             transport=httpx.MockTransport(
                 lambda r: httpx.Response(200, json={"ok": True})

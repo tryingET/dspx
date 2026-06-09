@@ -107,6 +107,12 @@ Proof now exists in focused regressions across OpenAPI caller/loader/CLI/tool re
 
 The main remaining gap is not this boundary slice but future adapter discipline: every new tool/provider/sidecar/apply seam must prove CLI and programmatic paths share the same policy semantics, that representation aliases cannot widen authority, and that docs describe fail-closed behavior rather than aspirational UX. The next highest-leverage slice should choose product behavior first, then treat boundary policy as a reusable invariant to preserve while making richer execution episodes, guided refinement, optimizer-to-candidate materialization, or review/promotion flow more real.
 
+## Boundary completion posture — 2026-06-09
+
+The atomic boundary-completion pass moved DSPx from direct-call/path happy-path protection toward shared fail-closed representation discipline. Generated module policy now rejects aliases of denied builtins/effect calls; generated runtime safety rejects dynamic filesystem lookup through `getattr(Path(...), ...)` while preserving legitimate generated-pipeline object access; runtime episodes and generated direct runners confine declared output field paths; tool-adapter materialization rejects sanitized filename collisions; Forge rejects credential-bearing GitLab base URLs; host-only allowlists no longer imply cleartext HTTP; server signature receipts persist prompt hashes plus redacted previews instead of raw prompts; and the Mermaid server path bridge fails closed if a producer returns an escaped artifact path.
+
+Proof now exists in focused alias/dynamic-lookup/path-escape/collision/redaction/allowlist/Forged-URL regressions plus wider OpenAPI fixture realignment to exact HTTP origins where cleartext transport is intentional. The implementation was checked through `just loop-verify-fast`, `just verify-full`, and `just loop-landing-check`. This clarifies a product boundary: replay receipts, generated artifacts, tool descriptors, server persistence, and Forge manifests are evidence/provenance surfaces, not places where raw user prompts, ambient credentials, traversal strings, or representation aliases may silently widen authority. The main remaining gap is future-seam consistency: the next high-leverage product slice should reuse these boundary primitives rather than re-implement local checks when adding richer execution episodes, guided refinement, optimizer-to-candidate materialization, or review/promotion flow.
+
 ## Product maturity map
 
 | Area | Current posture | Target posture | Main gap | Proof of closure |

@@ -20,6 +20,8 @@ from pydantic import BaseModel
 from dspx.cache import make_key, sha256_text
 from dspx.cli.utils import log_artifacts_to_mlflow, write_receipt_for_output
 from dspx.dtos import SignatureGenRequest, ModuleSpec
+from dspx.redaction import sanitize_diagnostic_text
+from dspx.security import PathEscapeError, confine_path
 from dspx.services.signatures_service import run_generate_dto
 from dspx.services.module_service import run_generate as module_run_generate
 from dspx.services.mermaid_workflow_service import generate_programs
@@ -104,6 +106,19 @@ def _timestamp_token() -> str:
 
 def _artifact_token() -> str:
     return f"{_timestamp_token()}-{uuid4().hex[:12]}"
+
+
+def _redacted_text_preview(value: object) -> str:
+    return sanitize_diagnostic_text(str(value or ""), limit=512)
+
+
+def _replay_text_ref(name: str, value: object) -> dict[str, Any]:
+    text = str(value or "")
+    return {
+        f"{name}_sha256": sha256_text(text),
+        f"{name}_preview_redacted": _redacted_text_preview(text),
+        f"{name}_raw_persisted": False,
+    }
 
 
 def _code_output_path(kind: str, stem: str) -> Path:
@@ -360,14 +375,16 @@ def create_app() -> FastAPI:
             template_version=template_version,
             cache_key=cache_key,
             replay_inputs={
-                "prompt": req.prompt,
+                **_replay_text_ref("prompt", req.prompt),
                 "template_version": template_version,
                 "class_name": req.class_name,
                 "options": options,
             },
             extra={
                 "signature_name": res.signature_name or "",
-                "task_description": res.task_description or req.prompt,
+                "task_description_preview_redacted": _redacted_text_preview(
+                    res.task_description or req.prompt
+                ),
             },
             class_name=class_name,
             run_summary=(res.metadata if isinstance(res.metadata, dict) else None),
@@ -480,9 +497,15 @@ def create_app() -> FastAPI:
             produced: list[str] = []
             for raw_path in out:
                 source_path = Path(raw_path)
-                if not source_path.is_absolute():
-                    source_path = (temp_root / source_path).resolve()
-                relative_path = source_path.relative_to(temp_root.resolve())
+                try:
+                    if source_path.is_absolute():
+                        source_path = confine_path(temp_root, source_path)
+                    else:
+                        source_path = confine_path(temp_root, source_path)
+                    relative_path = source_path.relative_to(temp_root.resolve())
+                except PathEscapeError as exc:
+                    _LOG.exception("mermaid service produced escaped artifact path")
+                    return _artifact_persistence_failed_response("mermaid", exc)
                 produced_path = output_dir / relative_path
                 produced.append(
                     _to_public_artifact_ref(produced_path) or produced_path.name

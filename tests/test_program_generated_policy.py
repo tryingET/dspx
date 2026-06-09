@@ -102,6 +102,10 @@ def _configure_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             "import json\nimport dspy\nfrom signature import X\nopen('secret.txt')\n",
         ),
         (
+            "aliased_eval",
+            "import json\nimport dspy\nfrom signature import X\ndef f():\n    e = eval\n    return e('1+1')\n",
+        ),
+        (
             "subprocess",
             "import json\nimport subprocess\nimport dspy\nfrom signature import X\nsubprocess.run(['true'])\n",
         ),

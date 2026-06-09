@@ -3,7 +3,11 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from dspx.security import ByteLimitExceededError, DEFAULT_HTTP_RESPONSE_MAX_BYTES
+from dspx.security import (
+    ByteLimitExceededError,
+    DEFAULT_HTTP_RESPONSE_MAX_BYTES,
+    url_origin_allowed,
+)
 from dspx.tools.registry import ensure_default_tools, get_tool
 
 
@@ -22,7 +26,7 @@ def test_web_fetch_denies_unallowed_host() -> None:
     with pytest.raises(PermissionError) as excinfo:
         _ = fn(
             "http://blocked.example/path?api_key=super-secret-token",
-            allowed_hosts={"allowed.example": True},
+            allowed_hosts={"http://allowed.example": True},
             client=client,
         )
 
@@ -31,13 +35,24 @@ def test_web_fetch_denies_unallowed_host() -> None:
     assert "super-secret-token" not in message
 
 
+def test_host_only_allowlist_does_not_allow_http_downgrade() -> None:
+    assert (
+        url_origin_allowed("http://allowed.example/hi", {"allowed.example": True})
+        is False
+    )
+    assert (
+        url_origin_allowed("https://allowed.example/hi", {"allowed.example": True})
+        is True
+    )
+
+
 def test_web_fetch_allows_allowed_host() -> None:
     ensure_default_tools()
     fn = get_tool("web_fetch")
     client = _mock_ok("world")
     out = fn(
         "http://allowed.example/hi",
-        allowed_hosts={"allowed.example": True},
+        allowed_hosts={"http://allowed.example": True},
         client=client,
     )
     assert out["status_code"] == 200
@@ -68,7 +83,7 @@ def test_web_scrape_respects_allowlist() -> None:
     with pytest.raises(PermissionError):
         _ = fn(
             "http://blocked.example/page",
-            allowed_hosts={"allowed.example": True},
+            allowed_hosts={"http://allowed.example": True},
             client=client,
         )
 
@@ -76,7 +91,7 @@ def test_web_scrape_respects_allowlist() -> None:
     out = fn(
         "http://allowed.example/page",
         selector="h1",
-        allowed_hosts={"allowed.example": True},
+        allowed_hosts={"http://allowed.example": True},
         client=client,
     )
     assert out["status_code"] == 200
@@ -91,7 +106,7 @@ def test_web_fetch_rejects_oversized_response_before_truncation() -> None:
     with pytest.raises(ByteLimitExceededError):
         fn(
             "http://allowed.example/huge",
-            allowed_hosts={"allowed.example": True},
+            allowed_hosts={"http://allowed.example": True},
             client=client,
         )
 
@@ -123,7 +138,7 @@ def test_web_fetch_rejects_redirect_to_unallowed_host() -> None:
     with pytest.raises(PermissionError) as excinfo:
         fn(
             "http://allowed.example/start",
-            allowed_hosts={"allowed.example": True},
+            allowed_hosts={"http://allowed.example": True},
             client=client,
         )
 

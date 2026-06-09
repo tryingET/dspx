@@ -213,6 +213,22 @@ def _parse_json_output(value: object, *, field: str) -> Any:
         return value
 
 
+def _safe_output_path(outdir: Path, field: object) -> Path:
+    raw = str(field)
+    candidate = Path(raw)
+    if candidate.is_absolute() or not candidate.parts:
+        raise SystemExit(f'unsafe generated output field path: {raw}')
+    if any(part in {'', '.', '..'} for part in candidate.parts):
+        raise SystemExit(f'unsafe generated output field path: {raw}')
+    root = outdir.resolve()
+    resolved = (root / candidate).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        raise SystemExit(f'generated output field escapes outdir: {raw}') from None
+    return resolved
+
+
 def _find_runtime_config(explicit: Path | None, *, program_dir: Path) -> Path | None:
     if explicit is not None:
         path = explicit.expanduser().resolve()
@@ -454,7 +470,9 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
             if field not in observed:
                 raise SystemExit(f'missing generated output: {field}')
             parsed = _parse_json_output(observed[field], field=field)
-            (outdir / field).write_text(
+            output_path = _safe_output_path(outdir, field)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
                 json.dumps(parsed, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
                 encoding='utf-8',
             )

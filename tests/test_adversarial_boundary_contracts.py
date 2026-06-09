@@ -92,6 +92,52 @@ def build_program(): return P()
     assert json.loads((outdir / "answer").read_text(encoding="utf-8")) == "hello"
 
 
+def test_generated_direct_run_rejects_output_path_escape(tmp_path: Path) -> None:
+    program_dir = tmp_path / "program"
+    program_dir.mkdir()
+    (program_dir / "direct_run.py").write_text(
+        render_direct_run_code(object()), encoding="utf-8"
+    )
+    (program_dir / "program.py").write_text(
+        """
+def io_spec(): return {"inputs": ["q"], "outputs": ["../escape.json"]}
+def configure_observability(**kw): return False
+def end_observability_run(started, status="FINISHED"): pass
+class P:
+    def __call__(self, **kw): return {"../escape.json": {"ok": True}}
+def build_program(): return P()
+""",
+        encoding="utf-8",
+    )
+    inputs = program_dir / "inputs.json"
+    inputs.write_text('{"q": "x"}\n', encoding="utf-8")
+    outdir = tmp_path / "out"
+    env = {
+        **os.environ,
+        "DSPX_PROVIDER": "stub",
+        "MLFLOW_ENABLE": "0",
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(program_dir / "direct_run.py"),
+            "--inputs",
+            str(inputs),
+            "--outdir",
+            str(outdir),
+        ],
+        text=True,
+        capture_output=True,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "unsafe generated output field path" in result.stderr
+    assert not (tmp_path / "escape.json").exists()
+
+
 @pytest.mark.parametrize(
     ("flag", "value", "message"),
     [

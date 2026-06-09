@@ -20,7 +20,7 @@ def _register_mutating_tool(prefix: str = "t") -> str:
         "paths": {"/send": {"post": {"operationId": "send", "responses": {"200": {}}}}},
     }
     names = register_openapi_operations(
-        prefix, spec, allowed_hosts={"api.example.com": True}
+        prefix, spec, allowed_hosts={"http://api.example.com": True}
     )
     assert f"{prefix}.send" in names
     return f"{prefix}.send"
@@ -102,7 +102,7 @@ def test_tools_run_coerces_openapi_typed_params(monkeypatch) -> None:
         },
     }
     name = register_openapi_operations(
-        "t3", spec, allowed_hosts={"api.example.com": True}
+        "t3", spec, allowed_hosts={"http://api.example.com": True}
     )[0]
 
     captured: dict[str, object] = {}

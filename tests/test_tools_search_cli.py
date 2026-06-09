@@ -32,7 +32,7 @@ def test_tools_search_by_tags_json() -> None:
         },
     }
     register_openapi_operations(
-        "tsearch", spec, allowed_hosts={"api.example.com": True}
+        "tsearch", spec, allowed_hosts={"http://api.example.com": True}
     )
     res = runner.invoke(app, ["tools", "search", "", "--tags", "users", "--json"])
     assert res.exit_code == 0

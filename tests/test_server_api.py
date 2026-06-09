@@ -58,6 +58,11 @@ def test_server_signature_and_module_and_mermaid(monkeypatch, tmp_path: Path) ->
     assert signature_receipt["run_kind"] == "signature-gen"
     assert signature_receipt["hash"] == data["output_hash"]
     assert str(signature_receipt["output_path"]).endswith(signature_path.name)
+    assert "prompt" not in signature_receipt["replay_inputs"]
+    assert signature_receipt["replay_inputs"]["prompt_raw_persisted"] is False
+    assert signature_receipt["replay_inputs"]["prompt_sha256"]
+    assert "task_description" not in signature_receipt
+    assert signature_receipt["task_description_preview_redacted"] == "Extract names"
 
     r2 = client.post(
         "/module",

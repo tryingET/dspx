@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 from urllib.parse import urlparse
 
+from dspx.security import UnsafeURLError, reject_url_userinfo
+
 import httpx
 
 from dspx.http_guard import send_with_host_allowlist
@@ -51,6 +53,10 @@ def _base_url_host(base_url: str) -> str:
     parsed = urlparse(base_url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise RuntimeError("DSPX_GITLAB_BASE_URL must be an absolute http(s) URL")
+    try:
+        reject_url_userinfo(base_url, label="DSPX_GITLAB_BASE_URL")
+    except UnsafeURLError as exc:
+        raise RuntimeError(str(exc)) from exc
     if parsed.params or parsed.query or parsed.fragment:
         raise RuntimeError(
             "DSPX_GITLAB_BASE_URL must not include params, query, or fragment"
