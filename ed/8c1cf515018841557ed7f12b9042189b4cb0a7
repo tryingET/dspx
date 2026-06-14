@@ -1,0 +1,33 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "ed8c1cf515018841557ed7f12b9042189b4cb0a7"
+created_at: "2026-06-14T10:21:23Z"
+intent: "Harden provider/runtime failure-shaped evidence boundaries"
+files:
+  - "docs/project/product-posture.md"
+  - "packages/dspx-core/src/dspx/cli/commands/providers.py"
+  - "packages/dspx-core/src/dspx/cli/utils.py"
+  - "packages/dspx-core/src/dspx/generated_code_guard.py"
+  - "packages/dspx-core/src/dspx/provider_runtime.py"
+  - "packages/dspx-core/src/dspx/providers_register_openrouter.py"
+  - "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
+  - "scripts/ci/verification-impact.yml"
+  - "tests/test_generated_code_guard_adversarial.py"
+  - "tests/test_openrouter_provider_unit.py"
+  - "tests/test_program_runtime_episode.py"
+  - "tests/test_provider_runtime.py"
+  - "tests/test_provider_v4.py"
+  - "tests/test_verify_changed.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just loop-impact-wide"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "single boundary-hardening slice across provider, generated-runtime, impact-map, tests, and product posture"
