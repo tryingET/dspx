@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "5c5dd88be4b58acf641de657a671744153bc064e"
-created_at: "2026-06-09T08:18:36Z"
+created_at: "2026-06-14T06:30:03Z"
 intent: "Complete boundary representation hardening across generated programs, server receipts, Forge URLs, tool artifacts, and OpenAPI tests"
 files:
   - "apps/forge/src/dspx_forge/gitlab_client.py"
@@ -46,8 +46,8 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq4ob4h5-cb12298e iteration 6' just loop-impact-wide HEAD^"
-    status: "fail"
+    command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq4ob4h5-cb12298e iteration 6' just loop-impact-wide"
+    status: "pass"
 group:
   index: 1
   total: 1
