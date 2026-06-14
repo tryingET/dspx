@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "0b53dc11d5e7f3ea9009142c089d514586cc7c94"
-created_at: "2026-06-14T07:43:13Z"
+created_at: "2026-06-14T08:01:27Z"
 intent: "Redact provider/generated-code diagnostic egress surfaces"
 files:
   - "README.md"
@@ -22,7 +22,7 @@ validation:
     status: "pass"
   full_gate:
     command: "LOOP_WIDE_REASON='visible-loop delegated commit workflow wide impact validation for nexus-loop-mq4ob4h5-cb12298e iteration 7' just loop-impact-wide"
-    status: "fail"
+    status: "pass"
 group:
   index: 1
   total: 1
