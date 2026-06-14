@@ -1,0 +1,29 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "0b53dc11d5e7f3ea9009142c089d514586cc7c94"
+created_at: "2026-06-14T07:27:44Z"
+intent: "Redact provider/generated-code diagnostic egress surfaces"
+files:
+  - "README.md"
+  - "docs/project/product-posture.md"
+  - "docs/project/provider-runtime-v4.md"
+  - "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py"
+  - "packages/dspx-core/src/dspx/generated_code_guard.py"
+  - "packages/dspx-core/src/dspx/provider_runtime.py"
+  - "packages/dspx-core/src/dspx/run_receipts.py"
+  - "tests/test_generated_code_guard_adversarial.py"
+  - "tests/test_provider_runtime.py"
+  - "tests/test_provider_v4.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just loop-impact-wide"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "single boundary hardening change across provider diagnostics, receipts, generated-code guard, tests, and docs"
