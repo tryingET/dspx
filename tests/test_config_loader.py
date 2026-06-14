@@ -73,6 +73,51 @@ def test_load_config_env_defaults_codex_bypass_to_safe_false(
     assert os.environ["CODEX_BYPASS"] == "0"
 
 
+def test_load_config_env_accepts_numeric_zero_one_booleans(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("CODEX_BYPASS", raising=False)
+    monkeypatch.delenv("CODEX_SEARCH", raising=False)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [codex]
+        bypass = 1
+        search = 0
+        """,
+        encoding="utf-8",
+    )
+
+    load_config_env(str(cfg))
+
+    assert os.environ["CODEX_BYPASS"] == "1"
+    assert os.environ["CODEX_SEARCH"] == "0"
+
+
+def test_load_config_env_rejects_unknown_bool_strings(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("CODEX_BYPASS", raising=False)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [codex]
+        bypass = "flase"
+        """,
+        encoding="utf-8",
+    )
+
+    try:
+        load_config_env(str(cfg))
+    except ValueError as exc:
+        assert "codex.bypass" in str(exc)
+        assert "true/false" in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected ValueError for unknown boolean string")
+
+    assert os.getenv("CODEX_BYPASS") is None
+
+
 def test_load_config_env_sets_pi_env(monkeypatch, tmp_path: Path) -> None:
     for k in [
         "DSPX_PROVIDER",
@@ -328,3 +373,87 @@ def test_load_config_env_rejects_embedded_secrets(monkeypatch, tmp_path: Path) -
         raise AssertionError("expected ValueError for embedded secret")
 
     assert os.getenv("DSPX_OPENAI_COMPAT_API_KEY") is None
+
+
+def test_load_config_env_rejects_url_userinfo(monkeypatch, tmp_path: Path) -> None:
+    for key in [
+        "OPENROUTER_BASE_URL",
+        "DSPX_OPENAI_COMPAT_API_BASE",
+        "DSPX_VLLM_API_BASE",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [openrouter]
+        base_url = "https://user:pass@openrouter.example/v1"
+        [openai_compatible]
+        api_base = "https://user:pass@compat.example/v1"
+        [vllm]
+        api_base = "https://user:pass@vllm.example/v1"
+        """,
+        encoding="utf-8",
+    )
+
+    try:
+        load_config_env(str(cfg))
+    except ValueError as exc:
+        assert "openrouter.base_url" in str(exc)
+        assert "embedded credentials" in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected ValueError for URL userinfo")
+
+    assert os.getenv("OPENROUTER_BASE_URL") is None
+    assert os.getenv("DSPX_OPENAI_COMPAT_API_BASE") is None
+    assert os.getenv("DSPX_VLLM_API_BASE") is None
+
+
+def test_load_config_env_rejects_url_userinfo_in_http_referer(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("OPENROUTER_HTTP_REFERER", raising=False)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [openrouter]
+        http_referer = "https://user:pass@example.invalid/app"
+        """,
+        encoding="utf-8",
+    )
+
+    try:
+        load_config_env(str(cfg))
+    except ValueError as exc:
+        assert "openrouter.http_referer" in str(exc)
+        assert "embedded credentials" in str(exc)
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected ValueError for URL userinfo in referer")
+
+    assert os.getenv("OPENROUTER_HTTP_REFERER") is None
+
+
+def test_load_config_env_rolls_back_partial_env_on_validation_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "preexisting")
+    monkeypatch.delenv("MLFLOW_EXPERIMENT", raising=False)
+    monkeypatch.delenv("CODEX_BYPASS", raising=False)
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+        [openrouter]
+        base_url = "https://user:pass@openrouter.example/v1"
+        """,
+        encoding="utf-8",
+    )
+
+    try:
+        load_config_env(str(cfg))
+    except ValueError:
+        pass
+    else:  # pragma: no cover - fail closed assertion
+        raise AssertionError("expected ValueError for URL userinfo")
+
+    assert os.environ["MLFLOW_ENABLE"] == "preexisting"
+    assert os.getenv("MLFLOW_EXPERIMENT") is None
+    assert os.getenv("CODEX_BYPASS") is None

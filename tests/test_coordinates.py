@@ -206,6 +206,19 @@ class TestGlobalEngine:
         assert engine1 is not engine2
         reset_embedding_engine()
 
+    def test_reset_embedding_engine_resets_detected_backend(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Reset clears both engine and backend auto-detection caches."""
+        monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "none")
+        reset_embedding_engine()
+        assert get_embedding_engine().backend == "none"
+
+        monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+        reset_embedding_engine()
+        assert get_embedding_engine().backend == "mock"
+        reset_embedding_engine()
+
 
 class TestEmbeddingResult:
     """Tests for EmbeddingResult class."""
@@ -548,6 +561,24 @@ class TestCoordinateIndex:
         # Results should be sorted by similarity descending
         for i in range(len(results) - 1):
             assert results[i].similarity >= results[i + 1].similarity
+
+    def test_search_negative_top_k_returns_empty(
+        self, index: CoordinateIndex, engine: EmbeddingEngine
+    ) -> None:
+        """SQLite search matches backend contract for negative result counts."""
+        for i in range(3):
+            index.upsert(
+                engine.embed_execution(
+                    run_id=f"test-{i}",
+                    input_text=f"input {i}",
+                    output_text="output",
+                    run_kind="test",
+                    provider="mock",
+                )
+            )
+
+        query_vec = engine.embed_text("input")
+        assert index.search(query_vec, top_k=-1) == []
 
     def test_search_with_filters(
         self, index: CoordinateIndex, engine: EmbeddingEngine

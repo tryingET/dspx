@@ -423,7 +423,7 @@ Frontends:
 - `just forge plan workorder.yaml`
 - `just forge route workorder.yaml` (show top-3 + override)
 - `just forge overlaps workorder.yaml`
-- `just forge issues apply workorder.yaml [--dry-run|--apply] [--project <key>] [--program <id>]`
+- `just forge issues apply workorder.yaml [--apply] [--project <key>] [--allow-network-mutate]` (default is dry-run)
 - `just forge issues close-duplicates workorder.yaml` (explicitly gated)
 
 Note: core CLI (`dspx`) no longer hosts `forge` subcommands on this branch.

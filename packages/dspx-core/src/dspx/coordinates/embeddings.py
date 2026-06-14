@@ -613,7 +613,8 @@ def get_embedding_engine(
 
 def reset_embedding_engine() -> None:
     """Reset the global embedding engine (mainly for testing)."""
-    global _ENGINE, _ENGINE_CONFIG
+    global _ENGINE, _ENGINE_CONFIG, _EMBEDDING_BACKEND
     with _ENGINE_LOCK:
         _ENGINE = None
         _ENGINE_CONFIG = None
+        _EMBEDDING_BACKEND = None

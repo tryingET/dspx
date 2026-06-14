@@ -374,6 +374,32 @@ def _schema_pattern_matches(pattern: str, value: str, *, path: str) -> bool:
         raise ValueError(f"{path}: invalid regex pattern") from exc
 
 
+def _schema_array_bound(
+    schema: Mapping[str, Any], name: str, *, path: str
+) -> int | None:
+    raw = schema.get(name)
+    if raw is None:
+        return None
+    if isinstance(raw, bool) or not isinstance(raw, int) or raw < 0:
+        raise ValueError(f"{path}: invalid {name}; expected non-negative integer")
+    return raw
+
+
+def _validate_array_bounds(
+    value: list[Any] | tuple[Any, ...], schema: Mapping[str, Any], *, path: str
+) -> None:
+    min_items = _schema_array_bound(schema, "minItems", path=path)
+    max_items = _schema_array_bound(schema, "maxItems", path=path)
+    if min_items is not None and max_items is not None and max_items < min_items:
+        raise ValueError(
+            f"{path}: invalid array bounds; maxItems is less than minItems"
+        )
+    if min_items is not None and len(value) < min_items:
+        raise ValueError(f"{path}: too few items (< minItems)")
+    if max_items is not None and len(value) > max_items:
+        raise ValueError(f"{path}: too many items (> maxItems)")
+
+
 def call_operation(
     request: OpenAPICallRequest,
     *,
@@ -422,6 +448,10 @@ def call_operation(
                 # Resolve $ref in parameter schema if present
                 if isinstance(schema, dict) and "$ref" in schema:
                     schema = _resolve_schema(schema, components)
+                if not isinstance(schema, Mapping):
+                    raise ValueError(
+                        f"Invalid schema for {where} param {p.get('name')}: expected object"
+                    )
                 t = schema.get("type")
                 enum = (
                     schema.get("enum") if isinstance(schema.get("enum"), list) else None
@@ -461,12 +491,21 @@ def call_operation(
                     )
                 elif t == "array":
                     items = schema.get("items") or {}
+                    if not isinstance(items, Mapping):
+                        raise ValueError(
+                            f"Invalid schema for {where} param {p.get('name')}: items must be object"
+                        )
                     itype = items.get("type")
                     # Expect list-like in params (programmatic usage)
                     if not isinstance(val, (list, tuple)):
                         raise ValueError(
                             f"Invalid type for query param {p.get('name')}: expected array/list"
                         )
+                    _validate_array_bounds(
+                        val,
+                        schema,
+                        path=f"{param_kind} {p.get('name')}",
+                    )
                     if itype == "integer":
                         for idx, el in enumerate(val):
                             coerced = _coerce_integer_value(
@@ -531,9 +570,6 @@ def call_operation(
     except ValueError:
         # Surface validation errors
         raise
-    except Exception:
-        # Be permissive by default; surface only obvious missing path params
-        pass
 
     # Request body schema validation (application/json)
     try:
@@ -975,15 +1011,7 @@ def _validate_json_value_against_schema(
                 _validate_json_value_against_schema(
                     el, items, path=f"{path}[{i}]", _depth=_depth + 1, _max=_max
                 )
-        # minItems/maxItems
-        if isinstance(schema.get("minItems"), (int, float)) and len(value) < int(
-            schema["minItems"]
-        ):
-            raise ValueError(f"{path}: too few items (< minItems)")
-        if isinstance(schema.get("maxItems"), (int, float)) and len(value) > int(
-            schema["maxItems"]
-        ):
-            raise ValueError(f"{path}: too many items (> maxItems)")
+        _validate_array_bounds(value, schema, path=path)
         return
 
     # Primitive types

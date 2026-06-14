@@ -647,7 +647,7 @@ class CoordinateIndex:
 
         # Sort by similarity descending
         results.sort(key=lambda r: r.similarity, reverse=True)
-        return results[:top_k]
+        return results[: max(top_k, 0)]
 
     def search_by_text(
         self,

@@ -90,6 +90,172 @@ def test_query_param_enum_and_array_validation(tmp_path: Path) -> None:
     assert res.status_code == 200 and res.body == {"ok": True}
 
 
+def test_query_array_bounds_are_enforced(tmp_path: Path) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "items",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "ids",
+                            "schema": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                                "minItems": 2,
+                                "maxItems": 3,
+                            },
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "spec_array_bounds.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+
+    with pytest.raises(ValueError, match="too few items"):
+        call_operation(
+            OpenAPICallRequest(operation_id="items", params={"ids": []}),
+            operation=ops["items"],
+            allowed_hosts={"http://api.example.com": True},
+            client=client,
+        )
+    with pytest.raises(ValueError, match="too many items"):
+        call_operation(
+            OpenAPICallRequest(operation_id="items", params={"ids": [1, 2, 3, 4]}),
+            operation=ops["items"],
+            allowed_hosts={"http://api.example.com": True},
+            client=client,
+        )
+
+    res = call_operation(
+        OpenAPICallRequest(operation_id="items", params={"ids": [1, 2]}),
+        operation=ops["items"],
+        allowed_hosts={"http://api.example.com": True},
+        client=client,
+    )
+    assert res.status_code == 200
+
+
+def test_query_array_malformed_bounds_fail_closed(tmp_path: Path) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "items",
+                    "parameters": [
+                        {
+                            "in": "query",
+                            "name": "ids",
+                            "schema": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                                "minItems": 1.5,
+                            },
+                        }
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "spec_array_bad_bounds.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+
+    called = False
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(200, request=request)
+
+    with pytest.raises(ValueError, match="invalid minItems"):
+        call_operation(
+            OpenAPICallRequest(operation_id="items", params={"ids": [1, 2]}),
+            operation=ops["items"],
+            allowed_hosts={"http://api.example.com": True},
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+    assert called is False
+
+
+def test_body_array_malformed_bounds_fail_closed() -> None:
+    from dspx.tools.openapi.caller import _validate_json_value_against_schema
+
+    with pytest.raises(ValueError, match="invalid minItems"):
+        _validate_json_value_against_schema(
+            [],
+            {"type": "array", "items": {"type": "string"}, "minItems": True},
+            path="body.tags",
+        )
+    with pytest.raises(ValueError, match="maxItems is less than minItems"):
+        _validate_json_value_against_schema(
+            ["a"],
+            {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 2,
+                "maxItems": 1,
+            },
+            path="body.tags",
+        )
+
+
+def test_malformed_parameter_schema_fails_closed_before_network(
+    tmp_path: Path,
+) -> None:
+    spec = {
+        "openapi": "3.0.0",
+        "servers": [{"url": "http://api.example.com"}],
+        "paths": {
+            "/items": {
+                "get": {
+                    "operationId": "items",
+                    "parameters": [
+                        {"in": "query", "name": "bad", "schema": "not-a-dict"},
+                        {
+                            "in": "query",
+                            "name": "must",
+                            "required": True,
+                            "schema": {"type": "string"},
+                        },
+                    ],
+                    "responses": {"200": {"description": "ok"}},
+                }
+            }
+        },
+    }
+    p = tmp_path / "spec_bad_param_schema.json"
+    p.write_text(json.dumps(spec), encoding="utf-8")
+    ops = extract_operations(load_spec(str(p)))
+
+    called = False
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
+        return httpx.Response(200, request=request)
+
+    with pytest.raises(ValueError, match="Invalid schema"):
+        call_operation(
+            OpenAPICallRequest(operation_id="items", params={"bad": "x"}),
+            operation=ops["items"],
+            allowed_hosts={"http://api.example.com": True},
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+    assert called is False
+
+
 def test_openapi_enum_validation_preserves_json_types() -> None:
     from dspx.tools.openapi.caller import _validate_json_value_against_schema
 

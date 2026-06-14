@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from dspx.security import reject_url_userinfo
+
 _CONFIG_MANAGED_VALUES: dict[str, str] = {}
 _SECRET_KEY_NAMES = {
     "access_token",
@@ -20,13 +22,84 @@ _SECRET_KEY_SUFFIXES = (
     "_secret",
     "_token",
 )
+_CONFIG_ENV_KEYS = (
+    "MLFLOW_ENABLE",
+    "MLFLOW_TRACKING_URI",
+    "MLFLOW_EXPERIMENT",
+    "MLFLOW_ARTIFACT_ROOT",
+    "CODEX_MODEL",
+    "CODEX_REASONING",
+    "CODEX_BYPASS",
+    "CODEX_SEARCH",
+    "OPENROUTER_BASE_URL",
+    "OPENROUTER_MODEL",
+    "OPENROUTER_TIMEOUT",
+    "OPENROUTER_HTTP_REFERER",
+    "OPENROUTER_APP_TITLE",
+    "DSPX_PI_PROVIDER",
+    "DSPX_PI_MODEL",
+    "DSPX_PI_THINKING",
+    "DSPX_PI_TIMEOUT",
+    "DSPX_PI_NO_TOOLS",
+    "DSPX_PI_NO_SESSION",
+    "DSPX_PI_DISABLE_RESOURCES",
+    "DSPX_LM_AUTH_MODEL",
+    "DSPX_LM_AUTH_PROVIDER",
+    "DSPX_LM_AUTH_STORAGE",
+    "DSPX_LM_AUTH_TIMEOUT",
+    "DSPX_LM_AUTH_STRICT",
+    "DSPX_LM_AUTH_TEMPERATURE",
+    "DSPX_LM_AUTH_MAX_TOKENS",
+    "DSPX_LM_AUTH_REASONING_EFFORT",
+    "DSPX_OPENAI_COMPAT_API_BASE",
+    "DSPX_OPENAI_COMPAT_MODEL",
+    "DSPX_OPENAI_COMPAT_TIMEOUT",
+    "DSPX_OPENAI_COMPAT_JSON_MODE",
+    "DSPX_VLLM_API_BASE",
+    "DSPX_VLLM_MODEL",
+    "DSPX_VLLM_TIMEOUT",
+    "DSPX_VLLM_JSON_MODE",
+    "DSPX_OPTIMIZE_STUDENT_PROVIDER",
+    "DSPX_OPTIMIZE_REFLECTION_PROVIDER",
+    "DSPX_PROVIDER",
+)
 
 
-def _coerce_bool(val: Any) -> str:
+def _coerce_bool(val: Any, *, label: str = "boolean config value") -> str:
     if isinstance(val, bool):
         return "1" if val else "0"
-    s = str(val).strip().lower()
-    return "0" if s in {"0", "false", "no", "off", ""} else "1"
+    if isinstance(val, int) and val in {0, 1}:
+        return "1" if val else "0"
+    if isinstance(val, str):
+        s = val.strip().lower()
+        if s in {"1", "true", "yes", "on"}:
+            return "1"
+        if s in {"0", "false", "no", "off", ""}:
+            return "0"
+    raise ValueError(
+        f"{label} must be a boolean or one of true/false, yes/no, on/off, 1/0"
+    )
+
+
+def _config_url(value: Any, *, label: str) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be a string URL/path value")
+    reject_url_userinfo(value, label=label)
+    return value
+
+
+def _restore_config_env(
+    env_snapshot: dict[str, str | None], managed_snapshot: dict[str, str]
+) -> None:
+    for key, previous in env_snapshot.items():
+        if previous is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = previous
+    _CONFIG_MANAGED_VALUES.clear()
+    _CONFIG_MANAGED_VALUES.update(managed_snapshot)
 
 
 def _set_config_value(key: str, value: Optional[str], *, seen_keys: set[str]) -> None:
@@ -173,211 +246,232 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     optimize = data.get("optimize", {}) if isinstance(data, dict) else {}
 
     seen_keys: set[str] = set()
+    env_snapshot = {key: os.environ.get(key) for key in _CONFIG_ENV_KEYS}
+    managed_snapshot = dict(_CONFIG_MANAGED_VALUES)
+    try:
+        # MLflow envs
+        _set_config_value(
+            "MLFLOW_ENABLE",
+            _coerce_bool(mlflow.get("enable", True), label="mlflow.enable"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "MLFLOW_TRACKING_URI",
+            _config_url(mlflow.get("tracking_uri"), label="mlflow.tracking_uri"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "MLFLOW_EXPERIMENT",
+            mlflow.get("experiment", "DSPy"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "MLFLOW_ARTIFACT_ROOT",
+            _config_url(mlflow.get("artifact_root"), label="mlflow.artifact_root"),
+            seen_keys=seen_keys,
+        )
 
-    # MLflow envs
-    _set_config_value(
-        "MLFLOW_ENABLE",
-        _coerce_bool(mlflow.get("enable", True)),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "MLFLOW_TRACKING_URI",
-        mlflow.get("tracking_uri"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "MLFLOW_EXPERIMENT",
-        mlflow.get("experiment", "DSPy"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "MLFLOW_ARTIFACT_ROOT",
-        mlflow.get("artifact_root"),
-        seen_keys=seen_keys,
-    )
+        # Codex Exec envs
+        _set_config_value("CODEX_MODEL", codex.get("model"), seen_keys=seen_keys)
+        _set_config_value(
+            "CODEX_REASONING",
+            codex.get("reasoning_effort"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "CODEX_BYPASS",
+            _coerce_bool(codex.get("bypass", False), label="codex.bypass"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "CODEX_SEARCH",
+            _coerce_bool(codex.get("search", False), label="codex.search"),
+            seen_keys=seen_keys,
+        )
 
-    # Codex Exec envs
-    _set_config_value("CODEX_MODEL", codex.get("model"), seen_keys=seen_keys)
-    _set_config_value(
-        "CODEX_REASONING",
-        codex.get("reasoning_effort"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "CODEX_BYPASS",
-        _coerce_bool(codex.get("bypass", False)),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "CODEX_SEARCH",
-        _coerce_bool(codex.get("search", False)),
-        seen_keys=seen_keys,
-    )
+        # OpenRouter envs (avoid secrets in TOML; API key should come from env/CI secrets)
+        _set_config_value(
+            "OPENROUTER_BASE_URL",
+            _config_url(openrouter.get("base_url"), label="openrouter.base_url"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "OPENROUTER_MODEL",
+            openrouter.get("model"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "OPENROUTER_TIMEOUT",
+            str(openrouter.get("timeout_s"))
+            if openrouter.get("timeout_s") is not None
+            else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "OPENROUTER_HTTP_REFERER",
+            _config_url(
+                openrouter.get("http_referer"), label="openrouter.http_referer"
+            ),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "OPENROUTER_APP_TITLE",
+            openrouter.get("app_title"),
+            seen_keys=seen_keys,
+        )
 
-    # OpenRouter envs (avoid secrets in TOML; API key should come from env/CI secrets)
-    _set_config_value(
-        "OPENROUTER_BASE_URL",
-        openrouter.get("base_url"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "OPENROUTER_MODEL",
-        openrouter.get("model"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "OPENROUTER_TIMEOUT",
-        str(openrouter.get("timeout_s"))
-        if openrouter.get("timeout_s") is not None
-        else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "OPENROUTER_HTTP_REFERER",
-        openrouter.get("http_referer"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "OPENROUTER_APP_TITLE",
-        openrouter.get("app_title"),
-        seen_keys=seen_keys,
-    )
+        # Pi RPC envs
+        _set_config_value(
+            "DSPX_PI_PROVIDER",
+            pi.get("provider"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value("DSPX_PI_MODEL", pi.get("model"), seen_keys=seen_keys)
+        _set_config_value(
+            "DSPX_PI_THINKING",
+            pi.get("thinking"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_PI_TIMEOUT",
+            str(pi.get("timeout_s")) if pi.get("timeout_s") is not None else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_PI_NO_TOOLS",
+            _coerce_bool(pi.get("no_tools"), label="pi.no_tools")
+            if "no_tools" in pi
+            else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_PI_NO_SESSION",
+            _coerce_bool(pi.get("no_session"), label="pi.no_session")
+            if "no_session" in pi
+            else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_PI_DISABLE_RESOURCES",
+            _coerce_bool(pi.get("disable_resources"), label="pi.disable_resources")
+            if "disable_resources" in pi
+            else None,
+            seen_keys=seen_keys,
+        )
 
-    # Pi RPC envs
-    _set_config_value(
-        "DSPX_PI_PROVIDER",
-        pi.get("provider"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value("DSPX_PI_MODEL", pi.get("model"), seen_keys=seen_keys)
-    _set_config_value(
-        "DSPX_PI_THINKING",
-        pi.get("thinking"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_PI_TIMEOUT",
-        str(pi.get("timeout_s")) if pi.get("timeout_s") is not None else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_PI_NO_TOOLS",
-        _coerce_bool(pi.get("no_tools")) if "no_tools" in pi else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_PI_NO_SESSION",
-        _coerce_bool(pi.get("no_session")) if "no_session" in pi else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_PI_DISABLE_RESOURCES",
-        _coerce_bool(pi.get("disable_resources"))
-        if "disable_resources" in pi
-        else None,
-        seen_keys=seen_keys,
-    )
+        # dspy-lm-auth envs
+        _set_config_value(
+            "DSPX_LM_AUTH_MODEL",
+            lm_auth.get("model"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_LM_AUTH_PROVIDER",
+            lm_auth.get("auth_provider"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_LM_AUTH_STORAGE",
+            lm_auth.get("auth_storage"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_LM_AUTH_TIMEOUT",
+            str(lm_auth.get("timeout_s"))
+            if lm_auth.get("timeout_s") is not None
+            else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_LM_AUTH_STRICT",
+            _coerce_bool(lm_auth.get("strict"), label="lm_auth.strict")
+            if "strict" in lm_auth
+            else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_LM_AUTH_TEMPERATURE",
+            str(lm_auth.get("temperature")) if "temperature" in lm_auth else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_LM_AUTH_MAX_TOKENS",
+            str(lm_auth.get("max_tokens")) if "max_tokens" in lm_auth else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_LM_AUTH_REASONING_EFFORT",
+            lm_auth.get("reasoning_effort"),
+            seen_keys=seen_keys,
+        )
 
-    # dspy-lm-auth envs
-    _set_config_value(
-        "DSPX_LM_AUTH_MODEL",
-        lm_auth.get("model"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_LM_AUTH_PROVIDER",
-        lm_auth.get("auth_provider"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_LM_AUTH_STORAGE",
-        lm_auth.get("auth_storage"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_LM_AUTH_TIMEOUT",
-        str(lm_auth.get("timeout_s")) if lm_auth.get("timeout_s") is not None else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_LM_AUTH_STRICT",
-        _coerce_bool(lm_auth.get("strict")) if "strict" in lm_auth else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_LM_AUTH_TEMPERATURE",
-        str(lm_auth.get("temperature")) if "temperature" in lm_auth else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_LM_AUTH_MAX_TOKENS",
-        str(lm_auth.get("max_tokens")) if "max_tokens" in lm_auth else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_LM_AUTH_REASONING_EFFORT",
-        lm_auth.get("reasoning_effort"),
-        seen_keys=seen_keys,
-    )
+        # Generic OpenAI-compatible envs (useful for local vLLM)
+        _set_config_value(
+            "DSPX_OPENAI_COMPAT_API_BASE",
+            _config_url(
+                openai_compatible.get("api_base"), label="openai_compatible.api_base"
+            ),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_OPENAI_COMPAT_MODEL",
+            openai_compatible.get("model"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_OPENAI_COMPAT_TIMEOUT",
+            str(openai_compatible.get("timeout_s"))
+            if openai_compatible.get("timeout_s") is not None
+            else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_OPENAI_COMPAT_JSON_MODE",
+            _coerce_bool(
+                openai_compatible.get("json_mode"), label="openai_compatible.json_mode"
+            )
+            if "json_mode" in openai_compatible
+            else None,
+            seen_keys=seen_keys,
+        )
 
-    # Generic OpenAI-compatible envs (useful for local vLLM)
-    _set_config_value(
-        "DSPX_OPENAI_COMPAT_API_BASE",
-        openai_compatible.get("api_base"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_OPENAI_COMPAT_MODEL",
-        openai_compatible.get("model"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_OPENAI_COMPAT_TIMEOUT",
-        str(openai_compatible.get("timeout_s"))
-        if openai_compatible.get("timeout_s") is not None
-        else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_OPENAI_COMPAT_JSON_MODE",
-        _coerce_bool(openai_compatible.get("json_mode"))
-        if "json_mode" in openai_compatible
-        else None,
-        seen_keys=seen_keys,
-    )
+        # Local vLLM convenience envs
+        _set_config_value(
+            "DSPX_VLLM_API_BASE",
+            _config_url(vllm.get("api_base"), label="vllm.api_base"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value("DSPX_VLLM_MODEL", vllm.get("model"), seen_keys=seen_keys)
+        _set_config_value(
+            "DSPX_VLLM_TIMEOUT",
+            str(vllm.get("timeout_s")) if vllm.get("timeout_s") is not None else None,
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_VLLM_JSON_MODE",
+            _coerce_bool(vllm.get("json_mode"), label="vllm.json_mode")
+            if "json_mode" in vllm
+            else None,
+            seen_keys=seen_keys,
+        )
 
-    # Local vLLM convenience envs
-    _set_config_value(
-        "DSPX_VLLM_API_BASE",
-        vllm.get("api_base"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value("DSPX_VLLM_MODEL", vllm.get("model"), seen_keys=seen_keys)
-    _set_config_value(
-        "DSPX_VLLM_TIMEOUT",
-        str(vllm.get("timeout_s")) if vllm.get("timeout_s") is not None else None,
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_VLLM_JSON_MODE",
-        _coerce_bool(vllm.get("json_mode")) if "json_mode" in vllm else None,
-        seen_keys=seen_keys,
-    )
+        # Optimization provider defaults
+        _set_config_value(
+            "DSPX_OPTIMIZE_STUDENT_PROVIDER",
+            optimize.get("student_provider"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_OPTIMIZE_REFLECTION_PROVIDER",
+            optimize.get("reflection_provider"),
+            seen_keys=seen_keys,
+        )
 
-    # Optimization provider defaults
-    _set_config_value(
-        "DSPX_OPTIMIZE_STUDENT_PROVIDER",
-        optimize.get("student_provider"),
-        seen_keys=seen_keys,
-    )
-    _set_config_value(
-        "DSPX_OPTIMIZE_REFLECTION_PROVIDER",
-        optimize.get("reflection_provider"),
-        seen_keys=seen_keys,
-    )
+        # Provider selection env
+        _set_config_value("DSPX_PROVIDER", provider.get("name"), seen_keys=seen_keys)
 
-    # Provider selection env
-    _set_config_value("DSPX_PROVIDER", provider.get("name"), seen_keys=seen_keys)
-
-    _refresh_removed_config_values(seen_keys)
+        _refresh_removed_config_values(seen_keys)
+    except Exception:
+        _restore_config_env(env_snapshot, managed_snapshot)
+        raise
     return data
