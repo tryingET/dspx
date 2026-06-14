@@ -13,6 +13,7 @@ from dspx.server.app import create_app
 @pytest.fixture(autouse=True)
 def _skip_server_auth_for_dev(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+    monkeypatch.setenv("DSPX_SERVER_HOST", "localhost")
 
 
 def _artifact_path(root: Path, rel_path: str | None) -> Path | None:

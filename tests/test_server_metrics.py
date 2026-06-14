@@ -9,6 +9,7 @@ from dspx.server.app import create_app
 @pytest.fixture(autouse=True)
 def _skip_server_auth_for_dev(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+    monkeypatch.setenv("DSPX_SERVER_HOST", "localhost")
 
 
 def test_metrics_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -10,6 +10,7 @@ from dspx.server.app import create_app
 def _server_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("DSPX_METRICS_ENABLED", "1")
     monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+    monkeypatch.setenv("DSPX_SERVER_HOST", "localhost")
 
 
 def test_metrics_json_default() -> None:

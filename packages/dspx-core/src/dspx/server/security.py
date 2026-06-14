@@ -69,6 +69,18 @@ def _extract_bearer_token(authorization_header: Optional[str]) -> Optional[str]:
     return token or None
 
 
+def _is_loopback_bind_host(host: Optional[str]) -> bool:
+    raw = str(host or "").strip().strip("[]").lower()
+    if not raw:
+        return False
+    if raw in {"localhost", "127.0.0.1", "::1"}:
+        return True
+    try:
+        return ipaddress.ip_address(raw).is_loopback
+    except ValueError:
+        return False
+
+
 @dataclass(frozen=True)
 class AuthConfig:
     tokens: Set[str]
@@ -92,6 +104,11 @@ class AuthConfig:
         if token_file_configured and tf is not None:
             tokens.update(_load_tokens_from_file(tf.strip()))
         skip_for_dev = _parse_bool_env(e.get("DSPX_AUTH_SKIP_FOR_DEV"), False)
+        if skip_for_dev and not _is_loopback_bind_host(e.get("DSPX_SERVER_HOST")):
+            raise AuthConfigError(
+                "DSPX_AUTH_SKIP_FOR_DEV=1 is local-only; "
+                "DSPX_SERVER_HOST must be explicitly set to localhost or a loopback address"
+            )
         required = (
             False
             if skip_for_dev

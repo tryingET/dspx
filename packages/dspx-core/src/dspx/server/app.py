@@ -617,6 +617,7 @@ def main() -> None:
     - DSPX_SERVER_PORT (default 33213)
     """
     host = os.getenv("DSPX_SERVER_HOST", "localhost")
+    os.environ.setdefault("DSPX_SERVER_HOST", host)
     port = int(os.getenv("DSPX_SERVER_PORT", "33213"))
     try:
         from granian import Granian

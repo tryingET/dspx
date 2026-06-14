@@ -57,6 +57,7 @@ Auth (Bearer tokens)
 
 Fail-closed startup rule:
 - if auth remains required and no tokens are configured, the server refuses to start
+- `DSPX_AUTH_SKIP_FOR_DEV=1` is accepted only when `DSPX_SERVER_HOST` is explicitly set to `localhost` or a loopback address; the `dspx-server` launcher sets its default `localhost` bind into env before app creation
 - use `DSPX_AUTH_SKIP_FOR_DEV=1` only for intentional local development bypasses, not for shared or production-like deployments
 
 Mutation confirmation

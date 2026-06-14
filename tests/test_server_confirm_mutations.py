@@ -11,6 +11,7 @@ from dspx.server.app import create_app
 @pytest.fixture(autouse=True)
 def _skip_server_auth_for_dev(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+    monkeypatch.setenv("DSPX_SERVER_HOST", "localhost")
 
 
 def _configure_server_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -4,9 +4,11 @@ import csv
 import logging
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 import dspx.policy as policy
+import dspx.tools.registry as registry
 from dspx.pi_rpc_lm import PiRPCLM
 from dspx.tools.registry import _data_preview
 
@@ -86,3 +88,43 @@ def test_data_preview_bounds_rows_and_cell_sizes(tmp_path, monkeypatch) -> None:
     assert len(preview["rows"]) == 50
     assert str(preview["rows"][0]["note"]).endswith("…[truncated]")
     assert len(str(preview["rows"][0]["note"])) <= 260
+
+
+def test_data_preview_rejects_oversized_json_fallback_without_full_read(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    path = tmp_path / "data.json"
+    path.write_text('[{"id": 1}, {"id": 2}]', encoding="utf-8")
+    monkeypatch.setenv("DSPX_FILESYSTEM_ROOT", str(tmp_path))
+    monkeypatch.setattr(registry, "_MAX_FULL_JSON_PREVIEW_BYTES", 1)
+    calls: list[dict[str, object]] = []
+
+    def fake_read_json(*args, **kwargs):
+        calls.append(dict(kwargs))
+        raise ValueError("not jsonl")
+
+    monkeypatch.setattr(registry.pd, "read_json", fake_read_json)
+
+    with pytest.raises(ValueError, match="JSON preview.*limited"):
+        registry._data_preview(str(path), nrows=1)
+
+    assert calls == []
+
+
+def test_data_preview_parquet_reads_only_bounded_batch(tmp_path, monkeypatch) -> None:
+    pytest.importorskip("pyarrow")
+    path = tmp_path / "data.parquet"
+    pd.DataFrame([{"id": 1}, {"id": 2}]).to_parquet(path)
+    monkeypatch.setenv("DSPX_FILESYSTEM_ROOT", str(tmp_path))
+
+    def fail_if_used(*args, **kwargs):
+        raise AssertionError("pd.read_parquet loads the whole file")
+
+    monkeypatch.setattr(registry.pd, "read_parquet", fail_if_used)
+
+    preview = registry._data_preview(str(path), nrows=1)
+
+    assert preview["type"] == "parquet"
+    assert preview["columns"] == ["id"]
+    assert preview["rows"] == [{"id": 1}]

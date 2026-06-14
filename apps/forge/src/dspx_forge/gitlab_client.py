@@ -17,8 +17,8 @@ from dspx.security import url_origin_allowed
 from dspx.policy import (
     allow_network_mutate as _policy_allow_mutate,
     allowed_http_methods as _policy_allowed_methods,
+    bypass as _policy_bypass,
     disallowed_http_methods as _policy_disallowed_methods,
-    enforce_network_mutate as _policy_enforce_mutate,
 )
 
 
@@ -181,19 +181,20 @@ class GitLabClient:
         allow_set = _policy_allowed_methods()
         deny_set = _policy_disallowed_methods()
         m = method.upper()
-        if allow_set is not None and m not in allow_set:
-            raise PermissionError(f"HTTP method '{m}' not allowed by policy")
-        if m in deny_set:
-            raise PermissionError(f"HTTP method '{m}' denied by policy")
+        if not _policy_bypass():
+            if allow_set is not None and m not in allow_set:
+                raise PermissionError(f"HTTP method '{m}' not allowed by policy")
+            if m in deny_set:
+                raise PermissionError(f"HTTP method '{m}' denied by policy")
 
         from dspx.policy import check_capability
 
         check_capability(_capability_for_method(m))
 
         if (
-            _policy_enforce_mutate()
-            and m in {"POST", "PUT", "PATCH", "DELETE"}
+            m in {"POST", "PUT", "PATCH", "DELETE"}
             and not _policy_allow_mutate()
+            and not _policy_bypass()
         ):
             raise PermissionError(
                 f"Mutating HTTP method '{m}' requires DSPX_POLICY_ALLOW_NETWORK_MUTATE=1"

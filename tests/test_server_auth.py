@@ -18,6 +18,7 @@ def clear_auth_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         "DSPX_SERVER_TOKEN_FILE",
         "DSPX_AUTH_REQUIRED",
         "DSPX_AUTH_SKIP_FOR_DEV",
+        "DSPX_SERVER_HOST",
     ]:
         monkeypatch.delenv(k, raising=False)
     yield
@@ -37,12 +38,33 @@ def test_auth_skip_for_dev_allows_requests(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+    monkeypatch.setenv("DSPX_SERVER_HOST", "localhost")
     client = _client()
     r = client.post(
         "/signature",
         json={"prompt": "echo", "template_version": "simple-v1"},
     )
     assert r.status_code == 200
+
+
+def test_auth_skip_for_dev_rejects_non_loopback_bind_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+    monkeypatch.setenv("DSPX_SERVER_HOST", "0.0.0.0")
+
+    with pytest.raises(AuthConfigError, match="local-only"):
+        create_app()
+
+
+def test_auth_skip_for_dev_requires_explicit_loopback_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+    monkeypatch.delenv("DSPX_SERVER_HOST", raising=False)
+
+    with pytest.raises(AuthConfigError, match="explicitly set"):
+        create_app()
 
 
 def test_auth_required_missing_and_wrong_token(monkeypatch: pytest.MonkeyPatch) -> None:

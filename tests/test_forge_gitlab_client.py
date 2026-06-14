@@ -236,3 +236,97 @@ def test_gitlab_client_list_issues_follows_pagination() -> None:
 
     assert [issue["iid"] for issue in issues] == [1, 2]
     assert seen_pages == ["1", "2"]
+
+
+@pytest.mark.forge
+def test_gitlab_client_denies_mutating_requests_without_explicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", raising=False)
+    monkeypatch.delenv("DSPX_POLICY_ENFORCE_NETWORK_MUTATE", raising=False)
+    monkeypatch.delenv("DSPX_POLICY_BYPASS", raising=False)
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(201, json={"iid": 1}, request=request)
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"https://gitlab.example.com"},
+        default_labels=[],
+    )
+    client = GitLabClient(
+        cfg,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    with pytest.raises(PermissionError, match="DSPX_POLICY_ALLOW_NETWORK_MUTATE=1"):
+        client.create_issue(101, title="T", description="D", labels=[])
+
+    assert seen == []
+
+
+@pytest.mark.forge
+def test_gitlab_client_allows_mutating_requests_with_explicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(201, json={"iid": 1}, request=request)
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"https://gitlab.example.com"},
+        default_labels=[],
+    )
+    client = GitLabClient(
+        cfg,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = client.create_issue(101, title="T", description="D", labels=[])
+
+    assert result == {"iid": 1}
+    assert seen == ["https://gitlab.example.com/api/v4/projects/101/issues"]
+
+
+@pytest.mark.forge
+def test_gitlab_client_global_policy_bypass_allows_mutating_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", raising=False)
+    monkeypatch.setenv("DSPX_POLICY_BYPASS", "1")
+    monkeypatch.setenv("DSPX_POLICY_DISALLOWED_HTTP_METHODS", "POST")
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(201, json={"iid": 1}, request=request)
+
+    cfg = GitLabConfig(
+        base_url="https://gitlab.example.com",
+        token="tok",
+        project_map={"core": 101},
+        allowed_project_keys=None,
+        allowed_hosts={"https://gitlab.example.com"},
+        default_labels=[],
+    )
+    client = GitLabClient(
+        cfg,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = client.create_issue(101, title="T", description="D", labels=[])
+
+    assert result == {"iid": 1}
+    assert seen == ["https://gitlab.example.com/api/v4/projects/101/issues"]

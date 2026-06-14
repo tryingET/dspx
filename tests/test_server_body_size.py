@@ -29,6 +29,7 @@ def _clear_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         "DSPX_SERVER_TOKEN_FILE",
         "DSPX_AUTH_REQUIRED",
         "DSPX_AUTH_SKIP_FOR_DEV",
+        "DSPX_SERVER_HOST",
         "DSPX_BODY_SIZE_LIMIT_ENABLED",
         "DSPX_MAX_BODY_SIZE",
         "DSPX_METRICS_ENABLED",
@@ -45,6 +46,7 @@ def make_client(
 
     def _factory(**overrides: str) -> TestClient:
         monkeypatch.setenv("DSPX_AUTH_SKIP_FOR_DEV", "1")
+        monkeypatch.setenv("DSPX_SERVER_HOST", "localhost")
         for k, v in overrides.items():
             monkeypatch.setenv(k, v)
         return TestClient(create_app())

@@ -27,6 +27,7 @@ _TOOL_DESCRIPTORS: Dict[str, ToolDescriptor] = {}
 _TOOLS_LOCK = threading.RLock()
 _MAX_PREVIEW_ROWS = 50
 _MAX_PREVIEW_VALUE_CHARS = 240
+_MAX_FULL_JSON_PREVIEW_BYTES = 1_000_000
 
 
 def _filesystem_read_root() -> Path:
@@ -522,11 +523,22 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
                 "rows": _preview_rows(df, nrows=bounded_rows),
             }
         )
-    elif lower.endswith(".json") or lower.endswith(".jsonl"):
-        try:
-            df = pd.read_json(confined_path, lines=True, nrows=bounded_rows)
-        except ValueError:
-            df = pd.read_json(confined_path)
+    elif lower.endswith(".jsonl"):
+        df = pd.read_json(confined_path, lines=True, nrows=bounded_rows)
+        out.update(
+            {
+                "type": "json",
+                "columns": [str(col) for col in df.columns.tolist()],
+                "rows": _preview_rows(df, nrows=bounded_rows),
+            }
+        )
+    elif lower.endswith(".json"):
+        if confined_path.stat().st_size > _MAX_FULL_JSON_PREVIEW_BYTES:
+            raise ValueError(
+                "JSON preview for non-JSONL files is limited to "
+                f"{_MAX_FULL_JSON_PREVIEW_BYTES} bytes"
+            )
+        df = pd.read_json(confined_path)
         out.update(
             {
                 "type": "json",
@@ -535,11 +547,19 @@ def _data_preview(path: str, *, nrows: int = 5) -> Dict[str, Any]:
             }
         )
     elif lower.endswith(".parquet"):
-        df = pd.read_parquet(confined_path)
+        try:
+            import pyarrow.parquet as pq
+        except Exception as exc:
+            raise RuntimeError("Parquet preview requires pyarrow") from exc
+        parquet_file = pq.ParquetFile(confined_path)
+        batch = next(parquet_file.iter_batches(batch_size=bounded_rows), None)
+        df = batch.to_pandas() if batch is not None else pd.DataFrame()
+        raw_columns = df.columns.tolist() or parquet_file.schema.names
+        columns = [str(col) for col in raw_columns]
         out.update(
             {
                 "type": "parquet",
-                "columns": [str(col) for col in df.columns.tolist()],
+                "columns": columns,
                 "rows": _preview_rows(df, nrows=bounded_rows),
             }
         )
