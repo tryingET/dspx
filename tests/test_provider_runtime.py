@@ -26,6 +26,8 @@ class _ProviderWithSecrets:
                 "X-Test": "ok",
             },
             "nested": {"token": "supersecret-token"},
+            "auth_storage": "/home/example/.pi/agent/auth.json",
+            "auth_storage_exists": True,
         }
 
 
@@ -37,6 +39,8 @@ def test_provider_metadata_from_instance_sanitizes_runtime_metadata() -> None:
     dumped = json.dumps(payload)
     assert "supersecret" not in dumped
     assert payload["runtime"]["headers"]["Authorization"] == "[REDACTED]"
+    assert payload["runtime"]["auth_storage"] == "[REDACTED]"
+    assert payload["runtime"]["auth_storage_exists"] == "[REDACTED]"
     assert "[REDACTED]" in payload["runtime"]["base_url"]
 
 
@@ -99,7 +103,12 @@ def test_benchmark_providers_sanitizes_last_text_and_errors(monkeypatch) -> None
     monkeypatch.setattr(provider_runtime, "ensure_default_providers", lambda: None)
     monkeypatch.setattr(provider_runtime, "create", lambda _name: _BenchmarkProvider())
 
-    payload = provider_runtime.benchmark_providers(["fake"], prompt="hello", repeats=2)
+    payload = provider_runtime.benchmark_providers(
+        ["fake"], prompt="hello api_key=supersecret-prompt", repeats=2
+    )
+
+    assert payload["prompt"] == "hello api_key=[REDACTED]"
+    assert payload["prompt_raw_persisted"] is False
 
     dumped = json.dumps(payload)
     row = payload["results"][0]

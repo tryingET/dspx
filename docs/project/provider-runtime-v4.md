@@ -73,9 +73,11 @@ just dspx providers resolve --provider dspy-lm-auth --json
 
 In the JSON payload, confirm:
 - `runtime.provider_family == "dspy-lm-auth"`
-- `runtime.auth_storage == "/home/<you>/.pi/agent/auth.json"` (or your explicit override)
-- `runtime.auth_storage_exists == true`
+- `runtime.auth_storage == "[REDACTED]"`
+- `runtime.auth_storage_exists == "[REDACTED]"`
 - `runtime.requested_model` is the model you expect
+
+DSPx intentionally does not expose local credential-store paths or existence bits in provider diagnostics. Use the health check below to prove credential usability without publishing local auth topology.
 
 Then prove the auth-backed route can actually use those credentials:
 
@@ -92,7 +94,7 @@ Interpretation:
 - if `DSPX_PROVIDER=vllm-local`, the run is local and does **not** use your Pi auth-backed subscription
 - in the mixed optimize profile, the usual split is: student = `vllm-local`, reflection = `dspy-lm-auth`; that means only the reflection path uses the auth-backed route
 
-Run receipts also record safe provider details such as `provider`, `requested_model`, `auth_storage`, and `auth_storage_exists`, so you can confirm after the fact which route a DSPx run used without exposing secrets.
+Run receipts record safe provider details such as `provider` and `requested_model`; credential-store path and existence fields are retained only as redacted markers (`[REDACTED]`) so receipts can identify the route without exposing local auth topology.
 
 ## Verified local setup snapshot
 

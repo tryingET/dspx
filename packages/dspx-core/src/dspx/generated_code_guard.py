@@ -12,6 +12,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
 
+from dspx.redaction import sanitize_diagnostic_text
+
 _SAFE_IMPORT_MODULES = frozenset(
     {
         "__future__",
@@ -102,6 +104,12 @@ _FORBIDDEN_FUNCTION_BODY_NODES = (
 )
 
 
+def _smoke_exception_marker(prefix: str, exc: BaseException) -> str:
+    """Return a bounded generated-code smoke error without exception contents."""
+
+    return f"{prefix}:{exc.__class__.__name__}"
+
+
 def isolated_subprocess_env(
     extra_env: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
@@ -181,10 +189,7 @@ def smoke_module_code(
 
 
 def _bounded_worker_error(text: str, *, limit: int = 240) -> str:
-    compact = str(text or "").strip()
-    if len(compact) <= limit:
-        return compact
-    return compact[:limit] + "…[truncated]"
+    return sanitize_diagnostic_text(str(text or "").strip(), limit=limit)
 
 
 def _run_worker(
@@ -483,6 +488,10 @@ def _validate_generated_function_body(
                     f"{label}_dunder_attribute_not_allowed:{node.name}:{child.attr}"
                 )
                 continue
+        if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
+            if child.id == "__builtins__" or child.id in _DENIED_FUNCTION_CALLS:
+                errors.append(f"{label}_name_not_allowed:{node.name}:{child.id}")
+                continue
         if isinstance(child, ast.Subscript):
             value_name = _call_name(child.value)
             if value_name == "__builtins__":
@@ -638,22 +647,13 @@ def _install_runtime_guards() -> Mapping[str, Any]:
         raise PermissionError(f"dynamic_import_denied_during_smoke:{root or 'unknown'}")
 
     def _guard_open(file, mode="r", *args, **kwargs):
-        mode_str = str(mode or "r")
-        if any(flag in mode_str for flag in ("w", "a", "x", "+")):
-            raise PermissionError("filesystem_write_denied_during_smoke")
-        return original_open(file, mode, *args, **kwargs)
+        raise PermissionError("filesystem_access_denied_during_smoke")
 
     def _guard_io_open(file, mode="r", *args, **kwargs):
-        mode_str = str(mode or "r")
-        if any(flag in mode_str for flag in ("w", "a", "x", "+")):
-            raise PermissionError("filesystem_write_denied_during_smoke")
-        return original_io_open(file, mode, *args, **kwargs)
+        raise PermissionError("filesystem_access_denied_during_smoke")
 
     def _guard_path_open(self, mode="r", *args, **kwargs):
-        mode_str = str(mode or "r")
-        if any(flag in mode_str for flag in ("w", "a", "x", "+")):
-            raise PermissionError("filesystem_write_denied_during_smoke")
-        return original_path_open(self, mode, *args, **kwargs)
+        raise PermissionError("filesystem_access_denied_during_smoke")
 
     builtins.__import__ = cast(Any, _guard_import)
     builtins.open = cast(Any, _guard_open)
@@ -753,8 +753,8 @@ def _run_signature_worker(code: str, payload: Mapping[str, Any]) -> dict[str, An
     try:
         try:
             exec(code, namespace, namespace)
-        except Exception as exc:
-            return {"ok": False, "errors": [f"exec_error:{exc}"]}
+        except BaseException as exc:
+            return {"ok": False, "errors": [_smoke_exception_marker("exec_error", exc)]}
     finally:
         _restore_runtime_guards(originals)
 
@@ -798,16 +798,24 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
 
     try:
         import dspy
-    except Exception as exc:
-        return {"ok": False, "checks": checks, "errors": [f"dspy_import_error:{exc}"]}
+    except BaseException as exc:
+        return {
+            "ok": False,
+            "checks": checks,
+            "errors": [_smoke_exception_marker("dspy_import_error", exc)],
+        }
 
     namespace: dict[str, Any] = {}
     originals = _install_runtime_guards()
     try:
         try:
             exec(code, namespace, namespace)
-        except Exception as exc:
-            return {"ok": False, "checks": checks, "errors": [f"exec_error:{exc}"]}
+        except BaseException as exc:
+            return {
+                "ok": False,
+                "checks": checks,
+                "errors": [_smoke_exception_marker("exec_error", exc)],
+            }
 
         expected_module = str(payload.get("expected_module") or "")
         expected_inputs = [str(item) for item in (payload.get("inputs") or [])]
@@ -851,8 +859,8 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
                     errors.append("build_student_not_module")
                 if getattr(student, "predict", None) is None:
                     errors.append("predict_missing")
-            except Exception as exc:
-                errors.append(f"build_student_error:{exc}")
+            except BaseException as exc:
+                errors.append(_smoke_exception_marker("build_student_error", exc))
                 student = None
 
         if student is not None:
@@ -890,8 +898,8 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
                     errors.append("forward_did_not_call_predict")
                 elif capture.calls[-1] != sample_inputs:
                     errors.append("forward_input_mapping_mismatch")
-            except Exception as exc:
-                errors.append(f"forward_error:{exc}")
+            except BaseException as exc:
+                errors.append(_smoke_exception_marker("forward_error", exc))
 
         io_spec = namespace.get("io_spec")
         if not callable(io_spec):
@@ -903,8 +911,8 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
                     "outputs": expected_outputs,
                 }:
                     errors.append("io_spec_mismatch")
-            except Exception as exc:
-                errors.append(f"io_spec_error:{exc}")
+            except BaseException as exc:
+                errors.append(_smoke_exception_marker("io_spec_error", exc))
 
         output_weights = namespace.get("output_weights")
         if not callable(output_weights):
@@ -916,8 +924,8 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
                     expected_outputs
                 ):
                     errors.append("output_weights_mismatch")
-            except Exception as exc:
-                errors.append(f"output_weights_error:{exc}")
+            except BaseException as exc:
+                errors.append(_smoke_exception_marker("output_weights_error", exc))
 
         normalize_output = namespace.get("normalize_output")
         if not callable(normalize_output):
@@ -937,8 +945,8 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
                     and normalized == ("gold", "pred")
                 ):
                     errors.append("normalize_output_mismatch")
-            except Exception as exc:
-                errors.append(f"normalize_output_error:{exc}")
+            except BaseException as exc:
+                errors.append(_smoke_exception_marker("normalize_output_error", exc))
     finally:
         _restore_runtime_guards(originals)
 

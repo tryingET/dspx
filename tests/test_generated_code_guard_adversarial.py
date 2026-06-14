@@ -211,7 +211,38 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
     errors = _validate_module_source(code)
 
     assert "method_builtins_subscript_not_allowed:forward" in errors
-    assert "method_call_not_allowed:forward:unknown" in errors
+    assert "method_name_not_allowed:forward:__builtins__" in errors
+
+
+def test_generated_module_guard_rejects_builtins_alias_file_read_escape() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x):
+        b = __builtins__
+        o = b["open"]
+        raise Exception(o("/etc/hostname").read().strip())
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    errors = _validate_module_source(code)
+
+    assert "method_name_not_allowed:forward:__builtins__" in errors
 
 
 def test_generated_module_smoke_does_not_allow_low_level_os_write_escape() -> None:
@@ -253,6 +284,74 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
     assert checks["module-smoke"] is False
     assert "method_builtins_subscript_not_allowed:forward" in errors
     assert not probe.exists()
+
+
+def test_generated_module_smoke_redacts_generated_exception_contents() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x):
+        raise Exception("api_key=supersecret-value")
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    ok, checks, errors = smoke_module_code(
+        code,
+        payload={"expected_module": "MyModule", "inputs": ["x"], "outputs": ["y"]},
+    )
+
+    assert ok is False
+    assert checks["module-smoke"] is False
+    assert errors == ["forward_error:Exception"]
+
+
+def test_generated_module_smoke_handles_base_exception_without_raw_stderr() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x):
+        raise SystemExit("api_key=supersecret-value")
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    ok, checks, errors = smoke_module_code(
+        code,
+        payload={"expected_module": "MyModule", "inputs": ["x"], "outputs": ["y"]},
+    )
+
+    assert ok is False
+    assert checks["module-smoke"] is False
+    assert errors == ["forward_error:SystemExit"]
 
 
 def test_generated_module_smoke_timeout_returns_structured_failure() -> None:

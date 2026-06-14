@@ -4,13 +4,12 @@ import importlib
 import threading
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 from dspx.capabilities import ProviderCapabilities
 from dspx.dtos import LMRequest, LMResponse
 from dspx.lm_base import LMBase
-from dspx.redaction import redact_headers
+from dspx.redaction import redact_headers, sanitize_diagnostic_text
 
 try:
     from dspx.policy import check_capability as _check_capability
@@ -367,17 +366,12 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         return None
 
     def runtime_metadata(self) -> dict[str, Any]:
-        storage_path = (
-            Path(self.auth_storage).expanduser()
-            if self.auth_storage
-            else Path("~/.pi/agent/auth.json").expanduser()
-        )
         data: dict[str, Any] = {
             "provider_family": "dspy-lm-auth",
             "requested_model": self.requested_model,
             "auth_provider": self.auth_provider,
-            "auth_storage": str(storage_path),
-            "auth_storage_exists": storage_path.exists(),
+            "auth_storage": "[REDACTED]",
+            "auth_storage_exists": "[REDACTED]",
             "timeout": self.timeout,
         }
         if self._resolved_model:
@@ -410,10 +404,11 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 {"name": "dependency", "ok": True, "detail": "dspy-lm-auth import ok"}
             )
         except Exception as e:
+            error = sanitize_diagnostic_text(str(e))
             payload["ok"] = False
-            payload["error"] = str(e)
+            payload["error"] = error
             payload["checks"].append(
-                {"name": "dependency", "ok": False, "detail": str(e)}
+                {"name": "dependency", "ok": False, "detail": error}
             )
             return payload
 
@@ -434,15 +429,16 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             )
             if not has_auth:
                 payload["ok"] = False
-                payload["error"] = (
+                payload["error"] = sanitize_diagnostic_text(
                     f"no credentials available for auth provider '{provider}'"
                 )
                 return payload
         except Exception as e:
+            error = sanitize_diagnostic_text(str(e))
             payload["ok"] = False
-            payload["error"] = str(e)
+            payload["error"] = error
             payload["checks"].append(
-                {"name": "credentials", "ok": False, "detail": str(e)}
+                {"name": "credentials", "ok": False, "detail": error}
             )
             return payload
 
@@ -454,16 +450,17 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 payload["probe"] = {
                     "ok": True,
                     "duration_ms": round((time.time() - started) * 1000.0, 3),
-                    "text": text,
+                    "text": sanitize_diagnostic_text(text),
                 }
             except Exception as e:
+                error = sanitize_diagnostic_text(str(e))
                 payload["ok"] = False
                 payload["probe"] = {
                     "ok": False,
                     "duration_ms": round((time.time() - started) * 1000.0, 3),
-                    "error": str(e),
+                    "error": error,
                 }
-                payload["error"] = str(e)
+                payload["error"] = error
         return payload
 
     def forward(
@@ -506,7 +503,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 raw=resp,
             )
         except Exception as e:
-            err = str(e)
+            err = sanitize_diagnostic_text(str(e))
             text = err
             usage = None
             if self.strict:

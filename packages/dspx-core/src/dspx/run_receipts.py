@@ -520,17 +520,12 @@ def _current_provider_details() -> dict[str, Any]:
     }
 
     if provider == "dspy-lm-auth":
-        storage = str(
-            Path(
-                os.getenv("DSPX_LM_AUTH_STORAGE") or "~/.pi/agent/auth.json"
-            ).expanduser()
-        )
         details.update(
             {
                 "requested_model": os.getenv("DSPX_LM_AUTH_MODEL") or "codex/gpt-5.5",
                 "auth_provider": os.getenv("DSPX_LM_AUTH_PROVIDER") or None,
-                "auth_storage": storage,
-                "auth_storage_exists": Path(storage).exists(),
+                "auth_storage": "[REDACTED]",
+                "auth_storage_exists": "[REDACTED]",
                 "timeout": os.getenv("DSPX_LM_AUTH_TIMEOUT") or None,
             }
         )

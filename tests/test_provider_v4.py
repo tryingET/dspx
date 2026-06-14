@@ -124,7 +124,8 @@ def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -
 
     health = lm.healthcheck()
     assert health["ok"] is True
-    assert health["metadata"]["auth_storage_exists"] is True
+    assert health["metadata"]["auth_storage"] == "[REDACTED]"
+    assert health["metadata"]["auth_storage_exists"] == "[REDACTED]"
 
     assert lm.capabilities.supports_vision is True
 
@@ -136,20 +137,57 @@ def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -
     assert runtime["resolved_headers"]["Authorization"] == "[REDACTED]"
 
 
+def test_dspy_lm_auth_healthcheck_redacts_probe_text(monkeypatch) -> None:
+    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
+
+    lm = DspyLMAuthLM(auth_provider="codex")
+
+    health = lm.healthcheck(probe=True, prompt="api_key=supersecret-value")
+
+    assert health["ok"] is True
+    assert health["probe"]["text"] == "auth:api_key=[REDACTED]"
+    assert "supersecret" not in json.dumps(health)
+
+
+def test_dspy_lm_auth_healthcheck_redacts_direct_errors(monkeypatch) -> None:
+    class BadAuthStorage:
+        def __init__(self, path=None):
+            self.path = path
+
+        def has_auth(self, provider: str) -> bool:
+            raise RuntimeError(
+                f"auth_storage=/tmp/secret-auth.json api_key=supersecret-{provider}"
+            )
+
+    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=BadAuthStorage)
+    monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
+
+    lm = DspyLMAuthLM(auth_provider="codex", auth_storage="/tmp/secret-auth.json")
+
+    health = lm.healthcheck()
+
+    assert health["ok"] is False
+    assert "supersecret" not in json.dumps(health)
+    assert "[REDACTED]" in health["error"]
+    assert health["checks"][-1]["detail"] == health["error"]
+
+
 def test_dspy_lm_auth_generate_preserves_non_strict_error_payload(monkeypatch) -> None:
     class BadInner:
         def forward(self, **kwargs):
-            raise RuntimeError("boom")
+            raise RuntimeError("boom api_key=supersecret-value")
 
     lm = DspyLMAuthLM(strict=False)
     monkeypatch.setattr(lm, "_build_inner", lambda: BadInner())
 
     result = lm.generate(LMRequest(prompt="hello"))
 
-    assert result.outputs == ["boom"]
+    assert result.outputs == ["boom api_key=[REDACTED]"]
     assert result.raw is not None
     assert result.raw["_dspx_error"] is True
     assert result.raw["_dspx_error_type"] == "RuntimeError"
+    assert "supersecret" not in json.dumps(result.raw)
 
 
 def test_dspy_lm_auth_wrapper_import_error_mentions_repo_helper(monkeypatch) -> None:
@@ -699,7 +737,8 @@ def test_run_receipt_includes_redacted_provider_details(
     details = receipt["provider_details"]
     assert details["provider"] == "dspy-lm-auth"
     assert details["requested_model"] == "codex/gpt-5.4-mini"
-    assert details["auth_storage_exists"] is True
+    assert details["auth_storage"] == "[REDACTED]"
+    assert details["auth_storage_exists"] == "[REDACTED]"
     assert "secret" not in json.dumps(details)
 
 

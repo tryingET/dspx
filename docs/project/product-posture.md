@@ -113,6 +113,14 @@ The atomic boundary-completion pass moved DSPx from direct-call/path happy-path 
 
 Proof now exists in focused alias/dynamic-lookup/path-escape/collision/redaction/allowlist/Forged-URL regressions plus wider OpenAPI fixture realignment to exact HTTP origins where cleartext transport is intentional. The implementation was checked through `just loop-verify-fast`, `just verify-full`, and `just loop-landing-check`. This clarifies a product boundary: replay receipts, generated artifacts, tool descriptors, server persistence, and Forge manifests are evidence/provenance surfaces, not places where raw user prompts, ambient credentials, traversal strings, or representation aliases may silently widen authority. The main remaining gap is future-seam consistency: the next high-leverage product slice should reuse these boundary primitives rather than re-implement local checks when adding richer execution episodes, guided refinement, optimizer-to-candidate materialization, or review/promotion flow.
 
+## Diagnostic egress posture — 2026-06-14
+
+DSPx's provider/generated-code diagnostic boundary is now more mature: generated-code smoke checks reject surfaced `__builtins__` alias escapes, deny filesystem reads as well as writes during smoke, catch generated `BaseException` paths without leaking raw worker stderr/stdout, and return class-only smoke failure markers. Provider benchmark summaries, `dspy-lm-auth` runtime metadata/healthcheck/probe/non-strict error paths, and run receipts now redact prompt secrets and local auth-storage topology instead of publishing raw prompts, credential-store paths, or existence bits.
+
+Proof now exists in focused generated-code/provider-runtime/provider-v4 regressions, docs alignment for redacted auth diagnostics, a subagent review follow-up pass over the uncommitted diff, and repo loop validation through `just loop-verify-fast`, `just loop-impact-wide` (wide because run receipts/docs/provider/generated-code surfaces crossed multiple impact groups and required `just verify-full`), and `just loop-landing-check`.
+
+This clarifies the product/source-owner boundary: DSPx may emit local diagnostics, health summaries, receipts, and empirical evidence, but those outputs are not authority to reveal operator-local credential topology or raw generated-code/provider exception payloads. Credential usability should be proven by bounded health/probe checks, while credential location/existence remains private. The main remaining gap is future egress consistency: every new provider, receipt, generated-worker, publication/export, or direct-LM API path should route diagnostic text and topology-like fields through shared redaction/bounding before treating the output as safe evidence.
+
 ## Product maturity map
 
 | Area | Current posture | Target posture | Main gap | Proof of closure |

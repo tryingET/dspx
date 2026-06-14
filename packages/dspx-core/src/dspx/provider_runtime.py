@@ -16,20 +16,32 @@ _SENSITIVE_FIELD_NAMES = {
     "access_token",
     "api_key",
     "apikey",
+    "auth_storage",
+    "auth_storage_exists",
     "authorization",
+    "credential_path",
+    "credential_storage",
+    "credentials_path",
     "cookie",
     "password",
     "proxy-authorization",
     "secret",
+    "secret_path",
     "set-cookie",
     "token",
+    "token_path",
 }
 _SENSITIVE_FIELD_SUFFIXES = (
     "_access_token",
     "_api_key",
+    "_auth_storage",
+    "_credential_path",
+    "_credentials_path",
     "_password",
     "_secret",
+    "_secret_path",
     "_token",
+    "_token_path",
 )
 
 
@@ -354,7 +366,8 @@ def benchmark_providers(
     )
     return {
         "providers": list(providers),
-        "prompt": prompt,
+        "prompt": _sanitize_text(prompt),
+        "prompt_raw_persisted": False,
         "repeats": repeats,
         "warmup": warmup,
         "results": results,
