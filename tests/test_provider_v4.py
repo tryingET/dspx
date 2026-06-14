@@ -498,6 +498,32 @@ def test_cli_providers_resolve_and_benchmark(monkeypatch, tmp_path: Path) -> Non
     assert summary.exists()
 
 
+def test_cli_providers_smoke_json_sanitizes_and_fails_nonzero(monkeypatch) -> None:
+    class _FailingProvider:
+        model = "fake/model"
+
+        def forward(self, **kwargs):  # noqa: ANN001
+            raise RuntimeError("provider failed api_key=supersecret-value")
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setattr(provider_registry, "ensure_default_providers", lambda: None)
+    monkeypatch.setattr(
+        provider_registry,
+        "create_from_env",
+        lambda default="pi-rpc": _FailingProvider(),
+    )
+
+    result = runner.invoke(
+        app, ["providers", "smoke", "hi", "--provider", "stub", "--json"]
+    )
+
+    assert result.exit_code == 2
+    assert "supersecret" not in result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert payload["error"] == "provider failed api_key=[REDACTED]"
+
+
 def test_cli_provider_capabilities_match_runtime_json_mode(monkeypatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "vllm-local")

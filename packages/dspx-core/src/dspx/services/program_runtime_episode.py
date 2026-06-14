@@ -1130,6 +1130,20 @@ def run_program_runtime_episode(
         raise ValueError(
             "contract_mode must be one of: " + ", ".join(sorted(CONTRACT_MODES))
         )
+    if publication_preflight_out is not None and not all(
+        [
+            publication_target,
+            publication_label,
+            publisher_id,
+            publisher_role,
+            publisher_assertion,
+            redaction_status,
+            retention_class,
+        ]
+    ):
+        raise ValueError(
+            "publication preflight requires target, label, publisher fields, redaction_status, and retention_class"
+        )
     source_manifest_path = manifest_path.expanduser().resolve()
     candidate_root = source_manifest_path.parent
     manifest = _validated_manifest(source_manifest_path)
@@ -1355,20 +1369,6 @@ def run_program_runtime_episode(
 
     publication_preflight: dict[str, Any] | None = None
     if publication_preflight_out is not None:
-        if not all(
-            [
-                publication_target,
-                publication_label,
-                publisher_id,
-                publisher_role,
-                publisher_assertion,
-                redaction_status,
-                retention_class,
-            ]
-        ):
-            raise ValueError(
-                "publication preflight requires target, label, publisher fields, redaction_status, and retention_class"
-            )
         publication_preflight = build_program_oracle_publication_preflight(
             manifest_path=runtime_manifest_path,
             target=str(publication_target),

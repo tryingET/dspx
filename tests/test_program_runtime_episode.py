@@ -237,6 +237,28 @@ def test_program_runtime_episode_can_write_shared_publication_preflight(
     assert packet["effect"]["shared_oracle_mutated"] is False
 
 
+def test_program_runtime_episode_preflight_args_fail_before_writing_artifacts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    candidate = _generated_candidate(tmp_path)
+    inputs = tmp_path / "runtime-inputs.json"
+    inputs.write_text(
+        json.dumps({"ticket_text": "Server is down for all users"}), encoding="utf-8"
+    )
+    runtime_dir = tmp_path / "runtime-episode"
+
+    with pytest.raises(ValueError, match="publication preflight requires"):
+        run_program_runtime_episode(
+            manifest_path=candidate / "manifest.json",
+            inputs_path=inputs,
+            outdir=runtime_dir,
+            publication_preflight_out=runtime_dir / "publication-preflight.json",
+        )
+
+    assert not runtime_dir.exists()
+
+
 def test_program_runtime_episode_rejects_tampered_candidate_surface(
     tmp_path: Path, monkeypatch
 ) -> None:

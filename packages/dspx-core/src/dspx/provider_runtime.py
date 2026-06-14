@@ -45,10 +45,18 @@ _SENSITIVE_FIELD_SUFFIXES = (
 )
 
 
+def _normalized_field_name(name: str) -> str:
+    return str(name or "").strip().lower().replace("-", "_").replace(".", "_")
+
+
 def _looks_sensitive_field(name: str) -> bool:
     lowered = str(name or "").strip().lower()
-    return lowered in _SENSITIVE_FIELD_NAMES or lowered.endswith(
-        _SENSITIVE_FIELD_SUFFIXES
+    normalized = _normalized_field_name(name)
+    return (
+        lowered in _SENSITIVE_FIELD_NAMES
+        or normalized in _SENSITIVE_FIELD_NAMES
+        or lowered.endswith(_SENSITIVE_FIELD_SUFFIXES)
+        or normalized.endswith(_SENSITIVE_FIELD_SUFFIXES)
     )
 
 
@@ -58,7 +66,7 @@ def _truncate_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
     return text[:limit] + "…[truncated]"
 
 
-def _sanitize_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
+def sanitize_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
     return sanitize_diagnostic_text(text, limit=limit)
 
 
@@ -71,7 +79,7 @@ def _sanitize_mapping(value: MappingABC[str, Any]) -> dict[str, Any]:
             break
         key_text = str(key)
         lowered = key_text.lower()
-        if key_text == "headers" and isinstance(item, MappingABC):
+        if lowered == "headers" and isinstance(item, MappingABC):
             out[key_text] = redact_headers(
                 {str(header): str(val) for header, val in item.items()}
             )
@@ -84,24 +92,28 @@ def _sanitize_mapping(value: MappingABC[str, Any]) -> dict[str, Any]:
         ):
             out[key_text] = _truncate_text(redact_url(item))
             continue
-        out[key_text] = _sanitize_payload(item)
+        out[key_text] = sanitize_payload(item)
     return out
 
 
-def _sanitize_payload(value: Any) -> Any:
+def sanitize_payload(value: Any) -> Any:
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
-        return _sanitize_text(value)
+        return sanitize_text(value)
     if isinstance(value, MappingABC):
         return _sanitize_mapping({str(key): item for key, item in value.items()})
     if isinstance(value, (list, tuple, set)):
         items = list(value)
-        sanitized = [_sanitize_payload(item) for item in items[:_MAX_COLLECTION_ITEMS]]
+        sanitized = [sanitize_payload(item) for item in items[:_MAX_COLLECTION_ITEMS]]
         if len(items) > _MAX_COLLECTION_ITEMS:
             sanitized.append(f"…[{len(items) - _MAX_COLLECTION_ITEMS} more items]")
         return sanitized
-    return _sanitize_text(str(value))
+    return sanitize_text(str(value))
+
+
+_sanitize_text = sanitize_text
+_sanitize_payload = sanitize_payload
 
 
 def extract_text_from_result(result: Any) -> str:
@@ -165,9 +177,9 @@ def provider_metadata_from_instance(provider: str, lm: Any) -> dict[str, Any]:
     meta_fn = getattr(lm, "runtime_metadata", None)
     if callable(meta_fn):
         try:
-            payload["runtime"] = _sanitize_payload(meta_fn())
+            payload["runtime"] = sanitize_payload(meta_fn())
         except Exception as e:
-            payload["runtime_error"] = _sanitize_text(str(e))
+            payload["runtime_error"] = sanitize_text(str(e))
     return payload
 
 
@@ -211,7 +223,7 @@ def check_provider_health(
         return {
             "ok": False,
             "provider": provider,
-            "error": _sanitize_text(str(e)),
+            "error": sanitize_text(str(e)),
             "duration_ms": round((time.time() - started) * 1000.0, 3),
         }
 
@@ -220,12 +232,12 @@ def check_provider_health(
         try:
             raw_payload = health_fn(probe=probe, prompt=prompt, max_tokens=max_tokens)
         except Exception as e:
-            return _sanitize_payload(
+            return sanitize_payload(
                 {
                     "ok": False,
                     "provider": provider,
                     "status": "error",
-                    "error": _sanitize_text(str(e)),
+                    "error": sanitize_text(str(e)),
                     "duration_ms": round((time.time() - started) * 1000.0, 3),
                     "metadata": provider_metadata_from_instance(provider, lm),
                 }
@@ -245,7 +257,7 @@ def check_provider_health(
             payload["provider"] = provider
         if "metadata" not in payload:
             payload["metadata"] = provider_metadata_from_instance(provider, lm)
-        return _sanitize_payload(payload)
+        return sanitize_payload(payload)
 
     payload = provider_metadata_from_instance(provider, lm)
     payload.update(
@@ -266,12 +278,12 @@ def check_provider_health(
             payload["status"] = "ok"
             payload["probe"] = {
                 "ok": True,
-                "text": _sanitize_text(text),
-                "usage": _sanitize_payload(usage),
+                "text": sanitize_text(text),
+                "usage": sanitize_payload(usage),
                 "duration_ms": round((time.time() - probe_started) * 1000.0, 3),
             }
         except Exception as e:
-            sanitized_error = _sanitize_text(str(e))
+            sanitized_error = sanitize_text(str(e))
             payload["ok"] = False
             payload["error"] = sanitized_error
             payload["probe"] = {
@@ -279,7 +291,7 @@ def check_provider_health(
                 "error": sanitized_error,
                 "duration_ms": round((time.time() - probe_started) * 1000.0, 3),
             }
-    return _sanitize_payload(payload)
+    return sanitize_payload(payload)
 
 
 def benchmark_providers(
@@ -304,7 +316,7 @@ def benchmark_providers(
             item.update(
                 {
                     "ok": False,
-                    "error": _sanitize_text(str(e)),
+                    "error": sanitize_text(str(e)),
                     "durations_ms": [],
                     "successes": 0,
                     "failures": repeats,
@@ -327,10 +339,10 @@ def benchmark_providers(
             try:
                 text, _usage = invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
                 durations.append((time.time() - t0) * 1000.0)
-                last_text = _sanitize_text(text)
+                last_text = sanitize_text(text)
             except Exception as e:
                 durations.append((time.time() - t0) * 1000.0)
-                errors.append(_sanitize_text(str(e)))
+                errors.append(sanitize_text(str(e)))
 
         successes = max(0, repeats - len(errors))
         item.update(
@@ -366,7 +378,7 @@ def benchmark_providers(
     )
     return {
         "providers": list(providers),
-        "prompt": _sanitize_text(prompt),
+        "prompt": sanitize_text(prompt),
         "prompt_raw_persisted": False,
         "repeats": repeats,
         "warmup": warmup,

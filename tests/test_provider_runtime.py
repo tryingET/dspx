@@ -25,6 +25,12 @@ class _ProviderWithSecrets:
                 "Authorization": "Bearer supersecret-token",
                 "X-Test": "ok",
             },
+            "Headers": {
+                "Authorization": "Bearer supersecret-token",
+                "X-Api-Key": "supersecret-token",
+            },
+            "api-key": "supersecret-token",
+            "x-api-key": "supersecret-token",
             "nested": {"token": "supersecret-token"},
             "auth_storage": "/home/example/.pi/agent/auth.json",
             "auth_storage_exists": True,
@@ -39,6 +45,9 @@ def test_provider_metadata_from_instance_sanitizes_runtime_metadata() -> None:
     dumped = json.dumps(payload)
     assert "supersecret" not in dumped
     assert payload["runtime"]["headers"]["Authorization"] == "[REDACTED]"
+    assert payload["runtime"]["Headers"]["X-Api-Key"] == "[REDACTED]"
+    assert payload["runtime"]["api-key"] == "[REDACTED]"
+    assert payload["runtime"]["x-api-key"] == "[REDACTED]"
     assert payload["runtime"]["auth_storage"] == "[REDACTED]"
     assert payload["runtime"]["auth_storage_exists"] == "[REDACTED]"
     assert "[REDACTED]" in payload["runtime"]["base_url"]

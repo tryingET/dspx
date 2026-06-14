@@ -462,6 +462,11 @@ def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
             "pytest_provider_runtime",
         ),
         (
+            "packages/dspx-core/src/dspx/providers_register_openrouter.py",
+            "provider_boundary",
+            "pytest_provider_runtime",
+        ),
+        (
             "packages/dspx-core/src/dspx/openai_compatible_lm.py",
             "provider_boundary",
             "pytest_provider_runtime",

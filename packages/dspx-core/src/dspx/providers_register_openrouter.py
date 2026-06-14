@@ -31,6 +31,10 @@ def _factory() -> OpenRouterLM:
 
 def register() -> None:
     caps = ProviderCapabilities(
-        supports_tools=False, code_exec=False, json_mode=True, multi_turn=True
+        supports_tools=False,
+        code_exec=False,
+        json_mode=False,
+        multi_turn=True,
+        structured_output_format="none",
     )
     register_provider("openrouter", _factory, caps)

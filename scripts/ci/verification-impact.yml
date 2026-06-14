@@ -166,6 +166,16 @@ rules:
       - pytest_provider_runtime
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/providers_register_*.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
+      - pytest_provider_v4
+
   - match: "packages/dspx-core/src/dspx/redaction.py"
     category: provider_boundary
     impact_group: provider_runtime

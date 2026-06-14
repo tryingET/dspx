@@ -5,13 +5,30 @@ import pytest
 
 from dspx.dtos import LMRequest
 from dspx.openrouter_lm import OpenRouterLM, _extract_text
-from dspx.provider_registry import ensure_default_providers, create
+from dspx.provider_registry import capabilities, ensure_default_providers, create
 
 
 def test_provider_registry_includes_openrouter() -> None:
     ensure_default_providers()
     lm = create("openrouter")
     assert lm is not None
+
+
+def test_openrouter_registry_capabilities_match_runtime_capabilities() -> None:
+    ensure_default_providers()
+    registered = capabilities("openrouter")
+    lm = create("openrouter")
+
+    assert isinstance(lm, OpenRouterLM)
+    runtime_caps = getattr(lm, "capabilities")
+
+    assert registered.json_mode is False
+    assert runtime_caps.json_mode is False
+    assert (
+        registered.structured_output_format
+        == runtime_caps.structured_output_format
+        == "none"
+    )
 
 
 def test_openrouter_extract_text_from_openai_like_response() -> None:

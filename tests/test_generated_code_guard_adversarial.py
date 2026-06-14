@@ -71,6 +71,63 @@ class UnsafeSig(dspy.Signature):
     assert "signature_annotation_not_allowed:text" in errors
 
 
+def test_generated_module_guard_allows_input_argument_name() -> None:
+    code = """
+import dspy
+
+class MySignature(dspy.Signature):
+    input: str = dspy.InputField()
+    answer: str = dspy.OutputField()
+
+class MyModule(dspy.Module):
+    def forward(self, input: str) -> dict[str, str]:
+        return {"answer": input}
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["input"], "outputs": ["answer"]}
+
+def output_weights():
+    return {"answer": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    errors = _validate_module_source(code)
+
+    assert errors == []
+
+
+def test_generated_module_guard_still_rejects_input_builtin_call() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def forward(self, x: str) -> str:
+        return input("secret: ")
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    errors = _validate_module_source(code)
+
+    assert "method_name_not_allowed:forward:input" in errors
+    assert "method_call_not_allowed:forward:input" in errors
+
+
 def test_generated_module_guard_rejects_executable_method_annotations() -> None:
     code = """
 import dspy

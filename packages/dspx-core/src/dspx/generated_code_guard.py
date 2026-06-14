@@ -465,12 +465,26 @@ def _validate_function_annotations(
         errors.append(f"{label}_return_annotation_not_allowed:{node.name}")
 
 
+def _function_argument_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    args = [
+        *node.args.posonlyargs,
+        *node.args.args,
+        *node.args.kwonlyargs,
+    ]
+    if node.args.vararg is not None:
+        args.append(node.args.vararg)
+    if node.args.kwarg is not None:
+        args.append(node.args.kwarg)
+    return {arg.arg for arg in args}
+
+
 def _validate_generated_function_body(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
     *,
     errors: list[str],
     label: str,
 ) -> None:
+    argument_names = _function_argument_names(node)
     for child in ast.walk(node):
         if child is node:
             continue
@@ -489,7 +503,9 @@ def _validate_generated_function_body(
                 )
                 continue
         if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
-            if child.id == "__builtins__" or child.id in _DENIED_FUNCTION_CALLS:
+            if child.id == "__builtins__" or (
+                child.id in _DENIED_FUNCTION_CALLS and child.id not in argument_names
+            ):
                 errors.append(f"{label}_name_not_allowed:{node.name}:{child.id}")
                 continue
         if isinstance(child, ast.Subscript):

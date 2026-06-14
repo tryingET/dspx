@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional, TypeVar, ParamSpec, cast
 import typer
 
 from dspx.config_loader import load_config_env
-from dspx.provider_runtime import _sanitize_text
+from dspx.provider_runtime import sanitize_text
 from dspx.tracing import enable_mlflow_from_env
 
 P = ParamSpec("P")
@@ -145,7 +145,7 @@ def with_template_config(
 def sanitize_cli_error(value: object) -> str:
     """Return a concise CLI-safe diagnostic with secrets redacted."""
 
-    return _sanitize_text(str(value))
+    return sanitize_text(str(value))
 
 
 def output_json(data: Any, json_out: bool, default_text: Optional[str] = None) -> None:

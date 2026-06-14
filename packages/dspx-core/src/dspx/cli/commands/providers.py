@@ -158,8 +158,8 @@ def providers_smoke(
     json_out: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Smoke test a provider with a simple prompt."""
-    from dspx.dtos import LMRequest
     from dspx.provider_registry import ensure_default_providers, create_from_env
+    from dspx.provider_runtime import invoke_provider, sanitize_payload, sanitize_text
 
     ensure_env(provider)
     ensure_default_providers()
@@ -179,7 +179,7 @@ def providers_smoke(
             os.environ[env_k] = secs
 
     name = provider or os.getenv("DSPX_PROVIDER") or "pi-rpc"
-    lm = cast(Any, create_from_env(default="pi-rpc"))
+    lm: Any | None = None
 
     t0 = time.time()
     text = ""
@@ -187,36 +187,28 @@ def providers_smoke(
     err = None
 
     try:
-        if hasattr(lm, "generate"):
-            try:
-                res = lm.generate(LMRequest(prompt=prompt), max_tokens=max_tokens)
-            except TypeError:
-                res = lm.generate(LMRequest(prompt=prompt))
-            text = str((getattr(res, "outputs", None) or [""])[0]).strip()
-        else:
-            try:
-                resp = lm.forward(prompt=prompt, max_tokens=max_tokens)
-            except TypeError:
-                resp = lm.forward(prompt=prompt)
-            try:
-                text = str(((resp.get("choices") or [{}])[0]).get("text") or "").strip()
-            except Exception:
-                text = str(resp).strip()
+        lm = cast(Any, create_from_env(default="pi-rpc"))
+        text, _usage = invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
         ok = True
     except Exception as e:
-        err = str(e)
+        err = sanitize_text(str(e))
 
     t1 = time.time()
     duration_ms: float = (t1 - t0) * 1000.0
 
-    payload = {
-        "ok": ok,
-        "provider": name,
-        "model": getattr(lm, "model", None),
-        "duration_ms": duration_ms,
-        "text": text,
-        "error": err,
-    }
+    payload = cast(
+        dict[str, Any],
+        sanitize_payload(
+            {
+                "ok": ok,
+                "provider": name,
+                "model": getattr(lm, "model", None) if lm is not None else None,
+                "duration_ms": duration_ms,
+                "text": text,
+                "error": err,
+            }
+        ),
+    )
 
     # Best-effort MLflow logging (only when a run is active).
     try:
@@ -246,10 +238,11 @@ def providers_smoke(
             typer.echo(
                 f"ok provider={name} model={payload['model']} duration_ms={payload['duration_ms']:.1f}"
             )
-            typer.echo(text)
+            typer.echo(str(payload.get("text") or ""))
         else:
-            typer.echo(f"error provider={name}: {err}", err=True)
-            raise typer.Exit(code=2)
+            typer.echo(f"error provider={name}: {payload.get('error')}", err=True)
+    if not ok:
+        raise typer.Exit(code=2)
 
 
 @app.command("benchmark")

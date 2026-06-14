@@ -121,6 +121,12 @@ Proof now exists in focused generated-code/provider-runtime/provider-v4 regressi
 
 This clarifies the product/source-owner boundary: DSPx may emit local diagnostics, health summaries, receipts, and empirical evidence, but those outputs are not authority to reveal operator-local credential topology or raw generated-code/provider exception payloads. Credential usability should be proven by bounded health/probe checks, while credential location/existence remains private. The main remaining gap is future egress consistency: every new provider, receipt, generated-worker, publication/export, or direct-LM API path should route diagnostic text and topology-like fields through shared redaction/bounding before treating the output as safe evidence.
 
+## Provider/runtime boundary atomicity posture — 2026-06-14
+
+DSPx's provider and generated-runtime boundary is now more mature at the "failure-shaped evidence" seam: provider smoke JSON failures preserve non-zero exit semantics while redacting diagnostic text, provider diagnostic sanitization is case- and separator-aware for header/secret-shaped keys, generated-code guards distinguish legitimate `input` field/argument names from builtin `input()` calls, OpenRouter registry capabilities now match runtime JSON-mode truth, and runtime publication-preflight metadata is validated before runtime evidence artifacts are written. The impact planner now recognizes provider registration files as provider-boundary changes rather than treating them as unmapped paths.
+
+Proof now exists in focused provider-runtime/provider-v4/OpenRouter/generated-code/runtime-episode/impact-map regressions and wide loop validation through `just loop-impact-wide` including `just verify-full`, plus `just loop-landing-check`. This clarifies the product/source-owner boundary: DSPx may emit local diagnostics, capability metadata, runtime episodes, and validation plans as evidence, but failure outputs must not masquerade as successful gates, provider registry declarations must not drift from runtime capabilities, and local sidecar generation must validate authority-adjacent preflight metadata before creating success-shaped artifacts. The main remaining gap is future boundary consistency: every new provider, CLI JSON output, sidecar writer, and impact-map rule should preserve sanitize-before-emit, validate-before-effects, registry/runtime capability parity, and honest wide/full escalation.
+
 ## Product maturity map
 
 | Area | Current posture | Target posture | Main gap | Proof of closure |
