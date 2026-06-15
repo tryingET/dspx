@@ -77,6 +77,120 @@ def optimize_gepa(
         typer.echo(str(result_out.expanduser().resolve()))
 
 
+@app.command("episode")
+def episode(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to an existing program-candidate-assembly-v1 manifest.json",
+    ),
+    oracle_report: Path = typer.Option(
+        ...,
+        "--oracle-report",
+        help="Path to explicit non-authoritative Oracle program-evidence report JSON",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        help="Directory where local refinement-episode sidecars should be written",
+    ),
+    decision_outcome: str = typer.Option(
+        ...,
+        "--decision-outcome",
+        help="Explicit local decision outcome; use request_more_evidence to generate a second candidate",
+    ),
+    decided_by: str = typer.Option(
+        ...,
+        "--decided-by",
+        help="Explicit local operator/adjudicator identifier for the decision record",
+    ),
+    rationale: str = typer.Option(
+        ...,
+        "--rationale",
+        help="Explicit rationale for the local decision record",
+    ),
+    generate_second_candidate: bool = typer.Option(
+        True,
+        "--generate-second-candidate/--no-generate-second-candidate",
+        help="When true, materialize one local second candidate and compare it; requires request_more_evidence",
+    ),
+    proposal_out: Path | None = typer.Option(
+        None,
+        "--proposal-out",
+        help="Optional explicit path for the refinement proposal sidecar",
+    ),
+    review_out: Path | None = typer.Option(
+        None,
+        "--review-out",
+        help="Optional explicit path for the refined promotion-review packet",
+    ),
+    decision_out: Path | None = typer.Option(
+        None,
+        "--decision-out",
+        help="Optional explicit path for the local decision record",
+    ),
+    comparison_out: Path | None = typer.Option(
+        None,
+        "--comparison-out",
+        help="Optional explicit path for the candidate comparison sidecar",
+    ),
+    state_out: Path | None = typer.Option(
+        None,
+        "--state-out",
+        help="Optional explicit path for the refreshed candidate-state summary",
+    ),
+    workflow_out: Path | None = typer.Option(
+        None,
+        "--workflow-out",
+        help="Optional explicit path for the refinement episode summary",
+    ),
+    second_candidate_outdir: Path | None = typer.Option(
+        None,
+        "--second-candidate-outdir",
+        help="Optional directory where the second candidate assembly is materialized",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print workflow JSON"),
+) -> None:
+    """Run one guided local refinement episode without authority effects."""
+    from dspx.services.program_refinement_episode import (
+        ProgramRefinementEpisodeError,
+        run_program_refinement_episode,
+    )
+
+    try:
+        payload = run_program_refinement_episode(
+            manifest_path=manifest,
+            oracle_report_path=oracle_report,
+            sidecar_outdir=outdir,
+            decision_outcome=decision_outcome,
+            decided_by=decided_by,
+            rationale=rationale,
+            generate_second_candidate=generate_second_candidate,
+            proposal_out=proposal_out,
+            review_out=review_out,
+            decision_out=decision_out,
+            comparison_out=comparison_out,
+            state_out=state_out,
+            workflow_out=workflow_out,
+            second_candidate_outdir=second_candidate_outdir,
+        )
+    except ProgramRefinementEpisodeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: program refinement episode failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(payload.get("workflow_path") or workflow_out or outdir))
+        decision = (payload.get("steps") or {}).get("decision_record") or {}
+        state = (payload.get("steps") or {}).get("candidate_state") or {}
+        typer.echo(f"decision: {decision.get('outcome')}")
+        typer.echo(f"candidate_state: {state.get('status')}")
+
+
 @app.command("propose")
 def propose(
     manifest: Path = typer.Option(

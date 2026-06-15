@@ -433,6 +433,7 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "-q",
             "tests/test_program_refinement_candidate.py",
             "tests/test_program_refinement_comparison.py",
+            "tests/test_program_refinement_episode.py",
             "tests/test_program_promotion_plan.py",
         ],
         "refinement candidate/comparison seam changed",

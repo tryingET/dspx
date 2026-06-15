@@ -365,6 +365,24 @@ def test_activation_packet_service_change_is_mapped_without_full_verification() 
     ]
 
 
+def test_program_refine_cli_change_routes_to_refinement_candidates() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/cli/commands/program_refine.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert "verify_full" not in _command_ids(plan)
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_oracle_refinement",
+        "pytest_refinement_candidate_comparison",
+        "pytest_program_sidecar_boundaries",
+    ]
+    classification = plan["classifications"][0]
+    assert classification["category"] == "program_refinement_cli"
+
+
 def test_refinement_comparison_and_test_change_deduplicate_commands() -> None:
     plan = _plan(
         "packages/dspx-core/src/dspx/services/program_refinement_comparison.py",
@@ -500,6 +518,11 @@ def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
             "packages/dspx-core/src/dspx/services/program_promotion.py",
             "python_service",
             "pytest_promotion_plan_adjacent",
+        ),
+        (
+            "packages/dspx-core/src/dspx/services/program_refinement_episode.py",
+            "python_service",
+            "pytest_refinement_candidate_comparison",
         ),
         (
             "packages/dspx-core/src/dspx/tools/openapi/loader.py",
