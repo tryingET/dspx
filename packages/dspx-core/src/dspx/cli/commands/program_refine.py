@@ -144,6 +144,26 @@ def episode(
         "--workflow-out",
         help="Optional explicit path for the refinement episode summary",
     ),
+    promotion_plan: bool = typer.Option(
+        False,
+        "--promotion-plan/--no-promotion-plan",
+        help="Optionally write a local non-authoritative promotion/adjudication plan over the second candidate",
+    ),
+    promotion_plan_target: str | None = typer.Option(
+        None,
+        "--promotion-plan-target",
+        help="Required with --promotion-plan; local plan target such as local_preferred_candidate",
+    ),
+    promotion_plan_authority_owner: str | None = typer.Option(
+        None,
+        "--promotion-plan-authority-owner",
+        help="Required with --promotion-plan; explicit local authority-owner identifier",
+    ),
+    promotion_plan_out: Path | None = typer.Option(
+        None,
+        "--promotion-plan-out",
+        help="Optional explicit path for the local promotion/adjudication plan sidecar",
+    ),
     second_candidate_outdir: Path | None = typer.Option(
         None,
         "--second-candidate-outdir",
@@ -173,6 +193,10 @@ def episode(
             state_out=state_out,
             workflow_out=workflow_out,
             second_candidate_outdir=second_candidate_outdir,
+            generate_promotion_plan=promotion_plan,
+            promotion_plan_target=promotion_plan_target,
+            promotion_plan_authority_owner=promotion_plan_authority_owner,
+            promotion_plan_out=promotion_plan_out,
         )
     except ProgramRefinementEpisodeError as exc:
         typer.echo(f"Error: {exc}", err=True)

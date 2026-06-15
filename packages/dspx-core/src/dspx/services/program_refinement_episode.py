@@ -13,6 +13,11 @@ from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
     write_program_promotion_decision_record,
 )
+from dspx.services.program_promotion_plan import (
+    SUPPORTED_LOCAL_TARGETS,
+    build_program_promotion_plan,
+    write_program_promotion_plan,
+)
 from dspx.services.program_promotion_refinement import (
     build_program_promotion_refinement,
     write_program_promotion_refinement,
@@ -28,6 +33,22 @@ from dspx.services.program_refinement_workflow import (
 
 PROGRAM_REFINEMENT_EPISODE_SCHEMA = "program-refinement-episode-v1"
 
+_PROMOTION_PLAN_FORBIDDEN_OUTPUT_NAMES = frozenset(
+    {
+        "manifest.json",
+        "manifest.json.meta.json",
+        "program.py",
+        "module.py",
+        "signature.py",
+        "eval_examples.py",
+        "eval_behavior.py",
+        "behavior_results.json",
+        "behavior_episode.json",
+        "oracle_evidence.json",
+        "execution_episode.json",
+    }
+)
+
 
 class ProgramRefinementEpisodeError(ValueError):
     """Raised when a guided local refinement episode cannot safely run."""
@@ -41,6 +62,44 @@ def _safe_mapping(value: object) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         return {}
     return {str(key): item for key, item in value.items()}
+
+
+def _first_text(*values: object) -> str | None:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return None
+
+
+def _identity_from_manifest(manifest: Mapping[str, Any]) -> dict[str, str | None]:
+    request = _safe_mapping(manifest.get("request"))
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    return {
+        "request_id": _first_text(
+            request.get("request_id"),
+            candidate_assembly.get("request_id"),
+            execution_episode.get("request_id"),
+            receipt_bundle.get("request_id"),
+        ),
+        "candidate_id": _first_text(
+            candidate_assembly.get("candidate_id"),
+            execution_episode.get("candidate_id"),
+            receipt_bundle.get("candidate_id"),
+        ),
+        "assembly_id": _first_text(
+            candidate_assembly.get("assembly_id"),
+            execution_episode.get("assembly_id"),
+            receipt_bundle.get("assembly_id"),
+        ),
+        "episode_id": _first_text(
+            execution_episode.get("episode_id"),
+            receipt_bundle.get("episode_id"),
+        ),
+        "receipt_bundle_id": _first_text(receipt_bundle.get("receipt_bundle_id")),
+    }
 
 
 def _safe_rel(path: Path, root: Path) -> str:
@@ -58,6 +117,7 @@ def _default_paths(sidecar_outdir: Path) -> dict[str, Path]:
         "comparison_out": sidecar_outdir / "program_candidate_comparison.json",
         "state_out": sidecar_outdir / "program_candidate_state.refinement.json",
         "workflow_out": sidecar_outdir / "program_refinement_episode.json",
+        "promotion_plan_out": sidecar_outdir / "promotion_plan.json",
         "second_candidate_outdir": sidecar_outdir / "second_candidate",
     }
 
@@ -71,6 +131,7 @@ def _resolved_output_paths(
     comparison_out: Path | None,
     state_out: Path | None,
     workflow_out: Path | None,
+    promotion_plan_out: Path | None,
     second_candidate_outdir: Path | None,
 ) -> dict[str, Path]:
     sidecar_outdir = sidecar_outdir.expanduser().resolve()
@@ -95,6 +156,9 @@ def _resolved_output_paths(
         "workflow_out": workflow_out.expanduser().resolve()
         if workflow_out is not None
         else defaults["workflow_out"],
+        "promotion_plan_out": promotion_plan_out.expanduser().resolve()
+        if promotion_plan_out is not None
+        else defaults["promotion_plan_out"],
         "second_candidate_outdir": second_candidate_outdir.expanduser().resolve()
         if second_candidate_outdir is not None
         else defaults["second_candidate_outdir"],
@@ -120,6 +184,7 @@ def _preflight_distinct_outputs(
     source_root: Path,
     paths: Mapping[str, Path],
     generate_second_candidate: bool,
+    generate_promotion_plan: bool,
 ) -> None:
     labels = [
         "proposal_out",
@@ -130,6 +195,8 @@ def _preflight_distinct_outputs(
     ]
     if generate_second_candidate:
         labels.append("comparison_out")
+    if generate_promotion_plan:
+        labels.append("promotion_plan_out")
     seen: dict[Path, str] = {}
     for label in labels:
         target = paths[label].expanduser().resolve()
@@ -208,6 +275,10 @@ def run_program_refinement_episode(
     state_out: Path | None = None,
     workflow_out: Path | None = None,
     second_candidate_outdir: Path | None = None,
+    generate_promotion_plan: bool = False,
+    promotion_plan_target: str | None = None,
+    promotion_plan_authority_owner: str | None = None,
+    promotion_plan_out: Path | None = None,
 ) -> dict[str, Any]:
     """Run one local guided refinement episode over an existing candidate.
 
@@ -229,17 +300,51 @@ def run_program_refinement_episode(
         comparison_out=comparison_out,
         state_out=state_out,
         workflow_out=workflow_out,
+        promotion_plan_out=promotion_plan_out,
         second_candidate_outdir=second_candidate_outdir,
     )
     normalized_outcome = str(decision_outcome or "").strip()
+    normalized_plan_target = str(promotion_plan_target or "").strip()
+    normalized_plan_owner = str(promotion_plan_authority_owner or "").strip()
+    if (
+        promotion_plan_target or promotion_plan_authority_owner or promotion_plan_out
+    ) and not generate_promotion_plan:
+        raise ProgramRefinementEpisodeError(
+            "promotion plan options require --promotion-plan"
+        )
     if generate_second_candidate and normalized_outcome != "request_more_evidence":
         raise ProgramRefinementEpisodeError(
             "second-candidate generation requires decision outcome request_more_evidence"
         )
+    if generate_promotion_plan:
+        if not generate_second_candidate:
+            raise ProgramRefinementEpisodeError(
+                "promotion plan generation requires a second-candidate comparison"
+            )
+        if not normalized_plan_target:
+            raise ProgramRefinementEpisodeError(
+                "promotion plan generation requires promotion_plan_target"
+            )
+        if normalized_plan_target not in SUPPORTED_LOCAL_TARGETS:
+            allowed = ", ".join(sorted(SUPPORTED_LOCAL_TARGETS))
+            raise ProgramRefinementEpisodeError(
+                "unsupported promotion_plan_target "
+                f"{normalized_plan_target!r}; allowed targets: {allowed}"
+            )
+        if not normalized_plan_owner:
+            raise ProgramRefinementEpisodeError(
+                "promotion plan generation requires promotion_plan_authority_owner"
+            )
+        if paths["promotion_plan_out"].name in _PROMOTION_PLAN_FORBIDDEN_OUTPUT_NAMES:
+            raise ProgramRefinementEpisodeError(
+                "promotion_plan_out must not use a generated program/control artifact name: "
+                f"{paths['promotion_plan_out'].name}"
+            )
     _preflight_distinct_outputs(
         source_root=source_root,
         paths=paths,
         generate_second_candidate=generate_second_candidate,
+        generate_promotion_plan=generate_promotion_plan,
     )
 
     try:
@@ -276,6 +381,7 @@ def run_program_refinement_episode(
         refinement_workflow: dict[str, Any] | None = None
         candidate_manifest_path: Path | None = None
         comparison_payload: dict[str, Any] | None = None
+        promotion_plan_payload: dict[str, Any] | None = None
         if generate_second_candidate:
             refinement_workflow = materialize_and_compare_refinement_candidate(
                 manifest_path=manifest_path,
@@ -301,16 +407,43 @@ def run_program_refinement_episode(
             comparison_payload = _safe_mapping(
                 refinement_workflow.get("comparison_sidecar")
             )
+            if generate_promotion_plan:
+                promotion_plan = build_program_promotion_plan(
+                    manifest_path=candidate_manifest_path,
+                    decision_record_path=paths["decision_out"],
+                    comparison_path=paths["comparison_out"],
+                    target=normalized_plan_target,
+                    authority_owner=normalized_plan_owner,
+                    review_path=paths["review_out"],
+                    source_manifest_path=manifest_path,
+                )
+                promotion_plan_payload = write_program_promotion_plan(
+                    promotion_plan,
+                    paths["promotion_plan_out"],
+                )
 
+        state_manifest_path = (
+            candidate_manifest_path
+            if generate_promotion_plan and candidate_manifest_path is not None
+            else manifest_path
+        )
         state = build_program_candidate_state(
-            manifest_path=manifest_path,
+            manifest_path=state_manifest_path,
             out_path=paths["state_out"],
-            oracle_report_path=oracle_report_path,
+            source_manifest_path=manifest_path
+            if state_manifest_path != manifest_path
+            else None,
+            oracle_report_path=oracle_report_path
+            if state_manifest_path == manifest_path
+            else None,
             refinement_proposal_path=paths["proposal_out"],
             review_path=paths["review_out"],
             decision_record_path=paths["decision_out"],
             comparison_path=paths["comparison_out"]
             if generate_second_candidate
+            else None,
+            promotion_plan_path=paths["promotion_plan_out"]
+            if generate_promotion_plan
             else None,
         )
         state_payload = write_program_candidate_state(state, paths["state_out"])
@@ -321,7 +454,9 @@ def run_program_refinement_episode(
 
     comparison_status = (comparison_payload or {}).get("status")
     status = "decision_recorded"
-    if generate_second_candidate:
+    if generate_promotion_plan:
+        status = "local_promotion_plan_written"
+    elif generate_second_candidate:
         status = (
             "second_candidate_compared"
             if comparison_status == "compared"
@@ -339,6 +474,11 @@ def run_program_refinement_episode(
         "source_candidate": {
             "root_path": str(source_root),
             "manifest_path": str(manifest_path),
+            "identity": _identity_from_manifest(manifest),
+        },
+        "state_candidate": {
+            "root_path": str(state_manifest_path.parent),
+            "manifest_path": str(state_manifest_path),
             "identity": _safe_mapping(state_payload.get("candidate_identity")),
         },
         "steps": {
@@ -379,6 +519,24 @@ def run_program_refinement_episode(
                 if generate_second_candidate
                 else None,
             },
+            "promotion_plan": {
+                "status": "skipped"
+                if not generate_promotion_plan
+                else (promotion_plan_payload or {}).get("status"),
+                "path": str(paths["promotion_plan_out"])
+                if generate_promotion_plan
+                else None,
+                "target": _safe_mapping(
+                    (promotion_plan_payload or {}).get("target")
+                ).get("kind")
+                if generate_promotion_plan
+                else None,
+                "allowed_for_apply": _safe_mapping(
+                    (promotion_plan_payload or {}).get("eligibility")
+                ).get("allowed_for_apply")
+                if generate_promotion_plan
+                else None,
+            },
             "candidate_state": {
                 "status": state_payload.get("status"),
                 "path": str(paths["state_out"]),
@@ -393,12 +551,13 @@ def run_program_refinement_episode(
             str(paths["review_out"]),
             str(paths["decision_out"]),
             *([str(paths["comparison_out"])] if generate_second_candidate else []),
+            *([str(paths["promotion_plan_out"])] if generate_promotion_plan else []),
             str(paths["state_out"]),
         ],
         "workflow_path": str(paths["workflow_out"]),
         "next_actions": [
-            "Inspect the refreshed candidate state and comparison sidecar before deciding whether more work is justified.",
-            "Treat the decision record and comparison as local evidence only; they do not approve, rank, or activate a candidate.",
+            "Inspect the refreshed candidate state, comparison sidecar, and optional local promotion plan before deciding whether more work is justified.",
+            "Treat the decision record, comparison, and promotion plan as local evidence only; they do not approve, rank, select, or activate a candidate.",
             "Use external authority/export/activation commands only after an owning authority, exact binding, duplicate checks, apply receipt, and rollback plan exist.",
         ],
         "effect": {
@@ -407,6 +566,7 @@ def run_program_refinement_episode(
             "decision_record_written": True,
             "local_second_candidate_generated": generate_second_candidate,
             "local_comparison_written": generate_second_candidate,
+            "local_promotion_plan_written": generate_promotion_plan,
             "candidate_state_written": True,
             "workflow_summary_written": False,
             "source_program_files_mutated": False,
@@ -427,6 +587,7 @@ def run_program_refinement_episode(
             "agent_kernel_mutation": False,
             "governance_authority": False,
             "promotion_authority": False,
+            "local_promotion_plan_only": generate_promotion_plan,
             "oracle_authority": False,
             "winner_selection": False,
             "automatic_promotion": False,
@@ -434,6 +595,7 @@ def run_program_refinement_episode(
         "notes": [
             "This guided episode composes local non-authoritative refinement sidecars over existing candidate evidence.",
             "Second-candidate generation is allowed only for an explicit request_more_evidence decision outcome.",
+            "Optional promotion planning is local-only and keeps allowed_for_apply false.",
             "The workflow does not call AK, mutate governance or external authority, select a winner, or apply promotion.",
         ],
         "paths_relative_to_sidecar_outdir": {

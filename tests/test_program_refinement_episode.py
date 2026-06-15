@@ -155,6 +155,88 @@ def test_program_refinement_episode_cli_materializes_second_candidate_and_state(
     assert _file_hashes(program_root) == before_source_hashes
 
 
+def test_program_refinement_episode_can_write_local_promotion_plan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    before_source_hashes = _file_hashes(program_root)
+    outdir = tmp_path / "refinement-episode"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "episode",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--outdir",
+            str(outdir),
+            "--decision-outcome",
+            "request_more_evidence",
+            "--decided-by",
+            "operator-test",
+            "--rationale",
+            "collect one bounded second candidate and local plan only",
+            "--promotion-plan",
+            "--promotion-plan-target",
+            "local_preferred_candidate",
+            "--promotion-plan-authority-owner",
+            "operator-test",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload: dict[str, Any] = json.loads(result.stdout)
+    assert payload["status"] == "local_promotion_plan_written"
+    assert payload["steps"]["promotion_plan"] == {
+        "status": "planned_not_applied",
+        "path": str((outdir / "promotion_plan.json").resolve()),
+        "target": "local_preferred_candidate",
+        "allowed_for_apply": False,
+    }
+    assert payload["effect"]["local_promotion_plan_written"] is True
+    assert payload["effect"]["promotion_applied"] is False
+    assert payload["effect"]["winner_selected"] is False
+    assert payload["non_authority"]["local_promotion_plan_only"] is True
+    assert payload["non_authority"]["promotion_authority"] is False
+
+    plan = json.loads((outdir / "promotion_plan.json").read_text(encoding="utf-8"))
+    assert plan["schema_version"] == "program-promotion-plan-v1"
+    assert plan["status"] == "planned_not_applied"
+    assert plan["promotion_state"] == "not_promoted"
+    assert plan["eligibility"]["allowed_for_apply"] is False
+    assert plan["effect"]["external_authority_mutated"] is False
+    assert plan["effect"]["governance_mutated"] is False
+    assert plan["non_authority"]["winner_selection"] is False
+
+    second_candidate = outdir / "second_candidate"
+    assert (second_candidate / "manifest.json").exists()
+    candidate_manifest = json.loads(
+        (second_candidate / "manifest.json").read_text(encoding="utf-8")
+    )
+    state = json.loads(
+        (outdir / "program_candidate_state.refinement.json").read_text(encoding="utf-8")
+    )
+    assert (
+        state["candidate_identity"]["candidate_id"]
+        == candidate_manifest["candidate_assembly"]["candidate_id"]
+    )
+    assert state["truth_summary"]["promotion_plan_present"] is True
+    assert state["truth_summary"]["oracle_report_present"] is False
+    assert state["truth_summary"]["winner_selected"] is False
+    assert state["evidence_state"]["oracle_report"]["present"] is False
+    assert state["promotion_state"]["promotion_plan"]["allowed_for_apply"] is False
+    assert state["created_from"]["source_manifest_path"] == str(
+        (program_root / "manifest.json").resolve()
+    )
+    assert not (program_root / "promotion_plan.json").exists()
+    assert not (second_candidate / "promotion_plan.json").exists()
+    assert _file_hashes(program_root) == before_source_hashes
+
+
 def test_program_refinement_episode_records_decision_without_second_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -227,6 +309,129 @@ def test_program_refinement_episode_rejects_second_candidate_without_request_mor
             decided_by="operator-test",
             rationale="withhold without collecting another local candidate",
             generate_second_candidate=True,
+        )
+
+    assert not outdir.exists()
+
+
+def test_program_refinement_episode_rejects_promotion_plan_without_comparison(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "refinement-episode"
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="second-candidate comparison"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="withhold without collecting another local candidate",
+            generate_second_candidate=False,
+            generate_promotion_plan=True,
+            promotion_plan_target="local_preferred_candidate",
+            promotion_plan_authority_owner="operator-test",
+        )
+
+    assert not outdir.exists()
+
+
+def test_program_refinement_episode_rejects_invalid_promotion_plan_options_before_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "refinement-episode"
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="require --promotion-plan"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="collect one bounded second candidate and local plan only",
+            promotion_plan_target="local_preferred_candidate",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="unsupported"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="collect one bounded second candidate and local plan only",
+            generate_promotion_plan=True,
+            promotion_plan_target="deployment",
+            promotion_plan_authority_owner="operator-test",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="promotion_plan_target"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="collect one bounded second candidate and local plan only",
+            generate_promotion_plan=True,
+            promotion_plan_authority_owner="operator-test",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="control artifact name"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="collect one bounded second candidate and local plan only",
+            generate_promotion_plan=True,
+            promotion_plan_target="local_preferred_candidate",
+            promotion_plan_authority_owner="operator-test",
+            promotion_plan_out=outdir / "manifest.json",
+        )
+
+    assert not outdir.exists()
+
+
+def test_program_refinement_episode_rejects_promotion_plan_path_conflicts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "refinement-episode"
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="source generated program root"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="collect one bounded second candidate and local plan only",
+            generate_promotion_plan=True,
+            promotion_plan_target="local_preferred_candidate",
+            promotion_plan_authority_owner="operator-test",
+            promotion_plan_out=program_root / "promotion_plan.json",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="conflicts"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="collect one bounded second candidate and local plan only",
+            generate_promotion_plan=True,
+            promotion_plan_target="local_preferred_candidate",
+            promotion_plan_authority_owner="operator-test",
+            promotion_plan_out=outdir / "second_candidate" / "promotion_plan.json",
         )
 
     assert not outdir.exists()

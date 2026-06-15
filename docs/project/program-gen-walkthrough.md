@@ -62,8 +62,8 @@ Boundary map for MLflow, Oracle, runtime traces, receipts/replay, and activation
 1. `program-refine generate-candidate` can be run explicitly from a proposed refinement plus a local `request_more_evidence` decision record to materialize one local second candidate at a requested output directory.
 1. `program-refine compare-candidates` can be run explicitly over the source and second candidate manifests to write a local comparison sidecar over already-generated `behavior_episode.json` evidence plus example-backed `behavior_results.json` when present.
 1. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
-1. `program-refine episode` can be run explicitly over an existing manifest and Oracle report to compose proposal, refined review, explicit local decision record, optional `request_more_evidence` second-candidate generation, comparison, candidate-state refresh, and a `program-refinement-episode-v1` summary sidecar. It is local-only and non-authoritative; it does not invoke Oracle indexing/reporting, GEPA/search, model juries, promotion planning, AK, governance, external authority, activation, ranking, or winner selection.
-1. `program-promote plan` can be run explicitly over an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan sidecar.
+1. `program-refine episode` can be run explicitly over an existing manifest and Oracle report to compose proposal, refined review, explicit local decision record, optional `request_more_evidence` second-candidate generation, comparison, optional local promotion/adjudication plan, candidate-state refresh, and a `program-refinement-episode-v1` summary sidecar. It is local-only and non-authoritative; it does not invoke Oracle indexing/reporting, GEPA/search, model juries, AK, governance, external authority, activation, ranking, winner selection, or promotion apply.
+1. `program-promote plan` can still be run explicitly over an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan sidecar when the guided episode did not opt into planning.
 1. `adapters authority agent-kernel-export-preflight` can be run explicitly over a manifest, opaque AK ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet that is preflighted/planned/not applied.
 1. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
 1. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
@@ -669,7 +669,7 @@ This writes the same `program-promotion-decision-record-v1` shape, but its `crea
 
 ### 13a. Guided local refinement episode
 
-For the common local request-more-evidence path, `program-refine episode` composes the separate proposal, refined review, explicit decision record, one second candidate, comparison, and candidate-state refresh into one guided episode over an existing manifest and Oracle report:
+For the common local request-more-evidence path, `program-refine episode` composes the separate proposal, refined review, explicit decision record, one second candidate, comparison, optional local promotion plan, and candidate-state refresh into one guided episode over an existing manifest and Oracle report:
 
 ```bash
 uv run -q python -m dspx.cli.dspx program-refine episode \
@@ -679,19 +679,23 @@ uv run -q python -m dspx.cli.dspx program-refine episode \
   --decision-outcome request_more_evidence \
   --decided-by local_operator \
   --rationale "Need one bounded second candidate before any promotion decision." \
+  --promotion-plan \
+  --promotion-plan-target local_preferred_candidate \
+  --promotion-plan-authority-owner local_operator \
   --json
 ```
 
 Expected JSON facts:
 
 - `schema_version: program-refinement-episode-v1`
-- `steps.refinement_proposal.path`, `steps.promotion_review_refined.path`, `steps.decision_record.path`, `steps.second_candidate.manifest_path`, and `steps.candidate_state.path` point to local artifacts
+- `steps.refinement_proposal.path`, `steps.promotion_review_refined.path`, `steps.decision_record.path`, `steps.second_candidate.manifest_path`, `steps.promotion_plan.path`, and `steps.candidate_state.path` point to local artifacts
 - `decision_record.outcome: request_more_evidence`
 - the second candidate is materialized only for `request_more_evidence`; other decision outcomes require `--no-generate-second-candidate`
+- optional `steps.promotion_plan.status: planned_not_applied` and `steps.promotion_plan.allowed_for_apply: false`
 - `effect.ak_called`, `effect.external_authority_mutated`, `effect.governance_mutated`, `effect.promotion_applied`, and `effect.winner_selected` remain false
-- source generated-program files are not mutated; sidecar paths are preflighted away from the source generated-program root
+- source generated-program files are not mutated; sidecar paths are preflighted away from generated-program roots
 
-This guided episode is an ergonomic composition, not new authority. It does not invoke Oracle indexing/reporting, GEPA/search, model juries, promotion planning, external preflight, AK, governance, activation, ranking, or winner selection. Delete the local sidecar directory and optional second-candidate directory to roll it back.
+This guided episode is an ergonomic composition, not new authority. It does not invoke Oracle indexing/reporting, GEPA/search, model juries, external preflight, AK, governance, activation, ranking, winner selection, or promotion apply. The optional promotion plan is the same local-only plan sidecar shape as `program-promote plan` and remains `allowed_for_apply=false`. Delete the local sidecar directory and optional second-candidate directory to roll it back.
 
 When writing the adjudication behavior trace, pass the delegation and decision sidecars so future Oracle/GEPA analysis sees the full two-adjudicator behavior, not only the evidence-adjudication step:
 
@@ -774,7 +778,7 @@ This workflow returns `schema_version: program-refinement-generate-and-compare-r
 
 ## 14b. Optional explicit local promotion/adjudication plan
 
-After a second candidate and comparison sidecar exist, you can capture a local-only plan over the available evidence:
+After a second candidate and comparison sidecar exist, you can capture a local-only plan over the available evidence. If `program-refine episode --promotion-plan ...` was used, this plan already exists in the episode sidecar directory; otherwise run:
 
 ```bash
 uv run -q python -m dspx.cli.dspx program-promote plan \
