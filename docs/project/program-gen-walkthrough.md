@@ -979,7 +979,7 @@ Expected JSON facts:
 - `schema_version: program-candidate-state-v1`
 - `status` is a truth-preserving local posture such as `not_promoted_external_preflighted_not_applied`
 - `candidate_identity` and optional `source_identity` identify the exact artifacts being summarized
-- `evidence_state` reports example-backed behavior results when present, bounded `behavior_episode.json` evidence when present, execution episode, Oracle-readable evidence, optional Oracle report, optional refinement proposal, and optional GEPA optimizer evidence/readiness
+- `evidence_state` reports example-backed behavior results when present, bounded `behavior_episode.json` evidence when present, execution episode, Oracle-readable evidence, optional Oracle report, optional refinement proposal, and optional role-aware GEPA optimizer evidence/readiness for the candidate or source manifest
 - `promotion_state` reports review readiness, decision outcome, optional local jury-results evidence, comparison role, optional promotion plan, optional external-authority local preflight blockers, and separate future external-apply blockers
 - `truth_summary` keeps `promotion_applied`, `external_authority_mutated`, `governance_mutated`, `ak_called`, `winner_selected`, `automatic_promotion`, and `ready_for_future_apply` false; optional GEPA evidence may set `gepa_output_ready_for_future_candidate_materializer=true` without generating a candidate
 - `artifact_hashes` records deterministic hashes for every supplied sidecar plus local behavior result / behavior episode evidence when present

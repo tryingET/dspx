@@ -390,7 +390,7 @@ def _materialize_candidate_state_inputs(
 
     gepa_refinement_path = _write_gepa_refinement_result(
         tmp_path / "refinement" / "gepa_refinement_result.json",
-        manifest_path=candidate_root / "manifest.json",
+        manifest_path=source_root / "manifest.json",
     )
 
     promotion_plan = build_program_promotion_plan(
@@ -565,6 +565,7 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         "present": True,
         "schema_version": "program-refinement-gepa-result-v1",
         "status": "degraded",
+        "manifest_role": "source",
         "evidence_source": "inline_examples",
         "held_out_validation": False,
         "train_examples_count": 1,
@@ -727,6 +728,25 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
+def test_program_candidate_state_rejects_source_gepa_without_source_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="program GEPA refinement identity does not match candidate/source identity",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            gepa_refinement_path=paths["gepa_refinement"],
+        )
+
+
 def test_program_candidate_state_rejects_gepa_refinement_identity_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -743,10 +763,38 @@ def test_program_candidate_state_rejects_gepa_refinement_identity_drift(
 
     with pytest.raises(
         ProgramCandidateStateError,
-        match="program GEPA refinement identity does not match candidate identity",
+        match="program GEPA refinement identity does not match candidate/source identity",
     ):
         build_program_candidate_state(
             manifest_path=candidate_root / "manifest.json",
+            gepa_refinement_path=bad_gepa,
+        )
+
+
+def test_program_candidate_state_rejects_spoofed_gepa_readiness(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_payload = json.loads(paths["gepa_refinement"].read_text(encoding="utf-8"))
+    bad_payload["status"] = "gepa_output_unverified"
+    bad_payload["gepa_output"]["manifest_valid"] = False
+    bad_payload["gepa_output"]["readiness"][
+        "ready_for_future_candidate_materializer"
+    ] = True
+    bad_gepa = tmp_path / "refinement" / "bad_gepa_readiness.json"
+    _write_json(bad_gepa, bad_payload)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="readiness conflicts with unverified status",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
             gepa_refinement_path=bad_gepa,
         )
 
@@ -1144,6 +1192,42 @@ def test_program_candidate_state_fails_closed_on_widened_jury_authority(
             jury_results_path=bad_jury_path,
             comparison_path=paths["comparison"],
         )
+
+
+def test_program_candidate_state_rejects_noncanonical_output_inside_candidate_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="StateRootGuardProgram",
+            objective="Answer a question.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    before = _file_hashes(program_root)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "status",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--out",
+            str(program_root / "state.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate state output inside candidate root" in result.output
+    assert not (program_root / "state.json").exists()
+    assert _file_hashes(program_root) == before
 
 
 def test_program_candidate_state_rejects_output_path_overwriting_candidate_artifact(

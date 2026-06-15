@@ -186,6 +186,21 @@ def _identity_mismatch_keys(
     ]
 
 
+def _identity_role(
+    actual: Mapping[str, Any],
+    *,
+    candidate_identity: Mapping[str, str | None],
+    source_identity: Mapping[str, str | None] | None = None,
+) -> str:
+    if _identity_exactly_matches(actual, candidate_identity):
+        return "candidate"
+    if source_identity is not None and _identity_exactly_matches(
+        actual, source_identity
+    ):
+        return "source"
+    return "unrelated"
+
+
 def _assert_schema(payload: Mapping[str, Any], *, label: str, schema: str) -> None:
     if payload.get("schema_version") != schema:
         raise ProgramCandidateStateError(f"{label} schema_version must be {schema}")
@@ -493,10 +508,41 @@ def _validate_optional_inputs(
                 "program GEPA refinement result must keep candidate null"
             )
         gepa_identity = _safe_mapping(gepa_refinement.get("source_identity"))
-        if not _identity_exactly_matches(gepa_identity, candidate_identity):
-            raise ProgramCandidateStateError(
-                "program GEPA refinement identity does not match candidate identity"
+        if (
+            _identity_role(
+                gepa_identity,
+                candidate_identity=candidate_identity,
+                source_identity=source_identity,
             )
+            == "unrelated"
+        ):
+            raise ProgramCandidateStateError(
+                "program GEPA refinement identity does not match candidate/source identity"
+            )
+        gepa_output = _safe_mapping(gepa_refinement.get("gepa_output"))
+        readiness = _safe_mapping(gepa_output.get("readiness"))
+        readiness_claim = readiness.get("ready_for_future_candidate_materializer")
+        if readiness_claim is True:
+            if gepa_refinement.get("status") == "gepa_output_unverified":
+                raise ProgramCandidateStateError(
+                    "program GEPA refinement readiness conflicts with unverified status"
+                )
+            if gepa_output.get("manifest_present") is not True:
+                raise ProgramCandidateStateError(
+                    "program GEPA refinement readiness requires manifest_present true"
+                )
+            if gepa_output.get("manifest_valid") is not True:
+                raise ProgramCandidateStateError(
+                    "program GEPA refinement readiness requires manifest_valid true"
+                )
+            if not _first_text(gepa_output.get("manifest_sha256")):
+                raise ProgramCandidateStateError(
+                    "program GEPA refinement readiness requires manifest_sha256"
+                )
+            if readiness.get("status") != "optimizer_output_hash_bound_not_candidate":
+                raise ProgramCandidateStateError(
+                    "program GEPA refinement readiness status must be optimizer_output_hash_bound_not_candidate"
+                )
 
     if promotion_plan is not None:
         if promotion_plan.get("status") != "planned_not_applied":
@@ -789,6 +835,9 @@ def _comparison_summary(
 
 def _gepa_refinement_summary(
     gepa_refinement: Mapping[str, Any] | None,
+    *,
+    candidate_identity: Mapping[str, str | None],
+    source_identity: Mapping[str, str | None] | None = None,
 ) -> dict[str, Any]:
     if gepa_refinement is None:
         return {
@@ -800,10 +849,24 @@ def _gepa_refinement_summary(
     gepa = _safe_mapping(gepa_refinement.get("gepa"))
     gepa_output = _safe_mapping(gepa_refinement.get("gepa_output"))
     readiness = _safe_mapping(gepa_output.get("readiness"))
+    role = _identity_role(
+        _safe_mapping(gepa_refinement.get("source_identity")),
+        candidate_identity=candidate_identity,
+        source_identity=source_identity,
+    )
+    ready_for_materializer = (
+        gepa_refinement.get("status") != "gepa_output_unverified"
+        and gepa_output.get("manifest_present") is True
+        and gepa_output.get("manifest_valid") is True
+        and bool(_first_text(gepa_output.get("manifest_sha256")))
+        and readiness.get("status") == "optimizer_output_hash_bound_not_candidate"
+        and readiness.get("ready_for_future_candidate_materializer") is True
+    )
     return {
         "present": True,
         "schema_version": gepa_refinement.get("schema_version"),
         "status": gepa_refinement.get("status"),
+        "manifest_role": role,
         "evidence_source": evidence_inputs.get("source"),
         "held_out_validation": evidence_inputs.get("held_out_validation") is True,
         "train_examples_count": _safe_int(evidence_inputs.get("train_examples_count")),
@@ -817,10 +880,7 @@ def _gepa_refinement_summary(
         "output_manifest_valid": gepa_output.get("manifest_valid") is True,
         "output_manifest_sha256": gepa_output.get("manifest_sha256"),
         "output_readiness_status": readiness.get("status"),
-        "ready_for_future_candidate_materializer": readiness.get(
-            "ready_for_future_candidate_materializer"
-        )
-        is True,
+        "ready_for_future_candidate_materializer": ready_for_materializer,
         "readiness_blockers": _string_list(readiness.get("blockers")),
         "candidate_materialized": False,
         "winner_selected": False,
@@ -1410,7 +1470,11 @@ def build_program_candidate_state(
                 oracle_publication_receipt
             ),
             "refinement_proposal": _proposal_summary(refinement_proposal),
-            "optimizer_refinement": _gepa_refinement_summary(gepa_refinement),
+            "optimizer_refinement": _gepa_refinement_summary(
+                gepa_refinement,
+                candidate_identity=candidate_identity,
+                source_identity=source_identity,
+            ),
         },
         "target_fidelity_state": _target_fidelity_summary(
             generation_gate_preflight=generation_gate_preflight,
@@ -1448,7 +1512,9 @@ def build_program_candidate_state(
             is not None,
             "gepa_refinement_present": gepa_refinement is not None,
             "gepa_output_ready_for_future_candidate_materializer": _gepa_refinement_summary(
-                gepa_refinement
+                gepa_refinement,
+                candidate_identity=candidate_identity,
+                source_identity=source_identity,
             )["ready_for_future_candidate_materializer"],
             "obsidian_review_adapter_materialization_allowed": _target_fidelity_summary(
                 generation_gate_preflight=generation_gate_preflight,
@@ -1508,6 +1574,24 @@ def build_program_candidate_state(
     return payload
 
 
+def _candidate_state_output_allowed_in_root(target: Path) -> bool:
+    return target.name == "program_candidate_state.json"
+
+
+def _reject_noncanonical_state_write_inside_root(
+    target: Path, *, root_path: object, label: str
+) -> None:
+    root_text = str(root_path or "").strip()
+    if not root_text:
+        return
+    root = Path(root_text).expanduser().resolve()
+    if target == root or target.is_relative_to(root):
+        if not _candidate_state_output_allowed_in_root(target):
+            raise ProgramCandidateStateError(
+                f"candidate state output inside {label} must be program_candidate_state.json: {target}"
+            )
+
+
 def write_program_candidate_state(
     state: Mapping[str, Any],
     out_path: Path,
@@ -1519,6 +1603,19 @@ def write_program_candidate_state(
         raise ProgramCandidateStateError(
             f"candidate state must not overwrite {target.name}"
         )
+    created_from = _safe_mapping(state.get("created_from"))
+    manifest_path = _first_text(created_from.get("manifest_path"))
+    source_manifest_path = _first_text(created_from.get("source_manifest_path"))
+    _reject_noncanonical_state_write_inside_root(
+        target,
+        root_path=Path(manifest_path).parent if manifest_path else None,
+        label="candidate root",
+    )
+    _reject_noncanonical_state_write_inside_root(
+        target,
+        root_path=Path(source_manifest_path).parent if source_manifest_path else None,
+        label="source candidate root",
+    )
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(state)
     effect = _safe_mapping(payload.get("effect"))
