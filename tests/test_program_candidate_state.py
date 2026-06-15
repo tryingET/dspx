@@ -174,6 +174,102 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _identity_from_manifest_path(manifest_path: Path) -> dict[str, str | None]:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    request = manifest.get("request") or {}
+    candidate = manifest.get("candidate_assembly") or {}
+    execution = manifest.get("execution_episode") or {}
+    receipt = manifest.get("receipt_bundle") or {}
+    return {
+        "request_id": request.get("request_id")
+        or candidate.get("request_id")
+        or execution.get("request_id")
+        or receipt.get("request_id"),
+        "candidate_id": candidate.get("candidate_id")
+        or execution.get("candidate_id")
+        or receipt.get("candidate_id"),
+        "assembly_id": candidate.get("assembly_id")
+        or execution.get("assembly_id")
+        or receipt.get("assembly_id"),
+        "episode_id": execution.get("episode_id") or receipt.get("episode_id"),
+        "receipt_bundle_id": receipt.get("receipt_bundle_id"),
+    }
+
+
+def _write_gepa_refinement_result(
+    path: Path, *, manifest_path: Path, authority_drift: bool = False
+) -> Path:
+    identity = _identity_from_manifest_path(manifest_path)
+    if authority_drift:
+        identity = {**identity, "candidate_id": "wrong-candidate"}
+    optimizer_manifest_hash = hashlib.sha256(b"optimizer-manifest").hexdigest()
+    _write_json(
+        path,
+        {
+            "schema_version": "program-refinement-gepa-result-v1",
+            "status": "degraded",
+            "source_identity": identity,
+            "evidence_inputs": {
+                "source": "inline_examples",
+                "train_examples_count": 1,
+                "validation_examples_count": 1,
+                "held_out_validation": False,
+                "limitations": ["test fixture"],
+            },
+            "gepa": {
+                "attempted": True,
+                "status": "completed",
+                "metric": "exact_match",
+                "optimizer_metric": "exact",
+                "max_metric_calls": 2,
+                "prepared_inputs": {
+                    "train_csv_path": "/tmp/train.csv",
+                    "train_csv_sha256": "a" * 64,
+                    "validation_csv_path": "/tmp/validation.csv",
+                    "validation_csv_sha256": "b" * 64,
+                },
+            },
+            "gepa_output": {
+                "root_path": "/tmp/program-gepa",
+                "manifest_path": "/tmp/program-gepa/manifest.json",
+                "manifest_present": True,
+                "manifest_valid": True,
+                "manifest_sha256": optimizer_manifest_hash,
+                "manifest_schema_version": None,
+                "manifest_kind": "dspy_gepa_optimizer_output_manifest",
+                "candidate_assembly_manifest": False,
+                "readiness": {
+                    "status": "optimizer_output_hash_bound_not_candidate",
+                    "ready_for_future_candidate_materializer": True,
+                    "blockers": [
+                        "no_program_candidate_assembly_materializer_in_this_command"
+                    ],
+                },
+            },
+            "candidate": None,
+            "effect": {
+                "local_gepa_candidate_generated": False,
+                "source_program_files_mutated": False,
+                "source_dataset_artifacts_mutated": False,
+                "external_authority_mutated": False,
+                "governance_mutated": False,
+            },
+            "non_authority": {
+                "local_refinement_only": True,
+                "automatic_promotion": False,
+                "oracle_ranking": False,
+                "oracle_pruning": False,
+                "oracle_promotion": False,
+                "winner_selection": False,
+                "external_authority_export": False,
+                "governance_authority": False,
+                "external_mutation": False,
+            },
+        },
+    )
+    return path
+
+
 def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
     preflight_path = out.parent / "oracle_publication_preflight.json"
     preflight = build_program_oracle_publication_preflight(
@@ -292,6 +388,11 @@ def _materialize_candidate_state_inputs(
     jury_results_path = tmp_path / "promotion" / "jury_results.json"
     write_program_jury_execution_result(jury_results, jury_results_path)
 
+    gepa_refinement_path = _write_gepa_refinement_result(
+        tmp_path / "refinement" / "gepa_refinement_result.json",
+        manifest_path=candidate_root / "manifest.json",
+    )
+
     promotion_plan = build_program_promotion_plan(
         manifest_path=candidate_root / "manifest.json",
         decision_record_path=decision_path,
@@ -323,6 +424,7 @@ def _materialize_candidate_state_inputs(
         "decision": decision_path,
         "jury_results": jury_results_path,
         "comparison": comparison_path,
+        "gepa_refinement": gepa_refinement_path,
         "promotion_plan": promotion_plan_path,
         "export_preflight": export_preflight_path,
         "index": index_path,
@@ -373,6 +475,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["jury_results"]),
             "--comparison",
             str(paths["comparison"]),
+            "--gepa-refinement",
+            str(paths["gepa_refinement"]),
             "--promotion-plan",
             str(paths["promotion_plan"]),
             "--export-preflight",
@@ -421,6 +525,10 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         payload["artifact_hashes"]["comparison_sha256"] == before_sidecars["comparison"]
     )
     assert (
+        payload["artifact_hashes"]["gepa_refinement_sha256"]
+        == before_sidecars["gepa_refinement"]
+    )
+    assert (
         payload["artifact_hashes"]["export_preflight_sha256"]
         == before_sidecars["export_preflight"]
     )
@@ -453,6 +561,29 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     }
     assert evidence["refinement_proposal"]["present"] is True
     assert evidence["refinement_proposal"]["proposal_only"] is True
+    assert evidence["optimizer_refinement"] == {
+        "present": True,
+        "schema_version": "program-refinement-gepa-result-v1",
+        "status": "degraded",
+        "evidence_source": "inline_examples",
+        "held_out_validation": False,
+        "train_examples_count": 1,
+        "validation_examples_count": 1,
+        "gepa_attempted": True,
+        "gepa_status": "completed",
+        "optimizer_metric": "exact",
+        "output_manifest_present": True,
+        "output_manifest_valid": True,
+        "output_manifest_sha256": hashlib.sha256(b"optimizer-manifest").hexdigest(),
+        "output_readiness_status": "optimizer_output_hash_bound_not_candidate",
+        "ready_for_future_candidate_materializer": True,
+        "readiness_blockers": [
+            "no_program_candidate_assembly_materializer_in_this_command"
+        ],
+        "candidate_materialized": False,
+        "winner_selected": False,
+        "promotion_authority": False,
+    }
 
     promotion = payload["promotion_state"]
     assert promotion["review"]["present"] is True
@@ -512,6 +643,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert truth["comparison_present"] is True
     assert truth["promotion_plan_present"] is True
     assert truth["external_authority_preflight_present"] is True
+    assert truth["gepa_refinement_present"] is True
+    assert truth["gepa_output_ready_for_future_candidate_materializer"] is True
     assert truth["promotion_applied"] is False
     assert truth["external_authority_mutated"] is False
     assert truth["governance_mutated"] is False
@@ -568,6 +701,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["jury_results"]),
             "--comparison",
             str(paths["comparison"]),
+            "--gepa-refinement",
+            str(paths["gepa_refinement"]),
             "--promotion-plan",
             str(paths["promotion_plan"]),
             "--export-preflight",
@@ -590,6 +725,54 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert (source_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_candidate_state_rejects_gepa_refinement_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_gepa = _write_gepa_refinement_result(
+        tmp_path / "refinement" / "bad_gepa_refinement_result.json",
+        manifest_path=candidate_root / "manifest.json",
+        authority_drift=True,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="program GEPA refinement identity does not match candidate identity",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            gepa_refinement_path=bad_gepa,
+        )
+
+
+def test_program_candidate_state_rejects_gepa_refinement_candidate_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_payload = json.loads(paths["gepa_refinement"].read_text(encoding="utf-8"))
+    bad_payload["candidate"] = {"manifest_path": "fake-manifest.json"}
+    bad_payload["effect"]["local_gepa_candidate_generated"] = True
+    bad_gepa = tmp_path / "refinement" / "bad_gepa_candidate_claim.json"
+    _write_json(bad_gepa, bad_payload)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="program GEPA refinement result must not claim local candidate generation",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            gepa_refinement_path=bad_gepa,
+        )
 
 
 def test_program_promote_status_reports_target_fidelity_admission(

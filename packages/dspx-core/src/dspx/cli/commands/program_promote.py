@@ -1180,6 +1180,11 @@ def status(
         "--program-evidence-adjudication",
         help="Optional program-evidence-adjudication-v1 JSON sidecar",
     ),
+    gepa_refinement: Path | None = typer.Option(
+        None,
+        "--gepa-refinement",
+        help="Optional program-refinement-gepa-result-v1 JSON sidecar",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print state JSON"),
 ) -> None:
     """Summarize the local truth state for one program candidate."""
@@ -1206,6 +1211,7 @@ def status(
             generation_gate_preflight_path=generation_gate_preflight,
             generation_fitness_results_path=generation_fitness_results,
             program_evidence_adjudication_path=program_evidence_adjudication,
+            gepa_refinement_path=gepa_refinement,
         )
         payload = write_program_candidate_state(state, out)
     except ProgramCandidateStateError as exc:

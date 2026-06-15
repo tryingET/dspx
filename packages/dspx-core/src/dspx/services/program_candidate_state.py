@@ -32,6 +32,7 @@ PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
 GEN_GENERATION_GATE_PREFLIGHT_SCHEMA = "gen-generation-gate-preflight-v1"
 GEN_FITNESS_RESULTS_SCHEMA = "gen-fitness-results-v1"
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
+PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA = "program-refinement-gepa-result-v1"
 
 _FORBIDDEN_OUTPUT_NAMES = {
     "manifest.json",
@@ -47,6 +48,7 @@ _FORBIDDEN_OUTPUT_NAMES = {
     "behavior_episode.json",
     "oracle_evidence.json",
     "execution_episode.json",
+    "gepa_refinement_result.json",
 }
 
 
@@ -339,6 +341,7 @@ def _validate_optional_inputs(
     promotion_plan: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
     oracle_publication_receipt: Mapping[str, Any] | None,
+    gepa_refinement: Mapping[str, Any] | None,
 ) -> None:
     source_or_candidate = [candidate_identity]
     if source_identity is not None:
@@ -459,6 +462,40 @@ def _validate_optional_inputs(
         if not (source_matches or candidate_matches):
             raise ProgramCandidateStateError(
                 "program candidate comparison must mention manifest identity as source or candidate"
+            )
+
+    if gepa_refinement is not None:
+        _validate_non_authority_false(
+            gepa_refinement,
+            label="program GEPA refinement result",
+            keys=(
+                "automatic_promotion",
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "winner_selection",
+                "external_authority_export",
+                "governance_authority",
+                "external_mutation",
+            ),
+        )
+        effect = _safe_mapping(gepa_refinement.get("effect"))
+        if effect.get("local_gepa_candidate_generated") is not False:
+            raise ProgramCandidateStateError(
+                "program GEPA refinement result must not claim local candidate generation"
+            )
+        if effect.get("source_program_files_mutated") is not False:
+            raise ProgramCandidateStateError(
+                "program GEPA refinement result must record source_program_files_mutated false"
+            )
+        if gepa_refinement.get("candidate") is not None:
+            raise ProgramCandidateStateError(
+                "program GEPA refinement result must keep candidate null"
+            )
+        gepa_identity = _safe_mapping(gepa_refinement.get("source_identity"))
+        if not _identity_exactly_matches(gepa_identity, candidate_identity):
+            raise ProgramCandidateStateError(
+                "program GEPA refinement identity does not match candidate identity"
             )
 
     if promotion_plan is not None:
@@ -747,6 +784,47 @@ def _comparison_summary(
         "improvement_observed": interpretation.get("improvement_observed") is True,
         "needs_more_evidence": interpretation.get("needs_more_evidence") is True,
         "winner_selected": False,
+    }
+
+
+def _gepa_refinement_summary(
+    gepa_refinement: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if gepa_refinement is None:
+        return {
+            "present": False,
+            "status": "missing",
+            "ready_for_future_candidate_materializer": False,
+        }
+    evidence_inputs = _safe_mapping(gepa_refinement.get("evidence_inputs"))
+    gepa = _safe_mapping(gepa_refinement.get("gepa"))
+    gepa_output = _safe_mapping(gepa_refinement.get("gepa_output"))
+    readiness = _safe_mapping(gepa_output.get("readiness"))
+    return {
+        "present": True,
+        "schema_version": gepa_refinement.get("schema_version"),
+        "status": gepa_refinement.get("status"),
+        "evidence_source": evidence_inputs.get("source"),
+        "held_out_validation": evidence_inputs.get("held_out_validation") is True,
+        "train_examples_count": _safe_int(evidence_inputs.get("train_examples_count")),
+        "validation_examples_count": _safe_int(
+            evidence_inputs.get("validation_examples_count")
+        ),
+        "gepa_attempted": gepa.get("attempted") is True,
+        "gepa_status": gepa.get("status"),
+        "optimizer_metric": gepa.get("optimizer_metric"),
+        "output_manifest_present": gepa_output.get("manifest_present") is True,
+        "output_manifest_valid": gepa_output.get("manifest_valid") is True,
+        "output_manifest_sha256": gepa_output.get("manifest_sha256"),
+        "output_readiness_status": readiness.get("status"),
+        "ready_for_future_candidate_materializer": readiness.get(
+            "ready_for_future_candidate_materializer"
+        )
+        is True,
+        "readiness_blockers": _string_list(readiness.get("blockers")),
+        "candidate_materialized": False,
+        "winner_selected": False,
+        "promotion_authority": False,
     }
 
 
@@ -1052,6 +1130,7 @@ def build_program_candidate_state(
     generation_gate_preflight_path: Path | None = None,
     generation_fitness_results_path: Path | None = None,
     program_evidence_adjudication_path: Path | None = None,
+    gepa_refinement_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build one local truth-state artifact from existing program sidecars."""
 
@@ -1165,6 +1244,13 @@ def build_program_candidate_state(
         label="program evidence adjudication",
         schema=PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA,
     )
+    gepa_refinement, gepa_refinement_file, gepa_refinement_hash = (
+        _load_optional_artifact(
+            gepa_refinement_path,
+            label="program GEPA refinement result",
+            schema=PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA,
+        )
+    )
 
     _validate_optional_inputs(
         candidate_identity=candidate_identity,
@@ -1176,6 +1262,7 @@ def build_program_candidate_state(
         promotion_plan=promotion_plan,
         export_preflight=export_preflight,
         oracle_publication_receipt=oracle_publication_receipt,
+        gepa_refinement=gepa_refinement,
     )
 
     manifest_hash = _sha256_file(manifest_path)
@@ -1205,6 +1292,7 @@ def build_program_candidate_state(
         "generation_gate_preflight_sha256": generation_gate_preflight_hash,
         "generation_fitness_results_sha256": generation_fitness_results_hash,
         "program_evidence_adjudication_sha256": program_evidence_adjudication_hash,
+        "gepa_refinement_sha256": gepa_refinement_hash,
     }
     state_seed = {
         "schema_version": PROGRAM_CANDIDATE_STATE_SCHEMA,
@@ -1279,6 +1367,9 @@ def build_program_candidate_state(
             )
             if program_evidence_adjudication_file is not None
             else None,
+            "gepa_refinement_path": str(gepa_refinement_file)
+            if gepa_refinement_file is not None
+            else None,
         },
         "artifact_hashes": artifact_hashes,
         "candidate": {
@@ -1319,6 +1410,7 @@ def build_program_candidate_state(
                 oracle_publication_receipt
             ),
             "refinement_proposal": _proposal_summary(refinement_proposal),
+            "optimizer_refinement": _gepa_refinement_summary(gepa_refinement),
         },
         "target_fidelity_state": _target_fidelity_summary(
             generation_gate_preflight=generation_gate_preflight,
@@ -1354,6 +1446,10 @@ def build_program_candidate_state(
             "target_fidelity_evidence_present": generation_fitness_results is not None,
             "target_protocol_adjudication_present": program_evidence_adjudication
             is not None,
+            "gepa_refinement_present": gepa_refinement is not None,
+            "gepa_output_ready_for_future_candidate_materializer": _gepa_refinement_summary(
+                gepa_refinement
+            )["ready_for_future_candidate_materializer"],
             "obsidian_review_adapter_materialization_allowed": _target_fidelity_summary(
                 generation_gate_preflight=generation_gate_preflight,
                 generation_fitness_results=generation_fitness_results,
