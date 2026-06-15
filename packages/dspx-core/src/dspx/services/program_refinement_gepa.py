@@ -108,6 +108,67 @@ def _manifest_root(manifest_path: Path) -> Path:
     return manifest_path.expanduser().resolve().parent
 
 
+def _candidate_root(manifest: Mapping[str, Any], manifest_path: Path) -> Path:
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    raw_root = str(candidate_assembly.get("root_path") or "").strip()
+    if raw_root:
+        root = Path(raw_root).expanduser()
+        if not root.is_absolute():
+            root = _manifest_root(manifest_path) / root
+        return root.resolve()
+    return _manifest_root(manifest_path)
+
+
+def _is_same_or_descendant(path: Path, parent: Path) -> bool:
+    return path == parent or path.is_relative_to(parent)
+
+
+def _assert_no_path_overlap(
+    *, label: str, path: Path, protected_label: str, protected: Path
+) -> None:
+    if _is_same_or_descendant(path, protected):
+        raise ProgramRefinementGepaError(
+            f"{label} must be outside {protected_label}: {path}"
+        )
+    if _is_same_or_descendant(protected, path):
+        raise ProgramRefinementGepaError(
+            f"{label} must not contain {protected_label}: {path}"
+        )
+
+
+def _preflight_gepa_output_paths(
+    *,
+    manifest: Mapping[str, Any],
+    manifest_path: Path,
+    outdir: Path,
+    result_out: Path | None = None,
+) -> None:
+    source_root = _candidate_root(manifest, manifest_path)
+    resolved_outdir = outdir.expanduser().resolve()
+    _assert_no_path_overlap(
+        label="GEPA output directory",
+        path=resolved_outdir,
+        protected_label="source candidate root",
+        protected=source_root,
+    )
+    if result_out is None:
+        return
+    resolved_result = result_out.expanduser().resolve()
+    _assert_no_path_overlap(
+        label="GEPA result sidecar path",
+        path=resolved_result,
+        protected_label="source candidate root",
+        protected=source_root,
+    )
+    if _is_same_or_descendant(
+        resolved_result, resolved_outdir
+    ) or _is_same_or_descendant(resolved_outdir, resolved_result):
+        raise ProgramRefinementGepaError(
+            "GEPA result sidecar path must not overlap the GEPA output directory: "
+            f"{resolved_result}"
+        )
+
+
 def _resolve_under_manifest_root(
     manifest_path: Path, raw_path: str | None
 ) -> Path | None:
@@ -544,6 +605,7 @@ def build_program_refinement_gepa_result(
     validation_path: Path | None = None,
     metric: str | None = None,
     max_metric_calls: int = 2,
+    result_out: Path | None = None,
 ) -> dict[str, Any]:
     """Run a bounded local GEPA attempt for an existing program candidate manifest.
 
@@ -556,6 +618,12 @@ def build_program_refinement_gepa_result(
     manifest_path = manifest_path.expanduser().resolve()
     outdir = outdir.expanduser().resolve()
     manifest = load_program_manifest(manifest_path)
+    _preflight_gepa_output_paths(
+        manifest=manifest,
+        manifest_path=manifest_path,
+        outdir=outdir,
+        result_out=result_out,
+    )
     input_fields, output_fields = _intent_fields(manifest)
     evidence = _select_evidence_inputs(
         manifest=manifest,
@@ -676,7 +744,20 @@ def write_program_refinement_gepa_result(
     """Write the local GEPA refinement result sidecar."""
 
     out_path = out_path.expanduser().resolve()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(result)
+    created_from = _safe_mapping(payload.get("created_from"))
+    manifest_text = str(created_from.get("manifest_path") or "").strip()
+    gepa_output = _safe_mapping(payload.get("gepa_output"))
+    output_text = str(gepa_output.get("root_path") or "").strip()
+    if manifest_text and output_text:
+        manifest_path = Path(manifest_text).expanduser().resolve()
+        manifest = load_program_manifest(manifest_path)
+        _preflight_gepa_output_paths(
+            manifest=manifest,
+            manifest_path=manifest_path,
+            outdir=Path(output_text),
+            result_out=out_path,
+        )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(_json_text(payload), encoding="utf-8")
     return payload

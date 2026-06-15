@@ -62,6 +62,7 @@ def optimize_gepa(
             validation_path=validation,
             metric=metric,
             max_metric_calls=max_metric_calls,
+            result_out=result_out,
         )
         payload = write_program_refinement_gepa_result(result, result_out)
     except ProgramRefinementGepaError as exc:

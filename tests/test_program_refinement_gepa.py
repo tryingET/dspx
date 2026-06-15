@@ -97,6 +97,132 @@ def _fake_gepa(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     return calls
 
 
+def test_program_refine_optimize_gepa_rejects_paths_that_overlap_source_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    calls = _fake_gepa(monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="TicketProgram",
+            objective="Classify support ticket urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+            examples=[
+                {
+                    "inputs": {"ticket_text": "Server is down"},
+                    "outputs": {"urgency": "high"},
+                }
+            ],
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    before = _hash_tree(program_root)
+
+    cases = [
+        (
+            program_root,
+            tmp_path / "refinement" / "gepa_refinement_result.json",
+            "GEPA output directory must be outside source candidate root",
+        ),
+        (
+            program_root / "gepa-output",
+            tmp_path / "refinement" / "gepa_refinement_result.json",
+            "GEPA output directory must be outside source candidate root",
+        ),
+        (
+            tmp_path,
+            tmp_path / "refinement" / "gepa_refinement_result.json",
+            "GEPA output directory must not contain source candidate root",
+        ),
+        (
+            tmp_path / "program-gepa",
+            program_root / "gepa_refinement_result.json",
+            "GEPA result sidecar path must be outside source candidate root",
+        ),
+        (
+            tmp_path / "program-gepa",
+            tmp_path / "program-gepa" / "gepa_refinement_result.json",
+            "GEPA result sidecar path must not overlap the GEPA output directory",
+        ),
+    ]
+    for outdir, result_path, message in cases:
+        result = runner.invoke(
+            app,
+            [
+                "program-refine",
+                "optimize-gepa",
+                "--manifest",
+                str(program_root / "manifest.json"),
+                "--outdir",
+                str(outdir),
+                "--result-out",
+                str(result_path),
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert message in (result.stdout + result.stderr)
+        assert not result_path.exists()
+        assert _hash_tree(program_root) == before
+    assert calls == []
+
+
+def test_program_refine_optimize_gepa_rejects_symlinked_output_into_source_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    calls = _fake_gepa(monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="TicketProgram",
+            objective="Classify support ticket urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+            examples=[
+                {
+                    "inputs": {"ticket_text": "Server is down"},
+                    "outputs": {"urgency": "high"},
+                }
+            ],
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    before = _hash_tree(program_root)
+    symlink = tmp_path / "candidate-link"
+    try:
+        symlink.symlink_to(program_root, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlink unavailable: {exc}")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "optimize-gepa",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--outdir",
+            str(symlink / "gepa-output"),
+            "--result-out",
+            str(tmp_path / "refinement" / "gepa_refinement_result.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "GEPA output directory must be outside source candidate root" in (
+        result.stdout + result.stderr
+    )
+    assert _hash_tree(program_root) == before
+    assert calls == []
+
+
 def test_program_refine_optimize_gepa_inline_examples_writes_sidecar_only(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
