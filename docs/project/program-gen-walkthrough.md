@@ -969,6 +969,7 @@ uv run -q python -m dspx.cli.dspx program-promote status \
   --review "$TD/promotion/promotion_review_refined.json" \
   --decision-record "$TD/promotion/promotion_decision_record.json" \
   --jury-results "$TD/promotion/jury_results.json" \
+  --model-jury-results "$TD/promotion/model_jury_results.json" \
   --comparison "$TD/refinement/candidate_comparison.json" \
   --gepa-refinement "$TD/refinement/gepa_refinement_result.json" \
   --export-preflight "$TD/export/ak-export-preflight.json" \
@@ -982,11 +983,11 @@ Expected JSON facts:
 - `status` is a truth-preserving local posture such as `not_promoted_external_preflighted_not_applied`
 - `candidate_identity` and optional `source_identity` identify the exact artifacts being summarized
 - `evidence_state` reports example-backed behavior results when present, bounded `behavior_episode.json` evidence when present, execution episode, Oracle-readable evidence, optional Oracle report, optional refinement proposal, and optional role-aware GEPA optimizer evidence/readiness for the candidate or source manifest
-- `promotion_state` reports review readiness, decision outcome, optional local jury-results evidence, comparison role, optional promotion plan, optional external-authority local preflight blockers, and separate future external-apply blockers
+- `promotion_state` reports review readiness, decision outcome, optional local deterministic jury-results evidence, optional provider-backed model-jury-results evidence, comparison role, optional promotion plan, optional external-authority local preflight blockers, and separate future external-apply blockers
 - `truth_summary` keeps `promotion_applied`, `external_authority_mutated`, `governance_mutated`, `ak_called`, `winner_selected`, `automatic_promotion`, and `ready_for_future_apply` false; optional GEPA evidence may set `gepa_output_ready_for_future_candidate_materializer=true` without generating a candidate
 - `artifact_hashes` records deterministic hashes for every supplied sidecar plus local behavior result / behavior episode evidence when present
 
-This command writes only the requested state summary. Local jury results and GEPA refinement results are summarized as evidence only and do not create promotion authority, candidate materialization, or winner selection. The command does not mutate candidate artifacts or sidecar inputs, does not create or mutate Oracle indexes, does not call AK, does not apply authority, does not select a winner, does not promote, and does not introduce `eval_behavior.py`.
+This command writes only the requested state summary. Local jury results, provider-backed model-jury results, and GEPA refinement results are summarized as evidence only and do not create promotion authority, candidate materialization, or winner selection. The command does not mutate candidate artifacts or sidecar inputs, does not create or mutate Oracle indexes, does not call AK, does not apply authority, does not select a winner, does not promote, and does not introduce `eval_behavior.py`.
 
 ## 20. Cleanup
 

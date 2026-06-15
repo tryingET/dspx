@@ -196,6 +196,70 @@ def _identity_from_manifest_path(manifest_path: Path) -> dict[str, str | None]:
     }
 
 
+def _write_model_jury_results(
+    path: Path,
+    *,
+    manifest_path: Path,
+    authority_drift: bool = False,
+    promotion_authority: bool = False,
+) -> Path:
+    identity = _identity_from_manifest_path(manifest_path)
+    if authority_drift:
+        identity = {**identity, "candidate_id": "wrong-candidate"}
+    _write_json(
+        path,
+        {
+            "schema_version": "program-model-jury-results-v1",
+            "status": "executed",
+            "identity": identity,
+            "created_from": {"manifest_path": str(manifest_path)},
+            "jury": {
+                "execution_mode": "provider_backed_model",
+                "provider_backed_model_calls": True,
+                "selected_juror_count": 1,
+                "selected_perspectives": ["authority_boundaries"],
+            },
+            "adjudicator": {
+                "repo": "target-repo",
+                "promotion_authority": promotion_authority,
+            },
+            "evidence": {"entry_count": 1},
+            "juror_results": [
+                {
+                    "juror_id": "authority_agent",
+                    "perspective": "authority_boundaries",
+                    "status": "judged",
+                    "judgment": {"outcome": "request_more_evidence"},
+                }
+            ],
+            "aggregate": {
+                "judgment_counts": {"request_more_evidence": 1},
+                "recommendation": "request_more_evidence",
+                "unique_improvement_requests": ["collect target evidence"],
+            },
+            "interpretation": {"ready_for_promotion_decision": False},
+            "effect": {
+                "model_jury_evidence_only": True,
+                "program_files_mutated": False,
+                "promotion_review_mutated": False,
+                "new_candidate_generated": False,
+                "oracle_index_mutated": False,
+                "external_authority_mutated": False,
+                "ak_mutated": False,
+                "governance_mutated": False,
+            },
+            "non_authority": {
+                "promotion_approval": False,
+                "ranking_or_winner_selection": False,
+                "domain_acceptance": False,
+                "external_authority_apply": False,
+                "canonical_mutation": False,
+            },
+        },
+    )
+    return path
+
+
 def _write_gepa_refinement_result(
     path: Path, *, manifest_path: Path, authority_drift: bool = False
 ) -> Path:
@@ -387,6 +451,10 @@ def _materialize_candidate_state_inputs(
     )
     jury_results_path = tmp_path / "promotion" / "jury_results.json"
     write_program_jury_execution_result(jury_results, jury_results_path)
+    model_jury_results_path = _write_model_jury_results(
+        tmp_path / "promotion" / "model_jury_results.json",
+        manifest_path=candidate_root / "manifest.json",
+    )
 
     gepa_refinement_path = _write_gepa_refinement_result(
         tmp_path / "refinement" / "gepa_refinement_result.json",
@@ -423,6 +491,7 @@ def _materialize_candidate_state_inputs(
         "review": review_path,
         "decision": decision_path,
         "jury_results": jury_results_path,
+        "model_jury_results": model_jury_results_path,
         "comparison": comparison_path,
         "gepa_refinement": gepa_refinement_path,
         "promotion_plan": promotion_plan_path,
@@ -473,6 +542,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["decision"]),
             "--jury-results",
             str(paths["jury_results"]),
+            "--model-jury-results",
+            str(paths["model_jury_results"]),
             "--comparison",
             str(paths["comparison"]),
             "--gepa-refinement",
@@ -522,6 +593,10 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         == before_sidecars["jury_results"]
     )
     assert (
+        payload["artifact_hashes"]["model_jury_results_sha256"]
+        == before_sidecars["model_jury_results"]
+    )
+    assert (
         payload["artifact_hashes"]["comparison_sha256"] == before_sidecars["comparison"]
     )
     assert (
@@ -535,6 +610,9 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
 
     assert payload["created_from"]["behavior_episode_path"] == str(
         (candidate_root / "behavior_episode.json").resolve()
+    )
+    assert payload["created_from"]["model_jury_results_path"] == str(
+        paths["model_jury_results"].resolve()
     )
 
     evidence = payload["evidence_state"]
@@ -607,6 +685,23 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert promotion["jury_results"]["behavior_evidence_present"] is True
     assert promotion["jury_results"]["promotion_authority"] is False
     assert promotion["jury_results"]["ready_for_promotion_decision"] is False
+    assert promotion["model_jury_results"] == {
+        "present": True,
+        "schema_version": "program-model-jury-results-v1",
+        "status": "executed",
+        "manifest_role": "candidate",
+        "execution_mode": "provider_backed_model",
+        "provider_backed_model_calls": True,
+        "selected_juror_count": 1,
+        "selected_perspectives": ["authority_boundaries"],
+        "judgment_counts": {"request_more_evidence": 1},
+        "recommendation": "request_more_evidence",
+        "improvement_request_count": 1,
+        "adjudicator_repo": "target-repo",
+        "ready_for_promotion_decision": False,
+        "promotion_authority": False,
+        "winner_selected": False,
+    }
     assert promotion["comparison"]["present"] is True
     assert promotion["comparison"]["manifest_role"] == "candidate"
     assert promotion["comparison"]["winner_selected"] is False
@@ -641,6 +736,7 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert truth["review_present"] is True
     assert truth["decision_record_present"] is True
     assert truth["jury_results_present"] is True
+    assert truth["model_jury_results_present"] is True
     assert truth["comparison_present"] is True
     assert truth["promotion_plan_present"] is True
     assert truth["external_authority_preflight_present"] is True
@@ -700,6 +796,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["decision"]),
             "--jury-results",
             str(paths["jury_results"]),
+            "--model-jury-results",
+            str(paths["model_jury_results"]),
             "--comparison",
             str(paths["comparison"]),
             "--gepa-refinement",
@@ -726,6 +824,71 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert (source_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_candidate_state_rejects_model_jury_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_model_jury = _write_model_jury_results(
+        tmp_path / "promotion" / "bad_model_jury_results.json",
+        manifest_path=candidate_root / "manifest.json",
+        authority_drift=True,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="program model jury results identity does not match candidate/source identity",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            model_jury_results_path=bad_model_jury,
+        )
+
+
+def test_program_candidate_state_rejects_model_jury_promotion_authority_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_model_jury = _write_model_jury_results(
+        tmp_path / "promotion" / "bad_model_jury_results.json",
+        manifest_path=candidate_root / "manifest.json",
+        promotion_authority=True,
+    )
+
+    with pytest.raises(ProgramCandidateStateError, match="promotion authority"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            model_jury_results_path=bad_model_jury,
+        )
+
+
+def test_program_candidate_state_rejects_unjudged_model_jury_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_payload = json.loads(paths["model_jury_results"].read_text(encoding="utf-8"))
+    bad_payload["juror_results"] = [{"juror_id": "authority_agent", "status": "failed"}]
+    bad_model_jury = tmp_path / "promotion" / "bad_model_jury_results.json"
+    _write_json(bad_model_jury, bad_payload)
+
+    with pytest.raises(ProgramCandidateStateError, match="judged juror"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            model_jury_results_path=bad_model_jury,
+        )
 
 
 def test_program_candidate_state_rejects_source_gepa_without_source_manifest(

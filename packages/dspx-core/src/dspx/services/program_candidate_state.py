@@ -18,6 +18,7 @@ PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v1"
+PROGRAM_MODEL_JURY_RESULTS_SCHEMA = "program-model-jury-results-v1"
 PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
@@ -44,6 +45,7 @@ _FORBIDDEN_OUTPUT_NAMES = {
     "promotion_decision_record.json",
     "promotion_plan.json",
     "jury_results.json",
+    "model_jury_results.json",
     "behavior_results.json",
     "behavior_episode.json",
     "oracle_evidence.json",
@@ -352,6 +354,7 @@ def _validate_optional_inputs(
     review: Mapping[str, Any] | None,
     decision: Mapping[str, Any] | None,
     jury_results: Mapping[str, Any] | None,
+    model_jury_results: Mapping[str, Any] | None,
     comparison: Mapping[str, Any] | None,
     promotion_plan: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
@@ -450,6 +453,69 @@ def _validate_optional_inputs(
         ):
             raise ProgramCandidateStateError(
                 "program jury results identity does not match candidate/source identity"
+            )
+
+    if model_jury_results is not None:
+        _validate_non_authority_false(
+            model_jury_results,
+            label="program model jury results",
+            keys=(
+                "promotion_approval",
+                "ranking_or_winner_selection",
+                "domain_acceptance",
+                "external_authority_apply",
+                "canonical_mutation",
+            ),
+        )
+        effect = _safe_mapping(model_jury_results.get("effect"))
+        if effect.get("model_jury_evidence_only") is not True:
+            raise ProgramCandidateStateError(
+                "program model jury results must be evidence-only"
+            )
+        for key in (
+            "program_files_mutated",
+            "promotion_review_mutated",
+            "new_candidate_generated",
+            "oracle_index_mutated",
+            "external_authority_mutated",
+            "ak_mutated",
+            "governance_mutated",
+        ):
+            if effect.get(key) is not False:
+                raise ProgramCandidateStateError(
+                    "program model jury results widens effect flags: " + key
+                )
+        jury = _safe_mapping(model_jury_results.get("jury"))
+        if jury.get("provider_backed_model_calls") is not True:
+            raise ProgramCandidateStateError(
+                "program model jury results must record provider-backed model calls"
+            )
+        juror_results = [
+            item
+            for item in _safe_list(model_jury_results.get("juror_results"))
+            if isinstance(item, Mapping)
+        ]
+        if not any(str(item.get("status") or "") == "judged" for item in juror_results):
+            raise ProgramCandidateStateError(
+                "program model jury results must include at least one judged juror result"
+            )
+        adjudicator = _safe_mapping(model_jury_results.get("adjudicator"))
+        if adjudicator.get("promotion_authority") is not False:
+            raise ProgramCandidateStateError(
+                "program model jury adjudicator must not claim promotion authority"
+            )
+        interpretation = _safe_mapping(model_jury_results.get("interpretation"))
+        if interpretation.get("ready_for_promotion_decision") is not False:
+            raise ProgramCandidateStateError(
+                "program model jury results must not claim promotion-decision readiness"
+            )
+        model_jury_identity = _safe_mapping(model_jury_results.get("identity"))
+        if not any(
+            _identity_exactly_matches(model_jury_identity, item)
+            for item in source_or_candidate
+        ):
+            raise ProgramCandidateStateError(
+                "program model jury results identity does not match candidate/source identity"
             )
 
     if comparison is not None:
@@ -804,6 +870,46 @@ def _jury_results_summary(
         )
         is True,
         "promotion_authority": False,
+    }
+
+
+def _model_jury_results_summary(
+    model_jury_results: Mapping[str, Any] | None,
+    candidate_identity: Mapping[str, str | None],
+    source_identity: Mapping[str, str | None] | None,
+) -> dict[str, Any]:
+    if model_jury_results is None:
+        return {"present": False, "status": "missing"}
+    role = _identity_role(
+        _safe_mapping(model_jury_results.get("identity")),
+        candidate_identity=candidate_identity,
+        source_identity=source_identity,
+    )
+    jury = _safe_mapping(model_jury_results.get("jury"))
+    aggregate = _safe_mapping(model_jury_results.get("aggregate"))
+    adjudicator = _safe_mapping(model_jury_results.get("adjudicator"))
+    interpretation = _safe_mapping(model_jury_results.get("interpretation"))
+    return {
+        "present": True,
+        "schema_version": model_jury_results.get("schema_version"),
+        "status": model_jury_results.get("status"),
+        "manifest_role": role,
+        "execution_mode": jury.get("execution_mode"),
+        "provider_backed_model_calls": jury.get("provider_backed_model_calls") is True,
+        "selected_juror_count": _safe_int(jury.get("selected_juror_count")),
+        "selected_perspectives": _string_list(jury.get("selected_perspectives")),
+        "judgment_counts": _safe_mapping(aggregate.get("judgment_counts")),
+        "recommendation": aggregate.get("recommendation"),
+        "improvement_request_count": len(
+            _safe_list(aggregate.get("unique_improvement_requests"))
+        ),
+        "adjudicator_repo": adjudicator.get("repo"),
+        "ready_for_promotion_decision": interpretation.get(
+            "ready_for_promotion_decision"
+        )
+        is True,
+        "promotion_authority": adjudicator.get("promotion_authority") is True,
+        "winner_selected": False,
     }
 
 
@@ -1183,6 +1289,7 @@ def build_program_candidate_state(
     review_path: Path | None = None,
     decision_record_path: Path | None = None,
     jury_results_path: Path | None = None,
+    model_jury_results_path: Path | None = None,
     comparison_path: Path | None = None,
     promotion_plan_path: Path | None = None,
     export_preflight_path: Path | None = None,
@@ -1251,6 +1358,13 @@ def build_program_candidate_state(
         label="program jury results",
         schema=PROGRAM_JURY_RESULTS_SCHEMA,
     )
+    model_jury_results, model_jury_results_file, model_jury_results_hash = (
+        _load_optional_artifact(
+            model_jury_results_path,
+            label="program model jury results",
+            schema=PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
+        )
+    )
     comparison, comparison_file, comparison_hash = _load_optional_artifact(
         comparison_path,
         label="program candidate comparison",
@@ -1318,6 +1432,7 @@ def build_program_candidate_state(
         review=review,
         decision=decision,
         jury_results=jury_results,
+        model_jury_results=model_jury_results,
         comparison=comparison,
         promotion_plan=promotion_plan,
         export_preflight=export_preflight,
@@ -1345,6 +1460,7 @@ def build_program_candidate_state(
         "review_sha256": review_hash,
         "decision_record_sha256": decision_hash,
         "jury_results_sha256": jury_results_hash,
+        "model_jury_results_sha256": model_jury_results_hash,
         "comparison_sha256": comparison_hash,
         "promotion_plan_sha256": promotion_plan_hash,
         "export_preflight_sha256": export_preflight_hash,
@@ -1403,6 +1519,9 @@ def build_program_candidate_state(
             else None,
             "jury_results_path": str(jury_results_file)
             if jury_results_file is not None
+            else None,
+            "model_jury_results_path": str(model_jury_results_file)
+            if model_jury_results_file is not None
             else None,
             "comparison_path": str(comparison_file)
             if comparison_file is not None
@@ -1489,6 +1608,11 @@ def build_program_candidate_state(
                 candidate_identity,
                 source_identity,
             ),
+            "model_jury_results": _model_jury_results_summary(
+                model_jury_results,
+                candidate_identity,
+                source_identity,
+            ),
             "comparison": _comparison_summary(comparison, candidate_identity),
             "promotion_plan": _promotion_plan_summary(promotion_plan),
             "external_authority_export_preflight": _export_preflight_summary(
@@ -1503,6 +1627,7 @@ def build_program_candidate_state(
             "review_present": review is not None,
             "decision_record_present": decision is not None,
             "jury_results_present": jury_results is not None,
+            "model_jury_results_present": model_jury_results is not None,
             "comparison_present": comparison is not None,
             "promotion_plan_present": promotion_plan is not None,
             "external_authority_preflight_present": export_preflight is not None,
