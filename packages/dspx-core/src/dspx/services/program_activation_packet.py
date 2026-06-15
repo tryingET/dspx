@@ -573,6 +573,42 @@ def _validate_oracle_publication_preflight_target_posture(
     return target_name
 
 
+def _validate_oracle_publication_receipt_source_lineage(
+    *,
+    source: Mapping[str, Any],
+    preflight: Mapping[str, Any] | None,
+    preflight_ref: Mapping[str, Any] | None,
+) -> None:
+    if source.get("local_paths_omitted_from_shared_record") is not True:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt must omit local paths from shared record"
+        )
+    for key in (
+        "preflight_file",
+        "preflight_sha256",
+        "oracle_evidence_file",
+        "oracle_evidence_sha256",
+    ):
+        if not str(source.get(key) or "").strip():
+            raise ProgramActivationPacketError(
+                f"oracle_publication_receipt source.{key} is required"
+            )
+    if preflight is None:
+        return
+    preflight_hash = str((preflight_ref or {}).get("sha256") or "").strip()
+    if preflight_hash and source.get("preflight_sha256") != preflight_hash:
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt source.preflight_sha256 does not match supplied preflight"
+        )
+    preflight_hashes = _safe_mapping(preflight.get("artifact_hashes"))
+    if source.get("oracle_evidence_sha256") != preflight_hashes.get(
+        "oracle_evidence_sha256"
+    ):
+        raise ProgramActivationPacketError(
+            "oracle_publication_receipt source.oracle_evidence_sha256 does not match supplied preflight"
+        )
+
+
 def _validate_oracle_publication_receipt(
     identity: Mapping[str, Any],
     receipt: Mapping[str, Any] | None,
@@ -681,34 +717,11 @@ def _validate_oracle_publication_receipt(
 
     _validate_oracle_publication_target_posture(_safe_mapping(receipt.get("target")))
 
-    source = _safe_mapping(receipt.get("source"))
-    if source.get("local_paths_omitted_from_shared_record") is not True:
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt must omit local paths from shared record"
-        )
-    for key in (
-        "preflight_file",
-        "preflight_sha256",
-        "oracle_evidence_file",
-        "oracle_evidence_sha256",
-    ):
-        if not str(source.get(key) or "").strip():
-            raise ProgramActivationPacketError(
-                f"oracle_publication_receipt source.{key} is required"
-            )
-    if preflight is not None:
-        preflight_hash = str((preflight_ref or {}).get("sha256") or "").strip()
-        if preflight_hash and source.get("preflight_sha256") != preflight_hash:
-            raise ProgramActivationPacketError(
-                "oracle_publication_receipt source.preflight_sha256 does not match supplied preflight"
-            )
-        preflight_hashes = _safe_mapping(preflight.get("artifact_hashes"))
-        if source.get("oracle_evidence_sha256") != preflight_hashes.get(
-            "oracle_evidence_sha256"
-        ):
-            raise ProgramActivationPacketError(
-                "oracle_publication_receipt source.oracle_evidence_sha256 does not match supplied preflight"
-            )
+    _validate_oracle_publication_receipt_source_lineage(
+        source=_safe_mapping(receipt.get("source")),
+        preflight=preflight,
+        preflight_ref=preflight_ref,
+    )
 
     effect = _safe_mapping(receipt.get("effect"))
     if effect.get("shared_oracle_mutated") is not True:

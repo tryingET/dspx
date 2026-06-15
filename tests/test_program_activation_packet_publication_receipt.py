@@ -219,6 +219,7 @@ def test_program_promote_activation_packet_rejects_publication_receipt_source_pr
     receipt["source"]["preflight_sha256"] = "0" * 64
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
 
+    out_path = tmp_path / "activation" / "activation_packet.json"
     result = runner.invoke(
         app,
         [
@@ -237,13 +238,15 @@ def test_program_promote_activation_packet_rejects_publication_receipt_source_pr
             "--oracle-publication-receipt",
             str(receipt_path),
             "--out",
-            str(tmp_path / "activation" / "activation_packet.json"),
+            str(out_path),
             "--json",
         ],
     )
 
     assert result.exit_code == 2
     assert "source.preflight_sha256 does not match supplied preflight" in result.output
+    assert not out_path.exists()
+    assert not out_path.parent.exists()
 
 
 def test_program_promote_activation_packet_rejects_publication_receipt_preflight_publication_drift(
