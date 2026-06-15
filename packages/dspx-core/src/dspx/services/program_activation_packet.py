@@ -30,6 +30,7 @@ TRANSITION_PASSPORT_REF = (
 _EXPECTED_SCHEMAS = {
     "oracle_report": "program-oracle-evidence-report-v1",
     "jury_results": "program-jury-results-v1",
+    "model_jury_results": "program-model-jury-results-v1",
     "refined_review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
     "promotion_plan": "program-promotion-plan-v1",
@@ -53,6 +54,7 @@ _FORBIDDEN_OUTPUT_NAMES = {
     "promotion_decision_record.json",
     "promotion_plan.json",
     "jury_results.json",
+    "model_jury_results.json",
     "behavior_results.json",
     "oracle_evidence.json",
     "execution_episode.json",
@@ -421,6 +423,7 @@ def _validate_decision_authority_owner(
 def _validate_activation_evidence_boundaries(
     *,
     jury_results: Mapping[str, Any] | None,
+    model_jury_results: Mapping[str, Any] | None,
     refined_review: Mapping[str, Any] | None,
     decision_record: Mapping[str, Any] | None,
     promotion_plan: Mapping[str, Any] | None,
@@ -441,6 +444,60 @@ def _validate_activation_evidence_boundaries(
                 "external_mutation",
             ),
         )
+    if model_jury_results is not None:
+        _validate_non_authority_false(
+            model_jury_results,
+            label="model_jury_results",
+            keys=(
+                "promotion_approval",
+                "ranking_or_winner_selection",
+                "domain_acceptance",
+                "external_authority_apply",
+                "canonical_mutation",
+            ),
+        )
+        effect = _safe_mapping(model_jury_results.get("effect"))
+        if effect.get("model_jury_evidence_only") is not True:
+            raise ProgramActivationPacketError(
+                "model_jury_results must be evidence-only"
+            )
+        for key in (
+            "program_files_mutated",
+            "promotion_review_mutated",
+            "new_candidate_generated",
+            "oracle_index_mutated",
+            "external_authority_mutated",
+            "ak_mutated",
+            "governance_mutated",
+        ):
+            if effect.get(key) is not False:
+                raise ProgramActivationPacketError(
+                    "model_jury_results widens effect flags: " + key
+                )
+        jury = _safe_mapping(model_jury_results.get("jury"))
+        if jury.get("provider_backed_model_calls") is not True:
+            raise ProgramActivationPacketError(
+                "model_jury_results must record provider-backed model calls"
+            )
+        juror_results = [
+            item
+            for item in _safe_list(model_jury_results.get("juror_results"))
+            if isinstance(item, Mapping)
+        ]
+        if not any(str(item.get("status") or "") == "judged" for item in juror_results):
+            raise ProgramActivationPacketError(
+                "model_jury_results must include at least one judged juror result"
+            )
+        adjudicator = _safe_mapping(model_jury_results.get("adjudicator"))
+        if adjudicator.get("promotion_authority") is not False:
+            raise ProgramActivationPacketError(
+                "model_jury_results adjudicator must not claim promotion authority"
+            )
+        interpretation = _safe_mapping(model_jury_results.get("interpretation"))
+        if interpretation.get("ready_for_promotion_decision") is not False:
+            raise ProgramActivationPacketError(
+                "model_jury_results must not claim promotion-decision readiness"
+            )
     if refined_review is not None:
         _validate_non_authority_false(
             refined_review,
@@ -1599,6 +1656,7 @@ def _remaining_activation_blockers(
     behavior_refs: list[dict[str, Any]],
     oracle_report: Mapping[str, Any] | None,
     jury_results: Mapping[str, Any] | None,
+    model_jury_results: Mapping[str, Any] | None,
     refined_review: Mapping[str, Any] | None,
     decision_record: Mapping[str, Any] | None,
     canonical_binding_ref: str | None,
@@ -1613,8 +1671,8 @@ def _remaining_activation_blockers(
         blockers.append("behavior_evidence")
     if oracle_report is None:
         blockers.append("oracle_report")
-    if jury_results is None:
-        blockers.append("jury_results")
+    if jury_results is None and model_jury_results is None:
+        blockers.append("jury_evidence")
     if refined_review is None:
         blockers.append("refined_promotion_review")
     if require_obsidian_review_adapter:
@@ -1641,6 +1699,7 @@ def _status_and_missing(
     behavior_refs: list[dict[str, Any]],
     oracle_report: Mapping[str, Any] | None,
     jury_results: Mapping[str, Any] | None,
+    model_jury_results: Mapping[str, Any] | None,
     refined_review: Mapping[str, Any] | None,
     decision_record: Mapping[str, Any] | None,
     canonical_binding_ref: str | None,
@@ -1655,8 +1714,8 @@ def _status_and_missing(
         missing.append("behavior_evidence")
     if oracle_report is None:
         missing.append("oracle_report")
-    if jury_results is None:
-        missing.append("jury_results")
+    if jury_results is None and model_jury_results is None:
+        missing.append("jury_evidence")
     if refined_review is None:
         missing.append("refined_promotion_review")
     if require_obsidian_review_adapter:
@@ -1698,6 +1757,7 @@ def build_generated_program_activation_packet(
     authority_owner: str,
     oracle_report_path: Path | None = None,
     jury_results_path: Path | None = None,
+    model_jury_results_path: Path | None = None,
     review_path: Path | None = None,
     decision_record_path: Path | None = None,
     promotion_plan_path: Path | None = None,
@@ -1746,6 +1806,10 @@ def build_generated_program_activation_packet(
         jury_results_path,
         label="jury_results",
     )
+    model_jury_results, model_jury_ref = _load_optional_artifact(
+        model_jury_results_path,
+        label="model_jury_results",
+    )
     refined_review, review_ref = _load_optional_artifact(
         review_path,
         label="refined_review",
@@ -1788,11 +1852,15 @@ def build_generated_program_activation_packet(
     )
 
     _validate_artifact_identity(identity, jury_results, label="jury_results")
+    _validate_artifact_identity(
+        identity, model_jury_results, label="model_jury_results"
+    )
     _validate_artifact_identity(identity, refined_review, label="refined_review")
     _validate_artifact_identity(identity, decision_record, label="decision_record")
     _validate_artifact_identity(identity, promotion_plan, label="promotion_plan")
     _validate_activation_evidence_boundaries(
         jury_results=jury_results,
+        model_jury_results=model_jury_results,
         refined_review=refined_review,
         decision_record=decision_record,
         promotion_plan=promotion_plan,
@@ -1842,6 +1910,7 @@ def build_generated_program_activation_packet(
         behavior_refs=behavior_refs,
         oracle_report=oracle_report,
         jury_results=jury_results,
+        model_jury_results=model_jury_results,
         refined_review=refined_review,
         decision_record=decision_record,
         canonical_binding_ref=canonical_binding_ref,
@@ -1855,6 +1924,7 @@ def build_generated_program_activation_packet(
         behavior_refs=behavior_refs,
         oracle_report=oracle_report,
         jury_results=jury_results,
+        model_jury_results=model_jury_results,
         refined_review=refined_review,
         decision_record=decision_record,
         canonical_binding_ref=canonical_binding_ref,
@@ -1890,6 +1960,7 @@ def build_generated_program_activation_packet(
             "behavior": behavior_refs,
             "oracle_report": oracle_ref,
             "jury_results": jury_ref,
+            "model_jury_results": model_jury_ref,
             "refined_review": review_ref,
             "decision_record": decision_ref,
             "promotion_plan": promotion_plan_ref,

@@ -989,6 +989,37 @@ Expected JSON facts:
 
 This command writes only the requested state summary. Local jury results, provider-backed model-jury results, and GEPA refinement results are summarized as evidence only and do not create promotion authority, candidate materialization, or winner selection. The command does not mutate candidate artifacts or sidecar inputs, does not create or mutate Oracle indexes, does not call AK, does not apply authority, does not select a winner, does not promote, and does not introduce `eval_behavior.py`.
 
+## 19c. Optional activation evidence packet with model-jury evidence
+
+When behavior, Oracle, refined review, rollout owner, and rollback evidence are present, a provider-backed model-jury sidecar can satisfy the activation packet's jury-evidence slot without applying activation:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote activation-packet \
+  --manifest "$TD/program/manifest.json" \
+  --owning-domain softwareco/dspx-generated-program-governance \
+  --activation-target local-dogfood-only \
+  --authority-owner softwareco-program-governance \
+  --oracle-report "$TD/oracle/program-evidence-report.json" \
+  --model-jury-results "$TD/promotion/model_jury_results.json" \
+  --review "$TD/promotion/promotion_review_refined.json" \
+  --rollout-owner softwareco-runtime-operator \
+  --rollback-plan "Disable the generated-program route and restore the previous production program version." \
+  --out "$TD/activation/activation_packet.json" \
+  --json
+```
+
+Expected JSON facts:
+
+- `schema_version: generated-cognition-program-production-activation-packet-v1`
+- `status: ready_for_domain_adjudication` when the behavior, Oracle, model-jury, review, rollout-owner, and rollback evidence are present and no decision record has been supplied
+- `missing_required_evidence: []`
+- `remaining_activation_blockers` still includes `domain_decision_record` and `canonical_binding_ref`
+- `evidence.model_jury_results` records the model-jury sidecar path/hash/schema; `evidence.jury_results` may be `null` when deterministic local jury results were not supplied
+- `effect.production_activation_applied`, `effect.ak_mutated`, and `effect.external_authority_mutated` remain `false`
+- `non_authority.activation_packet_only` is `true`
+
+Activation-packet generation validates model-jury schema, manifest identity, provider-backed execution, at least one judged juror, adjudicator non-authority, non-readiness for promotion decision, evidence-only effect flags, and no promotion/ranking/domain/external/canonical authority claims. The packet is local activation evidence only: it does not activate, deploy, promote, select a winner, call AK, mutate governance, mutate Oracle, mutate external authority, or replace the domain decision/canonical binding gates.
+
 ## 20. Cleanup
 
 ```bash

@@ -354,6 +354,11 @@ def activation_packet(
         "--jury-results",
         help="Optional program-jury-results-v1 JSON",
     ),
+    model_jury_results: Path | None = typer.Option(
+        None,
+        "--model-jury-results",
+        help="Optional provider-backed program-model-jury-results-v1 JSON",
+    ),
     review: Path | None = typer.Option(
         None,
         "--review",
@@ -431,6 +436,7 @@ def activation_packet(
             authority_owner=authority_owner,
             oracle_report_path=oracle_report,
             jury_results_path=jury_results,
+            model_jury_results_path=model_jury_results,
             review_path=review,
             decision_record_path=decision_record,
             promotion_plan_path=promotion_plan,

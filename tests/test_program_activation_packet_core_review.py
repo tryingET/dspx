@@ -7,15 +7,78 @@ import pytest
 
 from dspx.cli.dspx import app
 from program_activation_packet_shared import (
+    _candidate_identity,
     _file_hashes,
     _materialize_program,
     _materialize_review_chain,
+    _write_json,
     _write_obsidian_adapter_receipt,
     _write_target_aware_candidate_state,
     runner,
 )
 
 pytestmark = pytest.mark.slow
+
+
+def _write_model_jury_results(
+    root: Path,
+    out: Path,
+    *,
+    authority_drift: bool = False,
+    promotion_authority: bool = False,
+) -> Path:
+    identity = _candidate_identity(root)
+    if authority_drift:
+        identity = {**identity, "candidate_id": "wrong-candidate"}
+    _write_json(
+        out,
+        {
+            "schema_version": "program-model-jury-results-v1",
+            "status": "executed",
+            "identity": identity,
+            "jury": {
+                "execution_mode": "provider_backed_model",
+                "provider_backed_model_calls": True,
+                "selected_juror_count": 1,
+                "selected_perspectives": ["authority_boundaries"],
+            },
+            "adjudicator": {
+                "repo": "target-repo",
+                "promotion_authority": promotion_authority,
+            },
+            "juror_results": [
+                {
+                    "juror_id": "authority_agent",
+                    "status": "judged",
+                    "judgment": {"outcome": "request_more_evidence"},
+                }
+            ],
+            "aggregate": {
+                "judgment_counts": {"request_more_evidence": 1},
+                "recommendation": "request_more_evidence",
+                "unique_improvement_requests": ["collect target evidence"],
+            },
+            "interpretation": {"ready_for_promotion_decision": False},
+            "effect": {
+                "model_jury_evidence_only": True,
+                "program_files_mutated": False,
+                "promotion_review_mutated": False,
+                "new_candidate_generated": False,
+                "oracle_index_mutated": False,
+                "external_authority_mutated": False,
+                "ak_mutated": False,
+                "governance_mutated": False,
+            },
+            "non_authority": {
+                "promotion_approval": False,
+                "ranking_or_winner_selection": False,
+                "domain_acceptance": False,
+                "external_authority_apply": False,
+                "canonical_mutation": False,
+            },
+        },
+    )
+    return out
 
 
 def test_program_promote_activation_packet_blocks_without_required_evidence(
@@ -58,7 +121,7 @@ def test_program_promote_activation_packet_blocks_without_required_evidence(
     assert payload["owning_domain"] == "softwareco/dspx-generated-program-governance"
     assert payload["activation_target"] == "local-dogfood-only"
     assert "oracle_report" in payload["missing_required_evidence"]
-    assert "jury_results" in payload["missing_required_evidence"]
+    assert "jury_evidence" in payload["missing_required_evidence"]
     assert "refined_promotion_review" in payload["missing_required_evidence"]
     assert "rollout_owner" in payload["missing_required_evidence"]
     assert "rollback_plan" in payload["missing_required_evidence"]
@@ -381,3 +444,164 @@ def test_program_promote_activation_packet_dogfoods_review_chain_without_activat
     }
     assert _file_hashes(program_root) == before_hashes
     assert not (program_root / "activation_packet.json").exists()
+
+
+def test_program_promote_activation_packet_accepts_model_jury_as_jury_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, _jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    before_hashes = _file_hashes(program_root)
+    model_jury_path = _write_model_jury_results(
+        program_root,
+        tmp_path / "promotion" / "model_jury_results.json",
+    )
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--model-jury-results",
+            str(model_jury_path),
+            "--review",
+            str(review_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ready_for_domain_adjudication"
+    assert payload["next_required_action"] == "record_domain_decision"
+    assert payload["missing_required_evidence"] == []
+    assert payload["remaining_activation_blockers"] == [
+        "domain_decision_record",
+        "canonical_binding_ref",
+    ]
+    assert payload["evidence"]["jury_results"] is None
+    assert payload["evidence"]["model_jury_results"]["path"] == str(
+        model_jury_path.resolve()
+    )
+    assert payload["decision"] == {
+        "outcome": None,
+        "promotion_state_after_decision": None,
+        "decided_by": None,
+    }
+    assert payload["effect"]["production_activation_applied"] is False
+    assert payload["effect"]["external_authority_mutated"] is False
+    assert payload["non_authority"]["activation_packet_only"] is True
+    assert payload["non_authority"]["program_activation_applied"] is False
+    assert _file_hashes(program_root) == before_hashes
+    assert not (program_root / "activation_packet.json").exists()
+
+
+def test_program_promote_activation_packet_rejects_model_jury_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, _jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    model_jury_path = _write_model_jury_results(
+        program_root,
+        tmp_path / "promotion" / "model_jury_results.json",
+        authority_drift=True,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--model-jury-results",
+            str(model_jury_path),
+            "--review",
+            str(review_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "model_jury_results identity does not match" in result.output
+
+
+def test_program_promote_activation_packet_rejects_model_jury_authority_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, _jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    model_jury_path = _write_model_jury_results(
+        program_root,
+        tmp_path / "promotion" / "model_jury_results.json",
+        promotion_authority=True,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--model-jury-results",
+            str(model_jury_path),
+            "--review",
+            str(review_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "promotion authority" in result.output

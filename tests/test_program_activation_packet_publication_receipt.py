@@ -120,7 +120,7 @@ def test_program_promote_activation_packet_publication_ref_cannot_approve_activa
     assert payload["evidence"]["oracle_publication_receipt"]["evidence_only"] is True
     assert payload["status"] == "blocked"
     assert "oracle_report" in payload["missing_required_evidence"]
-    assert "jury_results" in payload["missing_required_evidence"]
+    assert "jury_evidence" in payload["missing_required_evidence"]
     assert "refined_promotion_review" in payload["missing_required_evidence"]
     assert "rollout_owner" in payload["missing_required_evidence"]
     assert "rollback_plan" in payload["missing_required_evidence"]
