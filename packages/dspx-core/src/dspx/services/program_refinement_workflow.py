@@ -4,14 +4,21 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_refinement_candidate import materialize_refinement_candidate
 from dspx.services.program_refinement_comparison import (
     build_program_refinement_candidate_comparison,
     write_program_refinement_candidate_comparison,
 )
+from dspx.services.program_refinement_gepa_candidate import (
+    materialize_gepa_refinement_candidate,
+)
 
 PROGRAM_REFINEMENT_GENERATE_COMPARE_SCHEMA = (
     "program-refinement-generate-and-compare-result-v1"
+)
+PROGRAM_REFINEMENT_GEPA_GENERATE_COMPARE_SCHEMA = (
+    "program-refinement-gepa-generate-and-compare-result-v1"
 )
 
 
@@ -35,6 +42,19 @@ _WORKFLOW_EFFECT = {
     "source_program_files_mutated": False,
     "comparison_mutated_source_candidate": False,
     "comparison_mutated_refinement_candidate": False,
+    "third_candidate_generated": False,
+    "external_authority_mutated": False,
+    "governance_mutated": False,
+}
+
+
+_GEPA_WORKFLOW_EFFECT = {
+    "local_gepa_candidate_generated": True,
+    "local_comparison_written": True,
+    "source_program_files_mutated": False,
+    "gepa_optimizer_output_mutated": False,
+    "comparison_mutated_source_candidate": False,
+    "comparison_mutated_gepa_candidate": False,
     "third_candidate_generated": False,
     "external_authority_mutated": False,
     "governance_mutated": False,
@@ -122,14 +142,97 @@ def materialize_and_compare_refinement_candidate(
     }
 
 
+def materialize_and_compare_gepa_refinement_candidate(
+    *,
+    manifest_path: Path,
+    gepa_result_path: Path,
+    outdir: Path,
+    comparison_out_path: Path,
+    gepa_candidate_result_out: Path | None = None,
+) -> dict[str, Any]:
+    """Explicitly materialize one GEPA candidate, then compare behavior evidence."""
+
+    manifest_path = manifest_path.expanduser().resolve()
+    gepa_result_path = gepa_result_path.expanduser().resolve()
+    outdir = outdir.expanduser().resolve()
+    comparison_out_path = comparison_out_path.expanduser().resolve()
+    gepa_candidate_result_out = (
+        gepa_candidate_result_out.expanduser().resolve()
+        if gepa_candidate_result_out is not None
+        else None
+    )
+    try:
+        generation = materialize_gepa_refinement_candidate(
+            manifest_path=manifest_path,
+            gepa_result_path=gepa_result_path,
+            outdir=outdir,
+            result_out=gepa_candidate_result_out,
+        )
+        candidate_manifest_path = (
+            Path(str(generation["candidate"]["manifest_path"])).expanduser().resolve()
+        )
+        comparison = build_program_refinement_candidate_comparison(
+            source_manifest_path=manifest_path,
+            candidate_manifest_path=candidate_manifest_path,
+        )
+        comparison_payload = write_program_refinement_candidate_comparison(
+            comparison,
+            comparison_out_path,
+        )
+    except Exception as exc:
+        raise ProgramRefinementWorkflowError(str(exc)) from exc
+
+    status = (
+        "materialized_and_compared_gepa_candidate"
+        if comparison_payload.get("status") == "compared"
+        else "materialized_gepa_candidate_with_insufficient_behavior_evidence"
+    )
+    return {
+        "schema_version": PROGRAM_REFINEMENT_GEPA_GENERATE_COMPARE_SCHEMA,
+        "status": status,
+        "created_from": {
+            "manifest_path": str(manifest_path),
+            "gepa_refinement_result_path": str(gepa_result_path),
+        },
+        "generation": generation,
+        "comparison_sidecar": {
+            "path": str(comparison_out_path),
+            "schema_version": comparison_payload.get("schema_version"),
+            "status": comparison_payload.get("status"),
+            "source_identity": comparison_payload.get("source_identity"),
+            "candidate_identity": comparison_payload.get("candidate_identity"),
+            "behavior_delta": comparison_payload.get("behavior_comparison", {}).get(
+                "delta"
+            ),
+            "interpretation": comparison_payload.get("interpretation"),
+        },
+        "effect": dict(_GEPA_WORKFLOW_EFFECT),
+        "non_authority": {
+            **dict(_WORKFLOW_NON_AUTHORITY),
+            "local_generation_and_comparison_only": False,
+            "local_gepa_generation_and_comparison_only": True,
+        },
+        "notes": [
+            "This explicit workflow materializes one local GEPA-backed candidate and writes one local comparison sidecar.",
+            "It is not program-gen automation and does not rank, select a winner, promote, export authority, or mutate governance.",
+            "Comparison uses current generated local behavior evidence: behavior_episode.json plus example-backed behavior_results.json when present.",
+            "GEPA optimizer output is advisory local evidence, not approval or promotion authority.",
+        ],
+    }
+
+
 def write_program_refinement_workflow_result(
     result: Mapping[str, Any],
     out_path: Path,
 ) -> dict[str, Any]:
     """Optionally write a local workflow receipt sidecar."""
 
-    out_path = out_path.expanduser().resolve()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(result)
+    out_path = prepare_sidecar_output_path(
+        out_path,
+        payload=payload,
+        artifact_label="program refinement workflow result",
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(_json_text(payload), encoding="utf-8")
     return payload

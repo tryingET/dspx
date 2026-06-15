@@ -296,6 +296,122 @@ def test_program_refine_materialize_gepa_candidate_creates_local_non_authoritati
     assert _hash_tree(tmp_path / "program-gepa") == optimizer_before
 
 
+def test_program_refine_materialize_and_compare_gepa_candidate_writes_local_workflow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    source_before = _hash_tree(program_root)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    optimizer_before = _hash_tree(tmp_path / "program-gepa")
+    outdir = tmp_path / "program-gepa-candidate"
+    comparison_out = tmp_path / "refinement" / "gepa_candidate_comparison.json"
+    gepa_candidate_result_out = tmp_path / "refinement" / "gepa_candidate_result.json"
+    workflow_out = tmp_path / "refinement" / "gepa_generate_compare_result.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "materialize-and-compare-gepa-candidate",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--gepa-result",
+            str(gepa_result),
+            "--outdir",
+            str(outdir),
+            "--comparison-out",
+            str(comparison_out),
+            "--gepa-candidate-result-out",
+            str(gepa_candidate_result_out),
+            "--workflow-out",
+            str(workflow_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload == json.loads(workflow_out.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == (
+        "program-refinement-gepa-generate-and-compare-result-v1"
+    )
+    assert payload["status"] == "materialized_and_compared_gepa_candidate"
+    assert payload["created_from"] == {
+        "manifest_path": str((program_root / "manifest.json").resolve()),
+        "gepa_refinement_result_path": str(gepa_result.resolve()),
+    }
+    assert payload["generation"]["schema_version"] == (
+        "program-refinement-gepa-candidate-result-v1"
+    )
+    assert payload["generation"]["behavior_refresh"]["status"] == "refreshed"
+    assert payload["comparison_sidecar"]["path"] == str(comparison_out.resolve())
+    assert payload["comparison_sidecar"]["status"] == "compared"
+    assert payload["effect"] == {
+        "local_gepa_candidate_generated": True,
+        "local_comparison_written": True,
+        "source_program_files_mutated": False,
+        "gepa_optimizer_output_mutated": False,
+        "comparison_mutated_source_candidate": False,
+        "comparison_mutated_gepa_candidate": False,
+        "third_candidate_generated": False,
+        "external_authority_mutated": False,
+        "governance_mutated": False,
+    }
+    assert payload["non_authority"]["local_gepa_generation_and_comparison_only"] is True
+    assert payload["non_authority"]["winner_selection"] is False
+    assert payload["non_authority"]["external_authority_export"] is False
+    comparison = json.loads(comparison_out.read_text(encoding="utf-8"))
+    candidate_manifest = json.loads(
+        (outdir / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert (
+        comparison["candidate_identity"]["candidate_id"]
+        == candidate_manifest["candidate_assembly"]["candidate_id"]
+    )
+    assert comparison["non_authority"]["winner_selection"] is False
+    assert gepa_candidate_result_out.exists()
+    assert _hash_tree(program_root) == source_before
+    assert _hash_tree(tmp_path / "program-gepa") == optimizer_before
+
+
+def test_program_refine_materialize_and_compare_gepa_candidate_fails_closed_before_comparison(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    before = _hash_tree(program_root)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root, identity_drift=True)
+    comparison_out = tmp_path / "refinement" / "gepa_candidate_comparison.json"
+    workflow_out = tmp_path / "refinement" / "gepa_generate_compare_result.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "materialize-and-compare-gepa-candidate",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--gepa-result",
+            str(gepa_result),
+            "--outdir",
+            str(tmp_path / "program-gepa-candidate"),
+            "--comparison-out",
+            str(comparison_out),
+            "--workflow-out",
+            str(workflow_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "identity does not match" in (result.stdout + result.stderr)
+    assert not (tmp_path / "program-gepa-candidate").exists()
+    assert not comparison_out.exists()
+    assert not workflow_out.exists()
+    assert _hash_tree(program_root) == before
+
+
 @pytest.mark.parametrize(
     ("mutator", "expected"),
     [

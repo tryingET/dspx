@@ -842,6 +842,21 @@ uv run -q python -m dspx.cli.dspx program-refine materialize-gepa-candidate \
 
 The result sidecar has `schema_version: program-refinement-gepa-candidate-result-v1`. The command validates source identity, GEPA readiness, non-authority/effect flags, optimizer-manifest hash, optimizer payload inventory/tree hash, source-program hash, path separation, and symlink-free optimizer output before writing the candidate. The new candidate manifest records `gepa_refinement`, includes `gepa_optimizer_output/manifest.json` and `gepa_candidate_lineage.json` as hash-bound surfaces, records the optimizer payload tree hash, refreshes `behavior_episode.json` after replacing `program.py` with the GEPA loader, and removes stale pre-rewrite `oracle_evidence.json` rather than carrying scaffold-era Oracle readability evidence forward. The result sidecar reports `behavior_refresh`; failed GEPA-loader execution is local behavior evidence, not promotion authority. It writes only the requested candidate directory plus optional result sidecar; it does not mutate the source candidate, GEPA output, Oracle, AK, governance, or external authority, and it does not rank, select a winner, approve, promote, deploy, or activate the candidate.
 
+When the next local action is comparison, use the explicit composed workflow instead of hand-threading the generated candidate manifest path:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-refine materialize-and-compare-gepa-candidate \
+  --manifest "$TD/program/manifest.json" \
+  --gepa-result "$TD/refinement/gepa_refinement_result.json" \
+  --outdir "$TD/program-gepa-candidate" \
+  --comparison-out "$TD/refinement/gepa_candidate_comparison.json" \
+  --gepa-candidate-result-out "$TD/refinement/gepa_candidate_result.json" \
+  --workflow-out "$TD/refinement/gepa_generate_compare_result.json" \
+  --json
+```
+
+The composed workflow writes `program-refinement-gepa-generate-and-compare-result-v1` as a local receipt over exactly one GEPA candidate materialization plus one source-vs-GEPA-candidate comparison sidecar. It is still evidence only: no winner selection, ranking, promotion, Oracle authority mutation, AK/governance mutation, or external authority export is performed.
+
 ## 17. Inspect manifest and receipt declarations
 
 ```bash

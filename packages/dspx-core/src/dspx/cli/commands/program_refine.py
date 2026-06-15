@@ -130,6 +130,72 @@ def materialize_gepa_candidate(
         typer.echo(str(outdir.expanduser().resolve()))
 
 
+@app.command("materialize-and-compare-gepa-candidate")
+def materialize_and_compare_gepa_candidate(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to source program-candidate-assembly-v1 manifest.json",
+    ),
+    gepa_result: Path = typer.Option(
+        ...,
+        "--gepa-result",
+        help="Path to ready program-refinement-gepa-result-v1 JSON",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        help="Directory where the GEPA-backed local candidate assembly is materialized",
+    ),
+    comparison_out: Path = typer.Option(
+        ...,
+        "--comparison-out",
+        help="Path where the local source-vs-GEPA-candidate comparison sidecar is written",
+    ),
+    gepa_candidate_result_out: Path | None = typer.Option(
+        None,
+        "--gepa-candidate-result-out",
+        help="Optional path for the GEPA candidate materialization result sidecar",
+    ),
+    workflow_out: Path | None = typer.Option(
+        None,
+        "--workflow-out",
+        help="Optional path for the GEPA materialize-and-compare workflow result sidecar",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print workflow result JSON"),
+) -> None:
+    """Materialize one local GEPA candidate, then compare it without promotion."""
+    from dspx.services.program_refinement_workflow import (
+        ProgramRefinementWorkflowError,
+        materialize_and_compare_gepa_refinement_candidate,
+        write_program_refinement_workflow_result,
+    )
+
+    try:
+        payload = materialize_and_compare_gepa_refinement_candidate(
+            manifest_path=manifest,
+            gepa_result_path=gepa_result,
+            outdir=outdir,
+            comparison_out_path=comparison_out,
+            gepa_candidate_result_out=gepa_candidate_result_out,
+        )
+        if workflow_out is not None:
+            payload = write_program_refinement_workflow_result(payload, workflow_out)
+    except ProgramRefinementWorkflowError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program GEPA materialize-and-compare failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(comparison_out.expanduser().resolve()))
+
+
 @app.command("episode")
 def episode(
     manifest: Path = typer.Option(
