@@ -87,6 +87,22 @@ _DENIED_FUNCTION_CALLS = frozenset(
 )
 
 _DENIED_CALL_ROOTS = _DENIED_DYNAMIC_IMPORT_ROOTS | {"__builtins__"}
+_DENIED_ANNOTATION_NAMES = (
+    _DENIED_FUNCTION_CALLS
+    | _DENIED_CALL_ROOTS
+    | {
+        "BufferedReader",
+        "BufferedWriter",
+        "FileIO",
+        "Path",
+        "PathLike",
+        "Popen",
+        "PosixPath",
+        "PurePath",
+        "TextIOWrapper",
+        "WindowsPath",
+    }
+)
 
 _FORBIDDEN_FUNCTION_BODY_NODES = (
     ast.AsyncWith,
@@ -342,9 +358,13 @@ def _annotationish(
     if node is None:
         return True
     if isinstance(node, ast.Name):
-        return not node.id.startswith("__")
+        return not node.id.startswith("__") and node.id not in _DENIED_ANNOTATION_NAMES
     if isinstance(node, ast.Attribute):
-        return not node.attr.startswith("__") and _annotationish(node.value)
+        return (
+            not node.attr.startswith("__")
+            and node.attr not in _DENIED_ANNOTATION_NAMES
+            and _annotationish(node.value)
+        )
     if isinstance(node, ast.Subscript):
         value_name = _call_name(node.value)
         literal_context = value_name in {"Literal", "typing.Literal"}
@@ -589,6 +609,9 @@ def _validate_module_source(code: str) -> list[str]:
         if isinstance(node, ast.AnnAssign):
             if not isinstance(node.target, ast.Name) or not _literalish(node.value):
                 errors.append("top_level_annassign_not_allowed")
+                continue
+            if not _annotationish(node.annotation):
+                errors.append(f"top_level_annotation_not_allowed:{node.target.id}")
             continue
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Pass)):
             if getattr(node, "decorator_list", None):

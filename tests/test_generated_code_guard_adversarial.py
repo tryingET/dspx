@@ -42,6 +42,24 @@ class UnsafeSig(dspy.Signature):
     assert "signature_annotation_not_allowed:text" in errors
 
 
+def test_generated_signature_guard_rejects_effect_root_annotations_with_future_annotations() -> (
+    None
+):
+    for annotation in ("os.PathLike[str]", "pathlib.Path", "PathLike[str]", "Popen"):
+        code = f"""
+from __future__ import annotations
+import dspy
+
+class UnsafeSig(dspy.Signature):
+    text: {annotation} = dspy.InputField()
+    summary: str = dspy.OutputField()
+"""
+
+        errors = _validate_signature_source(code)
+
+        assert "signature_annotation_not_allowed:text" in errors
+
+
 def test_generated_signature_guard_rejects_string_forwardref_annotations() -> None:
     code = """
 import dspy
@@ -155,6 +173,135 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
     errors = _validate_module_source(code)
 
     assert "method_annotation_not_allowed:forward.x" in errors
+
+
+def test_generated_module_guard_rejects_effect_root_return_annotations() -> None:
+    for annotation in ("subprocess.Popen", "Popen", "Path", "PurePath"):
+        code = f"""
+from __future__ import annotations
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x: str) -> {annotation}:
+        return self.predict(x=x)
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {{"inputs": ["x"], "outputs": ["y"]}}
+
+def output_weights():
+    return {{"y": 1.0}}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+        errors = _validate_module_source(code)
+
+        assert "method_return_annotation_not_allowed:forward" in errors
+
+
+def test_generated_module_guard_rejects_top_level_effect_annotations() -> None:
+    code = """
+import dspy
+
+class MyModule(dspy.Module):
+    def forward(self, x: str) -> str:
+        return x
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec() -> open:
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    errors = _validate_module_source(code)
+
+    assert "top_level_function_return_annotation_not_allowed:io_spec" in errors
+
+
+def test_generated_module_guard_rejects_top_level_annassign_effect_annotations() -> (
+    None
+):
+    for annotation in ("os.PathLike[str]", "PathLike[str]", "open"):
+        code = f"""
+from __future__ import annotations
+import dspy
+
+EFFECT_HINT: {annotation} = None
+
+class MyModule(dspy.Module):
+    def forward(self, x: str) -> str:
+        return x
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {{"inputs": ["x"], "outputs": ["y"]}}
+
+def output_weights():
+    return {{"y": 1.0}}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+        errors = _validate_module_source(code)
+
+        assert "top_level_annotation_not_allowed:EFFECT_HINT" in errors
+
+
+def test_generated_module_smoke_does_not_allow_annotation_effect_root_file_read() -> (
+    None
+):
+    probe = Path("/tmp/dspx_annotation_escape_probe")
+    probe.unlink(missing_ok=True)
+    code = """
+from __future__ import annotations
+import dspy
+
+class MyModule(dspy.Module):
+    def __init__(self):
+        self.predict = dspy.Predict("x -> y")
+
+    def forward(self, x: os.PathLike[str]) -> str:
+        return self.predict(x=x)
+
+def build_student(use_cot=False):
+    return MyModule()
+
+def io_spec():
+    return {"inputs": ["x"], "outputs": ["y"]}
+
+def output_weights():
+    return {"y": 1.0}
+
+def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
+    return (gold, pred)
+"""
+
+    ok, checks, errors = smoke_module_code(
+        code,
+        payload={"expected_module": "MyModule", "inputs": ["x"], "outputs": ["y"]},
+    )
+
+    assert ok is False
+    assert checks["module-smoke"] is False
+    assert "method_annotation_not_allowed:forward.x" in errors
+    assert not probe.exists()
 
 
 def test_generated_module_guard_rejects_dunder_reflection_escape() -> None:
