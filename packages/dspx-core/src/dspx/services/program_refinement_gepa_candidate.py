@@ -8,7 +8,10 @@ from typing import Any, Mapping
 from dspx.cache import sha256_text
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_refinement import load_program_manifest
-from dspx.services.program_service import materialize_program_from_intent
+from dspx.services.program_service import (
+    _run_eval_behavior,
+    materialize_program_from_intent,
+)
 from dspx.services.program_refinement_gepa_candidate_contracts import (
     PROGRAM_REFINEMENT_GEPA_CANDIDATE_RESULT_SCHEMA,
     ProgramRefinementGepaCandidateError,
@@ -70,6 +73,20 @@ def _render_gepa_program_code(intent: Mapping[str, Any]) -> str:
             "    return dict(payload) if isinstance(payload, dict) else {}",
             "",
             "",
+            "def _receipt_manifest_hash() -> str:",
+            "    path = Path(str(assembly_manifest_path()) + '.meta.json')",
+            "    if not path.exists():",
+            "        return ''",
+            "    try:",
+            "        payload = json.loads(path.read_text(encoding='utf-8'))",
+            "    except Exception:",
+            "        return ''",
+            "    if not isinstance(payload, dict):",
+            "        return ''",
+            "    value = payload.get('hash') or payload.get('output_hash')",
+            "    return str(value) if value else ''",
+            "",
+            "",
             "def _sha256_file(path: Path) -> str:",
             "    import hashlib",
             "",
@@ -78,6 +95,105 @@ def _render_gepa_program_code(intent: Mapping[str, Any]) -> str:
             "        for chunk in iter(lambda: fh.read(1024 * 1024), b''):",
             "            digest.update(chunk)",
             "    return digest.hexdigest()",
+            "",
+            "",
+            "def _current_manifest_hash() -> str:",
+            "    path = assembly_manifest_path()",
+            "    return _sha256_file(path) if path.exists() else ''",
+            "",
+            "",
+            "def _manifest_hash() -> str:",
+            "    return _receipt_manifest_hash() or _current_manifest_hash()",
+            "",
+            "",
+            "def program_observability_tags() -> dict[str, str]:",
+            "    manifest = load_manifest()",
+            "    assembly = manifest.get('candidate_assembly')",
+            "    if not isinstance(assembly, dict):",
+            "        assembly = {}",
+            "    tags = {",
+            "        'program.name': str(intent_summary().get('name') or ''),",
+            "        'program.assembly_id': str(assembly.get('assembly_id') or ''),",
+            "        'program.candidate_id': str(assembly.get('candidate_id') or ''),",
+            "    }",
+            "    manifest_hash = _manifest_hash()",
+            "    if manifest_hash:",
+            "        tags['program.manifest_hash'] = manifest_hash",
+            "    return {key: value for key, value in tags.items() if value}",
+            "",
+            "",
+            "def configure_observability(",
+            "    *,",
+            "    run_name: str = 'program-runtime',",
+            "    run_kind: str = 'program-runtime',",
+            ") -> bool:",
+            "    try:",
+            "        from dspx.tracing import enable_mlflow_from_env, ensure_run_with_standard_tags, get_mlflow",
+            "",
+            "        enable_mlflow_from_env()",
+            "        if get_mlflow() is None:",
+            "            return False",
+            "        extra_tags = program_observability_tags()",
+            "        if run_kind in {'program-runtime', 'program-eval'} and not extra_tags.get('program.assembly_id'):",
+            "            return False",
+            "        return ensure_run_with_standard_tags(",
+            "            'program',",
+            "            template_version=PROGRAM_TEMPLATE_VERSION,",
+            "            run_name=run_name,",
+            "            run_kind=run_kind,",
+            "            output_basename='program.py',",
+            "            output_hash=_manifest_hash(),",
+            "            extra=extra_tags,",
+            "        )",
+            "    except Exception:",
+            "        return False",
+            "",
+            "",
+            "def end_observability_run(started: bool, *, status: str = 'FINISHED') -> None:",
+            "    if not started:",
+            "        return",
+            "    try:",
+            "        from dspx.tracing import get_mlflow",
+            "",
+            "        mlflow = get_mlflow()",
+            "        if mlflow is not None:",
+            "            try:",
+            "                mlflow.end_run(status=status)",
+            "            except TypeError:",
+            "                mlflow.end_run()",
+            "    except Exception:",
+            "        pass",
+            "",
+            "",
+            "def _active_mlflow():",
+            "    try:",
+            "        from dspx.tracing import get_mlflow",
+            "",
+            "        mlflow = get_mlflow()",
+            "        if mlflow is None or mlflow.active_run() is None:",
+            "            return None",
+            "        return mlflow",
+            "    except Exception:",
+            "        return None",
+            "",
+            "",
+            "def _set_observability_status(status: str, *, error: Exception | None = None) -> None:",
+            "    mlflow = _active_mlflow()",
+            "    if mlflow is None:",
+            "        return",
+            "    try:",
+            "        mlflow.set_tag('program.runtime.status', status)",
+            "    except Exception:",
+            "        pass",
+            "    try:",
+            "        mlflow.log_metric('program.runtime.error', 1.0 if error is not None else 0.0)",
+            "    except Exception:",
+            "        pass",
+            "    if error is not None:",
+            "        try:",
+            "            mlflow.set_tag('program.runtime.error_type', type(error).__name__)",
+            "        except Exception:",
+            "            pass",
             "",
             "",
             "def _optimizer_payload_inventory(root: Path) -> dict[str, Any]:",
@@ -152,7 +268,18 @@ def _render_gepa_program_code(intent: Mapping[str, Any]) -> str:
             "",
             "",
             "def run_with_observability(**inputs: object) -> dspy.Prediction:",
-            "    return build_program()(**inputs)",
+            "    started = configure_observability(run_name='program-runtime', run_kind='program-runtime')",
+            "    end_status = 'FINISHED'",
+            "    try:",
+            "        prediction = build_program()(**inputs)",
+            "        _set_observability_status('passed')",
+            "        return prediction",
+            "    except Exception as exc:",
+            "        end_status = 'FAILED'",
+            "        _set_observability_status('failed', error=exc)",
+            "        raise",
+            "    finally:",
+            "        end_observability_run(started, status=end_status)",
             "",
             "",
             "def intent_summary() -> dict[str, object]:",
@@ -337,6 +464,284 @@ def _update_manifest_for_gepa_candidate(
     return manifest
 
 
+def _upsert_surface(
+    surfaces: list[dict[str, Any]],
+    *,
+    kind: str,
+    path: str,
+    content_hash: str,
+    schema_version: str,
+    generator: str,
+) -> None:
+    for surface in surfaces:
+        if surface.get("kind") == kind:
+            surface.update(
+                {
+                    "path": path,
+                    "content_hash": content_hash,
+                    "schema_version": schema_version,
+                    "generator": generator,
+                }
+            )
+            return
+    surfaces.append(
+        {
+            "kind": kind,
+            "path": path,
+            "content_hash": content_hash,
+            "schema_version": schema_version,
+            "generator": generator,
+        }
+    )
+
+
+def _remove_surface(surfaces: list[dict[str, Any]], *, kind: str, path: str) -> None:
+    surfaces[:] = [
+        surface
+        for surface in surfaces
+        if not (surface.get("kind") == kind or surface.get("path") == path)
+    ]
+
+
+def _source_summary_from_behavior_episode(
+    behavior_episode_payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    summary = _safe_mapping(behavior_episode_payload.get("summary"))
+    return {
+        "status": summary.get("status"),
+        "source_count": summary.get("source_count"),
+        "total": summary.get("total"),
+        "passed": summary.get("passed"),
+        "failed": summary.get("failed"),
+        "error": summary.get("error"),
+        "degraded": summary.get("degraded"),
+        "status_counts": _safe_mapping(summary.get("status_counts")),
+    }
+
+
+def _refresh_gepa_candidate_behavior_evidence(candidate_root: Path) -> dict[str, Any]:
+    """Refresh generated behavior evidence after the GEPA loader replaces program.py."""
+
+    eval_behavior_path = candidate_root / "eval_behavior.py"
+    if not eval_behavior_path.exists():
+        return {
+            "status": "not_applicable",
+            "reason": "eval_behavior.py is absent",
+            "behavior_episode_path": None,
+            "behavior_episode_sha256": None,
+            "behavior_results_path": None,
+            "behavior_results_sha256": None,
+            "oracle_evidence_removed": False,
+        }
+
+    behavior_episode_path = candidate_root / "behavior_episode.json"
+    if behavior_episode_path.exists():
+        behavior_episode_path.unlink()
+    harness_result = _run_eval_behavior(candidate_root)
+    if not behavior_episode_path.exists():
+        raise ProgramRefinementGepaCandidateError(
+            "GEPA candidate behavior refresh did not write behavior_episode.json"
+        )
+    behavior_episode_payload = _load_json_object(
+        behavior_episode_path, label="GEPA candidate behavior episode"
+    )
+    behavior_episode_hash = _sha256_file(behavior_episode_path)
+    behavior_results_path = candidate_root / "behavior_results.json"
+    behavior_results_payload: dict[str, Any] | None = None
+    behavior_results_hash: str | None = None
+    if behavior_results_path.exists():
+        behavior_results_payload = _load_json_object(
+            behavior_results_path, label="GEPA candidate behavior results"
+        )
+        behavior_results_hash = _sha256_file(behavior_results_path)
+
+    oracle_evidence_path = candidate_root / "oracle_evidence.json"
+    oracle_evidence_removed = False
+    if oracle_evidence_path.exists():
+        oracle_evidence_path.unlink()
+        oracle_evidence_removed = True
+
+    manifest_path = candidate_root / "manifest.json"
+    manifest = _load_json_object(manifest_path, label="GEPA candidate manifest")
+    request = _safe_mapping(manifest.get("request"))
+    request["behavior_episode_hash"] = behavior_episode_hash
+    if behavior_results_hash is not None:
+        request["behavior_results_hash"] = behavior_results_hash
+    else:
+        request["behavior_results_hash"] = None
+    request["oracle_evidence_hash"] = None
+    manifest["request"] = request
+
+    receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
+    evidence = _safe_mapping(receipt_bundle.get("evidence"))
+    surface_hashes = _safe_mapping(evidence.get("surface_hashes"))
+    surface_hashes["behavior_episode.json"] = behavior_episode_hash
+    evidence["behavior_episode_hash"] = behavior_episode_hash
+    evidence["behavior_episode_path"] = "behavior_episode.json"
+    if behavior_results_hash is not None:
+        surface_hashes["behavior_results.json"] = behavior_results_hash
+        evidence["behavior_results_hash"] = behavior_results_hash
+        evidence["behavior_results_path"] = "behavior_results.json"
+    else:
+        surface_hashes.pop("behavior_results.json", None)
+        evidence["behavior_results_hash"] = None
+        evidence["behavior_results_path"] = None
+    surface_hashes.pop("oracle_evidence.json", None)
+    evidence["oracle_evidence_hash"] = None
+    evidence["oracle_evidence_path"] = None
+    evidence["surface_hashes"] = surface_hashes
+    receipt_bundle["evidence"] = evidence
+    manifest["receipt_bundle"] = receipt_bundle
+
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    surfaces = [
+        dict(item)
+        for item in _safe_list(candidate_assembly.get("surfaces"))
+        if isinstance(item, Mapping)
+    ]
+    _upsert_surface(
+        surfaces,
+        kind="behavior_episode",
+        path="behavior_episode.json",
+        content_hash=behavior_episode_hash,
+        schema_version="program-behavior-episode-v1",
+        generator="program-refine materialize-gepa-candidate behavior-refresh",
+    )
+    if behavior_results_hash is not None:
+        _upsert_surface(
+            surfaces,
+            kind="behavior_results",
+            path="behavior_results.json",
+            content_hash=behavior_results_hash,
+            schema_version="program-behavior-results-v1",
+            generator="program-refine materialize-gepa-candidate behavior-refresh",
+        )
+    else:
+        _remove_surface(surfaces, kind="behavior_results", path="behavior_results.json")
+    _remove_surface(surfaces, kind="oracle_evidence", path="oracle_evidence.json")
+    surface_kinds = [
+        str(kind)
+        for kind in candidate_assembly.get("surface_kinds") or []
+        if str(kind) not in {"oracle_evidence"}
+    ]
+    if "behavior_episode" not in surface_kinds:
+        surface_kinds.append("behavior_episode")
+    if behavior_results_hash is not None and "behavior_results" not in surface_kinds:
+        surface_kinds.append("behavior_results")
+    if behavior_results_hash is None:
+        surface_kinds = [kind for kind in surface_kinds if kind != "behavior_results"]
+    candidate_assembly["surface_kinds"] = surface_kinds
+    candidate_assembly["surfaces"] = surfaces
+    manifest["candidate_assembly"] = candidate_assembly
+
+    episode_summary = _source_summary_from_behavior_episode(behavior_episode_payload)
+    execution_episode = _safe_mapping(manifest.get("execution_episode"))
+    execution_episode["behavior_status"] = episode_summary.get("status")
+    execution_episode["behavior_evidence_summary"] = episode_summary
+    execution_episode["behavior_orchestration"] = {
+        "status": "passed",
+        "harness": "eval_behavior.py",
+        "returncode": harness_result.get("returncode"),
+        "result_artifact": "behavior_episode.json",
+        "result_hash": behavior_episode_hash,
+        "summary": _safe_mapping(behavior_episode_payload.get("summary")),
+    }
+    execution_episode["oracle_evidence"] = None
+    materialization = _safe_mapping(execution_episode.get("materialization"))
+    generated_files = [
+        str(path)
+        for path in materialization.get("generated_files") or []
+        if str(path) not in {"behavior_results.json", "oracle_evidence.json"}
+    ]
+    if (
+        behavior_results_hash is not None
+        and "behavior_results.json" not in generated_files
+    ):
+        generated_files.append("behavior_results.json")
+    if "behavior_episode.json" not in generated_files:
+        generated_files.append("behavior_episode.json")
+    materialization["generated_files"] = sorted(generated_files)
+    materialization["generated_file_count"] = len(generated_files)
+    execution_episode["materialization"] = materialization
+    if behavior_results_hash is not None and behavior_results_payload is not None:
+        behavior_summary = _safe_mapping(behavior_results_payload.get("summary"))
+        execution_episode["behavior_results"] = {
+            "path": "behavior_results.json",
+            "content_hash": behavior_results_hash,
+            "summary": behavior_summary,
+        }
+        execution_episode["behavioral_evaluation"] = {
+            "status": behavior_summary.get("status"),
+            "result_artifact": "behavior_results.json",
+            "result_hash": behavior_results_hash,
+            "summary": behavior_summary,
+        }
+    else:
+        execution_episode["behavior_results"] = None
+        execution_episode["behavioral_evaluation"] = {
+            "status": "missing_results",
+            "result_artifact": None,
+            "result_hash": None,
+            "summary": {},
+        }
+    metadata = _safe_mapping(execution_episode.get("metadata"))
+    metadata["behavior_episode"] = dict(behavior_episode_payload)
+    if behavior_results_payload is not None:
+        metadata["behavior_results"] = dict(behavior_results_payload)
+    else:
+        metadata.pop("behavior_results", None)
+    metadata.pop("program_oracle_evidence", None)
+    execution_episode["metadata"] = metadata
+    manifest["execution_episode"] = execution_episode
+    manifest["behavior_episode_artifact"] = {
+        "path": "behavior_episode.json",
+        "content_hash": behavior_episode_hash,
+        "schema_version": "program-behavior-episode-v1",
+    }
+    manifest["oracle_evidence_artifact"] = None
+    manifest["oracle_readability"] = {
+        "status": "not_applicable_after_gepa_program_rewrite",
+        "path": None,
+        "content_hash": None,
+        "summary": {},
+        "facets": {},
+        "reason": "program-refine materialize-gepa-candidate refreshed behavior evidence after replacing program.py; stale program-gen oracle_evidence.json was removed",
+        "authority": "oracle_readability_only_non_authoritative",
+    }
+
+    gepa_refinement = _safe_mapping(manifest.get("gepa_refinement"))
+    gepa_refinement["behavior_refresh"] = {
+        "status": "refreshed",
+        "behavior_episode_sha256": behavior_episode_hash,
+        "behavior_results_sha256": behavior_results_hash,
+        "oracle_evidence_removed_as_stale": oracle_evidence_removed,
+        "authority": "local_behavior_evidence_only_non_authoritative",
+    }
+    manifest["gepa_refinement"] = gepa_refinement
+    manifest_path.write_text(_json_text(manifest), encoding="utf-8")
+    manifest_hash = _sha256_file(manifest_path)
+    meta_path = candidate_root / "manifest.json.meta.json"
+    if meta_path.exists():
+        meta_payload = _load_json_object(
+            meta_path, label="GEPA candidate manifest meta"
+        )
+        meta_payload["hash"] = manifest_hash
+        meta_payload["output_hash"] = manifest_hash
+        meta_path.write_text(_json_text(meta_payload), encoding="utf-8")
+
+    return {
+        "status": "refreshed",
+        "behavior_episode_path": str(behavior_episode_path),
+        "behavior_episode_sha256": behavior_episode_hash,
+        "behavior_results_path": str(behavior_results_path)
+        if behavior_results_hash is not None
+        else None,
+        "behavior_results_sha256": behavior_results_hash,
+        "summary": _safe_mapping(behavior_episode_payload.get("summary")),
+        "oracle_evidence_removed": oracle_evidence_removed,
+    }
+
+
 def materialize_gepa_refinement_candidate(
     *,
     manifest_path: Path,
@@ -396,6 +801,7 @@ def materialize_gepa_refinement_candidate(
     }
     next_intent["options"] = options
     artifact_root: Path | None = None
+    behavior_refresh: dict[str, Any] = {}
     try:
         artifact = materialize_program_from_intent(
             ProgramIntent.model_validate(next_intent),
@@ -440,6 +846,10 @@ def materialize_gepa_refinement_candidate(
             optimizer_manifest_hash=optimizer_manifest_hash,
             optimizer_payload_inventory=optimizer_payload_inventory,
         )
+        behavior_refresh = _refresh_gepa_candidate_behavior_evidence(artifact_root)
+        updated_manifest = _load_json_object(
+            artifact_root / "manifest.json", label="GEPA candidate manifest"
+        )
     except Exception:
         if artifact_root is not None:
             shutil.rmtree(artifact_root, ignore_errors=True)
@@ -466,6 +876,7 @@ def materialize_gepa_refinement_candidate(
                 _safe_mapping(optimizer_manifest.get("program")).get("sha256")
             ),
         },
+        "behavior_refresh": behavior_refresh,
         "candidate": {
             "root_path": str(artifact_root),
             "manifest_path": str(candidate_manifest_path),

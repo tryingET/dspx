@@ -241,14 +241,47 @@ def test_program_refine_materialize_gepa_candidate_creates_local_non_authoritati
     assert payload["non_authority"]["external_authority_export"] is False
     assert payload["gepa_output"]["payload_tree_sha256"]
     assert payload["gepa_output"]["payload_file_count"] == 1
+    assert payload["behavior_refresh"]["status"] == "refreshed"
+    assert payload["behavior_refresh"]["behavior_results_sha256"] is None
+    assert payload["behavior_refresh"]["oracle_evidence_removed"] is True
     assert (outdir / "manifest.json").exists()
     assert (outdir / "gepa_optimizer_output" / "manifest.json").exists()
     assert (outdir / "gepa_candidate_lineage.json").exists()
+    assert not (outdir / "behavior_results.json").exists()
+    assert not (outdir / "oracle_evidence.json").exists()
+    behavior_episode = json.loads(
+        (outdir / "behavior_episode.json").read_text(encoding="utf-8")
+    )
+    assert behavior_episode["schema_version"] == "program-behavior-episode-v1"
+    assert behavior_episode["sources"][0]["status"] == "failed"
+    assert "behavior_results_hash" not in behavior_episode["sources"][0]
     program_code = (outdir / "program.py").read_text(encoding="utf-8")
     assert "dspy.load" in program_code
     assert "GEPA_OPTIMIZER_OUTPUT_DIR" in program_code
+    assert "def configure_observability" in program_code
+    assert "def end_observability_run" in program_code
     candidate_manifest = json.loads(
         (outdir / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert candidate_manifest["request"]["behavior_results_hash"] is None
+    assert candidate_manifest["request"]["oracle_evidence_hash"] is None
+    assert (
+        candidate_manifest["behavior_episode_artifact"]["content_hash"]
+        == payload["behavior_refresh"]["behavior_episode_sha256"]
+    )
+    assert candidate_manifest["oracle_evidence_artifact"] is None
+    assert candidate_manifest["oracle_readability"]["status"] == (
+        "not_applicable_after_gepa_program_rewrite"
+    )
+    surface_paths = {
+        surface["path"]
+        for surface in candidate_manifest["candidate_assembly"]["surfaces"]
+    }
+    assert "behavior_results.json" not in surface_paths
+    assert "oracle_evidence.json" not in surface_paths
+    assert (
+        candidate_manifest["gepa_refinement"]["behavior_refresh"]["status"]
+        == "refreshed"
     )
     assert (
         candidate_manifest["candidate_assembly"]["materialized_from"]
