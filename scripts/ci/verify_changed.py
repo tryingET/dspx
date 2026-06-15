@@ -434,9 +434,25 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "tests/test_program_refinement_candidate.py",
             "tests/test_program_refinement_comparison.py",
             "tests/test_program_refinement_episode.py",
+            "tests/test_program_refinement_gepa_candidate.py",
             "tests/test_program_promotion_plan.py",
         ],
         "refinement candidate/comparison seam changed",
+    ),
+    "pytest_optimize_gepa": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_optimize_gepa_metric_hooks.py",
+            "tests/test_optimize_gepa_stub.py",
+            "tests/test_program_refinement_gepa.py",
+            "tests/test_program_refinement_gepa_candidate.py",
+        ],
+        "GEPA optimizer/refinement seam changed",
     ),
     "pytest_program_sidecar_boundaries": CommandSpec(
         [
@@ -961,6 +977,7 @@ def build_plan(
         "pytest_program_runtime_traces",
         "pytest_program_oracle_refinement",
         "pytest_refinement_candidate_comparison",
+        "pytest_optimize_gepa",
         "pytest_program_sidecar_boundaries",
         "pytest_promotion_plan_adjacent",
         "pytest_coordinates",

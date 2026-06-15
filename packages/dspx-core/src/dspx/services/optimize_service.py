@@ -308,6 +308,35 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def _optimizer_output_payload_inventory(root: Path) -> dict[str, Any]:
+    import hashlib
+    import json
+
+    files: list[dict[str, Any]] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        if rel == "manifest.json":
+            continue
+        files.append(
+            {
+                "path": rel,
+                "sha256": _sha256_file(path),
+                "size_bytes": path.stat().st_size,
+            }
+        )
+    tree_text = json.dumps(
+        files, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    return {
+        "hash_algorithm": "sha256",
+        "tree_hash": hashlib.sha256(tree_text.encode("utf-8")).hexdigest(),
+        "files": files,
+        "excludes": ["manifest.json"],
+    }
+
+
 def run_gepa_optimize(
     *,
     program_path: Path,
@@ -501,6 +530,7 @@ def run_gepa_optimize(
                 str(reflection_provider_name), reflection_lm
             ),
         },
+        "output_payload": _optimizer_output_payload_inventory(out_dir),
     }
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

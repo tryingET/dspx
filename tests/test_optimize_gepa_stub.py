@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import tempfile
 from pathlib import Path
 
@@ -106,6 +107,12 @@ def test_gepa_optimize_saves_loadable_program(
     )
 
     assert res.out_dir.exists() and res.out_dir.is_dir()
+    manifest = json.loads((res.out_dir / "manifest.json").read_text(encoding="utf-8"))
+    payload = manifest["output_payload"]
+    assert payload["hash_algorithm"] == "sha256"
+    assert payload["tree_hash"]
+    assert {item["path"] for item in payload["files"]}
+    assert "manifest.json" not in {item["path"] for item in payload["files"]}
 
     loaded = dspy.load(str(res.out_dir), allow_pickle=True)
     pred = loaded(question="hello")

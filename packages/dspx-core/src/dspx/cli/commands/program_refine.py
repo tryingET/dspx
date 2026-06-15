@@ -78,6 +78,58 @@ def optimize_gepa(
         typer.echo(str(result_out.expanduser().resolve()))
 
 
+@app.command("materialize-gepa-candidate")
+def materialize_gepa_candidate(
+    manifest: Path = typer.Option(
+        ...,
+        "--manifest",
+        help="Path to source program-candidate-assembly-v1 manifest.json",
+    ),
+    gepa_result: Path = typer.Option(
+        ...,
+        "--gepa-result",
+        help="Path to ready program-refinement-gepa-result-v1 JSON",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        help="Directory where the GEPA-backed local candidate assembly is materialized",
+    ),
+    result_out: Path | None = typer.Option(
+        None,
+        "--result-out",
+        help="Optional path for program-refinement-gepa-candidate-result-v1 JSON",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print result JSON"),
+) -> None:
+    """Materialize one local candidate from hash-bound GEPA optimizer output."""
+    from dspx.services.program_refinement_gepa_candidate import (
+        ProgramRefinementGepaCandidateError,
+        materialize_gepa_refinement_candidate,
+    )
+
+    try:
+        payload = materialize_gepa_refinement_candidate(
+            manifest_path=manifest,
+            gepa_result_path=gepa_result,
+            outdir=outdir,
+            result_out=result_out,
+        )
+    except ProgramRefinementGepaCandidateError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program GEPA candidate materialization failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(outdir.expanduser().resolve()))
+
+
 @app.command("episode")
 def episode(
     manifest: Path = typer.Option(

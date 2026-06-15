@@ -67,6 +67,7 @@ Boundary map for MLflow, Oracle, runtime traces, receipts/replay, and activation
 1. `adapters authority agent-kernel-export-preflight` can be run explicitly over a manifest, opaque AK ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet that is preflighted/planned/not applied.
 1. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
 1. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
+1. `program-refine materialize-gepa-candidate` can be run explicitly over a ready GEPA sidecar to create one local non-authoritative candidate assembly that loads copied optimizer output; it does not rank, select a winner, promote, or mutate authority.
 1. `manifest.json` and `manifest.json.meta.json` declare hashes and evidence paths for replay.
 1. `dspx run replay --check-only` verifies the declared program evidence artifacts, including `program_runtime_outcomes.json`, `program_runtime_traces.json`, `program_tool_contracts.json`, and `execution_episode.json`; runtime-trace replay also checks internal trace hashes, source record-level coverage consistency, trace coverage consistency, status/count consistency, false tool-execution posture, strict non-authority flags, and count/linkage shape.
 1. Promotion and authority remain explicitly pending / non-authoritative.
@@ -84,7 +85,7 @@ It does **not** prove:
 - automatic GEPA/search, ranking, winner selection, or authority export/apply,
 - ranking, winner selection, promotion approval, authority apply, or external mutation behavior from candidate comparison, local promotion/adjudication planning, or external-authority export preflight,
 - richer phenotype, territory, frontier, or multi-source behavior interpretation,
-- GEPA/search materializing a new `program-candidate-assembly-v1` in the current slice,
+- automatic GEPA/search materialization during `program-gen`, `program-loop`, or `program-refine episode`,
 - broad accepted-proposal policy beyond the explicit request-more-evidence constraints-patch path,
 - AK export or task mutation,
 - one-command refinement/search/review/decision/activation automation from raw intent; `program-loop` currently stops at local evidence/state summary, and `program-refine episode` starts from an existing manifest plus Oracle report and remains local/non-authoritative.
@@ -824,9 +825,24 @@ uv run -q python -m dspx.cli.dspx program-refine optimize-gepa \
   --json
 ```
 
-The sidecar has `schema_version: program-refinement-gepa-result-v1`. It records source identity, selected evidence source/counts, held-out-validation status, GEPA attempt status, prepared input CSV hashes, any local optimizer output path, optimizer-output manifest hash/readiness when present and valid, and non-authority flags. In this slice the GEPA optimizer output is not yet a normal `program-candidate-assembly-v1`, so `candidate` remains `null` and the top-level status can degrade truthfully even if GEPA was attempted. Missing, invalid, or non-object optimizer-output manifests are recorded as `status: gepa_output_unverified` with `ready_for_future_candidate_materializer=false`. A valid optimizer output is classified as `optimizer_output_hash_bound_not_candidate`, not as a generated program candidate. The command preflights `--outdir` and `--result-out` before writes: optimizer output must be outside and not contain the source candidate root, the result sidecar must be outside the source candidate root, and the sidecar must not overlap the optimizer output directory. It writes only to those isolated requested paths, does not mutate the source candidate or source dataset split artifacts/results, does not create a repo Oracle index, does not rank, select a winner, promote, mutate AK/governance/external authority, or introduce `eval_behavior.py`.
+The sidecar has `schema_version: program-refinement-gepa-result-v1`. It records source identity, selected evidence source/counts, held-out-validation status, GEPA attempt status, prepared input CSV hashes, any local optimizer output path, optimizer-output manifest hash/readiness when present and valid, and non-authority flags. Missing, invalid, or non-object optimizer-output manifests are recorded as `status: gepa_output_unverified` with `ready_for_future_candidate_materializer=false`. A valid optimizer output is classified as `optimizer_output_hash_bound_not_candidate`: hash-bound input for the explicit materializer below, not by itself a generated program candidate, ranking, winner selection, promotion, AK/governance mutation, or external authority apply. The command preflights `--outdir` and `--result-out` before writes: optimizer output must be outside and not contain the source candidate root, the result sidecar must be outside the source candidate root, and the sidecar must not overlap the optimizer output directory. It writes only to those isolated requested paths, does not mutate the source candidate or source dataset split artifacts/results, does not create a repo Oracle index, does not rank, select a winner, promote, mutate AK/governance/external authority, or introduce `eval_behavior.py`.
 
-## 16. Inspect manifest and receipt declarations
+## 16. Optional: materialize one local GEPA-backed candidate
+
+When `optimize-gepa` produced a valid hash-bound optimizer output, the explicit materializer can turn it into a new local `program-candidate-assembly-v1` that loads the copied optimizer output:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-refine materialize-gepa-candidate \
+  --manifest "$TD/program/manifest.json" \
+  --gepa-result "$TD/refinement/gepa_refinement_result.json" \
+  --outdir "$TD/program-gepa-candidate" \
+  --result-out "$TD/refinement/gepa_candidate_result.json" \
+  --json
+```
+
+The result sidecar has `schema_version: program-refinement-gepa-candidate-result-v1`. The command validates source identity, GEPA readiness, non-authority/effect flags, optimizer-manifest hash, optimizer payload inventory/tree hash, source-program hash, path separation, and symlink-free optimizer output before writing the candidate. The new candidate manifest records `gepa_refinement`, includes `gepa_optimizer_output/manifest.json` and `gepa_candidate_lineage.json` as hash-bound surfaces, records the optimizer payload tree hash, and remains local/non-authoritative. It writes only the requested candidate directory plus optional result sidecar; it does not mutate the source candidate, GEPA output, Oracle, AK, governance, or external authority, and it does not rank, select a winner, approve, promote, deploy, or activate the candidate.
+
+## 17. Inspect manifest and receipt declarations
 
 ```bash
 python - <<'PY'
