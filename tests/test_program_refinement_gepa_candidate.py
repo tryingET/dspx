@@ -13,6 +13,9 @@ from typer.testing import CliRunner
 from dspx.cli.dspx import app
 from dspx.services import program_refinement_gepa_candidate_contracts as gepa_contracts
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_refinement_workflow import (
+    write_program_refinement_workflow_result,
+)
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
@@ -373,6 +376,84 @@ def test_program_refine_materialize_and_compare_gepa_candidate_writes_local_work
     assert gepa_candidate_result_out.exists()
     assert _hash_tree(program_root) == source_before
     assert _hash_tree(tmp_path / "program-gepa") == optimizer_before
+
+
+def test_program_refinement_workflow_result_rejects_overwriting_nested_sidecar_path(
+    tmp_path: Path,
+) -> None:
+    comparison_out = tmp_path / "refinement" / "gepa_candidate_comparison.json"
+    _write_json(
+        comparison_out,
+        {"schema_version": "program-refinement-candidate-comparison-v1"},
+    )
+    payload = {
+        "schema_version": "program-refinement-gepa-generate-and-compare-result-v1",
+        "created_from": {"manifest_path": str(tmp_path / "program" / "manifest.json")},
+        "comparison_sidecar": {
+            "path": str(comparison_out),
+            "schema_version": "program-refinement-candidate-comparison-v1",
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="must not overwrite an input artifact",
+    ):
+        write_program_refinement_workflow_result(payload, comparison_out)
+
+    assert json.loads(comparison_out.read_text(encoding="utf-8")) == {
+        "schema_version": "program-refinement-candidate-comparison-v1"
+    }
+
+
+@pytest.mark.parametrize(
+    ("overlap_args", "expected"),
+    [
+        (
+            lambda path: ["--workflow-out", str(path), "--comparison-out", str(path)],
+            "comparison_out and workflow_out both resolve",
+        ),
+        (
+            lambda path: [
+                "--gepa-candidate-result-out",
+                str(path),
+                "--comparison-out",
+                str(path),
+            ],
+            "comparison_out and gepa_candidate_result_out both resolve",
+        ),
+    ],
+)
+def test_program_refine_materialize_and_compare_gepa_candidate_rejects_overlapping_outputs_before_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    overlap_args: Any,
+    expected: str,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    output = tmp_path / "refinement" / "overlap.json"
+    outdir = tmp_path / "program-gepa-candidate"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "materialize-and-compare-gepa-candidate",
+            "--manifest",
+            str(tmp_path / "missing" / "manifest.json"),
+            "--gepa-result",
+            str(tmp_path / "missing" / "gepa_result.json"),
+            "--outdir",
+            str(outdir),
+            *overlap_args(output),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert expected in (result.stdout + result.stderr)
+    assert not output.exists()
+    assert not outdir.exists()
 
 
 def test_program_promote_decide_comparison_feeds_local_plan_for_gepa_candidate(

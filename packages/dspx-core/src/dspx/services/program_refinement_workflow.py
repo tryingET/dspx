@@ -69,6 +69,26 @@ def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
+def assert_distinct_workflow_output_paths(
+    *, artifact_label: str, **paths: Path | None
+) -> None:
+    """Fail closed when a composed workflow is asked to write two outputs together."""
+
+    resolved: dict[str, Path] = {
+        label: path.expanduser().resolve()
+        for label, path in paths.items()
+        if path is not None
+    }
+    seen: dict[Path, str] = {}
+    for label, path in resolved.items():
+        previous = seen.get(path)
+        if previous is not None:
+            raise ProgramRefinementWorkflowError(
+                f"{artifact_label} output paths must be distinct: {previous} and {label} both resolve to {path}"
+            )
+        seen[path] = label
+
+
 def materialize_and_compare_refinement_candidate(
     *,
     manifest_path: Path,
@@ -84,6 +104,11 @@ def materialize_and_compare_refinement_candidate(
     decision_record_path = decision_record_path.expanduser().resolve()
     outdir = outdir.expanduser().resolve()
     comparison_out_path = comparison_out_path.expanduser().resolve()
+    assert_distinct_workflow_output_paths(
+        artifact_label="program refinement generate-and-compare workflow",
+        outdir=outdir,
+        comparison_out=comparison_out_path,
+    )
     try:
         generation = materialize_refinement_candidate(
             manifest_path=manifest_path,
@@ -160,6 +185,12 @@ def materialize_and_compare_gepa_refinement_candidate(
         gepa_candidate_result_out.expanduser().resolve()
         if gepa_candidate_result_out is not None
         else None
+    )
+    assert_distinct_workflow_output_paths(
+        artifact_label="program GEPA materialize-and-compare workflow",
+        outdir=outdir,
+        comparison_out=comparison_out_path,
+        gepa_candidate_result_out=gepa_candidate_result_out,
     )
     try:
         generation = materialize_gepa_refinement_candidate(

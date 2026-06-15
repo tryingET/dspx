@@ -45,7 +45,11 @@ def _iter_path_values(value: object) -> Iterable[str]:
     if isinstance(value, Mapping):
         for key, item in value.items():
             key_text = str(key)
-            if key_text.endswith("_path") and isinstance(item, str) and item.strip():
+            if (
+                (key_text == "path" or key_text.endswith("_path"))
+                and isinstance(item, str)
+                and item.strip()
+            ):
                 yield item
             else:
                 yield from _iter_path_values(item)

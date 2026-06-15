@@ -167,11 +167,19 @@ def materialize_and_compare_gepa_candidate(
     """Materialize one local GEPA candidate, then compare it without promotion."""
     from dspx.services.program_refinement_workflow import (
         ProgramRefinementWorkflowError,
+        assert_distinct_workflow_output_paths,
         materialize_and_compare_gepa_refinement_candidate,
         write_program_refinement_workflow_result,
     )
 
     try:
+        assert_distinct_workflow_output_paths(
+            artifact_label="program GEPA materialize-and-compare workflow",
+            outdir=outdir,
+            comparison_out=comparison_out,
+            gepa_candidate_result_out=gepa_candidate_result_out,
+            workflow_out=workflow_out,
+        )
         payload = materialize_and_compare_gepa_refinement_candidate(
             manifest_path=manifest,
             gepa_result_path=gepa_result,
@@ -476,11 +484,18 @@ def generate_and_compare(
     """Generate one local second candidate, then compare it without promotion."""
     from dspx.services.program_refinement_workflow import (
         ProgramRefinementWorkflowError,
+        assert_distinct_workflow_output_paths,
         materialize_and_compare_refinement_candidate,
         write_program_refinement_workflow_result,
     )
 
     try:
+        assert_distinct_workflow_output_paths(
+            artifact_label="program refinement generate-and-compare workflow",
+            outdir=outdir,
+            comparison_out=comparison_out,
+            workflow_out=workflow_out,
+        )
         payload = materialize_and_compare_refinement_candidate(
             manifest_path=manifest,
             refinement_proposal_path=refinement_proposal,
