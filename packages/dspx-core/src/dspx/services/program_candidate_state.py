@@ -5,6 +5,10 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.program_model_jury_validation import (
+    PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
+    validate_program_model_jury_results_contract,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -18,7 +22,6 @@ PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v1"
-PROGRAM_MODEL_JURY_RESULTS_SCHEMA = "program-model-jury-results-v1"
 PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
@@ -456,59 +459,11 @@ def _validate_optional_inputs(
             )
 
     if model_jury_results is not None:
-        _validate_non_authority_false(
+        validate_program_model_jury_results_contract(
             model_jury_results,
             label="program model jury results",
-            keys=(
-                "promotion_approval",
-                "ranking_or_winner_selection",
-                "domain_acceptance",
-                "external_authority_apply",
-                "canonical_mutation",
-            ),
+            error_type=ProgramCandidateStateError,
         )
-        effect = _safe_mapping(model_jury_results.get("effect"))
-        if effect.get("model_jury_evidence_only") is not True:
-            raise ProgramCandidateStateError(
-                "program model jury results must be evidence-only"
-            )
-        for key in (
-            "program_files_mutated",
-            "promotion_review_mutated",
-            "new_candidate_generated",
-            "oracle_index_mutated",
-            "external_authority_mutated",
-            "ak_mutated",
-            "governance_mutated",
-        ):
-            if effect.get(key) is not False:
-                raise ProgramCandidateStateError(
-                    "program model jury results widens effect flags: " + key
-                )
-        jury = _safe_mapping(model_jury_results.get("jury"))
-        if jury.get("provider_backed_model_calls") is not True:
-            raise ProgramCandidateStateError(
-                "program model jury results must record provider-backed model calls"
-            )
-        juror_results = [
-            item
-            for item in _safe_list(model_jury_results.get("juror_results"))
-            if isinstance(item, Mapping)
-        ]
-        if not any(str(item.get("status") or "") == "judged" for item in juror_results):
-            raise ProgramCandidateStateError(
-                "program model jury results must include at least one judged juror result"
-            )
-        adjudicator = _safe_mapping(model_jury_results.get("adjudicator"))
-        if adjudicator.get("promotion_authority") is not False:
-            raise ProgramCandidateStateError(
-                "program model jury adjudicator must not claim promotion authority"
-            )
-        interpretation = _safe_mapping(model_jury_results.get("interpretation"))
-        if interpretation.get("ready_for_promotion_decision") is not False:
-            raise ProgramCandidateStateError(
-                "program model jury results must not claim promotion-decision readiness"
-            )
         model_jury_identity = _safe_mapping(model_jury_results.get("identity"))
         if not any(
             _identity_exactly_matches(model_jury_identity, item)

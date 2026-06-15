@@ -1018,7 +1018,7 @@ Expected JSON facts:
 - `effect.production_activation_applied`, `effect.ak_mutated`, and `effect.external_authority_mutated` remain `false`
 - `non_authority.activation_packet_only` is `true`
 
-Activation-packet generation validates model-jury schema, manifest identity, provider-backed execution, at least one judged juror, adjudicator non-authority, non-readiness for promotion decision, evidence-only effect flags, and no promotion/ranking/domain/external/canonical authority claims. The packet is local activation evidence only: it does not activate, deploy, promote, select a winner, call AK, mutate governance, mutate Oracle, mutate external authority, or replace the domain decision/canonical binding gates.
+Activation-packet generation validates model-jury schema, executed/executed-with-failures status, manifest identity, provider-backed execution, at least one judged juror, adjudicator non-authority, non-readiness for promotion decision, evidence-only effect flags, and no promotion/ranking/domain/external/canonical authority claims. The packet is local activation evidence only: it does not activate, deploy, promote, select a winner, call AK, mutate governance, mutate Oracle, mutate external authority, or replace the domain decision/canonical binding gates.
 
 ## 20. Cleanup
 

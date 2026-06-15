@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.security import confine_path, identity_matches_exact, identity_mismatch_keys
+from dspx.services.program_model_jury_validation import (
+    validate_program_model_jury_results_contract,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -22,7 +25,6 @@ PROGRAM_PROMOTION_ADJUDICATION_REQUEST_SCHEMA = (
 PROGRAM_PROMOTION_DECISION_SCHEMA = "program-promotion-decision-v1"
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
-PROGRAM_MODEL_JURY_RESULTS_SCHEMA = "program-model-jury-results-v1"
 
 _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
     "applies_changes",
@@ -33,24 +35,6 @@ _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
     "promotion_authority",
     "governance_authority",
     "external_mutation",
-)
-
-_REQUIRED_FALSE_MODEL_JURY_EFFECT_FLAGS = (
-    "program_files_mutated",
-    "promotion_review_mutated",
-    "new_candidate_generated",
-    "oracle_index_mutated",
-    "external_authority_mutated",
-    "ak_mutated",
-    "governance_mutated",
-)
-
-_REQUIRED_FALSE_MODEL_JURY_NON_AUTHORITY_FLAGS = (
-    "promotion_approval",
-    "ranking_or_winner_selection",
-    "domain_acceptance",
-    "external_authority_apply",
-    "canonical_mutation",
 )
 
 _REFINED_PACKET_NON_AUTHORITY = {
@@ -398,70 +382,16 @@ def _load_model_jury_results(
         )
     payload = dict(payload_raw)
     content_hash = hashlib.sha256(raw).hexdigest()
-    _validate_schema(
+    validate_program_model_jury_results_contract(
         payload,
         label="program model jury results",
-        expected_schema=PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
+        error_type=ProgramPromotionRefinementError,
     )
-    if payload.get("status") not in {"executed", "executed_with_failures"}:
-        raise ProgramPromotionRefinementError(
-            "program model jury results must have status executed or executed_with_failures"
-        )
     _assert_identity_matches(
         _safe_mapping(payload.get("identity")),
         identity,
         label="program model jury results",
     )
-    jury = _safe_mapping(payload.get("jury"))
-    if jury.get("provider_backed_model_calls") is not True:
-        raise ProgramPromotionRefinementError(
-            "program model jury results must record provider-backed model calls"
-        )
-    adjudicator = _safe_mapping(payload.get("adjudicator"))
-    if adjudicator.get("promotion_authority") is not False:
-        raise ProgramPromotionRefinementError(
-            "program model jury adjudicator must not claim promotion authority"
-        )
-    interpretation = _safe_mapping(payload.get("interpretation"))
-    if interpretation.get("ready_for_promotion_decision") is not False:
-        raise ProgramPromotionRefinementError(
-            "program model jury results must not claim promotion-decision readiness"
-        )
-    juror_results = [
-        item
-        for item in _safe_list(payload.get("juror_results"))
-        if isinstance(item, Mapping)
-    ]
-    if not any(str(item.get("status") or "") == "judged" for item in juror_results):
-        raise ProgramPromotionRefinementError(
-            "program model jury results must include at least one judged juror result"
-        )
-    effect = _safe_mapping(payload.get("effect"))
-    if effect.get("model_jury_evidence_only") is not True:
-        raise ProgramPromotionRefinementError(
-            "program model jury results must be evidence-only"
-        )
-    invalid_effect = [
-        key
-        for key in _REQUIRED_FALSE_MODEL_JURY_EFFECT_FLAGS
-        if effect.get(key) is not False
-    ]
-    if invalid_effect:
-        raise ProgramPromotionRefinementError(
-            "program model jury results widens effect flags: "
-            + ", ".join(invalid_effect)
-        )
-    non_authority = _safe_mapping(payload.get("non_authority"))
-    invalid_non_authority = [
-        key
-        for key in _REQUIRED_FALSE_MODEL_JURY_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid_non_authority:
-        raise ProgramPromotionRefinementError(
-            "program model jury results widens non-authority flags: "
-            + ", ".join(invalid_non_authority)
-        )
     return payload, source, content_hash
 
 

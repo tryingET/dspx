@@ -26,6 +26,7 @@ def _write_model_jury_results(
     *,
     authority_drift: bool = False,
     promotion_authority: bool = False,
+    status: str = "executed",
 ) -> Path:
     identity = _candidate_identity(root)
     if authority_drift:
@@ -34,7 +35,7 @@ def _write_model_jury_results(
         out,
         {
             "schema_version": "program-model-jury-results-v1",
-            "status": "executed",
+            "status": status,
             "identity": identity,
             "jury": {
                 "execution_mode": "provider_backed_model",
@@ -559,6 +560,52 @@ def test_program_promote_activation_packet_rejects_model_jury_identity_drift(
 
     assert result.exit_code == 2
     assert "model_jury_results identity does not match" in result.output
+
+
+def test_program_promote_activation_packet_rejects_model_jury_invalid_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, _jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    model_jury_path = _write_model_jury_results(
+        program_root,
+        tmp_path / "promotion" / "model_jury_results.json",
+        status="not_executed",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--model-jury-results",
+            str(model_jury_path),
+            "--review",
+            str(review_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "status executed or executed_with_failures" in result.output
 
 
 def test_program_promote_activation_packet_rejects_model_jury_authority_claim(

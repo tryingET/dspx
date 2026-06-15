@@ -7,6 +7,10 @@ import subprocess
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.program_model_jury_validation import (
+    PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
+    validate_program_model_jury_results_contract,
+)
 from dspx.services.program_oracle_publication_preflight import (
     AUTHORITY_MIRROR_LABELS,
     ELIGIBLE_REDACTION_STATUSES,
@@ -30,7 +34,7 @@ TRANSITION_PASSPORT_REF = (
 _EXPECTED_SCHEMAS = {
     "oracle_report": "program-oracle-evidence-report-v1",
     "jury_results": "program-jury-results-v1",
-    "model_jury_results": "program-model-jury-results-v1",
+    "model_jury_results": PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     "refined_review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
     "promotion_plan": "program-promotion-plan-v1",
@@ -445,59 +449,11 @@ def _validate_activation_evidence_boundaries(
             ),
         )
     if model_jury_results is not None:
-        _validate_non_authority_false(
+        validate_program_model_jury_results_contract(
             model_jury_results,
             label="model_jury_results",
-            keys=(
-                "promotion_approval",
-                "ranking_or_winner_selection",
-                "domain_acceptance",
-                "external_authority_apply",
-                "canonical_mutation",
-            ),
+            error_type=ProgramActivationPacketError,
         )
-        effect = _safe_mapping(model_jury_results.get("effect"))
-        if effect.get("model_jury_evidence_only") is not True:
-            raise ProgramActivationPacketError(
-                "model_jury_results must be evidence-only"
-            )
-        for key in (
-            "program_files_mutated",
-            "promotion_review_mutated",
-            "new_candidate_generated",
-            "oracle_index_mutated",
-            "external_authority_mutated",
-            "ak_mutated",
-            "governance_mutated",
-        ):
-            if effect.get(key) is not False:
-                raise ProgramActivationPacketError(
-                    "model_jury_results widens effect flags: " + key
-                )
-        jury = _safe_mapping(model_jury_results.get("jury"))
-        if jury.get("provider_backed_model_calls") is not True:
-            raise ProgramActivationPacketError(
-                "model_jury_results must record provider-backed model calls"
-            )
-        juror_results = [
-            item
-            for item in _safe_list(model_jury_results.get("juror_results"))
-            if isinstance(item, Mapping)
-        ]
-        if not any(str(item.get("status") or "") == "judged" for item in juror_results):
-            raise ProgramActivationPacketError(
-                "model_jury_results must include at least one judged juror result"
-            )
-        adjudicator = _safe_mapping(model_jury_results.get("adjudicator"))
-        if adjudicator.get("promotion_authority") is not False:
-            raise ProgramActivationPacketError(
-                "model_jury_results adjudicator must not claim promotion authority"
-            )
-        interpretation = _safe_mapping(model_jury_results.get("interpretation"))
-        if interpretation.get("ready_for_promotion_decision") is not False:
-            raise ProgramActivationPacketError(
-                "model_jury_results must not claim promotion-decision readiness"
-            )
     if refined_review is not None:
         _validate_non_authority_false(
             refined_review,
