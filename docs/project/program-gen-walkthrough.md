@@ -542,7 +542,7 @@ This command writes only the proposal artifact at `--out`. It does not mutate ge
 
 ## 11. Optional explicit promotion-review refinement packet
 
-If you want to bring the generated promotion shell, behavior evidence, Oracle report, and refinement proposal into one local adjudication packet, run the promotion-review consumer explicitly:
+If you want to bring the generated promotion shell, behavior evidence, Oracle report, refinement proposal, and optional provider-backed model-jury results into one local adjudication packet, run the promotion-review consumer explicitly:
 
 ```bash
 uv run -q python -m dspx.cli.dspx program-promote review \
@@ -553,18 +553,20 @@ uv run -q python -m dspx.cli.dspx program-promote review \
   --json
 ```
 
+Add `--model-jury-results "$TD/promotion/model_jury_results.json"` when a valid provider-backed model-jury sidecar already exists.
+
 Expected JSON facts:
 
 - `schema_version: program-promotion-review-refined-v1`
 - `promotion_state: not_promoted`
 - `candidate_status: exploratory`
-- `created_from` references `manifest.json`, original `promotion_review.json`, original `promotion_adjudication_request.json`, original `promotion_decision_template.json`, `behavior_results.json` when present, `behavior_episode.json` when present, the Oracle report, and the refinement proposal
-- behavior, Oracle report, and refinement proposal summaries are explicit; behavior evidence records whether it came from example-backed `behavior_results.json` or bounded `behavior_episode.json`
-- model-jury execution and explicit adjudicator decision remain missing unless policy and evidence truly say otherwise
+- `created_from` references `manifest.json`, original `promotion_review.json`, original `promotion_adjudication_request.json`, original `promotion_decision_template.json`, `behavior_results.json` when present, `behavior_episode.json` when present, the Oracle report, the refinement proposal, and optional `program-model-jury-results-v1` evidence
+- behavior, Oracle report, refinement proposal, and optional model-jury summaries are explicit; behavior evidence records whether it came from example-backed `behavior_results.json` or bounded `behavior_episode.json`
+- model-jury execution is satisfied only by a valid identity-matched provider-backed model-jury sidecar or an already satisfied generated shell requirement; explicit adjudicator decision remains missing unless policy and evidence truly say otherwise
 - `adjudication_packet.status` remains `not_ready_missing_required_evidence` when required local evidence is absent
 - `non_authority` confirms local review-packet-only posture and no automatic promotion, Oracle ranking/pruning/promotion, program mutation, new candidate generation, governance authority, or external mutation
 
-This command writes only the requested sidecar artifact. It does not overwrite generated `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`; it does not mutate `manifest.json`, behavior evidence, Oracle evidence, generated Python files, AK, governance, or external authority; it does not generate a new candidate assembly; it does not invoke an adjudicator or approve promotion. Top-level `status: review_packet_ready` means the packet was assembled from available evidence; it does not mean promotion is allowed. Promotion gating uses `review_readiness.ready_for_adjudicator_review`.
+This command writes only the requested sidecar artifact. It validates any supplied model-jury sidecar for schema, manifest identity, provider-backed execution, adjudicator non-authority, non-readiness for promotion decision, evidence-only effect flags, and non-authority flags before it can satisfy the model-jury evidence requirement. It does not overwrite generated `promotion_review.json`, `promotion_adjudication_request.json`, or `promotion_decision_template.json`; it does not mutate `manifest.json`, behavior evidence, Oracle evidence, generated Python files, AK, governance, or external authority; it does not generate a new candidate assembly; it does not invoke an adjudicator or approve promotion. Top-level `status: review_packet_ready` means the packet was assembled from available evidence; it does not mean promotion is allowed. Promotion gating uses `review_readiness.ready_for_adjudicator_review`.
 
 ## 12. Optional explicit local jury execution sidecar
 
@@ -617,7 +619,7 @@ Expected JSON facts:
 - `aggregate` summarizes blocking concerns and unique improvement requests
 - `effect` and `non_authority` confirm no candidate mutation, promotion, AK mutation, governance mutation, Oracle mutation, or external-authority apply
 
-This is the first executable model-jury layer. It still does not improve files in place or approve promotion. Use the resulting `improvement_requests` as explicit evidence for a later refinement/rerun pass, then route the result to the declared target-repo adjudicator.
+This is the first executable model-jury layer. It still does not improve files in place or approve promotion. To include it in the local adjudication packet, rerun `program-promote review` with `--model-jury-results "$TD/promotion/model_jury_results.json"`; the refined packet will mark model-jury evidence present while still requiring any explicit adjudicator decision. Use the resulting `improvement_requests` as explicit evidence for a later refinement/rerun pass, then route the result to the declared target-repo adjudicator.
 
 ## 13. Optional explicit local adjudicator decision record
 

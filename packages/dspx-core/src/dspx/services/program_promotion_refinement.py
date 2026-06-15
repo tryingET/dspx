@@ -22,6 +22,7 @@ PROGRAM_PROMOTION_ADJUDICATION_REQUEST_SCHEMA = (
 PROGRAM_PROMOTION_DECISION_SCHEMA = "program-promotion-decision-v1"
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
+PROGRAM_MODEL_JURY_RESULTS_SCHEMA = "program-model-jury-results-v1"
 
 _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
     "applies_changes",
@@ -32,6 +33,24 @@ _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
     "promotion_authority",
     "governance_authority",
     "external_mutation",
+)
+
+_REQUIRED_FALSE_MODEL_JURY_EFFECT_FLAGS = (
+    "program_files_mutated",
+    "promotion_review_mutated",
+    "new_candidate_generated",
+    "oracle_index_mutated",
+    "external_authority_mutated",
+    "ak_mutated",
+    "governance_mutated",
+)
+
+_REQUIRED_FALSE_MODEL_JURY_NON_AUTHORITY_FLAGS = (
+    "promotion_approval",
+    "ranking_or_winner_selection",
+    "domain_acceptance",
+    "external_authority_apply",
+    "canonical_mutation",
 )
 
 _REFINED_PACKET_NON_AUTHORITY = {
@@ -349,6 +368,133 @@ def _load_refinement_proposal(path: Path) -> dict[str, Any]:
     return proposal
 
 
+def _load_model_jury_results(
+    path: Path | None,
+    *,
+    identity: Mapping[str, str | None],
+) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+    if path is None:
+        return None, None, None
+    source = path.expanduser().resolve()
+    try:
+        raw = source.read_bytes()
+    except FileNotFoundError as exc:
+        raise ProgramPromotionRefinementError(
+            f"program model jury results not found: {source}"
+        ) from exc
+    try:
+        payload_raw = json.loads(raw.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise ProgramPromotionRefinementError(
+            f"program model jury results must be UTF-8 JSON: {source}"
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise ProgramPromotionRefinementError(
+            f"program model jury results must be valid JSON: {source}"
+        ) from exc
+    if not isinstance(payload_raw, dict):
+        raise ProgramPromotionRefinementError(
+            f"program model jury results must contain a JSON object: {source}"
+        )
+    payload = dict(payload_raw)
+    content_hash = hashlib.sha256(raw).hexdigest()
+    _validate_schema(
+        payload,
+        label="program model jury results",
+        expected_schema=PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
+    )
+    if payload.get("status") not in {"executed", "executed_with_failures"}:
+        raise ProgramPromotionRefinementError(
+            "program model jury results must have status executed or executed_with_failures"
+        )
+    _assert_identity_matches(
+        _safe_mapping(payload.get("identity")),
+        identity,
+        label="program model jury results",
+    )
+    jury = _safe_mapping(payload.get("jury"))
+    if jury.get("provider_backed_model_calls") is not True:
+        raise ProgramPromotionRefinementError(
+            "program model jury results must record provider-backed model calls"
+        )
+    adjudicator = _safe_mapping(payload.get("adjudicator"))
+    if adjudicator.get("promotion_authority") is not False:
+        raise ProgramPromotionRefinementError(
+            "program model jury adjudicator must not claim promotion authority"
+        )
+    interpretation = _safe_mapping(payload.get("interpretation"))
+    if interpretation.get("ready_for_promotion_decision") is not False:
+        raise ProgramPromotionRefinementError(
+            "program model jury results must not claim promotion-decision readiness"
+        )
+    juror_results = [
+        item
+        for item in _safe_list(payload.get("juror_results"))
+        if isinstance(item, Mapping)
+    ]
+    if not any(str(item.get("status") or "") == "judged" for item in juror_results):
+        raise ProgramPromotionRefinementError(
+            "program model jury results must include at least one judged juror result"
+        )
+    effect = _safe_mapping(payload.get("effect"))
+    if effect.get("model_jury_evidence_only") is not True:
+        raise ProgramPromotionRefinementError(
+            "program model jury results must be evidence-only"
+        )
+    invalid_effect = [
+        key
+        for key in _REQUIRED_FALSE_MODEL_JURY_EFFECT_FLAGS
+        if effect.get(key) is not False
+    ]
+    if invalid_effect:
+        raise ProgramPromotionRefinementError(
+            "program model jury results widens effect flags: "
+            + ", ".join(invalid_effect)
+        )
+    non_authority = _safe_mapping(payload.get("non_authority"))
+    invalid_non_authority = [
+        key
+        for key in _REQUIRED_FALSE_MODEL_JURY_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid_non_authority:
+        raise ProgramPromotionRefinementError(
+            "program model jury results widens non-authority flags: "
+            + ", ".join(invalid_non_authority)
+        )
+    return payload, source, content_hash
+
+
+def _model_jury_summary(
+    model_jury_results: Mapping[str, Any] | None,
+    *,
+    path: Path | None,
+    content_hash: str | None,
+) -> dict[str, Any]:
+    if model_jury_results is None:
+        return {"present": False}
+    jury = _safe_mapping(model_jury_results.get("jury"))
+    aggregate = _safe_mapping(model_jury_results.get("aggregate"))
+    adjudicator = _safe_mapping(model_jury_results.get("adjudicator"))
+    return {
+        "present": True,
+        "path": str(path) if path is not None else None,
+        "sha256": content_hash,
+        "schema_version": model_jury_results.get("schema_version"),
+        "status": model_jury_results.get("status"),
+        "execution_mode": jury.get("execution_mode"),
+        "provider_backed_model_calls": jury.get("provider_backed_model_calls") is True,
+        "selected_juror_count": _safe_int(jury.get("selected_juror_count")),
+        "judgment_counts": _safe_mapping(aggregate.get("judgment_counts")),
+        "recommendation": aggregate.get("recommendation"),
+        "improvement_request_count": len(
+            _safe_list(aggregate.get("unique_improvement_requests"))
+        ),
+        "adjudicator_repo": adjudicator.get("repo"),
+        "promotion_authority": adjudicator.get("promotion_authority") is True,
+    }
+
+
 def _episode_status_counts(episode: Mapping[str, Any] | None) -> dict[str, int]:
     if episode is None:
         return {}
@@ -426,6 +572,7 @@ def _missing_required_evidence(
     behavior_present: bool,
     oracle_matched: bool,
     proposal_present: bool,
+    model_jury_present: bool,
 ) -> list[str]:
     policy = _promotion_policy(review)
     missing: list[str] = []
@@ -442,7 +589,10 @@ def _missing_required_evidence(
         jury_status = _evidence_requirement_status(
             review, "model_jury_execution_episode"
         )
-        if jury_status != "satisfied_by_current_model_jury_episode":
+        if (
+            jury_status != "satisfied_by_current_model_jury_episode"
+            and not model_jury_present
+        ):
             missing.append("no_model_jury_execution_episode")
     if bool(policy.get("requires_adjudicator_decision", True)):
         decision = _safe_mapping(review.get("decision"))
@@ -525,7 +675,11 @@ def _load_original_promotion_artifacts(
 
 
 def load_program_promotion_inputs(
-    *, manifest_path: Path, oracle_report_path: Path, refinement_proposal_path: Path
+    *,
+    manifest_path: Path,
+    oracle_report_path: Path,
+    refinement_proposal_path: Path,
+    model_jury_results_path: Path | None = None,
 ) -> dict[str, Any]:
     """Load and validate all existing evidence for local promotion-review refinement."""
 
@@ -552,6 +706,9 @@ def load_program_promotion_inputs(
     _assert_identity_matches(
         proposal_identity, identity, label="program refinement proposal"
     )
+    model_jury_results, model_jury_results_file, model_jury_results_hash = (
+        _load_model_jury_results(model_jury_results_path, identity=identity)
+    )
     review, request, decision_template, promotion_paths = (
         _load_original_promotion_artifacts(
             manifest,
@@ -574,6 +731,9 @@ def load_program_promotion_inputs(
         "oracle_matched": oracle_matched,
         "refinement_proposal_path": refinement_proposal_path,
         "refinement_proposal": proposal,
+        "model_jury_results": model_jury_results,
+        "model_jury_results_path": model_jury_results_file,
+        "model_jury_results_hash": model_jury_results_hash,
         "promotion_review": review,
         "promotion_adjudication_request": request,
         "promotion_decision_template": decision_template,
@@ -603,7 +763,11 @@ def validate_promotion_refinement_inputs(inputs: Mapping[str, Any]) -> None:
 
 
 def build_program_promotion_refinement(
-    *, manifest_path: Path, oracle_report_path: Path, refinement_proposal_path: Path
+    *,
+    manifest_path: Path,
+    oracle_report_path: Path,
+    refinement_proposal_path: Path,
+    model_jury_results_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build a local non-authoritative refined promotion-review packet."""
 
@@ -611,6 +775,7 @@ def build_program_promotion_refinement(
         manifest_path=manifest_path,
         oracle_report_path=oracle_report_path,
         refinement_proposal_path=refinement_proposal_path,
+        model_jury_results_path=model_jury_results_path,
     )
     validate_promotion_refinement_inputs(inputs)
 
@@ -631,11 +796,14 @@ def build_program_promotion_refinement(
     request = _safe_mapping(inputs.get("promotion_adjudication_request"))
     promotion_paths = _safe_mapping(inputs.get("promotion_paths"))
     oracle_matched = bool(inputs.get("oracle_matched"))
+    model_jury_results = inputs.get("model_jury_results")
+    model_jury_present = isinstance(model_jury_results, Mapping)
     missing = _missing_required_evidence(
         review=review,
         behavior_present=behavior_present,
         oracle_matched=oracle_matched,
         proposal_present=True,
+        model_jury_present=model_jury_present,
     )
     model_jury_missing = "no_model_jury_execution_episode" in missing
     adjudicator_missing = "no_promotion_adjudicator_decision" in missing
@@ -657,6 +825,13 @@ def build_program_promotion_refinement(
         if isinstance(behavior_episode_path, Path) and behavior_episode_path.exists()
         else None
     )
+    model_jury_results_path = inputs.get("model_jury_results_path")
+    model_jury_results_path_text = (
+        str(Path(model_jury_results_path).resolve())
+        if isinstance(model_jury_results_path, Path)
+        and model_jury_results_path.exists()
+        else None
+    )
     packet = {
         "schema_version": PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA,
         "status": _status_for_packet(
@@ -675,6 +850,7 @@ def build_program_promotion_refinement(
             "refinement_proposal_path": str(
                 Path(inputs["refinement_proposal_path"]).resolve()
             ),
+            "model_jury_results_path": model_jury_results_path_text,
             "original_promotion_review_path": str(
                 Path(promotion_paths["original_promotion_review_path"]).resolve()
             ),
@@ -702,12 +878,22 @@ def build_program_promotion_refinement(
                 "status": proposal.get("status"),
                 "proposal_id": proposal.get("proposal_id"),
             },
+            "model_jury_results": _model_jury_summary(
+                model_jury_results if isinstance(model_jury_results, Mapping) else None,
+                path=model_jury_results_path
+                if isinstance(model_jury_results_path, Path)
+                else None,
+                content_hash=inputs.get("model_jury_results_hash")
+                if isinstance(inputs.get("model_jury_results_hash"), str)
+                else None,
+            ),
         },
         "review_readiness": {
             "behavior_evidence_present": behavior_present,
             "oracle_report_present": True,
             "refinement_proposal_present": True,
-            "model_jury_execution_present": not model_jury_missing,
+            "model_jury_execution_present": model_jury_present
+            or not model_jury_missing,
             "adjudicator_decision_present": not adjudicator_missing,
             "ready_for_adjudicator_review": ready_for_adjudicator_review,
             "missing_required_evidence": missing,
@@ -720,6 +906,9 @@ def build_program_promotion_refinement(
             if oracle_matched
             else "explicit_oracle_report_without_matching_record",
             "bounded_refinement_proposal": "available_non_authoritative",
+            "model_jury_execution": "satisfied_by_explicit_model_jury_results"
+            if model_jury_present
+            else "missing_model_jury_execution",
             "promotion_authority": "unchanged_required_adjudicator",
         },
         "adjudication_packet": {
@@ -745,12 +934,17 @@ def build_program_promotion_refinement(
                 ),
                 "oracle_report",
                 "refinement_proposal",
+                *(
+                    ["model_jury_results"]
+                    if model_jury_results_path_text is not None
+                    else []
+                ),
             ],
         },
         "non_authority": dict(_REFINED_PACKET_NON_AUTHORITY),
         "notes": [
             "This is a local promotion-review evidence packet only.",
-            "It consumes existing behavior evidence, an explicit Oracle report, and an explicit refinement proposal without mutating generated program artifacts.",
+            "It consumes existing behavior evidence, an explicit Oracle report, an explicit refinement proposal, and optional explicit model-jury results without mutating generated program artifacts.",
             "Promotion remains unavailable without an explicit adjudicator decision and any other required local evidence.",
             "Oracle interpretation remains non-authoritative and cannot rank, prune, promote, or block candidates.",
         ],
@@ -774,6 +968,7 @@ def _assert_refinement_output_path(packet: Mapping[str, Any], out_path: Path) ->
         "behavior_episode_path",
         "oracle_report_path",
         "refinement_proposal_path",
+        "model_jury_results_path",
         "original_promotion_review_path",
         "original_promotion_adjudication_request_path",
         "original_promotion_decision_template_path",

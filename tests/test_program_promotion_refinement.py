@@ -4,6 +4,7 @@ from collections.abc import Mapping
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -53,6 +54,65 @@ def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
     with path.open("w", encoding="utf-8") as fh:
         for row in rows:
             fh.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+def _model_jury_result_for_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    request = dict(manifest["request"])
+    candidate = dict(manifest["candidate_assembly"])
+    execution = dict(manifest["execution_episode"])
+    receipt = dict(manifest["receipt_bundle"])
+    return {
+        "schema_version": "program-model-jury-results-v1",
+        "status": "executed",
+        "identity": {
+            "request_id": request["request_id"],
+            "candidate_id": candidate["candidate_id"],
+            "assembly_id": candidate["assembly_id"],
+            "episode_id": execution["episode_id"],
+            "receipt_bundle_id": receipt["receipt_bundle_id"],
+        },
+        "created_from": {"manifest_path": "manifest.json"},
+        "jury": {
+            "execution_mode": "provider_backed_model",
+            "provider_backed_model_calls": True,
+            "selected_juror_count": 1,
+        },
+        "adjudicator": {
+            "repo": "target-repo",
+            "promotion_authority": False,
+        },
+        "evidence": {"entry_count": 1},
+        "juror_results": [
+            {
+                "juror_id": "authority_agent",
+                "status": "judged",
+                "judgment": {"outcome": "request_more_evidence"},
+            }
+        ],
+        "aggregate": {
+            "judgment_counts": {"request_more_evidence": 1},
+            "recommendation": "request_more_evidence",
+            "unique_improvement_requests": ["add more target evidence"],
+        },
+        "interpretation": {"ready_for_promotion_decision": False},
+        "effect": {
+            "model_jury_evidence_only": True,
+            "program_files_mutated": False,
+            "promotion_review_mutated": False,
+            "new_candidate_generated": False,
+            "oracle_index_mutated": False,
+            "external_authority_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+        },
+        "non_authority": {
+            "promotion_approval": False,
+            "ranking_or_winner_selection": False,
+            "domain_acceptance": False,
+            "external_authority_apply": False,
+            "canonical_mutation": False,
+        },
+    }
 
 
 def _materialize_program_report_and_proposal(
@@ -268,6 +328,7 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
         "behavioral_evaluation_episode": "satisfied_by_current_behavior_episode",
         "oracle_interpretation": "satisfied_by_explicit_oracle_report",
         "bounded_refinement_proposal": "available_non_authoritative",
+        "model_jury_execution": "missing_model_jury_execution",
         "promotion_authority": "unchanged_required_adjudicator",
     }
     adjudication = payload["adjudication_packet"]
@@ -305,6 +366,188 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
     assert not (program_root / "promotion_review_refined.json").exists()
     assert (program_root / "eval_behavior.py").exists()
     assert (program_root / "behavior_episode.json").exists()
+
+
+def test_program_promotion_refinement_consumes_model_jury_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    model_jury_path = tmp_path / "promotion" / "model_jury_results.json"
+    _write_json(model_jury_path, _model_jury_result_for_manifest(manifest))
+    before = _file_hashes(program_root)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--model-jury-results",
+            str(model_jury_path),
+            "--out",
+            str(tmp_path / "promotion" / "promotion_review_refined.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["created_from"]["model_jury_results_path"] == str(
+        model_jury_path.resolve()
+    )
+    assert payload["evidence_summary"]["model_jury_results"] == {
+        "present": True,
+        "path": str(model_jury_path.resolve()),
+        "sha256": hashlib.sha256(model_jury_path.read_bytes()).hexdigest(),
+        "schema_version": "program-model-jury-results-v1",
+        "status": "executed",
+        "execution_mode": "provider_backed_model",
+        "provider_backed_model_calls": True,
+        "selected_juror_count": 1,
+        "judgment_counts": {"request_more_evidence": 1},
+        "recommendation": "request_more_evidence",
+        "improvement_request_count": 1,
+        "adjudicator_repo": "target-repo",
+        "promotion_authority": False,
+    }
+    readiness = payload["review_readiness"]
+    assert readiness["model_jury_execution_present"] is True
+    assert readiness["ready_for_adjudicator_review"] is False
+    assert readiness["missing_required_evidence"] == [
+        "no_promotion_adjudicator_decision"
+    ]
+    assert payload["promotion_review_delta"]["model_jury_execution"] == (
+        "satisfied_by_explicit_model_jury_results"
+    )
+    assert "model_jury_results" in payload["adjudication_packet"]["evidence_refs"]
+    assert payload["non_authority"]["promotion_authority"] is False
+    assert _file_hashes(program_root) == before
+
+
+def test_program_promotion_refinement_rejects_model_jury_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    model_jury = _model_jury_result_for_manifest(manifest)
+    identity = dict(model_jury["identity"])
+    identity["candidate_id"] = "prog-cand-other"
+    model_jury["identity"] = identity
+    bad_model_jury_path = tmp_path / "promotion" / "bad-model-jury.json"
+    _write_json(bad_model_jury_path, model_jury)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--model-jury-results",
+            str(bad_model_jury_path),
+            "--out",
+            str(tmp_path / "promotion" / "review.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate_id" in (result.stdout + result.stderr)
+    assert not (tmp_path / "promotion" / "review.json").exists()
+
+
+def test_program_promotion_refinement_rejects_authority_widened_model_jury(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    model_jury = _model_jury_result_for_manifest(manifest)
+    effect = dict(model_jury["effect"])
+    effect["external_authority_mutated"] = True
+    model_jury["effect"] = effect
+    bad_model_jury_path = tmp_path / "promotion" / "bad-model-jury.json"
+    _write_json(bad_model_jury_path, model_jury)
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="external_authority_mutated",
+    ):
+        build_program_promotion_refinement(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            refinement_proposal_path=proposal_path,
+            model_jury_results_path=bad_model_jury_path,
+        )
+
+
+def test_program_promotion_refinement_rejects_model_jury_promotion_authority_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    model_jury = _model_jury_result_for_manifest(manifest)
+    adjudicator = dict(model_jury["adjudicator"])
+    adjudicator["promotion_authority"] = True
+    model_jury["adjudicator"] = adjudicator
+    bad_model_jury_path = tmp_path / "promotion" / "bad-model-jury.json"
+    _write_json(bad_model_jury_path, model_jury)
+
+    with pytest.raises(ProgramPromotionRefinementError, match="promotion authority"):
+        build_program_promotion_refinement(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            refinement_proposal_path=proposal_path,
+            model_jury_results_path=bad_model_jury_path,
+        )
+
+
+def test_program_promotion_refinement_rejects_unjudged_model_jury_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    model_jury = _model_jury_result_for_manifest(manifest)
+    model_jury["juror_results"] = [{"juror_id": "authority_agent", "status": "failed"}]
+    bad_model_jury_path = tmp_path / "promotion" / "bad-model-jury.json"
+    _write_json(bad_model_jury_path, model_jury)
+
+    with pytest.raises(ProgramPromotionRefinementError, match="judged juror"):
+        build_program_promotion_refinement(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            refinement_proposal_path=proposal_path,
+            model_jury_results_path=bad_model_jury_path,
+        )
 
 
 def test_program_promotion_refinement_rejects_authority_widened_oracle_report(

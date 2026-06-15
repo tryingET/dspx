@@ -25,6 +25,11 @@ def review(
         "--refinement-proposal",
         help="Path to explicit program refinement proposal JSON",
     ),
+    model_jury_results: Path | None = typer.Option(
+        None,
+        "--model-jury-results",
+        help="Optional provider-backed program-model-jury-results-v1 JSON",
+    ),
     out: Path = typer.Option(
         ...,
         "--out",
@@ -44,6 +49,7 @@ def review(
             manifest_path=manifest,
             oracle_report_path=oracle_report,
             refinement_proposal_path=refinement_proposal,
+            model_jury_results_path=model_jury_results,
         )
         payload = write_program_promotion_refinement(packet, out)
     except ProgramPromotionRefinementError as exc:
