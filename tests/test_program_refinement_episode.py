@@ -128,6 +128,11 @@ def test_program_refinement_episode_cli_materializes_second_candidate_and_state(
     assert payload["effect"]["winner_selected"] is False
     assert payload["steps"]["decision_record"]["outcome"] == "request_more_evidence"
     assert payload["steps"]["second_candidate"]["manifest_path"]
+    workflow_payload = json.loads(
+        (outdir / "program_refinement_episode.json").read_text(encoding="utf-8")
+    )
+    assert workflow_payload == payload
+    assert workflow_payload["effect"]["workflow_summary_written"] is True
 
     for key in (
         "refinement_proposal.json",
@@ -147,6 +152,63 @@ def test_program_refinement_episode_cli_materializes_second_candidate_and_state(
     assert state["truth_summary"]["comparison_present"] is True
     assert state["truth_summary"]["ak_called"] is False
     assert state["truth_summary"]["winner_selected"] is False
+    assert _file_hashes(program_root) == before_source_hashes
+
+
+def test_program_refinement_episode_records_decision_without_second_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    before_source_hashes = _file_hashes(program_root)
+    outdir = tmp_path / "refinement-episode"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "episode",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--outdir",
+            str(outdir),
+            "--decision-outcome",
+            "withhold",
+            "--decided-by",
+            "operator-test",
+            "--rationale",
+            "withhold without collecting another local candidate",
+            "--no-generate-second-candidate",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload: dict[str, Any] = json.loads(result.stdout)
+    assert payload["schema_version"] == "program-refinement-episode-v1"
+    assert payload["status"] == "decision_recorded"
+    assert payload["steps"]["decision_record"]["outcome"] == "withhold"
+    assert payload["steps"]["second_candidate"] == {
+        "status": "skipped",
+        "root_path": None,
+        "manifest_path": None,
+        "comparison_path": None,
+        "comparison_status": None,
+    }
+    assert payload["effect"]["local_second_candidate_generated"] is False
+    assert payload["effect"]["local_comparison_written"] is False
+    assert payload["effect"]["external_authority_mutated"] is False
+    assert payload["effect"]["winner_selected"] is False
+    assert (outdir / "program_refinement_episode.json").exists()
+    assert (outdir / "program_candidate_state.refinement.json").exists()
+    assert not (outdir / "second_candidate").exists()
+    assert not (outdir / "program_candidate_comparison.json").exists()
+    state = json.loads(
+        (outdir / "program_candidate_state.refinement.json").read_text(encoding="utf-8")
+    )
+    assert state["truth_summary"]["decision_record_present"] is True
+    assert state["truth_summary"]["comparison_present"] is False
     assert _file_hashes(program_root) == before_source_hashes
 
 
