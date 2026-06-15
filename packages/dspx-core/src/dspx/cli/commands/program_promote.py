@@ -1342,6 +1342,65 @@ def dspx_adjudicator_decision(
         typer.echo(str(out.expanduser().resolve()))
 
 
+@app.command("decide-comparison")
+def decide_comparison(
+    comparison: Path = typer.Option(
+        ...,
+        "--comparison",
+        help="Path to program-refinement-candidate-comparison-v1 JSON",
+    ),
+    outcome: str = typer.Option(
+        ...,
+        "--outcome",
+        help="Comparison decision outcome: withhold, reject, or request_more_evidence",
+    ),
+    decided_by: str = typer.Option(
+        ...,
+        "--decided-by",
+        help="Explicit local operator/adjudicator identifier",
+    ),
+    rationale: str = typer.Option(
+        ...,
+        "--rationale",
+        help="Non-empty rationale for the local comparison decision record",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Path where the local comparison decision sidecar should be written",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print decision record JSON"),
+) -> None:
+    """Record a local decision from comparison evidence without promotion authority."""
+    from dspx.services.program_promotion_decision import (
+        ProgramPromotionDecisionError,
+        build_program_comparison_decision_record,
+        write_program_promotion_decision_record,
+    )
+
+    try:
+        record = build_program_comparison_decision_record(
+            comparison_path=comparison,
+            outcome=outcome,
+            decided_by=decided_by,
+            rationale=rationale,
+        )
+        payload = write_program_promotion_decision_record(record, out)
+    except ProgramPromotionDecisionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: program comparison decision recording failed: {exc}", err=True
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(out.expanduser().resolve()))
+
+
 @app.command("decide")
 def decide(
     review: Path = typer.Option(

@@ -375,6 +375,179 @@ def test_program_refine_materialize_and_compare_gepa_candidate_writes_local_work
     assert _hash_tree(tmp_path / "program-gepa") == optimizer_before
 
 
+def test_program_promote_decide_comparison_feeds_local_plan_for_gepa_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    outdir = tmp_path / "program-gepa-candidate"
+    comparison_out = tmp_path / "refinement" / "gepa_candidate_comparison.json"
+    workflow = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "materialize-and-compare-gepa-candidate",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--gepa-result",
+            str(gepa_result),
+            "--outdir",
+            str(outdir),
+            "--comparison-out",
+            str(comparison_out),
+            "--json",
+        ],
+    )
+    assert workflow.exit_code == 0, workflow.output
+    decision_out = tmp_path / "refinement" / "gepa_comparison_decision.json"
+
+    decision = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "decide-comparison",
+            "--comparison",
+            str(comparison_out),
+            "--outcome",
+            "withhold",
+            "--decided-by",
+            "local-operator",
+            "--rationale",
+            "GEPA comparison is local evidence only; keep candidate withheld pending external authority.",
+            "--out",
+            str(decision_out),
+            "--json",
+        ],
+    )
+
+    assert decision.exit_code == 0, decision.output
+    decision_payload = json.loads(decision.stdout)
+    comparison_payload = json.loads(comparison_out.read_text(encoding="utf-8"))
+    assert decision_payload == json.loads(decision_out.read_text(encoding="utf-8"))
+    assert decision_payload["schema_version"] == "program-promotion-decision-record-v1"
+    assert decision_payload["outcome"] == "withhold"
+    assert decision_payload["identity"] == comparison_payload["source_identity"]
+    assert decision_payload["created_from"]["comparison_path"] == str(
+        comparison_out.resolve()
+    )
+    assert (
+        decision_payload["comparison_snapshot"]["candidate_identity"]
+        == comparison_payload["candidate_identity"]
+    )
+    assert (
+        decision_payload["decision_constraints"]["promote_allowed_by_review"] is False
+    )
+    assert decision_payload["non_authority"]["comparison_decision_only"] is True
+    assert decision_payload["non_authority"]["winner_selection"] is False
+    plan_out = tmp_path / "refinement" / "gepa_promotion_plan.json"
+
+    plan = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "plan",
+            "--manifest",
+            str(outdir / "manifest.json"),
+            "--decision-record",
+            str(decision_out),
+            "--comparison",
+            str(comparison_out),
+            "--source-manifest",
+            str(program_root / "manifest.json"),
+            "--target",
+            "local_preferred_candidate",
+            "--authority-owner",
+            "local-operator",
+            "--out",
+            str(plan_out),
+            "--json",
+        ],
+    )
+
+    assert plan.exit_code == 0, plan.output
+    plan_payload = json.loads(plan.stdout)
+    assert plan_payload["schema_version"] == "program-promotion-plan-v1"
+    assert plan_payload["status"] == "planned_not_applied"
+    assert plan_payload["promotion_state"] == "not_promoted"
+    assert plan_payload["eligibility"]["allowed_for_apply"] is False
+    assert plan_payload["non_authority"]["winner_selection"] is False
+
+
+def test_program_promote_decide_comparison_rejects_promote_and_spoofed_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    comparison_out = tmp_path / "refinement" / "gepa_candidate_comparison.json"
+    workflow = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "materialize-and-compare-gepa-candidate",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--gepa-result",
+            str(gepa_result),
+            "--outdir",
+            str(tmp_path / "program-gepa-candidate"),
+            "--comparison-out",
+            str(comparison_out),
+            "--json",
+        ],
+    )
+    assert workflow.exit_code == 0, workflow.output
+
+    promote = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "decide-comparison",
+            "--comparison",
+            str(comparison_out),
+            "--outcome",
+            "promote",
+            "--decided-by",
+            "local-operator",
+            "--rationale",
+            "try to promote from comparison only",
+            "--out",
+            str(tmp_path / "refinement" / "bad_decision.json"),
+            "--json",
+        ],
+    )
+    assert promote.exit_code == 2
+    assert "must be one of" in (promote.stdout + promote.stderr)
+    assert not (tmp_path / "refinement" / "bad_decision.json").exists()
+
+    spoofed = json.loads(comparison_out.read_text(encoding="utf-8"))
+    spoofed["non_authority"]["winner_selection"] = True
+    spoofed_path = tmp_path / "refinement" / "spoofed_comparison.json"
+    _write_json(spoofed_path, spoofed)
+    spoof = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "decide-comparison",
+            "--comparison",
+            str(spoofed_path),
+            "--outcome",
+            "withhold",
+            "--decided-by",
+            "local-operator",
+            "--rationale",
+            "reject spoofed authority",
+            "--out",
+            str(tmp_path / "refinement" / "spoof_decision.json"),
+            "--json",
+        ],
+    )
+    assert spoof.exit_code == 2
+    assert "widens non-authority flags" in (spoof.stdout + spoof.stderr)
+    assert not (tmp_path / "refinement" / "spoof_decision.json").exists()
+
+
 def test_program_refine_materialize_and_compare_gepa_candidate_fails_closed_before_comparison(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

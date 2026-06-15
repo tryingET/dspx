@@ -14,12 +14,20 @@ PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
 PROGRAM_ADJUDICATOR_DELEGATION_SCHEMA = "program-adjudicator-delegation-v1"
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
+PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
+    "program-refinement-candidate-comparison-v1"
+)
 
 ALLOWED_PROGRAM_PROMOTION_DECISION_OUTCOMES = (
     "withhold",
     "reject",
     "request_more_evidence",
     "promote",
+)
+ALLOWED_COMPARISON_DECISION_OUTCOMES = (
+    "withhold",
+    "reject",
+    "request_more_evidence",
 )
 
 _REQUIRED_FALSE_REFINED_REVIEW_NON_AUTHORITY_FLAGS = (
@@ -30,6 +38,18 @@ _REQUIRED_FALSE_REFINED_REVIEW_NON_AUTHORITY_FLAGS = (
     "program_mutation",
     "new_candidate_generation",
     "promotion_authority",
+    "governance_authority",
+    "external_mutation",
+)
+
+_REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS = (
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "winner_selection",
+    "automatic_promotion",
+    "program_mutation",
+    "new_candidate_generation",
     "governance_authority",
     "external_mutation",
 )
@@ -340,6 +360,136 @@ def _review_snapshot(refined_review: Mapping[str, Any]) -> dict[str, Any]:
         "missing_required_evidence": _safe_string_list(
             readiness.get("missing_required_evidence")
         ),
+    }
+
+
+def _load_candidate_comparison(path: Path) -> dict[str, Any]:
+    comparison = _load_json_object(path, label="program candidate comparison")
+    if (
+        comparison.get("schema_version")
+        != PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+    ):
+        raise ProgramPromotionDecisionError(
+            "program candidate comparison schema_version must be "
+            + PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+        )
+    non_authority = _safe_mapping(comparison.get("non_authority"))
+    if non_authority.get("local_comparison_only") is not True:
+        raise ProgramPromotionDecisionError(
+            "program candidate comparison must be local-only"
+        )
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramPromotionDecisionError(
+            "program candidate comparison widens non-authority flags: "
+            + ", ".join(invalid)
+        )
+    source_identity = _safe_mapping(comparison.get("source_identity"))
+    if not any(str(value or "").strip() for value in source_identity.values()):
+        raise ProgramPromotionDecisionError(
+            "program candidate comparison must include source_identity"
+        )
+    candidate_identity = _safe_mapping(comparison.get("candidate_identity"))
+    if not any(str(value or "").strip() for value in candidate_identity.values()):
+        raise ProgramPromotionDecisionError(
+            "program candidate comparison must include candidate_identity"
+        )
+    return comparison
+
+
+def _comparison_snapshot(comparison: Mapping[str, Any]) -> dict[str, Any]:
+    behavior_comparison = _safe_mapping(comparison.get("behavior_comparison"))
+    interpretation = _safe_mapping(comparison.get("interpretation"))
+    return {
+        "comparison_status": comparison.get("status"),
+        "source_identity": _safe_mapping(comparison.get("source_identity")),
+        "candidate_identity": _safe_mapping(comparison.get("candidate_identity")),
+        "behavior_delta": _safe_mapping(behavior_comparison.get("delta")),
+        "interpretation": {
+            key: interpretation.get(key)
+            for key in ("summary", "improvement_observed", "needs_more_evidence")
+            if key in interpretation
+        },
+    }
+
+
+def build_program_comparison_decision_record(
+    *,
+    comparison_path: Path,
+    outcome: str,
+    decided_by: str,
+    rationale: str,
+    decided_at: str | None = None,
+) -> dict[str, Any]:
+    """Build a local decision sidecar from source-vs-candidate comparison evidence."""
+
+    comparison_path = comparison_path.expanduser().resolve()
+    comparison = _load_candidate_comparison(comparison_path)
+    normalized_outcome = str(outcome or "").strip()
+    if normalized_outcome not in ALLOWED_COMPARISON_DECISION_OUTCOMES:
+        raise ProgramPromotionDecisionError(
+            "program comparison decision outcome must be one of: "
+            + ", ".join(ALLOWED_COMPARISON_DECISION_OUTCOMES)
+        )
+    normalized_decided_by = str(decided_by or "").strip()
+    normalized_rationale = str(rationale or "").strip()
+    if not normalized_decided_by:
+        raise ProgramPromotionDecisionError(
+            "program comparison decision requires decided_by"
+        )
+    if not normalized_rationale:
+        raise ProgramPromotionDecisionError(
+            "program comparison decision requires rationale"
+        )
+    return {
+        "schema_version": PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA,
+        "status": "recorded",
+        "outcome": normalized_outcome,
+        "promotion_state_after_decision": "not_promoted",
+        "decided_by": normalized_decided_by,
+        "decided_at": decided_at or _utc_now_iso(),
+        "rationale": normalized_rationale,
+        "identity": _safe_mapping(comparison.get("source_identity")),
+        "created_from": {
+            "comparison_path": str(comparison_path),
+            "comparison_schema_version": comparison.get("schema_version"),
+            "comparison_hash": hashlib.sha256(comparison_path.read_bytes()).hexdigest(),
+        },
+        "review_snapshot": {
+            "review_status": "comparison_decision_recorded_from_local_candidate_comparison",
+            "promotion_state": "not_promoted",
+            "candidate_status": comparison.get("status") or "unknown",
+            "ready_for_adjudicator_review": False,
+            "missing_required_evidence": [
+                "no_refined_promotion_review",
+                "no_model_jury_execution_episode",
+                "no_external_authority_contract",
+            ],
+        },
+        "comparison_snapshot": _comparison_snapshot(comparison),
+        "decision_constraints": {
+            "allowed_outcomes": list(ALLOWED_COMPARISON_DECISION_OUTCOMES),
+            "promote_requires_ready_review": True,
+            "promote_allowed_by_review": False,
+            "external_authority_exported": False,
+            "source": "program_refinement_candidate_comparison",
+        },
+        "effect": dict(_DECISION_RECORD_EFFECT),
+        "non_authority": {
+            **_DECISION_RECORD_NON_AUTHORITY,
+            "comparison_decision_only": True,
+            "promotion_authority": False,
+            "winner_selection": False,
+        },
+        "notes": [
+            "This is a local decision record over comparison evidence only.",
+            "It does not choose a winner, promote, export external authority, update governance, or make Oracle authoritative.",
+            "Use program-promote plan for a separate local non-applying planning sidecar.",
+        ],
     }
 
 

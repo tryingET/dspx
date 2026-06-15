@@ -857,6 +857,30 @@ uv run -q python -m dspx.cli.dspx program-refine materialize-and-compare-gepa-ca
 
 The composed workflow writes `program-refinement-gepa-generate-and-compare-result-v1` as a local receipt over exactly one GEPA candidate materialization plus one source-vs-GEPA-candidate comparison sidecar. It is still evidence only: no winner selection, ranking, promotion, Oracle authority mutation, AK/governance mutation, or external authority export is performed.
 
+If an operator wants to carry that comparison into local non-applying planning, record an explicit comparison decision first. Comparison-only decisions may withhold, reject, or request more evidence; they cannot promote:
+
+```bash
+uv run -q python -m dspx.cli.dspx program-promote decide-comparison \
+  --comparison "$TD/refinement/gepa_candidate_comparison.json" \
+  --outcome withhold \
+  --decided-by local-operator \
+  --rationale "GEPA comparison is local evidence only; keep candidate withheld pending external authority." \
+  --out "$TD/refinement/gepa_comparison_decision.json" \
+  --json
+
+uv run -q python -m dspx.cli.dspx program-promote plan \
+  --manifest "$TD/program-gepa-candidate/manifest.json" \
+  --decision-record "$TD/refinement/gepa_comparison_decision.json" \
+  --comparison "$TD/refinement/gepa_candidate_comparison.json" \
+  --source-manifest "$TD/program/manifest.json" \
+  --target local_preferred_candidate \
+  --authority-owner local-operator \
+  --out "$TD/refinement/gepa_promotion_plan.json" \
+  --json
+```
+
+The decision record and plan are local evidence/planning artifacts only. They do not approve, promote, rank, select a winner, mutate Oracle/AK/governance, or export external authority.
+
 ## 17. Inspect manifest and receipt declarations
 
 ```bash
