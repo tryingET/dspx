@@ -49,7 +49,9 @@ def _ticket_rows(count: int) -> list[dict[str, object]]:
     ]
 
 
-def _fake_gepa(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+def _fake_gepa(
+    monkeypatch: pytest.MonkeyPatch, *, output_manifest: object = "default"
+) -> list[dict[str, Any]]:
     import dspx.services.program_refinement_gepa as gepa_service
 
     calls: list[dict[str, Any]] = []
@@ -70,8 +72,8 @@ def _fake_gepa(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     def fake_run_gepa_optimize(**kwargs: Any) -> FakeResult:
         out_dir = Path(kwargs["out_dir"])
         out_dir.mkdir(parents=True, exist_ok=True)
-        (out_dir / "manifest.json").write_text(
-            json.dumps(
+        if output_manifest != "missing":
+            manifest_payload = (
                 {
                     "created_by": "fake_gepa_for_test",
                     "program": str(kwargs["program_path"]),
@@ -79,13 +81,16 @@ def _fake_gepa(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
                         "train": str(kwargs["train_path"]),
                         "val": str(kwargs.get("val_path")),
                     },
-                },
-                indent=2,
-                sort_keys=True,
+                }
+                if output_manifest == "default"
+                else output_manifest
             )
-            + "\n",
-            encoding="utf-8",
-        )
+            text = (
+                manifest_payload
+                if isinstance(manifest_payload, str)
+                else json.dumps(manifest_payload, indent=2, sort_keys=True) + "\n"
+            )
+            (out_dir / "manifest.json").write_text(str(text), encoding="utf-8")
         calls.append(kwargs)
         return FakeResult(
             out_dir=out_dir,
@@ -284,8 +289,24 @@ def test_program_refine_optimize_gepa_inline_examples_writes_sidecar_only(
     assert payload["gepa"]["status"] == "completed"
     assert payload["gepa"]["metric"] == "exact_match"
     assert payload["gepa"]["optimizer_metric"] == "exact"
+    assert payload["gepa"]["prepared_inputs"]["train_csv_sha256"]
+    assert payload["gepa"]["prepared_inputs"]["validation_csv_sha256"]
     assert payload["candidate"] is None
     assert payload["gepa_output"]["candidate_assembly_manifest"] is False
+    assert payload["gepa_output"]["manifest_present"] is True
+    assert payload["gepa_output"]["manifest_valid"] is True
+    assert payload["gepa_output"]["manifest_sha256"]
+    assert (
+        payload["gepa_output"]["manifest_kind"] == "dspy_gepa_optimizer_output_manifest"
+    )
+    assert payload["gepa_output"]["readiness"] == {
+        "status": "optimizer_output_hash_bound_not_candidate",
+        "ready_for_future_candidate_materializer": True,
+        "blockers": [
+            "no_program_candidate_assembly_materializer_in_this_command",
+            "candidate_field_remains_null_until_explicit_materializer_lands",
+        ],
+    }
     assert (outdir / "manifest.json").exists()
     assert payload["effect"] == {
         "local_gepa_candidate_generated": False,
@@ -311,6 +332,78 @@ def test_program_refine_optimize_gepa_inline_examples_writes_sidecar_only(
     assert (program_root / "behavior_episode.json").exists()
     assert not (outdir / "eval_behavior.py").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+    assert calls and Path(calls[0]["train_path"]).name == "train.csv"
+
+
+@pytest.mark.parametrize(
+    ("output_manifest", "expected_blocker"),
+    [
+        ("missing", "optimizer_output_manifest_missing"),
+        ("{not json", "optimizer_output_manifest_invalid_json"),
+        (["not", "object"], "optimizer_output_manifest_not_object"),
+    ],
+)
+def test_program_refine_optimize_gepa_degrades_when_optimizer_manifest_unverified(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    output_manifest: object,
+    expected_blocker: str,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    calls = _fake_gepa(monkeypatch, output_manifest=output_manifest)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="TicketProgram",
+            objective="Classify support ticket urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+            metric="exact_match",
+            examples=[
+                {
+                    "inputs": {"ticket_text": "Server is down for all users"},
+                    "outputs": {"urgency": "high"},
+                }
+            ],
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    before = _hash_tree(program_root)
+    result_path = tmp_path / "refinement" / "gepa_refinement_result.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "optimize-gepa",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--outdir",
+            str(tmp_path / "program-gepa"),
+            "--result-out",
+            str(result_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "gepa_output_unverified"
+    assert payload["gepa"]["status"] == "completed"
+    assert payload["candidate"] is None
+    assert payload["gepa_output"]["candidate_assembly_manifest"] is False
+    assert payload["gepa_output"]["manifest_valid"] is False
+    assert payload["gepa_output"]["readiness"]["status"] == (
+        "optimizer_output_unverified_not_candidate"
+    )
+    assert (
+        payload["gepa_output"]["readiness"]["ready_for_future_candidate_materializer"]
+        is False
+    )
+    assert expected_blocker in payload["gepa_output"]["readiness"]["blockers"]
+    assert "not hash-bound" in "\n".join(payload["gepa"]["notes"])
+    assert json.loads(result_path.read_text(encoding="utf-8")) == payload
+    assert _hash_tree(program_root) == before
     assert calls and Path(calls[0]["train_path"]).name == "train.csv"
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -9,6 +10,7 @@ from dspx.services.program_refinement import load_program_manifest
 from dspx.services.optimize_service import run_gepa_optimize
 
 PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA = "program-refinement-gepa-result-v1"
+_MAX_GEPA_OUTPUT_MANIFEST_BYTES = 2 * 1024 * 1024
 
 _GEPA_EFFECT_BASE = {
     "source_program_files_mutated": False,
@@ -60,6 +62,14 @@ def _first_text(*values: object) -> str | None:
 
 def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
@@ -554,6 +564,65 @@ def _write_optimizer_csv(
             writer.writerow(row)
 
 
+def _classify_gepa_output(outdir: Path) -> dict[str, Any]:
+    manifest_path = outdir / "manifest.json"
+    base: dict[str, Any] = {
+        "root_path": str(outdir),
+        "manifest_path": str(manifest_path),
+        "manifest_present": manifest_path.exists(),
+        "manifest_valid": False,
+        "manifest_sha256": None,
+        "manifest_schema_version": None,
+        "manifest_kind": None,
+        "candidate_assembly_manifest": False,
+        "readiness": {
+            "status": "optimizer_output_unverified_not_candidate",
+            "ready_for_future_candidate_materializer": False,
+            "blockers": [],
+        },
+    }
+    blockers = base["readiness"]["blockers"]
+    if not manifest_path.exists():
+        blockers.append("optimizer_output_manifest_missing")
+        return base
+    try:
+        size = manifest_path.stat().st_size
+    except OSError as exc:
+        blockers.append(f"optimizer_output_manifest_unreadable:{type(exc).__name__}")
+        return base
+    if size > _MAX_GEPA_OUTPUT_MANIFEST_BYTES:
+        blockers.append("optimizer_output_manifest_too_large")
+        return base
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        blockers.append("optimizer_output_manifest_invalid_json")
+        return base
+    except OSError as exc:
+        blockers.append(f"optimizer_output_manifest_unreadable:{type(exc).__name__}")
+        return base
+    if not isinstance(payload, Mapping):
+        blockers.append("optimizer_output_manifest_not_object")
+        return base
+    base.update(
+        {
+            "manifest_valid": True,
+            "manifest_sha256": _sha256_file(manifest_path),
+            "manifest_schema_version": payload.get("schema_version"),
+            "manifest_kind": "dspy_gepa_optimizer_output_manifest",
+        }
+    )
+    base["readiness"] = {
+        "status": "optimizer_output_hash_bound_not_candidate",
+        "ready_for_future_candidate_materializer": True,
+        "blockers": [
+            "no_program_candidate_assembly_materializer_in_this_command",
+            "candidate_field_remains_null_until_explicit_materializer_lands",
+        ],
+    }
+    return base
+
+
 def _base_result(
     *, manifest_path: Path, manifest: Mapping[str, Any], evidence: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -682,7 +751,9 @@ def build_program_refinement_gepa_result(
     result["gepa"]["attempted"] = True
     result["gepa"]["prepared_inputs"] = {
         "train_csv_path": str(train_csv),
+        "train_csv_sha256": _sha256_file(train_csv),
         "validation_csv_path": str(val_csv) if val_csv is not None else None,
+        "validation_csv_sha256": _sha256_file(val_csv) if val_csv is not None else None,
     }
     try:
         gepa_result = run_gepa_optimize(
@@ -728,12 +799,13 @@ def build_program_refinement_gepa_result(
             ],
         }
     )
-    result["gepa_output"] = {
-        "root_path": str(outdir),
-        "manifest_path": str(outdir / "manifest.json"),
-        "schema_version": "dspy_gepa_optimizer_output_manifest",
-        "candidate_assembly_manifest": False,
-    }
+    gepa_output = _classify_gepa_output(outdir)
+    result["gepa_output"] = gepa_output
+    if gepa_output["readiness"]["ready_for_future_candidate_materializer"] is not True:
+        result["status"] = "gepa_output_unverified"
+        result["gepa"]["notes"].append(
+            "GEPA completed, but the optimizer output manifest is not hash-bound for future candidate materialization."
+        )
     result["effect"]["local_gepa_candidate_generated"] = False
     return result
 
