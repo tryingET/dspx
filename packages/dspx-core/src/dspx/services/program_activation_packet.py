@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_model_jury_validation import (
     PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     validate_program_model_jury_results_contract,
@@ -49,20 +51,12 @@ _EXPECTED_SCHEMAS = {
 CANONICAL_BINDING_VERIFICATION_SCHEMA = "program-canonical-binding-verification-v1"
 _AK_DECISION_REF_RE = re.compile(r"^ak://decision/(?P<id>[0-9]+)#accepted$")
 
-_FORBIDDEN_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
-    "promotion_review.json",
-    "promotion_adjudication_request.json",
-    "promotion_decision_template.json",
-    "promotion_review_refined.json",
+_ACTIVATION_PACKET_PROTECTED_OUTPUT_NAMES = {
+    *PROTECTED_PROGRAM_ARTIFACT_NAMES,
     "promotion_decision_record.json",
     "promotion_plan.json",
     "jury_results.json",
     "model_jury_results.json",
-    "behavior_results.json",
-    "oracle_evidence.json",
-    "execution_episode.json",
 }
 
 _NON_AUTHORITY = {
@@ -950,13 +944,17 @@ def build_canonical_binding_verification(
 def write_canonical_binding_verification(
     verification: Mapping[str, Any], out_path: Path
 ) -> dict[str, Any]:
-    out_path = out_path.expanduser().resolve()
-    if out_path.name in _FORBIDDEN_OUTPUT_NAMES:
-        raise ProgramActivationPacketError(
-            f"canonical binding verification must not overwrite {out_path.name}"
-        )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(verification)
+    try:
+        out_path = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="canonical binding verification",
+            protected_names=_ACTIVATION_PACKET_PROTECTED_OUTPUT_NAMES,
+        )
+    except ValueError as exc:
+        raise ProgramActivationPacketError(str(exc)) from exc
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return payload
 
@@ -2179,13 +2177,17 @@ def write_generated_program_activation_packet(
 ) -> dict[str, Any]:
     """Write an activation evidence packet without mutating source artifacts."""
 
-    out_path = out_path.expanduser().resolve()
-    if out_path.name in _FORBIDDEN_OUTPUT_NAMES:
-        raise ProgramActivationPacketError(
-            f"activation packet must not overwrite {out_path.name}"
-        )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
+    try:
+        out_path = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="activation packet",
+            protected_names=_ACTIVATION_PACKET_PROTECTED_OUTPUT_NAMES,
+        )
+    except ValueError as exc:
+        raise ProgramActivationPacketError(str(exc)) from exc
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

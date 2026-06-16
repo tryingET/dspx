@@ -14,6 +14,7 @@ from dspx.coordinates import reset_embedding_engine
 from dspx.services.program_external_authority_export import (
     ProgramExternalAuthorityExportError,
     build_program_external_authority_export_preflight,
+    write_program_external_authority_export_preflight,
 )
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
@@ -647,6 +648,40 @@ def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
     assert (program_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_agent_kernel_export_preflight_rejects_output_over_protected_or_input_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, _candidate_root, decision_path, comparison_path = (
+        _materialize_external_authority_path(tmp_path, monkeypatch)
+    )
+    packet = build_program_external_authority_export_preflight(
+        manifest_path=program_root / "manifest.json",
+        external_ref="AK-EXAMPLE",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+    )
+    manifest_before = (program_root / "manifest.json").read_bytes()
+    decision_before = decision_path.read_bytes()
+
+    with pytest.raises(
+        ProgramExternalAuthorityExportError,
+        match="external authority export preflight must not overwrite manifest.json",
+    ):
+        write_program_external_authority_export_preflight(
+            packet, program_root / "manifest.json"
+        )
+    with pytest.raises(
+        ProgramExternalAuthorityExportError,
+        match="output must not overwrite an input artifact",
+    ):
+        write_program_external_authority_export_preflight(packet, decision_path)
+
+    assert (program_root / "manifest.json").read_bytes() == manifest_before
+    assert decision_path.read_bytes() == decision_before
+    assert not (program_root / "ak-export-preflight.json").exists()
 
 
 def test_agent_kernel_export_preflight_degrades_without_optional_evidence(

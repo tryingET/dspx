@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+
 PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA = (
     "program-external-authority-export-preflight-v1"
 )
@@ -577,9 +579,16 @@ def write_program_external_authority_export_preflight(
 ) -> dict[str, Any]:
     """Write a local export preflight packet and return the written payload."""
 
-    target = out_path.expanduser().resolve()
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
+    try:
+        target = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="external authority export preflight",
+        )
+    except ValueError as exc:
+        raise ProgramExternalAuthorityExportError(str(exc)) from exc
+    target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))
     effect["local_preflight_written"] = True
     payload["effect"] = effect

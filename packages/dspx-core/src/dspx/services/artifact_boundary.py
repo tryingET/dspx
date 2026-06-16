@@ -3,42 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-PROTECTED_PROGRAM_ARTIFACT_NAMES = frozenset(
-    {
-        "manifest.json",
-        "manifest.json.meta.json",
-        "intent.json",
-        "intent_normalization.json",
-        "plan.json",
-        "module_surfaces.json",
-        "program_runtime_outcomes.json",
-        "program_runtime_traces.json",
-        "program_tool_contracts.json",
-        "program_capability_registry.json",
-        "generated_module_policy.json",
-        "signature.py",
-        "module.py",
-        "program.py",
-        "direct_run.py",
-        "eval_smoke.py",
-        "eval_examples.py",
-        "eval_behavior.py",
-        "eval_jury.py",
-        "eval_promotion.py",
-        "behavior_results.json",
-        "behavior_episode.json",
-        "oracle_evidence.json",
-        "execution_episode.json",
-        "dataset_manifest.json",
-        "jury.json",
-        "jury_selection.json",
-        "jury_rubric.json",
-        "promotion_review.json",
-        "promotion_adjudication_request.json",
-        "promotion_decision_template.json",
-        "promotion_review_refined.json",
-    }
-)
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 
 
 def _iter_path_values(value: object) -> Iterable[str]:

@@ -447,6 +447,71 @@ def test_program_promote_activation_packet_dogfoods_review_chain_without_activat
     assert not (program_root / "activation_packet.json").exists()
 
 
+def test_program_promote_activation_packet_rejects_output_over_protected_or_input_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    manifest_path = program_root / "manifest.json"
+    manifest_before = manifest_path.read_bytes()
+
+    protected_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(manifest_path),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--out",
+            str(manifest_path),
+            "--json",
+        ],
+    )
+    assert protected_result.exit_code != 0
+    assert (
+        "activation packet must not overwrite manifest.json" in protected_result.output
+    )
+    assert manifest_path.read_bytes() == manifest_before
+
+    model_jury_path = _write_model_jury_results(
+        program_root, tmp_path / "promotion" / "provider_jury.json"
+    )
+    model_jury_before = model_jury_path.read_bytes()
+    input_overwrite_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(manifest_path),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--model-jury-results",
+            str(model_jury_path),
+            "--out",
+            str(model_jury_path),
+            "--json",
+        ],
+    )
+    assert input_overwrite_result.exit_code != 0
+    assert (
+        "activation packet output must not overwrite an input artifact"
+        in input_overwrite_result.output
+    )
+    assert model_jury_path.read_bytes() == model_jury_before
+    assert not (program_root / "activation_packet.json").exists()
+
+
 def test_program_promote_activation_packet_accepts_model_jury_as_jury_evidence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -365,6 +365,24 @@ def test_activation_packet_service_change_is_mapped_without_full_verification() 
     ]
 
 
+def test_program_artifact_names_change_routes_to_boundary_contracts() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_artifact_names.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert "verify_full" not in _command_ids(plan)
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_sidecar_boundaries",
+        "pytest_authority_boundary_contracts",
+        "boundary_contract_check",
+    ]
+    classification = plan["classifications"][0]
+    assert classification["category"] == "artifact_boundary"
+
+
 def test_program_refine_cli_change_routes_to_refinement_candidates() -> None:
     plan = _plan("packages/dspx-core/src/dspx/cli/commands/program_refine.py")
 

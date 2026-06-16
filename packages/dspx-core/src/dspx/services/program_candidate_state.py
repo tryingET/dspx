@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_model_jury_validation import (
     PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     validate_program_model_jury_results_contract,
@@ -1906,11 +1907,15 @@ def write_program_candidate_state(
 ) -> dict[str, Any]:
     """Write the local candidate state sidecar."""
 
-    target = out_path.expanduser().resolve()
-    if target.name in _FORBIDDEN_OUTPUT_NAMES:
-        raise ProgramCandidateStateError(
-            f"candidate state must not overwrite {target.name}"
+    try:
+        target = prepare_sidecar_output_path(
+            out_path,
+            payload=state,
+            artifact_label="candidate state",
+            protected_names=_FORBIDDEN_OUTPUT_NAMES,
         )
+    except ValueError as exc:
+        raise ProgramCandidateStateError(str(exc)) from exc
     created_from = _safe_mapping(state.get("created_from"))
     manifest_path = _first_text(created_from.get("manifest_path"))
     source_manifest_path = _first_text(created_from.get("source_manifest_path"))

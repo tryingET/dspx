@@ -334,6 +334,17 @@ rules:
       - pytest_program_sidecar_boundaries
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/services/program_artifact_names.py"
+    category: artifact_boundary
+    impact_group: boundary_hardening
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_sidecar_boundaries
+      - pytest_authority_boundary_contracts
+      - boundary_contract_check
+
   - match: "apps/forge/src/dspx_forge/*.py"
     category: forge_boundary
     impact_group: boundary_hardening
