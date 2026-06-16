@@ -836,6 +836,27 @@ def _canonical_binding_verified(verification: Mapping[str, Any] | None) -> bool:
     )
 
 
+def _canonical_binding_created_from(
+    decision_record_path: Path, decision_record: Mapping[str, Any]
+) -> dict[str, Any]:
+    created_from = _safe_mapping(decision_record.get("created_from"))
+    result: dict[str, Any] = {"decision_record_path": str(decision_record_path)}
+    refined_review_path_text = _first_text(created_from.get("refined_review_path"))
+    if refined_review_path_text is None:
+        return result
+    refined_review_path = Path(refined_review_path_text).expanduser().resolve()
+    result["refined_review_path"] = str(refined_review_path)
+    try:
+        refined_review = _load_json_object(refined_review_path, label="refined_review")
+    except ProgramActivationPacketError:
+        return result
+    review_created_from = _safe_mapping(refined_review.get("created_from"))
+    manifest_path_text = _first_text(review_created_from.get("manifest_path"))
+    if manifest_path_text is not None:
+        result["manifest_path"] = str(Path(manifest_path_text).expanduser().resolve())
+    return result
+
+
 def build_canonical_binding_verification(
     *,
     canonical_binding_ref: str,
@@ -916,6 +937,9 @@ def build_canonical_binding_verification(
         "canonical_binding_ref": normalized_ref,
         "binding_kind": "ak_decision",
         "decision_id": decision_id,
+        "created_from": _canonical_binding_created_from(
+            decision_record_path, decision_record
+        ),
         "decision_record": _decision_record_ref(decision_record_path),
         "decision_record_sha256": _sha256_file(decision_record_path),
         "ak_decision_state": decision.get("state"),
@@ -951,6 +975,7 @@ def write_canonical_binding_verification(
             payload=payload,
             artifact_label="canonical binding verification",
             protected_names=_ACTIVATION_PACKET_PROTECTED_OUTPUT_NAMES,
+            payload_artifact_root_policy="forbid",
         )
     except ValueError as exc:
         raise ProgramActivationPacketError(str(exc)) from exc
@@ -2184,7 +2209,7 @@ def write_generated_program_activation_packet(
             payload=payload,
             artifact_label="activation packet",
             protected_names=_ACTIVATION_PACKET_PROTECTED_OUTPUT_NAMES,
-            protect_payload_artifact_roots=True,
+            payload_artifact_root_policy="forbid",
         )
     except ValueError as exc:
         raise ProgramActivationPacketError(str(exc)) from exc

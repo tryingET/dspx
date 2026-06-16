@@ -722,6 +722,7 @@ def write_program_refinement_candidate_comparison(
         out_path,
         payload=payload,
         artifact_label="program refinement candidate comparison",
+        payload_artifact_root_policy="forbid",
         extra_protected_roots=_comparison_protected_roots(payload),
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)

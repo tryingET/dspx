@@ -1913,6 +1913,7 @@ def write_program_candidate_state(
             payload=state,
             artifact_label="candidate state",
             protected_names=_FORBIDDEN_OUTPUT_NAMES,
+            payload_artifact_root_policy="ignore",
         )
     except ValueError as exc:
         raise ProgramCandidateStateError(str(exc)) from exc

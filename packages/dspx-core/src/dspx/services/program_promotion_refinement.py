@@ -890,7 +890,7 @@ def _prepare_refinement_output_path(packet: Mapping[str, Any], out_path: Path) -
             payload=packet,
             artifact_label="promotion review",
             protected_names=_FORBIDDEN_SOURCE_OUTPUT_NAMES,
-            protect_payload_artifact_roots=True,
+            payload_artifact_root_policy="forbid",
         )
     except ValueError as exc:
         raise ProgramPromotionRefinementError(str(exc)) from exc

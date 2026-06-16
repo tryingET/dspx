@@ -293,6 +293,7 @@ def write_program_refinement_episode_result(
             out_path,
             payload=validation_payload,
             artifact_label="program refinement episode",
+            payload_artifact_root_policy="forbid",
         )
     except ValueError as exc:
         raise ProgramRefinementEpisodeError(str(exc)) from exc

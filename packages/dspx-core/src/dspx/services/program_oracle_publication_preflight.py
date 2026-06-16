@@ -669,6 +669,7 @@ def write_program_oracle_publication_preflight(
         out_path,
         payload=payload,
         artifact_label="program Oracle publication preflight",
+        payload_artifact_root_policy="ignore",
     )
     target.parent.mkdir(parents=True, exist_ok=True)
     if payload.get("schema_version") != PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA:

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Literal, Mapping
 
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
+
+PayloadArtifactRootPolicy = Literal["ignore", "forbid", "allow_named"]
 
 
 def _iter_path_values(value: object) -> Iterable[str]:
@@ -59,18 +61,20 @@ def prepare_sidecar_output_path(
     payload: Mapping[str, Any],
     artifact_label: str,
     protected_names: Iterable[str] = PROTECTED_PROGRAM_ARTIFACT_NAMES,
+    payload_artifact_root_policy: PayloadArtifactRootPolicy,
     extra_protected_paths: Iterable[Path] = (),
     extra_protected_roots: Iterable[Path] = (),
-    protect_payload_artifact_roots: bool = False,
     allowed_names_in_protected_roots: Iterable[str] = (),
 ) -> Path:
     """Resolve and validate a local sidecar output path before writing.
 
     Sidecars summarize or adjudicate generated artifacts. They must not overwrite
     producer/control artifacts, any input path recorded in their own payload, or
-    arbitrary files inside protected generated-artifact roots. Callers can opt in
-    to deriving protected roots from manifest paths declared in the payload while
-    preserving explicit canonical exceptions such as ``program_candidate_state.json``.
+    arbitrary files inside protected generated-artifact roots. Callers must
+    explicitly choose whether manifest paths declared in the payload imply
+    protected artifact roots, preventing security policy from becoming an omitted
+    optional keyword. Use ``allow_named`` only for documented canonical in-root
+    exceptions such as ``program_candidate_state.json``.
     """
 
     resolved = out_path.expanduser().resolve()
@@ -88,9 +92,17 @@ def prepare_sidecar_output_path(
         )
 
     protected_roots = {root.expanduser().resolve() for root in extra_protected_roots}
-    if protect_payload_artifact_roots:
+    if payload_artifact_root_policy not in {"ignore", "forbid", "allow_named"}:
+        raise ValueError(
+            f"{artifact_label} has unsupported payload artifact root policy: {payload_artifact_root_policy}"
+        )
+    if payload_artifact_root_policy in {"forbid", "allow_named"}:
         protected_roots.update(protected_artifact_roots_from_payload(payload))
-    allowed_root_names = {str(name) for name in allowed_names_in_protected_roots}
+    allowed_root_names = (
+        {str(name) for name in allowed_names_in_protected_roots}
+        if payload_artifact_root_policy == "allow_named"
+        else set()
+    )
     for protected_root in protected_roots:
         if resolved == protected_root or _is_relative_to(resolved, protected_root):
             if resolved.name in allowed_root_names:

@@ -6,6 +6,10 @@ from pathlib import Path
 import pytest
 
 from dspx.cli.dspx import app
+from dspx.services.program_activation_packet import (
+    ProgramActivationPacketError,
+    write_canonical_binding_verification,
+)
 from program_activation_packet_shared import (
     _materialize_review_chain,
     _write_canonical_binding_verification,
@@ -14,6 +18,46 @@ from program_activation_packet_shared import (
 )
 
 pytestmark = pytest.mark.slow
+
+
+def test_canonical_binding_verification_rejects_output_inside_candidate_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, _report_path, _jury_path, _review_path, decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    payload = {
+        "schema_version": "program-canonical-binding-verification-v1",
+        "status": "verified",
+        "created_from": {
+            "manifest_path": str((program_root / "manifest.json").resolve()),
+            "decision_record_path": str(decision_path.resolve()),
+        },
+        "decision_record": {"path": str(decision_path.resolve())},
+        "decision_record_sha256": "not-used-by-writer",
+        "effect": {
+            "ak_read_only": True,
+            "ak_mutated": False,
+            "program_files_mutated": False,
+            "external_authority_mutated": False,
+            "production_activation_applied": False,
+        },
+        "non_authority": {
+            "binding_verification_only": True,
+            "production_activation_authority": False,
+            "rollout_preflight_authority": False,
+            "external_mutation": False,
+        },
+    }
+
+    with pytest.raises(ProgramActivationPacketError, match="protected artifact root"):
+        write_canonical_binding_verification(
+            payload,
+            program_root / "canonical_binding_verification.json",
+        )
+
+    assert not (program_root / "canonical_binding_verification.json").exists()
 
 
 def test_program_promote_activation_packet_requires_rollout_owner_before_rollout(

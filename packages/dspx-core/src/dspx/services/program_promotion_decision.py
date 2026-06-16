@@ -700,6 +700,7 @@ def write_program_promotion_decision_record(
             out_path,
             payload=payload,
             artifact_label="program promotion decision record",
+            payload_artifact_root_policy="forbid",
         )
     except ValueError as exc:
         raise ProgramPromotionDecisionError(str(exc)) from exc

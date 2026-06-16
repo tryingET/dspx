@@ -334,6 +334,7 @@ def write_program_refinement_workflow_result(
         out_path,
         payload=payload,
         artifact_label="program refinement workflow result",
+        payload_artifact_root_policy="forbid",
         extra_protected_roots=_workflow_protected_roots(payload),
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)

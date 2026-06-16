@@ -653,6 +653,7 @@ def write_program_refinement_proposal(
         out_path,
         payload=payload,
         artifact_label="program refinement proposal",
+        payload_artifact_root_policy="forbid",
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(_json_text(payload), encoding="utf-8")

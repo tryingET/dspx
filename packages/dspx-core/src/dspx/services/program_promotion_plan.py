@@ -707,7 +707,7 @@ def _prepare_plan_output_path(plan: Mapping[str, Any], out_path: Path) -> Path:
             payload=plan,
             artifact_label="promotion plan",
             protected_names=_FORBIDDEN_SOURCE_OUTPUT_NAMES,
-            protect_payload_artifact_roots=True,
+            payload_artifact_root_policy="forbid",
         )
     except ValueError as exc:
         raise ProgramPromotionPlanError(str(exc)) from exc

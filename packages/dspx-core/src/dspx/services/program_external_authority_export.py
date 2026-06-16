@@ -585,7 +585,7 @@ def write_program_external_authority_export_preflight(
             out_path,
             payload=payload,
             artifact_label="external authority export preflight",
-            protect_payload_artifact_roots=True,
+            payload_artifact_root_policy="forbid",
         )
     except ValueError as exc:
         raise ProgramExternalAuthorityExportError(str(exc)) from exc
