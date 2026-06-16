@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import subprocess
@@ -18,6 +19,25 @@ from dspx.services.program_runtime_episode import _generated_program_module
 from dspx.services.program_surfaces import render_direct_run_code
 
 runner = CliRunner()
+
+
+def test_sidecar_output_guard_calls_declare_artifact_root_policy() -> None:
+    services_root = Path("packages/dspx-core/src/dspx/services")
+    offenders: list[str] = []
+    for path in sorted(services_root.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not isinstance(func, ast.Name):
+                continue
+            if func.id != "prepare_sidecar_output_path":
+                continue
+            keyword_names = {keyword.arg for keyword in node.keywords}
+            if "payload_artifact_root_policy" not in keyword_names:
+                offenders.append(f"{path}:{node.lineno}")
+    assert offenders == []
 
 
 def test_generated_program_module_serializes_concurrent_global_imports(

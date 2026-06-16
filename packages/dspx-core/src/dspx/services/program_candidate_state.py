@@ -1883,24 +1883,6 @@ def build_program_candidate_state(
     return payload
 
 
-def _candidate_state_output_allowed_in_root(target: Path) -> bool:
-    return target.name == "program_candidate_state.json"
-
-
-def _reject_noncanonical_state_write_inside_root(
-    target: Path, *, root_path: object, label: str
-) -> None:
-    root_text = str(root_path or "").strip()
-    if not root_text:
-        return
-    root = Path(root_text).expanduser().resolve()
-    if target == root or target.is_relative_to(root):
-        if not _candidate_state_output_allowed_in_root(target):
-            raise ProgramCandidateStateError(
-                f"candidate state output inside {label} must be program_candidate_state.json: {target}"
-            )
-
-
 def write_program_candidate_state(
     state: Mapping[str, Any],
     out_path: Path,
@@ -1913,23 +1895,11 @@ def write_program_candidate_state(
             payload=state,
             artifact_label="candidate state",
             protected_names=_FORBIDDEN_OUTPUT_NAMES,
-            payload_artifact_root_policy="ignore",
+            payload_artifact_root_policy="allow_named",
+            allowed_names_in_protected_roots=("program_candidate_state.json",),
         )
     except ValueError as exc:
         raise ProgramCandidateStateError(str(exc)) from exc
-    created_from = _safe_mapping(state.get("created_from"))
-    manifest_path = _first_text(created_from.get("manifest_path"))
-    source_manifest_path = _first_text(created_from.get("source_manifest_path"))
-    _reject_noncanonical_state_write_inside_root(
-        target,
-        root_path=Path(manifest_path).parent if manifest_path else None,
-        label="candidate root",
-    )
-    _reject_noncanonical_state_write_inside_root(
-        target,
-        root_path=Path(source_manifest_path).parent if source_manifest_path else None,
-        label="source candidate root",
-    )
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(state)
     effect = _safe_mapping(payload.get("effect"))

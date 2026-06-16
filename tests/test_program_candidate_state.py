@@ -1667,7 +1667,10 @@ def test_program_candidate_state_rejects_noncanonical_output_inside_candidate_ro
     )
 
     assert result.exit_code == 2
-    assert "candidate state output inside candidate root" in result.output
+    assert (
+        "candidate state output must not be written inside a protected artifact root"
+        in result.output
+    )
     assert not (program_root / "state.json").exists()
     assert _file_hashes(program_root) == before
 
