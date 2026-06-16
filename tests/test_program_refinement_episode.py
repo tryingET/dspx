@@ -521,6 +521,18 @@ def test_program_refinement_episode_rejects_gepa_output_conflicts_before_writes(
             gepa_candidate_result_out=gepa_result,
         )
 
+    with pytest.raises(ProgramRefinementEpisodeError, match="protected input"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="compare one ready GEPA candidate",
+            gepa_result_path=gepa_result,
+            gepa_candidate_outdir=gepa_result.parent,
+        )
+
     assert not outdir.exists()
 
 

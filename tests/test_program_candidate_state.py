@@ -1050,6 +1050,61 @@ def test_program_candidate_state_rejects_stale_activation_packet_evidence_hash(
         )
 
 
+def test_program_candidate_state_rejects_stale_export_preflight_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    decision = json.loads(paths["decision"].read_text(encoding="utf-8"))
+    decision["stale_marker"] = "decision changed after export preflight"
+    _write_json(paths["decision"], decision)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="external authority export preflight decision_record_sha256 does not match supplied decision record",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            decision_record_path=paths["decision"],
+            comparison_path=paths["comparison"],
+            export_preflight_path=paths["export_preflight"],
+        )
+
+
+def test_program_candidate_state_rejects_activation_packet_missing_supplied_evidence_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=source_root / "manifest.json",
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+        oracle_report_path=paths["oracle_report"],
+    )
+    activation_packet["evidence"].pop("oracle_report")
+    activation_path = tmp_path / "activation" / "activation_packet.missing_ref.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet is missing supplied oracle_report evidence ref",
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            oracle_report_path=paths["oracle_report"],
+            activation_packet_path=activation_path,
+        )
+
+
 def test_program_candidate_state_rejects_model_jury_identity_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

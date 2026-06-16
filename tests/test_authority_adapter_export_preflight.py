@@ -276,6 +276,98 @@ def test_activation_packet_rejects_stale_external_authority_export_preflight_has
     assert not activation_out.exists()
 
 
+def test_activation_packet_rejects_malformed_external_authority_export_preflight_refs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, _candidate_root, decision_path, comparison_path = (
+        _materialize_external_authority_path(tmp_path, monkeypatch)
+    )
+    packet = build_program_external_authority_export_preflight(
+        manifest_path=program_root / "manifest.json",
+        external_ref="AK-EXAMPLE",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+    )
+    del packet["planned_payload"]["evidence_refs"][0]["sha256"]
+    preflight_out = tmp_path / "export" / "malformed-preflight.json"
+    _write_json(preflight_out, packet)
+    activation_out = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--export-preflight",
+            str(preflight_out),
+            "--out",
+            str(activation_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "evidence refs must include kind, path, and sha256" in result.output
+    assert not activation_out.exists()
+
+
+def test_activation_packet_rejects_ready_export_preflight_missing_comparison_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, _candidate_root, decision_path, comparison_path = (
+        _materialize_external_authority_path(tmp_path, monkeypatch)
+    )
+    packet = build_program_external_authority_export_preflight(
+        manifest_path=program_root / "manifest.json",
+        external_ref="AK-EXAMPLE",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+    )
+    packet["planned_payload"]["evidence_refs"] = [
+        ref
+        for ref in packet["planned_payload"]["evidence_refs"]
+        if ref.get("kind") != "candidate_comparison"
+    ]
+    preflight_out = tmp_path / "export" / "missing-comparison-preflight.json"
+    _write_json(preflight_out, packet)
+    activation_out = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--export-preflight",
+            str(preflight_out),
+            "--out",
+            str(activation_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "missing candidate_comparison evidence ref" in result.output
+    assert not activation_out.exists()
+
+
 def test_activation_packet_rejects_spoofed_external_authority_export_preflight(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

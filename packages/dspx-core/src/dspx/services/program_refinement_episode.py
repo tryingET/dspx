@@ -256,6 +256,17 @@ def _preflight_distinct_outputs(
             source_root=source_root,
             label=candidate_label,
         )
+        for input_label, input_path in (protected_inputs or {}).items():
+            protected = input_path.expanduser().resolve()
+            if (
+                candidate_root == protected
+                or candidate_root in protected.parents
+                or protected in candidate_root.parents
+            ):
+                raise ProgramRefinementEpisodeError(
+                    f"{candidate_label} must not overlap protected input "
+                    f"{input_label}: {candidate_root} vs {protected}"
+                )
         for sidecar_path, sidecar_label in seen.items():
             if (
                 sidecar_path == candidate_root

@@ -1403,13 +1403,19 @@ def _validate_export_preflight_artifact_hashes(
                 "external authority export preflight decision_record_sha256 does not match supplied decision record"
             )
     planned_payload = _safe_mapping(export_preflight.get("planned_payload"))
+    refs_by_kind: dict[str, Mapping[str, Any]] = {}
     for ref in _safe_list(planned_payload.get("evidence_refs")):
         if not isinstance(ref, Mapping):
-            continue
+            raise ProgramActivationPacketError(
+                "external authority export preflight evidence refs must be objects"
+            )
+        kind = _first_text(ref.get("kind"))
         raw_path = _first_text(ref.get("path"))
         expected_hash = _first_text(ref.get("sha256"))
-        if raw_path is None or expected_hash is None:
-            continue
+        if kind is None or raw_path is None or expected_hash is None:
+            raise ProgramActivationPacketError(
+                "external authority export preflight evidence refs must include kind, path, and sha256"
+            )
         path = Path(raw_path).expanduser().resolve()
         if not path.exists():
             raise ProgramActivationPacketError(
@@ -1421,9 +1427,29 @@ def _validate_export_preflight_artifact_hashes(
                 "external authority export preflight evidence ref hash mismatch: "
                 f"{path}"
             )
+        refs_by_kind[kind] = ref
         if ref.get("kind") == "program_manifest" and actual_hash != manifest_hash:
             raise ProgramActivationPacketError(
                 "external authority export preflight program_manifest ref does not match current manifest"
+            )
+
+    expected_refs = {
+        "program_manifest": artifact_hashes.get("manifest_sha256"),
+        "promotion_decision_record": artifact_hashes.get("decision_record_sha256"),
+        "candidate_comparison": artifact_hashes.get("comparison_sha256"),
+    }
+    if export_preflight.get("status") == "ready_not_applied":
+        for kind, expected_hash in expected_refs.items():
+            if expected_hash is None or kind not in refs_by_kind:
+                raise ProgramActivationPacketError(
+                    f"external authority export preflight is missing {kind} evidence ref"
+                )
+    for kind, expected_hash in expected_refs.items():
+        if expected_hash is None or kind not in refs_by_kind:
+            continue
+        if refs_by_kind[kind].get("sha256") != expected_hash:
+            raise ProgramActivationPacketError(
+                f"external authority export preflight {kind} evidence ref hash mismatch"
             )
 
 

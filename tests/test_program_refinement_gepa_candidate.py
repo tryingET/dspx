@@ -14,6 +14,8 @@ from dspx.cli.dspx import app
 from dspx.services import program_refinement_gepa_candidate_contracts as gepa_contracts
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_refinement_workflow import (
+    ProgramRefinementWorkflowError,
+    materialize_and_compare_gepa_refinement_candidate,
     write_program_refinement_workflow_result,
 )
 from dspx.services.program_service import materialize_program_from_intent
@@ -731,6 +733,27 @@ def test_program_promote_decide_comparison_rejects_promote_and_spoofed_authority
     assert spoof.exit_code == 2
     assert "widens non-authority flags" in (spoof.stdout + spoof.stderr)
     assert not (tmp_path / "refinement" / "spoof_decision.json").exists()
+
+
+def test_gepa_materialize_and_compare_workflow_rejects_outdir_over_protected_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    before = _hash_tree(program_root)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    comparison_out = tmp_path / "refinement" / "gepa_candidate_comparison.json"
+
+    with pytest.raises(ProgramRefinementWorkflowError, match="protected input"):
+        materialize_and_compare_gepa_refinement_candidate(
+            manifest_path=program_root / "manifest.json",
+            gepa_result_path=gepa_result,
+            outdir=gepa_result.parent,
+            comparison_out_path=comparison_out,
+        )
+
+    assert not comparison_out.exists()
+    assert _hash_tree(program_root) == before
 
 
 def test_program_refine_materialize_and_compare_gepa_candidate_fails_closed_before_comparison(

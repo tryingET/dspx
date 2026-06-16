@@ -351,6 +351,66 @@ def _validate_non_authority_false(
         )
 
 
+def _validate_export_preflight_artifact_hashes(
+    export_preflight: Mapping[str, Any],
+    *,
+    current_manifest_hash: str,
+    source_manifest_hash: str | None,
+    decision_hash: str | None,
+    comparison_hash: str | None,
+) -> None:
+    artifact_hashes = _safe_mapping(export_preflight.get("artifact_hashes"))
+    valid_manifest_hashes = {current_manifest_hash}
+    if source_manifest_hash is not None:
+        valid_manifest_hashes.add(source_manifest_hash)
+    if artifact_hashes.get("manifest_sha256") not in valid_manifest_hashes:
+        raise ProgramCandidateStateError(
+            "external authority export preflight manifest_sha256 does not match candidate/source manifest"
+        )
+    for field, expected_hash, label in (
+        ("decision_record_sha256", decision_hash, "decision record"),
+        ("comparison_sha256", comparison_hash, "comparison"),
+    ):
+        if expected_hash is not None and artifact_hashes.get(field) != expected_hash:
+            raise ProgramCandidateStateError(
+                f"external authority export preflight {field} does not match supplied {label}"
+            )
+
+    refs_by_kind: dict[str, Mapping[str, Any]] = {}
+    planned_payload = _safe_mapping(export_preflight.get("planned_payload"))
+    for ref in _safe_list(planned_payload.get("evidence_refs")):
+        if not isinstance(ref, Mapping):
+            raise ProgramCandidateStateError(
+                "external authority export preflight evidence refs must be objects"
+            )
+        kind = _first_text(ref.get("kind"))
+        raw_path = _first_text(ref.get("path"))
+        expected_hash = _first_text(ref.get("sha256"))
+        if kind is None or raw_path is None or expected_hash is None:
+            raise ProgramCandidateStateError(
+                "external authority export preflight evidence refs must include kind, path, and sha256"
+            )
+        refs_by_kind[kind] = ref
+
+    expected_refs = {
+        "program_manifest": artifact_hashes.get("manifest_sha256"),
+        "promotion_decision_record": decision_hash,
+        "candidate_comparison": comparison_hash,
+    }
+    for kind, expected_hash in expected_refs.items():
+        if expected_hash is None:
+            continue
+        ref = refs_by_kind.get(kind)
+        if ref is None:
+            raise ProgramCandidateStateError(
+                f"external authority export preflight is missing {kind} evidence ref"
+            )
+        if ref.get("sha256") != expected_hash:
+            raise ProgramCandidateStateError(
+                f"external authority export preflight {kind} evidence ref hash mismatch"
+            )
+
+
 def _validate_optional_inputs(
     *,
     candidate_identity: Mapping[str, str | None],
@@ -366,7 +426,9 @@ def _validate_optional_inputs(
     oracle_publication_receipt: Mapping[str, Any] | None,
     gepa_refinement: Mapping[str, Any] | None,
     current_manifest_hash: str,
+    source_manifest_hash: str | None,
     sidecar_hashes: Mapping[str, str | None],
+    comparison_hash: str | None,
 ) -> None:
     source_or_candidate = [candidate_identity]
     if source_identity is not None:
@@ -676,6 +738,13 @@ def _validate_optional_inputs(
             raise ProgramCandidateStateError(
                 "external authority export preflight identity does not match candidate/source identity"
             )
+        _validate_export_preflight_artifact_hashes(
+            export_preflight,
+            current_manifest_hash=current_manifest_hash,
+            source_manifest_hash=source_manifest_hash,
+            decision_hash=sidecar_hashes.get("decision_record"),
+            comparison_hash=comparison_hash,
+        )
 
     if activation_packet is not None:
         if activation_packet.get("status") not in {
@@ -739,7 +808,9 @@ def _validate_optional_inputs(
                 continue
             ref = evidence.get(key)
             if not isinstance(ref, Mapping):
-                continue
+                raise ProgramCandidateStateError(
+                    f"activation packet is missing supplied {key} evidence ref"
+                )
             if ref.get("sha256") != expected_hash:
                 raise ProgramCandidateStateError(
                     f"activation packet evidence hash does not match supplied {key}"
@@ -1540,7 +1611,9 @@ def build_program_candidate_state(
         oracle_publication_receipt=oracle_publication_receipt,
         gepa_refinement=gepa_refinement,
         current_manifest_hash=manifest_hash,
+        source_manifest_hash=source_manifest_hash,
         sidecar_hashes=activation_sidecar_hashes,
+        comparison_hash=comparison_hash,
     )
 
     execution_episode_path = _optional_artifact_path(

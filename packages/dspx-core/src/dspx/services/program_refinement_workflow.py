@@ -118,13 +118,6 @@ def assert_distinct_workflow_output_paths(
 
     protected_roots = _workflow_root_labels(outputs)
     for label, path in outputs.items():
-        if label in protected_roots:
-            continue
-        for root_label, root in protected_roots.items():
-            if path == root or _is_relative_to(path, root):
-                raise ProgramRefinementWorkflowError(
-                    f"{artifact_label} {label} output path must not be inside {root_label}: {path} under {root}"
-                )
         for input_label, input_path in protected_inputs.items():
             if (
                 path == input_path
@@ -134,6 +127,13 @@ def assert_distinct_workflow_output_paths(
                 raise ProgramRefinementWorkflowError(
                     f"{artifact_label} {label} output path must not overlap "
                     f"protected input {input_label}: {path} vs {input_path}"
+                )
+        if label in protected_roots:
+            continue
+        for root_label, root in protected_roots.items():
+            if path == root or _is_relative_to(path, root):
+                raise ProgramRefinementWorkflowError(
+                    f"{artifact_label} {label} output path must not be inside {root_label}: {path} under {root}"
                 )
 
 
