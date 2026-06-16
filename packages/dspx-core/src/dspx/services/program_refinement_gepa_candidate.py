@@ -777,6 +777,7 @@ def materialize_gepa_refinement_candidate(
         optimizer_root=optimizer_root,
         outdir=outdir,
         result_out=result_out,
+        gepa_result_path=gepa_result_path,
     )
     if outdir.exists():
         raise ProgramRefinementGepaCandidateError(

@@ -365,6 +365,8 @@ def _validate_optional_inputs(
     activation_packet: Mapping[str, Any] | None,
     oracle_publication_receipt: Mapping[str, Any] | None,
     gepa_refinement: Mapping[str, Any] | None,
+    current_manifest_hash: str,
+    sidecar_hashes: Mapping[str, str | None],
 ) -> None:
     source_or_candidate = [candidate_identity]
     if source_identity is not None:
@@ -676,6 +678,14 @@ def _validate_optional_inputs(
             )
 
     if activation_packet is not None:
+        if activation_packet.get("status") not in {
+            "blocked",
+            "ready_for_domain_adjudication",
+            "ready_for_canonical_binding",
+            "ready_for_canonical_binding_verification",
+            "ready_for_rollout_preflight",
+        }:
+            raise ProgramCandidateStateError("activation packet status is unsupported")
         packet_identity = _safe_mapping(activation_packet.get("identity"))
         if not any(
             _identity_exactly_matches(packet_identity, item)
@@ -717,6 +727,23 @@ def _validate_optional_inputs(
                 "external_mutation",
             ),
         )
+        candidate = _safe_mapping(activation_packet.get("candidate"))
+        manifest_ref = _safe_mapping(candidate.get("manifest"))
+        if manifest_ref.get("sha256") != current_manifest_hash:
+            raise ProgramCandidateStateError(
+                "activation packet candidate manifest hash does not match current manifest"
+            )
+        evidence = _safe_mapping(activation_packet.get("evidence"))
+        for key, expected_hash in sidecar_hashes.items():
+            if expected_hash is None:
+                continue
+            ref = evidence.get(key)
+            if not isinstance(ref, Mapping):
+                continue
+            if ref.get("sha256") != expected_hash:
+                raise ProgramCandidateStateError(
+                    f"activation packet evidence hash does not match supplied {key}"
+                )
 
 
 def _behavior_summary(
@@ -1485,6 +1512,20 @@ def build_program_candidate_state(
         )
     )
 
+    manifest_hash = _sha256_file(manifest_path)
+    activation_sidecar_hashes = {
+        "oracle_report": oracle_report_hash,
+        "jury_results": jury_results_hash,
+        "model_jury_results": model_jury_results_hash,
+        "refined_review": review_hash,
+        "decision_record": decision_hash,
+        "promotion_plan": promotion_plan_hash,
+        "candidate_state": None,
+        "external_authority_export_preflight": export_preflight_hash,
+        "oracle_publication_receipt": oracle_publication_receipt_hash,
+        "canonical_binding_verification": None,
+    }
+
     _validate_optional_inputs(
         candidate_identity=candidate_identity,
         source_identity=source_identity,
@@ -1498,9 +1539,10 @@ def build_program_candidate_state(
         activation_packet=activation_packet,
         oracle_publication_receipt=oracle_publication_receipt,
         gepa_refinement=gepa_refinement,
+        current_manifest_hash=manifest_hash,
+        sidecar_hashes=activation_sidecar_hashes,
     )
 
-    manifest_hash = _sha256_file(manifest_path)
     execution_episode_path = _optional_artifact_path(
         manifest,
         manifest_path,

@@ -958,6 +958,98 @@ def test_program_candidate_state_rejects_activation_packet_authority_claim(
         )
 
 
+def test_program_candidate_state_rejects_activation_packet_unsupported_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=source_root / "manifest.json",
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+    )
+    activation_packet["status"] = "activated"
+    activation_path = tmp_path / "activation" / "activation_packet.status.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet status is unsupported",
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            activation_packet_path=activation_path,
+        )
+
+
+def test_program_candidate_state_rejects_stale_activation_packet_manifest_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = source_root / "manifest.json"
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=manifest_path,
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["stale_marker"] = "manifest changed after activation packet"
+    _write_json(manifest_path, manifest)
+    activation_path = tmp_path / "activation" / "activation_packet.stale.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet candidate manifest hash does not match current manifest",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            activation_packet_path=activation_path,
+        )
+
+
+def test_program_candidate_state_rejects_stale_activation_packet_evidence_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=source_root / "manifest.json",
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+        oracle_report_path=paths["oracle_report"],
+    )
+    paths["oracle_report"].write_text(
+        paths["oracle_report"].read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+    activation_path = tmp_path / "activation" / "activation_packet.stale_evidence.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet evidence hash does not match supplied oracle_report",
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            oracle_report_path=paths["oracle_report"],
+            activation_packet_path=activation_path,
+        )
+
+
 def test_program_candidate_state_rejects_model_jury_identity_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

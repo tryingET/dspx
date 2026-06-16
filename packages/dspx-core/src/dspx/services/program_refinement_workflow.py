@@ -85,6 +85,10 @@ def _workflow_root_labels(paths: Mapping[str, Path]) -> dict[str, Path]:
     }
 
 
+def _workflow_input_labels(paths: Mapping[str, Path]) -> dict[str, Path]:
+    return {label: path for label, path in paths.items() if label.endswith("_input")}
+
+
 def assert_distinct_workflow_output_paths(
     *, artifact_label: str, **paths: Path | None
 ) -> None:
@@ -99,8 +103,12 @@ def assert_distinct_workflow_output_paths(
         for label, path in paths.items()
         if path is not None
     }
+    protected_inputs = _workflow_input_labels(resolved)
+    outputs = {
+        label: path for label, path in resolved.items() if label not in protected_inputs
+    }
     seen: dict[Path, str] = {}
-    for label, path in resolved.items():
+    for label, path in outputs.items():
         previous = seen.get(path)
         if previous is not None:
             raise ProgramRefinementWorkflowError(
@@ -108,14 +116,24 @@ def assert_distinct_workflow_output_paths(
             )
         seen[path] = label
 
-    protected_roots = _workflow_root_labels(resolved)
-    for label, path in resolved.items():
+    protected_roots = _workflow_root_labels(outputs)
+    for label, path in outputs.items():
         if label in protected_roots:
             continue
         for root_label, root in protected_roots.items():
             if path == root or _is_relative_to(path, root):
                 raise ProgramRefinementWorkflowError(
                     f"{artifact_label} {label} output path must not be inside {root_label}: {path} under {root}"
+                )
+        for input_label, input_path in protected_inputs.items():
+            if (
+                path == input_path
+                or _is_relative_to(path, input_path)
+                or _is_relative_to(input_path, path)
+            ):
+                raise ProgramRefinementWorkflowError(
+                    f"{artifact_label} {label} output path must not overlap "
+                    f"protected input {input_label}: {path} vs {input_path}"
                 )
 
 
@@ -223,6 +241,7 @@ def materialize_and_compare_gepa_refinement_candidate(
         outdir=outdir,
         comparison_out=comparison_out_path,
         gepa_candidate_result_out=gepa_candidate_result_out,
+        gepa_result_input=gepa_result_path,
     )
     try:
         generation = materialize_gepa_refinement_candidate(

@@ -1384,9 +1384,55 @@ def _oracle_publication_alignment_summary(
     }
 
 
+def _validate_export_preflight_artifact_hashes(
+    export_preflight: Mapping[str, Any],
+    *,
+    manifest_path: Path,
+    decision_record_path: Path | None,
+) -> None:
+    artifact_hashes = _safe_mapping(export_preflight.get("artifact_hashes"))
+    manifest_hash = _sha256_file(manifest_path)
+    if artifact_hashes.get("manifest_sha256") != manifest_hash:
+        raise ProgramActivationPacketError(
+            "external authority export preflight manifest_sha256 does not match current manifest"
+        )
+    if decision_record_path is not None:
+        decision_hash = _sha256_file(decision_record_path)
+        if artifact_hashes.get("decision_record_sha256") != decision_hash:
+            raise ProgramActivationPacketError(
+                "external authority export preflight decision_record_sha256 does not match supplied decision record"
+            )
+    planned_payload = _safe_mapping(export_preflight.get("planned_payload"))
+    for ref in _safe_list(planned_payload.get("evidence_refs")):
+        if not isinstance(ref, Mapping):
+            continue
+        raw_path = _first_text(ref.get("path"))
+        expected_hash = _first_text(ref.get("sha256"))
+        if raw_path is None or expected_hash is None:
+            continue
+        path = Path(raw_path).expanduser().resolve()
+        if not path.exists():
+            raise ProgramActivationPacketError(
+                f"external authority export preflight evidence ref is missing: {path}"
+            )
+        actual_hash = _sha256_file(path)
+        if actual_hash != expected_hash:
+            raise ProgramActivationPacketError(
+                "external authority export preflight evidence ref hash mismatch: "
+                f"{path}"
+            )
+        if ref.get("kind") == "program_manifest" and actual_hash != manifest_hash:
+            raise ProgramActivationPacketError(
+                "external authority export preflight program_manifest ref does not match current manifest"
+            )
+
+
 def _validate_external_authority_export_preflight(
     candidate_identity: Mapping[str, Any],
     export_preflight: Mapping[str, Any] | None,
+    *,
+    manifest_path: Path,
+    decision_record_path: Path | None,
 ) -> None:
     if export_preflight is None:
         return
@@ -1453,6 +1499,11 @@ def _validate_external_authority_export_preflight(
             "winner_selection",
             "automatic_promotion",
         ),
+    )
+    _validate_export_preflight_artifact_hashes(
+        export_preflight,
+        manifest_path=manifest_path,
+        decision_record_path=decision_record_path,
     )
 
 
@@ -1948,6 +1999,8 @@ def build_generated_program_activation_packet(
     _validate_external_authority_export_preflight(
         identity,
         external_authority_export_preflight,
+        manifest_path=manifest_path,
+        decision_record_path=decision_record_path,
     )
     _validate_candidate_state_publication_alignment(
         candidate_state=candidate_state,

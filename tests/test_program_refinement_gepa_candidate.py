@@ -1062,6 +1062,28 @@ def test_program_refine_materialize_gepa_candidate_rejects_path_overlap_and_syml
     assert overlap.exit_code == 2
     assert "must be outside source candidate root" in (overlap.stdout + overlap.stderr)
 
+    overwrite_input = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "materialize-gepa-candidate",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--gepa-result",
+            str(gepa_result),
+            "--outdir",
+            str(tmp_path / "program-gepa-candidate"),
+            "--result-out",
+            str(gepa_result),
+            "--json",
+        ],
+    )
+    assert overwrite_input.exit_code == 2
+    assert "GEPA refinement result sidecar" in (
+        overwrite_input.stdout + overwrite_input.stderr
+    )
+    assert _hash_tree(program_root) == before
+
     optimizer_root = tmp_path / "program-gepa"
     try:
         (optimizer_root / "evil-link").symlink_to(

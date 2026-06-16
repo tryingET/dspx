@@ -200,6 +200,7 @@ def _preflight_paths(
     optimizer_root: Path,
     outdir: Path,
     result_out: Path | None,
+    gepa_result_path: Path | None = None,
 ) -> None:
     optimizer_root = optimizer_root.expanduser().resolve()
     outdir = outdir.expanduser().resolve()
@@ -236,6 +237,13 @@ def _preflight_paths(
         protected_label="GEPA candidate output directory",
         protected=outdir,
     )
+    if gepa_result_path is not None:
+        _assert_no_overlap(
+            label="GEPA candidate result sidecar path",
+            path=result_path,
+            protected_label="GEPA refinement result sidecar",
+            protected=gepa_result_path.expanduser().resolve(),
+        )
 
 
 def _validate_no_symlinks(root: Path) -> None:

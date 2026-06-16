@@ -197,6 +197,7 @@ def _preflight_distinct_outputs(
     generate_second_candidate: bool,
     generate_gepa_candidate: bool,
     generate_promotion_plan: bool,
+    protected_inputs: Mapping[str, Path] | None = None,
 ) -> None:
     labels = [
         "proposal_out",
@@ -227,6 +228,16 @@ def _preflight_distinct_outputs(
             if target in seen_target.parents or seen_target in target.parents:
                 raise ProgramRefinementEpisodeError(
                     f"{label} conflicts with sidecar output path already used by {seen_label}: {target} vs {seen_target}"
+                )
+        for input_label, input_path in (protected_inputs or {}).items():
+            protected = input_path.expanduser().resolve()
+            if (
+                target == protected
+                or target in protected.parents
+                or protected in target.parents
+            ):
+                raise ProgramRefinementEpisodeError(
+                    f"{label} output path must not overlap protected input {input_label}: {target} vs {protected}"
                 )
         seen[target] = label
     candidate_roots: list[tuple[str, Path]] = []
@@ -390,6 +401,9 @@ def run_program_refinement_episode(
         generate_second_candidate=generate_proposal_second_candidate,
         generate_gepa_candidate=generate_gepa_candidate,
         generate_promotion_plan=generate_promotion_plan,
+        protected_inputs={"gepa_result": gepa_result_resolved}
+        if gepa_result_resolved is not None
+        else None,
     )
 
     try:

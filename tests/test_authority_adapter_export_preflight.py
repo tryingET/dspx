@@ -229,6 +229,53 @@ def test_activation_packet_can_carry_external_authority_export_preflight(
     assert _file_hashes(candidate_root) == candidate_hashes_before
 
 
+def test_activation_packet_rejects_stale_external_authority_export_preflight_hashes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, _candidate_root, decision_path, comparison_path = (
+        _materialize_external_authority_path(tmp_path, monkeypatch)
+    )
+    manifest_path = program_root / "manifest.json"
+    packet = build_program_external_authority_export_preflight(
+        manifest_path=manifest_path,
+        external_ref="AK-EXAMPLE",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["stale_marker"] = "manifest changed after preflight"
+    _write_json(manifest_path, manifest)
+    preflight_out = tmp_path / "export" / "stale-preflight.json"
+    _write_json(preflight_out, packet)
+    activation_out = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(manifest_path),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--export-preflight",
+            str(preflight_out),
+            "--out",
+            str(activation_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "manifest_sha256 does not match current manifest" in result.output
+    assert not activation_out.exists()
+
+
 def test_activation_packet_rejects_spoofed_external_authority_export_preflight(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
