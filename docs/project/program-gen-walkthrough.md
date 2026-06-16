@@ -672,7 +672,7 @@ This writes the same `program-promotion-decision-record-v1` shape, but its `crea
 
 ### 13a. Guided local refinement episode
 
-For the common local request-more-evidence path, `program-refine episode` composes the separate proposal, refined review, explicit decision record, one proposal-derived second candidate, comparison, optional local promotion plan, and candidate-state refresh into one guided episode over an existing manifest and Oracle report. If a ready GEPA sidecar already exists, the same episode can instead consume `--gepa-result` to materialize and compare one GEPA-backed candidate without running GEPA/search:
+For the common local request-more-evidence path, `program-refine episode` composes the separate proposal, refined review, explicit decision record, one proposal-derived second candidate, comparison, optional already-produced model-jury evidence, optional local promotion plan, and candidate-state refresh into one guided episode over an existing manifest and Oracle report. If a ready GEPA sidecar already exists, the same episode can instead consume `--gepa-result` to materialize and compare one GEPA-backed candidate without running GEPA/search:
 
 ```bash
 uv run -q python -m dspx.cli.dspx program-refine episode \
@@ -695,10 +695,11 @@ Expected JSON facts:
 - `decision_record.outcome: request_more_evidence`
 - local candidate materialization is allowed only for `request_more_evidence`; other decision outcomes require `--no-generate-second-candidate` and no `--gepa-result`
 - optional `steps.promotion_plan.status: planned_not_applied` and `steps.promotion_plan.allowed_for_apply: false`
+- if `--model-jury-results "$TD/promotion/model_jury_results.json"` is supplied, `steps.model_jury_results.status: included` and the refined review/state sidecars record that provider-backed model-jury evidence as local evidence only
 - `effect.ak_called`, `effect.external_authority_mutated`, `effect.governance_mutated`, `effect.promotion_applied`, and `effect.winner_selected` remain false
 - source generated-program files are not mutated; sidecar paths are preflighted away from generated-program roots
 
-This guided episode is an ergonomic composition, not new authority. It does not invoke Oracle indexing/reporting, run GEPA/search, run model juries, call external preflight, AK, governance, activation, ranking, winner selection, or promotion apply. When `--gepa-result` is supplied, GEPA optimizer output is consumed only after the existing GEPA materializer revalidates source identity, readiness, hashes, payload inventory, side-effect flags, and path isolation; the GEPA candidate-result output path and GEPA candidate output root must also stay disjoint from the protected GEPA input sidecar. The optional promotion plan is the same local-only plan sidecar shape as `program-promote plan` and remains `allowed_for_apply=false`. Delete the local sidecar directory and optional second-candidate/GEPA-candidate directory to roll it back.
+This guided episode is an ergonomic composition, not new authority. It does not invoke Oracle indexing/reporting, run GEPA/search, run model juries, call external preflight, AK, governance, activation, ranking, winner selection, or promotion apply. When `--model-jury-results` is supplied, the existing model-jury validator rechecks schema, exact candidate identity, provider-backed execution, adjudicator non-authority, evidence-only effects, and non-authority flags before the evidence can appear in review/state summaries. When `--gepa-result` is supplied, GEPA optimizer output is consumed only after the existing GEPA materializer revalidates source identity, readiness, hashes, payload inventory, side-effect flags, and path isolation; the GEPA candidate-result output path and GEPA candidate output root must also stay disjoint from the protected GEPA input sidecar. The optional promotion plan is the same local-only plan sidecar shape as `program-promote plan` and remains `allowed_for_apply=false`. Delete the local sidecar directory and optional second-candidate/GEPA-candidate directory to roll it back.
 
 When writing the adjudication behavior trace, pass the delegation and decision sidecars so future Oracle/GEPA analysis sees the full two-adjudicator behavior, not only the evidence-adjudication step:
 
