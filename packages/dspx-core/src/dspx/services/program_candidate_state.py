@@ -37,6 +37,7 @@ GEN_GENERATION_GATE_PREFLIGHT_SCHEMA = "gen-generation-gate-preflight-v1"
 GEN_FITNESS_RESULTS_SCHEMA = "gen-fitness-results-v1"
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
 PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA = "program-refinement-gepa-result-v1"
+ACTIVATION_PACKET_SCHEMA = "generated-cognition-program-production-activation-packet-v1"
 
 _FORBIDDEN_OUTPUT_NAMES = {
     "manifest.json",
@@ -361,6 +362,7 @@ def _validate_optional_inputs(
     comparison: Mapping[str, Any] | None,
     promotion_plan: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
+    activation_packet: Mapping[str, Any] | None,
     oracle_publication_receipt: Mapping[str, Any] | None,
     gepa_refinement: Mapping[str, Any] | None,
 ) -> None:
@@ -672,6 +674,49 @@ def _validate_optional_inputs(
             raise ProgramCandidateStateError(
                 "external authority export preflight identity does not match candidate/source identity"
             )
+
+    if activation_packet is not None:
+        packet_identity = _safe_mapping(activation_packet.get("identity"))
+        if not any(
+            _identity_exactly_matches(packet_identity, item)
+            for item in source_or_candidate
+        ):
+            raise ProgramCandidateStateError(
+                "activation packet identity does not match candidate/source identity"
+            )
+        effect = _safe_mapping(activation_packet.get("effect"))
+        for key in (
+            "program_files_mutated",
+            "oracle_index_mutated",
+            "mlflow_mutated",
+            "ak_mutated",
+            "external_authority_mutated",
+            "production_activation_applied",
+        ):
+            if effect.get(key) is not False:
+                raise ProgramCandidateStateError(
+                    f"activation packet must record {key} false"
+                )
+        non_authority = _safe_mapping(activation_packet.get("non_authority"))
+        if non_authority.get("activation_packet_only") is not True:
+            raise ProgramCandidateStateError(
+                "activation packet must be activation-packet-only"
+            )
+        _validate_non_authority_false(
+            activation_packet,
+            label="activation packet",
+            keys=(
+                "program_activation_applied",
+                "automatic_promotion",
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "jury_promotion_authority",
+                "mlflow_approval_authority",
+                "governance_authority",
+                "external_mutation",
+            ),
+        )
 
 
 def _behavior_summary(
@@ -989,6 +1034,47 @@ def _export_preflight_summary(preflight: Mapping[str, Any] | None) -> dict[str, 
     }
 
 
+def _activation_packet_summary(packet: Mapping[str, Any] | None) -> dict[str, Any]:
+    if packet is None:
+        return {"present": False, "status": "missing"}
+    return {
+        "present": True,
+        "schema_version": packet.get("schema_version"),
+        "status": packet.get("status"),
+        "next_required_action": packet.get("next_required_action"),
+        "owning_domain": packet.get("owning_domain"),
+        "activation_target": packet.get("activation_target"),
+        "authority_owner": packet.get("authority_owner"),
+        "rollout_owner": packet.get("rollout_owner"),
+        "rollback_plan_present": bool(_first_text(packet.get("rollback_plan"))),
+        "canonical_binding_ref": packet.get("canonical_binding_ref"),
+        "missing_required_evidence": _string_list(
+            packet.get("missing_required_evidence")
+        ),
+        "remaining_activation_blockers": _string_list(
+            packet.get("remaining_activation_blockers")
+        ),
+        "evidence_keys_present": sorted(
+            key
+            for key, value in _safe_mapping(packet.get("evidence")).items()
+            if value is not None
+        ),
+        "activation_packet_only": _safe_mapping(packet.get("non_authority")).get(
+            "activation_packet_only"
+        )
+        is True,
+        "production_activation_applied": _safe_mapping(packet.get("effect")).get(
+            "production_activation_applied"
+        )
+        is True,
+        "ak_mutated": _safe_mapping(packet.get("effect")).get("ak_mutated") is True,
+        "external_authority_mutated": _safe_mapping(packet.get("effect")).get(
+            "external_authority_mutated"
+        )
+        is True,
+    }
+
+
 def _oracle_publication_receipt_summary(
     receipt: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
@@ -1177,10 +1263,13 @@ def _overall_status(
     decision: Mapping[str, Any] | None,
     promotion_plan: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
+    activation_packet: Mapping[str, Any] | None,
 ) -> str:
     promotion_review = _safe_mapping(manifest.get("program_promotion_review"))
     if promotion_review.get("promotion_state") != "not_promoted":
         return "unexpected_promotion_state"
+    if activation_packet is not None:
+        return "not_promoted_activation_evidence_packet_present"
     if export_preflight is not None:
         return "not_promoted_external_preflighted_not_applied"
     if promotion_plan is not None:
@@ -1200,6 +1289,7 @@ def _required_next_steps(
     jury_results: Mapping[str, Any] | None,
     comparison: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
+    activation_packet: Mapping[str, Any] | None,
 ) -> list[str]:
     steps: list[str] = []
     if not behavior_present:
@@ -1214,6 +1304,12 @@ def _required_next_steps(
         steps.append("compare_candidate_behavior")
     if export_preflight is None:
         steps.append("build_external_authority_export_preflight")
+    if activation_packet is None:
+        steps.append("build_activation_evidence_packet")
+    else:
+        next_action = _first_text(activation_packet.get("next_required_action"))
+        if next_action:
+            steps.append(next_action)
     steps.extend(
         [
             "keep_promotion_not_applied",
@@ -1248,6 +1344,7 @@ def build_program_candidate_state(
     comparison_path: Path | None = None,
     promotion_plan_path: Path | None = None,
     export_preflight_path: Path | None = None,
+    activation_packet_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
     generation_gate_preflight_path: Path | None = None,
     generation_fitness_results_path: Path | None = None,
@@ -1337,6 +1434,13 @@ def build_program_candidate_state(
             schema=PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA,
         )
     )
+    activation_packet, activation_packet_file, activation_packet_hash = (
+        _load_optional_artifact(
+            activation_packet_path,
+            label="activation packet",
+            schema=ACTIVATION_PACKET_SCHEMA,
+        )
+    )
     (
         oracle_publication_receipt,
         oracle_publication_receipt_file,
@@ -1391,6 +1495,7 @@ def build_program_candidate_state(
         comparison=comparison,
         promotion_plan=promotion_plan,
         export_preflight=export_preflight,
+        activation_packet=activation_packet,
         oracle_publication_receipt=oracle_publication_receipt,
         gepa_refinement=gepa_refinement,
     )
@@ -1419,6 +1524,7 @@ def build_program_candidate_state(
         "comparison_sha256": comparison_hash,
         "promotion_plan_sha256": promotion_plan_hash,
         "export_preflight_sha256": export_preflight_hash,
+        "activation_packet_sha256": activation_packet_hash,
         "oracle_publication_receipt_sha256": oracle_publication_receipt_hash,
         "generation_gate_preflight_sha256": generation_gate_preflight_hash,
         "generation_fitness_results_sha256": generation_fitness_results_hash,
@@ -1439,6 +1545,7 @@ def build_program_candidate_state(
         decision=decision,
         promotion_plan=promotion_plan,
         export_preflight=export_preflight,
+        activation_packet=activation_packet,
     )
     root_path = _safe_mapping(manifest.get("candidate_assembly")).get("root_path")
     payload = {
@@ -1486,6 +1593,9 @@ def build_program_candidate_state(
             else None,
             "export_preflight_path": str(export_preflight_file)
             if export_preflight_file is not None
+            else None,
+            "activation_packet_path": str(activation_packet_file)
+            if activation_packet_file is not None
             else None,
             "oracle_publication_receipt_path": str(oracle_publication_receipt_file)
             if oracle_publication_receipt_file is not None
@@ -1573,6 +1683,7 @@ def build_program_candidate_state(
             "external_authority_export_preflight": _export_preflight_summary(
                 export_preflight
             ),
+            "activation_packet": _activation_packet_summary(activation_packet),
         },
         "truth_summary": {
             "program_materialized": True,
@@ -1586,6 +1697,7 @@ def build_program_candidate_state(
             "comparison_present": comparison is not None,
             "promotion_plan_present": promotion_plan is not None,
             "external_authority_preflight_present": export_preflight is not None,
+            "activation_packet_present": activation_packet is not None,
             "oracle_publication_ref_present": oracle_publication_receipt is not None,
             "target_fidelity_evidence_present": generation_fitness_results is not None,
             "target_protocol_adjudication_present": program_evidence_adjudication
@@ -1615,6 +1727,7 @@ def build_program_candidate_state(
                 jury_results=jury_results,
                 comparison=comparison,
                 export_preflight=export_preflight,
+                activation_packet=activation_packet,
             ),
         },
         "effect": {

@@ -15,6 +15,10 @@ from dspx.services.program_candidate_state import (
     ProgramCandidateStateError,
     build_program_candidate_state,
 )
+from dspx.services.program_activation_packet import (
+    build_generated_program_activation_packet,
+    write_generated_program_activation_packet,
+)
 from dspx.services.program_external_authority_export import (
     build_program_external_authority_export_preflight,
     write_program_external_authority_export_preflight,
@@ -824,6 +828,134 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert (source_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_promote_status_summarizes_activation_packet_without_activation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    before_source = _file_hashes(source_root)
+    before_candidate = _file_hashes(candidate_root)
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=source_root / "manifest.json",
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+        oracle_report_path=paths["oracle_report"],
+        external_authority_export_preflight_path=paths["export_preflight"],
+    )
+    activation_path = tmp_path / "activation" / "activation_packet.json"
+    write_generated_program_activation_packet(activation_packet, activation_path)
+    out_path = tmp_path / "state" / "program_candidate_state.activation.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "status",
+            "--manifest",
+            str(source_root / "manifest.json"),
+            "--oracle-report",
+            str(paths["oracle_report"]),
+            "--export-preflight",
+            str(paths["export_preflight"]),
+            "--activation-packet",
+            str(activation_path),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "not_promoted_activation_evidence_packet_present"
+    assert payload["artifact_hashes"]["activation_packet_sha256"] == _sha256(
+        activation_path
+    )
+    assert payload["created_from"]["activation_packet_path"] == str(
+        activation_path.resolve()
+    )
+    activation_summary = payload["promotion_state"]["activation_packet"]
+    assert activation_summary["present"] is True
+    assert activation_summary["schema_version"] == (
+        "generated-cognition-program-production-activation-packet-v1"
+    )
+    assert activation_summary["status"] == "blocked"
+    assert activation_summary["next_required_action"] == "collect_missing_evidence"
+    assert activation_summary["owning_domain"] == (
+        "softwareco/dspx-generated-program-governance"
+    )
+    assert activation_summary["activation_target"] == "local-dogfood-only"
+    assert activation_summary["authority_owner"] == "softwareco-program-governance"
+    assert activation_summary["rollback_plan_present"] is False
+    assert activation_summary["canonical_binding_ref"] is None
+    assert "jury_evidence" in activation_summary["missing_required_evidence"]
+    assert (
+        "domain_decision_record" in activation_summary["remaining_activation_blockers"]
+    )
+    assert (
+        "external_authority_export_preflight"
+        in activation_summary["evidence_keys_present"]
+    )
+    assert activation_summary["activation_packet_only"] is True
+    assert activation_summary["production_activation_applied"] is False
+    assert activation_summary["ak_mutated"] is False
+    assert activation_summary["external_authority_mutated"] is False
+    assert payload["truth_summary"]["activation_packet_present"] is True
+    assert payload["truth_summary"]["promotion_applied"] is False
+    assert payload["truth_summary"]["ak_called"] is False
+    assert payload["truth_summary"]["external_authority_mutated"] is False
+    assert "collect_missing_evidence" in payload["truth_summary"]["required_next_steps"]
+    assert _file_hashes(source_root) == before_source
+    assert _file_hashes(candidate_root) == before_candidate
+
+
+def test_program_candidate_state_rejects_activation_packet_authority_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=source_root / "manifest.json",
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+    )
+    activation_packet["effect"]["production_activation_applied"] = True
+    activation_path = tmp_path / "activation" / "activation_packet.spoofed.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet must record production_activation_applied false",
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            activation_packet_path=activation_path,
+        )
+
+    activation_packet["effect"]["production_activation_applied"] = False
+    activation_packet["identity"] = {
+        **activation_packet["identity"],
+        "candidate_id": "drifted",
+    }
+    _write_json(activation_path, activation_packet)
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet identity does not match candidate/source identity",
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            activation_packet_path=activation_path,
+        )
 
 
 def test_program_candidate_state_rejects_model_jury_identity_drift(

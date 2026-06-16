@@ -1183,6 +1183,11 @@ def status(
         "--export-preflight",
         help="Optional program-external-authority-export-preflight-v1 JSON",
     ),
+    activation_packet: Path | None = typer.Option(
+        None,
+        "--activation-packet",
+        help="Optional generated-cognition-program-production-activation-packet-v1 JSON",
+    ),
     oracle_publication_receipt: Path | None = typer.Option(
         None,
         "--oracle-publication-receipt",
@@ -1231,6 +1236,7 @@ def status(
             comparison_path=comparison,
             promotion_plan_path=promotion_plan,
             export_preflight_path=export_preflight,
+            activation_packet_path=activation_packet,
             oracle_publication_receipt_path=oracle_publication_receipt,
             generation_gate_preflight_path=generation_gate_preflight,
             generation_fitness_results_path=generation_fitness_results,
