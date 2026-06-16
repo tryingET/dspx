@@ -456,6 +456,110 @@ def test_program_refine_materialize_and_compare_gepa_candidate_rejects_overlappi
     assert not outdir.exists()
 
 
+@pytest.mark.parametrize(
+    ("sidecar_label", "expected"),
+    [
+        ("comparison_out", "comparison_out output path must not be inside outdir"),
+        (
+            "gepa_candidate_result_out",
+            "gepa_candidate_result_out output path must not be inside outdir",
+        ),
+        ("workflow_out", "workflow_out output path must not be inside outdir"),
+    ],
+)
+def test_program_refine_materialize_and_compare_gepa_candidate_rejects_sidecars_inside_output_root_before_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sidecar_label: str,
+    expected: str,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    outdir = tmp_path / "program-gepa-candidate"
+    nested_sidecar = outdir / "local_sidecar.json"
+    args = [
+        "program-refine",
+        "materialize-and-compare-gepa-candidate",
+        "--manifest",
+        str(tmp_path / "missing" / "manifest.json"),
+        "--gepa-result",
+        str(tmp_path / "missing" / "gepa_result.json"),
+        "--outdir",
+        str(outdir),
+    ]
+    if sidecar_label == "comparison_out":
+        args.extend(["--comparison-out", str(nested_sidecar)])
+    else:
+        args.extend(
+            ["--comparison-out", str(tmp_path / "refinement" / "comparison.json")]
+        )
+        if sidecar_label == "gepa_candidate_result_out":
+            args.extend(["--gepa-candidate-result-out", str(nested_sidecar)])
+        else:
+            args.extend(["--workflow-out", str(nested_sidecar)])
+    args.append("--json")
+
+    result = runner.invoke(app, args)
+
+    assert result.exit_code == 2
+    assert expected in (result.stdout + result.stderr)
+    assert not nested_sidecar.exists()
+    assert not outdir.exists()
+
+
+@pytest.mark.parametrize(
+    ("sidecar_label", "expected"),
+    [
+        ("comparison_out", "comparison_out output path must not be inside source_root"),
+        (
+            "gepa_candidate_result_out",
+            "gepa_candidate_result_out output path must not be inside source_root",
+        ),
+        ("workflow_out", "workflow_out output path must not be inside source_root"),
+    ],
+)
+def test_program_refine_materialize_and_compare_gepa_candidate_rejects_sidecars_inside_source_root_before_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sidecar_label: str,
+    expected: str,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    before = _hash_tree(program_root)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    outdir = tmp_path / "program-gepa-candidate"
+    source_sidecar = program_root / "local_sidecar.json"
+    args = [
+        "program-refine",
+        "materialize-and-compare-gepa-candidate",
+        "--manifest",
+        str(program_root / "manifest.json"),
+        "--gepa-result",
+        str(gepa_result),
+        "--outdir",
+        str(outdir),
+    ]
+    if sidecar_label == "comparison_out":
+        args.extend(["--comparison-out", str(source_sidecar)])
+    else:
+        args.extend(
+            ["--comparison-out", str(tmp_path / "refinement" / "comparison.json")]
+        )
+        if sidecar_label == "gepa_candidate_result_out":
+            args.extend(["--gepa-candidate-result-out", str(source_sidecar)])
+        else:
+            args.extend(["--workflow-out", str(source_sidecar)])
+    args.append("--json")
+
+    result = runner.invoke(app, args)
+
+    assert result.exit_code == 2
+    assert expected in (result.stdout + result.stderr)
+    assert not source_sidecar.exists()
+    assert not outdir.exists()
+    assert _hash_tree(program_root) == before
+
+
 def test_program_promote_decide_comparison_feeds_local_plan_for_gepa_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

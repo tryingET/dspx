@@ -70,6 +70,14 @@ def protected_paths_from_payload(payload: Mapping[str, Any]) -> set[Path]:
     return paths
 
 
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def prepare_sidecar_output_path(
     out_path: Path,
     *,
@@ -77,11 +85,13 @@ def prepare_sidecar_output_path(
     artifact_label: str,
     protected_names: Iterable[str] = PROTECTED_PROGRAM_ARTIFACT_NAMES,
     extra_protected_paths: Iterable[Path] = (),
+    extra_protected_roots: Iterable[Path] = (),
 ) -> Path:
     """Resolve and validate a local sidecar output path before writing.
 
     Sidecars summarize or adjudicate generated artifacts. They must not overwrite
-    producer/control artifacts or any input path recorded in their own payload.
+    producer/control artifacts, any input path recorded in their own payload, or
+    arbitrary files inside protected generated-artifact roots.
     """
 
     resolved = out_path.expanduser().resolve()
@@ -97,5 +107,12 @@ def prepare_sidecar_output_path(
         raise ValueError(
             f"{artifact_label} output must not overwrite an input artifact: {resolved}"
         )
+
+    for root in extra_protected_roots:
+        protected_root = root.expanduser().resolve()
+        if resolved == protected_root or _is_relative_to(resolved, protected_root):
+            raise ValueError(
+                f"{artifact_label} output must not be written inside a protected artifact root: {protected_root}"
+            )
 
     return resolved

@@ -173,6 +173,27 @@ def test_program_refinement_comparison_writer_refuses_to_overwrite_candidate_man
     }
 
 
+def test_program_refinement_comparison_writer_refuses_sidecar_inside_candidate_root(
+    tmp_path: Path,
+) -> None:
+    candidate_root = tmp_path / "candidate"
+    candidate_root.mkdir()
+    candidate_manifest = candidate_root / "manifest.json"
+    candidate_manifest.write_text(
+        '{"schema_version":"program-candidate-assembly-v1"}\n', encoding="utf-8"
+    )
+    comparison = {
+        "schema_version": "program-refinement-candidate-comparison-v1",
+        "created_from": {"candidate_manifest_path": str(candidate_manifest)},
+    }
+    out_path = candidate_root / "local_comparison.json"
+
+    with pytest.raises(ValueError, match="protected artifact root"):
+        write_program_refinement_candidate_comparison(comparison, out_path)
+
+    assert not out_path.exists()
+
+
 def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -730,3 +751,55 @@ def test_program_refine_generate_and_compare_cli_is_explicit_local_workflow(
         hashlib.sha256(decision_path.read_bytes()).hexdigest() == before_decision_hash
     )
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+@pytest.mark.parametrize(
+    ("sidecar_label", "expected"),
+    [
+        ("comparison_out", "comparison_out output path must not be inside source_root"),
+        ("workflow_out", "workflow_out output path must not be inside source_root"),
+    ],
+)
+def test_program_refine_generate_and_compare_rejects_sidecars_inside_source_root_before_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sidecar_label: str,
+    expected: str,
+) -> None:
+    program_root, proposal_path, decision_path = _materialize_refinement_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    before_source_hashes = _file_hashes(program_root)
+    outdir = tmp_path / "program-v2"
+    source_sidecar = program_root / "local_sidecar.json"
+    comparison_out = (
+        source_sidecar
+        if sidecar_label == "comparison_out"
+        else tmp_path / "refinement" / "candidate_comparison.json"
+    )
+    args = [
+        "program-refine",
+        "generate-and-compare",
+        "--manifest",
+        str(program_root / "manifest.json"),
+        "--refinement-proposal",
+        str(proposal_path),
+        "--decision-record",
+        str(decision_path),
+        "--outdir",
+        str(outdir),
+        "--comparison-out",
+        str(comparison_out),
+    ]
+    if sidecar_label == "workflow_out":
+        args.extend(["--workflow-out", str(source_sidecar)])
+    args.append("--json")
+
+    result = runner.invoke(app, args)
+
+    assert result.exit_code == 2
+    assert expected in (result.stdout + result.stderr)
+    assert not source_sidecar.exists()
+    assert not outdir.exists()
+    assert _file_hashes(program_root) == before_source_hashes

@@ -699,6 +699,18 @@ def build_program_refinement_candidate_comparison(
     }
 
 
+def _comparison_protected_roots(payload: Mapping[str, Any]) -> list[Path]:
+    roots: list[Path] = []
+    created_from = payload.get("created_from")
+    if not isinstance(created_from, Mapping):
+        return roots
+    for key in ("source_manifest_path", "candidate_manifest_path"):
+        raw_path = created_from.get(key)
+        if isinstance(raw_path, str) and raw_path.strip():
+            roots.append(Path(raw_path).expanduser().resolve().parent)
+    return roots
+
+
 def write_program_refinement_candidate_comparison(
     comparison: Mapping[str, Any],
     out_path: Path,
@@ -710,6 +722,7 @@ def write_program_refinement_candidate_comparison(
         out_path,
         payload=payload,
         artifact_label="program refinement candidate comparison",
+        extra_protected_roots=_comparison_protected_roots(payload),
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(

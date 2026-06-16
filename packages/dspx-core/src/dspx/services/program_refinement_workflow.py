@@ -69,10 +69,30 @@ def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _workflow_root_labels(paths: Mapping[str, Path]) -> dict[str, Path]:
+    return {
+        label: path
+        for label, path in paths.items()
+        if label == "outdir" or label.endswith("_outdir") or label.endswith("_root")
+    }
+
+
 def assert_distinct_workflow_output_paths(
     *, artifact_label: str, **paths: Path | None
 ) -> None:
-    """Fail closed when a composed workflow is asked to write two outputs together."""
+    """Fail closed when a composed workflow is asked to overlap outputs.
+
+    File sidecars must be distinct from one another and must not be written into
+    generated/source artifact roots that the workflow claims it does not mutate.
+    """
 
     resolved: dict[str, Path] = {
         label: path.expanduser().resolve()
@@ -87,6 +107,16 @@ def assert_distinct_workflow_output_paths(
                 f"{artifact_label} output paths must be distinct: {previous} and {label} both resolve to {path}"
             )
         seen[path] = label
+
+    protected_roots = _workflow_root_labels(resolved)
+    for label, path in resolved.items():
+        if label in protected_roots:
+            continue
+        for root_label, root in protected_roots.items():
+            if path == root or _is_relative_to(path, root):
+                raise ProgramRefinementWorkflowError(
+                    f"{artifact_label} {label} output path must not be inside {root_label}: {path} under {root}"
+                )
 
 
 def materialize_and_compare_refinement_candidate(
@@ -106,6 +136,7 @@ def materialize_and_compare_refinement_candidate(
     comparison_out_path = comparison_out_path.expanduser().resolve()
     assert_distinct_workflow_output_paths(
         artifact_label="program refinement generate-and-compare workflow",
+        source_root=manifest_path.parent,
         outdir=outdir,
         comparison_out=comparison_out_path,
     )
@@ -188,6 +219,7 @@ def materialize_and_compare_gepa_refinement_candidate(
     )
     assert_distinct_workflow_output_paths(
         artifact_label="program GEPA materialize-and-compare workflow",
+        source_root=manifest_path.parent,
         outdir=outdir,
         comparison_out=comparison_out_path,
         gepa_candidate_result_out=gepa_candidate_result_out,
@@ -252,6 +284,26 @@ def materialize_and_compare_gepa_refinement_candidate(
     }
 
 
+def _workflow_protected_roots(payload: Mapping[str, Any]) -> list[Path]:
+    roots: list[Path] = []
+    created_from = payload.get("created_from")
+    if isinstance(created_from, Mapping):
+        for key in ("manifest_path", "source_manifest_path"):
+            raw_path = created_from.get(key)
+            if isinstance(raw_path, str) and raw_path.strip():
+                roots.append(Path(raw_path).expanduser().resolve().parent)
+    generation = payload.get("generation")
+    candidate = generation.get("candidate") if isinstance(generation, Mapping) else None
+    if isinstance(candidate, Mapping):
+        raw_root = candidate.get("root_path")
+        raw_manifest = candidate.get("manifest_path")
+        if isinstance(raw_root, str) and raw_root.strip():
+            roots.append(Path(raw_root).expanduser().resolve())
+        elif isinstance(raw_manifest, str) and raw_manifest.strip():
+            roots.append(Path(raw_manifest).expanduser().resolve().parent)
+    return roots
+
+
 def write_program_refinement_workflow_result(
     result: Mapping[str, Any],
     out_path: Path,
@@ -263,6 +315,7 @@ def write_program_refinement_workflow_result(
         out_path,
         payload=payload,
         artifact_label="program refinement workflow result",
+        extra_protected_roots=_workflow_protected_roots(payload),
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(_json_text(payload), encoding="utf-8")

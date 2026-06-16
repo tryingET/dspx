@@ -175,6 +175,7 @@ def materialize_and_compare_gepa_candidate(
     try:
         assert_distinct_workflow_output_paths(
             artifact_label="program GEPA materialize-and-compare workflow",
+            source_root=manifest.expanduser().resolve().parent,
             outdir=outdir,
             comparison_out=comparison_out,
             gepa_candidate_result_out=gepa_candidate_result_out,
@@ -492,6 +493,7 @@ def generate_and_compare(
     try:
         assert_distinct_workflow_output_paths(
             artifact_label="program refinement generate-and-compare workflow",
+            source_root=manifest.expanduser().resolve().parent,
             outdir=outdir,
             comparison_out=comparison_out,
             workflow_out=workflow_out,
