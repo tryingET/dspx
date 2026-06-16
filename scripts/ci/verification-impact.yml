@@ -619,6 +619,16 @@ rules:
       - pytest_refinement_candidate_comparison
       - pytest_promotion_plan_adjacent
 
+  - match: "packages/dspx-core/src/dspx/services/program_promotion_refinement.py"
+    category: python_service
+    impact_group: program_refinement_candidates
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_refinement_candidate_comparison
+      - pytest_promotion_plan_adjacent
+
   - match: "packages/dspx-core/src/dspx/services/program_promotion_decision.py"
     category: python_service
     impact_group: program_refinement_candidates

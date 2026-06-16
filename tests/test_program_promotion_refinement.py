@@ -709,10 +709,19 @@ def test_program_promotion_refinement_rejects_output_inside_program_root(
         refinement_proposal_path=proposal_path,
     )
 
-    with pytest.raises(ProgramPromotionRefinementError, match="generated program root"):
+    with pytest.raises(
+        ProgramPromotionRefinementError, match="protected artifact root"
+    ):
         write_program_promotion_refinement(
             packet,
             program_root / "promotion_review_refined.json",
+        )
+    with pytest.raises(
+        ProgramPromotionRefinementError, match="protected artifact root"
+    ):
+        write_program_promotion_refinement(
+            packet,
+            program_root / "local_review_packet.json",
         )
 
 

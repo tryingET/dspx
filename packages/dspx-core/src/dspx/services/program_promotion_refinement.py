@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.security import confine_path, identity_matches_exact, identity_mismatch_keys
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_model_jury_validation import (
     validate_program_model_jury_results_contract,
 )
@@ -882,41 +883,17 @@ def build_program_promotion_refinement(
     return packet
 
 
-def _assert_refinement_output_path(packet: Mapping[str, Any], out_path: Path) -> None:
-    if out_path.name in _FORBIDDEN_SOURCE_OUTPUT_NAMES:
-        raise ProgramPromotionRefinementError(
-            f"promotion review output must not overwrite source/control artifact {out_path.name}"
+def _prepare_refinement_output_path(packet: Mapping[str, Any], out_path: Path) -> Path:
+    try:
+        return prepare_sidecar_output_path(
+            out_path,
+            payload=packet,
+            artifact_label="promotion review",
+            protected_names=_FORBIDDEN_SOURCE_OUTPUT_NAMES,
+            protect_payload_artifact_roots=True,
         )
-    created_from = packet.get("created_from")
-    if not isinstance(created_from, Mapping):
-        return
-    protected_paths: list[Path] = []
-    protected_roots: list[Path] = []
-    for key in (
-        "manifest_path",
-        "behavior_results_path",
-        "behavior_episode_path",
-        "oracle_report_path",
-        "refinement_proposal_path",
-        "model_jury_results_path",
-        "original_promotion_review_path",
-        "original_promotion_adjudication_request_path",
-        "original_promotion_decision_template_path",
-    ):
-        raw = created_from.get(key)
-        if isinstance(raw, str) and raw.strip():
-            path = Path(raw).expanduser().resolve()
-            protected_paths.append(path)
-            if path.name == "manifest.json":
-                protected_roots.append(path.parent)
-    if any(out_path == path for path in protected_paths):
-        raise ProgramPromotionRefinementError(
-            "promotion review output path must not overwrite an input artifact"
-        )
-    if any(out_path == root or root in out_path.parents for root in protected_roots):
-        raise ProgramPromotionRefinementError(
-            "promotion review output path must not be inside a generated program root"
-        )
+    except ValueError as exc:
+        raise ProgramPromotionRefinementError(str(exc)) from exc
 
 
 def write_program_promotion_refinement(
@@ -924,8 +901,7 @@ def write_program_promotion_refinement(
 ) -> dict[str, Any]:
     """Write the refined local promotion-review packet and return its payload."""
 
-    out_path = out_path.expanduser().resolve()
-    _assert_refinement_output_path(packet, out_path)
+    out_path = _prepare_refinement_output_path(packet, out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
     out_path.write_text(

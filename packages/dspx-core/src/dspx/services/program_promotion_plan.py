@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -699,37 +700,17 @@ def build_program_promotion_plan(
     }
 
 
-def _assert_plan_output_path(plan: Mapping[str, Any], out_path: Path) -> None:
-    if out_path.name in _FORBIDDEN_SOURCE_OUTPUT_NAMES:
-        raise ProgramPromotionPlanError(
-            f"promotion plan must not overwrite source/control artifact {out_path.name}"
+def _prepare_plan_output_path(plan: Mapping[str, Any], out_path: Path) -> Path:
+    try:
+        return prepare_sidecar_output_path(
+            out_path,
+            payload=plan,
+            artifact_label="promotion plan",
+            protected_names=_FORBIDDEN_SOURCE_OUTPUT_NAMES,
+            protect_payload_artifact_roots=True,
         )
-    created_from = plan.get("created_from")
-    if not isinstance(created_from, Mapping):
-        return
-    protected_paths: list[Path] = []
-    protected_roots: list[Path] = []
-    for key in (
-        "candidate_manifest_path",
-        "source_manifest_path",
-        "decision_record_path",
-        "comparison_path",
-        "review_path",
-    ):
-        raw = created_from.get(key)
-        if isinstance(raw, str) and raw.strip():
-            path = Path(raw).expanduser().resolve()
-            protected_paths.append(path)
-            if path.name == "manifest.json":
-                protected_roots.append(path.parent)
-    if any(out_path == path for path in protected_paths):
-        raise ProgramPromotionPlanError(
-            "promotion plan output path must not overwrite an input artifact"
-        )
-    if any(out_path == root or root in out_path.parents for root in protected_roots):
-        raise ProgramPromotionPlanError(
-            "promotion plan output path must not be inside a generated program root"
-        )
+    except ValueError as exc:
+        raise ProgramPromotionPlanError(str(exc)) from exc
 
 
 def write_program_promotion_plan(
@@ -738,8 +719,7 @@ def write_program_promotion_plan(
 ) -> dict[str, Any]:
     """Write the local promotion/adjudication plan sidecar."""
 
-    out_path = out_path.expanduser().resolve()
-    _assert_plan_output_path(plan, out_path)
+    out_path = _prepare_plan_output_path(plan, out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(plan)
     out_path.write_text(

@@ -370,8 +370,12 @@ def test_program_promote_plan_rejects_output_inside_program_root(
         authority_owner="local_operator",
     )
 
-    with pytest.raises(ProgramPromotionPlanError, match="source/control artifact"):
+    with pytest.raises(
+        ProgramPromotionPlanError, match="must not overwrite manifest.json"
+    ):
         write_program_promotion_plan(payload, candidate_root / "manifest.json")
+    with pytest.raises(ProgramPromotionPlanError, match="protected artifact root"):
+        write_program_promotion_plan(payload, candidate_root / "local_plan.json")
 
 
 def test_program_promote_plan_rejects_unsupported_target(
