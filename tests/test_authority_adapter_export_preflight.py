@@ -150,6 +150,173 @@ def _materialize_external_authority_path(
     return program_root, candidate_manifest.parent, decision_path, comparison_path
 
 
+def test_activation_packet_can_carry_external_authority_export_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, candidate_root, decision_path, comparison_path = (
+        _materialize_external_authority_path(tmp_path, monkeypatch)
+    )
+    source_hashes_before = _file_hashes(program_root)
+    candidate_hashes_before = _file_hashes(candidate_root)
+    preflight_out = tmp_path / "export" / "ak-export-preflight.json"
+    activation_out = tmp_path / "activation" / "activation_packet.json"
+
+    preflight_result = runner.invoke(
+        app,
+        [
+            "adapters",
+            "authority",
+            "agent-kernel-export-preflight",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--external-ref",
+            "AK-EXAMPLE",
+            "--decision-record",
+            str(decision_path),
+            "--comparison",
+            str(comparison_path),
+            "--out",
+            str(preflight_out),
+            "--json",
+        ],
+    )
+    assert preflight_result.exit_code == 0, preflight_result.output
+
+    activation_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--export-preflight",
+            str(preflight_out),
+            "--out",
+            str(activation_out),
+            "--json",
+        ],
+    )
+
+    assert activation_result.exit_code == 0, activation_result.output
+    payload = json.loads(activation_result.stdout)
+    export_ref = payload["evidence"]["external_authority_export_preflight"]
+    assert export_ref["path"] == str(preflight_out.resolve())
+    assert (
+        export_ref["schema_version"] == "program-external-authority-export-preflight-v1"
+    )
+    assert export_ref["status"] == "ready_not_applied"
+    assert export_ref["target_system"] == "agent_kernel"
+    assert export_ref["target_contract"] == "ak_task_evidence_attachment"
+    assert export_ref["external_ref"] == "AK-EXAMPLE"
+    assert export_ref["ready_for_future_apply"] is False
+    assert export_ref["preflight_only"] is True
+    assert export_ref["planned_not_exported"] is True
+    assert (
+        "external_apply_not_implemented"
+        in export_ref["external_apply_blocking_reasons"]
+    )
+    assert payload["effect"]["ak_mutated"] is False
+    assert payload["effect"]["external_authority_mutated"] is False
+    assert payload["non_authority"]["external_mutation"] is False
+    assert _file_hashes(program_root) == source_hashes_before
+    assert _file_hashes(candidate_root) == candidate_hashes_before
+
+
+def test_activation_packet_rejects_spoofed_external_authority_export_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, _candidate_root, decision_path, comparison_path = (
+        _materialize_external_authority_path(tmp_path, monkeypatch)
+    )
+    packet = build_program_external_authority_export_preflight(
+        manifest_path=program_root / "manifest.json",
+        external_ref="AK-EXAMPLE",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+    )
+    packet["effect"]["ak_called"] = True
+    preflight_out = tmp_path / "export" / "spoofed-preflight.json"
+    _write_json(preflight_out, packet)
+    activation_out = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--export-preflight",
+            str(preflight_out),
+            "--out",
+            str(activation_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "ak_called false" in result.output
+    assert not activation_out.exists()
+
+
+def test_activation_packet_rejects_identity_drifted_external_authority_export_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, _candidate_root, decision_path, comparison_path = (
+        _materialize_external_authority_path(tmp_path, monkeypatch)
+    )
+    packet = build_program_external_authority_export_preflight(
+        manifest_path=program_root / "manifest.json",
+        external_ref="AK-EXAMPLE",
+        decision_record_path=decision_path,
+        comparison_path=comparison_path,
+    )
+    packet["identity"] = {**packet["identity"], "candidate_id": "drifted"}
+    preflight_out = tmp_path / "export" / "identity-drift-preflight.json"
+    _write_json(preflight_out, packet)
+    activation_out = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--export-preflight",
+            str(preflight_out),
+            "--out",
+            str(activation_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "identity does not match candidate identity" in result.output
+    assert not activation_out.exists()
+
+
 def test_agent_kernel_export_preflight_cli_writes_preflight_without_mutation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

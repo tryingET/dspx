@@ -389,6 +389,11 @@ def activation_packet(
         "--candidate-state",
         help="Optional program-candidate-state-v1 JSON status/admission evidence",
     ),
+    export_preflight: Path | None = typer.Option(
+        None,
+        "--export-preflight",
+        help="Optional program-external-authority-export-preflight-v1 JSON evidence; preflight only, not apply",
+    ),
     obsidian_review_adapter_receipt: Path | None = typer.Option(
         None,
         "--obsidian-review-adapter-receipt",
@@ -443,6 +448,7 @@ def activation_packet(
             oracle_publication_preflight_path=oracle_publication_preflight,
             oracle_publication_receipt_path=oracle_publication_receipt,
             candidate_state_path=candidate_state,
+            external_authority_export_preflight_path=export_preflight,
             obsidian_review_adapter_receipt_path=obsidian_review_adapter_receipt,
             canonical_binding_verification_path=canonical_binding_verification,
             require_obsidian_review_adapter=require_obsidian_review_adapter,

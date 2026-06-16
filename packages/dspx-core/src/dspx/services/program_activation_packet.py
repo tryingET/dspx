@@ -43,6 +43,7 @@ _EXPECTED_SCHEMAS = {
     "candidate_state": "program-candidate-state-v1",
     "obsidian_review_adapter_receipt": "dspy-pdf-transition-review-adapter-receipt-v1",
     "canonical_binding_verification": "program-canonical-binding-verification-v1",
+    "external_authority_export_preflight": "program-external-authority-export-preflight-v1",
 }
 
 CANONICAL_BINDING_VERIFICATION_SCHEMA = "program-canonical-binding-verification-v1"
@@ -1383,6 +1384,109 @@ def _oracle_publication_alignment_summary(
     }
 
 
+def _validate_external_authority_export_preflight(
+    candidate_identity: Mapping[str, Any],
+    export_preflight: Mapping[str, Any] | None,
+) -> None:
+    if export_preflight is None:
+        return
+    if export_preflight.get("status") not in {
+        "ready_not_applied",
+        "incomplete_preflight",
+    }:
+        raise ProgramActivationPacketError(
+            "external authority export preflight status must be ready_not_applied or incomplete_preflight"
+        )
+    _validate_artifact_identity(
+        candidate_identity,
+        export_preflight,
+        label="external_authority_export_preflight",
+    )
+    preflight = _safe_mapping(export_preflight.get("preflight"))
+    if preflight.get("ready_for_future_apply") is not False:
+        raise ProgramActivationPacketError(
+            "external authority export preflight must keep ready_for_future_apply false"
+        )
+    if preflight.get("external_mutation_requested") is not False:
+        raise ProgramActivationPacketError(
+            "external authority export preflight must record external_mutation_requested false"
+        )
+    target = _safe_mapping(export_preflight.get("target"))
+    if target.get("mutation_supported") is not False:
+        raise ProgramActivationPacketError(
+            "external authority export preflight target must keep mutation_supported false"
+        )
+    if target.get("apply_command_available") is not False:
+        raise ProgramActivationPacketError(
+            "external authority export preflight target must keep apply_command_available false"
+        )
+    effect = _safe_mapping(export_preflight.get("effect"))
+    for key in (
+        "external_authority_mutated",
+        "ak_called",
+        "governance_mutated",
+        "program_files_mutated",
+        "promotion_state_changed",
+    ):
+        if effect.get(key) is not False:
+            raise ProgramActivationPacketError(
+                f"external authority export preflight must record {key} false"
+            )
+    non_authority = _safe_mapping(export_preflight.get("non_authority"))
+    if non_authority.get("preflight_only") is not True:
+        raise ProgramActivationPacketError(
+            "external authority export preflight must be preflight-only"
+        )
+    if non_authority.get("planned_not_exported") is not True:
+        raise ProgramActivationPacketError(
+            "external authority export preflight must be planned_not_exported"
+        )
+    _validate_non_authority_false(
+        export_preflight,
+        label="external authority export preflight",
+        keys=(
+            "external_apply",
+            "agent_kernel_mutation",
+            "governance_authority",
+            "promotion_authority",
+            "oracle_authority",
+            "winner_selection",
+            "automatic_promotion",
+        ),
+    )
+
+
+def _external_authority_export_preflight_ref(
+    artifact_ref: Mapping[str, Any] | None,
+    export_preflight: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if artifact_ref is None or export_preflight is None:
+        return None
+    target = _safe_mapping(export_preflight.get("target"))
+    preflight = _safe_mapping(export_preflight.get("preflight"))
+    return {
+        **dict(artifact_ref),
+        "status": export_preflight.get("status"),
+        "export_id": export_preflight.get("export_id"),
+        "target_system": target.get("system"),
+        "target_contract": target.get("target_contract"),
+        "external_ref": target.get("external_ref"),
+        "ready_for_future_apply": preflight.get("ready_for_future_apply") is True,
+        "blocking_reasons": _safe_list(preflight.get("blocking_reasons")),
+        "external_apply_blocking_reasons": _safe_list(
+            preflight.get("external_apply_blocking_reasons")
+        ),
+        "preflight_only": _safe_mapping(export_preflight.get("non_authority")).get(
+            "preflight_only"
+        )
+        is True,
+        "planned_not_exported": _safe_mapping(
+            export_preflight.get("non_authority")
+        ).get("planned_not_exported")
+        is True,
+    }
+
+
 def _validate_candidate_state_publication_alignment(
     *,
     candidate_state: Mapping[str, Any] | None,
@@ -1720,6 +1824,7 @@ def build_generated_program_activation_packet(
     oracle_publication_preflight_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
     candidate_state_path: Path | None = None,
+    external_authority_export_preflight_path: Path | None = None,
     obsidian_review_adapter_receipt_path: Path | None = None,
     canonical_binding_verification_path: Path | None = None,
     require_obsidian_review_adapter: bool = False,
@@ -1794,6 +1899,12 @@ def build_generated_program_activation_packet(
         candidate_state_path,
         label="candidate_state",
     )
+    external_authority_export_preflight, external_authority_export_preflight_ref = (
+        _load_optional_artifact(
+            external_authority_export_preflight_path,
+            label="external_authority_export_preflight",
+        )
+    )
     obsidian_review_adapter_receipt, obsidian_review_adapter_receipt_ref = (
         _load_optional_artifact(
             obsidian_review_adapter_receipt_path,
@@ -1834,6 +1945,10 @@ def build_generated_program_activation_packet(
         preflight_ref=oracle_publication_preflight_ref,
     )
     _validate_candidate_state(identity, candidate_state)
+    _validate_external_authority_export_preflight(
+        identity,
+        external_authority_export_preflight,
+    )
     _validate_candidate_state_publication_alignment(
         candidate_state=candidate_state,
         oracle_publication_preflight=oracle_publication_preflight,
@@ -1929,6 +2044,10 @@ def build_generated_program_activation_packet(
                 oracle_publication_receipt,
             ),
             "candidate_state": candidate_state_ref,
+            "external_authority_export_preflight": _external_authority_export_preflight_ref(
+                external_authority_export_preflight_ref,
+                external_authority_export_preflight,
+            ),
             "obsidian_review_adapter_receipt": obsidian_review_adapter_receipt_ref,
             "canonical_binding_verification": canonical_binding_verification_ref,
         },

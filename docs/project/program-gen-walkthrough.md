@@ -64,7 +64,7 @@ Boundary map for MLflow, Oracle, runtime traces, receipts/replay, and activation
 1. `program-refine generate-and-compare` can be run explicitly as a convenience workflow for exactly one second-candidate generation followed by the same local comparison sidecar.
 1. `program-refine episode` can be run explicitly over an existing manifest and Oracle report to compose proposal, refined review, explicit local decision record, optional `request_more_evidence` second-candidate generation or ready-GEPA-sidecar candidate materialization, comparison, optional local promotion/adjudication plan, candidate-state refresh, and a `program-refinement-episode-v1` summary sidecar. It is local-only and non-authoritative; it does not invoke Oracle indexing/reporting, run GEPA/search, run model juries, call AK/governance, mutate external authority, activate, rank, select a winner, or apply promotion.
 1. `program-promote plan` can still be run explicitly over an existing candidate manifest, local decision record, and comparison sidecar to write a `program-promotion-plan-v1` local plan sidecar when the guided episode did not opt into planning.
-1. `adapters authority agent-kernel-export-preflight` can be run explicitly over a manifest, opaque AK ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet that is preflighted/planned/not applied.
+1. `adapters authority agent-kernel-export-preflight` can be run explicitly over a manifest, opaque AK ref, and optional decision/comparison sidecars to write a local `program-external-authority-export-preflight-v1` packet that is preflighted/planned/not applied; `program-promote activation-packet --export-preflight` can carry that packet as activation evidence without applying it.
 1. `program-promote status` can be run explicitly over a manifest plus local sidecars to write one `program-candidate-state-v1` truth-state summary artifact.
 1. `program-refine optimize-gepa` can be run explicitly against an existing manifest to write a local `program-refinement-gepa-result-v1` sidecar from explicit train/validation JSONL files, manifest dataset splits, or limited inline examples; it is not part of `program-gen`.
 1. `program-refine materialize-gepa-candidate` can be run explicitly over a ready GEPA sidecar to create one local non-authoritative candidate assembly that loads copied optimizer output; it does not rank, select a winner, promote, or mutate authority.
@@ -1083,6 +1083,7 @@ uv run -q python -m dspx.cli.dspx program-promote activation-packet \
   --oracle-report "$TD/oracle/program-evidence-report.json" \
   --model-jury-results "$TD/promotion/model_jury_results.json" \
   --review "$TD/promotion/promotion_review_refined.json" \
+  --export-preflight "$TD/export/ak-export-preflight.json" \
   --rollout-owner softwareco-runtime-operator \
   --rollback-plan "Disable the generated-program route and restore the previous production program version." \
   --out "$TD/activation/activation_packet.json" \
@@ -1096,10 +1097,11 @@ Expected JSON facts:
 - `missing_required_evidence: []`
 - `remaining_activation_blockers` still includes `domain_decision_record` and `canonical_binding_ref`
 - `evidence.model_jury_results` records the model-jury sidecar path/hash/schema; `evidence.jury_results` may be `null` when deterministic local jury results were not supplied
+- `evidence.external_authority_export_preflight` records the export-preflight path/hash/schema, `status`, `export_id`, target system/contract, opaque `external_ref`, `ready_for_future_apply: false`, and future external-apply blockers when supplied
 - `effect.production_activation_applied`, `effect.ak_mutated`, and `effect.external_authority_mutated` remain `false`
 - `non_authority.activation_packet_only` is `true`
 
-Activation-packet generation validates model-jury schema, executed/executed-with-failures status, manifest identity, provider-backed execution, at least one judged juror, adjudicator non-authority, non-readiness for promotion decision, evidence-only effect flags, and no promotion/ranking/domain/external/canonical authority claims. The packet is local activation evidence only: it does not activate, deploy, promote, select a winner, call AK, mutate governance, mutate Oracle, mutate external authority, or replace the domain decision/canonical binding gates.
+Activation-packet generation validates model-jury schema, executed/executed-with-failures status, manifest identity, provider-backed execution, at least one judged juror, adjudicator non-authority, non-readiness for promotion decision, evidence-only effect flags, and no promotion/ranking/domain/external/canonical authority claims. When `--export-preflight` is supplied, it also validates exact candidate identity, preflight-only/planned-not-exported posture, false `ready_for_future_apply`, false external mutation request, target mutation/apply disabled, false AK/governance/external/program/promotion effects, and false non-authority widening flags. The packet is local activation evidence only: it does not activate, deploy, promote, select a winner, call AK, mutate governance, mutate Oracle, mutate external authority, apply the preflight, or replace the domain decision/canonical binding gates.
 
 ## 20. Cleanup
 
