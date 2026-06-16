@@ -40,6 +40,21 @@ def _file_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def _assert_no_episode_sidecars(outdir: Path) -> None:
+    for name in (
+        "refinement_proposal.json",
+        "promotion_review_refined.json",
+        "promotion_decision_record.json",
+        "program_candidate_comparison.json",
+        "gepa_candidate_result.json",
+        "promotion_plan.json",
+        "external_authority_export_preflight.json",
+        "program_candidate_state.refinement.json",
+        "program_refinement_episode.json",
+    ):
+        assert not (outdir / name).exists(), name
+
+
 def _identity(manifest: Mapping[str, Any]) -> dict[str, str | None]:
     request = manifest.get("request") or {}
     assembly = manifest.get("candidate_assembly") or {}
@@ -597,17 +612,19 @@ def test_program_refinement_episode_rejects_invalid_local_jury_results(
     bad_jury_path = tmp_path / "promotion" / "bad_jury_results.json"
     _write_json(bad_jury_path, bad_jury)
 
+    identity_drift_outdir = tmp_path / "episode-jury-identity-drift"
     with pytest.raises(ProgramRefinementEpisodeError, match="identity"):
         run_program_refinement_episode(
             manifest_path=program_root / "manifest.json",
             oracle_report_path=report_path,
-            sidecar_outdir=tmp_path / "episode-jury-identity-drift",
+            sidecar_outdir=identity_drift_outdir,
             decision_outcome="withhold",
             decided_by="operator-test",
             rationale="reject stale local jury evidence",
             generate_second_candidate=False,
             jury_results_path=bad_jury_path,
         )
+    _assert_no_episode_sidecars(identity_drift_outdir)
 
     bad_jury = json.loads(jury_path.read_text(encoding="utf-8"))
     bad_jury["non_authority"] = {
@@ -617,17 +634,19 @@ def test_program_refinement_episode_rejects_invalid_local_jury_results(
     bad_jury_path = tmp_path / "promotion" / "bad_jury_authority.json"
     _write_json(bad_jury_path, bad_jury)
 
+    authority_drift_outdir = tmp_path / "episode-jury-authority-drift"
     with pytest.raises(ProgramRefinementEpisodeError, match="non-authority"):
         run_program_refinement_episode(
             manifest_path=program_root / "manifest.json",
             oracle_report_path=report_path,
-            sidecar_outdir=tmp_path / "episode-jury-authority-drift",
+            sidecar_outdir=authority_drift_outdir,
             decision_outcome="withhold",
             decided_by="operator-test",
             rationale="reject authority-widened local jury evidence",
             generate_second_candidate=False,
             jury_results_path=bad_jury_path,
         )
+    _assert_no_episode_sidecars(authority_drift_outdir)
 
 
 def test_program_refinement_episode_rejects_jury_output_overlap_before_writes(
@@ -745,16 +764,18 @@ def test_program_refinement_episode_rejects_invalid_model_jury_results(
     bad_model_jury_path = tmp_path / "promotion" / "bad_model_jury_results.json"
     _write_json(bad_model_jury_path, bad_model_jury)
 
+    identity_drift_outdir = tmp_path / "episode-identity-drift"
     with pytest.raises(ProgramRefinementEpisodeError, match="identity"):
         run_program_refinement_episode(
             manifest_path=program_root / "manifest.json",
             oracle_report_path=report_path,
-            sidecar_outdir=tmp_path / "episode-identity-drift",
+            sidecar_outdir=identity_drift_outdir,
             decision_outcome="request_more_evidence",
             decided_by="operator-test",
             rationale="reject stale model-jury evidence",
             model_jury_results_path=bad_model_jury_path,
         )
+    _assert_no_episode_sidecars(identity_drift_outdir)
 
     bad_model_jury = _model_jury_result_for_manifest(manifest)
     bad_model_jury["effect"] = {
@@ -764,16 +785,18 @@ def test_program_refinement_episode_rejects_invalid_model_jury_results(
     bad_model_jury_path = tmp_path / "promotion" / "bad_model_jury_authority.json"
     _write_json(bad_model_jury_path, bad_model_jury)
 
+    authority_drift_outdir = tmp_path / "episode-authority-drift"
     with pytest.raises(ProgramRefinementEpisodeError, match="effect"):
         run_program_refinement_episode(
             manifest_path=program_root / "manifest.json",
             oracle_report_path=report_path,
-            sidecar_outdir=tmp_path / "episode-authority-drift",
+            sidecar_outdir=authority_drift_outdir,
             decision_outcome="request_more_evidence",
             decided_by="operator-test",
             rationale="reject authority-widened model-jury evidence",
             model_jury_results_path=bad_model_jury_path,
         )
+    _assert_no_episode_sidecars(authority_drift_outdir)
 
 
 def test_program_refinement_episode_rejects_model_jury_output_overlap_before_writes(
@@ -999,7 +1022,7 @@ def test_program_refinement_episode_gepa_path_rejects_ambiguous_or_drifted_input
         )
 
     assert not (outdir / "gepa_candidate" / "manifest.json").exists()
-    assert not (outdir / "program_refinement_episode.json").exists()
+    _assert_no_episode_sidecars(outdir)
 
 
 def test_program_refinement_episode_rejects_gepa_output_conflicts_before_writes(
@@ -1206,19 +1229,28 @@ def test_program_refinement_episode_rejects_invalid_promotion_plan_options_befor
             promotion_plan_authority_owner="operator-test",
         )
 
-    with pytest.raises(ProgramRefinementEpisodeError, match="control artifact name"):
-        run_program_refinement_episode(
-            manifest_path=program_root / "manifest.json",
-            oracle_report_path=report_path,
-            sidecar_outdir=outdir,
-            decision_outcome="request_more_evidence",
-            decided_by="operator-test",
-            rationale="collect one bounded second candidate and local plan only",
-            generate_promotion_plan=True,
-            promotion_plan_target="local_preferred_candidate",
-            promotion_plan_authority_owner="operator-test",
-            promotion_plan_out=outdir / "manifest.json",
-        )
+    for protected_name in (
+        "manifest.json",
+        "plan.json",
+        "intent.json",
+        "dataset_manifest.json",
+        "eval_train.py",
+    ):
+        with pytest.raises(
+            ProgramRefinementEpisodeError, match="control artifact name"
+        ):
+            run_program_refinement_episode(
+                manifest_path=program_root / "manifest.json",
+                oracle_report_path=report_path,
+                sidecar_outdir=outdir,
+                decision_outcome="request_more_evidence",
+                decided_by="operator-test",
+                rationale="collect one bounded second candidate and local plan only",
+                generate_promotion_plan=True,
+                promotion_plan_target="local_preferred_candidate",
+                promotion_plan_authority_owner="operator-test",
+                promotion_plan_out=outdir / protected_name,
+            )
 
     assert not outdir.exists()
 

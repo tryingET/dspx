@@ -17,6 +17,7 @@ from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
     write_program_promotion_decision_record,
 )
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_promotion_plan import (
     SUPPORTED_LOCAL_TARGETS,
     build_program_promotion_plan,
@@ -37,22 +38,6 @@ from dspx.services.program_refinement_workflow import (
 )
 
 PROGRAM_REFINEMENT_EPISODE_SCHEMA = "program-refinement-episode-v1"
-
-_PROMOTION_PLAN_FORBIDDEN_OUTPUT_NAMES = frozenset(
-    {
-        "manifest.json",
-        "manifest.json.meta.json",
-        "program.py",
-        "module.py",
-        "signature.py",
-        "eval_examples.py",
-        "eval_behavior.py",
-        "behavior_results.json",
-        "behavior_episode.json",
-        "oracle_evidence.json",
-        "execution_episode.json",
-    }
-)
 
 
 class ProgramRefinementEpisodeError(ValueError):
@@ -200,16 +185,13 @@ def _assert_not_inside_source_root(
         )
 
 
-def _preflight_distinct_outputs(
+def _episode_sidecar_output_labels(
     *,
-    source_root: Path,
-    paths: Mapping[str, Path],
     generate_second_candidate: bool,
     generate_gepa_candidate: bool,
     generate_promotion_plan: bool,
     generate_export_preflight: bool,
-    protected_inputs: Mapping[str, Path] | None = None,
-) -> None:
+) -> list[str]:
     labels = [
         "proposal_out",
         "review_out",
@@ -225,6 +207,25 @@ def _preflight_distinct_outputs(
         labels.append("promotion_plan_out")
     if generate_export_preflight:
         labels.append("export_preflight_out")
+    return labels
+
+
+def _preflight_distinct_outputs(
+    *,
+    source_root: Path,
+    paths: Mapping[str, Path],
+    generate_second_candidate: bool,
+    generate_gepa_candidate: bool,
+    generate_promotion_plan: bool,
+    generate_export_preflight: bool,
+    protected_inputs: Mapping[str, Path] | None = None,
+) -> None:
+    labels = _episode_sidecar_output_labels(
+        generate_second_candidate=generate_second_candidate,
+        generate_gepa_candidate=generate_gepa_candidate,
+        generate_promotion_plan=generate_promotion_plan,
+        generate_export_preflight=generate_export_preflight,
+    )
     seen: dict[Path, str] = {}
     for label in labels:
         target = paths[label].expanduser().resolve()
@@ -290,6 +291,30 @@ def _preflight_distinct_outputs(
                     f"{candidate_label} conflicts with sidecar output path "
                     f"{sidecar_label}: {candidate_root} vs {sidecar_path}"
                 )
+
+
+def _snapshot_output_files(paths: Mapping[str, Path]) -> dict[Path, bytes | None]:
+    snapshots: dict[Path, bytes | None] = {}
+    for path in paths.values():
+        resolved = path.expanduser().resolve()
+        snapshots[resolved] = resolved.read_bytes() if resolved.is_file() else None
+    return snapshots
+
+
+def _rollback_output_files(snapshots: Mapping[Path, bytes | None]) -> None:
+    for path, content in snapshots.items():
+        try:
+            if content is None:
+                if path.is_file():
+                    path.unlink()
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+        except OSError:
+            # Preserve the original validation/materialization failure. Rollback is
+            # best-effort protection against partial local sidecars, not a second
+            # authority surface.
+            continue
 
 
 def write_program_refinement_episode_result(
@@ -432,7 +457,7 @@ def run_program_refinement_episode(
             raise ProgramRefinementEpisodeError(
                 "promotion plan generation requires promotion_plan_authority_owner"
             )
-        if paths["promotion_plan_out"].name in _PROMOTION_PLAN_FORBIDDEN_OUTPUT_NAMES:
+        if paths["promotion_plan_out"].name in PROTECTED_PROGRAM_ARTIFACT_NAMES:
             raise ProgramRefinementEpisodeError(
                 "promotion_plan_out must not use a generated program/control artifact name: "
                 f"{paths['promotion_plan_out'].name}"
@@ -465,6 +490,18 @@ def run_program_refinement_episode(
         generate_promotion_plan=generate_promotion_plan,
         generate_export_preflight=generate_export_preflight,
         protected_inputs=protected_inputs or None,
+    )
+
+    output_snapshots = _snapshot_output_files(
+        {
+            label: paths[label]
+            for label in _episode_sidecar_output_labels(
+                generate_second_candidate=generate_proposal_second_candidate,
+                generate_gepa_candidate=generate_gepa_candidate,
+                generate_promotion_plan=generate_promotion_plan,
+                generate_export_preflight=generate_export_preflight,
+            )
+        }
     )
 
     try:
@@ -620,6 +657,7 @@ def run_program_refinement_episode(
         )
         state_payload = write_program_candidate_state(state, paths["state_out"])
     except Exception as exc:
+        _rollback_output_files(output_snapshots)
         if isinstance(exc, ProgramRefinementEpisodeError):
             raise
         raise ProgramRefinementEpisodeError(str(exc)) from exc
