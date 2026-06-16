@@ -36,6 +36,131 @@ def _file_hashes(root: Path) -> dict[str, str]:
     }
 
 
+def _identity(manifest: Mapping[str, Any]) -> dict[str, str | None]:
+    request = manifest.get("request") or {}
+    assembly = manifest.get("candidate_assembly") or {}
+    episode = manifest.get("execution_episode") or {}
+    receipt = manifest.get("receipt_bundle") or {}
+    return {
+        "request_id": request.get("request_id") or assembly.get("request_id"),
+        "candidate_id": assembly.get("candidate_id") or episode.get("candidate_id"),
+        "assembly_id": assembly.get("assembly_id") or episode.get("assembly_id"),
+        "episode_id": episode.get("episode_id") or receipt.get("episode_id"),
+        "receipt_bundle_id": receipt.get("receipt_bundle_id"),
+    }
+
+
+def _optimizer_payload_inventory(root: Path) -> dict[str, Any]:
+    files: list[dict[str, Any]] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        if rel == "manifest.json":
+            continue
+        files.append(
+            {
+                "path": rel,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "size_bytes": path.stat().st_size,
+            }
+        )
+    tree_text = json.dumps(
+        files, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    return {
+        "hash_algorithm": "sha256",
+        "tree_hash": hashlib.sha256(tree_text.encode("utf-8")).hexdigest(),
+        "files": files,
+        "excludes": ["manifest.json"],
+    }
+
+
+def _write_ready_gepa_result(
+    tmp_path: Path,
+    program_root: Path,
+    *,
+    identity_drift: bool = False,
+) -> Path:
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    identity = _identity(manifest)
+    if identity_drift:
+        identity = {**identity, "candidate_id": "wrong-candidate"}
+    optimizer_root = tmp_path / "program-gepa"
+    optimizer_root.mkdir(parents=True, exist_ok=True)
+    (optimizer_root / "compiled.bin").write_text(
+        "fake optimizer payload", encoding="utf-8"
+    )
+    program_hash = hashlib.sha256(
+        (program_root / "program.py").read_bytes()
+    ).hexdigest()
+    optimizer_manifest = {
+        "created_by": "fake_gepa_for_refinement_episode_test",
+        "program": {"path": str(program_root / "program.py"), "sha256": program_hash},
+        "dataset": {"train": "train.csv", "val": "validation.csv"},
+        "io": {"inputs": ["ticket_text"], "outputs": ["urgency"]},
+        "gepa": {"metric": "exact", "max_metric_calls": 2},
+        "output_payload": _optimizer_payload_inventory(optimizer_root),
+    }
+    _write_json(optimizer_root / "manifest.json", optimizer_manifest)
+    optimizer_hash = hashlib.sha256(
+        (optimizer_root / "manifest.json").read_bytes()
+    ).hexdigest()
+    payload: dict[str, Any] = {
+        "schema_version": "program-refinement-gepa-result-v1",
+        "status": "degraded",
+        "source_identity": identity,
+        "created_from": {"manifest_path": str(program_root / "manifest.json")},
+        "evidence_inputs": {"source": "inline_examples", "train_examples_count": 1},
+        "gepa": {
+            "attempted": True,
+            "status": "completed",
+            "metric": "exact_match",
+            "optimizer_metric": "exact",
+            "max_metric_calls": 2,
+        },
+        "gepa_output": {
+            "root_path": str(optimizer_root),
+            "manifest_path": str(optimizer_root / "manifest.json"),
+            "manifest_present": True,
+            "manifest_valid": True,
+            "manifest_sha256": optimizer_hash,
+            "manifest_schema_version": None,
+            "manifest_kind": "dspy_gepa_optimizer_output_manifest",
+            "candidate_assembly_manifest": False,
+            "readiness": {
+                "status": "optimizer_output_hash_bound_not_candidate",
+                "ready_for_future_candidate_materializer": True,
+                "blockers": [
+                    "no_program_candidate_assembly_materializer_in_this_command"
+                ],
+            },
+        },
+        "candidate": None,
+        "effect": {
+            "local_gepa_candidate_generated": False,
+            "source_program_files_mutated": False,
+            "source_dataset_artifacts_mutated": False,
+            "external_authority_mutated": False,
+            "governance_mutated": False,
+        },
+        "non_authority": {
+            "local_refinement_only": True,
+            "automatic_promotion": False,
+            "oracle_ranking": False,
+            "oracle_pruning": False,
+            "oracle_promotion": False,
+            "winner_selection": False,
+            "external_authority_export": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+    }
+    result_path = tmp_path / "refinement" / "gepa_refinement_result.json"
+    _write_json(result_path, payload)
+    return result_path
+
+
 def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
@@ -235,6 +360,156 @@ def test_program_refinement_episode_can_write_local_promotion_plan(
     assert not (program_root / "promotion_plan.json").exists()
     assert not (second_candidate / "promotion_plan.json").exists()
     assert _file_hashes(program_root) == before_source_hashes
+
+
+def test_program_refinement_episode_can_materialize_gepa_candidate_and_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    before_source_hashes = _file_hashes(program_root)
+    before_optimizer_hashes = _file_hashes(tmp_path / "program-gepa")
+    outdir = tmp_path / "refinement-episode"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "episode",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--outdir",
+            str(outdir),
+            "--decision-outcome",
+            "request_more_evidence",
+            "--decided-by",
+            "operator-test",
+            "--rationale",
+            "compare one ready GEPA candidate before any promotion review",
+            "--gepa-result",
+            str(gepa_result),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload: dict[str, Any] = json.loads(result.stdout)
+    assert payload["schema_version"] == "program-refinement-episode-v1"
+    assert payload["status"] in {
+        "gepa_candidate_compared",
+        "gepa_candidate_materialized_with_insufficient_behavior_evidence",
+    }
+    assert payload["steps"]["second_candidate"]["status"] == "skipped"
+    assert payload["steps"]["gepa_candidate"]["status"] in {
+        "materialized_and_compared_gepa_candidate",
+        "materialized_gepa_candidate_with_insufficient_behavior_evidence",
+    }
+    assert payload["steps"]["gepa_candidate"]["gepa_result_path"] == str(
+        gepa_result.resolve()
+    )
+    assert payload["effect"]["local_second_candidate_generated"] is False
+    assert payload["effect"]["local_gepa_candidate_generated"] is True
+    assert payload["effect"]["gepa_optimizer_output_mutated"] is False
+    assert payload["effect"]["local_comparison_written"] is True
+    assert payload["effect"]["winner_selected"] is False
+    assert payload["non_authority"]["gepa_candidate_evidence_only"] is True
+    assert payload["non_authority"]["gepa_approval"] is False
+    assert payload["non_authority"]["winner_selection"] is False
+    assert (outdir / "gepa_candidate" / "manifest.json").exists()
+    assert (outdir / "gepa_candidate_result.json").exists()
+    assert (outdir / "program_candidate_comparison.json").exists()
+    assert (outdir / "program_candidate_state.refinement.json").exists()
+    assert (outdir / "program_refinement_episode.json").exists()
+
+    gepa_manifest = json.loads(
+        (outdir / "gepa_candidate" / "manifest.json").read_text(encoding="utf-8")
+    )
+    state = json.loads(
+        (outdir / "program_candidate_state.refinement.json").read_text(encoding="utf-8")
+    )
+    assert (
+        state["candidate_identity"]["candidate_id"]
+        == gepa_manifest["candidate_assembly"]["candidate_id"]
+    )
+    assert state["truth_summary"]["comparison_present"] is True
+    assert state["truth_summary"]["gepa_refinement_present"] is True
+    assert state["truth_summary"]["winner_selected"] is False
+    assert _file_hashes(program_root) == before_source_hashes
+    assert _file_hashes(tmp_path / "program-gepa") == before_optimizer_hashes
+
+
+def test_program_refinement_episode_gepa_path_rejects_ambiguous_or_drifted_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    outdir = tmp_path / "refinement-episode"
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="second_candidate_outdir"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="compare one ready GEPA candidate",
+            gepa_result_path=gepa_result,
+            second_candidate_outdir=outdir / "second",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="candidate_id"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="compare one drifted GEPA candidate",
+            gepa_result_path=_write_ready_gepa_result(
+                tmp_path / "drifted", program_root, identity_drift=True
+            ),
+        )
+
+    assert not (outdir / "gepa_candidate" / "manifest.json").exists()
+    assert not (outdir / "program_refinement_episode.json").exists()
+
+
+def test_program_refinement_episode_rejects_gepa_output_conflicts_before_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    outdir = tmp_path / "refinement-episode"
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="source generated program root"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="compare one ready GEPA candidate",
+            gepa_result_path=gepa_result,
+            gepa_candidate_outdir=program_root / "gepa_candidate",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="conflicts"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="compare one ready GEPA candidate",
+            gepa_result_path=gepa_result,
+            gepa_candidate_result_out=outdir / "gepa_candidate" / "result.json",
+        )
+
+    assert not outdir.exists()
 
 
 def test_program_refinement_episode_records_decision_without_second_candidate(

@@ -28,6 +28,7 @@ from dspx.services.program_refinement import (
     write_program_refinement_proposal,
 )
 from dspx.services.program_refinement_workflow import (
+    materialize_and_compare_gepa_refinement_candidate,
     materialize_and_compare_refinement_candidate,
 )
 
@@ -119,6 +120,8 @@ def _default_paths(sidecar_outdir: Path) -> dict[str, Path]:
         "workflow_out": sidecar_outdir / "program_refinement_episode.json",
         "promotion_plan_out": sidecar_outdir / "promotion_plan.json",
         "second_candidate_outdir": sidecar_outdir / "second_candidate",
+        "gepa_candidate_outdir": sidecar_outdir / "gepa_candidate",
+        "gepa_candidate_result_out": sidecar_outdir / "gepa_candidate_result.json",
     }
 
 
@@ -133,6 +136,8 @@ def _resolved_output_paths(
     workflow_out: Path | None,
     promotion_plan_out: Path | None,
     second_candidate_outdir: Path | None,
+    gepa_candidate_outdir: Path | None,
+    gepa_candidate_result_out: Path | None,
 ) -> dict[str, Path]:
     sidecar_outdir = sidecar_outdir.expanduser().resolve()
     defaults = _default_paths(sidecar_outdir)
@@ -162,6 +167,12 @@ def _resolved_output_paths(
         "second_candidate_outdir": second_candidate_outdir.expanduser().resolve()
         if second_candidate_outdir is not None
         else defaults["second_candidate_outdir"],
+        "gepa_candidate_outdir": gepa_candidate_outdir.expanduser().resolve()
+        if gepa_candidate_outdir is not None
+        else defaults["gepa_candidate_outdir"],
+        "gepa_candidate_result_out": gepa_candidate_result_out.expanduser().resolve()
+        if gepa_candidate_result_out is not None
+        else defaults["gepa_candidate_result_out"],
     }
 
 
@@ -184,6 +195,7 @@ def _preflight_distinct_outputs(
     source_root: Path,
     paths: Mapping[str, Path],
     generate_second_candidate: bool,
+    generate_gepa_candidate: bool,
     generate_promotion_plan: bool,
 ) -> None:
     labels = [
@@ -193,8 +205,10 @@ def _preflight_distinct_outputs(
         "state_out",
         "workflow_out",
     ]
-    if generate_second_candidate:
+    if generate_second_candidate or generate_gepa_candidate:
         labels.append("comparison_out")
+    if generate_gepa_candidate:
+        labels.append("gepa_candidate_result_out")
     if generate_promotion_plan:
         labels.append("promotion_plan_out")
     seen: dict[Path, str] = {}
@@ -215,12 +229,21 @@ def _preflight_distinct_outputs(
                     f"{label} conflicts with sidecar output path already used by {seen_label}: {target} vs {seen_target}"
                 )
         seen[target] = label
+    candidate_roots: list[tuple[str, Path]] = []
     if generate_second_candidate:
-        candidate_root = paths["second_candidate_outdir"].expanduser().resolve()
+        candidate_roots.append(
+            ("second_candidate_outdir", paths["second_candidate_outdir"])
+        )
+    if generate_gepa_candidate:
+        candidate_roots.append(
+            ("gepa_candidate_outdir", paths["gepa_candidate_outdir"])
+        )
+    for candidate_label, candidate_path in candidate_roots:
+        candidate_root = candidate_path.expanduser().resolve()
         _assert_not_inside_source_root(
             candidate_root,
             source_root=source_root,
-            label="second_candidate_outdir",
+            label=candidate_label,
         )
         for sidecar_path, sidecar_label in seen.items():
             if (
@@ -229,7 +252,7 @@ def _preflight_distinct_outputs(
                 or sidecar_path in candidate_root.parents
             ):
                 raise ProgramRefinementEpisodeError(
-                    "second_candidate_outdir conflicts with sidecar output path "
+                    f"{candidate_label} conflicts with sidecar output path "
                     f"{sidecar_label}: {candidate_root} vs {sidecar_path}"
                 )
 
@@ -279,6 +302,9 @@ def run_program_refinement_episode(
     promotion_plan_target: str | None = None,
     promotion_plan_authority_owner: str | None = None,
     promotion_plan_out: Path | None = None,
+    gepa_result_path: Path | None = None,
+    gepa_candidate_outdir: Path | None = None,
+    gepa_candidate_result_out: Path | None = None,
 ) -> dict[str, Any]:
     """Run one local guided refinement episode over an existing candidate.
 
@@ -302,22 +328,40 @@ def run_program_refinement_episode(
         workflow_out=workflow_out,
         promotion_plan_out=promotion_plan_out,
         second_candidate_outdir=second_candidate_outdir,
+        gepa_candidate_outdir=gepa_candidate_outdir,
+        gepa_candidate_result_out=gepa_candidate_result_out,
     )
     normalized_outcome = str(decision_outcome or "").strip()
     normalized_plan_target = str(promotion_plan_target or "").strip()
     normalized_plan_owner = str(promotion_plan_authority_owner or "").strip()
+    generate_gepa_candidate = gepa_result_path is not None
+    generate_proposal_second_candidate = (
+        generate_second_candidate and not generate_gepa_candidate
+    )
+    gepa_result_resolved = (
+        gepa_result_path.expanduser().resolve()
+        if gepa_result_path is not None
+        else None
+    )
+    if generate_gepa_candidate and second_candidate_outdir is not None:
+        raise ProgramRefinementEpisodeError(
+            "second_candidate_outdir cannot be combined with --gepa-result; "
+            "use gepa_candidate_outdir for the GEPA-backed candidate"
+        )
     if (
         promotion_plan_target or promotion_plan_authority_owner or promotion_plan_out
     ) and not generate_promotion_plan:
         raise ProgramRefinementEpisodeError(
             "promotion plan options require --promotion-plan"
         )
-    if generate_second_candidate and normalized_outcome != "request_more_evidence":
+    if (
+        generate_proposal_second_candidate or generate_gepa_candidate
+    ) and normalized_outcome != "request_more_evidence":
         raise ProgramRefinementEpisodeError(
-            "second-candidate generation requires decision outcome request_more_evidence"
+            "local candidate generation requires decision outcome request_more_evidence"
         )
     if generate_promotion_plan:
-        if not generate_second_candidate:
+        if not (generate_proposal_second_candidate or generate_gepa_candidate):
             raise ProgramRefinementEpisodeError(
                 "promotion plan generation requires a second-candidate comparison"
             )
@@ -343,7 +387,8 @@ def run_program_refinement_episode(
     _preflight_distinct_outputs(
         source_root=source_root,
         paths=paths,
-        generate_second_candidate=generate_second_candidate,
+        generate_second_candidate=generate_proposal_second_candidate,
+        generate_gepa_candidate=generate_gepa_candidate,
         generate_promotion_plan=generate_promotion_plan,
     )
 
@@ -379,10 +424,11 @@ def run_program_refinement_episode(
         )
 
         refinement_workflow: dict[str, Any] | None = None
+        gepa_workflow: dict[str, Any] | None = None
         candidate_manifest_path: Path | None = None
         comparison_payload: dict[str, Any] | None = None
         promotion_plan_payload: dict[str, Any] | None = None
-        if generate_second_candidate:
+        if generate_proposal_second_candidate:
             refinement_workflow = materialize_and_compare_refinement_candidate(
                 manifest_path=manifest_path,
                 refinement_proposal_path=paths["proposal_out"],
@@ -407,24 +453,50 @@ def run_program_refinement_episode(
             comparison_payload = _safe_mapping(
                 refinement_workflow.get("comparison_sidecar")
             )
-            if generate_promotion_plan:
-                promotion_plan = build_program_promotion_plan(
-                    manifest_path=candidate_manifest_path,
-                    decision_record_path=paths["decision_out"],
-                    comparison_path=paths["comparison_out"],
-                    target=normalized_plan_target,
-                    authority_owner=normalized_plan_owner,
-                    review_path=paths["review_out"],
-                    source_manifest_path=manifest_path,
+        elif generate_gepa_candidate:
+            if gepa_result_resolved is None:
+                raise ProgramRefinementEpisodeError("gepa_result_path is required")
+            gepa_workflow = materialize_and_compare_gepa_refinement_candidate(
+                manifest_path=manifest_path,
+                gepa_result_path=gepa_result_resolved,
+                outdir=paths["gepa_candidate_outdir"],
+                comparison_out_path=paths["comparison_out"],
+                gepa_candidate_result_out=paths["gepa_candidate_result_out"],
+            )
+            candidate_manifest_path = (
+                Path(
+                    str(
+                        _safe_mapping(
+                            _safe_mapping(gepa_workflow.get("generation")).get(
+                                "candidate"
+                            )
+                        ).get("manifest_path")
+                        or ""
+                    )
                 )
-                promotion_plan_payload = write_program_promotion_plan(
-                    promotion_plan,
-                    paths["promotion_plan_out"],
-                )
+                .expanduser()
+                .resolve()
+            )
+            comparison_payload = _safe_mapping(gepa_workflow.get("comparison_sidecar"))
+        if generate_promotion_plan and candidate_manifest_path is not None:
+            promotion_plan = build_program_promotion_plan(
+                manifest_path=candidate_manifest_path,
+                decision_record_path=paths["decision_out"],
+                comparison_path=paths["comparison_out"],
+                target=normalized_plan_target,
+                authority_owner=normalized_plan_owner,
+                review_path=paths["review_out"],
+                source_manifest_path=manifest_path,
+            )
+            promotion_plan_payload = write_program_promotion_plan(
+                promotion_plan,
+                paths["promotion_plan_out"],
+            )
 
         state_manifest_path = (
             candidate_manifest_path
-            if generate_promotion_plan and candidate_manifest_path is not None
+            if (generate_promotion_plan or generate_gepa_candidate)
+            and candidate_manifest_path is not None
             else manifest_path
         )
         state = build_program_candidate_state(
@@ -440,10 +512,13 @@ def run_program_refinement_episode(
             review_path=paths["review_out"],
             decision_record_path=paths["decision_out"],
             comparison_path=paths["comparison_out"]
-            if generate_second_candidate
+            if (generate_proposal_second_candidate or generate_gepa_candidate)
             else None,
             promotion_plan_path=paths["promotion_plan_out"]
             if generate_promotion_plan
+            else None,
+            gepa_refinement_path=gepa_result_resolved
+            if generate_gepa_candidate
             else None,
         )
         state_payload = write_program_candidate_state(state, paths["state_out"])
@@ -456,7 +531,13 @@ def run_program_refinement_episode(
     status = "decision_recorded"
     if generate_promotion_plan:
         status = "local_promotion_plan_written"
-    elif generate_second_candidate:
+    elif generate_gepa_candidate:
+        status = (
+            "gepa_candidate_compared"
+            if comparison_status == "compared"
+            else "gepa_candidate_materialized_with_insufficient_behavior_evidence"
+        )
+    elif generate_proposal_second_candidate:
         status = (
             "second_candidate_compared"
             if comparison_status == "compared"
@@ -504,19 +585,43 @@ def run_program_refinement_episode(
             },
             "second_candidate": {
                 "status": "skipped"
-                if not generate_second_candidate
+                if not generate_proposal_second_candidate
                 else _safe_mapping(refinement_workflow or {}).get("status"),
                 "root_path": str(paths["second_candidate_outdir"])
-                if generate_second_candidate
+                if generate_proposal_second_candidate
                 else None,
                 "manifest_path": str(candidate_manifest_path)
-                if candidate_manifest_path is not None
+                if generate_proposal_second_candidate
+                and candidate_manifest_path is not None
                 else None,
                 "comparison_path": str(paths["comparison_out"])
-                if generate_second_candidate
+                if generate_proposal_second_candidate
                 else None,
                 "comparison_status": comparison_status
-                if generate_second_candidate
+                if generate_proposal_second_candidate
+                else None,
+            },
+            "gepa_candidate": {
+                "status": "skipped"
+                if not generate_gepa_candidate
+                else _safe_mapping(gepa_workflow or {}).get("status"),
+                "gepa_result_path": str(gepa_result_resolved)
+                if generate_gepa_candidate
+                else None,
+                "root_path": str(paths["gepa_candidate_outdir"])
+                if generate_gepa_candidate
+                else None,
+                "manifest_path": str(candidate_manifest_path)
+                if generate_gepa_candidate and candidate_manifest_path is not None
+                else None,
+                "comparison_path": str(paths["comparison_out"])
+                if generate_gepa_candidate
+                else None,
+                "comparison_status": comparison_status
+                if generate_gepa_candidate
+                else None,
+                "candidate_result_path": str(paths["gepa_candidate_result_out"])
+                if generate_gepa_candidate
                 else None,
             },
             "promotion_plan": {
@@ -550,7 +655,16 @@ def run_program_refinement_episode(
             str(paths["proposal_out"]),
             str(paths["review_out"]),
             str(paths["decision_out"]),
-            *([str(paths["comparison_out"])] if generate_second_candidate else []),
+            *(
+                [str(paths["comparison_out"])]
+                if (generate_proposal_second_candidate or generate_gepa_candidate)
+                else []
+            ),
+            *(
+                [str(paths["gepa_candidate_result_out"])]
+                if generate_gepa_candidate
+                else []
+            ),
             *([str(paths["promotion_plan_out"])] if generate_promotion_plan else []),
             str(paths["state_out"]),
         ],
@@ -564,8 +678,11 @@ def run_program_refinement_episode(
             "refinement_proposal_written": True,
             "promotion_review_refined_written": True,
             "decision_record_written": True,
-            "local_second_candidate_generated": generate_second_candidate,
-            "local_comparison_written": generate_second_candidate,
+            "local_second_candidate_generated": generate_proposal_second_candidate,
+            "local_gepa_candidate_generated": generate_gepa_candidate,
+            "local_comparison_written": generate_proposal_second_candidate
+            or generate_gepa_candidate,
+            "gepa_optimizer_output_mutated": False,
             "local_promotion_plan_written": generate_promotion_plan,
             "candidate_state_written": True,
             "workflow_summary_written": False,
@@ -588,13 +705,16 @@ def run_program_refinement_episode(
             "governance_authority": False,
             "promotion_authority": False,
             "local_promotion_plan_only": generate_promotion_plan,
+            "gepa_candidate_evidence_only": generate_gepa_candidate,
+            "gepa_approval": False,
             "oracle_authority": False,
             "winner_selection": False,
             "automatic_promotion": False,
         },
         "notes": [
             "This guided episode composes local non-authoritative refinement sidecars over existing candidate evidence.",
-            "Second-candidate generation is allowed only for an explicit request_more_evidence decision outcome.",
+            "Local candidate generation is allowed only for an explicit request_more_evidence decision outcome.",
+            "A supplied GEPA result materializes one local GEPA-backed candidate and comparison; it is evidence, not approval.",
             "Optional promotion planning is local-only and keeps allowed_for_apply false.",
             "The workflow does not call AK, mutate governance or external authority, select a winner, or apply promotion.",
         ],

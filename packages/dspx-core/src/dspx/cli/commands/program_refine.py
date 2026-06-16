@@ -295,7 +295,22 @@ def episode(
     second_candidate_outdir: Path | None = typer.Option(
         None,
         "--second-candidate-outdir",
-        help="Optional directory where the second candidate assembly is materialized",
+        help="Optional directory where the proposal-derived second candidate assembly is materialized",
+    ),
+    gepa_result: Path | None = typer.Option(
+        None,
+        "--gepa-result",
+        help="Optional ready program-refinement-gepa-result-v1 sidecar to materialize and compare as the episode candidate",
+    ),
+    gepa_candidate_outdir: Path | None = typer.Option(
+        None,
+        "--gepa-candidate-outdir",
+        help="Optional directory where the GEPA-backed candidate assembly is materialized",
+    ),
+    gepa_candidate_result_out: Path | None = typer.Option(
+        None,
+        "--gepa-candidate-result-out",
+        help="Optional path for the GEPA candidate materialization result sidecar",
     ),
     json_out: bool = typer.Option(False, "--json", help="Print workflow JSON"),
 ) -> None:
@@ -325,6 +340,9 @@ def episode(
             promotion_plan_target=promotion_plan_target,
             promotion_plan_authority_owner=promotion_plan_authority_owner,
             promotion_plan_out=promotion_plan_out,
+            gepa_result_path=gepa_result,
+            gepa_candidate_outdir=gepa_candidate_outdir,
+            gepa_candidate_result_out=gepa_candidate_result_out,
         )
     except ProgramRefinementEpisodeError as exc:
         typer.echo(f"Error: {exc}", err=True)
