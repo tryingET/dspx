@@ -325,6 +325,7 @@ def run_program_refinement_episode(
     promotion_plan_target: str | None = None,
     promotion_plan_authority_owner: str | None = None,
     promotion_plan_out: Path | None = None,
+    jury_results_path: Path | None = None,
     model_jury_results_path: Path | None = None,
     gepa_result_path: Path | None = None,
     gepa_candidate_outdir: Path | None = None,
@@ -361,6 +362,11 @@ def run_program_refinement_episode(
     generate_gepa_candidate = gepa_result_path is not None
     generate_proposal_second_candidate = (
         generate_second_candidate and not generate_gepa_candidate
+    )
+    jury_results_resolved = (
+        jury_results_path.expanduser().resolve()
+        if jury_results_path is not None
+        else None
     )
     model_jury_results_resolved = (
         model_jury_results_path.expanduser().resolve()
@@ -417,6 +423,7 @@ def run_program_refinement_episode(
         label: path
         for label, path in {
             "gepa_result": gepa_result_resolved,
+            "jury_results": jury_results_resolved,
             "model_jury_results": model_jury_results_resolved,
         }.items()
         if path is not None
@@ -556,6 +563,7 @@ def run_program_refinement_episode(
             promotion_plan_path=paths["promotion_plan_out"]
             if generate_promotion_plan
             else None,
+            jury_results_path=jury_results_resolved,
             model_jury_results_path=model_jury_results_resolved,
             gepa_refinement_path=gepa_result_resolved
             if generate_gepa_candidate
@@ -591,6 +599,9 @@ def run_program_refinement_episode(
             "manifest_path": str(manifest_path),
             "manifest_schema_version": manifest.get("schema_version"),
             "oracle_report_path": str(oracle_report_path),
+            "jury_results_path": str(jury_results_resolved)
+            if jury_results_resolved is not None
+            else None,
             "model_jury_results_path": str(model_jury_results_resolved)
             if model_jury_results_resolved is not None
             else None,
@@ -617,6 +628,20 @@ def run_program_refinement_episode(
                 "ready_for_adjudicator_review": _safe_mapping(
                     review_payload.get("review_readiness")
                 ).get("ready_for_adjudicator_review"),
+            },
+            "jury_results": {
+                "status": "included"
+                if jury_results_resolved is not None
+                else "skipped",
+                "path": str(jury_results_resolved)
+                if jury_results_resolved is not None
+                else None,
+                "state_evidence_present": _safe_mapping(
+                    _safe_mapping(state_payload.get("promotion_state")).get(
+                        "jury_results"
+                    )
+                ).get("present"),
+                "evidence_only": jury_results_resolved is not None,
             },
             "model_jury_results": {
                 "status": "included"
@@ -778,6 +803,7 @@ def run_program_refinement_episode(
             "Local candidate generation is allowed only for an explicit request_more_evidence decision outcome.",
             "A supplied GEPA result materializes one local GEPA-backed candidate and comparison; it is evidence, not approval.",
             "Optional promotion planning is local-only and keeps allowed_for_apply false.",
+            "Optional local jury results are consumed as deterministic evidence only; they do not approve promotion or activation.",
             "Optional model-jury results are consumed as provider-backed review evidence only; they do not approve promotion or activation.",
             "The workflow does not call AK, mutate governance or external authority, select a winner, or apply promotion.",
         ],

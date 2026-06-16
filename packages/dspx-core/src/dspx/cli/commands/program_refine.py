@@ -292,6 +292,11 @@ def episode(
         "--promotion-plan-out",
         help="Optional explicit path for the local promotion/adjudication plan sidecar",
     ),
+    jury_results: Path | None = typer.Option(
+        None,
+        "--jury-results",
+        help="Optional local deterministic program-jury-results-v1 JSON to consume as evidence only",
+    ),
     model_jury_results: Path | None = typer.Option(
         None,
         "--model-jury-results",
@@ -345,6 +350,7 @@ def episode(
             promotion_plan_target=promotion_plan_target,
             promotion_plan_authority_owner=promotion_plan_authority_owner,
             promotion_plan_out=promotion_plan_out,
+            jury_results_path=jury_results,
             model_jury_results_path=model_jury_results,
             gepa_result_path=gepa_result,
             gepa_candidate_outdir=gepa_candidate_outdir,
