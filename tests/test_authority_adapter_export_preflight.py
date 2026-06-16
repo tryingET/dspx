@@ -678,6 +678,13 @@ def test_agent_kernel_export_preflight_rejects_output_over_protected_or_input_ar
         match="output must not overwrite an input artifact",
     ):
         write_program_external_authority_export_preflight(packet, decision_path)
+    with pytest.raises(
+        ProgramExternalAuthorityExportError,
+        match="output must not be written inside a protected artifact root",
+    ):
+        write_program_external_authority_export_preflight(
+            packet, program_root / "ak-export-preflight.json"
+        )
 
     assert (program_root / "manifest.json").read_bytes() == manifest_before
     assert decision_path.read_bytes() == decision_before

@@ -2184,6 +2184,7 @@ def write_generated_program_activation_packet(
             payload=payload,
             artifact_label="activation packet",
             protected_names=_ACTIVATION_PACKET_PROTECTED_OUTPUT_NAMES,
+            protect_payload_artifact_roots=True,
         )
     except ValueError as exc:
         raise ProgramActivationPacketError(str(exc)) from exc

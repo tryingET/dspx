@@ -43,6 +43,16 @@ def _is_relative_to(path: Path, root: Path) -> bool:
     return True
 
 
+def protected_artifact_roots_from_payload(payload: Mapping[str, Any]) -> set[Path]:
+    """Return generated-artifact roots implied by manifest paths in a payload."""
+
+    roots: set[Path] = set()
+    for path in protected_paths_from_payload(payload):
+        if path.name == "manifest.json":
+            roots.add(path.parent)
+    return roots
+
+
 def prepare_sidecar_output_path(
     out_path: Path,
     *,
@@ -51,12 +61,16 @@ def prepare_sidecar_output_path(
     protected_names: Iterable[str] = PROTECTED_PROGRAM_ARTIFACT_NAMES,
     extra_protected_paths: Iterable[Path] = (),
     extra_protected_roots: Iterable[Path] = (),
+    protect_payload_artifact_roots: bool = False,
+    allowed_names_in_protected_roots: Iterable[str] = (),
 ) -> Path:
     """Resolve and validate a local sidecar output path before writing.
 
     Sidecars summarize or adjudicate generated artifacts. They must not overwrite
     producer/control artifacts, any input path recorded in their own payload, or
-    arbitrary files inside protected generated-artifact roots.
+    arbitrary files inside protected generated-artifact roots. Callers can opt in
+    to deriving protected roots from manifest paths declared in the payload while
+    preserving explicit canonical exceptions such as ``program_candidate_state.json``.
     """
 
     resolved = out_path.expanduser().resolve()
@@ -73,9 +87,14 @@ def prepare_sidecar_output_path(
             f"{artifact_label} output must not overwrite an input artifact: {resolved}"
         )
 
-    for root in extra_protected_roots:
-        protected_root = root.expanduser().resolve()
+    protected_roots = {root.expanduser().resolve() for root in extra_protected_roots}
+    if protect_payload_artifact_roots:
+        protected_roots.update(protected_artifact_roots_from_payload(payload))
+    allowed_root_names = {str(name) for name in allowed_names_in_protected_roots}
+    for protected_root in protected_roots:
         if resolved == protected_root or _is_relative_to(resolved, protected_root):
+            if resolved.name in allowed_root_names:
+                continue
             raise ValueError(
                 f"{artifact_label} output must not be written inside a protected artifact root: {protected_root}"
             )

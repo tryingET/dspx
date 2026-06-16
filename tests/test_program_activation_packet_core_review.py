@@ -479,6 +479,31 @@ def test_program_promote_activation_packet_rejects_output_over_protected_or_inpu
     )
     assert manifest_path.read_bytes() == manifest_before
 
+    root_sidecar_result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(manifest_path),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--out",
+            str(program_root / "activation_packet.json"),
+            "--json",
+        ],
+    )
+    assert root_sidecar_result.exit_code != 0
+    assert (
+        "activation packet output must not be written inside a protected artifact root"
+        in root_sidecar_result.output
+    )
+    assert not (program_root / "activation_packet.json").exists()
+
     model_jury_path = _write_model_jury_results(
         program_root, tmp_path / "promotion" / "provider_jury.json"
     )
