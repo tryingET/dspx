@@ -9,6 +9,10 @@ from dspx.services.program_candidate_state import (
     build_program_candidate_state,
     write_program_candidate_state,
 )
+from dspx.services.program_external_authority_export import (
+    build_program_external_authority_export_preflight,
+    write_program_external_authority_export_preflight,
+)
 from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
     write_program_promotion_decision_record,
@@ -119,6 +123,8 @@ def _default_paths(sidecar_outdir: Path) -> dict[str, Path]:
         "state_out": sidecar_outdir / "program_candidate_state.refinement.json",
         "workflow_out": sidecar_outdir / "program_refinement_episode.json",
         "promotion_plan_out": sidecar_outdir / "promotion_plan.json",
+        "export_preflight_out": sidecar_outdir
+        / "external_authority_export_preflight.json",
         "second_candidate_outdir": sidecar_outdir / "second_candidate",
         "gepa_candidate_outdir": sidecar_outdir / "gepa_candidate",
         "gepa_candidate_result_out": sidecar_outdir / "gepa_candidate_result.json",
@@ -135,6 +141,7 @@ def _resolved_output_paths(
     state_out: Path | None,
     workflow_out: Path | None,
     promotion_plan_out: Path | None,
+    export_preflight_out: Path | None,
     second_candidate_outdir: Path | None,
     gepa_candidate_outdir: Path | None,
     gepa_candidate_result_out: Path | None,
@@ -164,6 +171,9 @@ def _resolved_output_paths(
         "promotion_plan_out": promotion_plan_out.expanduser().resolve()
         if promotion_plan_out is not None
         else defaults["promotion_plan_out"],
+        "export_preflight_out": export_preflight_out.expanduser().resolve()
+        if export_preflight_out is not None
+        else defaults["export_preflight_out"],
         "second_candidate_outdir": second_candidate_outdir.expanduser().resolve()
         if second_candidate_outdir is not None
         else defaults["second_candidate_outdir"],
@@ -197,6 +207,7 @@ def _preflight_distinct_outputs(
     generate_second_candidate: bool,
     generate_gepa_candidate: bool,
     generate_promotion_plan: bool,
+    generate_export_preflight: bool,
     protected_inputs: Mapping[str, Path] | None = None,
 ) -> None:
     labels = [
@@ -212,6 +223,8 @@ def _preflight_distinct_outputs(
         labels.append("gepa_candidate_result_out")
     if generate_promotion_plan:
         labels.append("promotion_plan_out")
+    if generate_export_preflight:
+        labels.append("export_preflight_out")
     seen: dict[Path, str] = {}
     for label in labels:
         target = paths[label].expanduser().resolve()
@@ -327,6 +340,8 @@ def run_program_refinement_episode(
     promotion_plan_out: Path | None = None,
     jury_results_path: Path | None = None,
     model_jury_results_path: Path | None = None,
+    export_preflight_out: Path | None = None,
+    external_ref: str | None = None,
     gepa_result_path: Path | None = None,
     gepa_candidate_outdir: Path | None = None,
     gepa_candidate_result_out: Path | None = None,
@@ -352,6 +367,7 @@ def run_program_refinement_episode(
         state_out=state_out,
         workflow_out=workflow_out,
         promotion_plan_out=promotion_plan_out,
+        export_preflight_out=export_preflight_out,
         second_candidate_outdir=second_candidate_outdir,
         gepa_candidate_outdir=gepa_candidate_outdir,
         gepa_candidate_result_out=gepa_candidate_result_out,
@@ -359,6 +375,8 @@ def run_program_refinement_episode(
     normalized_outcome = str(decision_outcome or "").strip()
     normalized_plan_target = str(promotion_plan_target or "").strip()
     normalized_plan_owner = str(promotion_plan_authority_owner or "").strip()
+    normalized_external_ref = str(external_ref or "").strip()
+    generate_export_preflight = bool(normalized_external_ref or export_preflight_out)
     generate_gepa_candidate = gepa_result_path is not None
     generate_proposal_second_candidate = (
         generate_second_candidate and not generate_gepa_candidate
@@ -419,6 +437,10 @@ def run_program_refinement_episode(
                 "promotion_plan_out must not use a generated program/control artifact name: "
                 f"{paths['promotion_plan_out'].name}"
             )
+    if generate_export_preflight and not normalized_external_ref:
+        raise ProgramRefinementEpisodeError(
+            "external authority export preflight generation requires external_ref"
+        )
     protected_inputs = {
         label: path
         for label, path in {
@@ -434,6 +456,7 @@ def run_program_refinement_episode(
         generate_second_candidate=generate_proposal_second_candidate,
         generate_gepa_candidate=generate_gepa_candidate,
         generate_promotion_plan=generate_promotion_plan,
+        generate_export_preflight=generate_export_preflight,
         protected_inputs=protected_inputs or None,
     )
 
@@ -474,6 +497,7 @@ def run_program_refinement_episode(
         candidate_manifest_path: Path | None = None
         comparison_payload: dict[str, Any] | None = None
         promotion_plan_payload: dict[str, Any] | None = None
+        export_preflight_payload: dict[str, Any] | None = None
         if generate_proposal_second_candidate:
             refinement_workflow = materialize_and_compare_refinement_candidate(
                 manifest_path=manifest_path,
@@ -538,6 +562,21 @@ def run_program_refinement_episode(
                 promotion_plan,
                 paths["promotion_plan_out"],
             )
+        if generate_export_preflight:
+            export_preflight = build_program_external_authority_export_preflight(
+                manifest_path=manifest_path,
+                external_ref=normalized_external_ref,
+                decision_record_path=paths["decision_out"],
+                comparison_path=paths["comparison_out"]
+                if (generate_proposal_second_candidate or generate_gepa_candidate)
+                else None,
+            )
+            export_preflight_payload = (
+                write_program_external_authority_export_preflight(
+                    export_preflight,
+                    paths["export_preflight_out"],
+                )
+            )
 
         state_manifest_path = (
             candidate_manifest_path
@@ -565,6 +604,9 @@ def run_program_refinement_episode(
             else None,
             jury_results_path=jury_results_resolved,
             model_jury_results_path=model_jury_results_resolved,
+            export_preflight_path=paths["export_preflight_out"]
+            if generate_export_preflight
+            else None,
             gepa_refinement_path=gepa_result_resolved
             if generate_gepa_candidate
             else None,
@@ -604,6 +646,12 @@ def run_program_refinement_episode(
             else None,
             "model_jury_results_path": str(model_jury_results_resolved)
             if model_jury_results_resolved is not None
+            else None,
+            "external_ref": normalized_external_ref
+            if generate_export_preflight
+            else None,
+            "export_preflight_path": str(paths["export_preflight_out"])
+            if generate_export_preflight
             else None,
         },
         "source_candidate": {
@@ -661,6 +709,25 @@ def run_program_refinement_episode(
                     )
                 ).get("present"),
                 "evidence_only": model_jury_results_resolved is not None,
+            },
+            "external_authority_export_preflight": {
+                "status": "skipped"
+                if not generate_export_preflight
+                else (export_preflight_payload or {}).get("status"),
+                "path": str(paths["export_preflight_out"])
+                if generate_export_preflight
+                else None,
+                "state_evidence_present": _safe_mapping(
+                    _safe_mapping(state_payload.get("promotion_state")).get(
+                        "external_authority_export_preflight"
+                    )
+                ).get("present"),
+                "ready_for_future_apply": _safe_mapping(
+                    (export_preflight_payload or {}).get("preflight")
+                ).get("ready_for_future_apply")
+                if generate_export_preflight
+                else None,
+                "evidence_only": generate_export_preflight,
             },
             "decision_record": {
                 "status": decision_payload.get("status"),
@@ -753,6 +820,11 @@ def run_program_refinement_episode(
                 else []
             ),
             *([str(paths["promotion_plan_out"])] if generate_promotion_plan else []),
+            *(
+                [str(paths["export_preflight_out"])]
+                if generate_export_preflight
+                else []
+            ),
             str(paths["state_out"]),
         ],
         "workflow_path": str(paths["workflow_out"]),
@@ -771,6 +843,7 @@ def run_program_refinement_episode(
             or generate_gepa_candidate,
             "gepa_optimizer_output_mutated": False,
             "local_promotion_plan_written": generate_promotion_plan,
+            "external_authority_export_preflight_written": generate_export_preflight,
             "candidate_state_written": True,
             "workflow_summary_written": False,
             "source_program_files_mutated": False,
@@ -792,6 +865,7 @@ def run_program_refinement_episode(
             "governance_authority": False,
             "promotion_authority": False,
             "local_promotion_plan_only": generate_promotion_plan,
+            "external_authority_export_preflight_only": generate_export_preflight,
             "gepa_candidate_evidence_only": generate_gepa_candidate,
             "gepa_approval": False,
             "oracle_authority": False,
@@ -805,6 +879,7 @@ def run_program_refinement_episode(
             "Optional promotion planning is local-only and keeps allowed_for_apply false.",
             "Optional local jury results are consumed as deterministic evidence only; they do not approve promotion or activation.",
             "Optional model-jury results are consumed as provider-backed review evidence only; they do not approve promotion or activation.",
+            "Optional external-authority export preflight is consumed as planned-not-applied evidence only; it does not call AK or apply authority.",
             "The workflow does not call AK, mutate governance or external authority, select a winner, or apply promotion.",
         ],
         "paths_relative_to_sidecar_outdir": {

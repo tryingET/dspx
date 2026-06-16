@@ -302,6 +302,16 @@ def episode(
         "--model-jury-results",
         help="Optional provider-backed program-model-jury-results-v1 JSON to consume as local evidence only",
     ),
+    external_ref: str | None = typer.Option(
+        None,
+        "--external-ref",
+        help="Optional opaque external authority ref for local export-preflight generation",
+    ),
+    export_preflight_out: Path | None = typer.Option(
+        None,
+        "--export-preflight-out",
+        help="Optional path for a generated program-external-authority-export-preflight-v1 sidecar",
+    ),
     second_candidate_outdir: Path | None = typer.Option(
         None,
         "--second-candidate-outdir",
@@ -352,6 +362,8 @@ def episode(
             promotion_plan_out=promotion_plan_out,
             jury_results_path=jury_results,
             model_jury_results_path=model_jury_results,
+            export_preflight_out=export_preflight_out,
+            external_ref=external_ref,
             gepa_result_path=gepa_result,
             gepa_candidate_outdir=gepa_candidate_outdir,
             gepa_candidate_result_out=gepa_candidate_result_out,

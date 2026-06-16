@@ -341,6 +341,128 @@ def test_program_refinement_episode_cli_materializes_second_candidate_and_state(
     assert _file_hashes(program_root) == before_source_hashes
 
 
+def test_program_refinement_episode_writes_export_preflight_as_state_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    before_source_hashes = _file_hashes(program_root)
+    outdir = tmp_path / "refinement-episode"
+    preflight_path = outdir / "external_authority_export_preflight.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "episode",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--outdir",
+            str(outdir),
+            "--decision-outcome",
+            "withhold",
+            "--decided-by",
+            "operator-test",
+            "--rationale",
+            "write a local export preflight without applying authority",
+            "--no-generate-second-candidate",
+            "--external-ref",
+            "AK-LOCAL-PREFLIGHT",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload: dict[str, Any] = json.loads(result.stdout)
+    assert payload["status"] == "decision_recorded"
+    assert payload["created_from"]["external_ref"] == "AK-LOCAL-PREFLIGHT"
+    assert payload["created_from"]["export_preflight_path"] == str(
+        preflight_path.resolve()
+    )
+    preflight_step = payload["steps"]["external_authority_export_preflight"]
+    assert preflight_step["status"] in {"ready_not_applied", "incomplete_preflight"}
+    assert preflight_step["path"] == str(preflight_path.resolve())
+    assert preflight_step["state_evidence_present"] is True
+    assert preflight_step["ready_for_future_apply"] is False
+    assert preflight_step["evidence_only"] is True
+    assert payload["effect"]["external_authority_export_preflight_written"] is True
+    assert payload["effect"]["ak_called"] is False
+    assert payload["effect"]["external_authority_mutated"] is False
+    assert payload["non_authority"]["external_authority_export_preflight_only"] is True
+    assert payload["non_authority"]["promotion_authority"] is False
+
+    preflight_payload = json.loads(preflight_path.read_text(encoding="utf-8"))
+    before_preflight_hash = hashlib.sha256(preflight_path.read_bytes()).hexdigest()
+    assert preflight_payload["effect"]["ak_called"] is False
+    assert preflight_payload["effect"]["external_authority_mutated"] is False
+    assert preflight_payload["preflight"]["ready_for_future_apply"] is False
+    assert preflight_payload["created_from"]["decision_record_path"] == str(
+        (outdir / "promotion_decision_record.json").resolve()
+    )
+
+    state = json.loads(
+        (outdir / "program_candidate_state.refinement.json").read_text(encoding="utf-8")
+    )
+    preflight = state["promotion_state"]["external_authority_export_preflight"]
+    assert preflight["present"] is True
+    assert (
+        preflight["schema_version"] == "program-external-authority-export-preflight-v1"
+    )
+    assert preflight["status"] in {"ready_not_applied", "incomplete_preflight"}
+    assert preflight["ak_called"] is False
+    assert preflight["ready_for_future_apply"] is False
+    assert state["truth_summary"]["ak_called"] is False
+    assert state["truth_summary"]["ready_for_future_apply"] is False
+    assert state["artifact_hashes"]["export_preflight_sha256"] == before_preflight_hash
+    assert _file_hashes(program_root) == before_source_hashes
+
+
+def test_program_refinement_episode_rejects_export_preflight_options_before_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "episode-export-preflight-missing-ref"
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="external_ref"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject export preflight output without external ref",
+            generate_second_candidate=False,
+            export_preflight_out=outdir / "export_preflight.json",
+        )
+
+    assert not (outdir / "program_refinement_episode.json").exists()
+
+
+def test_program_refinement_episode_rejects_export_preflight_output_overlap_before_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "episode-export-preflight-overlap"
+    overlap = outdir / "same.json"
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="duplicates sidecar"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject output overwrite of generated state",
+            generate_second_candidate=False,
+            external_ref="AK-LOCAL-PREFLIGHT",
+            export_preflight_out=overlap,
+            state_out=overlap,
+        )
+
+    assert not (outdir / "program_refinement_episode.json").exists()
+
+
 def test_program_refinement_episode_consumes_local_jury_results_as_state_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
