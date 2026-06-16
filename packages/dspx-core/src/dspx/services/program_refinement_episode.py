@@ -441,9 +441,16 @@ def run_program_refinement_episode(
         raise ProgramRefinementEpisodeError(
             "external authority export preflight generation requires external_ref"
         )
+    if generate_export_preflight and (
+        generate_gepa_candidate or generate_promotion_plan
+    ):
+        raise ProgramRefinementEpisodeError(
+            "external authority export preflight is source-candidate scoped; it cannot be combined with --gepa-result or --promotion-plan"
+        )
     protected_inputs = {
         label: path
         for label, path in {
+            "oracle_report": oracle_report_path,
             "gepa_result": gepa_result_resolved,
             "jury_results": jury_results_resolved,
             "model_jury_results": model_jury_results_resolved,

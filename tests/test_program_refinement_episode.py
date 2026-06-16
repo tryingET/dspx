@@ -463,6 +463,64 @@ def test_program_refinement_episode_rejects_export_preflight_output_overlap_befo
     assert not (outdir / "program_refinement_episode.json").exists()
 
 
+def test_program_refinement_episode_rejects_oracle_report_output_overlap_before_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    before_report_hash = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    outdir = tmp_path / "episode-oracle-report-overlap"
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="protected input oracle_report"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject output overwrite of required oracle report input",
+            generate_second_candidate=False,
+            proposal_out=report_path,
+        )
+
+    assert hashlib.sha256(report_path.read_bytes()).hexdigest() == before_report_hash
+    assert not (outdir / "program_refinement_episode.json").exists()
+
+
+def test_program_refinement_episode_rejects_export_preflight_for_generated_state_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="source-candidate scoped"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-export-preflight-gepa",
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="reject source-scoped export preflight for generated candidate state",
+            gepa_result_path=gepa_result,
+            external_ref="AK-LOCAL-PREFLIGHT",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="source-candidate scoped"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-export-preflight-plan",
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="reject source-scoped export preflight for planned candidate state",
+            generate_promotion_plan=True,
+            promotion_plan_target="local_preferred_candidate",
+            promotion_plan_authority_owner="operator-test",
+            external_ref="AK-LOCAL-PREFLIGHT",
+        )
+
+
 def test_program_refinement_episode_consumes_local_jury_results_as_state_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
