@@ -579,6 +579,8 @@ def test_program_refinement_episode_consumes_local_jury_results_as_state_evidenc
         "status": "included",
         "path": str(jury_path.resolve()),
         "state_evidence_present": True,
+        "generated_by_episode": False,
+        "jury_status": None,
         "evidence_only": True,
     }
     assert payload["steps"]["model_jury_results"]["status"] == "skipped"
@@ -598,6 +600,147 @@ def test_program_refinement_episode_consumes_local_jury_results_as_state_evidenc
     assert state["artifact_hashes"]["jury_results_sha256"] == before_jury_hash
     assert _file_hashes(program_root) == before_source_hashes
     assert hashlib.sha256(jury_path.read_bytes()).hexdigest() == before_jury_hash
+
+
+def test_program_refinement_episode_can_generate_local_jury_results_as_state_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    before_source_hashes = _file_hashes(program_root)
+    outdir = tmp_path / "refinement-episode"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "episode",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--outdir",
+            str(outdir),
+            "--decision-outcome",
+            "withhold",
+            "--decided-by",
+            "operator-test",
+            "--rationale",
+            "generate local jury evidence inside the guided episode",
+            "--no-generate-second-candidate",
+            "--run-local-jury",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload: dict[str, Any] = json.loads(result.stdout)
+    jury_path = outdir / "jury_results.json"
+    assert jury_path.exists()
+    jury_payload = json.loads(jury_path.read_text(encoding="utf-8"))
+    assert jury_payload["schema_version"] == "program-jury-results-v1"
+    assert jury_payload["jury"]["execution_mode"] == "local_deterministic"
+    assert jury_payload["jury"]["provider_backed_model_calls"] is False
+    assert jury_payload["effect"]["external_authority_mutated"] is False
+    assert jury_payload["non_authority"]["promotion_authority"] is False
+    assert payload["created_from"]["jury_results_path"] == str(jury_path.resolve())
+    assert payload["created_from"]["jury_results_generated"] is True
+    assert payload["steps"]["jury_results"] == {
+        "status": "generated",
+        "path": str(jury_path.resolve()),
+        "state_evidence_present": True,
+        "generated_by_episode": True,
+        "jury_status": jury_payload["status"],
+        "evidence_only": True,
+    }
+    assert str(jury_path.resolve()) in payload["generated_sidecars"]
+    assert payload["effect"]["local_jury_results_written"] is True
+    assert payload["effect"]["local_jury_provider_called"] is False
+    assert payload["effect"]["winner_selected"] is False
+    assert payload["non_authority"]["local_jury_evidence_only"] is True
+    assert payload["non_authority"]["promotion_authority"] is False
+
+    state = json.loads(
+        (outdir / "program_candidate_state.refinement.json").read_text(encoding="utf-8")
+    )
+    assert state["promotion_state"]["jury_results"]["present"] is True
+    assert (
+        state["artifact_hashes"]["jury_results_sha256"]
+        == hashlib.sha256(jury_path.read_bytes()).hexdigest()
+    )
+    assert _file_hashes(program_root) == before_source_hashes
+
+
+def test_program_refinement_episode_rejects_ambiguous_or_unsafe_local_jury_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    jury_path = _write_local_jury_results(
+        program_root, tmp_path / "promotion" / "jury_results.json"
+    )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="cannot be combined"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-ambiguous-jury",
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject ambiguous generated and supplied jury evidence",
+            generate_second_candidate=False,
+            run_local_jury=True,
+            jury_results_path=jury_path,
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="requires run_local_jury"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-unused-jury-out",
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject inert jury output path",
+            generate_second_candidate=False,
+            jury_results_out=tmp_path / "jury_results.json",
+        )
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="source generated program root"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-jury-inside-source",
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject generated jury output inside the candidate root",
+            generate_second_candidate=False,
+            run_local_jury=True,
+            jury_results_out=program_root / "jury_results.json",
+        )
+    _assert_no_episode_sidecars(tmp_path / "episode-jury-inside-source")
+
+
+def test_program_refinement_episode_rolls_back_generated_local_jury_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "episode-jury-failure"
+    (program_root / "jury.json").write_text('{"schema_version":"tampered"}\n')
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="schema_version"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="rollback stale partial episode sidecars after jury failure",
+            generate_second_candidate=False,
+            run_local_jury=True,
+        )
+
+    _assert_no_episode_sidecars(outdir)
+    assert not (outdir / "jury_results.json").exists()
 
 
 def test_program_refinement_episode_rejects_invalid_local_jury_results(
@@ -852,7 +995,8 @@ def test_program_refinement_episode_can_write_local_promotion_plan(
             "--decided-by",
             "operator-test",
             "--rationale",
-            "collect one bounded second candidate and local plan only",
+            "collect one bounded second candidate, local jury, and local plan only",
+            "--run-local-jury",
             "--promotion-plan",
             "--promotion-plan-target",
             "local_preferred_candidate",
@@ -871,7 +1015,10 @@ def test_program_refinement_episode_can_write_local_promotion_plan(
         "target": "local_preferred_candidate",
         "allowed_for_apply": False,
     }
+    assert payload["steps"]["jury_results"]["status"] == "generated"
+    assert payload["steps"]["jury_results"]["state_evidence_present"] is True
     assert payload["effect"]["local_promotion_plan_written"] is True
+    assert payload["effect"]["local_jury_results_written"] is True
     assert payload["effect"]["promotion_applied"] is False
     assert payload["effect"]["winner_selected"] is False
     assert payload["non_authority"]["local_promotion_plan_only"] is True
@@ -899,6 +1046,7 @@ def test_program_refinement_episode_can_write_local_promotion_plan(
         == candidate_manifest["candidate_assembly"]["candidate_id"]
     )
     assert state["truth_summary"]["promotion_plan_present"] is True
+    assert state["truth_summary"]["jury_results_present"] is True
     assert state["truth_summary"]["oracle_report_present"] is False
     assert state["truth_summary"]["winner_selected"] is False
     assert state["evidence_state"]["oracle_report"]["present"] is False
@@ -906,8 +1054,11 @@ def test_program_refinement_episode_can_write_local_promotion_plan(
     assert state["created_from"]["source_manifest_path"] == str(
         (program_root / "manifest.json").resolve()
     )
+    assert (outdir / "jury_results.json").exists()
     assert not (program_root / "promotion_plan.json").exists()
+    assert not (program_root / "jury_results.json").exists()
     assert not (second_candidate / "promotion_plan.json").exists()
+    assert not (second_candidate / "jury_results.json").exists()
     assert _file_hashes(program_root) == before_source_hashes
 
 

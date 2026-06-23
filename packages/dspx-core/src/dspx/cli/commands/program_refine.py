@@ -297,6 +297,16 @@ def episode(
         "--jury-results",
         help="Optional local deterministic program-jury-results-v1 JSON to consume as evidence only",
     ),
+    run_local_jury: bool = typer.Option(
+        False,
+        "--run-local-jury/--no-run-local-jury",
+        help="Generate one local deterministic jury-results sidecar and consume it as evidence only",
+    ),
+    jury_results_out: Path | None = typer.Option(
+        None,
+        "--jury-results-out",
+        help="Optional output path for --run-local-jury program-jury-results-v1 evidence",
+    ),
     model_jury_results: Path | None = typer.Option(
         None,
         "--model-jury-results",
@@ -361,6 +371,8 @@ def episode(
             promotion_plan_authority_owner=promotion_plan_authority_owner,
             promotion_plan_out=promotion_plan_out,
             jury_results_path=jury_results,
+            run_local_jury=run_local_jury,
+            jury_results_out=jury_results_out,
             model_jury_results_path=model_jury_results,
             export_preflight_out=export_preflight_out,
             external_ref=external_ref,

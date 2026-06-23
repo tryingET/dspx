@@ -13,6 +13,10 @@ from dspx.services.program_external_authority_export import (
     build_program_external_authority_export_preflight,
     write_program_external_authority_export_preflight,
 )
+from dspx.services.program_jury_execution import (
+    build_program_jury_execution_result,
+    write_program_jury_execution_result,
+)
 from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
     write_program_promotion_decision_record,
@@ -107,6 +111,7 @@ def _default_paths(sidecar_outdir: Path) -> dict[str, Path]:
         "comparison_out": sidecar_outdir / "program_candidate_comparison.json",
         "state_out": sidecar_outdir / "program_candidate_state.refinement.json",
         "workflow_out": sidecar_outdir / "program_refinement_episode.json",
+        "jury_results_out": sidecar_outdir / "jury_results.json",
         "promotion_plan_out": sidecar_outdir / "promotion_plan.json",
         "export_preflight_out": sidecar_outdir
         / "external_authority_export_preflight.json",
@@ -125,6 +130,7 @@ def _resolved_output_paths(
     comparison_out: Path | None,
     state_out: Path | None,
     workflow_out: Path | None,
+    jury_results_out: Path | None,
     promotion_plan_out: Path | None,
     export_preflight_out: Path | None,
     second_candidate_outdir: Path | None,
@@ -153,6 +159,9 @@ def _resolved_output_paths(
         "workflow_out": workflow_out.expanduser().resolve()
         if workflow_out is not None
         else defaults["workflow_out"],
+        "jury_results_out": jury_results_out.expanduser().resolve()
+        if jury_results_out is not None
+        else defaults["jury_results_out"],
         "promotion_plan_out": promotion_plan_out.expanduser().resolve()
         if promotion_plan_out is not None
         else defaults["promotion_plan_out"],
@@ -189,6 +198,7 @@ def _episode_sidecar_output_labels(
     *,
     generate_second_candidate: bool,
     generate_gepa_candidate: bool,
+    generate_local_jury: bool,
     generate_promotion_plan: bool,
     generate_export_preflight: bool,
 ) -> list[str]:
@@ -203,6 +213,8 @@ def _episode_sidecar_output_labels(
         labels.append("comparison_out")
     if generate_gepa_candidate:
         labels.append("gepa_candidate_result_out")
+    if generate_local_jury:
+        labels.append("jury_results_out")
     if generate_promotion_plan:
         labels.append("promotion_plan_out")
     if generate_export_preflight:
@@ -216,6 +228,7 @@ def _preflight_distinct_outputs(
     paths: Mapping[str, Path],
     generate_second_candidate: bool,
     generate_gepa_candidate: bool,
+    generate_local_jury: bool,
     generate_promotion_plan: bool,
     generate_export_preflight: bool,
     protected_inputs: Mapping[str, Path] | None = None,
@@ -223,6 +236,7 @@ def _preflight_distinct_outputs(
     labels = _episode_sidecar_output_labels(
         generate_second_candidate=generate_second_candidate,
         generate_gepa_candidate=generate_gepa_candidate,
+        generate_local_jury=generate_local_jury,
         generate_promotion_plan=generate_promotion_plan,
         generate_export_preflight=generate_export_preflight,
     )
@@ -364,6 +378,8 @@ def run_program_refinement_episode(
     promotion_plan_authority_owner: str | None = None,
     promotion_plan_out: Path | None = None,
     jury_results_path: Path | None = None,
+    run_local_jury: bool = False,
+    jury_results_out: Path | None = None,
     model_jury_results_path: Path | None = None,
     export_preflight_out: Path | None = None,
     external_ref: str | None = None,
@@ -392,6 +408,7 @@ def run_program_refinement_episode(
         state_out=state_out,
         workflow_out=workflow_out,
         promotion_plan_out=promotion_plan_out,
+        jury_results_out=jury_results_out,
         export_preflight_out=export_preflight_out,
         second_candidate_outdir=second_candidate_outdir,
         gepa_candidate_outdir=gepa_candidate_outdir,
@@ -403,6 +420,7 @@ def run_program_refinement_episode(
     normalized_external_ref = str(external_ref or "").strip()
     generate_export_preflight = bool(normalized_external_ref or export_preflight_out)
     generate_gepa_candidate = gepa_result_path is not None
+    generate_local_jury = bool(run_local_jury)
     generate_proposal_second_candidate = (
         generate_second_candidate and not generate_gepa_candidate
     )
@@ -421,6 +439,12 @@ def run_program_refinement_episode(
         if gepa_result_path is not None
         else None
     )
+    if generate_local_jury and jury_results_resolved is not None:
+        raise ProgramRefinementEpisodeError(
+            "run_local_jury cannot be combined with --jury-results; pass either an existing jury sidecar or request one generated sidecar"
+        )
+    if jury_results_out is not None and not generate_local_jury:
+        raise ProgramRefinementEpisodeError("jury_results_out requires run_local_jury")
     if generate_gepa_candidate and second_candidate_outdir is not None:
         raise ProgramRefinementEpisodeError(
             "second_candidate_outdir cannot be combined with --gepa-result; "
@@ -487,6 +511,7 @@ def run_program_refinement_episode(
         paths=paths,
         generate_second_candidate=generate_proposal_second_candidate,
         generate_gepa_candidate=generate_gepa_candidate,
+        generate_local_jury=generate_local_jury,
         generate_promotion_plan=generate_promotion_plan,
         generate_export_preflight=generate_export_preflight,
         protected_inputs=protected_inputs or None,
@@ -498,6 +523,7 @@ def run_program_refinement_episode(
             for label in _episode_sidecar_output_labels(
                 generate_second_candidate=generate_proposal_second_candidate,
                 generate_gepa_candidate=generate_gepa_candidate,
+                generate_local_jury=generate_local_jury,
                 generate_promotion_plan=generate_promotion_plan,
                 generate_export_preflight=generate_export_preflight,
             )
@@ -542,6 +568,26 @@ def run_program_refinement_episode(
         comparison_payload: dict[str, Any] | None = None
         promotion_plan_payload: dict[str, Any] | None = None
         export_preflight_payload: dict[str, Any] | None = None
+        generated_jury_payload: dict[str, Any] | None = None
+        effective_jury_results_path = jury_results_resolved
+        if generate_local_jury:
+            generated_jury = build_program_jury_execution_result(
+                manifest_path=manifest_path
+            )
+            try:
+                jury_target = prepare_sidecar_output_path(
+                    paths["jury_results_out"],
+                    payload=generated_jury,
+                    artifact_label="program refinement episode local jury results",
+                    payload_artifact_root_policy="forbid",
+                )
+            except ValueError as exc:
+                raise ProgramRefinementEpisodeError(str(exc)) from exc
+            generated_jury_payload = write_program_jury_execution_result(
+                generated_jury,
+                jury_target,
+            )
+            effective_jury_results_path = jury_target
         if generate_proposal_second_candidate:
             refinement_workflow = materialize_and_compare_refinement_candidate(
                 manifest_path=manifest_path,
@@ -646,7 +692,7 @@ def run_program_refinement_episode(
             promotion_plan_path=paths["promotion_plan_out"]
             if generate_promotion_plan
             else None,
-            jury_results_path=jury_results_resolved,
+            jury_results_path=effective_jury_results_path,
             model_jury_results_path=model_jury_results_resolved,
             export_preflight_path=paths["export_preflight_out"]
             if generate_export_preflight
@@ -686,9 +732,10 @@ def run_program_refinement_episode(
             "manifest_path": str(manifest_path),
             "manifest_schema_version": manifest.get("schema_version"),
             "oracle_report_path": str(oracle_report_path),
-            "jury_results_path": str(jury_results_resolved)
-            if jury_results_resolved is not None
+            "jury_results_path": str(effective_jury_results_path)
+            if effective_jury_results_path is not None
             else None,
+            "jury_results_generated": generate_local_jury,
             "model_jury_results_path": str(model_jury_results_resolved)
             if model_jury_results_resolved is not None
             else None,
@@ -723,18 +770,22 @@ def run_program_refinement_episode(
                 ).get("ready_for_adjudicator_review"),
             },
             "jury_results": {
-                "status": "included"
-                if jury_results_resolved is not None
-                else "skipped",
-                "path": str(jury_results_resolved)
-                if jury_results_resolved is not None
+                "status": "generated"
+                if generate_local_jury
+                else (
+                    "included" if effective_jury_results_path is not None else "skipped"
+                ),
+                "path": str(effective_jury_results_path)
+                if effective_jury_results_path is not None
                 else None,
                 "state_evidence_present": _safe_mapping(
                     _safe_mapping(state_payload.get("promotion_state")).get(
                         "jury_results"
                     )
                 ).get("present"),
-                "evidence_only": jury_results_resolved is not None,
+                "generated_by_episode": generate_local_jury,
+                "jury_status": (generated_jury_payload or {}).get("status"),
+                "evidence_only": effective_jury_results_path is not None,
             },
             "model_jury_results": {
                 "status": "included"
@@ -864,6 +915,7 @@ def run_program_refinement_episode(
                 if generate_gepa_candidate
                 else []
             ),
+            *([str(paths["jury_results_out"])] if generate_local_jury else []),
             *([str(paths["promotion_plan_out"])] if generate_promotion_plan else []),
             *(
                 [str(paths["export_preflight_out"])]
@@ -886,6 +938,8 @@ def run_program_refinement_episode(
             "local_gepa_candidate_generated": generate_gepa_candidate,
             "local_comparison_written": generate_proposal_second_candidate
             or generate_gepa_candidate,
+            "local_jury_results_written": generate_local_jury,
+            "local_jury_provider_called": False,
             "gepa_optimizer_output_mutated": False,
             "local_promotion_plan_written": generate_promotion_plan,
             "external_authority_export_preflight_written": generate_export_preflight,
@@ -910,6 +964,7 @@ def run_program_refinement_episode(
             "governance_authority": False,
             "promotion_authority": False,
             "local_promotion_plan_only": generate_promotion_plan,
+            "local_jury_evidence_only": generate_local_jury,
             "external_authority_export_preflight_only": generate_export_preflight,
             "gepa_candidate_evidence_only": generate_gepa_candidate,
             "gepa_approval": False,
@@ -922,7 +977,7 @@ def run_program_refinement_episode(
             "Local candidate generation is allowed only for an explicit request_more_evidence decision outcome.",
             "A supplied GEPA result materializes one local GEPA-backed candidate and comparison; it is evidence, not approval.",
             "Optional promotion planning is local-only and keeps allowed_for_apply false.",
-            "Optional local jury results are consumed as deterministic evidence only; they do not approve promotion or activation.",
+            "Optional local jury results are generated or consumed as deterministic evidence only; they do not approve promotion or activation.",
             "Optional model-jury results are consumed as provider-backed review evidence only; they do not approve promotion or activation.",
             "Optional external-authority export preflight is consumed as planned-not-applied evidence only; it does not call AK or apply authority.",
             "The workflow does not call AK, mutate governance or external authority, select a winner, or apply promotion.",
