@@ -1183,6 +1183,11 @@ def status(
         "--export-preflight",
         help="Optional program-external-authority-export-preflight-v1 JSON",
     ),
+    meta_adjudication_plan: Path | None = typer.Option(
+        None,
+        "--meta-adjudication-plan",
+        help="Optional program-meta-adjudication-plan-v1 JSON",
+    ),
     activation_packet: Path | None = typer.Option(
         None,
         "--activation-packet",
@@ -1236,6 +1241,7 @@ def status(
             comparison_path=comparison,
             promotion_plan_path=promotion_plan,
             export_preflight_path=export_preflight,
+            meta_adjudication_plan_path=meta_adjudication_plan,
             activation_packet_path=activation_packet,
             oracle_publication_receipt_path=oracle_publication_receipt,
             generation_gate_preflight_path=generation_gate_preflight,

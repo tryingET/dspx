@@ -27,6 +27,7 @@ PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
 PROGRAM_PROMOTION_PLAN_SCHEMA = "program-promotion-plan-v1"
+PROGRAM_META_ADJUDICATION_PLAN_SCHEMA = "program-meta-adjudication-plan-v1"
 PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA = (
     "program-external-authority-export-preflight-v1"
 )
@@ -423,6 +424,7 @@ def _validate_optional_inputs(
     comparison: Mapping[str, Any] | None,
     promotion_plan: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
+    meta_adjudication_plan: Mapping[str, Any] | None,
     activation_packet: Mapping[str, Any] | None,
     oracle_publication_receipt: Mapping[str, Any] | None,
     gepa_refinement: Mapping[str, Any] | None,
@@ -746,6 +748,61 @@ def _validate_optional_inputs(
             decision_hash=sidecar_hashes.get("decision_record"),
             comparison_hash=comparison_hash,
         )
+
+    if meta_adjudication_plan is not None:
+        if meta_adjudication_plan.get("status") != "planned_not_executed":
+            raise ProgramCandidateStateError(
+                "meta-adjudication plan must be planned_not_executed"
+            )
+        if (
+            meta_adjudication_plan.get("lifecycle_state")
+            != "meta_adjudication_plan_ready"
+        ):
+            raise ProgramCandidateStateError(
+                "meta-adjudication plan lifecycle_state must be meta_adjudication_plan_ready"
+            )
+        _validate_non_authority_false(
+            meta_adjudication_plan,
+            label="meta-adjudication plan",
+            keys=(
+                "activation_authority",
+                "promotion_authority",
+                "oracle_authority",
+                "governance_authority",
+                "external_authority",
+                "external_mutation",
+            ),
+        )
+        effect = _safe_mapping(meta_adjudication_plan.get("effect"))
+        for key in (
+            "candidate_files_mutated",
+            "canonical_target_mutated",
+            "ak_mutated",
+            "governance_mutated",
+            "oracle_index_mutated",
+            "shared_oracle_mutated",
+            "provider_called",
+        ):
+            if effect.get(key) is not False:
+                raise ProgramCandidateStateError(
+                    f"meta-adjudication plan must record {key} false"
+                )
+        meta_identity = _safe_mapping(meta_adjudication_plan.get("identity"))
+        if not any(
+            _identity_exactly_matches(meta_identity, item)
+            for item in source_or_candidate
+        ):
+            raise ProgramCandidateStateError(
+                "meta-adjudication plan identity does not match candidate/source identity"
+            )
+        meta_manifest = _safe_mapping(meta_adjudication_plan.get("manifest"))
+        valid_manifest_hashes = {current_manifest_hash}
+        if source_manifest_hash is not None:
+            valid_manifest_hashes.add(source_manifest_hash)
+        if meta_manifest.get("sha256") not in valid_manifest_hashes:
+            raise ProgramCandidateStateError(
+                "meta-adjudication plan manifest sha256 does not match candidate/source manifest"
+            )
 
     if activation_packet is not None:
         if activation_packet.get("status") not in {
@@ -1133,6 +1190,40 @@ def _export_preflight_summary(preflight: Mapping[str, Any] | None) -> dict[str, 
     }
 
 
+def _meta_adjudication_plan_summary(
+    plan: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if plan is None:
+        return {"present": False, "status": "missing"}
+    sidecars = _safe_mapping(plan.get("sidecars"))
+    present_sidecars = sorted(
+        key
+        for key, value in sidecars.items()
+        if isinstance(value, Mapping) and value.get("present") is True
+    )
+    return {
+        "present": True,
+        "schema_version": plan.get("schema_version"),
+        "status": plan.get("status"),
+        "lifecycle_state": plan.get("lifecycle_state"),
+        "authority": plan.get("authority"),
+        "missing_evidence": _string_list(plan.get("missing_evidence")),
+        "next_command_count": len(_safe_list(plan.get("next_commands"))),
+        "present_sidecars": present_sidecars,
+        "provider_called": _safe_mapping(plan.get("effect")).get("provider_called")
+        is True,
+        "ak_mutated": _safe_mapping(plan.get("effect")).get("ak_mutated") is True,
+        "promotion_authority": _safe_mapping(plan.get("non_authority")).get(
+            "promotion_authority"
+        )
+        is True,
+        "activation_authority": _safe_mapping(plan.get("non_authority")).get(
+            "activation_authority"
+        )
+        is True,
+    }
+
+
 def _activation_packet_summary(packet: Mapping[str, Any] | None) -> dict[str, Any]:
     if packet is None:
         return {"present": False, "status": "missing"}
@@ -1443,6 +1534,7 @@ def build_program_candidate_state(
     comparison_path: Path | None = None,
     promotion_plan_path: Path | None = None,
     export_preflight_path: Path | None = None,
+    meta_adjudication_plan_path: Path | None = None,
     activation_packet_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
     generation_gate_preflight_path: Path | None = None,
@@ -1533,6 +1625,13 @@ def build_program_candidate_state(
             schema=PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA,
         )
     )
+    meta_adjudication_plan, meta_adjudication_plan_file, meta_adjudication_plan_hash = (
+        _load_optional_artifact(
+            meta_adjudication_plan_path,
+            label="meta-adjudication plan",
+            schema=PROGRAM_META_ADJUDICATION_PLAN_SCHEMA,
+        )
+    )
     activation_packet, activation_packet_file, activation_packet_hash = (
         _load_optional_artifact(
             activation_packet_path,
@@ -1608,6 +1707,7 @@ def build_program_candidate_state(
         comparison=comparison,
         promotion_plan=promotion_plan,
         export_preflight=export_preflight,
+        meta_adjudication_plan=meta_adjudication_plan,
         activation_packet=activation_packet,
         oracle_publication_receipt=oracle_publication_receipt,
         gepa_refinement=gepa_refinement,
@@ -1640,6 +1740,7 @@ def build_program_candidate_state(
         "comparison_sha256": comparison_hash,
         "promotion_plan_sha256": promotion_plan_hash,
         "export_preflight_sha256": export_preflight_hash,
+        "meta_adjudication_plan_sha256": meta_adjudication_plan_hash,
         "activation_packet_sha256": activation_packet_hash,
         "oracle_publication_receipt_sha256": oracle_publication_receipt_hash,
         "generation_gate_preflight_sha256": generation_gate_preflight_hash,
@@ -1709,6 +1810,9 @@ def build_program_candidate_state(
             else None,
             "export_preflight_path": str(export_preflight_file)
             if export_preflight_file is not None
+            else None,
+            "meta_adjudication_plan_path": str(meta_adjudication_plan_file)
+            if meta_adjudication_plan_file is not None
             else None,
             "activation_packet_path": str(activation_packet_file)
             if activation_packet_file is not None
@@ -1799,6 +1903,9 @@ def build_program_candidate_state(
             "external_authority_export_preflight": _export_preflight_summary(
                 export_preflight
             ),
+            "meta_adjudication_plan": _meta_adjudication_plan_summary(
+                meta_adjudication_plan
+            ),
             "activation_packet": _activation_packet_summary(activation_packet),
         },
         "truth_summary": {
@@ -1813,6 +1920,7 @@ def build_program_candidate_state(
             "comparison_present": comparison is not None,
             "promotion_plan_present": promotion_plan is not None,
             "external_authority_preflight_present": export_preflight is not None,
+            "meta_adjudication_plan_present": meta_adjudication_plan is not None,
             "activation_packet_present": activation_packet is not None,
             "oracle_publication_ref_present": oracle_publication_receipt is not None,
             "target_fidelity_evidence_present": generation_fitness_results is not None,

@@ -28,6 +28,10 @@ from dspx.services.program_jury_execution import (
     build_program_jury_execution_result,
     write_program_jury_execution_result,
 )
+from dspx.services.program_meta_adjudication import (
+    build_program_meta_adjudication_plan,
+    write_program_meta_adjudication_plan,
+)
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication import (
     publish_program_oracle_preflight,
@@ -489,6 +493,19 @@ def _materialize_candidate_state_inputs(
         export_preflight_path,
     )
 
+    meta_adjudication_plan = build_program_meta_adjudication_plan(
+        manifest_path=source_root / "manifest.json",
+        oracle_report_path=oracle_report_path,
+        jury_results_path=jury_results_path,
+        review_path=review_path,
+        decision_record_path=decision_path,
+    )
+    meta_adjudication_plan_path = tmp_path / "promotion" / "meta_adjudication_plan.json"
+    write_program_meta_adjudication_plan(
+        meta_adjudication_plan,
+        meta_adjudication_plan_path,
+    )
+
     paths = {
         "oracle_report": oracle_report_path,
         "proposal": proposal_path,
@@ -500,6 +517,7 @@ def _materialize_candidate_state_inputs(
         "gepa_refinement": gepa_refinement_path,
         "promotion_plan": promotion_plan_path,
         "export_preflight": export_preflight_path,
+        "meta_adjudication_plan": meta_adjudication_plan_path,
         "index": index_path,
     }
     return source_root, candidate_root, paths
@@ -556,6 +574,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["promotion_plan"]),
             "--export-preflight",
             str(paths["export_preflight"]),
+            "--meta-adjudication-plan",
+            str(paths["meta_adjudication_plan"]),
             "--out",
             str(out_path),
             "--json",
@@ -611,12 +631,19 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         payload["artifact_hashes"]["export_preflight_sha256"]
         == before_sidecars["export_preflight"]
     )
+    assert (
+        payload["artifact_hashes"]["meta_adjudication_plan_sha256"]
+        == before_sidecars["meta_adjudication_plan"]
+    )
 
     assert payload["created_from"]["behavior_episode_path"] == str(
         (candidate_root / "behavior_episode.json").resolve()
     )
     assert payload["created_from"]["model_jury_results_path"] == str(
         paths["model_jury_results"].resolve()
+    )
+    assert payload["created_from"]["meta_adjudication_plan_path"] == str(
+        paths["meta_adjudication_plan"].resolve()
     )
 
     evidence = payload["evidence_state"]
@@ -726,6 +753,15 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         is False
     )
     assert promotion["external_authority_export_preflight"]["blocking_reasons"] == []
+    assert promotion["meta_adjudication_plan"]["present"] is True
+    assert promotion["meta_adjudication_plan"]["status"] == "planned_not_executed"
+    assert promotion["meta_adjudication_plan"]["lifecycle_state"] == (
+        "meta_adjudication_plan_ready"
+    )
+    assert promotion["meta_adjudication_plan"]["provider_called"] is False
+    assert promotion["meta_adjudication_plan"]["ak_mutated"] is False
+    assert promotion["meta_adjudication_plan"]["promotion_authority"] is False
+    assert "jury_results" in promotion["meta_adjudication_plan"]["present_sidecars"]
     assert (
         "external_apply_not_implemented"
         in promotion["external_authority_export_preflight"][
@@ -744,6 +780,7 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert truth["comparison_present"] is True
     assert truth["promotion_plan_present"] is True
     assert truth["external_authority_preflight_present"] is True
+    assert truth["meta_adjudication_plan_present"] is True
     assert truth["gepa_refinement_present"] is True
     assert truth["gepa_output_ready_for_future_candidate_materializer"] is True
     assert truth["promotion_applied"] is False
@@ -810,6 +847,8 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
             str(paths["promotion_plan"]),
             "--export-preflight",
             str(paths["export_preflight"]),
+            "--meta-adjudication-plan",
+            str(paths["meta_adjudication_plan"]),
             "--out",
             str(second),
             "--json",
@@ -1102,6 +1141,86 @@ def test_program_candidate_state_rejects_activation_packet_missing_supplied_evid
             manifest_path=source_root / "manifest.json",
             oracle_report_path=paths["oracle_report"],
             activation_packet_path=activation_path,
+        )
+
+
+def test_program_candidate_state_rejects_meta_adjudication_plan_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_plan = json.loads(paths["meta_adjudication_plan"].read_text(encoding="utf-8"))
+    bad_plan["identity"] = {**bad_plan["identity"], "candidate_id": "wrong"}
+    bad_path = tmp_path / "promotion" / "bad_meta_adjudication_plan.json"
+    _write_json(bad_path, bad_plan)
+
+    with pytest.raises(
+        ProgramCandidateStateError, match="meta-adjudication plan identity"
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            meta_adjudication_plan_path=bad_path,
+        )
+
+
+def test_program_candidate_state_rejects_meta_adjudication_plan_authority_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_plan = json.loads(paths["meta_adjudication_plan"].read_text(encoding="utf-8"))
+    bad_plan["non_authority"] = {
+        **bad_plan["non_authority"],
+        "promotion_authority": True,
+    }
+    bad_path = tmp_path / "promotion" / "bad_meta_authority.json"
+    _write_json(bad_path, bad_plan)
+
+    with pytest.raises(ProgramCandidateStateError, match="meta-adjudication plan"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            meta_adjudication_plan_path=bad_path,
+        )
+
+    bad_plan = json.loads(paths["meta_adjudication_plan"].read_text(encoding="utf-8"))
+    bad_plan["effect"] = {**bad_plan["effect"], "provider_called": True}
+    bad_path = tmp_path / "promotion" / "bad_meta_effect.json"
+    _write_json(bad_path, bad_plan)
+
+    with pytest.raises(ProgramCandidateStateError, match="provider_called false"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            meta_adjudication_plan_path=bad_path,
+        )
+
+
+def test_program_candidate_state_rejects_meta_adjudication_plan_stale_manifest_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_plan = json.loads(paths["meta_adjudication_plan"].read_text(encoding="utf-8"))
+    bad_plan["manifest"] = {**bad_plan["manifest"], "sha256": "0" * 64}
+    bad_path = tmp_path / "promotion" / "bad_meta_manifest_hash.json"
+    _write_json(bad_path, bad_plan)
+
+    with pytest.raises(ProgramCandidateStateError, match="manifest sha256"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            meta_adjudication_plan_path=bad_path,
         )
 
 
