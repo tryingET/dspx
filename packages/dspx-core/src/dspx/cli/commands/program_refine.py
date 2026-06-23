@@ -307,6 +307,16 @@ def episode(
         "--jury-results-out",
         help="Optional output path for --run-local-jury program-jury-results-v1 evidence",
     ),
+    meta_adjudication_plan: bool = typer.Option(
+        False,
+        "--meta-adjudication-plan/--no-meta-adjudication-plan",
+        help="Optionally write a local non-authoritative meta-adjudication plan over source-candidate episode evidence",
+    ),
+    meta_adjudication_plan_out: Path | None = typer.Option(
+        None,
+        "--meta-adjudication-plan-out",
+        help="Optional output path for --meta-adjudication-plan program-meta-adjudication-plan-v1 evidence",
+    ),
     model_jury_results: Path | None = typer.Option(
         None,
         "--model-jury-results",
@@ -373,6 +383,8 @@ def episode(
             jury_results_path=jury_results,
             run_local_jury=run_local_jury,
             jury_results_out=jury_results_out,
+            generate_meta_adjudication_plan=meta_adjudication_plan,
+            meta_adjudication_plan_out=meta_adjudication_plan_out,
             model_jury_results_path=model_jury_results,
             export_preflight_out=export_preflight_out,
             external_ref=external_ref,

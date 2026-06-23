@@ -17,6 +17,10 @@ from dspx.services.program_jury_execution import (
     build_program_jury_execution_result,
     write_program_jury_execution_result,
 )
+from dspx.services.program_meta_adjudication import (
+    build_program_meta_adjudication_plan,
+    write_program_meta_adjudication_plan,
+)
 from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
     write_program_promotion_decision_record,
@@ -112,6 +116,7 @@ def _default_paths(sidecar_outdir: Path) -> dict[str, Path]:
         "state_out": sidecar_outdir / "program_candidate_state.refinement.json",
         "workflow_out": sidecar_outdir / "program_refinement_episode.json",
         "jury_results_out": sidecar_outdir / "jury_results.json",
+        "meta_adjudication_plan_out": sidecar_outdir / "meta_adjudication_plan.json",
         "promotion_plan_out": sidecar_outdir / "promotion_plan.json",
         "export_preflight_out": sidecar_outdir
         / "external_authority_export_preflight.json",
@@ -131,6 +136,7 @@ def _resolved_output_paths(
     state_out: Path | None,
     workflow_out: Path | None,
     jury_results_out: Path | None,
+    meta_adjudication_plan_out: Path | None,
     promotion_plan_out: Path | None,
     export_preflight_out: Path | None,
     second_candidate_outdir: Path | None,
@@ -162,6 +168,9 @@ def _resolved_output_paths(
         "jury_results_out": jury_results_out.expanduser().resolve()
         if jury_results_out is not None
         else defaults["jury_results_out"],
+        "meta_adjudication_plan_out": meta_adjudication_plan_out.expanduser().resolve()
+        if meta_adjudication_plan_out is not None
+        else defaults["meta_adjudication_plan_out"],
         "promotion_plan_out": promotion_plan_out.expanduser().resolve()
         if promotion_plan_out is not None
         else defaults["promotion_plan_out"],
@@ -199,6 +208,7 @@ def _episode_sidecar_output_labels(
     generate_second_candidate: bool,
     generate_gepa_candidate: bool,
     generate_local_jury: bool,
+    generate_meta_adjudication_plan: bool,
     generate_promotion_plan: bool,
     generate_export_preflight: bool,
 ) -> list[str]:
@@ -215,6 +225,8 @@ def _episode_sidecar_output_labels(
         labels.append("gepa_candidate_result_out")
     if generate_local_jury:
         labels.append("jury_results_out")
+    if generate_meta_adjudication_plan:
+        labels.append("meta_adjudication_plan_out")
     if generate_promotion_plan:
         labels.append("promotion_plan_out")
     if generate_export_preflight:
@@ -229,6 +241,7 @@ def _preflight_distinct_outputs(
     generate_second_candidate: bool,
     generate_gepa_candidate: bool,
     generate_local_jury: bool,
+    generate_meta_adjudication_plan: bool,
     generate_promotion_plan: bool,
     generate_export_preflight: bool,
     protected_inputs: Mapping[str, Path] | None = None,
@@ -237,6 +250,7 @@ def _preflight_distinct_outputs(
         generate_second_candidate=generate_second_candidate,
         generate_gepa_candidate=generate_gepa_candidate,
         generate_local_jury=generate_local_jury,
+        generate_meta_adjudication_plan=generate_meta_adjudication_plan,
         generate_promotion_plan=generate_promotion_plan,
         generate_export_preflight=generate_export_preflight,
     )
@@ -380,6 +394,8 @@ def run_program_refinement_episode(
     jury_results_path: Path | None = None,
     run_local_jury: bool = False,
     jury_results_out: Path | None = None,
+    generate_meta_adjudication_plan: bool = False,
+    meta_adjudication_plan_out: Path | None = None,
     model_jury_results_path: Path | None = None,
     export_preflight_out: Path | None = None,
     external_ref: str | None = None,
@@ -409,6 +425,7 @@ def run_program_refinement_episode(
         workflow_out=workflow_out,
         promotion_plan_out=promotion_plan_out,
         jury_results_out=jury_results_out,
+        meta_adjudication_plan_out=meta_adjudication_plan_out,
         export_preflight_out=export_preflight_out,
         second_candidate_outdir=second_candidate_outdir,
         gepa_candidate_outdir=gepa_candidate_outdir,
@@ -445,6 +462,16 @@ def run_program_refinement_episode(
         )
     if jury_results_out is not None and not generate_local_jury:
         raise ProgramRefinementEpisodeError("jury_results_out requires run_local_jury")
+    if meta_adjudication_plan_out is not None and not generate_meta_adjudication_plan:
+        raise ProgramRefinementEpisodeError(
+            "meta_adjudication_plan_out requires generate_meta_adjudication_plan"
+        )
+    if generate_meta_adjudication_plan and (
+        generate_gepa_candidate or generate_promotion_plan
+    ):
+        raise ProgramRefinementEpisodeError(
+            "meta-adjudication plan generation is source-candidate scoped; it cannot be combined with --gepa-result or --promotion-plan"
+        )
     if generate_gepa_candidate and second_candidate_outdir is not None:
         raise ProgramRefinementEpisodeError(
             "second_candidate_outdir cannot be combined with --gepa-result; "
@@ -512,6 +539,7 @@ def run_program_refinement_episode(
         generate_second_candidate=generate_proposal_second_candidate,
         generate_gepa_candidate=generate_gepa_candidate,
         generate_local_jury=generate_local_jury,
+        generate_meta_adjudication_plan=generate_meta_adjudication_plan,
         generate_promotion_plan=generate_promotion_plan,
         generate_export_preflight=generate_export_preflight,
         protected_inputs=protected_inputs or None,
@@ -524,6 +552,7 @@ def run_program_refinement_episode(
                 generate_second_candidate=generate_proposal_second_candidate,
                 generate_gepa_candidate=generate_gepa_candidate,
                 generate_local_jury=generate_local_jury,
+                generate_meta_adjudication_plan=generate_meta_adjudication_plan,
                 generate_promotion_plan=generate_promotion_plan,
                 generate_export_preflight=generate_export_preflight,
             )
@@ -568,6 +597,7 @@ def run_program_refinement_episode(
         comparison_payload: dict[str, Any] | None = None
         promotion_plan_payload: dict[str, Any] | None = None
         export_preflight_payload: dict[str, Any] | None = None
+        meta_adjudication_plan_payload: dict[str, Any] | None = None
         generated_jury_payload: dict[str, Any] | None = None
         effective_jury_results_path = jury_results_resolved
         if generate_local_jury:
@@ -667,6 +697,27 @@ def run_program_refinement_episode(
                     paths["export_preflight_out"],
                 )
             )
+        if generate_meta_adjudication_plan:
+            meta_plan = build_program_meta_adjudication_plan(
+                manifest_path=manifest_path,
+                oracle_report_path=oracle_report_path,
+                jury_results_path=effective_jury_results_path,
+                review_path=paths["review_out"],
+                decision_record_path=paths["decision_out"],
+            )
+            try:
+                meta_plan_target = prepare_sidecar_output_path(
+                    paths["meta_adjudication_plan_out"],
+                    payload=meta_plan,
+                    artifact_label="program refinement episode meta-adjudication plan",
+                    payload_artifact_root_policy="forbid",
+                )
+            except ValueError as exc:
+                raise ProgramRefinementEpisodeError(str(exc)) from exc
+            meta_adjudication_plan_payload = write_program_meta_adjudication_plan(
+                meta_plan,
+                meta_plan_target,
+            )
 
         state_manifest_path = (
             candidate_manifest_path
@@ -744,6 +795,9 @@ def run_program_refinement_episode(
             else None,
             "export_preflight_path": str(paths["export_preflight_out"])
             if generate_export_preflight
+            else None,
+            "meta_adjudication_plan_path": str(paths["meta_adjudication_plan_out"])
+            if generate_meta_adjudication_plan
             else None,
         },
         "source_candidate": {
@@ -824,6 +878,25 @@ def run_program_refinement_episode(
                 if generate_export_preflight
                 else None,
                 "evidence_only": generate_export_preflight,
+            },
+            "meta_adjudication_plan": {
+                "status": "skipped"
+                if not generate_meta_adjudication_plan
+                else (meta_adjudication_plan_payload or {}).get("status"),
+                "path": str(paths["meta_adjudication_plan_out"])
+                if generate_meta_adjudication_plan
+                else None,
+                "lifecycle_state": (meta_adjudication_plan_payload or {}).get(
+                    "lifecycle_state"
+                )
+                if generate_meta_adjudication_plan
+                else None,
+                "missing_evidence": (meta_adjudication_plan_payload or {}).get(
+                    "missing_evidence"
+                )
+                if generate_meta_adjudication_plan
+                else None,
+                "evidence_only": generate_meta_adjudication_plan,
             },
             "decision_record": {
                 "status": decision_payload.get("status"),
@@ -916,6 +989,11 @@ def run_program_refinement_episode(
                 else []
             ),
             *([str(paths["jury_results_out"])] if generate_local_jury else []),
+            *(
+                [str(paths["meta_adjudication_plan_out"])]
+                if generate_meta_adjudication_plan
+                else []
+            ),
             *([str(paths["promotion_plan_out"])] if generate_promotion_plan else []),
             *(
                 [str(paths["export_preflight_out"])]
@@ -942,6 +1020,7 @@ def run_program_refinement_episode(
             "local_jury_provider_called": False,
             "gepa_optimizer_output_mutated": False,
             "local_promotion_plan_written": generate_promotion_plan,
+            "local_meta_adjudication_plan_written": generate_meta_adjudication_plan,
             "external_authority_export_preflight_written": generate_export_preflight,
             "candidate_state_written": True,
             "workflow_summary_written": False,
@@ -965,6 +1044,7 @@ def run_program_refinement_episode(
             "promotion_authority": False,
             "local_promotion_plan_only": generate_promotion_plan,
             "local_jury_evidence_only": generate_local_jury,
+            "local_meta_adjudication_plan_only": generate_meta_adjudication_plan,
             "external_authority_export_preflight_only": generate_export_preflight,
             "gepa_candidate_evidence_only": generate_gepa_candidate,
             "gepa_approval": False,
@@ -978,6 +1058,7 @@ def run_program_refinement_episode(
             "A supplied GEPA result materializes one local GEPA-backed candidate and comparison; it is evidence, not approval.",
             "Optional promotion planning is local-only and keeps allowed_for_apply false.",
             "Optional local jury results are generated or consumed as deterministic evidence only; they do not approve promotion or activation.",
+            "Optional meta-adjudication plans are local planning evidence only; they do not run adjudicators or apply authority.",
             "Optional model-jury results are consumed as provider-backed review evidence only; they do not approve promotion or activation.",
             "Optional external-authority export preflight is consumed as planned-not-applied evidence only; it does not call AK or apply authority.",
             "The workflow does not call AK, mutate governance or external authority, select a winner, or apply promotion.",

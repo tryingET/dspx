@@ -48,6 +48,7 @@ def _assert_no_episode_sidecars(outdir: Path) -> None:
         "program_candidate_comparison.json",
         "gepa_candidate_result.json",
         "promotion_plan.json",
+        "meta_adjudication_plan.json",
         "external_authority_export_preflight.json",
         "program_candidate_state.refinement.json",
         "program_refinement_episode.json",
@@ -741,6 +742,139 @@ def test_program_refinement_episode_rolls_back_generated_local_jury_failures(
 
     _assert_no_episode_sidecars(outdir)
     assert not (outdir / "jury_results.json").exists()
+
+
+def test_program_refinement_episode_can_write_meta_adjudication_plan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    before_source_hashes = _file_hashes(program_root)
+    outdir = tmp_path / "refinement-episode"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "episode",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--outdir",
+            str(outdir),
+            "--decision-outcome",
+            "withhold",
+            "--decided-by",
+            "operator-test",
+            "--rationale",
+            "capture local adjudication preflight plan without authority",
+            "--no-generate-second-candidate",
+            "--run-local-jury",
+            "--meta-adjudication-plan",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload: dict[str, Any] = json.loads(result.stdout)
+    plan_path = outdir / "meta_adjudication_plan.json"
+    assert plan_path.exists()
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    assert plan["schema_version"] == "program-meta-adjudication-plan-v1"
+    assert plan["status"] == "planned_not_executed"
+    assert plan["lifecycle_state"] == "meta_adjudication_plan_ready"
+    assert plan["effect"]["provider_called"] is False
+    assert plan["effect"]["ak_mutated"] is False
+    assert plan["non_authority"]["promotion_authority"] is False
+    assert plan["sidecars"]["oracle_report"]["status"] == "present"
+    assert plan["sidecars"]["jury_results"]["status"] == "present"
+    assert plan["sidecars"]["review"]["status"] == "present"
+    assert plan["sidecars"]["decision_record"]["status"] == "present"
+
+    meta_step = payload["steps"]["meta_adjudication_plan"]
+    assert meta_step["status"] == "planned_not_executed"
+    assert meta_step["path"] == str(plan_path.resolve())
+    assert meta_step["lifecycle_state"] == "meta_adjudication_plan_ready"
+    assert meta_step["evidence_only"] is True
+    assert str(plan_path.resolve()) in payload["generated_sidecars"]
+    assert payload["effect"]["local_meta_adjudication_plan_written"] is True
+    assert payload["effect"]["ak_called"] is False
+    assert payload["effect"]["winner_selected"] is False
+    assert payload["non_authority"]["local_meta_adjudication_plan_only"] is True
+    assert payload["non_authority"]["promotion_authority"] is False
+    assert _file_hashes(program_root) == before_source_hashes
+
+
+def test_program_refinement_episode_rejects_unsafe_meta_adjudication_plan_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="requires"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-unused-meta-out",
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject inert meta plan output path",
+            generate_second_candidate=False,
+            meta_adjudication_plan_out=tmp_path / "meta-plan.json",
+        )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="source-candidate scoped"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-meta-gepa",
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="reject source-scoped meta plan for GEPA state",
+            gepa_result_path=gepa_result,
+            generate_meta_adjudication_plan=True,
+        )
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="source generated program root"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=tmp_path / "episode-meta-inside-source",
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject meta plan output inside source candidate",
+            generate_second_candidate=False,
+            generate_meta_adjudication_plan=True,
+            meta_adjudication_plan_out=program_root / "meta_adjudication_plan.json",
+        )
+    _assert_no_episode_sidecars(tmp_path / "episode-meta-inside-source")
+
+
+def test_program_refinement_episode_rolls_back_meta_adjudication_plan_on_later_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "episode-meta-rollback"
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="manifest.json"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="rollback meta plan when later state write fails",
+            generate_second_candidate=False,
+            run_local_jury=True,
+            generate_meta_adjudication_plan=True,
+            state_out=outdir / "manifest.json",
+        )
+
+    _assert_no_episode_sidecars(outdir)
+    assert not (outdir / "jury_results.json").exists()
+    assert not (outdir / "meta_adjudication_plan.json").exists()
 
 
 def test_program_refinement_episode_rejects_invalid_local_jury_results(
