@@ -255,6 +255,30 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
+def test_program_promote_jury_rejects_output_inside_generated_artifact_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_jury_program(tmp_path, monkeypatch, examples=True)
+    before = _file_hashes(program_root)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "jury",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--out",
+            str(program_root / "manifest.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "program jury results must not overwrite manifest.json" in result.output
+    assert _file_hashes(program_root) == before
+
+
 def test_program_promote_jury_uses_behavior_episode_for_dataset_only_evidence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

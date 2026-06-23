@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_manifest,
@@ -563,7 +564,7 @@ def _next_commands(
                 "implemented": True,
                 "command": (
                     "dspx program-promote jury "
-                    f"--manifest {manifest_arg} --out {root / 'jury_results.json'} --json"
+                    f"--manifest {manifest_arg} --out {root.parent / (root.name + '-promotion') / 'jury_results.json'} --json"
                 ),
             }
         )
@@ -2330,8 +2331,16 @@ def write_program_meta_adjudication_plan(
             "meta-adjudication plan schema_version must be "
             + PROGRAM_META_ADJUDICATION_PLAN_SCHEMA
         )
-    out = out_path.expanduser().resolve()
-    out.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(plan)
+    try:
+        out = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="meta-adjudication plan",
+            payload_artifact_root_policy="forbid",
+        )
+    except ValueError as exc:
+        raise ProgramMetaAdjudicationError(str(exc)) from exc
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_json_text(payload), encoding="utf-8")
     return payload

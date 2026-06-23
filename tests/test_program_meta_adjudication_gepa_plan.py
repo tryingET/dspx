@@ -214,7 +214,7 @@ def test_meta_adjudication_plan_tracks_present_sidecars(
     jury = build_program_jury_execution_result(
         manifest_path=candidate_root / "manifest.json"
     )
-    jury_path = candidate_root / "jury_results.json"
+    jury_path = tmp_path / "promotion" / "jury_results.json"
     write_program_jury_execution_result(jury, jury_path)
     requirements_path = tmp_path / "jury_requirements.json"
     selection_path = tmp_path / "meta_jury_selection.json"
@@ -293,6 +293,31 @@ def test_meta_adjudication_plan_cli_writes_json(tmp_path: Path, monkeypatch) -> 
     written = json.loads(out.read_text(encoding="utf-8"))
     assert written["manifest"]["path"] == str(candidate_root / "manifest.json")
     assert written["effect"]["candidate_files_mutated"] is False
+
+
+def test_meta_adjudication_plan_cli_rejects_output_inside_generated_artifact_root(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    before_manifest = (candidate_root / "manifest.json").read_text(encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "meta-adjudication-plan",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--out",
+            str(candidate_root / "manifest.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "meta-adjudication plan must not overwrite manifest.json" in result.output
+    assert (candidate_root / "manifest.json").read_text(
+        encoding="utf-8"
+    ) == before_manifest
 
 
 def test_write_meta_adjudication_plan_rejects_wrong_schema(tmp_path: Path) -> None:

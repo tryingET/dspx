@@ -1224,6 +1224,58 @@ def test_program_candidate_state_rejects_meta_adjudication_plan_stale_manifest_h
         )
 
 
+def test_program_candidate_state_rejects_meta_adjudication_plan_stale_sidecar_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    paths["jury_results"].write_text(
+        paths["jury_results"].read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="meta-adjudication plan jury_results sidecar sha256",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            jury_results_path=paths["jury_results"],
+            meta_adjudication_plan_path=paths["meta_adjudication_plan"],
+        )
+
+
+def test_program_candidate_state_rejects_stale_jury_behavior_results_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_jury = json.loads(paths["jury_results"].read_text(encoding="utf-8"))
+    bad_jury["created_from"] = {
+        **bad_jury["created_from"],
+        "behavior_results_sha256": "0" * 64,
+    }
+    bad_jury_path = tmp_path / "promotion" / "bad_jury_results_hash.json"
+    _write_json(bad_jury_path, bad_jury)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="program jury results behavior results sha256",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            jury_results_path=bad_jury_path,
+        )
+
+
 def test_program_candidate_state_rejects_model_jury_identity_drift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

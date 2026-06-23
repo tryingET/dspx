@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -669,11 +670,11 @@ def build_program_jury_execution_result(*, manifest_path: Path) -> dict[str, Any
     manifest_path = manifest_path.expanduser().resolve()
     try:
         manifest = load_program_manifest(manifest_path)
-        behavior, behavior_path, _behavior_hash = load_program_behavior_results(
+        behavior, behavior_path, behavior_hash = load_program_behavior_results(
             manifest,
             manifest_path,
         )
-        behavior_episode, behavior_episode_path, _behavior_episode_hash = (
+        behavior_episode, behavior_episode_path, behavior_episode_hash = (
             _load_program_behavior_episode(manifest, manifest_path)
         )
     except ProgramRefinementError as exc:
@@ -728,16 +729,26 @@ def build_program_jury_execution_result(*, manifest_path: Path) -> dict[str, Any
         "identity": identity,
         "created_from": {
             "manifest_path": str(manifest_path),
+            "manifest_sha256": _sha256_file(manifest_path),
             "manifest_schema_version": manifest.get("schema_version"),
             "jury_path": str(jury_paths["jury_path"].resolve()),
+            "jury_sha256": _sha256_file(jury_paths["jury_path"].resolve()),
             "jury_selection_path": str(jury_paths["jury_selection_path"].resolve()),
+            "jury_selection_sha256": _sha256_file(
+                jury_paths["jury_selection_path"].resolve()
+            ),
             "jury_rubric_path": str(jury_paths["jury_rubric_path"].resolve()),
+            "jury_rubric_sha256": _sha256_file(
+                jury_paths["jury_rubric_path"].resolve()
+            ),
             "behavior_results_path": str(behavior_path.resolve())
             if behavior_path is not None and behavior_path.exists()
             else None,
+            "behavior_results_sha256": behavior_hash,
             "behavior_episode_path": str(behavior_episode_path.resolve())
             if behavior_episode_path is not None and behavior_episode_path.exists()
             else None,
+            "behavior_episode_sha256": behavior_episode_hash,
         },
         "jury": {
             "planned_jury_schema_version": jury.get("schema_version"),
@@ -768,10 +779,18 @@ def write_program_jury_execution_result(
 ) -> dict[str, Any]:
     """Write the local jury result sidecar and return its payload."""
 
-    out_path = out_path.expanduser().resolve()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(result)
-    out_path.write_text(
+    try:
+        target = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="program jury results",
+            payload_artifact_root_policy="forbid",
+        )
+    except ValueError as exc:
+        raise ProgramJuryExecutionError(str(exc)) from exc
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )

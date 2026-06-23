@@ -413,6 +413,101 @@ def _validate_export_preflight_artifact_hashes(
             )
 
 
+def _validate_program_jury_result_artifact_hashes(
+    jury_results: Mapping[str, Any],
+    *,
+    current_manifest_hash: str,
+    source_manifest_hash: str | None,
+    behavior_hash: str | None,
+    behavior_episode_hash: str | None,
+) -> None:
+    created_from = _safe_mapping(jury_results.get("created_from"))
+    valid_manifest_hashes = {current_manifest_hash}
+    if source_manifest_hash is not None:
+        valid_manifest_hashes.add(source_manifest_hash)
+    manifest_hash = _first_text(created_from.get("manifest_sha256"))
+    if manifest_hash not in valid_manifest_hashes:
+        raise ProgramCandidateStateError(
+            "program jury results manifest sha256 does not match candidate/source manifest"
+        )
+
+    for path_key, hash_key, label in (
+        ("manifest_path", "manifest_sha256", "manifest"),
+        ("jury_path", "jury_sha256", "planned jury"),
+        ("jury_selection_path", "jury_selection_sha256", "jury selection"),
+        ("jury_rubric_path", "jury_rubric_sha256", "jury rubric"),
+        ("behavior_results_path", "behavior_results_sha256", "behavior results"),
+        ("behavior_episode_path", "behavior_episode_sha256", "behavior episode"),
+    ):
+        raw_path = _first_text(created_from.get(path_key))
+        if raw_path is None:
+            continue
+        claimed_hash = _first_text(created_from.get(hash_key))
+        if claimed_hash is None:
+            raise ProgramCandidateStateError(
+                f"program jury results {hash_key} is required when {path_key} is present"
+            )
+        path = Path(raw_path).expanduser().resolve()
+        if not path.exists():
+            raise ProgramCandidateStateError(
+                f"program jury results {label} path is missing: {path}"
+            )
+        if _sha256_file(path) != claimed_hash:
+            raise ProgramCandidateStateError(
+                f"program jury results {label} sha256 does not match current file"
+            )
+
+    behavior_evidence = _safe_mapping(jury_results.get("behavior_evidence"))
+    if manifest_hash == current_manifest_hash:
+        if behavior_evidence.get("behavior_results_present") is True:
+            claimed_hash = _first_text(created_from.get("behavior_results_sha256"))
+            if behavior_hash is None or claimed_hash != behavior_hash:
+                raise ProgramCandidateStateError(
+                    "program jury results behavior_results_sha256 does not match current behavior results"
+                )
+        if behavior_evidence.get("behavior_episode_present") is True:
+            claimed_hash = _first_text(created_from.get("behavior_episode_sha256"))
+            if behavior_episode_hash is None or claimed_hash != behavior_episode_hash:
+                raise ProgramCandidateStateError(
+                    "program jury results behavior_episode_sha256 does not match current behavior episode"
+                )
+
+
+def _validate_meta_adjudication_plan_sidecar_freshness(
+    meta_adjudication_plan: Mapping[str, Any],
+    *,
+    supplied_sidecar_refs: Mapping[str, tuple[Path, str]],
+) -> None:
+    sidecars = _safe_mapping(meta_adjudication_plan.get("sidecars"))
+    for key, raw_status in sidecars.items():
+        if not isinstance(raw_status, Mapping) or raw_status.get("present") is not True:
+            continue
+        status = _safe_mapping(raw_status)
+        raw_path = _first_text(status.get("path"))
+        claimed_hash = _first_text(status.get("sha256"))
+        if raw_path is None or claimed_hash is None:
+            raise ProgramCandidateStateError(
+                f"meta-adjudication plan {key} sidecar ref must include path and sha256"
+            )
+        path = Path(raw_path).expanduser().resolve()
+        if not path.exists():
+            raise ProgramCandidateStateError(
+                f"meta-adjudication plan {key} sidecar is missing: {path}"
+            )
+        if _sha256_file(path) != claimed_hash:
+            raise ProgramCandidateStateError(
+                f"meta-adjudication plan {key} sidecar sha256 does not match current file"
+            )
+        supplied_ref = supplied_sidecar_refs.get(key)
+        if supplied_ref is None:
+            continue
+        supplied_path, supplied_hash = supplied_ref
+        if path != supplied_path or claimed_hash != supplied_hash:
+            raise ProgramCandidateStateError(
+                f"meta-adjudication plan {key} sidecar does not match supplied {key}"
+            )
+
+
 def _validate_optional_inputs(
     *,
     candidate_identity: Mapping[str, str | None],
@@ -430,8 +525,11 @@ def _validate_optional_inputs(
     gepa_refinement: Mapping[str, Any] | None,
     current_manifest_hash: str,
     source_manifest_hash: str | None,
+    behavior_hash: str | None,
+    behavior_episode_hash: str | None,
     sidecar_hashes: Mapping[str, str | None],
     comparison_hash: str | None,
+    supplied_sidecar_refs: Mapping[str, tuple[Path, str]],
 ) -> None:
     source_or_candidate = [candidate_identity]
     if source_identity is not None:
@@ -526,6 +624,13 @@ def _validate_optional_inputs(
             raise ProgramCandidateStateError(
                 "program jury results identity does not match candidate/source identity"
             )
+        _validate_program_jury_result_artifact_hashes(
+            jury_results,
+            current_manifest_hash=current_manifest_hash,
+            source_manifest_hash=source_manifest_hash,
+            behavior_hash=behavior_hash,
+            behavior_episode_hash=behavior_episode_hash,
+        )
 
     if model_jury_results is not None:
         validate_program_model_jury_results_contract(
@@ -803,6 +908,10 @@ def _validate_optional_inputs(
             raise ProgramCandidateStateError(
                 "meta-adjudication plan manifest sha256 does not match candidate/source manifest"
             )
+        _validate_meta_adjudication_plan_sidecar_freshness(
+            meta_adjudication_plan,
+            supplied_sidecar_refs=supplied_sidecar_refs,
+        )
 
     if activation_packet is not None:
         if activation_packet.get("status") not in {
@@ -1696,6 +1805,32 @@ def build_program_candidate_state(
         "oracle_publication_receipt": oracle_publication_receipt_hash,
         "canonical_binding_verification": None,
     }
+    supplied_sidecar_refs = {
+        key: (path, file_hash)
+        for key, path, file_hash in (
+            ("oracle_report", oracle_report_file, oracle_report_hash),
+            (
+                "oracle_publication_receipt",
+                oracle_publication_receipt_file,
+                oracle_publication_receipt_hash,
+            ),
+            ("jury_results", jury_results_file, jury_results_hash),
+            ("review", review_file, review_hash),
+            ("decision_record", decision_file, decision_hash),
+            ("activation_packet", activation_packet_file, activation_packet_hash),
+            (
+                "generation_gate_preflight",
+                generation_gate_preflight_file,
+                generation_gate_preflight_hash,
+            ),
+            (
+                "generation_fitness_results",
+                generation_fitness_results_file,
+                generation_fitness_results_hash,
+            ),
+        )
+        if path is not None and file_hash is not None
+    }
 
     _validate_optional_inputs(
         candidate_identity=candidate_identity,
@@ -1713,8 +1848,11 @@ def build_program_candidate_state(
         gepa_refinement=gepa_refinement,
         current_manifest_hash=manifest_hash,
         source_manifest_hash=source_manifest_hash,
+        behavior_hash=behavior_hash,
+        behavior_episode_hash=behavior_episode_hash,
         sidecar_hashes=activation_sidecar_hashes,
         comparison_hash=comparison_hash,
+        supplied_sidecar_refs=supplied_sidecar_refs,
     )
 
     execution_episode_path = _optional_artifact_path(
