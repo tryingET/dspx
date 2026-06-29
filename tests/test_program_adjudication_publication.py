@@ -238,6 +238,40 @@ def test_adjudication_trace_publication_preflight_cli_writes_local_packet_only(
     assert "super-secret-password" not in out.read_text(encoding="utf-8")
 
 
+def test_adjudication_trace_publication_preflight_rejects_stale_source_adjudication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    source_path = Path(trace["source_adjudication"]["path"])
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    source["aggregate"]["missing_evidence"] = ["tampered-after-trace"]
+    source_path.write_text(json.dumps(source, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="source_adjudication sha256 no longer matches current file",
+    ):
+        build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
+
+
+def test_adjudication_trace_publication_preflight_rejects_stale_linked_manifest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    manifest_path = Path(trace["linked_artifacts"]["manifest"]["path"])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["test_hash_drift_marker"] = True
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="linked_artifacts.manifest sha256 no longer matches current file",
+    ):
+        build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
+
+
 def test_adjudication_trace_publication_preflight_fails_closed_on_inputs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -307,6 +341,35 @@ def test_adjudication_trace_publish_writes_shared_record_and_receipt(
     )
     assert '"path"' not in json.dumps(record.metadata["linked_artifact_refs"])
     assert receipt_path.exists()
+
+
+def test_adjudication_trace_publish_rejects_linked_artifact_drift_after_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    preflight = build_adjudication_trace_publication_preflight(
+        **_preflight_kwargs(trace_path)
+    )
+    preflight_path = tmp_path / "preflight.json"
+    write_adjudication_trace_publication_preflight(preflight, preflight_path)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    delegation_path = Path(
+        trace["linked_artifacts"]["program_adjudicator_delegation"]["path"]
+    )
+    delegation = json.loads(delegation_path.read_text(encoding="utf-8"))
+    delegation["generated_program_adjudicator"]["test_hash_drift_marker"] = True
+    delegation_path.write_text(
+        json.dumps(delegation, indent=2) + "\n", encoding="utf-8"
+    )
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="program_adjudicator_delegation sha256 no longer matches current file",
+    ):
+        publish_adjudication_trace_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
 
 
 def test_adjudication_trace_publish_rejects_tampered_trace_after_preflight(

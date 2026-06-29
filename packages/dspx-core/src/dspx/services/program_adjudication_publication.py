@@ -223,6 +223,61 @@ def _trace_publication_summary(trace: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _iter_hash_bound_refs(
+    value: object, *, label: str
+) -> list[tuple[str, dict[str, Any]]]:
+    refs: list[tuple[str, dict[str, Any]]] = []
+    if isinstance(value, Mapping):
+        value_map = _safe_mapping(value)
+        if value_map.get("path") and value_map.get("sha256"):
+            refs.append((label, value_map))
+            return refs
+        for key, item in value_map.items():
+            refs.extend(_iter_hash_bound_refs(item, label=f"{label}.{key}"))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            refs.extend(_iter_hash_bound_refs(item, label=f"{label}[{index}]"))
+    return refs
+
+
+def _validate_trace_linked_artifact_refs(trace: Mapping[str, Any]) -> None:
+    refs = _iter_hash_bound_refs(
+        trace.get("source_adjudication"), label="source_adjudication"
+    )
+    refs.extend(
+        _iter_hash_bound_refs(trace.get("linked_artifacts"), label="linked_artifacts")
+    )
+    for label, ref in refs:
+        path_text = _first_text(ref.get("path"))
+        expected_sha256 = _first_text(ref.get("sha256"))
+        if path_text is None:
+            raise ProgramAdjudicationPublicationError(
+                f"adjudication trace {label}.path is required"
+            )
+        if expected_sha256 is None:
+            raise ProgramAdjudicationPublicationError(
+                f"adjudication trace {label}.sha256 is required"
+            )
+        ref_path = Path(path_text).expanduser().resolve()
+        try:
+            actual_sha256 = _sha256_file(ref_path)
+        except FileNotFoundError as exc:
+            raise ProgramAdjudicationPublicationError(
+                f"adjudication trace {label} path does not exist: {ref_path}"
+            ) from exc
+        if actual_sha256 != expected_sha256:
+            raise ProgramAdjudicationPublicationError(
+                f"adjudication trace {label} sha256 no longer matches current file"
+            )
+        schema = _first_text(ref.get("schema_version"))
+        if schema:
+            payload = _load_json_object(ref_path, label=f"adjudication trace {label}")
+            if payload.get("schema_version") != schema:
+                raise ProgramAdjudicationPublicationError(
+                    f"adjudication trace {label} schema_version no longer matches {schema}"
+                )
+
+
 def _validate_trace(trace: Mapping[str, Any], path: Path) -> None:
     if trace.get("schema_version") != ADJUDICATION_TRACE_SCHEMA:
         raise ProgramAdjudicationPublicationError(
@@ -257,6 +312,7 @@ def _validate_trace(trace: Mapping[str, Any], path: Path) -> None:
         raise ProgramAdjudicationPublicationError(
             f"adjudication trace identity is required: {path}"
         )
+    _validate_trace_linked_artifact_refs(trace)
 
 
 def _expected_publication_id(
