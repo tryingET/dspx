@@ -162,6 +162,8 @@ def validate_program_jury_results_contract(
     for path_key, hash_key, artifact_label, expected_name in _CREATED_FROM_ARTIFACTS:
         raw_path = _first_text(created_from.get(path_key))
         if raw_path is None:
+            if path_key in {"jury_path", "jury_selection_path", "jury_rubric_path"}:
+                raise error_type(f"{prefix} {artifact_label} path is required")
             continue
         if path_key == "behavior_results_path":
             found_behavior_results_ref = True

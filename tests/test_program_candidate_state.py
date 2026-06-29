@@ -272,7 +272,13 @@ def _write_model_jury_results(
                 }
             ],
             "aggregate": {
-                "judgment_counts": {"request_more_evidence": 1},
+                "judgment_counts": {
+                    "supports_review_evidence": 0,
+                    "withhold": 0,
+                    "reject": 0,
+                    "request_more_evidence": 1,
+                    "failed": 0,
+                },
                 "recommendation": "request_more_evidence",
                 "unique_improvement_requests": ["collect target evidence"],
             },
@@ -756,7 +762,13 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         "provider_backed_model_calls": True,
         "selected_juror_count": 1,
         "selected_perspectives": ["authority_boundaries"],
-        "judgment_counts": {"request_more_evidence": 1},
+        "judgment_counts": {
+            "supports_review_evidence": 0,
+            "withhold": 0,
+            "reject": 0,
+            "request_more_evidence": 1,
+            "failed": 0,
+        },
         "recommendation": "request_more_evidence",
         "improvement_request_count": 1,
         "adjudicator_repo": "target-repo",

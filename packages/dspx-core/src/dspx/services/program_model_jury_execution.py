@@ -614,12 +614,12 @@ def preflight_program_model_jury_output_path(
     """Fail closed on unsafe model-jury sidecar output before provider calls."""
 
     resolved_manifest = manifest_path.expanduser().resolve()
+    resolved_evidence_paths = [path.expanduser().resolve() for path in evidence_paths]
+    evidence_roots = {path for path in resolved_evidence_paths if path.is_dir()}
     payload: dict[str, Any] = {
         "created_from": {"manifest_path": str(resolved_manifest)},
         "evidence": {
-            "entries": [
-                {"path": str(path.expanduser().resolve())} for path in evidence_paths
-            ]
+            "entries": [{"path": str(path)} for path in resolved_evidence_paths]
         },
     }
     try:
@@ -628,8 +628,8 @@ def preflight_program_model_jury_output_path(
             payload=payload,
             artifact_label="program model jury results",
             payload_artifact_root_policy="forbid",
-            extra_protected_paths=evidence_paths,
-            extra_protected_roots={resolved_manifest.parent},
+            extra_protected_paths=resolved_evidence_paths,
+            extra_protected_roots={resolved_manifest.parent, *evidence_roots},
         )
     except ValueError as exc:
         raise ProgramModelJuryExecutionError(str(exc)) from exc
@@ -647,6 +647,12 @@ def write_program_model_jury_execution_result(
             if manifest_path_text is not None
             else set()
         )
+        for raw_evidence_path in _safe_list(created_from.get("evidence_paths")):
+            if not isinstance(raw_evidence_path, str) or not raw_evidence_path.strip():
+                continue
+            evidence_path = Path(raw_evidence_path).expanduser().resolve()
+            if evidence_path.is_dir():
+                extra_roots.add(evidence_path)
         target = prepare_sidecar_output_path(
             out_path,
             payload=payload,

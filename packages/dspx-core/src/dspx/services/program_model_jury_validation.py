@@ -6,6 +6,10 @@ from typing import Any, Mapping
 
 PROGRAM_MODEL_JURY_RESULTS_SCHEMA = "program-model-jury-results-v1"
 ALLOWED_MODEL_JURY_RESULT_STATUSES = frozenset({"executed", "executed_with_failures"})
+ALLOWED_MODEL_JURY_JUROR_STATUSES = frozenset({"judged", "failed"})
+ALLOWED_MODEL_JURY_OUTCOMES = frozenset(
+    {"supports_review_evidence", "withhold", "reject", "request_more_evidence"}
+)
 
 REQUIRED_FALSE_MODEL_JURY_EFFECT_FLAGS = (
     "program_files_mutated",
@@ -90,22 +94,124 @@ def _validate_bound_artifact(
         )
 
 
-def _safe_int(value: object, *, default: int = 0) -> int:
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        return int(value)
-    if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return default
-        try:
-            return int(text)
-        except ValueError:
-            return default
-    return default
+def _require_json_int(
+    value: object,
+    *,
+    field_label: str,
+    error_type: type[ValueError],
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise error_type(f"{field_label} must be an integer")
+    return value
+
+
+def _validate_juror_results(
+    payload: Mapping[str, Any],
+    *,
+    label: str,
+    error_type: type[ValueError],
+) -> list[Mapping[str, Any]]:
+    raw_results = payload.get("juror_results")
+    if not isinstance(raw_results, list) or not raw_results:
+        raise error_type(f"{label} must include juror_results")
+    juror_results: list[Mapping[str, Any]] = []
+    for index, raw_result in enumerate(raw_results):
+        if not isinstance(raw_result, Mapping):
+            raise error_type(f"{label} juror_results[{index}] must be an object")
+        result = _safe_mapping(raw_result)
+        status = result.get("status")
+        if status not in ALLOWED_MODEL_JURY_JUROR_STATUSES:
+            raise error_type(
+                f"{label} juror_results[{index}].status must be judged or failed"
+            )
+        if status == "judged":
+            judgment = result.get("judgment")
+            if not isinstance(judgment, Mapping):
+                raise error_type(
+                    f"{label} juror_results[{index}].judgment must be an object"
+                )
+            outcome = judgment.get("outcome")
+            if outcome not in ALLOWED_MODEL_JURY_OUTCOMES:
+                raise error_type(
+                    f"{label} juror_results[{index}].judgment.outcome must be "
+                    "supports_review_evidence, withhold, reject, or request_more_evidence"
+                )
+        juror_results.append(result)
+    return juror_results
+
+
+def _expected_aggregate(juror_results: list[Mapping[str, Any]]) -> dict[str, Any]:
+    counts = {
+        "supports_review_evidence": 0,
+        "withhold": 0,
+        "reject": 0,
+        "request_more_evidence": 0,
+        "failed": 0,
+    }
+    for result in juror_results:
+        if result.get("status") != "judged":
+            counts["failed"] += 1
+            continue
+        judgment = _safe_mapping(result.get("judgment"))
+        outcome = judgment.get("outcome")
+        if outcome in counts:
+            counts[outcome] += 1
+        else:
+            counts["failed"] += 1
+    if counts["failed"]:
+        recommendation = "withhold_until_failed_jurors_rerun"
+    elif counts["reject"]:
+        recommendation = "reject_or_redesign"
+    elif counts["request_more_evidence"]:
+        recommendation = "request_more_evidence"
+    elif counts["withhold"]:
+        recommendation = "withhold_for_owner_review"
+    else:
+        recommendation = "supports_review_evidence_only"
+    return {"judgment_counts": counts, "recommendation": recommendation}
+
+
+def _validate_model_jury_aggregate(
+    payload: Mapping[str, Any],
+    *,
+    juror_results: list[Mapping[str, Any]],
+    label: str,
+    error_type: type[ValueError],
+) -> None:
+    expected = _expected_aggregate(juror_results)
+    status = str(payload.get("status") or "")
+    if expected["judgment_counts"]["failed"] and status != "executed_with_failures":
+        raise error_type(
+            f"{label} status must be executed_with_failures when jurors failed"
+        )
+    if not expected["judgment_counts"]["failed"] and status != "executed":
+        raise error_type(f"{label} status must be executed when all jurors are judged")
+    jury = _safe_mapping(payload.get("jury"))
+    selected_count = _require_json_int(
+        jury.get("selected_juror_count"),
+        field_label=f"{label} selected_juror_count",
+        error_type=error_type,
+    )
+    if selected_count != len(juror_results):
+        raise error_type(
+            f"{label} selected_juror_count must match juror_results length"
+        )
+    aggregate = _safe_mapping(payload.get("aggregate"))
+    actual_counts = _safe_mapping(aggregate.get("judgment_counts"))
+    for key, expected_count in expected["judgment_counts"].items():
+        actual_count = _require_json_int(
+            actual_counts.get(key),
+            field_label=f"{label} aggregate judgment_counts.{key}",
+            error_type=error_type,
+        )
+        if actual_count != expected_count:
+            raise error_type(
+                f"{label} aggregate judgment_counts do not match juror_results"
+            )
+    if aggregate.get("recommendation") != expected["recommendation"]:
+        raise error_type(
+            f"{label} aggregate recommendation does not match juror_results"
+        )
 
 
 def _validate_evidence_entry_hashes(
@@ -118,7 +224,11 @@ def _validate_evidence_entry_hashes(
     entries = _safe_list(evidence.get("entries"))
     if not entries:
         raise error_type(f"{prefix} evidence entries are required")
-    entry_count = _safe_int(evidence.get("entry_count"), default=len(entries))
+    entry_count = _require_json_int(
+        evidence.get("entry_count"),
+        field_label=f"{prefix} evidence entry_count",
+        error_type=error_type,
+    )
     if entry_count != len(entries):
         raise error_type(f"{prefix} evidence entry_count must match entries length")
     for index, raw_entry in enumerate(entries):
@@ -178,13 +288,12 @@ def validate_program_model_jury_results_contract(
     jury = _safe_mapping(payload.get("jury"))
     if jury.get("provider_backed_model_calls") is not True:
         raise error_type(f"{label} must record provider-backed model calls")
-    juror_results = [
-        item
-        for item in _safe_list(payload.get("juror_results"))
-        if isinstance(item, Mapping)
-    ]
+    juror_results = _validate_juror_results(payload, label=label, error_type=error_type)
     if not any(str(item.get("status") or "") == "judged" for item in juror_results):
         raise error_type(f"{label} must include at least one judged juror result")
+    _validate_model_jury_aggregate(
+        payload, juror_results=juror_results, label=label, error_type=error_type
+    )
     adjudicator = _safe_mapping(payload.get("adjudicator"))
     if adjudicator.get("promotion_authority") is not False:
         raise error_type(f"{label} adjudicator must not claim promotion authority")

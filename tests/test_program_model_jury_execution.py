@@ -284,6 +284,148 @@ def test_model_jury_contract_rejects_stale_evidence_hash(
         raise AssertionError("stale model-jury evidence hash was accepted")
 
 
+def test_model_jury_contract_rejects_status_and_aggregate_drift(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    extra_evidence = tmp_path / "component_inventory_json"
+    extra_evidence.write_text(
+        json.dumps({"schemaVersion": "designmd.component-inventory.v1"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", _fake_juror_model)
+    payload = model_jury.build_program_model_jury_execution_result(
+        manifest_path=program_root / "manifest.json",
+        evidence_paths=[extra_evidence],
+        provider="stub",
+        adjudicator_repo="calisthenics-ai-coach",
+    )
+    valid_manifest_refs = {
+        (program_root / "manifest.json").resolve(): hashlib.sha256(
+            (program_root / "manifest.json").read_bytes()
+        ).hexdigest()
+    }
+
+    bad_aggregate = json.loads(json.dumps(payload))
+    bad_aggregate["aggregate"]["judgment_counts"]["request_more_evidence"] = 99
+    try:
+        validate_program_model_jury_results_contract(
+            bad_aggregate, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "aggregate judgment_counts do not match juror_results" in str(exc)
+    else:  # pragma: no cover - defensive assertion for aggregate drift rejection
+        raise AssertionError("model-jury aggregate drift was accepted")
+
+    bad_status = json.loads(json.dumps(payload))
+    bad_status["juror_results"][0]["status"] = "failed"
+    try:
+        validate_program_model_jury_results_contract(
+            bad_status, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "status must be executed_with_failures when jurors failed" in str(exc)
+    else:  # pragma: no cover - defensive assertion for status drift rejection
+        raise AssertionError("model-jury status drift was accepted")
+
+
+def test_model_jury_contract_rejects_malformed_juror_and_noncanonical_counts(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    extra_evidence = tmp_path / "component_inventory_json"
+    extra_evidence.write_text(
+        json.dumps({"schemaVersion": "designmd.component-inventory.v1"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", _fake_juror_model)
+    payload = model_jury.build_program_model_jury_execution_result(
+        manifest_path=program_root / "manifest.json",
+        evidence_paths=[extra_evidence],
+        provider="stub",
+        adjudicator_repo="calisthenics-ai-coach",
+    )
+    valid_manifest_refs = {
+        (program_root / "manifest.json").resolve(): hashlib.sha256(
+            (program_root / "manifest.json").read_bytes()
+        ).hexdigest()
+    }
+
+    malformed_juror = json.loads(json.dumps(payload))
+    malformed_juror["juror_results"].append("not-an-object")
+    try:
+        validate_program_model_jury_results_contract(
+            malformed_juror, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "juror_results[2] must be an object" in str(exc)
+    else:  # pragma: no cover - defensive assertion for juror shape rejection
+        raise AssertionError("malformed model-jury juror result was accepted")
+
+    bad_juror_status = json.loads(json.dumps(payload))
+    bad_juror_status["juror_results"][0]["status"] = "finished"
+    try:
+        validate_program_model_jury_results_contract(
+            bad_juror_status, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "juror_results[0].status must be judged or failed" in str(exc)
+    else:  # pragma: no cover - defensive assertion for status enum rejection
+        raise AssertionError("invalid model-jury juror status was accepted")
+
+    bad_judgment_outcome = json.loads(json.dumps(payload))
+    bad_judgment_outcome["juror_results"][0]["judgment"]["outcome"] = "approve"
+    try:
+        validate_program_model_jury_results_contract(
+            bad_judgment_outcome, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "juror_results[0].judgment.outcome must be" in str(exc)
+    else:  # pragma: no cover - defensive assertion for outcome enum rejection
+        raise AssertionError("invalid model-jury judgment outcome was accepted")
+
+    bad_selected_count = json.loads(json.dumps(payload))
+    bad_selected_count["jury"]["selected_juror_count"] = True
+    try:
+        validate_program_model_jury_results_contract(
+            bad_selected_count, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "selected_juror_count must be an integer" in str(exc)
+    else:  # pragma: no cover - defensive assertion for bool count rejection
+        raise AssertionError(
+            "noncanonical model-jury selected_juror_count was accepted"
+        )
+
+    bad_aggregate_count = json.loads(json.dumps(payload))
+    bad_aggregate_count["aggregate"]["judgment_counts"]["withhold"] = "1"
+    try:
+        validate_program_model_jury_results_contract(
+            bad_aggregate_count, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "aggregate judgment_counts.withhold must be an integer" in str(exc)
+    else:  # pragma: no cover - defensive assertion for string count rejection
+        raise AssertionError("noncanonical model-jury aggregate count was accepted")
+
+    bad_entry_count = json.loads(json.dumps(payload))
+    bad_entry_count["evidence"]["entry_count"] = 1.9
+    try:
+        validate_program_model_jury_results_contract(
+            bad_entry_count, valid_manifest_refs=valid_manifest_refs
+        )
+    except ValueError as exc:
+        assert "evidence entry_count must be an integer" in str(exc)
+    else:  # pragma: no cover - defensive assertion for float count rejection
+        raise AssertionError(
+            "noncanonical model-jury evidence entry_count was accepted"
+        )
+
+
 def test_program_promote_model_jury_cli_writes_sidecar(
     tmp_path: Path,
     monkeypatch,
@@ -431,6 +573,42 @@ def test_program_promote_model_jury_rejects_evidence_output_overlap_before_provi
     assert result.exit_code == 2
     assert "must not overwrite an input artifact" in result.output
     assert evidence_path.read_text(encoding="utf-8") == '{"ok": true}'
+
+
+def test_program_promote_model_jury_rejects_evidence_directory_output_before_provider_calls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    evidence_dir = tmp_path / "evidence"
+    evidence_dir.mkdir()
+    (evidence_dir / "evidence.json").write_text('{"ok": true}', encoding="utf-8")
+
+    def fail_provider(provider: str | None = None) -> dict[str, Any]:
+        raise AssertionError("provider should not be configured for unsafe output")
+
+    monkeypatch.setattr(model_jury, "_configure_provider", fail_provider)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "model-jury",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--evidence",
+            str(evidence_dir),
+            "--provider",
+            "stub",
+            "--out",
+            str(evidence_dir / "model_jury_results.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "protected artifact root" in result.output
+    assert not (evidence_dir / "model_jury_results.json").exists()
 
 
 def test_program_promote_model_jury_rejects_candidate_root_output_before_provider_calls(

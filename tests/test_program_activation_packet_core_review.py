@@ -95,7 +95,13 @@ def _write_model_jury_results(
                 }
             ],
             "aggregate": {
-                "judgment_counts": {"request_more_evidence": 1},
+                "judgment_counts": {
+                    "supports_review_evidence": 0,
+                    "withhold": 0,
+                    "reject": 0,
+                    "request_more_evidence": 1,
+                    "failed": 0,
+                },
                 "recommendation": "request_more_evidence",
                 "unique_improvement_requests": ["collect target evidence"],
             },
@@ -563,6 +569,67 @@ def test_program_promote_activation_packet_rejects_spoofed_jury_effect_flags(
     bad_jury = json.loads(jury_path.read_text(encoding="utf-8"))
     bad_jury["effect"] = {**bad_jury["effect"], **effect_patch}
     bad_jury_path = tmp_path / "promotion" / "bad_jury_effect.json"
+    _write_json(bad_jury_path, bad_jury)
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(bad_jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert expected_error in result.output
+    assert not out_path.exists()
+    assert _file_hashes(program_root) == before_hashes
+
+
+@pytest.mark.parametrize(
+    ("created_from_key", "expected_error"),
+    [
+        ("jury_path", "jury_results planned jury path is required"),
+        ("jury_selection_path", "jury_results jury selection path is required"),
+        ("jury_rubric_path", "jury_results jury rubric path is required"),
+    ],
+)
+def test_program_promote_activation_packet_rejects_unbound_jury_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    created_from_key: str,
+    expected_error: str,
+) -> None:
+    program_root, report_path, jury_path, review_path, decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    before_hashes = _file_hashes(program_root)
+    bad_jury = json.loads(jury_path.read_text(encoding="utf-8"))
+    bad_jury["created_from"].pop(created_from_key)
+    bad_jury_path = tmp_path / "promotion" / "bad_unbound_jury.json"
     _write_json(bad_jury_path, bad_jury)
     out_path = tmp_path / "activation" / "activation_packet.json"
 

@@ -121,7 +121,13 @@ def _model_jury_result_for_manifest(manifest: Mapping[str, Any]) -> dict[str, An
             }
         ],
         "aggregate": {
-            "judgment_counts": {"request_more_evidence": 1},
+            "judgment_counts": {
+                "supports_review_evidence": 0,
+                "withhold": 0,
+                "reject": 0,
+                "request_more_evidence": 1,
+                "failed": 0,
+            },
             "recommendation": "request_more_evidence",
             "unique_improvement_requests": ["add more target evidence"],
         },
@@ -445,7 +451,13 @@ def test_program_promotion_refinement_consumes_model_jury_results(
         "execution_mode": "provider_backed_model",
         "provider_backed_model_calls": True,
         "selected_juror_count": 1,
-        "judgment_counts": {"request_more_evidence": 1},
+        "judgment_counts": {
+            "supports_review_evidence": 0,
+            "withhold": 0,
+            "reject": 0,
+            "request_more_evidence": 1,
+            "failed": 0,
+        },
         "recommendation": "request_more_evidence",
         "improvement_request_count": 1,
         "adjudicator_repo": "target-repo",
