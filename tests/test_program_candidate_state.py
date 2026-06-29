@@ -1762,6 +1762,173 @@ def test_program_promote_status_rejects_target_adjudication_authority_spoof(
         )
 
 
+def test_program_promote_status_binds_activation_packet_target_adjudication_refs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=manifest_path,
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    activation_path = tmp_path / "activation" / "activation_packet.json"
+    write_generated_program_activation_packet(activation_packet, activation_path)
+
+    state = build_program_candidate_state(
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+        activation_packet_path=activation_path,
+    )
+
+    assert state["promotion_state"]["activation_packet"]["present"] is True
+    assert state["artifact_hashes"]["generation_fitness_results_sha256"] == _sha256(
+        fitness_path
+    )
+    assert state["artifact_hashes"]["program_evidence_adjudication_sha256"] == _sha256(
+        adjudication_path
+    )
+
+
+def test_program_promote_status_rejects_activation_packet_target_adjudication_hash_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=manifest_path,
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    activation_packet["evidence"]["program_evidence_adjudication"]["sha256"] = "0" * 64
+    activation_path = tmp_path / "activation" / "activation_packet.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet evidence hash does not match supplied program_evidence_adjudication",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            generation_fitness_results_path=fitness_path,
+            program_evidence_adjudication_path=adjudication_path,
+            activation_packet_path=activation_path,
+        )
+
+
+def test_program_promote_status_rejects_activation_packet_missing_target_adjudication_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=manifest_path,
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    activation_packet["evidence"].pop("program_evidence_adjudication")
+    activation_path = tmp_path / "activation" / "activation_packet.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet is missing supplied program_evidence_adjudication evidence ref",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            generation_fitness_results_path=fitness_path,
+            program_evidence_adjudication_path=adjudication_path,
+            activation_packet_path=activation_path,
+        )
+
+
+def test_program_promote_status_rejects_activation_packet_target_fitness_hash_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+    )
+    activation_packet = build_generated_program_activation_packet(
+        manifest_path=manifest_path,
+        owning_domain="softwareco/dspx-generated-program-governance",
+        activation_target="local-dogfood-only",
+        authority_owner="softwareco-program-governance",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    activation_packet["evidence"]["generation_fitness_results"]["sha256"] = "0" * 64
+    activation_path = tmp_path / "activation" / "activation_packet.json"
+    _write_json(activation_path, activation_packet)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="activation packet evidence hash does not match supplied generation_fitness_results",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            generation_fitness_results_path=fitness_path,
+            program_evidence_adjudication_path=adjudication_path,
+            activation_packet_path=activation_path,
+        )
+
+
 def test_program_promote_status_blocks_adapter_admission_without_target_adjudication(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

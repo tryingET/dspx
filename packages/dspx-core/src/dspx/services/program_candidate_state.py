@@ -1765,6 +1765,8 @@ def build_program_candidate_state(
         "external_authority_export_preflight": export_preflight_hash,
         "oracle_publication_receipt": oracle_publication_receipt_hash,
         "canonical_binding_verification": None,
+        "generation_fitness_results": generation_fitness_results_hash,
+        "program_evidence_adjudication": program_evidence_adjudication_hash,
     }
     supplied_sidecar_refs = {
         key: (path, file_hash)
