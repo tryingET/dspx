@@ -393,6 +393,16 @@ def activation_packet(
         "--candidate-state",
         help="Optional program-candidate-state-v1 JSON status/admission evidence",
     ),
+    generation_fitness_results: Path | None = typer.Option(
+        None,
+        "--generation-fitness-results",
+        help="Optional gen-fitness-results-v1 JSON used to bind target-protocol adjudication evidence",
+    ),
+    program_evidence_adjudication: Path | None = typer.Option(
+        None,
+        "--program-evidence-adjudication",
+        help="Optional program-evidence-adjudication-v1 JSON; local evidence only, not activation authority",
+    ),
     export_preflight: Path | None = typer.Option(
         None,
         "--export-preflight",
@@ -452,6 +462,8 @@ def activation_packet(
             oracle_publication_preflight_path=oracle_publication_preflight,
             oracle_publication_receipt_path=oracle_publication_receipt,
             candidate_state_path=candidate_state,
+            generation_fitness_results_path=generation_fitness_results,
+            program_evidence_adjudication_path=program_evidence_adjudication,
             external_authority_export_preflight_path=export_preflight,
             obsidian_review_adapter_receipt_path=obsidian_review_adapter_receipt,
             canonical_binding_verification_path=canonical_binding_verification,

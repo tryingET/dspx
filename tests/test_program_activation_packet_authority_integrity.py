@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -7,13 +8,126 @@ import pytest
 
 from dspx.cli.dspx import app
 from program_activation_packet_shared import (
+    _candidate_identity,
     _materialize_program,
     _materialize_review_chain,
+    _write_json,
     _write_target_aware_candidate_state,
     runner,
 )
 
 pytestmark = pytest.mark.slow
+
+
+def _artifact_ref(path: Path, *, schema_version: str) -> dict[str, object]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "schema_version": schema_version,
+    }
+
+
+def _write_generation_fitness_results(out: Path) -> Path:
+    _write_json(
+        out,
+        {
+            "schema_version": "gen-fitness-results-v1",
+            "status": "fitness_passed",
+            "rendered_state": "eligible_for_downstream_evidence_review",
+            "cases": [],
+        },
+    )
+    return out
+
+
+def _write_program_evidence_adjudication(
+    root: Path,
+    out: Path,
+    *,
+    generation_fitness_results_path: Path,
+) -> Path:
+    manifest_path = root / "manifest.json"
+    _write_json(
+        out,
+        {
+            "schema_version": "program-evidence-adjudication-v1",
+            "status": "evidence_adjudicated",
+            "identity": _candidate_identity(root),
+            "manifest": _artifact_ref(
+                manifest_path,
+                schema_version="program-candidate-assembly-v1",
+            ),
+            "evidence_refs": {
+                "behavior": None,
+                "oracle_report": None,
+                "activation_packet": None,
+                "generation_traceability": None,
+                "generation_fitness_results": _artifact_ref(
+                    generation_fitness_results_path,
+                    schema_version="gen-fitness-results-v1",
+                ),
+            },
+            "role_judgments": [
+                {
+                    "perspective": "target_protocol_fidelity",
+                    "judgment": "supports_domain_review",
+                    "missing_evidence": [],
+                    "rationale": "target-fidelity result permits downstream evidence review only",
+                    "activation_authority": False,
+                    "model_backed": False,
+                    "provider_called": False,
+                }
+            ],
+            "aggregate": {
+                "recommendation": "revise_or_collect_missing_evidence",
+                "ready_for_domain_decision": False,
+                "activation_approved": False,
+                "judgment_counts": {"supports_domain_review": 1},
+                "missing_evidence": [],
+                "blocking_perspectives": [],
+            },
+            "non_authority": {
+                "activation_authority": False,
+                "promotion_authority": False,
+                "oracle_authority": False,
+                "governance_authority": False,
+                "external_authority": False,
+                "external_mutation": False,
+            },
+            "effect": {
+                "candidate_files_mutated": False,
+                "canonical_target_mutated": False,
+                "ak_mutated": False,
+                "governance_mutated": False,
+                "oracle_index_mutated": False,
+                "shared_oracle_mutated": False,
+                "provider_called": False,
+            },
+        },
+    )
+    return out
+
+
+def _write_target_aware_state_with_adjudication_refs(
+    root: Path,
+    out: Path,
+    *,
+    generation_fitness_results_path: Path,
+    program_evidence_adjudication_path: Path,
+) -> Path:
+    _write_target_aware_candidate_state(root, out)
+    state = json.loads(out.read_text(encoding="utf-8"))
+    state["artifact_hashes"] = {
+        "generation_fitness_results_sha256": hashlib.sha256(
+            generation_fitness_results_path.read_bytes()
+        ).hexdigest(),
+        "program_evidence_adjudication_sha256": hashlib.sha256(
+            program_evidence_adjudication_path.read_bytes()
+        ).hexdigest(),
+    }
+    state.setdefault("truth_summary", {})["target_protocol_adjudication_present"] = True
+    _write_json(out, state)
+    return out
 
 
 def test_program_promote_activation_packet_rejects_widened_jury_authority(
@@ -187,6 +301,280 @@ def test_program_promote_activation_packet_rejects_blocking_target_judgment(
     assert result.exit_code == 2
     assert (
         "target_protocol_fidelity_judgment must record blocking false" in result.output
+    )
+
+
+def test_program_promote_activation_packet_includes_program_evidence_adjudication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        program_root,
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        generation_fitness_results_path=fitness_path,
+    )
+    candidate_state_path = _write_target_aware_state_with_adjudication_refs(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--generation-fitness-results",
+            str(fitness_path),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert (
+        payload["evidence"]["generation_fitness_results"]["sha256"]
+        == hashlib.sha256(fitness_path.read_bytes()).hexdigest()
+    )
+    assert payload["evidence"]["program_evidence_adjudication"]["path"] == str(
+        adjudication_path.resolve()
+    )
+    assert (
+        payload["target_review_admission"]["production_activation_authority"] is False
+    )
+    assert payload["effect"]["production_activation_applied"] is False
+
+
+def test_program_promote_activation_packet_rejects_stale_program_adjudication_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        program_root,
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        generation_fitness_results_path=fitness_path,
+    )
+    candidate_state_path = _write_target_aware_state_with_adjudication_refs(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    adjudication = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    adjudication["evidence_refs"]["generation_fitness_results"]["sha256"] = "0" * 64
+    _write_json(adjudication_path, adjudication)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--generation-fitness-results",
+            str(fitness_path),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "generation_fitness_results ref sha256 does not match current evidence"
+        in result.output
+    )
+
+
+def test_program_promote_activation_packet_rejects_program_adjudication_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        program_root,
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        generation_fitness_results_path=fitness_path,
+    )
+    candidate_state_path = _write_target_aware_state_with_adjudication_refs(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    adjudication = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    adjudication["identity"]["candidate_id"] = "wrong-candidate"
+    _write_json(adjudication_path, adjudication)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--generation-fitness-results",
+            str(fitness_path),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "identity does not match current manifest: candidate_id" in result.output
+
+
+def test_program_promote_activation_packet_rejects_program_adjudication_authority_spoof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        program_root,
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        generation_fitness_results_path=fitness_path,
+    )
+    candidate_state_path = _write_target_aware_state_with_adjudication_refs(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    adjudication = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    adjudication["non_authority"]["promotion_authority"] = True
+    _write_json(adjudication_path, adjudication)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--generation-fitness-results",
+            str(fitness_path),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "widens non-authority flags: promotion_authority" in result.output
+
+
+def test_program_promote_activation_packet_rejects_candidate_state_adjudication_hash_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        program_root,
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        generation_fitness_results_path=fitness_path,
+    )
+    candidate_state_path = _write_target_aware_state_with_adjudication_refs(
+        program_root,
+        tmp_path / "activation" / "program_candidate_state.json",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    state = json.loads(candidate_state_path.read_text(encoding="utf-8"))
+    state["artifact_hashes"]["program_evidence_adjudication_sha256"] = "0" * 64
+    _write_json(candidate_state_path, state)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "obsidian/pdf-transition",
+            "--activation-target",
+            "obsidian-pdf-transition-generated-program-runtime",
+            "--authority-owner",
+            "obsidian-pdf-transition-governance",
+            "--candidate-state",
+            str(candidate_state_path),
+            "--generation-fitness-results",
+            str(fitness_path),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "candidate_state program_evidence_adjudication hash does not match"
+        in result.output
     )
 
 

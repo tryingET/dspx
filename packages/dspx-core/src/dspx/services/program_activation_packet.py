@@ -9,6 +9,9 @@ from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
+from dspx.services.program_evidence_adjudication_validation import (
+    validate_program_evidence_adjudication_contract,
+)
 from dspx.services.program_jury_result_validation import (
     validate_program_jury_results_contract,
 )
@@ -49,6 +52,8 @@ _EXPECTED_SCHEMAS = {
     "obsidian_review_adapter_receipt": "dspy-pdf-transition-review-adapter-receipt-v1",
     "canonical_binding_verification": "program-canonical-binding-verification-v1",
     "external_authority_export_preflight": "program-external-authority-export-preflight-v1",
+    "generation_fitness_results": "gen-fitness-results-v1",
+    "program_evidence_adjudication": "program-evidence-adjudication-v1",
 }
 
 CANONICAL_BINDING_VERIFICATION_SCHEMA = "program-canonical-binding-verification-v1"
@@ -397,6 +402,15 @@ def _receipt_ref(manifest_path: Path) -> dict[str, Any] | None:
         Path(str(manifest_path.expanduser().resolve()) + ".meta.json"),
         schema_version="dspx-run-receipt-v1",
     )
+
+
+def _first_ref_hash_by_schema(
+    refs: list[dict[str, Any]], *, schema_version: str
+) -> str | None:
+    for ref in refs:
+        if ref.get("schema_version") == schema_version:
+            return _first_text(ref.get("sha256"))
+    return None
 
 
 def _decision_outcome(decision_record: Mapping[str, Any] | None) -> str | None:
@@ -1726,6 +1740,39 @@ def _validate_candidate_state(
             )
 
 
+def _validate_candidate_state_target_adjudication_alignment(
+    *,
+    candidate_state: Mapping[str, Any] | None,
+    program_evidence_adjudication_ref: Mapping[str, Any] | None,
+    generation_fitness_results_ref: Mapping[str, Any] | None,
+) -> None:
+    if candidate_state is None:
+        return
+    artifact_hashes = _safe_mapping(candidate_state.get("artifact_hashes"))
+    adjudication_hash = artifact_hashes.get("program_evidence_adjudication_sha256")
+    if adjudication_hash and program_evidence_adjudication_ref is None:
+        raise ProgramActivationPacketError(
+            "candidate_state references program_evidence_adjudication but activation packet omitted it"
+        )
+    if program_evidence_adjudication_ref is not None:
+        supplied_hash = program_evidence_adjudication_ref.get("sha256")
+        if adjudication_hash and adjudication_hash != supplied_hash:
+            raise ProgramActivationPacketError(
+                "candidate_state program_evidence_adjudication hash does not match supplied adjudication"
+            )
+    fitness_hash = artifact_hashes.get("generation_fitness_results_sha256")
+    if fitness_hash and generation_fitness_results_ref is None:
+        raise ProgramActivationPacketError(
+            "candidate_state references generation_fitness_results but activation packet omitted it"
+        )
+    if generation_fitness_results_ref is not None:
+        supplied_fitness_hash = generation_fitness_results_ref.get("sha256")
+        if fitness_hash and fitness_hash != supplied_fitness_hash:
+            raise ProgramActivationPacketError(
+                "candidate_state generation_fitness_results hash does not match supplied fitness results"
+            )
+
+
 def _validate_obsidian_review_adapter_receipt(
     receipt: Mapping[str, Any] | None,
     *,
@@ -1938,6 +1985,8 @@ def build_generated_program_activation_packet(
     oracle_publication_preflight_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
     candidate_state_path: Path | None = None,
+    generation_fitness_results_path: Path | None = None,
+    program_evidence_adjudication_path: Path | None = None,
     external_authority_export_preflight_path: Path | None = None,
     obsidian_review_adapter_receipt_path: Path | None = None,
     canonical_binding_verification_path: Path | None = None,
@@ -2013,6 +2062,18 @@ def build_generated_program_activation_packet(
         candidate_state_path,
         label="candidate_state",
     )
+    generation_fitness_results, generation_fitness_results_ref = (
+        _load_optional_artifact(
+            generation_fitness_results_path,
+            label="generation_fitness_results",
+        )
+    )
+    program_evidence_adjudication, program_evidence_adjudication_ref = (
+        _load_optional_artifact(
+            program_evidence_adjudication_path,
+            label="program_evidence_adjudication",
+        )
+    )
     external_authority_export_preflight, external_authority_export_preflight_ref = (
         _load_optional_artifact(
             external_authority_export_preflight_path,
@@ -2061,6 +2122,32 @@ def build_generated_program_activation_packet(
         preflight_ref=oracle_publication_preflight_ref,
     )
     _validate_candidate_state(identity, candidate_state)
+    behavior_refs = _behavior_refs(root, manifest)
+    validate_program_evidence_adjudication_contract(
+        program_evidence_adjudication,
+        expected_identity=identity,
+        current_manifest_path=manifest_path,
+        current_manifest_hash=str(manifest_ref["sha256"]),
+        behavior_results_hash=_first_ref_hash_by_schema(
+            behavior_refs,
+            schema_version="program-behavior-results-v1",
+        ),
+        behavior_episode_hash=_first_ref_hash_by_schema(
+            behavior_refs,
+            schema_version="program-behavior-episode-v1",
+        ),
+        oracle_report_hash=_first_text((oracle_ref or {}).get("sha256")),
+        activation_packet_hash=None,
+        generation_fitness_results_hash=_first_text(
+            (generation_fitness_results_ref or {}).get("sha256")
+        ),
+        error_type=ProgramActivationPacketError,
+    )
+    _validate_candidate_state_target_adjudication_alignment(
+        candidate_state=candidate_state,
+        program_evidence_adjudication_ref=program_evidence_adjudication_ref,
+        generation_fitness_results_ref=generation_fitness_results_ref,
+    )
     _validate_external_authority_export_preflight(
         identity,
         external_authority_export_preflight,
@@ -2087,7 +2174,6 @@ def build_generated_program_activation_packet(
         candidate_state_ref=candidate_state_ref,
     )
 
-    behavior_refs = _behavior_refs(root, manifest)
     receipt = _receipt_ref(manifest_path)
     target_review_admission = _target_review_admission(
         candidate_state=candidate_state,
@@ -2162,6 +2248,8 @@ def build_generated_program_activation_packet(
                 oracle_publication_receipt,
             ),
             "candidate_state": candidate_state_ref,
+            "generation_fitness_results": generation_fitness_results_ref,
+            "program_evidence_adjudication": program_evidence_adjudication_ref,
             "external_authority_export_preflight": _external_authority_export_preflight_ref(
                 external_authority_export_preflight_ref,
                 external_authority_export_preflight,
