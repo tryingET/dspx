@@ -299,6 +299,24 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "program meta-adjudication test harness changed",
     ),
+    "pytest_program_model_jury": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_model_jury_execution.py",
+            "tests/test_program_promotion_refinement.py",
+            "tests/test_program_candidate_state.py",
+            "tests/test_program_activation_packet_core_review.py",
+            "-n",
+            "auto",
+            "--dist=loadfile",
+        ],
+        "program model-jury evidence seam changed",
+    ),
     "pytest_verify_changed": CommandSpec(
         [
             "uv",
@@ -969,6 +987,7 @@ def build_plan(
         "pytest_module_synthesis_evidence",
         "pytest_run_receipts",
         "pytest_program_meta_adjudication",
+        "pytest_program_model_jury",
         "pytest_generated_direct_runner",
         "pytest_program_direct_runner_generation",
         "pytest_program_generation_spine",

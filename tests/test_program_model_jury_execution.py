@@ -11,6 +11,9 @@ from dspx.cli.dspx import app
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_service import materialize_program_from_intent
 from dspx.services import program_model_jury_execution as model_jury
+from dspx.services.program_model_jury_validation import (
+    validate_program_model_jury_results_contract,
+)
 
 runner = CliRunner()
 
@@ -135,6 +138,17 @@ def test_model_jury_service_calls_provider_backed_jurors_without_mutating_candid
 
     assert payload["schema_version"] == "program-model-jury-results-v1"
     assert payload["status"] == "executed"
+    assert payload["created_from"]["manifest_path"] == str(
+        (program_root / "manifest.json").resolve()
+    )
+    assert (
+        payload["created_from"]["manifest_sha256"]
+        == hashlib.sha256((program_root / "manifest.json").read_bytes()).hexdigest()
+    )
+    assert (
+        payload["created_from"]["jury_sha256"]
+        == hashlib.sha256((program_root / "jury.json").read_bytes()).hexdigest()
+    )
     assert payload["jury"]["execution_mode"] == "provider_backed_model"
     assert payload["jury"]["provider_backed_model_calls"] is True
     assert payload["adjudicator"] == {
@@ -156,6 +170,47 @@ def test_model_jury_service_calls_provider_backed_jurors_without_mutating_candid
     )
     assert payload["effect"]["program_files_mutated"] is False
     assert _file_hashes(program_root) == before
+
+
+def test_model_jury_contract_rejects_stale_evidence_hash(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    extra_evidence = tmp_path / "component_inventory_json"
+    extra_evidence.write_text(
+        json.dumps(
+            {
+                "schemaVersion": "designmd.component-inventory.v1",
+                "items": [{"name": "WorkoutCameraPanel"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", _fake_juror_model)
+    payload = model_jury.build_program_model_jury_execution_result(
+        manifest_path=program_root / "manifest.json",
+        evidence_paths=[extra_evidence],
+        provider="stub",
+        adjudicator_repo="calisthenics-ai-coach",
+    )
+    extra_evidence.write_text('{"changed": true}', encoding="utf-8")
+
+    try:
+        validate_program_model_jury_results_contract(
+            payload,
+            valid_manifest_refs={
+                (program_root / "manifest.json").resolve(): hashlib.sha256(
+                    (program_root / "manifest.json").read_bytes()
+                ).hexdigest()
+            },
+        )
+    except ValueError as exc:
+        assert "evidence entry" in str(exc)
+        assert "sha256 does not match" in str(exc)
+    else:  # pragma: no cover - defensive assertion for stale-evidence rejection
+        raise AssertionError("stale model-jury evidence hash was accepted")
 
 
 def test_program_promote_model_jury_cli_writes_sidecar(
@@ -204,3 +259,36 @@ def test_program_promote_model_jury_cli_writes_sidecar(
     assert payload["created_from"]["evidence_paths"] == [str(extra_evidence.resolve())]
     assert payload["adjudicator"]["repo"] == "calisthenics-ai-coach"
     assert payload["non_authority"]["promotion_approval"] is False
+
+
+def test_program_promote_model_jury_rejects_candidate_root_output_before_provider_calls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+
+    def fail_provider(provider: str | None = None) -> dict[str, Any]:
+        raise AssertionError("provider should not be configured for unsafe output")
+
+    monkeypatch.setattr(model_jury, "_configure_provider", fail_provider)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "model-jury",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--provider",
+            "stub",
+            "--out",
+            str(program_root / "model_jury_results.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "program model jury results output must not be written inside" in result.output
+    )
+    assert not (program_root / "model_jury_results.json").exists()

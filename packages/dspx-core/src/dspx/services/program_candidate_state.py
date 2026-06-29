@@ -587,10 +587,14 @@ def _validate_optional_inputs(
         )
 
     if model_jury_results is not None:
+        valid_manifest_refs = {current_manifest_path: current_manifest_hash}
+        if source_manifest_path is not None and source_manifest_hash is not None:
+            valid_manifest_refs[source_manifest_path] = source_manifest_hash
         validate_program_model_jury_results_contract(
             model_jury_results,
             label="program model jury results",
             error_type=ProgramCandidateStateError,
+            valid_manifest_refs=valid_manifest_refs,
         )
         model_jury_identity = _safe_mapping(model_jury_results.get("identity"))
         if not any(

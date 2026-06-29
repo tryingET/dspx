@@ -461,6 +461,7 @@ def _validate_activation_evidence_boundaries(
             model_jury_results,
             label="model_jury_results",
             error_type=ProgramActivationPacketError,
+            valid_manifest_refs={manifest_path: manifest_hash},
         )
     if refined_review is not None:
         _validate_non_authority_false(

@@ -220,7 +220,10 @@ def _write_model_jury_results(
             "schema_version": "program-model-jury-results-v1",
             "status": "executed",
             "identity": identity,
-            "created_from": {"manifest_path": str(manifest_path)},
+            "created_from": {
+                "manifest_path": str(manifest_path.resolve()),
+                "manifest_sha256": _sha256(manifest_path),
+            },
             "jury": {
                 "execution_mode": "provider_backed_model",
                 "provider_backed_model_calls": True,

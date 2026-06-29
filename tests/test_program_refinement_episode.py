@@ -71,11 +71,16 @@ def _identity(manifest: Mapping[str, Any]) -> dict[str, str | None]:
 
 
 def _model_jury_result_for_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    assembly = manifest.get("candidate_assembly") or {}
+    manifest_path = Path(str(assembly["root_path"])) / "manifest.json"
     return {
         "schema_version": "program-model-jury-results-v1",
         "status": "executed",
         "identity": _identity(manifest),
-        "created_from": {"manifest_path": "manifest.json"},
+        "created_from": {
+            "manifest_path": str(manifest_path.resolve()),
+            "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        },
         "jury": {
             "execution_mode": "provider_backed_model",
             "provider_backed_model_calls": True,

@@ -61,6 +61,7 @@ def _model_jury_result_for_manifest(manifest: Mapping[str, Any]) -> dict[str, An
     candidate = dict(manifest["candidate_assembly"])
     execution = dict(manifest["execution_episode"])
     receipt = dict(manifest["receipt_bundle"])
+    manifest_path = Path(str(candidate["root_path"])) / "manifest.json"
     return {
         "schema_version": "program-model-jury-results-v1",
         "status": "executed",
@@ -71,7 +72,10 @@ def _model_jury_result_for_manifest(manifest: Mapping[str, Any]) -> dict[str, An
             "episode_id": execution["episode_id"],
             "receipt_bundle_id": receipt["receipt_bundle_id"],
         },
-        "created_from": {"manifest_path": "manifest.json"},
+        "created_from": {
+            "manifest_path": str(manifest_path.resolve()),
+            "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        },
         "jury": {
             "execution_mode": "provider_backed_model",
             "provider_backed_model_calls": True,

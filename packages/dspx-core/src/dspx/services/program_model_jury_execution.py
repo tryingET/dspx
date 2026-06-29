@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+
 PROGRAM_MODEL_JURY_RESULTS_SCHEMA = "program-model-jury-results-v1"
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
 PROGRAM_JURY_SCHEMA = "program-jury-v1"
@@ -173,8 +175,11 @@ def _load_jury_artifacts(
         rubric,
         {
             "jury_path": str(jury_path.resolve()),
+            "jury_sha256": _sha256_file(jury_path),
             "jury_selection_path": str(selection_path.resolve()),
+            "jury_selection_sha256": _sha256_file(selection_path),
             "jury_rubric_path": str(rubric_path.resolve()),
+            "jury_rubric_sha256": _sha256_file(rubric_path),
         },
     )
 
@@ -533,6 +538,7 @@ def build_program_model_jury_execution_result(
         "identity": identity,
         "created_from": {
             "manifest_path": str(manifest_path),
+            "manifest_sha256": _sha256_file(manifest_path),
             "manifest_schema_version": manifest.get("schema_version"),
             **jury_paths,
             "evidence_paths": [
@@ -582,11 +588,35 @@ def build_program_model_jury_execution_result(
     }
 
 
+def preflight_program_model_jury_output_path(
+    *, manifest_path: Path, out_path: Path
+) -> Path:
+    """Fail closed on unsafe model-jury sidecar output before provider calls."""
+
+    try:
+        return prepare_sidecar_output_path(
+            out_path,
+            payload={"created_from": {"manifest_path": str(manifest_path)}},
+            artifact_label="program model jury results",
+            payload_artifact_root_policy="forbid",
+        )
+    except ValueError as exc:
+        raise ProgramModelJuryExecutionError(str(exc)) from exc
+
+
 def write_program_model_jury_execution_result(
     result: Mapping[str, Any], out_path: Path
 ) -> dict[str, Any]:
-    out_path = out_path.expanduser().resolve()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(result)
-    out_path.write_text(_json_text(payload), encoding="utf-8")
+    try:
+        target = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="program model jury results",
+            payload_artifact_root_policy="forbid",
+        )
+    except ValueError as exc:
+        raise ProgramModelJuryExecutionError(str(exc)) from exc
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(_json_text(payload), encoding="utf-8")
     return payload

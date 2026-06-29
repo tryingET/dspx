@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -31,12 +32,19 @@ def _write_model_jury_results(
     identity = _candidate_identity(root)
     if authority_drift:
         identity = {**identity, "candidate_id": "wrong-candidate"}
+    manifest_path = root / "manifest.json"
     _write_json(
         out,
         {
             "schema_version": "program-model-jury-results-v1",
             "status": status,
             "identity": identity,
+            "created_from": {
+                "manifest_path": str(manifest_path.resolve()),
+                "manifest_sha256": hashlib.sha256(
+                    manifest_path.read_bytes()
+                ).hexdigest(),
+            },
             "jury": {
                 "execution_mode": "provider_backed_model",
                 "provider_backed_model_calls": True,
@@ -720,6 +728,61 @@ def test_program_promote_activation_packet_accepts_model_jury_as_jury_evidence(
     assert payload["non_authority"]["program_activation_applied"] is False
     assert _file_hashes(program_root) == before_hashes
     assert not (program_root / "activation_packet.json").exists()
+
+
+def test_program_promote_activation_packet_rejects_stale_model_jury_manifest_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, _jury_path, review_path, _decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    model_jury = json.loads(
+        _write_model_jury_results(
+            program_root,
+            tmp_path / "promotion" / "model_jury_results.json",
+        ).read_text(encoding="utf-8")
+    )
+    model_jury["created_from"] = {
+        **model_jury["created_from"],
+        "manifest_sha256": "0" * 64,
+    }
+    model_jury_path = tmp_path / "promotion" / "stale_model_jury_results.json"
+    _write_json(model_jury_path, model_jury)
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--model-jury-results",
+            str(model_jury_path),
+            "--review",
+            str(review_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "model_jury_results manifest sha256 does not match" in result.output
+    assert not out_path.exists()
 
 
 def test_program_promote_activation_packet_rejects_model_jury_identity_drift(

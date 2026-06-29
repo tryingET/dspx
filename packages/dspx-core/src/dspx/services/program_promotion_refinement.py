@@ -357,6 +357,8 @@ def _load_model_jury_results(
     path: Path | None,
     *,
     identity: Mapping[str, str | None],
+    manifest_path: Path,
+    manifest_hash: str,
 ) -> tuple[dict[str, Any] | None, Path | None, str | None]:
     if path is None:
         return None, None, None
@@ -387,6 +389,7 @@ def _load_model_jury_results(
         payload,
         label="program model jury results",
         error_type=ProgramPromotionRefinementError,
+        valid_manifest_refs={manifest_path: manifest_hash},
     )
     _assert_identity_matches(
         _safe_mapping(payload.get("identity")),
@@ -638,7 +641,12 @@ def load_program_promotion_inputs(
         proposal_identity, identity, label="program refinement proposal"
     )
     model_jury_results, model_jury_results_file, model_jury_results_hash = (
-        _load_model_jury_results(model_jury_results_path, identity=identity)
+        _load_model_jury_results(
+            model_jury_results_path,
+            identity=identity,
+            manifest_path=manifest_path,
+            manifest_hash=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        )
     )
     review, request, decision_template, promotion_paths = (
         _load_original_promotion_artifacts(

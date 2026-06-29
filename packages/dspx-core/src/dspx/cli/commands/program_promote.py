@@ -155,10 +155,12 @@ def model_jury(
     from dspx.services.program_model_jury_execution import (
         ProgramModelJuryExecutionError,
         build_program_model_jury_execution_result,
+        preflight_program_model_jury_output_path,
         write_program_model_jury_execution_result,
     )
 
     try:
+        preflight_program_model_jury_output_path(manifest_path=manifest, out_path=out)
         ensure_env(provider)
         result = build_program_model_jury_execution_result(
             manifest_path=manifest,
