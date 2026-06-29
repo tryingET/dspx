@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_evidence_adjudication_validation import (
+    validate_program_evidence_adjudication_contract,
+)
 from dspx.services.program_jury_result_validation import (
     PROGRAM_JURY_RESULTS_SCHEMA,
     validate_program_jury_results_contract,
@@ -1813,6 +1816,18 @@ def build_program_candidate_state(
         sidecar_hashes=activation_sidecar_hashes,
         comparison_hash=comparison_hash,
         supplied_sidecar_refs=supplied_sidecar_refs,
+    )
+    validate_program_evidence_adjudication_contract(
+        program_evidence_adjudication,
+        expected_identity=candidate_identity,
+        current_manifest_path=manifest_path,
+        current_manifest_hash=manifest_hash,
+        behavior_results_hash=behavior_hash,
+        behavior_episode_hash=behavior_episode_hash,
+        oracle_report_hash=oracle_report_hash,
+        activation_packet_hash=activation_packet_hash,
+        generation_fitness_results_hash=generation_fitness_results_hash,
+        error_type=ProgramCandidateStateError,
     )
 
     execution_episode_path = _optional_artifact_path(

@@ -657,6 +657,25 @@ rules:
       - typecheck_core
       - pytest_authority_boundary_contracts
 
+  - match: "packages/dspx-core/src/dspx/services/program_evidence_adjudication_validation.py"
+    category: python_service
+    impact_group: boundary_sensitive
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_authority_boundary_contracts
+
+  - match: "packages/dspx-core/src/dspx/services/program_meta_adjudication.py"
+    category: python_service
+    impact_group: boundary_sensitive
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_meta_adjudication
+      - pytest_authority_boundary_contracts
+
   - match: "packages/dspx-core/src/dspx/services/program_jury_result_validation.py"
     category: python_service
     impact_group: boundary_sensitive

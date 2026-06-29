@@ -12,6 +12,7 @@ from dspx.services.program_promotion_decision import (
     write_program_promotion_decision_record,
 )
 from dspx.services.program_meta_adjudication import (
+    ProgramMetaAdjudicationError,
     build_program_adjudication_behavior_trace,
     build_program_adjudication_gepa_example,
     build_program_adjudicator_delegation,
@@ -607,6 +608,22 @@ def test_program_evidence_adjudication_and_behavior_trace_cli_write_json(
         == decision_payload["outcome"]
     )
     assert trace_out.exists()
+
+    manifest_before = (candidate_root / "manifest.json").read_bytes()
+    with pytest.raises(
+        ProgramMetaAdjudicationError, match="must not overwrite manifest.json"
+    ):
+        write_program_evidence_adjudication(
+            adjudication_payload,
+            candidate_root / "manifest.json",
+        )
+    with pytest.raises(ProgramMetaAdjudicationError, match="protected artifact root"):
+        write_program_adjudication_behavior_trace(
+            trace_payload,
+            candidate_root / "unsafe_trace.json",
+        )
+    assert (candidate_root / "manifest.json").read_bytes() == manifest_before
+    assert not (candidate_root / "unsafe_trace.json").exists()
 
 
 def test_program_evidence_adjudication_rejects_unverified_adjudicator(

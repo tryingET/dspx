@@ -138,6 +138,20 @@ def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
+def _prepare_guarded_sidecar_output(
+    out_path: Path, *, payload: Mapping[str, Any], artifact_label: str
+) -> Path:
+    try:
+        return prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label=artifact_label,
+            payload_artifact_root_policy="forbid",
+        )
+    except ValueError as exc:
+        raise ProgramMetaAdjudicationError(str(exc)) from exc
+
+
 def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
     try:
         payload = json.loads(path.expanduser().read_text(encoding="utf-8"))
@@ -1888,9 +1902,13 @@ def write_program_evidence_adjudication(
             "program evidence adjudication schema_version must be "
             + PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA
         )
-    out = out_path.expanduser().resolve()
-    out.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(adjudication)
+    out = _prepare_guarded_sidecar_output(
+        out_path,
+        payload=payload,
+        artifact_label="program evidence adjudication",
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_json_text(payload), encoding="utf-8")
     return payload
 
@@ -2060,9 +2078,13 @@ def write_program_adjudication_behavior_trace(
             "program adjudication behavior trace schema_version must be "
             + PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA
         )
-    out = out_path.expanduser().resolve()
-    out.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(trace)
+    out = _prepare_guarded_sidecar_output(
+        out_path,
+        payload=payload,
+        artifact_label="program adjudication behavior trace",
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_json_text(payload), encoding="utf-8")
     return payload
 
@@ -2325,9 +2347,13 @@ def write_program_adjudication_gepa_example(
             "program adjudication GEPA example schema_version must be "
             + PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA
         )
-    out = out_path.expanduser().resolve()
-    out.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(example)
+    out = _prepare_guarded_sidecar_output(
+        out_path,
+        payload=payload,
+        artifact_label="program adjudication GEPA example",
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_json_text(payload), encoding="utf-8")
     return payload
 
@@ -2341,15 +2367,11 @@ def write_program_meta_adjudication_plan(
             + PROGRAM_META_ADJUDICATION_PLAN_SCHEMA
         )
     payload = dict(plan)
-    try:
-        out = prepare_sidecar_output_path(
-            out_path,
-            payload=payload,
-            artifact_label="meta-adjudication plan",
-            payload_artifact_root_policy="forbid",
-        )
-    except ValueError as exc:
-        raise ProgramMetaAdjudicationError(str(exc)) from exc
+    out = _prepare_guarded_sidecar_output(
+        out_path,
+        payload=payload,
+        artifact_label="meta-adjudication plan",
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(_json_text(payload), encoding="utf-8")
     return payload

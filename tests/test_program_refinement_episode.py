@@ -126,7 +126,13 @@ def _model_jury_result_for_manifest(manifest: Mapping[str, Any]) -> dict[str, An
             }
         ],
         "aggregate": {
-            "judgment_counts": {"request_more_evidence": 1},
+            "judgment_counts": {
+                "supports_review_evidence": 0,
+                "withhold": 0,
+                "reject": 0,
+                "request_more_evidence": 1,
+                "failed": 0,
+            },
             "recommendation": "request_more_evidence",
             "unique_improvement_requests": ["add more target evidence"],
         },

@@ -140,19 +140,38 @@ def _write_generation_fitness_results(
 
 
 def _write_program_evidence_adjudication(
-    path: Path, *, judgment: str = "supports_domain_review"
+    path: Path,
+    *,
+    manifest_path: Path,
+    generation_fitness_results_path: Path,
+    judgment: str = "supports_domain_review",
 ) -> Path:
+    blocking = (
+        [] if judgment == "supports_domain_review" else ["target_protocol_fidelity"]
+    )
     _write_json(
         path,
         {
             "schema_version": "program-evidence-adjudication-v1",
             "status": "evidence_adjudicated",
+            "authority": "program_evidence_adjudication_evidence_only_non_authoritative",
+            "identity": _identity_from_manifest_path(manifest_path),
+            "manifest": _artifact_ref(manifest_path),
+            "evidence_refs": {
+                "behavior": None,
+                "oracle_report": None,
+                "activation_packet": None,
+                "generation_traceability": None,
+                "generation_fitness_results": _artifact_ref(
+                    generation_fitness_results_path
+                ),
+            },
             "aggregate": {
                 "ready_for_domain_decision": False,
                 "recommendation": "revise_or_collect_missing_evidence",
-                "blocking_perspectives": []
-                if judgment == "supports_domain_review"
-                else ["target_protocol_fidelity"],
+                "activation_approved": False,
+                "judgment_counts": {judgment: 1},
+                "blocking_perspectives": blocking,
                 "missing_evidence": [],
             },
             "role_judgments": [
@@ -163,8 +182,28 @@ def _write_program_evidence_adjudication(
                     if judgment == "supports_domain_review"
                     else ["generation_fitness_results.json"],
                     "rationale": "target-fidelity result permits downstream evidence review only, not approval or activation",
+                    "activation_authority": False,
+                    "model_backed": False,
+                    "provider_called": False,
                 }
             ],
+            "non_authority": {
+                "activation_authority": False,
+                "promotion_authority": False,
+                "oracle_authority": False,
+                "governance_authority": False,
+                "external_authority": False,
+                "external_mutation": False,
+            },
+            "effect": {
+                "candidate_files_mutated": False,
+                "canonical_target_mutated": False,
+                "ak_mutated": False,
+                "governance_mutated": False,
+                "oracle_index_mutated": False,
+                "shared_oracle_mutated": False,
+                "provider_called": False,
+            },
         },
     )
     return path
@@ -1574,8 +1613,11 @@ def test_program_promote_status_reports_target_fidelity_admission(
     fitness_path = _write_generation_fitness_results(
         tmp_path / "target" / "generation_fitness_results.json"
     )
+    manifest_path = candidate_root / "manifest.json"
     adjudication_path = _write_program_evidence_adjudication(
-        tmp_path / "target" / "program_evidence_adjudication.json"
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
     )
     out_path = tmp_path / "state" / "program_candidate_state_target_ready.json"
 
@@ -1585,7 +1627,7 @@ def test_program_promote_status_reports_target_fidelity_admission(
             "program-promote",
             "status",
             "--manifest",
-            str(candidate_root / "manifest.json"),
+            str(manifest_path),
             "--generation-gate-preflight",
             str(gate_path),
             "--generation-fitness-results",
@@ -1621,6 +1663,103 @@ def test_program_promote_status_reports_target_fidelity_admission(
         payload["truth_summary"]["obsidian_review_adapter_materialization_allowed"]
         is True
     )
+
+
+def test_program_promote_status_rejects_stale_target_adjudication_fitness_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    manifest_path = candidate_root / "manifest.json"
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+    )
+    payload = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    payload["evidence_refs"]["generation_fitness_results"]["sha256"] = "0" * 64
+    _write_json(adjudication_path, payload)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="generation_fitness_results ref sha256 does not match current evidence",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            generation_fitness_results_path=fitness_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
+
+
+def test_program_promote_status_rejects_wrong_candidate_target_adjudication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    manifest_path = candidate_root / "manifest.json"
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+    )
+    payload = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    payload["identity"]["candidate_id"] = "wrong-candidate"
+    _write_json(adjudication_path, payload)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="identity does not match current manifest: candidate_id",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            generation_fitness_results_path=fitness_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
+
+
+def test_program_promote_status_rejects_target_adjudication_authority_spoof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    manifest_path = candidate_root / "manifest.json"
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        generation_fitness_results_path=fitness_path,
+    )
+    payload = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    payload["non_authority"]["promotion_authority"] = True
+    payload["effect"]["provider_called"] = True
+    _write_json(adjudication_path, payload)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="widens non-authority flags: promotion_authority",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            generation_fitness_results_path=fitness_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
 
 
 def test_program_promote_status_blocks_adapter_admission_without_target_adjudication(
