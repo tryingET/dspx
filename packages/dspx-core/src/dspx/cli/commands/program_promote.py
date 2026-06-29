@@ -352,7 +352,7 @@ def activation_packet(
     jury_results: Path | None = typer.Option(
         None,
         "--jury-results",
-        help="Optional program-jury-results-v1 JSON",
+        help="Optional program-jury-results-v2 JSON",
     ),
     model_jury_results: Path | None = typer.Option(
         None,
@@ -1033,7 +1033,7 @@ def meta_adjudication_plan(
     jury_results: Path | None = typer.Option(
         None,
         "--jury-results",
-        help="Optional program-jury-results-v1 JSON",
+        help="Optional program-jury-results-v2 JSON",
     ),
     review: Path | None = typer.Option(
         None,
@@ -1161,7 +1161,7 @@ def status(
     jury_results: Path | None = typer.Option(
         None,
         "--jury-results",
-        help="Optional program-jury-results-v1 JSON",
+        help="Optional program-jury-results-v2 JSON",
     ),
     model_jury_results: Path | None = typer.Option(
         None,

@@ -28,7 +28,7 @@ _EXPECTED_SIDECAR_SCHEMAS = {
     "behavior_episode": "program-behavior-episode-v1",
     "oracle_report": "program-oracle-evidence-report-v1",
     "oracle_publication_receipt": "program-oracle-shared-publication-receipt-v1",
-    "jury_results": "program-jury-results-v1",
+    "jury_results": "program-jury-results-v2",
     "review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
     "activation_packet": "generated-cognition-program-production-activation-packet-v1",
@@ -458,11 +458,19 @@ def _jury_requirements(profile: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _sidecar_is_present_valid(sidecar: Mapping[str, Any]) -> bool:
+    return (
+        sidecar.get("present") is True
+        and sidecar.get("status") == "present"
+        and sidecar.get("schema_version") == sidecar.get("required_schema")
+    )
+
+
 def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
     missing: list[str] = []
-    if not sidecars["behavior_results"].get("present") and not sidecars[
-        "behavior_episode"
-    ].get("present"):
+    if not _sidecar_is_present_valid(
+        sidecars["behavior_results"]
+    ) and not _sidecar_is_present_valid(sidecars["behavior_episode"]):
         missing.append("behavior_evidence")
     for key, label in (
         ("oracle_report", "oracle_report"),
@@ -471,7 +479,7 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
         ("decision_record", "domain_or_adjudicator_decision_record"),
         ("activation_packet", "activation_evidence_packet"),
     ):
-        if not sidecars[key].get("present"):
+        if not _sidecar_is_present_valid(sidecars[key]):
             missing.append(label)
     for key, label in (
         ("generation_target_contract", "generation_target_contract"),
@@ -490,7 +498,7 @@ def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
         ("adjudication_behavior_trace", "adjudication_behavior_trace"),
         ("adjudication_gepa_example", "adjudication_gepa_example"),
     ):
-        if not sidecars[key].get("present"):
+        if not _sidecar_is_present_valid(sidecars[key]):
             missing.append(label)
     missing.append("adjudication_behavior_trace_publication")
     return missing
@@ -500,7 +508,7 @@ def _sidecar_command_option(
     sidecars: Mapping[str, Mapping[str, Any]], *, key: str, option: str
 ) -> str:
     sidecar = _safe_mapping(sidecars.get(key))
-    if not sidecar.get("present"):
+    if not _sidecar_is_present_valid(sidecar):
         return ""
     path = _first_text(sidecar.get("path"))
     if path is None:
@@ -557,14 +565,15 @@ def _next_commands(
         ]
     )
     commands: list[dict[str, Any]] = []
-    if not sidecars["jury_results"].get("present"):
+    jury_results_out = root.parent / f"{root.name}-promotion" / "jury_results.json"
+    if not _sidecar_is_present_valid(sidecars["jury_results"]):
         commands.append(
             {
                 "step": "run_deterministic_jury_baseline",
                 "implemented": True,
                 "command": (
                     "dspx program-promote jury "
-                    f"--manifest {manifest_arg} --out {root.parent / (root.name + '-promotion') / 'jury_results.json'} --json"
+                    f"--manifest {manifest_arg} --out {jury_results_out} --json"
                 ),
             }
         )

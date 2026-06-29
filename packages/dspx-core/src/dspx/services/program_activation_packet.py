@@ -35,7 +35,7 @@ TRANSITION_PASSPORT_REF = (
 
 _EXPECTED_SCHEMAS = {
     "oracle_report": "program-oracle-evidence-report-v1",
-    "jury_results": "program-jury-results-v1",
+    "jury_results": "program-jury-results-v2",
     "model_jury_results": PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     "refined_review": "program-promotion-review-refined-v1",
     "decision_record": "program-promotion-decision-record-v1",
@@ -419,8 +419,81 @@ def _validate_decision_authority_owner(
         )
 
 
+def _validate_jury_results_artifact_binding(
+    jury_results: Mapping[str, Any],
+    *,
+    manifest_path: Path,
+    manifest_hash: str,
+) -> None:
+    created_from = _safe_mapping(jury_results.get("created_from"))
+    raw_manifest_path = _first_text(created_from.get("manifest_path"))
+    claimed_manifest_hash = _first_text(created_from.get("manifest_sha256"))
+    if raw_manifest_path is None:
+        raise ProgramActivationPacketError(
+            "jury_results manifest_path is required for hash-bound v2 sidecars"
+        )
+    bound_manifest_path = Path(raw_manifest_path).expanduser().resolve()
+    if bound_manifest_path != manifest_path or claimed_manifest_hash != manifest_hash:
+        raise ProgramActivationPacketError(
+            "jury_results manifest sha256 does not match activation manifest"
+        )
+    manifest_root = manifest_path.parent
+    for path_key, hash_key, label, expected_name in (
+        ("manifest_path", "manifest_sha256", "manifest", "manifest.json"),
+        ("jury_path", "jury_sha256", "planned jury", "jury.json"),
+        (
+            "jury_selection_path",
+            "jury_selection_sha256",
+            "jury selection",
+            "jury_selection.json",
+        ),
+        ("jury_rubric_path", "jury_rubric_sha256", "jury rubric", "jury_rubric.json"),
+        (
+            "behavior_results_path",
+            "behavior_results_sha256",
+            "behavior results",
+            "behavior_results.json",
+        ),
+        (
+            "behavior_episode_path",
+            "behavior_episode_sha256",
+            "behavior episode",
+            "behavior_episode.json",
+        ),
+    ):
+        raw_path = _first_text(created_from.get(path_key))
+        if raw_path is None:
+            continue
+        claimed_hash = _first_text(created_from.get(hash_key))
+        if claimed_hash is None:
+            raise ProgramActivationPacketError(
+                f"jury_results {hash_key} is required when {path_key} is present"
+            )
+        path = Path(raw_path).expanduser().resolve()
+        if path.name != expected_name:
+            raise ProgramActivationPacketError(
+                f"jury_results {label} path must be {expected_name}"
+            )
+        try:
+            path.relative_to(manifest_root)
+        except ValueError as exc:
+            raise ProgramActivationPacketError(
+                f"jury_results {label} path is outside the activation manifest root"
+            ) from exc
+        if not path.exists():
+            raise ProgramActivationPacketError(
+                f"jury_results {label} path is missing: {path}"
+            )
+        if _sha256_file(path) != claimed_hash:
+            raise ProgramActivationPacketError(
+                f"jury_results {label} sha256 does not match current file"
+            )
+
+
 def _validate_activation_evidence_boundaries(
     *,
+    manifest_path: Path,
+    manifest_hash: str,
     jury_results: Mapping[str, Any] | None,
     model_jury_results: Mapping[str, Any] | None,
     refined_review: Mapping[str, Any] | None,
@@ -428,6 +501,11 @@ def _validate_activation_evidence_boundaries(
     promotion_plan: Mapping[str, Any] | None,
 ) -> None:
     if jury_results is not None:
+        _validate_jury_results_artifact_binding(
+            jury_results,
+            manifest_path=manifest_path,
+            manifest_hash=manifest_hash,
+        )
         _validate_non_authority_false(
             jury_results,
             label="jury_results",
@@ -2026,6 +2104,8 @@ def build_generated_program_activation_packet(
     _validate_artifact_identity(identity, decision_record, label="decision_record")
     _validate_artifact_identity(identity, promotion_plan, label="promotion_plan")
     _validate_activation_evidence_boundaries(
+        manifest_path=manifest_path,
+        manifest_hash=str(manifest_ref["sha256"]),
         jury_results=jury_results,
         model_jury_results=model_jury_results,
         refined_review=refined_review,

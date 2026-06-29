@@ -447,6 +447,59 @@ def test_program_promote_activation_packet_dogfoods_review_chain_without_activat
     assert not (program_root / "activation_packet.json").exists()
 
 
+def test_program_promote_activation_packet_rejects_stale_jury_result_binding(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, jury_path, review_path, decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    bad_jury = json.loads(jury_path.read_text(encoding="utf-8"))
+    bad_jury["created_from"] = {
+        **bad_jury["created_from"],
+        "behavior_results_sha256": "0" * 64,
+    }
+    bad_jury_path = tmp_path / "promotion" / "bad_jury_results.json"
+    _write_json(bad_jury_path, bad_jury)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(bad_jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert (
+        "jury_results behavior results sha256 does not match current file"
+        in result.output
+    )
+
+
 def test_program_promote_activation_packet_rejects_output_over_protected_or_input_artifacts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

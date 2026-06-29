@@ -594,7 +594,7 @@ def test_program_refinement_episode_consumes_local_jury_results_as_state_evidenc
     )
     assert state["promotion_state"]["jury_results"]["present"] is True
     assert state["promotion_state"]["jury_results"]["schema_version"] == (
-        "program-jury-results-v1"
+        "program-jury-results-v2"
     )
     assert state["truth_summary"]["jury_results_present"] is True
     assert "run_local_jury_sidecar" not in state["truth_summary"]["required_next_steps"]
@@ -638,7 +638,7 @@ def test_program_refinement_episode_can_generate_local_jury_results_as_state_evi
     jury_path = outdir / "jury_results.json"
     assert jury_path.exists()
     jury_payload = json.loads(jury_path.read_text(encoding="utf-8"))
-    assert jury_payload["schema_version"] == "program-jury-results-v1"
+    assert jury_payload["schema_version"] == "program-jury-results-v2"
     assert jury_payload["jury"]["execution_mode"] == "local_deterministic"
     assert jury_payload["jury"]["provider_backed_model_calls"] is False
     assert jury_payload["effect"]["external_authority_mutated"] is False

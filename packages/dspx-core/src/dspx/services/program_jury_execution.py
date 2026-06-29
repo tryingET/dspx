@@ -12,7 +12,7 @@ from dspx.services.program_refinement import (
     load_program_manifest,
 )
 
-PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v1"
+PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v2"
 PROGRAM_JURY_SCHEMA = "program-jury-v1"
 PROGRAM_JURY_SELECTION_SCHEMA = "program-jury-selection-v1"
 PROGRAM_JURY_RUBRIC_SCHEMA = "program-jury-rubric-v1"

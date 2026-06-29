@@ -22,7 +22,7 @@ PROGRAM_ORACLE_REPORT_SCHEMA = "program-oracle-evidence-report-v1"
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
-PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v1"
+PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v2"
 PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
@@ -416,28 +416,53 @@ def _validate_export_preflight_artifact_hashes(
 def _validate_program_jury_result_artifact_hashes(
     jury_results: Mapping[str, Any],
     *,
+    current_manifest_path: Path,
     current_manifest_hash: str,
+    source_manifest_path: Path | None,
     source_manifest_hash: str | None,
     behavior_hash: str | None,
     behavior_episode_hash: str | None,
 ) -> None:
     created_from = _safe_mapping(jury_results.get("created_from"))
-    valid_manifest_hashes = {current_manifest_hash}
-    if source_manifest_hash is not None:
-        valid_manifest_hashes.add(source_manifest_hash)
+    valid_manifest_refs = {current_manifest_path: current_manifest_hash}
+    if source_manifest_path is not None and source_manifest_hash is not None:
+        valid_manifest_refs[source_manifest_path] = source_manifest_hash
+    raw_manifest_path = _first_text(created_from.get("manifest_path"))
     manifest_hash = _first_text(created_from.get("manifest_sha256"))
-    if manifest_hash not in valid_manifest_hashes:
+    if raw_manifest_path is None:
+        raise ProgramCandidateStateError(
+            "program jury results manifest_path is required for hash-bound v2 sidecars"
+        )
+    manifest_path = Path(raw_manifest_path).expanduser().resolve()
+    expected_manifest_hash = valid_manifest_refs.get(manifest_path)
+    if expected_manifest_hash is None or manifest_hash != expected_manifest_hash:
         raise ProgramCandidateStateError(
             "program jury results manifest sha256 does not match candidate/source manifest"
         )
+    manifest_root = manifest_path.parent
 
-    for path_key, hash_key, label in (
-        ("manifest_path", "manifest_sha256", "manifest"),
-        ("jury_path", "jury_sha256", "planned jury"),
-        ("jury_selection_path", "jury_selection_sha256", "jury selection"),
-        ("jury_rubric_path", "jury_rubric_sha256", "jury rubric"),
-        ("behavior_results_path", "behavior_results_sha256", "behavior results"),
-        ("behavior_episode_path", "behavior_episode_sha256", "behavior episode"),
+    for path_key, hash_key, label, expected_name in (
+        ("manifest_path", "manifest_sha256", "manifest", "manifest.json"),
+        ("jury_path", "jury_sha256", "planned jury", "jury.json"),
+        (
+            "jury_selection_path",
+            "jury_selection_sha256",
+            "jury selection",
+            "jury_selection.json",
+        ),
+        ("jury_rubric_path", "jury_rubric_sha256", "jury rubric", "jury_rubric.json"),
+        (
+            "behavior_results_path",
+            "behavior_results_sha256",
+            "behavior results",
+            "behavior_results.json",
+        ),
+        (
+            "behavior_episode_path",
+            "behavior_episode_sha256",
+            "behavior episode",
+            "behavior_episode.json",
+        ),
     ):
         raw_path = _first_text(created_from.get(path_key))
         if raw_path is None:
@@ -448,6 +473,16 @@ def _validate_program_jury_result_artifact_hashes(
                 f"program jury results {hash_key} is required when {path_key} is present"
             )
         path = Path(raw_path).expanduser().resolve()
+        if path.name != expected_name:
+            raise ProgramCandidateStateError(
+                f"program jury results {label} path must be {expected_name}"
+            )
+        try:
+            path.relative_to(manifest_root)
+        except ValueError as exc:
+            raise ProgramCandidateStateError(
+                f"program jury results {label} path is outside the bound manifest root"
+            ) from exc
         if not path.exists():
             raise ProgramCandidateStateError(
                 f"program jury results {label} path is missing: {path}"
@@ -483,6 +518,12 @@ def _validate_meta_adjudication_plan_sidecar_freshness(
         if not isinstance(raw_status, Mapping) or raw_status.get("present") is not True:
             continue
         status = _safe_mapping(raw_status)
+        if status.get("status") != "present" or status.get(
+            "schema_version"
+        ) != status.get("required_schema"):
+            raise ProgramCandidateStateError(
+                f"meta-adjudication plan {key} sidecar must have present status and expected schema"
+            )
         raw_path = _first_text(status.get("path"))
         claimed_hash = _first_text(status.get("sha256"))
         if raw_path is None or claimed_hash is None:
@@ -523,7 +564,9 @@ def _validate_optional_inputs(
     activation_packet: Mapping[str, Any] | None,
     oracle_publication_receipt: Mapping[str, Any] | None,
     gepa_refinement: Mapping[str, Any] | None,
+    current_manifest_path: Path,
     current_manifest_hash: str,
+    source_manifest_path: Path | None,
     source_manifest_hash: str | None,
     behavior_hash: str | None,
     behavior_episode_hash: str | None,
@@ -626,7 +669,9 @@ def _validate_optional_inputs(
             )
         _validate_program_jury_result_artifact_hashes(
             jury_results,
+            current_manifest_path=current_manifest_path,
             current_manifest_hash=current_manifest_hash,
+            source_manifest_path=source_manifest_path,
             source_manifest_hash=source_manifest_hash,
             behavior_hash=behavior_hash,
             behavior_episode_hash=behavior_episode_hash,
@@ -1846,7 +1891,9 @@ def build_program_candidate_state(
         activation_packet=activation_packet,
         oracle_publication_receipt=oracle_publication_receipt,
         gepa_refinement=gepa_refinement,
+        current_manifest_path=manifest_path,
         current_manifest_hash=manifest_hash,
+        source_manifest_path=source_manifest_resolved,
         source_manifest_hash=source_manifest_hash,
         behavior_hash=behavior_hash,
         behavior_episode_hash=behavior_episode_hash,

@@ -123,7 +123,7 @@ def test_program_promote_jury_cli_writes_local_sidecar_only(
     payload = json.loads(result.stdout)
     assert out_path.exists()
     assert json.loads(out_path.read_text(encoding="utf-8")) == payload
-    assert payload["schema_version"] == "program-jury-results-v1"
+    assert payload["schema_version"] == "program-jury-results-v2"
     assert payload["status"] == "executed"
     assert payload["identity"] == {
         "request_id": manifest["request"]["request_id"],
@@ -347,7 +347,7 @@ def test_program_promote_jury_uses_behavior_episode_for_dataset_only_evidence(
         manifest_path=program_root / "manifest.json"
     )
 
-    assert payload["schema_version"] == "program-jury-results-v1"
+    assert payload["schema_version"] == "program-jury-results-v2"
     assert payload["status"] == "executed"
     assert payload["created_from"]["behavior_results_path"] is None
     assert payload["created_from"]["behavior_episode_path"] == str(
@@ -398,7 +398,7 @@ def test_program_jury_execution_degrades_without_behavior_evidence(
         manifest_path=program_root / "manifest.json"
     )
 
-    assert payload["schema_version"] == "program-jury-results-v1"
+    assert payload["schema_version"] == "program-jury-results-v2"
     assert payload["status"] == "insufficient_behavior_evidence"
     assert payload["created_from"]["behavior_results_path"] is None
     assert payload["created_from"]["behavior_episode_path"] is None

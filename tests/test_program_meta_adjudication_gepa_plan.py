@@ -258,7 +258,7 @@ def test_meta_adjudication_plan_tracks_present_sidecars(
 
     assert plan["sidecars"]["jury_results"]["status"] == "present"
     assert (
-        plan["sidecars"]["jury_results"]["schema_version"] == "program-jury-results-v1"
+        plan["sidecars"]["jury_results"]["schema_version"] == "program-jury-results-v2"
     )
     assert plan["sidecars"]["program_adjudicator_delegation"]["status"] == "present"
     assert (
@@ -267,6 +267,30 @@ def test_meta_adjudication_plan_tracks_present_sidecars(
     )
     assert "program_jury_results" not in plan["missing_evidence"]
     assert "program_adjudicator_delegation" not in plan["missing_evidence"]
+
+
+def test_meta_adjudication_plan_treats_schema_mismatch_sidecars_as_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    wrong_jury_path = tmp_path / "promotion" / "wrong_jury_results.json"
+    wrong_jury_path.parent.mkdir(parents=True, exist_ok=True)
+    wrong_jury_path.write_text(
+        json.dumps({"schema_version": "wrong-schema"}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        jury_results_path=wrong_jury_path,
+    )
+
+    assert plan["sidecars"]["jury_results"]["present"] is True
+    assert plan["sidecars"]["jury_results"]["status"] == "schema_mismatch"
+    assert "program_jury_results" in plan["missing_evidence"]
+    assert not any(
+        "--jury-results" in item["command"] for item in plan["next_commands"]
+    )
 
 
 def test_meta_adjudication_plan_cli_writes_json(tmp_path: Path, monkeypatch) -> None:

@@ -295,7 +295,7 @@ def episode(
     jury_results: Path | None = typer.Option(
         None,
         "--jury-results",
-        help="Optional local deterministic program-jury-results-v1 JSON to consume as evidence only",
+        help="Optional local deterministic program-jury-results-v2 JSON to consume as evidence only",
     ),
     run_local_jury: bool = typer.Option(
         False,
@@ -305,7 +305,7 @@ def episode(
     jury_results_out: Path | None = typer.Option(
         None,
         "--jury-results-out",
-        help="Optional output path for --run-local-jury program-jury-results-v1 evidence",
+        help="Optional output path for --run-local-jury program-jury-results-v2 evidence",
     ),
     meta_adjudication_plan: bool = typer.Option(
         False,
