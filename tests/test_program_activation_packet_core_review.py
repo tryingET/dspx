@@ -500,6 +500,69 @@ def test_program_promote_activation_packet_rejects_stale_jury_result_binding(
     )
 
 
+@pytest.mark.parametrize(
+    ("effect_patch", "expected_error"),
+    [
+        ({"program_files_mutated": True}, "jury_results widens effect flags"),
+        (
+            {"local_jury_evidence_only": False},
+            "jury_results must be local jury evidence only",
+        ),
+    ],
+)
+def test_program_promote_activation_packet_rejects_spoofed_jury_effect_flags(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    effect_patch: dict[str, object],
+    expected_error: str,
+) -> None:
+    program_root, report_path, jury_path, review_path, decision_path = (
+        _materialize_review_chain(tmp_path, monkeypatch)
+    )
+    before_hashes = _file_hashes(program_root)
+    bad_jury = json.loads(jury_path.read_text(encoding="utf-8"))
+    bad_jury["effect"] = {**bad_jury["effect"], **effect_patch}
+    bad_jury_path = tmp_path / "promotion" / "bad_jury_effect.json"
+    _write_json(bad_jury_path, bad_jury)
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-report",
+            str(report_path),
+            "--jury-results",
+            str(bad_jury_path),
+            "--review",
+            str(review_path),
+            "--decision-record",
+            str(decision_path),
+            "--rollout-owner",
+            "softwareco-runtime-operator",
+            "--rollback-plan",
+            "Disable the generated-program route and restore the previous production program version.",
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert expected_error in result.output
+    assert not out_path.exists()
+    assert _file_hashes(program_root) == before_hashes
+
+
 def test_program_promote_activation_packet_rejects_output_over_protected_or_input_artifacts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

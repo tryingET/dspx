@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_jury_result_validation import (
+    PROGRAM_JURY_RESULTS_SCHEMA,
+    validate_program_jury_results_contract,
+)
 from dspx.services.program_model_jury_validation import (
     PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     validate_program_model_jury_results_contract,
@@ -22,7 +26,6 @@ PROGRAM_ORACLE_REPORT_SCHEMA = "program-oracle-evidence-report-v1"
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
-PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v2"
 PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
@@ -423,89 +426,19 @@ def _validate_program_jury_result_artifact_hashes(
     behavior_hash: str | None,
     behavior_episode_hash: str | None,
 ) -> None:
-    created_from = _safe_mapping(jury_results.get("created_from"))
     valid_manifest_refs = {current_manifest_path: current_manifest_hash}
     if source_manifest_path is not None and source_manifest_hash is not None:
         valid_manifest_refs[source_manifest_path] = source_manifest_hash
-    raw_manifest_path = _first_text(created_from.get("manifest_path"))
-    manifest_hash = _first_text(created_from.get("manifest_sha256"))
-    if raw_manifest_path is None:
-        raise ProgramCandidateStateError(
-            "program jury results manifest_path is required for hash-bound v2 sidecars"
-        )
-    manifest_path = Path(raw_manifest_path).expanduser().resolve()
-    expected_manifest_hash = valid_manifest_refs.get(manifest_path)
-    if expected_manifest_hash is None or manifest_hash != expected_manifest_hash:
-        raise ProgramCandidateStateError(
-            "program jury results manifest sha256 does not match candidate/source manifest"
-        )
-    manifest_root = manifest_path.parent
-
-    for path_key, hash_key, label, expected_name in (
-        ("manifest_path", "manifest_sha256", "manifest", "manifest.json"),
-        ("jury_path", "jury_sha256", "planned jury", "jury.json"),
-        (
-            "jury_selection_path",
-            "jury_selection_sha256",
-            "jury selection",
-            "jury_selection.json",
-        ),
-        ("jury_rubric_path", "jury_rubric_sha256", "jury rubric", "jury_rubric.json"),
-        (
-            "behavior_results_path",
-            "behavior_results_sha256",
-            "behavior results",
-            "behavior_results.json",
-        ),
-        (
-            "behavior_episode_path",
-            "behavior_episode_sha256",
-            "behavior episode",
-            "behavior_episode.json",
-        ),
-    ):
-        raw_path = _first_text(created_from.get(path_key))
-        if raw_path is None:
-            continue
-        claimed_hash = _first_text(created_from.get(hash_key))
-        if claimed_hash is None:
-            raise ProgramCandidateStateError(
-                f"program jury results {hash_key} is required when {path_key} is present"
-            )
-        path = Path(raw_path).expanduser().resolve()
-        if path.name != expected_name:
-            raise ProgramCandidateStateError(
-                f"program jury results {label} path must be {expected_name}"
-            )
-        try:
-            path.relative_to(manifest_root)
-        except ValueError as exc:
-            raise ProgramCandidateStateError(
-                f"program jury results {label} path is outside the bound manifest root"
-            ) from exc
-        if not path.exists():
-            raise ProgramCandidateStateError(
-                f"program jury results {label} path is missing: {path}"
-            )
-        if _sha256_file(path) != claimed_hash:
-            raise ProgramCandidateStateError(
-                f"program jury results {label} sha256 does not match current file"
-            )
-
-    behavior_evidence = _safe_mapping(jury_results.get("behavior_evidence"))
-    if manifest_hash == current_manifest_hash:
-        if behavior_evidence.get("behavior_results_present") is True:
-            claimed_hash = _first_text(created_from.get("behavior_results_sha256"))
-            if behavior_hash is None or claimed_hash != behavior_hash:
-                raise ProgramCandidateStateError(
-                    "program jury results behavior_results_sha256 does not match current behavior results"
-                )
-        if behavior_evidence.get("behavior_episode_present") is True:
-            claimed_hash = _first_text(created_from.get("behavior_episode_sha256"))
-            if behavior_episode_hash is None or claimed_hash != behavior_episode_hash:
-                raise ProgramCandidateStateError(
-                    "program jury results behavior_episode_sha256 does not match current behavior episode"
-                )
+    validate_program_jury_results_contract(
+        jury_results,
+        valid_manifest_refs=valid_manifest_refs,
+        label="program jury results",
+        error_type=ProgramCandidateStateError,
+        current_manifest_path=current_manifest_path,
+        current_behavior_results_sha256=behavior_hash,
+        current_behavior_episode_sha256=behavior_episode_hash,
+        outside_root_message="outside the bound manifest root",
+    )
 
 
 def _validate_meta_adjudication_plan_sidecar_freshness(
@@ -635,30 +568,6 @@ def _validate_optional_inputs(
             )
 
     if jury_results is not None:
-        _validate_non_authority_false(
-            jury_results,
-            label="program jury results",
-            keys=(
-                "automatic_promotion",
-                "winner_selection",
-                "candidate_ranking",
-                "oracle_ranking",
-                "oracle_pruning",
-                "oracle_promotion",
-                "promotion_authority",
-                "governance_authority",
-                "external_mutation",
-            ),
-        )
-        effect = _safe_mapping(jury_results.get("effect"))
-        if effect.get("local_jury_evidence_only") is not True:
-            raise ProgramCandidateStateError(
-                "program jury results must be local jury evidence only"
-            )
-        if effect.get("program_files_mutated") is not False:
-            raise ProgramCandidateStateError(
-                "program jury results must record program_files_mutated false"
-            )
         jury_identity = _safe_mapping(jury_results.get("identity"))
         if not any(
             _identity_exactly_matches(jury_identity, item)

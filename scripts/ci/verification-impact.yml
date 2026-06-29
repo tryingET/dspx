@@ -657,6 +657,16 @@ rules:
       - typecheck_core
       - pytest_authority_boundary_contracts
 
+  - match: "packages/dspx-core/src/dspx/services/program_jury_result_validation.py"
+    category: python_service
+    impact_group: boundary_sensitive
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_activation_packet
+      - pytest_authority_boundary_contracts
+
   - match: "packages/dspx-core/src/dspx/services/run_replay_service.py"
     category: python_service
     impact_group: replay_runtime
