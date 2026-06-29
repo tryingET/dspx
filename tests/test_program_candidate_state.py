@@ -204,6 +204,16 @@ def _identity_from_manifest_path(manifest_path: Path) -> dict[str, str | None]:
     }
 
 
+def _artifact_ref(path: Path) -> dict[str, object]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": _sha256(path),
+        "schema_version": json.loads(path.read_text(encoding="utf-8")).get(
+            "schema_version"
+        ),
+    }
+
+
 def _write_model_jury_results(
     path: Path,
     *,
@@ -214,6 +224,15 @@ def _write_model_jury_results(
     identity = _identity_from_manifest_path(manifest_path)
     if authority_drift:
         identity = {**identity, "candidate_id": "wrong-candidate"}
+    root = manifest_path.parent
+    jury_path = root / "jury.json"
+    selection_path = root / "jury_selection.json"
+    rubric_path = root / "jury_rubric.json"
+    evidence_entries = [
+        _artifact_ref(item)
+        for item in (root / "behavior_results.json", root / "behavior_episode.json")
+        if item.exists()
+    ]
     _write_json(
         path,
         {
@@ -223,6 +242,12 @@ def _write_model_jury_results(
             "created_from": {
                 "manifest_path": str(manifest_path.resolve()),
                 "manifest_sha256": _sha256(manifest_path),
+                "jury_path": str(jury_path.resolve()),
+                "jury_sha256": _sha256(jury_path),
+                "jury_selection_path": str(selection_path.resolve()),
+                "jury_selection_sha256": _sha256(selection_path),
+                "jury_rubric_path": str(rubric_path.resolve()),
+                "jury_rubric_sha256": _sha256(rubric_path),
             },
             "jury": {
                 "execution_mode": "provider_backed_model",
@@ -234,7 +259,10 @@ def _write_model_jury_results(
                 "repo": "target-repo",
                 "promotion_authority": promotion_authority,
             },
-            "evidence": {"entry_count": 1},
+            "evidence": {
+                "entry_count": len(evidence_entries),
+                "entries": evidence_entries,
+            },
             "juror_results": [
                 {
                     "juror_id": "authority_agent",

@@ -70,7 +70,7 @@ def _validate_bound_artifact(
     error_type: type[ValueError],
 ) -> None:
     if path_text is None:
-        return
+        raise error_type(f"{prefix} {artifact_label} path is required")
     if hash_text is None:
         raise error_type(f"{prefix} {artifact_label} sha256 is required")
     path = Path(path_text).expanduser().resolve()
@@ -90,6 +90,24 @@ def _validate_bound_artifact(
         )
 
 
+def _safe_int(value: object, *, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return default
+        try:
+            return int(text)
+        except ValueError:
+            return default
+    return default
+
+
 def _validate_evidence_entry_hashes(
     payload: Mapping[str, Any],
     *,
@@ -97,7 +115,13 @@ def _validate_evidence_entry_hashes(
     error_type: type[ValueError],
 ) -> None:
     evidence = _safe_mapping(payload.get("evidence"))
-    for index, raw_entry in enumerate(_safe_list(evidence.get("entries"))):
+    entries = _safe_list(evidence.get("entries"))
+    if not entries:
+        raise error_type(f"{prefix} evidence entries are required")
+    entry_count = _safe_int(evidence.get("entry_count"), default=len(entries))
+    if entry_count != len(entries):
+        raise error_type(f"{prefix} evidence entry_count must match entries length")
+    for index, raw_entry in enumerate(entries):
         if not isinstance(raw_entry, Mapping):
             raise error_type(f"{prefix} evidence entry {index} must be an object")
         entry = _safe_mapping(raw_entry)
@@ -176,6 +200,8 @@ def validate_program_model_jury_results_contract(
     if raw_manifest_path is None:
         raise error_type(f"{label} manifest_path is required for hash-bound sidecars")
     manifest_path = Path(raw_manifest_path).expanduser().resolve()
+    if manifest_path.name != "manifest.json":
+        raise error_type(f"{label} manifest path must be manifest.json")
     expected_manifest_hash = _resolve_valid_manifest_refs(valid_manifest_refs).get(
         manifest_path
     )

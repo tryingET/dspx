@@ -12,6 +12,7 @@ PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
 PROGRAM_JURY_SCHEMA = "program-jury-v1"
 PROGRAM_JURY_SELECTION_SCHEMA = "program-jury-selection-v1"
 PROGRAM_JURY_RUBRIC_SCHEMA = "program-jury-rubric-v1"
+MAX_MODEL_JURY_EVIDENCE_BYTES = 1_000_000
 
 _EFFECT = {
     "model_jury_evidence_only": True,
@@ -229,6 +230,16 @@ def _load_extra_evidence(paths: Sequence[Path]) -> list[dict[str, Any]]:
             for child in sorted(p for p in resolved.iterdir() if p.is_file()):
                 entries.extend(_load_extra_evidence([child]))
             continue
+        try:
+            size = resolved.stat().st_size
+        except OSError as exc:
+            raise ProgramModelJuryExecutionError(
+                f"evidence path cannot be statted: {resolved}"
+            ) from exc
+        if size > MAX_MODEL_JURY_EVIDENCE_BYTES:
+            raise ProgramModelJuryExecutionError(
+                f"evidence path exceeds {MAX_MODEL_JURY_EVIDENCE_BYTES} byte limit: {resolved}"
+            )
         text = resolved.read_text(encoding="utf-8")
         try:
             payload: Any = json.loads(text)
@@ -321,11 +332,20 @@ def _configure_provider(provider: str | None = None) -> dict[str, Any]:
         import dspy
         from dspx.provider_registry import create_from_env, ensure_default_providers
 
-        if provider:
-            os.environ["DSPX_PROVIDER"] = provider
-        ensure_default_providers()
-        lm = create_from_env(default="dspy-lm-auth")
-        dspy.configure(lm=lm)
+        had_provider = "DSPX_PROVIDER" in os.environ
+        previous_provider = os.environ.get("DSPX_PROVIDER")
+        try:
+            if provider:
+                os.environ["DSPX_PROVIDER"] = provider
+            ensure_default_providers()
+            lm = create_from_env(default="dspy-lm-auth")
+            dspy.configure(lm=lm)
+        finally:
+            if provider:
+                if had_provider and previous_provider is not None:
+                    os.environ["DSPX_PROVIDER"] = previous_provider
+                else:
+                    os.environ.pop("DSPX_PROVIDER", None)
         return {
             "status": "configured",
             "provider": getattr(lm, "model", type(lm).__name__),
@@ -589,16 +609,27 @@ def build_program_model_jury_execution_result(
 
 
 def preflight_program_model_jury_output_path(
-    *, manifest_path: Path, out_path: Path
+    *, manifest_path: Path, out_path: Path, evidence_paths: Sequence[Path] = ()
 ) -> Path:
     """Fail closed on unsafe model-jury sidecar output before provider calls."""
 
+    resolved_manifest = manifest_path.expanduser().resolve()
+    payload: dict[str, Any] = {
+        "created_from": {"manifest_path": str(resolved_manifest)},
+        "evidence": {
+            "entries": [
+                {"path": str(path.expanduser().resolve())} for path in evidence_paths
+            ]
+        },
+    }
     try:
         return prepare_sidecar_output_path(
             out_path,
-            payload={"created_from": {"manifest_path": str(manifest_path)}},
+            payload=payload,
             artifact_label="program model jury results",
             payload_artifact_root_policy="forbid",
+            extra_protected_paths=evidence_paths,
+            extra_protected_roots={resolved_manifest.parent},
         )
     except ValueError as exc:
         raise ProgramModelJuryExecutionError(str(exc)) from exc
@@ -609,11 +640,19 @@ def write_program_model_jury_execution_result(
 ) -> dict[str, Any]:
     payload = dict(result)
     try:
+        created_from = _safe_mapping(payload.get("created_from"))
+        manifest_path_text = _first_text(created_from.get("manifest_path"))
+        extra_roots = (
+            {Path(manifest_path_text).expanduser().resolve().parent}
+            if manifest_path_text is not None
+            else set()
+        )
         target = prepare_sidecar_output_path(
             out_path,
             payload=payload,
             artifact_label="program model jury results",
             payload_artifact_root_policy="forbid",
+            extra_protected_roots=extra_roots,
         )
     except ValueError as exc:
         raise ProgramModelJuryExecutionError(str(exc)) from exc

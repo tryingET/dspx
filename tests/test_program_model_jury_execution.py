@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import os
 from typing import Any, Mapping
 
 from typer.testing import CliRunner
@@ -172,6 +173,76 @@ def test_model_jury_service_calls_provider_backed_jurors_without_mutating_candid
     assert _file_hashes(program_root) == before
 
 
+def test_model_jury_contract_rejects_missing_bound_jury_artifacts(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    extra_evidence = tmp_path / "component_inventory_json"
+    extra_evidence.write_text(
+        json.dumps({"schemaVersion": "designmd.component-inventory.v1"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", _fake_juror_model)
+    payload = model_jury.build_program_model_jury_execution_result(
+        manifest_path=program_root / "manifest.json",
+        evidence_paths=[extra_evidence],
+        provider="stub",
+        adjudicator_repo="calisthenics-ai-coach",
+    )
+    payload["created_from"].pop("jury_path")
+
+    try:
+        validate_program_model_jury_results_contract(
+            payload,
+            valid_manifest_refs={
+                (program_root / "manifest.json").resolve(): hashlib.sha256(
+                    (program_root / "manifest.json").read_bytes()
+                ).hexdigest()
+            },
+        )
+    except ValueError as exc:
+        assert "planned jury path is required" in str(exc)
+    else:  # pragma: no cover - defensive assertion for missing-ref rejection
+        raise AssertionError("model-jury missing jury ref was accepted")
+
+
+def test_model_jury_contract_rejects_missing_evidence_entries(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    extra_evidence = tmp_path / "component_inventory_json"
+    extra_evidence.write_text(
+        json.dumps({"schemaVersion": "designmd.component-inventory.v1"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", _fake_juror_model)
+    payload = model_jury.build_program_model_jury_execution_result(
+        manifest_path=program_root / "manifest.json",
+        evidence_paths=[extra_evidence],
+        provider="stub",
+        adjudicator_repo="calisthenics-ai-coach",
+    )
+    payload["evidence"] = {"entry_count": 99}
+
+    try:
+        validate_program_model_jury_results_contract(
+            payload,
+            valid_manifest_refs={
+                (program_root / "manifest.json").resolve(): hashlib.sha256(
+                    (program_root / "manifest.json").read_bytes()
+                ).hexdigest()
+            },
+        )
+    except ValueError as exc:
+        assert "evidence entries are required" in str(exc)
+    else:  # pragma: no cover - defensive assertion for missing-evidence rejection
+        raise AssertionError("model-jury missing evidence entries was accepted")
+
+
 def test_model_jury_contract_rejects_stale_evidence_hash(
     tmp_path: Path,
     monkeypatch,
@@ -259,6 +330,107 @@ def test_program_promote_model_jury_cli_writes_sidecar(
     assert payload["created_from"]["evidence_paths"] == [str(extra_evidence.resolve())]
     assert payload["adjudicator"]["repo"] == "calisthenics-ai-coach"
     assert payload["non_authority"]["promotion_approval"] is False
+
+
+def test_model_jury_rejects_oversized_evidence_before_provider_calls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    huge_evidence = tmp_path / "huge.json"
+    huge_evidence.write_text(
+        "x" * (model_jury.MAX_MODEL_JURY_EVIDENCE_BYTES + 1), encoding="utf-8"
+    )
+
+    def fail_provider(provider: str | None = None) -> dict[str, Any]:
+        raise AssertionError("provider should not be configured for oversized evidence")
+
+    monkeypatch.setattr(model_jury, "_configure_provider", fail_provider)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "model-jury",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--evidence",
+            str(huge_evidence),
+            "--provider",
+            "stub",
+            "--out",
+            str(tmp_path / "promotion" / "model_jury_results.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "byte limit" in result.output
+
+
+def test_configure_provider_restores_provider_env_on_success(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "before")
+
+    class FakeDspy:
+        @staticmethod
+        def configure(*, lm: object) -> None:
+            assert lm is not None
+
+    class FakeProvider:
+        model = "stub"
+
+    original_import = __import__
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> object:
+        if name == "dspy":
+            return FakeDspy
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    monkeypatch.setattr("dspx.provider_registry.ensure_default_providers", lambda: None)
+    monkeypatch.setattr(
+        "dspx.provider_registry.create_from_env", lambda default: FakeProvider()
+    )
+
+    assert model_jury._configure_provider("temporary")["provider"] == "stub"
+    assert os.environ["DSPX_PROVIDER"] == "before"
+
+
+def test_program_promote_model_jury_rejects_evidence_output_overlap_before_provider_calls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    evidence_path = tmp_path / "evidence.json"
+    evidence_path.write_text('{"ok": true}', encoding="utf-8")
+
+    def fail_provider(provider: str | None = None) -> dict[str, Any]:
+        raise AssertionError("provider should not be configured for unsafe output")
+
+    monkeypatch.setattr(model_jury, "_configure_provider", fail_provider)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "model-jury",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--evidence",
+            str(evidence_path),
+            "--provider",
+            "stub",
+            "--out",
+            str(evidence_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not overwrite an input artifact" in result.output
+    assert evidence_path.read_text(encoding="utf-8") == '{"ok": true}'
 
 
 def test_program_promote_model_jury_rejects_candidate_root_output_before_provider_calls(

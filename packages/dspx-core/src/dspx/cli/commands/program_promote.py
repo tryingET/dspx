@@ -160,7 +160,9 @@ def model_jury(
     )
 
     try:
-        preflight_program_model_jury_output_path(manifest_path=manifest, out_path=out)
+        preflight_program_model_jury_output_path(
+            manifest_path=manifest, out_path=out, evidence_paths=evidence
+        )
         ensure_env(provider)
         result = build_program_model_jury_execution_result(
             manifest_path=manifest,

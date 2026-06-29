@@ -21,6 +21,16 @@ from program_activation_packet_shared import (
 pytestmark = pytest.mark.slow
 
 
+def _hash_ref(path: Path) -> dict[str, object]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "schema_version": json.loads(path.read_text(encoding="utf-8")).get(
+            "schema_version"
+        ),
+    }
+
+
 def _write_model_jury_results(
     root: Path,
     out: Path,
@@ -33,6 +43,14 @@ def _write_model_jury_results(
     if authority_drift:
         identity = {**identity, "candidate_id": "wrong-candidate"}
     manifest_path = root / "manifest.json"
+    jury_path = root / "jury.json"
+    selection_path = root / "jury_selection.json"
+    rubric_path = root / "jury_rubric.json"
+    evidence_entries = [
+        _hash_ref(path)
+        for path in (root / "behavior_results.json", root / "behavior_episode.json")
+        if path.exists()
+    ]
     _write_json(
         out,
         {
@@ -44,6 +62,16 @@ def _write_model_jury_results(
                 "manifest_sha256": hashlib.sha256(
                     manifest_path.read_bytes()
                 ).hexdigest(),
+                "jury_path": str(jury_path.resolve()),
+                "jury_sha256": hashlib.sha256(jury_path.read_bytes()).hexdigest(),
+                "jury_selection_path": str(selection_path.resolve()),
+                "jury_selection_sha256": hashlib.sha256(
+                    selection_path.read_bytes()
+                ).hexdigest(),
+                "jury_rubric_path": str(rubric_path.resolve()),
+                "jury_rubric_sha256": hashlib.sha256(
+                    rubric_path.read_bytes()
+                ).hexdigest(),
             },
             "jury": {
                 "execution_mode": "provider_backed_model",
@@ -54,6 +82,10 @@ def _write_model_jury_results(
             "adjudicator": {
                 "repo": "target-repo",
                 "promotion_authority": promotion_authority,
+            },
+            "evidence": {
+                "entry_count": len(evidence_entries),
+                "entries": evidence_entries,
             },
             "juror_results": [
                 {
