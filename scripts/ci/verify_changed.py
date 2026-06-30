@@ -235,6 +235,21 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "program adjudication publication boundary changed",
     ),
+    "pytest_program_oracle_publication": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_oracle_publication.py",
+            "-n",
+            "auto",
+            "--dist=loadfile",
+        ],
+        "program Oracle publication boundary changed",
+    ),
     "pytest_program_architecture": CommandSpec(
         [
             "uv",
@@ -999,6 +1014,7 @@ def build_plan(
         "pytest_program_runtime_episode",
         "pytest_program_activation_packet",
         "pytest_program_adjudication_publication",
+        "pytest_program_oracle_publication",
         "pytest_program_architecture",
         "pytest_module_synthesis_evidence",
         "pytest_run_receipts",

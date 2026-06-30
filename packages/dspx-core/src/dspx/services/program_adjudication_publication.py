@@ -10,6 +10,7 @@ from typing import Any, Iterable, Mapping
 from dspx.coordinates import CoordinateStore, ExecutionEmbedding
 from dspx.coordinates.embeddings import get_embedding_engine
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_secret_policy import (
     ProgramOracleSecretPolicyError,
     build_onepassword_ref_descriptors,
@@ -62,9 +63,7 @@ _PUBLICATION_NON_AUTHORITY = {
     "external_mutation": False,
     "activation_authority": False,
 }
-_PUBLICATION_PROTECTED_OUTPUT_NAMES = {
-    "manifest.json",
-    "manifest.json.meta.json",
+_PUBLICATION_PROTECTED_OUTPUT_NAMES = PROTECTED_PROGRAM_ARTIFACT_NAMES | {
     "adjudication_behavior_trace.json",
     "program_evidence_adjudication.json",
     "program_adjudicator_delegation.json",
@@ -870,22 +869,41 @@ def _trace_embedding(
     )
 
 
+def adjudication_trace_publication_input_paths(
+    preflight_path: Path,
+) -> tuple[Path, ...]:
+    """Return local input paths a publication receipt must not overwrite."""
+
+    source = preflight_path.expanduser().resolve()
+    preflight = _load_json_object(source, label="adjudication trace preflight")
+    _ensure_preflight_publishable(preflight)
+    trace_path, _trace_hash = _validate_preflight_hashes(preflight)
+    return (source, trace_path)
+
+
 def prepare_adjudication_trace_publication_receipt_output_path(
     out_path: Path,
     *,
     preflight_path: Path,
+    protected_input_paths: Iterable[Path] | None = None,
 ) -> Path:
     """Validate a local receipt output path before shared publication is attempted."""
 
-    source = preflight_path.expanduser().resolve()
+    protected_paths = tuple(
+        protected_input_paths
+        if protected_input_paths is not None
+        else adjudication_trace_publication_input_paths(preflight_path)
+    )
     try:
         return prepare_sidecar_output_path(
             out_path,
-            payload={"preflight_path": str(source)},
+            payload={
+                "publication_input_paths": [str(path) for path in protected_paths]
+            },
             artifact_label="adjudication trace publication receipt",
             protected_names=_PUBLICATION_PROTECTED_OUTPUT_NAMES,
             payload_artifact_root_policy="ignore",
-            extra_protected_paths=(source,),
+            extra_protected_paths=protected_paths,
         )
     except ValueError as exc:
         raise ProgramAdjudicationPublicationError(str(exc)) from exc

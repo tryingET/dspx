@@ -381,6 +381,23 @@ def test_adjudication_publication_change_is_mapped_without_full_verification() -
     ]
 
 
+def test_program_oracle_publication_change_is_mapped_without_full_verification() -> (
+    None
+):
+    plan = _plan("packages/dspx-core/src/dspx/services/program_oracle_publication.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert "verify_full" not in _command_ids(plan)
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_oracle_publication",
+        "pytest_program_sidecar_boundaries",
+    ]
+
+
 def test_promotion_refinement_change_routes_to_refinement_and_plan_contracts() -> None:
     plan = _plan("packages/dspx-core/src/dspx/services/program_promotion_refinement.py")
 

@@ -252,6 +252,9 @@ def test_program_loop_shared_publication_opt_in_writes_receipt_as_evidence_only(
     state = json.loads(state_path.read_text(encoding="utf-8"))
     assert state["truth_summary"]["oracle_publication_ref_present"] is True
     assert state["shared_oracle_publication"] == {
+        "preflight_present": False,
+        "preflight_ready": False,
+        "publication_id": receipt["publication_id"],
         "evidence_ref_present": True,
         "evidence_only": True,
         "activation_authority": False,

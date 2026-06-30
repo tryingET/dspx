@@ -503,6 +503,80 @@ def test_adjudication_trace_publish_cli_rejects_receipt_preflight_overwrite_firs
     assert preflight_path.read_bytes() == original_preflight
 
 
+def test_adjudication_trace_publish_cli_rejects_receipt_protected_artifact_overwrite_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    program_path = (
+        Path(trace["linked_artifacts"]["manifest"]["path"]).parent / "program.py"
+    )
+    original_program = program_path.read_bytes()
+    preflight = build_adjudication_trace_publication_preflight(
+        **_preflight_kwargs(trace_path)
+    )
+    preflight_path = tmp_path / "preflight.json"
+    write_adjudication_trace_publication_preflight(preflight, preflight_path)
+    monkeypatch.delenv("DSPX_ORACLE_STORE", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_POSTGRES_URL", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "adjudication-trace",
+            "publish",
+            "--preflight",
+            str(preflight_path),
+            "--receipt-out",
+            str(program_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not overwrite program.py" in result.output
+    assert "Postgres/pgvector Oracle backend" not in result.output
+    assert program_path.read_bytes() == original_program
+
+
+def test_adjudication_trace_publish_cli_rejects_receipt_trace_overwrite_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_trace_path = _write_trace(tmp_path, monkeypatch)
+    trace_path = tmp_path / "trace-custom-name.json"
+    trace_path.write_bytes(original_trace_path.read_bytes())
+    preflight = build_adjudication_trace_publication_preflight(
+        **_preflight_kwargs(trace_path)
+    )
+    preflight_path = tmp_path / "preflight.json"
+    write_adjudication_trace_publication_preflight(preflight, preflight_path)
+    original_trace = trace_path.read_bytes()
+    monkeypatch.delenv("DSPX_ORACLE_STORE", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_POSTGRES_URL", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "adjudication-trace",
+            "publish",
+            "--preflight",
+            str(preflight_path),
+            "--receipt-out",
+            str(trace_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not overwrite an input artifact" in result.output
+    assert "Postgres/pgvector Oracle backend" not in result.output
+    assert trace_path.read_bytes() == original_trace
+
+
 def test_adjudication_trace_publish_cli_fails_without_shared_backend(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

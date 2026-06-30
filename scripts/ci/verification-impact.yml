@@ -532,6 +532,16 @@ rules:
       - typecheck_core
       - pytest_program_adjudication_publication
 
+  - match: "packages/dspx-core/src/dspx/services/program_oracle_publication.py"
+    category: python_service
+    impact_group: program_oracle_publication
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_oracle_publication
+      - pytest_program_sidecar_boundaries
+
   - match: "packages/dspx-core/src/dspx/services/program_refinement.py"
     category: python_service
     impact_group: program_oracle_refinement

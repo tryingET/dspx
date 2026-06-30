@@ -339,6 +339,22 @@ def test_program_oracle_publish_rejects_tampered_publication_contract(
         )
 
 
+def test_program_oracle_publish_rejects_tampered_publisher_assertion_secret(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["publication"]["publisher_assertion"] = "password=leaked-secret"
+    preflight_path.write_text(json.dumps(preflight, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramOraclePublicationError, match="secret"):
+        publish_program_oracle_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
 def test_program_oracle_publish_rejects_tampered_publication_id(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -369,6 +385,67 @@ def test_program_oracle_publish_rejects_widened_planned_record_non_authority(
             preflight_path=preflight_path,
             store=cast(CoordinateStore, FakeSharedOracleStore()),
         )
+
+
+def test_program_oracle_publish_cli_rejects_receipt_protected_artifact_overwrite_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    program_path = root / "program.py"
+    original_program = program_path.read_bytes()
+    monkeypatch.delenv("DSPX_ORACLE_STORE", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_POSTGRES_URL", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "program-evidence",
+            "publish",
+            "--preflight",
+            str(preflight_path),
+            "--receipt-out",
+            str(program_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not overwrite program.py" in result.output
+    assert "DSPX_ORACLE_STORE=postgres_pgvector" not in result.output
+    assert program_path.read_bytes() == original_program
+
+
+def test_program_oracle_publish_cli_rejects_receipt_preflight_overwrite_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _materialize_example_program(tmp_path, monkeypatch)
+    preflight_path = _write_preflight(root, tmp_path / "preflight.json")
+    original_preflight = preflight_path.read_bytes()
+    monkeypatch.delenv("DSPX_ORACLE_STORE", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_POSTGRES_URL", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "program-evidence",
+            "publish",
+            "--preflight",
+            str(preflight_path),
+            "--receipt-out",
+            str(preflight_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not overwrite an input artifact" in result.output
+    assert "DSPX_ORACLE_STORE=postgres_pgvector" not in result.output
+    assert preflight_path.read_bytes() == original_preflight
 
 
 def test_program_oracle_publish_cli_rejects_ambient_database_url_without_oracle_store(

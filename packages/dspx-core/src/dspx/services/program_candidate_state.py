@@ -17,6 +17,10 @@ from dspx.services.program_model_jury_validation import (
     PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     validate_program_model_jury_results_contract,
 )
+from dspx.services.program_oracle_publication import (
+    ProgramOraclePublicationError,
+    validate_program_oracle_publication_preflight_contract,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -36,6 +40,9 @@ PROGRAM_PROMOTION_PLAN_SCHEMA = "program-promotion-plan-v1"
 PROGRAM_META_ADJUDICATION_PLAN_SCHEMA = "program-meta-adjudication-plan-v1"
 PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA = (
     "program-external-authority-export-preflight-v1"
+)
+PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA = (
+    "program-oracle-shared-publication-preflight-v1"
 )
 PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA = (
     "program-oracle-shared-publication-receipt-v1"
@@ -498,6 +505,7 @@ def _validate_optional_inputs(
     export_preflight: Mapping[str, Any] | None,
     meta_adjudication_plan: Mapping[str, Any] | None,
     activation_packet: Mapping[str, Any] | None,
+    oracle_publication_preflight: Mapping[str, Any] | None,
     oracle_publication_receipt: Mapping[str, Any] | None,
     gepa_refinement: Mapping[str, Any] | None,
     current_manifest_path: Path,
@@ -728,6 +736,27 @@ def _validate_optional_inputs(
             ),
         )
 
+    if oracle_publication_preflight is not None:
+        created_from = _safe_mapping(oracle_publication_preflight.get("created_from"))
+        preflight_path = _first_text(created_from.get("preflight_path"))
+        try:
+            validate_program_oracle_publication_preflight_contract(
+                oracle_publication_preflight,
+                expected_manifest_path=current_manifest_path,
+                expected_manifest_hash=current_manifest_hash,
+                preflight_path=Path(preflight_path) if preflight_path else None,
+            )
+        except ProgramOraclePublicationError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
+        preflight_identity = _safe_mapping(oracle_publication_preflight.get("identity"))
+        if not any(
+            _identity_exactly_matches(preflight_identity, item)
+            for item in source_or_candidate
+        ):
+            raise ProgramCandidateStateError(
+                "Oracle publication preflight identity does not match candidate/source identity"
+            )
+
     if oracle_publication_receipt is not None:
         if oracle_publication_receipt.get("status") != "published":
             raise ProgramCandidateStateError(
@@ -767,6 +796,17 @@ def _validate_optional_inputs(
         ):
             raise ProgramCandidateStateError(
                 "Oracle publication receipt identity does not match candidate/source identity"
+            )
+
+    if (
+        oracle_publication_preflight is not None
+        and oracle_publication_receipt is not None
+    ):
+        if oracle_publication_preflight.get(
+            "publication_id"
+        ) != oracle_publication_receipt.get("publication_id"):
+            raise ProgramCandidateStateError(
+                "Oracle publication preflight/receipt publication_id mismatch"
             )
 
     if export_preflight is not None:
@@ -1335,6 +1375,31 @@ def _activation_packet_summary(packet: Mapping[str, Any] | None) -> dict[str, An
     }
 
 
+def _oracle_publication_preflight_summary(
+    preflight: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if preflight is None:
+        return {"present": False, "status": "missing"}
+    publication = _safe_mapping(preflight.get("publication"))
+    checks = _safe_mapping(preflight.get("preflight"))
+    effect = _safe_mapping(preflight.get("effect"))
+    return {
+        "present": True,
+        "schema_version": preflight.get("schema_version"),
+        "status": preflight.get("status"),
+        "publication_id": preflight.get("publication_id"),
+        "publication_label": publication.get("publication_label"),
+        "publication_label_class": publication.get("publication_label_class"),
+        "authority_ref": publication.get("authority_ref"),
+        "retention_class": publication.get("retention_class"),
+        "ready_for_shared_publication": checks.get("ready_for_shared_publication")
+        is True,
+        "blocking_reasons": _safe_list(checks.get("blocking_reasons")),
+        "shared_oracle_mutated": effect.get("shared_oracle_mutated") is True,
+        "evidence_only": True,
+    }
+
+
 def _oracle_publication_receipt_summary(
     receipt: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
@@ -1606,6 +1671,7 @@ def build_program_candidate_state(
     export_preflight_path: Path | None = None,
     meta_adjudication_plan_path: Path | None = None,
     activation_packet_path: Path | None = None,
+    oracle_publication_preflight_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
     generation_gate_preflight_path: Path | None = None,
     generation_fitness_results_path: Path | None = None,
@@ -1710,6 +1776,15 @@ def build_program_candidate_state(
         )
     )
     (
+        oracle_publication_preflight,
+        oracle_publication_preflight_file,
+        oracle_publication_preflight_hash,
+    ) = _load_optional_artifact(
+        oracle_publication_preflight_path,
+        label="Oracle publication preflight",
+        schema=PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
+    )
+    (
         oracle_publication_receipt,
         oracle_publication_receipt_file,
         oracle_publication_receipt_hash,
@@ -1763,6 +1838,7 @@ def build_program_candidate_state(
         "promotion_plan": promotion_plan_hash,
         "candidate_state": None,
         "external_authority_export_preflight": export_preflight_hash,
+        "oracle_publication_preflight": oracle_publication_preflight_hash,
         "oracle_publication_receipt": oracle_publication_receipt_hash,
         "canonical_binding_verification": None,
         "generation_fitness_results": generation_fitness_results_hash,
@@ -1772,6 +1848,11 @@ def build_program_candidate_state(
         key: (path, file_hash)
         for key, path, file_hash in (
             ("oracle_report", oracle_report_file, oracle_report_hash),
+            (
+                "oracle_publication_preflight",
+                oracle_publication_preflight_file,
+                oracle_publication_preflight_hash,
+            ),
             (
                 "oracle_publication_receipt",
                 oracle_publication_receipt_file,
@@ -1807,6 +1888,7 @@ def build_program_candidate_state(
         export_preflight=export_preflight,
         meta_adjudication_plan=meta_adjudication_plan,
         activation_packet=activation_packet,
+        oracle_publication_preflight=oracle_publication_preflight,
         oracle_publication_receipt=oracle_publication_receipt,
         gepa_refinement=gepa_refinement,
         current_manifest_path=manifest_path,
@@ -1857,6 +1939,7 @@ def build_program_candidate_state(
         "export_preflight_sha256": export_preflight_hash,
         "meta_adjudication_plan_sha256": meta_adjudication_plan_hash,
         "activation_packet_sha256": activation_packet_hash,
+        "oracle_publication_preflight_sha256": oracle_publication_preflight_hash,
         "oracle_publication_receipt_sha256": oracle_publication_receipt_hash,
         "generation_gate_preflight_sha256": generation_gate_preflight_hash,
         "generation_fitness_results_sha256": generation_fitness_results_hash,
@@ -1932,6 +2015,9 @@ def build_program_candidate_state(
             "activation_packet_path": str(activation_packet_file)
             if activation_packet_file is not None
             else None,
+            "oracle_publication_preflight_path": str(oracle_publication_preflight_file)
+            if oracle_publication_preflight_file is not None
+            else None,
             "oracle_publication_receipt_path": str(oracle_publication_receipt_file)
             if oracle_publication_receipt_file is not None
             else None,
@@ -1985,6 +2071,9 @@ def build_program_candidate_state(
             },
             "oracle_readability": oracle_readability,
             "oracle_report": _oracle_report_summary(oracle_report),
+            "oracle_publication_preflight": _oracle_publication_preflight_summary(
+                oracle_publication_preflight
+            ),
             "oracle_publication_receipt": _oracle_publication_receipt_summary(
                 oracle_publication_receipt
             ),
@@ -2037,6 +2126,8 @@ def build_program_candidate_state(
             "external_authority_preflight_present": export_preflight is not None,
             "meta_adjudication_plan_present": meta_adjudication_plan is not None,
             "activation_packet_present": activation_packet is not None,
+            "oracle_publication_preflight_present": oracle_publication_preflight
+            is not None,
             "oracle_publication_ref_present": oracle_publication_receipt is not None,
             "target_fidelity_evidence_present": generation_fitness_results is not None,
             "target_protocol_adjudication_present": program_evidence_adjudication
@@ -2080,6 +2171,17 @@ def build_program_candidate_state(
             "promotion_state_changed": False,
         },
         "shared_oracle_publication": {
+            "preflight_present": oracle_publication_preflight is not None,
+            "preflight_ready": _safe_mapping(
+                _oracle_publication_preflight_summary(oracle_publication_preflight)
+            ).get("ready_for_shared_publication")
+            is True,
+            "publication_id": _safe_mapping(
+                _oracle_publication_preflight_summary(oracle_publication_preflight)
+            ).get("publication_id")
+            or _safe_mapping(
+                _oracle_publication_receipt_summary(oracle_publication_receipt)
+            ).get("publication_id"),
             "evidence_ref_present": oracle_publication_receipt is not None,
             "evidence_only": True,
             "activation_authority": False,

@@ -6,9 +6,11 @@ import os
 import re
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from dspx.coordinates import CoordinateStore
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_index import (
     PROGRAM_ORACLE_EVIDENCE_SCHEMA,
     build_program_oracle_evidence_embedding,
@@ -22,6 +24,10 @@ from dspx.services.program_oracle_publication_preflight import (
     PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
     TARGETS,
 )
+from dspx.services.program_oracle_secret_policy import (
+    ProgramOracleSecretPolicyError,
+    validate_publisher_assertion_no_secret,
+)
 
 PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA = (
     "program-oracle-shared-publication-receipt-v1"
@@ -32,6 +38,11 @@ PROGRAM_ORACLE_PUBLICATION_RUN_KIND = "program-oracle-shared-publication"
 _POSTGRES_STORE_NAMES = {
     "postgres_pgvector",
     "pgvector",
+}
+
+_PUBLICATION_RECEIPT_PROTECTED_OUTPUT_NAMES = PROTECTED_PROGRAM_ARTIFACT_NAMES | {
+    "oracle_publication_preflight.json",
+    "oracle_publication_receipt.json",
 }
 
 _REQUIRED_FALSE_PUBLICATION_NON_AUTHORITY_FLAGS = (
@@ -337,6 +348,8 @@ def _expected_publication_id(
     publication_label: str,
     authority_ref: str | None,
     publisher_id: str,
+    publisher_role: str,
+    publisher_assertion: str,
     redaction_status: str,
     retention_class: str,
     publisher_secret_refs: list[dict[str, Any]] | None = None,
@@ -349,6 +362,8 @@ def _expected_publication_id(
         "publication_label": publication_label,
         "authority_ref": authority_ref,
         "publisher_id": publisher_id,
+        "publisher_role": publisher_role,
+        "publisher_assertion": publisher_assertion,
         "redaction_status": redaction_status,
         "retention_class": retention_class,
         "publisher_secret_refs": publisher_secret_refs or [],
@@ -396,9 +411,13 @@ def _validate_publication_contract(
     publisher_role = _required_text(
         publication.get("publisher_role"), field="publication.publisher_role"
     )
-    _required_text(
+    publisher_assertion = _required_text(
         publication.get("publisher_assertion"), field="publication.publisher_assertion"
     )
+    try:
+        validate_publisher_assertion_no_secret(publisher_assertion)
+    except ProgramOracleSecretPolicyError as exc:
+        raise ProgramOraclePublicationError(str(exc)) from exc
     redaction_status = _required_text(
         publication.get("redaction_status"), field="publication.redaction_status"
     )
@@ -463,6 +482,8 @@ def _validate_publication_contract(
         publication_label=label,
         authority_ref=authority_ref,
         publisher_id=publisher_id,
+        publisher_role=publisher_role,
+        publisher_assertion=publisher_assertion,
         redaction_status=redaction_status,
         retention_class=retention_class,
         publisher_secret_refs=secret_refs,
@@ -475,6 +496,56 @@ def _validate_publication_contract(
             "publication_id does not match recomputed idempotency key"
         )
     return expected_publication_id, publication, planned_record
+
+
+def validate_program_oracle_publication_preflight_contract(
+    preflight: Mapping[str, Any],
+    *,
+    expected_manifest_path: Path,
+    expected_manifest_hash: str,
+    preflight_path: Path | None = None,
+) -> None:
+    """Validate a program Oracle publication preflight without shared mutation."""
+
+    source = preflight_path or Path("<program-oracle-publication-preflight>")
+    _ensure_preflight_passed(preflight, source)
+    target = _safe_mapping(preflight.get("target"))
+    target_name = _required_text(target.get("target"), field="target.target")
+    if target_name not in TARGETS:
+        raise ProgramOraclePublicationError("preflight target is not supported")
+    evidence_path, manifest_path, artifact_hashes = _validate_preflight_hashes(
+        preflight
+    )
+    if manifest_path != expected_manifest_path.expanduser().resolve():
+        raise ProgramOraclePublicationError(
+            "preflight manifest path does not match current manifest"
+        )
+    if artifact_hashes.get("manifest_sha256") != expected_manifest_hash:
+        raise ProgramOraclePublicationError(
+            "preflight manifest hash does not match current manifest"
+        )
+    evidence = load_program_oracle_evidence(evidence_path)
+    if (
+        evidence is None
+        or evidence.get("schema_version") != PROGRAM_ORACLE_EVIDENCE_SCHEMA
+    ):
+        raise ProgramOraclePublicationError(
+            "program Oracle evidence schema_version must be "
+            + PROGRAM_ORACLE_EVIDENCE_SCHEMA
+        )
+    _validate_runtime_trace_preflight_binding(
+        preflight=preflight,
+        evidence=evidence,
+        manifest_path=manifest_path,
+        artifact_hashes=artifact_hashes,
+    )
+    _validate_publication_contract(
+        preflight=preflight,
+        target_name=target_name,
+        evidence=evidence,
+        evidence_identity=_safe_mapping(evidence.get("identity")),
+        artifact_hashes=artifact_hashes,
+    )
 
 
 def _publication_run_id(publication_id: str) -> str:
@@ -531,6 +602,59 @@ def _open_configured_shared_store() -> CoordinateStore:
             "explicit shared Oracle publication requires a configured and available "
             "Postgres/pgvector Oracle backend"
         ) from exc
+
+
+def program_oracle_publication_input_paths(preflight_path: Path) -> tuple[Path, ...]:
+    """Return local input paths a program Oracle publication receipt must not overwrite."""
+
+    source = preflight_path.expanduser().resolve()
+    preflight = _load_json_object(source, label="program Oracle publication preflight")
+    _ensure_preflight_passed(preflight, source)
+    evidence_path, manifest_path, _artifact_hashes = _validate_preflight_hashes(
+        preflight
+    )
+    created_from = _safe_mapping(preflight.get("created_from"))
+    runtime_traces_path = (
+        Path(
+            _required_text(
+                created_from.get("runtime_traces_path"),
+                field="created_from.runtime_traces_path",
+            )
+        )
+        .expanduser()
+        .resolve()
+    )
+    return (source, manifest_path, evidence_path, runtime_traces_path)
+
+
+def prepare_program_oracle_publication_receipt_output_path(
+    out_path: Path,
+    *,
+    preflight_path: Path,
+    protected_input_paths: Iterable[Path] | None = None,
+) -> Path:
+    """Validate a local receipt output path before shared publication is attempted."""
+
+    protected_paths = tuple(
+        protected_input_paths
+        if protected_input_paths is not None
+        else program_oracle_publication_input_paths(preflight_path)
+    )
+    manifest_roots = tuple(
+        path.parent for path in protected_paths if path.name == "manifest.json"
+    )
+    try:
+        return prepare_sidecar_output_path(
+            out_path,
+            payload={},
+            artifact_label="program Oracle publication receipt",
+            protected_names=_PUBLICATION_RECEIPT_PROTECTED_OUTPUT_NAMES,
+            payload_artifact_root_policy="ignore",
+            extra_protected_paths=protected_paths,
+            extra_protected_roots=manifest_roots,
+        )
+    except ValueError as exc:
+        raise ProgramOraclePublicationError(str(exc)) from exc
 
 
 def publish_program_oracle_preflight(
@@ -693,17 +817,32 @@ def publish_program_oracle_preflight(
 
 
 def write_program_oracle_publication_receipt(
-    receipt: Mapping[str, Any], out_path: Path
+    receipt: Mapping[str, Any],
+    out_path: Path,
+    *,
+    extra_protected_paths: Iterable[Path] = (),
+    extra_protected_roots: Iterable[Path] = (),
 ) -> dict[str, Any]:
     """Write a local receipt for an explicit shared Oracle publication."""
 
-    target = out_path.expanduser().resolve()
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(receipt)
     if payload.get("schema_version") != PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA:
         raise ProgramOraclePublicationError(
             "program Oracle publication receipt schema_version is invalid"
         )
+    try:
+        target = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="program Oracle publication receipt",
+            protected_names=_PUBLICATION_RECEIPT_PROTECTED_OUTPUT_NAMES,
+            payload_artifact_root_policy="ignore",
+            extra_protected_paths=extra_protected_paths,
+            extra_protected_roots=extra_protected_roots,
+        )
+    except ValueError as exc:
+        raise ProgramOraclePublicationError(str(exc)) from exc
+    target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))
     effect["local_receipt_written"] = True
     payload["effect"] = effect

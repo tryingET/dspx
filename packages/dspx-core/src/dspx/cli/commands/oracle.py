@@ -306,21 +306,24 @@ def oracle_adjudication_trace_publish(
     """Explicitly publish preflighted adjudication traces to shared Oracle."""
     from dspx.services.program_adjudication_publication import (
         ProgramAdjudicationPublicationError,
+        adjudication_trace_publication_input_paths,
         prepare_adjudication_trace_publication_receipt_output_path,
         publish_adjudication_trace_preflight,
         write_adjudication_trace_publication_receipt,
     )
 
     try:
+        protected_input_paths = adjudication_trace_publication_input_paths(preflight)
         prepare_adjudication_trace_publication_receipt_output_path(
             receipt_out,
             preflight_path=preflight,
+            protected_input_paths=protected_input_paths,
         )
         receipt = publish_adjudication_trace_preflight(preflight_path=preflight)
         payload = write_adjudication_trace_publication_receipt(
             receipt,
             receipt_out,
-            extra_protected_paths=(preflight,),
+            extra_protected_paths=protected_input_paths,
         )
     except ProgramAdjudicationPublicationError as exc:
         typer.echo(f"Error: {exc}", err=True)
@@ -447,13 +450,31 @@ def oracle_program_evidence_publish(
     """Explicitly publish preflighted program evidence to shared Oracle."""
     from dspx.services.program_oracle_publication import (
         ProgramOraclePublicationError,
+        prepare_program_oracle_publication_receipt_output_path,
+        program_oracle_publication_input_paths,
         publish_program_oracle_preflight,
         write_program_oracle_publication_receipt,
     )
 
     try:
+        protected_input_paths = program_oracle_publication_input_paths(preflight)
+        protected_roots = tuple(
+            path.parent
+            for path in protected_input_paths
+            if path.name == "manifest.json"
+        )
+        prepare_program_oracle_publication_receipt_output_path(
+            receipt_out,
+            preflight_path=preflight,
+            protected_input_paths=protected_input_paths,
+        )
         receipt = publish_program_oracle_preflight(preflight_path=preflight)
-        payload = write_program_oracle_publication_receipt(receipt, receipt_out)
+        payload = write_program_oracle_publication_receipt(
+            receipt,
+            receipt_out,
+            extra_protected_paths=protected_input_paths,
+            extra_protected_roots=protected_roots,
+        )
     except ProgramOraclePublicationError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=2) from exc

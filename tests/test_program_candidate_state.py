@@ -418,8 +418,7 @@ def _write_gepa_refinement_result(
     return path
 
 
-def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
-    preflight_path = out.parent / "oracle_publication_preflight.json"
+def _write_oracle_publication_preflight(root: Path, out: Path) -> Path:
     preflight = build_program_oracle_publication_preflight(
         manifest_path=root / "manifest.json",
         target="shared-postgres",
@@ -430,7 +429,15 @@ def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
         redaction_status="checked",
         retention_class="retained_behavior_memory",
     )
-    write_program_oracle_publication_preflight(preflight, preflight_path)
+    write_program_oracle_publication_preflight(preflight, out)
+    return out
+
+
+def _write_oracle_publication_receipt(root: Path, out: Path) -> Path:
+    preflight_path = _write_oracle_publication_preflight(
+        root,
+        out.parent / "oracle_publication_preflight.json",
+    )
     receipt = publish_program_oracle_preflight(
         preflight_path=preflight_path,
         store=cast(CoordinateStore, FakeSharedOracleStore()),
@@ -2023,6 +2030,9 @@ def test_program_candidate_state_includes_oracle_publication_ref_as_evidence_onl
     assert payload["truth_summary"]["promotion_applied"] is False
     assert payload["truth_summary"]["winner_selected"] is False
     assert payload["shared_oracle_publication"] == {
+        "preflight_present": False,
+        "preflight_ready": False,
+        "publication_id": publication["publication_id"],
         "evidence_ref_present": True,
         "evidence_only": True,
         "activation_authority": False,
@@ -2030,6 +2040,126 @@ def test_program_candidate_state_includes_oracle_publication_ref_as_evidence_onl
     }
     assert payload["non_authority"]["promotion_authority"] is False
     assert payload["non_authority"]["oracle_authority"] is False
+
+
+def test_program_candidate_state_includes_oracle_publication_preflight_for_activation_alignment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    preflight_path = _write_oracle_publication_preflight(
+        candidate_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=candidate_root / "manifest.json",
+        generation_fitness_results_path=fitness_path,
+    )
+    out_path = tmp_path / "state" / "program_candidate_state_with_preflight.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "status",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--oracle-publication-preflight",
+            str(preflight_path),
+            "--generation-fitness-results",
+            str(fitness_path),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    preflight = payload["evidence_state"]["oracle_publication_preflight"]
+    assert preflight["present"] is True
+    assert (
+        preflight["schema_version"] == "program-oracle-shared-publication-preflight-v1"
+    )
+    assert preflight["status"] == "ready_not_published"
+    assert preflight["ready_for_shared_publication"] is True
+    assert payload["shared_oracle_publication"]["preflight_present"] is True
+    assert payload["shared_oracle_publication"]["preflight_ready"] is True
+    assert payload["truth_summary"]["oracle_publication_preflight_present"] is True
+
+    packet = build_generated_program_activation_packet(
+        manifest_path=candidate_root / "manifest.json",
+        owning_domain="test-domain",
+        activation_target="test-target",
+        authority_owner="test-authority",
+        candidate_state_path=out_path,
+        oracle_publication_preflight_path=preflight_path,
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+
+    assert (
+        packet["evidence"]["oracle_publication_preflight"]["sha256"]
+        == hashlib.sha256(preflight_path.read_bytes()).hexdigest()
+    )
+    alignment = packet["evidence_alignment"]["oracle_publication"]
+    assert alignment["candidate_state_preflight_present"] is True
+    assert alignment["preflight_ref_supplied"] is True
+    assert alignment["receipt_ref_supplied"] is False
+    assert alignment["publication_ids_aligned"] is True
+    assert alignment["activation_authority"] is False
+
+
+def test_program_candidate_state_rejects_oracle_publication_preflight_receipt_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    preflight_path = _write_oracle_publication_preflight(
+        candidate_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    receipt_preflight_path = (
+        tmp_path / "oracle" / "publication_preflight_for_receipt.json"
+    )
+    receipt_preflight = build_program_oracle_publication_preflight(
+        manifest_path=candidate_root / "manifest.json",
+        target="shared-postgres",
+        publication_label="local_observed",
+        publisher_id="pi-test",
+        publisher_role="operator",
+        publisher_assertion="share synthetic behavior evidence for future Oracle retrieval",
+        redaction_status="checked",
+        retention_class="retained_behavior_memory",
+    )
+    write_program_oracle_publication_preflight(
+        receipt_preflight, receipt_preflight_path
+    )
+    receipt = publish_program_oracle_preflight(
+        preflight_path=receipt_preflight_path,
+        store=cast(CoordinateStore, FakeSharedOracleStore()),
+    )
+    receipt_path = tmp_path / "oracle" / "publication_receipt.json"
+    write_program_oracle_publication_receipt(receipt, receipt_path)
+
+    with pytest.raises(ProgramCandidateStateError, match="publication_id mismatch"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            oracle_publication_preflight_path=preflight_path,
+            oracle_publication_receipt_path=receipt_path,
+        )
 
 
 def test_program_candidate_state_rejects_publication_receipt_authority_widening(

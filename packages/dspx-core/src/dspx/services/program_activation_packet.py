@@ -27,6 +27,10 @@ from dspx.services.program_oracle_publication_preflight import (
     PROGRAM_ORACLE_PUBLICATION_PREFLIGHT_SCHEMA,
     TARGETS,
 )
+from dspx.services.program_oracle_secret_policy import (
+    ProgramOracleSecretPolicyError,
+    validate_publisher_assertion_no_secret,
+)
 
 ACTIVATION_PACKET_SCHEMA = "generated-cognition-program-production-activation-packet-v1"
 TRANSITION_TYPE = "generated-cognition-program.production_activation"
@@ -1189,14 +1193,20 @@ def _validate_oracle_publication_preflight(
         raise ProgramActivationPacketError(
             "oracle_publication_preflight publication.publisher_id is required"
         )
-    if not str(publication.get("publisher_role") or "").strip():
+    publisher_role = str(publication.get("publisher_role") or "").strip()
+    if not publisher_role:
         raise ProgramActivationPacketError(
             "oracle_publication_preflight publication.publisher_role is required"
         )
-    if not str(publication.get("publisher_assertion") or "").strip():
+    publisher_assertion = str(publication.get("publisher_assertion") or "").strip()
+    if not publisher_assertion:
         raise ProgramActivationPacketError(
             "oracle_publication_preflight publication.publisher_assertion is required"
         )
+    try:
+        validate_publisher_assertion_no_secret(publisher_assertion)
+    except ProgramOracleSecretPolicyError as exc:
+        raise ProgramActivationPacketError(str(exc)) from exc
     redaction_status = str(publication.get("redaction_status") or "").strip()
     if redaction_status not in ELIGIBLE_REDACTION_STATUSES:
         raise ProgramActivationPacketError(
@@ -1228,6 +1238,8 @@ def _validate_oracle_publication_preflight(
                 "publication_label": label,
                 "authority_ref": authority_ref,
                 "publisher_id": publisher_id,
+                "publisher_role": publisher_role,
+                "publisher_assertion": publisher_assertion,
                 "redaction_status": redaction_status,
                 "retention_class": retention_class,
                 "publisher_secret_refs": publisher_secret_refs,
