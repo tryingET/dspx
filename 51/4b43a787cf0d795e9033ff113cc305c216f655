@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "514b43a787cf0d795e9033ff113cc305c216f655"
-created_at: "2026-06-30T05:30:15Z"
+created_at: "2026-06-30T05:30:31Z"
 intent: "Refresh product posture with verified publication-preflight hardening proof and next frontier"
 files:
   - "docs/project/product-posture.md"
@@ -13,7 +13,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just loop-impact-run HEAD~1"
-    status: "pending"
+    status: "fail"
 group:
   index: 1
   total: 1
