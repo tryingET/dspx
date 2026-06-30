@@ -372,6 +372,83 @@ def test_adjudication_trace_publish_rejects_linked_artifact_drift_after_prefligh
         )
 
 
+def test_adjudication_trace_publish_rejects_tampered_preflight_non_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    preflight = build_adjudication_trace_publication_preflight(
+        **_preflight_kwargs(trace_path)
+    )
+    preflight["planned_record"]["non_authority"]["activation_authority"] = True
+    preflight_path = tmp_path / "preflight.json"
+    write_adjudication_trace_publication_preflight(preflight, preflight_path)
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="planned_record does not match recomputed publication record",
+    ):
+        publish_adjudication_trace_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_adjudication_trace_publish_rejects_tampered_publisher_assertion_secret(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    preflight = build_adjudication_trace_publication_preflight(
+        **_preflight_kwargs(trace_path)
+    )
+    preflight["publication"]["publisher_assertion"] = "password=leaked-secret"
+    preflight_path = tmp_path / "preflight.json"
+    write_adjudication_trace_publication_preflight(preflight, preflight_path)
+
+    with pytest.raises(ProgramAdjudicationPublicationError, match="secret"):
+        publish_adjudication_trace_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_adjudication_trace_publish_rejects_authority_mirror_without_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    kwargs = _preflight_kwargs(trace_path)
+    kwargs["publication_label"] = "activated"
+    kwargs["authority_ref"] = "AK-TEST-BINDING"
+    preflight = build_adjudication_trace_publication_preflight(**kwargs)
+    preflight["publication"]["authority_ref"] = None
+    preflight["publication"]["authority_ref_kind"] = None
+    preflight_path = tmp_path / "preflight.json"
+    write_adjudication_trace_publication_preflight(preflight, preflight_path)
+
+    with pytest.raises(ProgramAdjudicationPublicationError, match="authority_ref"):
+        publish_adjudication_trace_preflight(
+            preflight_path=preflight_path,
+            store=cast(CoordinateStore, FakeSharedOracleStore()),
+        )
+
+
+def test_adjudication_trace_publication_preflight_rejects_trace_overwrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    preflight = build_adjudication_trace_publication_preflight(
+        **_preflight_kwargs(trace_path)
+    )
+    original_trace = trace_path.read_bytes()
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="must not overwrite",
+    ):
+        write_adjudication_trace_publication_preflight(preflight, trace_path)
+
+    assert trace_path.read_bytes() == original_trace
+
+
 def test_adjudication_trace_publish_rejects_tampered_trace_after_preflight(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -390,6 +467,40 @@ def test_adjudication_trace_publish_rejects_tampered_trace_after_preflight(
             preflight_path=preflight_path,
             store=cast(CoordinateStore, FakeSharedOracleStore()),
         )
+
+
+def test_adjudication_trace_publish_cli_rejects_receipt_preflight_overwrite_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch)
+    preflight = build_adjudication_trace_publication_preflight(
+        **_preflight_kwargs(trace_path)
+    )
+    preflight_path = tmp_path / "preflight.json"
+    write_adjudication_trace_publication_preflight(preflight, preflight_path)
+    original_preflight = preflight_path.read_bytes()
+    monkeypatch.delenv("DSPX_ORACLE_STORE", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_DATABASE_URL", raising=False)
+    monkeypatch.delenv("DSPX_ORACLE_POSTGRES_URL", raising=False)
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "adjudication-trace",
+            "publish",
+            "--preflight",
+            str(preflight_path),
+            "--receipt-out",
+            str(preflight_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "must not overwrite an input artifact" in result.output
+    assert "Postgres/pgvector Oracle backend" not in result.output
+    assert preflight_path.read_bytes() == original_preflight
 
 
 def test_adjudication_trace_publish_cli_fails_without_shared_backend(

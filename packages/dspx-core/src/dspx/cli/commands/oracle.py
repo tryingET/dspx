@@ -306,13 +306,22 @@ def oracle_adjudication_trace_publish(
     """Explicitly publish preflighted adjudication traces to shared Oracle."""
     from dspx.services.program_adjudication_publication import (
         ProgramAdjudicationPublicationError,
+        prepare_adjudication_trace_publication_receipt_output_path,
         publish_adjudication_trace_preflight,
         write_adjudication_trace_publication_receipt,
     )
 
     try:
+        prepare_adjudication_trace_publication_receipt_output_path(
+            receipt_out,
+            preflight_path=preflight,
+        )
         receipt = publish_adjudication_trace_preflight(preflight_path=preflight)
-        payload = write_adjudication_trace_publication_receipt(receipt, receipt_out)
+        payload = write_adjudication_trace_publication_receipt(
+            receipt,
+            receipt_out,
+            extra_protected_paths=(preflight,),
+        )
     except ProgramAdjudicationPublicationError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=2) from exc

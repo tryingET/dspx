@@ -5,10 +5,11 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from dspx.coordinates import CoordinateStore, ExecutionEmbedding
 from dspx.coordinates.embeddings import get_embedding_engine
+from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_oracle_secret_policy import (
     ProgramOracleSecretPolicyError,
     build_onepassword_ref_descriptors,
@@ -53,6 +54,22 @@ ELIGIBLE_RETENTION_CLASSES = {
 RETENTION_CLASSES = ELIGIBLE_RETENTION_CLASSES | {"do_not_publish"}
 TARGETS = {"shared-postgres", "shared_postgres", "postgres_pgvector"}
 _POSTGRES_STORE_NAMES = {"postgres_pgvector", "pgvector"}
+_PUBLICATION_NON_AUTHORITY = {
+    "oracle_ranking": False,
+    "oracle_pruning": False,
+    "oracle_promotion": False,
+    "governance_authority": False,
+    "external_mutation": False,
+    "activation_authority": False,
+}
+_PUBLICATION_PROTECTED_OUTPUT_NAMES = {
+    "manifest.json",
+    "manifest.json.meta.json",
+    "adjudication_behavior_trace.json",
+    "program_evidence_adjudication.json",
+    "program_adjudicator_delegation.json",
+    "promotion_decision_record.json",
+}
 
 
 class ProgramAdjudicationPublicationError(ValueError):
@@ -223,6 +240,49 @@ def _trace_publication_summary(trace: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _publication_payload(
+    *,
+    publication_label: str,
+    label_class: str,
+    authority_ref: str | None,
+    publisher_id: str,
+    publisher_role: str,
+    publisher_assertion: str,
+    publisher_secret_refs: list[dict[str, Any]],
+    redaction_status: str,
+    retention_class: str,
+) -> dict[str, Any]:
+    return {
+        "publication_label": publication_label,
+        "publication_label_class": label_class,
+        "authority_ref_required": label_class == "authority_mirror",
+        "authority_ref": authority_ref,
+        "authority_ref_kind": "opaque_reference_only" if authority_ref else None,
+        "publisher_id": publisher_id,
+        "publisher_role": publisher_role,
+        "publisher_assertion": publisher_assertion,
+        "publisher_identity_kind": "declared_not_authenticated",
+        "publisher_secret_refs": publisher_secret_refs,
+        "redaction_status": redaction_status,
+        "retention_class": retention_class,
+    }
+
+
+def _planned_publication_record(
+    *,
+    publication: Mapping[str, Any],
+    trace: Mapping[str, Any],
+    trace_sha256: str,
+) -> dict[str, Any]:
+    return {
+        **dict(publication),
+        "adjudication_trace_sha256": trace_sha256,
+        "source_schema_version": trace.get("schema_version"),
+        "trace_summary": _trace_publication_summary(trace),
+        "non_authority": dict(_PUBLICATION_NON_AUTHORITY),
+    }
+
+
 def _iter_hash_bound_refs(
     value: object, *, label: str
 ) -> list[tuple[str, dict[str, Any]]]:
@@ -323,6 +383,8 @@ def _expected_publication_id(
     publication_label: str,
     authority_ref: str | None,
     publisher_id: str,
+    publisher_role: str,
+    publisher_assertion: str,
     redaction_status: str,
     retention_class: str,
     publisher_secret_refs: list[dict[str, Any]],
@@ -335,6 +397,8 @@ def _expected_publication_id(
         "publication_label": publication_label,
         "authority_ref": authority_ref,
         "publisher_id": publisher_id,
+        "publisher_role": publisher_role,
+        "publisher_assertion": publisher_assertion,
         "redaction_status": redaction_status,
         "retention_class": retention_class,
         "publisher_secret_refs": publisher_secret_refs,
@@ -392,38 +456,28 @@ def build_adjudication_trace_publication_preflight(
         publication_label=label,
         authority_ref=authority,
         publisher_id=publisher,
+        publisher_role=role,
+        publisher_assertion=assertion,
         redaction_status=redaction_status,
         retention_class=retention_class,
         publisher_secret_refs=secret_ref_descriptors,
     )
-    publication = {
-        "publication_label": label,
-        "publication_label_class": label_class,
-        "authority_ref_required": label_class == "authority_mirror",
-        "authority_ref": authority,
-        "authority_ref_kind": "opaque_reference_only" if authority else None,
-        "publisher_id": publisher,
-        "publisher_role": role,
-        "publisher_assertion": assertion,
-        "publisher_identity_kind": "declared_not_authenticated",
-        "publisher_secret_refs": secret_ref_descriptors,
-        "redaction_status": redaction_status,
-        "retention_class": retention_class,
-    }
-    planned_record = {
-        **publication,
-        "adjudication_trace_sha256": trace_sha256,
-        "source_schema_version": trace.get("schema_version"),
-        "trace_summary": _trace_publication_summary(trace),
-        "non_authority": {
-            "oracle_ranking": False,
-            "oracle_pruning": False,
-            "oracle_promotion": False,
-            "governance_authority": False,
-            "external_mutation": False,
-            "activation_authority": False,
-        },
-    }
+    publication = _publication_payload(
+        publication_label=label,
+        label_class=label_class,
+        authority_ref=authority,
+        publisher_id=publisher,
+        publisher_role=role,
+        publisher_assertion=assertion,
+        publisher_secret_refs=secret_ref_descriptors,
+        redaction_status=redaction_status,
+        retention_class=retention_class,
+    )
+    planned_record = _planned_publication_record(
+        publication=publication,
+        trace=trace,
+        trace_sha256=trace_sha256,
+    )
     return {
         "schema_version": ADJUDICATION_TRACE_PUBLICATION_PREFLIGHT_SCHEMA,
         "status": "ready_not_published",
@@ -487,9 +541,18 @@ def write_adjudication_trace_publication_preflight(
         raise ProgramAdjudicationPublicationError(
             "adjudication trace publication preflight schema_version is invalid"
         )
-    target = out_path.expanduser().resolve()
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(preflight)
+    try:
+        target = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="adjudication trace publication preflight",
+            protected_names=_PUBLICATION_PROTECTED_OUTPUT_NAMES,
+            payload_artifact_root_policy="forbid",
+        )
+    except ValueError as exc:
+        raise ProgramAdjudicationPublicationError(str(exc)) from exc
+    target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))
     effect["local_preflight_written"] = True
     payload["effect"] = effect
@@ -536,6 +599,95 @@ def _validate_secret_ref_descriptors(value: object) -> list[dict[str, Any]]:
             )
         descriptors.append(descriptor)
     return descriptors
+
+
+def _validated_publication_from_preflight(
+    *,
+    preflight: Mapping[str, Any],
+    trace: Mapping[str, Any],
+    trace_hash: str,
+    target_name: str,
+) -> tuple[dict[str, Any], dict[str, Any], str]:
+    publication = _safe_mapping(preflight.get("publication"))
+    secret_refs = _validate_secret_ref_descriptors(
+        publication.get("publisher_secret_refs")
+    )
+    label = _required_text(
+        publication.get("publication_label"), field="publication.publication_label"
+    )
+    expected_label_class = _label_class(label)
+    if publication.get("publication_label_class") != expected_label_class:
+        raise ProgramAdjudicationPublicationError(
+            "publication_label_class does not match publication_label"
+        )
+    authority_ref = str(publication.get("authority_ref") or "").strip() or None
+    if expected_label_class == "authority_mirror" and authority_ref is None:
+        raise ProgramAdjudicationPublicationError(
+            "authority_ref is required for authority-mirror publication labels"
+        )
+    publisher_id = _required_text(
+        publication.get("publisher_id"), field="publication.publisher_id"
+    )
+    publisher_role = _required_text(
+        publication.get("publisher_role"), field="publication.publisher_role"
+    )
+    publisher_assertion = _required_text(
+        publication.get("publisher_assertion"), field="publication.publisher_assertion"
+    )
+    try:
+        validate_publisher_assertion_no_secret(publisher_assertion)
+    except ProgramOracleSecretPolicyError as exc:
+        raise ProgramAdjudicationPublicationError(str(exc)) from exc
+    redaction_status = _required_text(
+        publication.get("redaction_status"), field="publication.redaction_status"
+    )
+    retention_class = _required_text(
+        publication.get("retention_class"), field="publication.retention_class"
+    )
+    _validate_redaction_status(redaction_status)
+    _validate_retention_class(retention_class)
+    expected_publication = _publication_payload(
+        publication_label=label,
+        label_class=expected_label_class,
+        authority_ref=authority_ref,
+        publisher_id=publisher_id,
+        publisher_role=publisher_role,
+        publisher_assertion=publisher_assertion,
+        publisher_secret_refs=secret_refs,
+        redaction_status=redaction_status,
+        retention_class=retention_class,
+    )
+    if dict(publication) != expected_publication:
+        raise ProgramAdjudicationPublicationError(
+            "publication fields do not match publishable canonical payload"
+        )
+    expected_planned_record = _planned_publication_record(
+        publication=expected_publication,
+        trace=trace,
+        trace_sha256=trace_hash,
+    )
+    if _safe_mapping(preflight.get("planned_record")) != expected_planned_record:
+        raise ProgramAdjudicationPublicationError(
+            "planned_record does not match recomputed publication record"
+        )
+    publication_id = _expected_publication_id(
+        target=target_name,
+        identity=_safe_mapping(preflight.get("identity")),
+        trace_sha256=trace_hash,
+        publication_label=label,
+        authority_ref=authority_ref,
+        publisher_id=publisher_id,
+        publisher_role=publisher_role,
+        publisher_assertion=publisher_assertion,
+        redaction_status=redaction_status,
+        retention_class=retention_class,
+        publisher_secret_refs=secret_refs,
+    )
+    if preflight.get("publication_id") != publication_id:
+        raise ProgramAdjudicationPublicationError(
+            "publication_id does not match recomputed idempotency key"
+        )
+    return expected_publication, expected_planned_record, publication_id
 
 
 def _ensure_preflight_publishable(preflight: Mapping[str, Any]) -> None:
@@ -718,6 +870,27 @@ def _trace_embedding(
     )
 
 
+def prepare_adjudication_trace_publication_receipt_output_path(
+    out_path: Path,
+    *,
+    preflight_path: Path,
+) -> Path:
+    """Validate a local receipt output path before shared publication is attempted."""
+
+    source = preflight_path.expanduser().resolve()
+    try:
+        return prepare_sidecar_output_path(
+            out_path,
+            payload={"preflight_path": str(source)},
+            artifact_label="adjudication trace publication receipt",
+            protected_names=_PUBLICATION_PROTECTED_OUTPUT_NAMES,
+            payload_artifact_root_policy="ignore",
+            extra_protected_paths=(source,),
+        )
+    except ValueError as exc:
+        raise ProgramAdjudicationPublicationError(str(exc)) from exc
+
+
 def publish_adjudication_trace_preflight(
     *, preflight_path: Path, store: CoordinateStore | None = None
 ) -> dict[str, Any]:
@@ -733,48 +906,12 @@ def publish_adjudication_trace_preflight(
     trace_path, trace_hash = _validate_preflight_hashes(preflight)
     trace = _load_json_object(trace_path, label="adjudication behavior trace")
     _validate_trace(trace, trace_path)
-    publication = _safe_mapping(preflight.get("publication"))
-    planned_record = _safe_mapping(preflight.get("planned_record"))
-    secret_refs = _validate_secret_ref_descriptors(
-        publication.get("publisher_secret_refs")
+    publication, planned_record, publication_id = _validated_publication_from_preflight(
+        preflight=preflight,
+        trace=trace,
+        trace_hash=trace_hash,
+        target_name=target_name,
     )
-    if planned_record.get("publisher_secret_refs") != secret_refs:
-        raise ProgramAdjudicationPublicationError(
-            "planned_record publisher_secret_refs do not match publication"
-        )
-    label = _required_text(
-        publication.get("publication_label"), field="publication.publication_label"
-    )
-    expected_label_class = _label_class(label)
-    if publication.get("publication_label_class") != expected_label_class:
-        raise ProgramAdjudicationPublicationError(
-            "publication_label_class does not match publication_label"
-        )
-    authority_ref = str(publication.get("authority_ref") or "").strip() or None
-    publisher_id = _required_text(
-        publication.get("publisher_id"), field="publication.publisher_id"
-    )
-    redaction_status = _required_text(
-        publication.get("redaction_status"), field="publication.redaction_status"
-    )
-    retention_class = _required_text(
-        publication.get("retention_class"), field="publication.retention_class"
-    )
-    publication_id = _expected_publication_id(
-        target=target_name,
-        identity=_safe_mapping(preflight.get("identity")),
-        trace_sha256=trace_hash,
-        publication_label=label,
-        authority_ref=authority_ref,
-        publisher_id=publisher_id,
-        redaction_status=redaction_status,
-        retention_class=retention_class,
-        publisher_secret_refs=secret_refs,
-    )
-    if preflight.get("publication_id") != publication_id:
-        raise ProgramAdjudicationPublicationError(
-            "publication_id does not match recomputed idempotency key"
-        )
     embedding = _trace_embedding(
         trace=trace,
         trace_path=trace_path,
@@ -857,15 +994,28 @@ def publish_adjudication_trace_preflight(
 
 
 def write_adjudication_trace_publication_receipt(
-    receipt: Mapping[str, Any], out_path: Path
+    receipt: Mapping[str, Any],
+    out_path: Path,
+    *,
+    extra_protected_paths: Iterable[Path] = (),
 ) -> dict[str, Any]:
     if receipt.get("schema_version") != ADJUDICATION_TRACE_PUBLICATION_RECEIPT_SCHEMA:
         raise ProgramAdjudicationPublicationError(
             "adjudication trace publication receipt schema_version is invalid"
         )
-    target = out_path.expanduser().resolve()
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(receipt)
+    try:
+        target = prepare_sidecar_output_path(
+            out_path,
+            payload=payload,
+            artifact_label="adjudication trace publication receipt",
+            protected_names=_PUBLICATION_PROTECTED_OUTPUT_NAMES,
+            payload_artifact_root_policy="forbid",
+            extra_protected_paths=extra_protected_paths,
+        )
+    except ValueError as exc:
+        raise ProgramAdjudicationPublicationError(str(exc)) from exc
+    target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))
     effect["local_receipt_written"] = True
     payload["effect"] = effect
