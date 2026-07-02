@@ -12,6 +12,10 @@ from dspx.services.program_refinement import (
     load_program_behavior_results,
     load_program_manifest,
 )
+from dspx.services.program_refinement_comparison import (
+    ProgramRefinementComparisonError,
+    validate_program_refinement_candidate_comparison_contract,
+)
 
 PROGRAM_PROMOTION_PLAN_SCHEMA = "program-promotion-plan-v1"
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
@@ -355,32 +359,17 @@ def _load_decision_record(path: Path) -> dict[str, Any]:
     return decision
 
 
-def _load_comparison(path: Path) -> dict[str, Any]:
-    comparison = _load_json_object(path, label="program candidate comparison")
-    if (
-        comparison.get("schema_version")
-        != PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
-    ):
-        raise ProgramPromotionPlanError(
-            "program candidate comparison schema_version must be "
-            + PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+def _load_comparison(
+    path: Path, *, candidate_manifest_path: Path, source_manifest_path: Path | None
+) -> dict[str, Any]:
+    try:
+        return validate_program_refinement_candidate_comparison_contract(
+            comparison_path=path,
+            candidate_manifest_path=candidate_manifest_path,
+            source_manifest_path=source_manifest_path,
         )
-    non_authority = _safe_mapping(comparison.get("non_authority"))
-    if non_authority.get("local_comparison_only") is not True:
-        raise ProgramPromotionPlanError(
-            "program candidate comparison must be local-only"
-        )
-    invalid = [
-        key
-        for key in _REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid:
-        raise ProgramPromotionPlanError(
-            "program candidate comparison widens non-authority flags: "
-            + ", ".join(invalid)
-        )
-    return comparison
+    except (ProgramRefinementComparisonError, ProgramRefinementError) as exc:
+        raise ProgramPromotionPlanError(str(exc)) from exc
 
 
 def _load_optional_review(path: Path | None) -> dict[str, Any] | None:
@@ -548,7 +537,11 @@ def build_program_promotion_plan(
         )
 
     decision = _load_decision_record(decision_record_path)
-    comparison = _load_comparison(comparison_path)
+    comparison = _load_comparison(
+        comparison_path,
+        candidate_manifest_path=manifest_path,
+        source_manifest_path=source_manifest_path,
+    )
     review = _load_optional_review(review_path)
     target_info = _target_payload(target)
     authority_info = _authority_owner_payload(authority_owner)

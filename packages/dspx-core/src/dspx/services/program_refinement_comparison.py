@@ -74,6 +74,16 @@ def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _resolve_recorded_path(raw_path: object, *, base_path: Path) -> Path | None:
+    text = str(raw_path or "").strip()
+    if not text:
+        return None
+    path = Path(text).expanduser()
+    if not path.is_absolute():
+        path = base_path.parent / path
+    return path.resolve()
+
+
 def _manifest_root(manifest_path: Path) -> Path:
     return manifest_path.expanduser().resolve().parent
 
@@ -655,6 +665,8 @@ def build_program_refinement_candidate_comparison(
             "candidate_manifest_path": str(candidate_manifest_path),
             "source_manifest_schema_version": _manifest_schema(source_manifest),
             "candidate_manifest_schema_version": _manifest_schema(candidate_manifest),
+            "source_manifest_hash": _sha256_file(source_manifest_path),
+            "candidate_manifest_hash": _sha256_file(candidate_manifest_path),
             "source_behavior_results_path": str(source_behavior_path)
             if source_behavior_path is not None and source_behavior_path.exists()
             else None,
@@ -697,6 +709,271 @@ def build_program_refinement_candidate_comparison(
         "effect": dict(_COMPARISON_EFFECT),
         "non_authority": dict(_COMPARISON_NON_AUTHORITY),
     }
+
+
+def _assert_comparison_identity_matches(
+    actual: Mapping[str, Any], expected: Mapping[str, str | None], *, label: str
+) -> None:
+    for key, expected_value in expected.items():
+        actual_value = actual.get(key)
+        if expected_value is None:
+            if actual_value not in (None, ""):
+                raise ProgramRefinementComparisonError(
+                    f"{label} identity {key} mismatch: expected empty, got {actual_value!r}"
+                )
+            continue
+        if str(actual_value or "") != str(expected_value):
+            raise ProgramRefinementComparisonError(
+                f"{label} identity {key} mismatch: expected {expected_value!r}, got {actual_value!r}"
+            )
+
+
+def _assert_recorded_hash(
+    *, payload: Mapping[str, Any], key: str, current_hash: str | None
+) -> None:
+    recorded = payload.get(key)
+    if current_hash is None:
+        if recorded not in (None, ""):
+            raise ProgramRefinementComparisonError(
+                f"program candidate comparison {key} is present but current artifact is absent"
+            )
+        return
+    if not isinstance(recorded, str) or not recorded.strip():
+        raise ProgramRefinementComparisonError(
+            f"program candidate comparison missing current artifact hash: {key}"
+        )
+    if recorded != current_hash:
+        raise ProgramRefinementComparisonError(
+            f"program candidate comparison stale artifact hash: {key}"
+        )
+
+
+def _assert_recorded_path_matches(
+    *,
+    payload: Mapping[str, Any],
+    key: str,
+    expected_path: Path | None,
+    comparison_path: Path,
+) -> None:
+    recorded_path = _resolve_recorded_path(payload.get(key), base_path=comparison_path)
+    if expected_path is None:
+        if recorded_path is not None:
+            raise ProgramRefinementComparisonError(
+                f"program candidate comparison {key} is present but current artifact is absent"
+            )
+        return
+    if recorded_path is None:
+        raise ProgramRefinementComparisonError(
+            f"program candidate comparison missing current artifact path: {key}"
+        )
+    if recorded_path != expected_path.expanduser().resolve():
+        raise ProgramRefinementComparisonError(
+            f"program candidate comparison stale artifact path: {key}"
+        )
+
+
+def validate_program_refinement_candidate_comparison_contract(
+    *,
+    comparison_path: Path,
+    candidate_manifest_path: Path,
+    source_manifest_path: Path | None = None,
+) -> dict[str, Any]:
+    """Validate a comparison sidecar against current manifests and evidence.
+
+    This is a final-consumer guard for planning/workflow summaries: the sidecar
+    schema and local-only flags are necessary but not sufficient. Consumers must
+    also re-bind identities and recorded behavior evidence hashes to current
+    files before treating the comparison as evidence.
+    """
+
+    comparison_path = comparison_path.expanduser().resolve()
+    candidate_manifest_path = candidate_manifest_path.expanduser().resolve()
+    comparison = _load_json_object(
+        comparison_path, label="program candidate comparison"
+    )
+    if (
+        comparison.get("schema_version")
+        != PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+    ):
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison schema_version must be "
+            + PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA
+        )
+    if comparison.get("status") not in {"compared", "insufficient_behavior_evidence"}:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison status must be compared or insufficient_behavior_evidence"
+        )
+    effect = _safe_mapping(comparison.get("effect"))
+    if effect.get("local_comparison_only") is not True:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison must be local-comparison-only"
+        )
+    invalid_effect = [
+        key
+        for key in (
+            "source_program_files_mutated",
+            "candidate_program_files_mutated",
+            "new_candidate_generated",
+            "external_authority_mutated",
+            "governance_mutated",
+        )
+        if effect.get(key) is not False
+    ]
+    if invalid_effect:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison widens effect flags: "
+            + ", ".join(invalid_effect)
+        )
+    non_authority = _safe_mapping(comparison.get("non_authority"))
+    if non_authority.get("local_comparison_only") is not True:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison must be local-only"
+        )
+    invalid_non_authority = [
+        key
+        for key in (
+            "oracle_ranking",
+            "oracle_pruning",
+            "oracle_promotion",
+            "winner_selection",
+            "automatic_promotion",
+            "program_mutation",
+            "new_candidate_generation",
+            "governance_authority",
+            "external_mutation",
+        )
+        if non_authority.get(key) is not False
+    ]
+    if invalid_non_authority:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison widens non-authority flags: "
+            + ", ".join(invalid_non_authority)
+        )
+
+    created_from = _safe_mapping(comparison.get("created_from"))
+    recorded_candidate_manifest = _resolve_recorded_path(
+        created_from.get("candidate_manifest_path"), base_path=comparison_path
+    )
+    if recorded_candidate_manifest is None:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison missing candidate_manifest_path"
+        )
+    if recorded_candidate_manifest != candidate_manifest_path:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison candidate_manifest_path does not match current candidate manifest"
+        )
+    recorded_source_manifest = _resolve_recorded_path(
+        created_from.get("source_manifest_path"), base_path=comparison_path
+    )
+    if recorded_source_manifest is None:
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison missing source_manifest_path"
+        )
+    if source_manifest_path is not None:
+        source_manifest_path = source_manifest_path.expanduser().resolve()
+        if recorded_source_manifest != source_manifest_path:
+            raise ProgramRefinementComparisonError(
+                "program candidate comparison source_manifest_path does not match current source manifest"
+            )
+    else:
+        source_manifest_path = recorded_source_manifest
+
+    source_manifest = load_program_manifest(source_manifest_path)
+    candidate_manifest = load_program_manifest(candidate_manifest_path)
+    if _manifest_schema(source_manifest) != "program-candidate-assembly-v1":
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison source manifest schema_version must be program-candidate-assembly-v1"
+        )
+    if _manifest_schema(candidate_manifest) != "program-candidate-assembly-v1":
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison candidate manifest schema_version must be program-candidate-assembly-v1"
+        )
+    _assert_comparison_identity_matches(
+        _safe_mapping(comparison.get("source_identity")),
+        _identity_from_manifest(source_manifest),
+        label="program candidate comparison source",
+    )
+    _assert_comparison_identity_matches(
+        _safe_mapping(comparison.get("candidate_identity")),
+        _identity_from_manifest(candidate_manifest),
+        label="program candidate comparison candidate",
+    )
+
+    _assert_recorded_hash(
+        payload=created_from,
+        key="source_manifest_hash",
+        current_hash=_sha256_file(source_manifest_path),
+    )
+    _assert_recorded_hash(
+        payload=created_from,
+        key="candidate_manifest_hash",
+        current_hash=_sha256_file(candidate_manifest_path),
+    )
+    source_behavior, source_behavior_path, source_behavior_hash = (
+        load_program_behavior_results(source_manifest, source_manifest_path)
+    )
+    candidate_behavior, candidate_behavior_path, candidate_behavior_hash = (
+        load_program_behavior_results(candidate_manifest, candidate_manifest_path)
+    )
+    _ = source_behavior, candidate_behavior
+    source_episode, source_episode_path, source_episode_hash = (
+        _load_program_behavior_episode(source_manifest, source_manifest_path)
+    )
+    candidate_episode, candidate_episode_path, candidate_episode_hash = (
+        _load_program_behavior_episode(candidate_manifest, candidate_manifest_path)
+    )
+    _ = source_episode, candidate_episode
+    _assert_recorded_path_matches(
+        payload=created_from,
+        key="source_behavior_results_path",
+        expected_path=source_behavior_path
+        if source_behavior_hash is not None
+        else None,
+        comparison_path=comparison_path,
+    )
+    _assert_recorded_path_matches(
+        payload=created_from,
+        key="candidate_behavior_results_path",
+        expected_path=candidate_behavior_path
+        if candidate_behavior_hash is not None
+        else None,
+        comparison_path=comparison_path,
+    )
+    _assert_recorded_path_matches(
+        payload=created_from,
+        key="source_behavior_episode_path",
+        expected_path=source_episode_path if source_episode_hash is not None else None,
+        comparison_path=comparison_path,
+    )
+    _assert_recorded_path_matches(
+        payload=created_from,
+        key="candidate_behavior_episode_path",
+        expected_path=candidate_episode_path
+        if candidate_episode_hash is not None
+        else None,
+        comparison_path=comparison_path,
+    )
+    _assert_recorded_hash(
+        payload=created_from,
+        key="source_behavior_results_hash",
+        current_hash=source_behavior_hash,
+    )
+    _assert_recorded_hash(
+        payload=created_from,
+        key="candidate_behavior_results_hash",
+        current_hash=candidate_behavior_hash,
+    )
+    _assert_recorded_hash(
+        payload=created_from,
+        key="source_behavior_episode_hash",
+        current_hash=source_episode_hash,
+    )
+    _assert_recorded_hash(
+        payload=created_from,
+        key="candidate_behavior_episode_hash",
+        current_hash=candidate_episode_hash,
+    )
+    return comparison
 
 
 def _comparison_protected_roots(payload: Mapping[str, Any]) -> list[Path]:
