@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from typer.testing import CliRunner
@@ -14,6 +14,7 @@ from dspx.coordinates import (
     ExecutionEmbedding,
     reset_embedding_engine,
 )
+import dspx.services.program_workflow as program_workflow
 from dspx.services.program_workflow import run_program_loop_from_intent_path
 
 runner = CliRunner()
@@ -252,8 +253,8 @@ def test_program_loop_shared_publication_opt_in_writes_receipt_as_evidence_only(
     state = json.loads(state_path.read_text(encoding="utf-8"))
     assert state["truth_summary"]["oracle_publication_ref_present"] is True
     assert state["shared_oracle_publication"] == {
-        "preflight_present": False,
-        "preflight_ready": False,
+        "preflight_present": True,
+        "preflight_ready": True,
         "publication_id": receipt["publication_id"],
         "evidence_ref_present": True,
         "evidence_only": True,
@@ -262,6 +263,54 @@ def test_program_loop_shared_publication_opt_in_writes_receipt_as_evidence_only(
     }
     assert state["truth_summary"]["promotion_applied"] is False
     assert state["truth_summary"]["winner_selected"] is False
+
+
+def test_program_loop_revalidates_shared_publication_receipt_before_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+    store = FakeSharedOracleStore()
+    monkeypatch.setenv("DSPX_ORACLE_STORE", "postgres_pgvector")
+    monkeypatch.setenv(
+        "DSPX_ORACLE_DATABASE_URL",
+        "postgresql://dspx_oracle:secret@example.invalid:55432/dspx_oracle",
+    )
+    original_writer = program_workflow.write_program_oracle_publication_receipt
+
+    def _tampered_writer(receipt: dict[str, Any], out_path: Path) -> dict[str, Any]:
+        payload = original_writer(receipt, out_path)
+        record = dict(payload.get("record") or {})
+        record["non_authority"] = {
+            **dict(record.get("non_authority") or {}),
+            "oracle_promotion": True,
+        }
+        payload["record"] = record
+        return payload
+
+    monkeypatch.setattr(
+        program_workflow,
+        "write_program_oracle_publication_receipt",
+        _tampered_writer,
+    )
+
+    with pytest.raises(ValueError, match="planned_record: non_authority"):
+        run_program_loop_from_intent_path(
+            intent_path,
+            outdir=outdir,
+            publish_to_shared="retained",
+            publisher_id="pi-test",
+            publisher_role="operator",
+            publisher_assertion="share synthetic behavior evidence for future Oracle retrieval",
+            redaction_status="checked",
+            retention_class="retained_behavior_memory",
+            shared_publication_store=cast(CoordinateStore, store),
+        )
+
+    assert not (outdir / "program_candidate_state.json").exists()
+    assert not (outdir / "program_loop.json").exists()
 
 
 def test_program_loop_cli_publish_to_shared_fails_closed_without_backend(

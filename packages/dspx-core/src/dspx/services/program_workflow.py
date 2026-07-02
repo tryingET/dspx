@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from dspx.coordinates import CoordinateStore
 from dspx.services.program_candidate_state import (
     build_program_candidate_state,
     write_program_candidate_state,
 )
-from dspx.coordinates import CoordinateStore
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication import (
+    validate_program_oracle_publication_preflight_contract,
+    validate_program_oracle_publication_receipt_contract,
     publish_program_oracle_preflight,
     write_program_oracle_publication_receipt,
 )
@@ -37,6 +40,10 @@ _FORBIDDEN_OUTPUT_NAMES = {
 
 def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _default_index_path(root: Path) -> Path:
@@ -297,12 +304,31 @@ def run_program_loop_from_intent_path(
             publication_receipt,
             resolved_publication_receipt_out,
         )
+        manifest_hash = _sha256_file(manifest_path)
+        validate_program_oracle_publication_preflight_contract(
+            publication_preflight_payload,
+            expected_manifest_path=manifest_path,
+            expected_manifest_hash=manifest_hash,
+            preflight_path=resolved_publication_preflight_out,
+        )
+        preflight_identity = publication_preflight_payload.get("identity")
+        validate_program_oracle_publication_receipt_contract(
+            publication_receipt_payload,
+            expected_identities=(
+                preflight_identity if isinstance(preflight_identity, Mapping) else {},
+            ),
+            preflight=publication_preflight_payload,
+            preflight_sha256=_sha256_file(resolved_publication_preflight_out),
+        )
 
     state = build_program_candidate_state(
         manifest_path=manifest_path,
         out_path=resolved_state_out,
         oracle_report_path=resolved_oracle_report_out
         if oracle_report is not None
+        else None,
+        oracle_publication_preflight_path=resolved_publication_preflight_out
+        if publication_preflight_payload is not None
         else None,
         oracle_publication_receipt_path=resolved_publication_receipt_out
         if publication_receipt_payload is not None
