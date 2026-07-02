@@ -379,9 +379,7 @@ def test_program_promote_activation_packet_rejects_mismatched_preflight_and_rece
     )
 
     assert result.exit_code == 2
-    assert (
-        "oracle_publication_preflight/receipt publication_id mismatch" in result.output
-    )
+    assert "publication_id mismatch with supplied preflight" in result.output
 
 
 def test_program_promote_activation_packet_rejects_candidate_state_publication_preflight_omission(

@@ -414,6 +414,45 @@ def test_program_promote_activation_packet_rejects_publication_receipt_secret_be
     assert "super-secret" not in result.output
 
 
+def test_program_promote_activation_packet_rejects_publication_receipt_record_authority_widening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        program_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["record"]["non_authority"]["external_mutation"] = True
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--oracle-publication-receipt",
+            str(receipt_path),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "record widens non-authority flags" in result.output
+    assert "external_mutation" in result.output
+
+
 def test_program_promote_activation_packet_rejects_publication_ref_authority_widening(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -19,6 +19,10 @@ from dspx.services.program_model_jury_validation import (
     PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     validate_program_model_jury_results_contract,
 )
+from dspx.services.program_oracle_publication import (
+    ProgramOraclePublicationError,
+    validate_program_oracle_publication_receipt_contract,
+)
 from dspx.services.program_oracle_publication_preflight import (
     AUTHORITY_MIRROR_LABELS,
     ELIGIBLE_REDACTION_STATUSES,
@@ -658,145 +662,15 @@ def _validate_oracle_publication_receipt(
 ) -> None:
     if receipt is None:
         return
-    if receipt.get("status") != "published":
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt status must be published"
+    try:
+        validate_program_oracle_publication_receipt_contract(
+            receipt,
+            expected_identities=(identity,),
+            preflight=preflight,
+            preflight_sha256=_first_text((preflight_ref or {}).get("sha256")),
         )
-    _validate_artifact_identity(
-        identity,
-        receipt,
-        label="oracle_publication_receipt",
-    )
-    publication_id = str(receipt.get("publication_id") or "").strip()
-    run_id = str(receipt.get("run_id") or "").strip()
-    if not publication_id:
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt publication_id is required"
-        )
-    expected_run_id = f"program-oracle-publication:{publication_id}"
-    if run_id != expected_run_id:
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt run_id must match publication_id"
-        )
-
-    idempotency = _safe_mapping(receipt.get("idempotency"))
-    expected_idempotency = {
-        "publication_id": publication_id,
-        "run_id": run_id,
-        "safe_to_retry": True,
-    }
-    mismatched_idempotency = [
-        key
-        for key, expected in expected_idempotency.items()
-        if idempotency.get(key) != expected
-    ]
-    if mismatched_idempotency:
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt idempotency contract mismatch: "
-            + ", ".join(mismatched_idempotency)
-        )
-
-    publication = _safe_mapping(receipt.get("publication"))
-    record = _safe_mapping(receipt.get("record"))
-    if preflight is not None:
-        preflight_publication = _safe_mapping(preflight.get("publication"))
-        if publication != preflight_publication:
-            raise ProgramActivationPacketError(
-                "oracle_publication_receipt publication does not match supplied preflight"
-            )
-        preflight_record = _safe_mapping(preflight.get("planned_record"))
-        expected_preflight_record = {
-            "schema_version": preflight_record.get("schema_version"),
-            "publication_label": preflight_record.get("publication_label"),
-            "publication_label_class": preflight_record.get("publication_label_class"),
-            "retention_class": preflight_record.get("retention_class"),
-            "redaction_status": preflight_record.get("redaction_status"),
-            "authority_ref": preflight_record.get("authority_ref"),
-            "non_authority": preflight_record.get("non_authority"),
-        }
-        mismatched_preflight_record = [
-            key
-            for key, expected in expected_preflight_record.items()
-            if record.get(key) != expected
-        ]
-        if mismatched_preflight_record:
-            raise ProgramActivationPacketError(
-                "oracle_publication_receipt record does not match supplied preflight planned_record: "
-                + ", ".join(sorted(mismatched_preflight_record))
-            )
-    expected_record = {
-        "schema_version": "program-oracle-shared-publication-v1",
-        "run_kind": "program-oracle-shared-publication",
-        "template_version": "program-oracle-shared-publication-v1",
-        "provider": "program-gen",
-        "publication_label": publication.get("publication_label"),
-        "publication_label_class": publication.get("publication_label_class"),
-        "retention_class": publication.get("retention_class"),
-        "redaction_status": publication.get("redaction_status"),
-        "authority_ref": publication.get("authority_ref"),
-    }
-    mismatched_record = [
-        key for key, expected in expected_record.items() if record.get(key) != expected
-    ]
-    if mismatched_record:
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt record does not match publication fields: "
-            + ", ".join(sorted(mismatched_record))
-        )
-    _validate_non_authority_false(
-        record,
-        label="oracle_publication_receipt record",
-        keys=(
-            "oracle_ranking",
-            "oracle_pruning",
-            "oracle_promotion",
-            "governance_authority",
-            "external_mutation",
-        ),
-    )
-
-    _validate_oracle_publication_target_posture(_safe_mapping(receipt.get("target")))
-
-    _validate_oracle_publication_receipt_source_lineage(
-        source=_safe_mapping(receipt.get("source")),
-        preflight=preflight,
-        preflight_ref=preflight_ref,
-    )
-
-    effect = _safe_mapping(receipt.get("effect"))
-    if effect.get("shared_oracle_mutated") is not True:
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt must record shared_oracle_mutated true"
-        )
-    for key in (
-        "ak_called",
-        "governance_mutated",
-        "mlflow_mutated",
-        "program_files_mutated",
-        "promotion_state_changed",
-    ):
-        if effect.get(key) is not False:
-            raise ProgramActivationPacketError(
-                f"oracle_publication_receipt must record {key} false"
-            )
-    non_authority = _safe_mapping(receipt.get("non_authority"))
-    invalid = [
-        key
-        for key in (
-            "oracle_authority",
-            "promotion_authority",
-            "governance_authority",
-            "agent_kernel_mutation",
-            "winner_selection",
-            "automatic_promotion",
-        )
-        if non_authority.get(key) is not False
-    ]
-    if invalid:
-        raise ProgramActivationPacketError(
-            "oracle_publication_receipt widens non-authority flags: "
-            + ", ".join(invalid)
-        )
+    except ProgramOraclePublicationError as exc:
+        raise ProgramActivationPacketError(str(exc)) from exc
 
 
 def _parse_ak_decision_ref(canonical_binding_ref: str) -> int:
