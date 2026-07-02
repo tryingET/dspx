@@ -439,6 +439,9 @@ def _validate_publication_contract(
     )
 
     expected_planned = {
+        "candidate_id": evidence_identity.get("candidate_id"),
+        "assembly_id": evidence_identity.get("assembly_id"),
+        "receipt_bundle_id": evidence_identity.get("receipt_bundle_id"),
         "publication_label": label,
         "publication_label_class": expected_label_class,
         "publisher_id": publisher_id,
@@ -510,9 +513,7 @@ def validate_program_oracle_publication_preflight_contract(
     source = preflight_path or Path("<program-oracle-publication-preflight>")
     _ensure_preflight_passed(preflight, source)
     target = _safe_mapping(preflight.get("target"))
-    target_name = _required_text(target.get("target"), field="target.target")
-    if target_name not in TARGETS:
-        raise ProgramOraclePublicationError("preflight target is not supported")
+    target_name = _validate_publication_preflight_target_posture(target)
     evidence_path, manifest_path, artifact_hashes = _validate_preflight_hashes(
         preflight
     )
@@ -539,13 +540,57 @@ def validate_program_oracle_publication_preflight_contract(
         manifest_path=manifest_path,
         artifact_hashes=artifact_hashes,
     )
-    _validate_publication_contract(
-        preflight=preflight,
-        target_name=target_name,
-        evidence=evidence,
-        evidence_identity=_safe_mapping(evidence.get("identity")),
-        artifact_hashes=artifact_hashes,
+    expected_publication_id, _publication, _planned_record = (
+        _validate_publication_contract(
+            preflight=preflight,
+            target_name=target_name,
+            evidence=evidence,
+            evidence_identity=_safe_mapping(evidence.get("identity")),
+            artifact_hashes=artifact_hashes,
+        )
     )
+    idempotency = _safe_mapping(preflight.get("idempotency"))
+    expected_idempotency = {
+        "publication_id": expected_publication_id,
+        "safe_to_recompute": True,
+        "same_inputs_same_publication_id": True,
+        "shared_duplicate_check_performed": False,
+    }
+    mismatched_idempotency = [
+        key
+        for key, expected in expected_idempotency.items()
+        if idempotency.get(key) != expected
+    ]
+    if mismatched_idempotency:
+        raise ProgramOraclePublicationError(
+            "preflight idempotency contract mismatch: "
+            + ", ".join(mismatched_idempotency)
+        )
+    effect = _safe_mapping(preflight.get("effect"))
+    for key in (
+        "mlflow_mutated",
+        "program_files_mutated",
+        "promotion_state_changed",
+    ):
+        if effect.get(key) is not False:
+            raise ProgramOraclePublicationError(f"preflight must prove {key} is false")
+    non_authority = _safe_mapping(preflight.get("non_authority"))
+    invalid_non_authority = [
+        key
+        for key in (
+            "oracle_authority",
+            "promotion_authority",
+            "governance_authority",
+            "agent_kernel_mutation",
+            "winner_selection",
+            "automatic_promotion",
+        )
+        if non_authority.get(key) is not False
+    ]
+    if invalid_non_authority:
+        raise ProgramOraclePublicationError(
+            "preflight widens non-authority flags: " + ", ".join(invalid_non_authority)
+        )
 
 
 def _receipt_identity_matches(
@@ -591,6 +636,28 @@ def _validate_redacted_database_url_posture(
             raise ProgramOraclePublicationError(
                 f"{label} target.database_url_redacted must not expose secret values"
             )
+
+
+def _validate_publication_preflight_target_posture(target: Mapping[str, Any]) -> str:
+    if not target:
+        raise ProgramOraclePublicationError("preflight target posture is required")
+    target_name = _required_text(target.get("target"), field="target.target")
+    if target_name not in TARGETS:
+        raise ProgramOraclePublicationError("preflight target is not supported")
+    if target.get("target_supported_by_preflight") is not True:
+        raise ProgramOraclePublicationError(
+            "preflight target_supported_by_preflight must be true"
+        )
+    if target.get("connection_attempted") is not False:
+        raise ProgramOraclePublicationError(
+            "preflight target.connection_attempted must be false"
+        )
+    if target.get("shared_write_attempted") is not False:
+        raise ProgramOraclePublicationError(
+            "preflight target.shared_write_attempted must be false"
+        )
+    _validate_redacted_database_url_posture(target, label="preflight")
+    return target_name
 
 
 def _validate_publication_receipt_target_posture(target: Mapping[str, Any]) -> None:

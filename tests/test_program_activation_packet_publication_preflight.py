@@ -147,7 +147,7 @@ def test_program_promote_activation_packet_rejects_publication_preflight_tampere
     )
 
     assert result.exit_code == 2
-    assert "planned_record does not match validated preflight fields" in result.output
+    assert "planned_record does not match validated publication fields" in result.output
     assert "candidate_id" in result.output
 
 
@@ -457,4 +457,4 @@ def test_program_promote_activation_packet_rejects_publication_preflight_authori
     )
 
     assert result.exit_code == 2
-    assert "shared_oracle_mutated false" in result.output
+    assert "shared_oracle_mutated is false" in result.output
