@@ -6,6 +6,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_oracle_publication import (
+    ProgramOraclePublicationError,
+    validate_program_oracle_publication_preflight_contract,
+    validate_program_oracle_publication_receipt_contract,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_manifest,
@@ -244,6 +249,50 @@ def _sidecar_path(manifest_path: Path, *, key: str, explicit_path: Path | None) 
     return _manifest_root(manifest_path) / _DEFAULT_SIDECAR_FILES[key]
 
 
+def _validate_oracle_publication_receipt_sidecar(
+    *,
+    manifest_path: Path,
+    receipt_path: Path,
+    receipt: Mapping[str, Any],
+) -> None:
+    source = _safe_mapping(receipt.get("source"))
+    preflight_file = _first_text(source.get("preflight_file"))
+    preflight_sha256 = _first_text(source.get("preflight_sha256"))
+    if preflight_file is None or preflight_sha256 is None:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt source preflight ref is required"
+        )
+    raw_preflight_path = Path(preflight_file).expanduser()
+    preflight_path = (
+        raw_preflight_path
+        if raw_preflight_path.is_absolute()
+        else receipt_path.parent / raw_preflight_path
+    ).resolve()
+    preflight = _load_json_object(
+        preflight_path,
+        label="oracle_publication_receipt source preflight",
+    )
+    actual_preflight_sha256 = _sha256_file(preflight_path)
+    if actual_preflight_sha256 != preflight_sha256:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt source.preflight_sha256 does not match current preflight"
+        )
+    manifest_file = manifest_path.expanduser().resolve()
+    validate_program_oracle_publication_preflight_contract(
+        preflight,
+        expected_manifest_path=manifest_file,
+        expected_manifest_hash=_sha256_file(manifest_file),
+        preflight_path=preflight_path,
+    )
+    manifest = load_program_manifest(manifest_file)
+    validate_program_oracle_publication_receipt_contract(
+        receipt,
+        expected_identities=(_identity_from_manifest(manifest),),
+        preflight=preflight,
+        preflight_sha256=actual_preflight_sha256,
+    )
+
+
 def _sidecar_status(
     manifest_path: Path, *, key: str, explicit_path: Path | None = None
 ) -> dict[str, Any]:
@@ -263,9 +312,21 @@ def _sidecar_status(
         return status
     payload = _load_json_object(path, label=f"{key} sidecar")
     schema = payload.get("schema_version")
+    sidecar_status = "present" if schema == required_schema else "schema_mismatch"
+    warning = None
+    if schema == required_schema and key == "oracle_publication_receipt":
+        try:
+            _validate_oracle_publication_receipt_sidecar(
+                manifest_path=manifest_path,
+                receipt_path=path,
+                receipt=payload,
+            )
+        except (ProgramOraclePublicationError, ProgramMetaAdjudicationError) as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
     status.update(
         {
-            "status": "present" if schema == required_schema else "schema_mismatch",
+            "status": sidecar_status,
             "schema_version": schema,
             "sha256": _sha256_file(path),
             "payload_status": payload.get("status"),
@@ -274,6 +335,8 @@ def _sidecar_status(
     )
     if schema != required_schema:
         status["warning"] = f"expected schema_version {required_schema}"
+    elif warning is not None:
+        status["warning"] = warning
     return status
 
 

@@ -31,6 +31,7 @@ from dspx.services.program_meta_adjudication import (
     write_program_meta_adjudication_plan,
     write_program_meta_jury_selection,
 )
+from program_activation_packet_shared import _write_oracle_publication_receipt
 from program_meta_adjudication_helpers import (
     _materialize_obsidian_like_candidate,
     _write_minimal_activation_packet,
@@ -267,6 +268,79 @@ def test_meta_adjudication_plan_tracks_present_sidecars(
     )
     assert "program_jury_results" not in plan["missing_evidence"]
     assert "program_adjudicator_delegation" not in plan["missing_evidence"]
+
+
+def test_meta_adjudication_plan_validates_oracle_publication_receipt_contract(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root, tmp_path / "oracle" / "program_oracle_publication_receipt.json"
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        oracle_publication_receipt_path=receipt_path,
+    )
+
+    receipt_status = plan["sidecars"]["oracle_publication_receipt"]
+    assert receipt_status["status"] == "present"
+    assert (
+        receipt_status["schema_version"]
+        == "program-oracle-shared-publication-receipt-v1"
+    )
+    assert receipt_status["sha256"]
+
+
+def test_meta_adjudication_plan_rejects_oracle_publication_receipt_contract_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root, tmp_path / "oracle" / "program_oracle_publication_receipt.json"
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["record"]["non_authority"]["oracle_promotion"] = True
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        oracle_publication_receipt_path=receipt_path,
+    )
+
+    receipt_status = plan["sidecars"]["oracle_publication_receipt"]
+    assert receipt_status["present"] is True
+    assert receipt_status["status"] == "contract_invalid"
+    assert (
+        "record does not match supplied preflight planned_record"
+        in receipt_status["warning"]
+    )
+
+
+def test_meta_adjudication_plan_rejects_oracle_publication_receipt_stale_preflight(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root, tmp_path / "oracle" / "program_oracle_publication_receipt.json"
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    preflight_path = receipt_path.parent / Path(receipt["source"]["preflight_file"])
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["planned_record"]["candidate_id"] = "drifted-candidate"
+    preflight_path.write_text(json.dumps(preflight, indent=2, sort_keys=True) + "\n")
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        oracle_publication_receipt_path=receipt_path,
+    )
+
+    receipt_status = plan["sidecars"]["oracle_publication_receipt"]
+    assert receipt_status["status"] == "contract_invalid"
+    assert (
+        "source.preflight_sha256 does not match current preflight"
+        in receipt_status["warning"]
+    )
 
 
 def test_meta_adjudication_plan_treats_schema_mismatch_sidecars_as_missing(
