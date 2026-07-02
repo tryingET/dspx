@@ -20,6 +20,7 @@ from dspx.services.program_model_jury_validation import (
 from dspx.services.program_oracle_publication import (
     ProgramOraclePublicationError,
     validate_program_oracle_publication_preflight_contract,
+    validate_program_oracle_publication_receipt_contract,
 )
 from dspx.services.program_refinement import (
     ProgramRefinementError,
@@ -758,45 +759,15 @@ def _validate_optional_inputs(
             )
 
     if oracle_publication_receipt is not None:
-        if oracle_publication_receipt.get("status") != "published":
-            raise ProgramCandidateStateError(
-                "Oracle publication receipt status must be published"
+        try:
+            validate_program_oracle_publication_receipt_contract(
+                oracle_publication_receipt,
+                expected_identities=source_or_candidate,
+                preflight=oracle_publication_preflight,
+                preflight_sha256=sidecar_hashes.get("oracle_publication_preflight"),
             )
-        effect = _safe_mapping(oracle_publication_receipt.get("effect"))
-        if effect.get("shared_oracle_mutated") is not True:
-            raise ProgramCandidateStateError(
-                "Oracle publication receipt must record shared_oracle_mutated true"
-            )
-        forbidden_true = {
-            "ak_called": "Oracle publication receipt must not record AK mutation",
-            "governance_mutated": "Oracle publication receipt must not record governance mutation",
-            "mlflow_mutated": "Oracle publication receipt must not record MLflow mutation",
-            "program_files_mutated": "Oracle publication receipt must not record program file mutation",
-            "promotion_state_changed": "Oracle publication receipt must not record promotion state changes",
-        }
-        for key, message in forbidden_true.items():
-            if effect.get(key) is not False:
-                raise ProgramCandidateStateError(message)
-        _validate_non_authority_false(
-            oracle_publication_receipt,
-            label="Oracle publication receipt",
-            keys=(
-                "oracle_authority",
-                "promotion_authority",
-                "governance_authority",
-                "agent_kernel_mutation",
-                "winner_selection",
-                "automatic_promotion",
-            ),
-        )
-        receipt_identity = _safe_mapping(oracle_publication_receipt.get("identity"))
-        if not any(
-            _identity_exactly_matches(receipt_identity, item)
-            for item in source_or_candidate
-        ):
-            raise ProgramCandidateStateError(
-                "Oracle publication receipt identity does not match candidate/source identity"
-            )
+        except ProgramOraclePublicationError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if (
         oracle_publication_preflight is not None

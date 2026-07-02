@@ -2185,6 +2185,88 @@ def test_program_candidate_state_rejects_publication_receipt_authority_widening(
         )
 
 
+def test_program_candidate_state_rejects_publication_receipt_record_authority_widening(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["record"]["non_authority"]["external_mutation"] = True
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ProgramCandidateStateError, match="record widens non-authority"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            oracle_publication_receipt_path=receipt_path,
+        )
+
+
+def test_program_candidate_state_rejects_publication_receipt_record_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root,
+        tmp_path / "oracle" / "publication_receipt.json",
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["record"]["publication_label"] = "tampered"
+    receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="record does not match publication fields",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            oracle_publication_receipt_path=receipt_path,
+        )
+
+
+def test_program_candidate_state_rejects_publication_receipt_preflight_hash_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    preflight_path = _write_oracle_publication_preflight(
+        candidate_root,
+        tmp_path / "oracle" / "publication_preflight.json",
+    )
+    receipt = publish_program_oracle_preflight(
+        preflight_path=preflight_path,
+        store=cast(CoordinateStore, FakeSharedOracleStore()),
+    )
+    receipt_path = tmp_path / "oracle" / "publication_receipt.json"
+    write_program_oracle_publication_receipt(receipt, receipt_path)
+    receipt_payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt_payload["source"]["preflight_sha256"] = "0" * 64
+    receipt_path.write_text(
+        json.dumps(receipt_payload, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ProgramCandidateStateError, match="preflight_sha256"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            oracle_publication_preflight_path=preflight_path,
+            oracle_publication_receipt_path=receipt_path,
+        )
+
+
 def test_program_candidate_state_degrades_with_manifest_only(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

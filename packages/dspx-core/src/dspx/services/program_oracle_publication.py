@@ -548,6 +548,258 @@ def validate_program_oracle_publication_preflight_contract(
     )
 
 
+def _receipt_identity_matches(
+    actual: Mapping[str, Any], expected: Mapping[str, Any]
+) -> bool:
+    if not actual:
+        return False
+    for key, expected_value in expected.items():
+        if expected_value in {None, ""}:
+            continue
+        if str(actual.get(key) or "") != str(expected_value):
+            return False
+    return True
+
+
+def _validate_redacted_database_url_posture(
+    target: Mapping[str, Any], *, label: str
+) -> None:
+    if any(
+        key in target
+        for key in (
+            "database_url",
+            "database_url_raw",
+            "postgres_url",
+            "postgres_url_raw",
+        )
+    ):
+        raise ProgramOraclePublicationError(
+            f"{label} target must not include raw database URL fields"
+        )
+    if target.get("database_url_present") is True:
+        redacted = str(target.get("database_url_redacted") or "").strip()
+        if not redacted:
+            raise ProgramOraclePublicationError(
+                f"{label} target.database_url_redacted is required"
+            )
+        if "://" in redacted and "@" in redacted and ":<redacted>@" not in redacted:
+            raise ProgramOraclePublicationError(
+                f"{label} target.database_url_redacted must not expose secret-bearing credentials"
+            )
+        lowered = redacted.lower()
+        if any(marker in lowered for marker in ("super-secret", "password=", "token=")):
+            raise ProgramOraclePublicationError(
+                f"{label} target.database_url_redacted must not expose secret values"
+            )
+
+
+def _validate_publication_receipt_target_posture(target: Mapping[str, Any]) -> None:
+    if not target:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt target posture is required"
+        )
+    if not str(target.get("backend") or "").strip():
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt target.backend is required"
+        )
+    if target.get("connection_attempted") is not True:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt target.connection_attempted must be true"
+        )
+    if target.get("shared_write_attempted") is not True:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt target.shared_write_attempted must be true"
+        )
+    _validate_redacted_database_url_posture(target, label="oracle_publication_receipt")
+
+
+def validate_program_oracle_publication_receipt_contract(
+    receipt: Mapping[str, Any],
+    *,
+    expected_identities: Iterable[Mapping[str, Any]] = (),
+    preflight: Mapping[str, Any] | None = None,
+    preflight_sha256: str | None = None,
+) -> None:
+    """Validate a shared Oracle publication receipt before downstream consumption."""
+
+    if receipt.get("schema_version") != PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt schema_version must be "
+            + PROGRAM_ORACLE_PUBLICATION_RECEIPT_SCHEMA
+        )
+    if receipt.get("status") != "published":
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt status must be published"
+        )
+
+    identity = _safe_mapping(receipt.get("identity"))
+    expected_identity_list = tuple(expected_identities)
+    if expected_identity_list and not any(
+        _receipt_identity_matches(identity, expected)
+        for expected in expected_identity_list
+    ):
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt identity does not match expected candidate/source identity"
+        )
+
+    publication_id = _required_text(
+        receipt.get("publication_id"), field="oracle_publication_receipt.publication_id"
+    )
+    run_id = _required_text(
+        receipt.get("run_id"), field="oracle_publication_receipt.run_id"
+    )
+    expected_run_id = _publication_run_id(publication_id)
+    if run_id != expected_run_id:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt run_id must match publication_id"
+        )
+
+    idempotency = _safe_mapping(receipt.get("idempotency"))
+    expected_idempotency = {
+        "publication_id": publication_id,
+        "run_id": run_id,
+        "safe_to_retry": True,
+    }
+    mismatched_idempotency = [
+        key
+        for key, expected in expected_idempotency.items()
+        if idempotency.get(key) != expected
+    ]
+    if mismatched_idempotency:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt idempotency contract mismatch: "
+            + ", ".join(mismatched_idempotency)
+        )
+
+    publication = _safe_mapping(receipt.get("publication"))
+    record = _safe_mapping(receipt.get("record"))
+    if preflight is not None:
+        if preflight.get("publication_id") != publication_id:
+            raise ProgramOraclePublicationError(
+                "oracle_publication_receipt publication_id mismatch with supplied preflight"
+            )
+        if publication != _safe_mapping(preflight.get("publication")):
+            raise ProgramOraclePublicationError(
+                "oracle_publication_receipt publication does not match supplied preflight"
+            )
+        preflight_record = _safe_mapping(preflight.get("planned_record"))
+        expected_preflight_record = {
+            "schema_version": preflight_record.get("schema_version"),
+            "publication_label": preflight_record.get("publication_label"),
+            "publication_label_class": preflight_record.get("publication_label_class"),
+            "retention_class": preflight_record.get("retention_class"),
+            "redaction_status": preflight_record.get("redaction_status"),
+            "authority_ref": preflight_record.get("authority_ref"),
+            "non_authority": preflight_record.get("non_authority"),
+        }
+        mismatched_preflight_record = [
+            key
+            for key, expected in expected_preflight_record.items()
+            if record.get(key) != expected
+        ]
+        if mismatched_preflight_record:
+            raise ProgramOraclePublicationError(
+                "oracle_publication_receipt record does not match supplied preflight planned_record: "
+                + ", ".join(sorted(mismatched_preflight_record))
+            )
+
+    expected_record = {
+        "schema_version": PROGRAM_ORACLE_PUBLICATION_RECORD_SCHEMA,
+        "run_kind": PROGRAM_ORACLE_PUBLICATION_RUN_KIND,
+        "template_version": PROGRAM_ORACLE_PUBLICATION_RECORD_SCHEMA,
+        "provider": "program-gen",
+        "publication_label": publication.get("publication_label"),
+        "publication_label_class": publication.get("publication_label_class"),
+        "retention_class": publication.get("retention_class"),
+        "redaction_status": publication.get("redaction_status"),
+        "authority_ref": publication.get("authority_ref"),
+    }
+    mismatched_record = [
+        key for key, expected in expected_record.items() if record.get(key) != expected
+    ]
+    if mismatched_record:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt record does not match publication fields: "
+            + ", ".join(sorted(mismatched_record))
+        )
+    record_non_authority = _safe_mapping(record.get("non_authority"))
+    record_widened = [
+        key
+        for key in _REQUIRED_FALSE_PUBLICATION_NON_AUTHORITY_FLAGS
+        if record_non_authority.get(key) is not False
+    ]
+    if record_widened:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt record widens non-authority flags: "
+            + ", ".join(record_widened)
+        )
+
+    _validate_publication_receipt_target_posture(_safe_mapping(receipt.get("target")))
+
+    source = _safe_mapping(receipt.get("source"))
+    if source.get("local_paths_omitted_from_shared_record") is not True:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt must omit local paths from shared record"
+        )
+    for key in (
+        "preflight_file",
+        "preflight_sha256",
+        "oracle_evidence_file",
+        "oracle_evidence_sha256",
+    ):
+        if not str(source.get(key) or "").strip():
+            raise ProgramOraclePublicationError(
+                f"oracle_publication_receipt source.{key} is required"
+            )
+    if preflight_sha256 and source.get("preflight_sha256") != preflight_sha256:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt source.preflight_sha256 does not match supplied preflight"
+        )
+    if preflight is not None:
+        preflight_hashes = _safe_mapping(preflight.get("artifact_hashes"))
+        if source.get("oracle_evidence_sha256") != preflight_hashes.get(
+            "oracle_evidence_sha256"
+        ):
+            raise ProgramOraclePublicationError(
+                "oracle_publication_receipt source.oracle_evidence_sha256 does not match supplied preflight"
+            )
+
+    effect = _safe_mapping(receipt.get("effect"))
+    if effect.get("shared_oracle_mutated") is not True:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt must record shared_oracle_mutated true"
+        )
+    for key in (
+        "ak_called",
+        "governance_mutated",
+        "mlflow_mutated",
+        "program_files_mutated",
+        "promotion_state_changed",
+    ):
+        if effect.get(key) is not False:
+            raise ProgramOraclePublicationError(
+                f"oracle_publication_receipt must record {key} false"
+            )
+    non_authority = _safe_mapping(receipt.get("non_authority"))
+    invalid = [
+        key
+        for key in (
+            "oracle_authority",
+            "promotion_authority",
+            "governance_authority",
+            "agent_kernel_mutation",
+            "winner_selection",
+            "automatic_promotion",
+        )
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        raise ProgramOraclePublicationError(
+            "oracle_publication_receipt widens non-authority flags: "
+            + ", ".join(invalid)
+        )
+
+
 def _publication_run_id(publication_id: str) -> str:
     return f"program-oracle-publication:{publication_id}"
 
