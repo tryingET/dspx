@@ -8,6 +8,9 @@ from typing import Any, Mapping
 
 from dspx.security import identity_mismatch_keys
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_promotion_refinement import (
+    validate_program_promotion_review_refined_contract,
+)
 from dspx.services.program_refinement import load_program_manifest
 
 PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
@@ -157,30 +160,13 @@ def _utc_now_iso() -> str:
 def load_refined_promotion_review(path: Path) -> dict[str, Any]:
     """Load a program-promotion-review-refined-v1 packet for local decision recording."""
 
-    review = _load_json_object(path, label="refined promotion review")
-    if review.get("schema_version") != PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA:
-        raise ProgramPromotionDecisionError(
-            "refined promotion review schema_version must be "
-            + PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA
-        )
-    if review.get("promotion_state") != "not_promoted":
-        raise ProgramPromotionDecisionError(
-            "refined promotion review must keep promotion_state not_promoted"
-        )
-    non_authority = _safe_mapping(review.get("non_authority"))
-    if non_authority.get("local_review_packet_only") is not True:
-        raise ProgramPromotionDecisionError(
-            "refined promotion review must be a local review packet only"
-        )
-    invalid = [
-        key
-        for key in _REQUIRED_FALSE_REFINED_REVIEW_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid:
-        raise ProgramPromotionDecisionError(
-            "refined promotion review widens non-authority flags: " + ", ".join(invalid)
-        )
+    source = path.expanduser().resolve()
+    review = _load_json_object(source, label="refined promotion review")
+    validate_program_promotion_review_refined_contract(
+        review,
+        refined_review_path=source,
+        error_type=ProgramPromotionDecisionError,
+    )
     return review
 
 

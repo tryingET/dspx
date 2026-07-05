@@ -51,6 +51,10 @@ _REFINED_PACKET_NON_AUTHORITY = {
     "external_mutation": False,
 }
 
+_REQUIRED_FALSE_REFINED_REVIEW_NON_AUTHORITY_FLAGS = tuple(
+    key for key, value in _REFINED_PACKET_NON_AUTHORITY.items() if value is False
+)
+
 _FORBIDDEN_SOURCE_OUTPUT_NAMES = {
     "manifest.json",
     "manifest.json.meta.json",
@@ -88,6 +92,10 @@ def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
             f"{label} must contain a JSON object: {source}"
         )
     return payload
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _safe_mapping(value: object) -> dict[str, Any]:
@@ -308,6 +316,233 @@ def _assert_identity_matches(
         raise ProgramPromotionRefinementError(
             f"{label} identity does not exactly match manifest identity: "
             + ", ".join(sorted(mismatches))
+        )
+
+
+def _raise_contract_error(
+    error_type: type[Exception], message: str, exc: Exception | None = None
+) -> None:
+    if exc is None:
+        raise error_type(message)
+    raise error_type(message) from exc
+
+
+def _created_from_path(
+    created_from: Mapping[str, Any],
+    key: str,
+    *,
+    label: str,
+    base_path: Path | None,
+    error_type: type[Exception],
+    required: bool = True,
+) -> Path | None:
+    raw_path = _first_text(created_from.get(key))
+    if raw_path is None:
+        if required:
+            _raise_contract_error(error_type, f"{label} must include {key}")
+        return None
+    path = Path(raw_path).expanduser()
+    if not path.is_absolute() and base_path is not None:
+        path = base_path.parent / path
+    return path.resolve()
+
+
+def _validate_created_from_hash(
+    created_from: Mapping[str, Any],
+    *,
+    path_key: str,
+    hash_key: str,
+    label: str,
+    base_path: Path | None,
+    error_type: type[Exception],
+    required: bool = True,
+) -> tuple[Path | None, str | None]:
+    path = _created_from_path(
+        created_from,
+        path_key,
+        label=label,
+        base_path=base_path,
+        error_type=error_type,
+        required=required,
+    )
+    declared_hash = _first_text(created_from.get(hash_key))
+    if path is None:
+        if declared_hash is not None:
+            _raise_contract_error(
+                error_type, f"{label} must not include {hash_key} without {path_key}"
+            )
+        return None, None
+    if declared_hash is None:
+        _raise_contract_error(error_type, f"{label} must include {hash_key}")
+    try:
+        actual_hash = _sha256_file(path)
+    except FileNotFoundError as exc:
+        _raise_contract_error(error_type, f"{label} not found: {path}", exc)
+    assert declared_hash is not None
+    if actual_hash != declared_hash:
+        _raise_contract_error(
+            error_type,
+            f"{label} hash does not match current file for {path_key}",
+        )
+    return path, actual_hash
+
+
+def validate_program_promotion_review_refined_contract(
+    refined_review: Mapping[str, Any],
+    *,
+    refined_review_path: Path | None = None,
+    expected_identity: Mapping[str, Any] | None = None,
+    error_type: type[Exception] = ProgramPromotionRefinementError,
+) -> None:
+    """Validate a refined promotion-review sidecar before downstream consumption."""
+
+    if refined_review.get("schema_version") != PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA:
+        _raise_contract_error(
+            error_type,
+            "refined promotion review schema_version must be "
+            + PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA,
+        )
+    if refined_review.get("promotion_state") != "not_promoted":
+        _raise_contract_error(
+            error_type,
+            "refined promotion review must keep promotion_state not_promoted",
+        )
+    if refined_review.get("status") not in {
+        "insufficient_behavior_evidence",
+        "needs_more_evidence",
+        "review_packet_ready",
+    }:
+        _raise_contract_error(
+            error_type, "refined promotion review status is not supported"
+        )
+
+    created_from = _safe_mapping(refined_review.get("created_from"))
+    manifest_path, manifest_hash = _validate_created_from_hash(
+        created_from,
+        path_key="manifest_path",
+        hash_key="manifest_sha256",
+        label="refined promotion review manifest ref",
+        base_path=refined_review_path,
+        error_type=error_type,
+    )
+    assert manifest_path is not None and manifest_hash is not None
+    try:
+        manifest = load_program_manifest(manifest_path)
+    except ProgramRefinementError as exc:
+        _raise_contract_error(error_type, str(exc), exc)
+    manifest_identity = _identity_from_manifest(manifest)
+    identity = _safe_mapping(refined_review.get("identity"))
+    mismatches = identity_mismatch_keys(identity, manifest_identity)
+    if mismatches:
+        _raise_contract_error(
+            error_type,
+            "refined promotion review identity does not match current manifest identity: "
+            + ", ".join(sorted(mismatches)),
+        )
+    if expected_identity:
+        expected_mismatches = identity_mismatch_keys(identity, expected_identity)
+        if expected_mismatches:
+            _raise_contract_error(
+                error_type,
+                "refined promotion review identity does not match expected identity: "
+                + ", ".join(sorted(expected_mismatches)),
+            )
+
+    for path_key, hash_key, label in (
+        (
+            "oracle_report_path",
+            "oracle_report_sha256",
+            "refined promotion review Oracle report ref",
+        ),
+        (
+            "refinement_proposal_path",
+            "refinement_proposal_sha256",
+            "refined promotion review proposal ref",
+        ),
+        (
+            "original_promotion_review_path",
+            "original_promotion_review_sha256",
+            "refined promotion review original review ref",
+        ),
+        (
+            "original_promotion_adjudication_request_path",
+            "original_promotion_adjudication_request_sha256",
+            "refined promotion review original adjudication-request ref",
+        ),
+        (
+            "original_promotion_decision_template_path",
+            "original_promotion_decision_template_sha256",
+            "refined promotion review original decision-template ref",
+        ),
+    ):
+        _validate_created_from_hash(
+            created_from,
+            path_key=path_key,
+            hash_key=hash_key,
+            label=label,
+            base_path=refined_review_path,
+            error_type=error_type,
+        )
+
+    for path_key, hash_key, label in (
+        (
+            "behavior_results_path",
+            "behavior_results_sha256",
+            "refined promotion review behavior-results ref",
+        ),
+        (
+            "behavior_episode_path",
+            "behavior_episode_sha256",
+            "refined promotion review behavior-episode ref",
+        ),
+        (
+            "model_jury_results_path",
+            "model_jury_results_sha256",
+            "refined promotion review model-jury ref",
+        ),
+    ):
+        _validate_created_from_hash(
+            created_from,
+            path_key=path_key,
+            hash_key=hash_key,
+            label=label,
+            base_path=refined_review_path,
+            error_type=error_type,
+            required=False,
+        )
+
+    model_jury_summary = _safe_mapping(
+        _safe_mapping(refined_review.get("evidence_summary")).get("model_jury_results")
+    )
+    model_jury_path = _first_text(created_from.get("model_jury_results_path"))
+    model_jury_hash = _first_text(created_from.get("model_jury_results_sha256"))
+    if model_jury_summary.get("present") is True:
+        if model_jury_path is None or model_jury_hash is None:
+            _raise_contract_error(
+                error_type,
+                "refined promotion review model-jury summary requires path and hash refs",
+            )
+        if _first_text(model_jury_summary.get("sha256")) != model_jury_hash:
+            _raise_contract_error(
+                error_type,
+                "refined promotion review model-jury summary hash does not match created_from",
+            )
+
+    non_authority = _safe_mapping(refined_review.get("non_authority"))
+    if non_authority.get("local_review_packet_only") is not True:
+        _raise_contract_error(
+            error_type, "refined promotion review must be a local review packet only"
+        )
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_REFINED_REVIEW_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        _raise_contract_error(
+            error_type,
+            "refined promotion review widens non-authority flags: "
+            + ", ".join(invalid),
         )
 
 
@@ -771,6 +1006,19 @@ def build_program_promotion_refinement(
         and model_jury_results_path.exists()
         else None
     )
+    manifest_path = Path(inputs["manifest_path"]).resolve()
+    oracle_report_path = Path(inputs["oracle_report_path"]).resolve()
+    refinement_proposal_path = Path(inputs["refinement_proposal_path"]).resolve()
+    original_promotion_review_path = Path(
+        promotion_paths["original_promotion_review_path"]
+    ).resolve()
+    original_promotion_adjudication_request_path = Path(
+        promotion_paths["original_promotion_adjudication_request_path"]
+    ).resolve()
+    original_promotion_decision_template_path = Path(
+        promotion_paths["original_promotion_decision_template_path"]
+    ).resolve()
+
     packet = {
         "schema_version": PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA,
         "status": _status_for_packet(
@@ -782,26 +1030,39 @@ def build_program_promotion_refinement(
         "candidate_status": str(review.get("candidate_status") or "exploratory"),
         "identity": identity,
         "created_from": {
-            "manifest_path": str(Path(inputs["manifest_path"]).resolve()),
+            "manifest_path": str(manifest_path),
+            "manifest_sha256": _sha256_file(manifest_path),
             "behavior_results_path": behavior_path_text,
+            "behavior_results_sha256": inputs.get("behavior_hash")
+            if behavior_path_text is not None
+            else None,
             "behavior_episode_path": behavior_episode_path_text,
-            "oracle_report_path": str(Path(inputs["oracle_report_path"]).resolve()),
-            "refinement_proposal_path": str(
-                Path(inputs["refinement_proposal_path"]).resolve()
-            ),
+            "behavior_episode_sha256": inputs.get("behavior_episode_hash")
+            if behavior_episode_path_text is not None
+            else None,
+            "oracle_report_path": str(oracle_report_path),
+            "oracle_report_sha256": _sha256_file(oracle_report_path),
+            "refinement_proposal_path": str(refinement_proposal_path),
+            "refinement_proposal_sha256": _sha256_file(refinement_proposal_path),
             "model_jury_results_path": model_jury_results_path_text,
-            "original_promotion_review_path": str(
-                Path(promotion_paths["original_promotion_review_path"]).resolve()
+            "model_jury_results_sha256": inputs.get("model_jury_results_hash")
+            if model_jury_results_path_text is not None
+            else None,
+            "original_promotion_review_path": str(original_promotion_review_path),
+            "original_promotion_review_sha256": _sha256_file(
+                original_promotion_review_path
             ),
             "original_promotion_adjudication_request_path": str(
-                Path(
-                    promotion_paths["original_promotion_adjudication_request_path"]
-                ).resolve()
+                original_promotion_adjudication_request_path
+            ),
+            "original_promotion_adjudication_request_sha256": _sha256_file(
+                original_promotion_adjudication_request_path
             ),
             "original_promotion_decision_template_path": str(
-                Path(
-                    promotion_paths["original_promotion_decision_template_path"]
-                ).resolve()
+                original_promotion_decision_template_path
+            ),
+            "original_promotion_decision_template_sha256": _sha256_file(
+                original_promotion_decision_template_path
             ),
         },
         "evidence_summary": {

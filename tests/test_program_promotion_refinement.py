@@ -328,6 +328,48 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
     assert payload["created_from"]["original_promotion_decision_template_path"] == str(
         (program_root / "promotion_decision_template.json").resolve()
     )
+    assert (
+        payload["created_from"]["manifest_sha256"]
+        == hashlib.sha256((program_root / "manifest.json").read_bytes()).hexdigest()
+    )
+    assert (
+        payload["created_from"]["behavior_results_sha256"]
+        == hashlib.sha256(
+            (program_root / "behavior_results.json").read_bytes()
+        ).hexdigest()
+    )
+    assert (
+        payload["created_from"]["behavior_episode_sha256"]
+        == hashlib.sha256(
+            (program_root / "behavior_episode.json").read_bytes()
+        ).hexdigest()
+    )
+    assert (
+        payload["created_from"]["oracle_report_sha256"]
+        == hashlib.sha256(report_path.read_bytes()).hexdigest()
+    )
+    assert (
+        payload["created_from"]["refinement_proposal_sha256"]
+        == hashlib.sha256(proposal_path.read_bytes()).hexdigest()
+    )
+    assert (
+        payload["created_from"]["original_promotion_review_sha256"]
+        == hashlib.sha256(
+            (program_root / "promotion_review.json").read_bytes()
+        ).hexdigest()
+    )
+    assert (
+        payload["created_from"]["original_promotion_adjudication_request_sha256"]
+        == hashlib.sha256(
+            (program_root / "promotion_adjudication_request.json").read_bytes()
+        ).hexdigest()
+    )
+    assert (
+        payload["created_from"]["original_promotion_decision_template_sha256"]
+        == hashlib.sha256(
+            (program_root / "promotion_decision_template.json").read_bytes()
+        ).hexdigest()
+    )
 
     assert payload["evidence_summary"]["behavior"] == {
         "present": True,

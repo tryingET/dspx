@@ -351,6 +351,44 @@ def test_program_promotion_decision_rejects_wrong_schema_review(
         )
 
 
+def test_program_promotion_decision_rejects_stale_refined_review_manifest_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _program_root, review_path = _materialize_program_review(tmp_path, monkeypatch)
+    refined_review = json.loads(review_path.read_text(encoding="utf-8"))
+    refined_review["created_from"]["manifest_sha256"] = "0" * 64
+    _write_json(review_path, refined_review)
+
+    with pytest.raises(ProgramPromotionDecisionError, match="manifest ref hash"):
+        build_program_promotion_decision_record(
+            refined_review_path=review_path,
+            outcome="withhold",
+            decided_by="local_operator",
+            rationale="Reject stale refined review.",
+        )
+
+
+def test_program_promotion_decision_rejects_refined_review_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _program_root, review_path = _materialize_program_review(tmp_path, monkeypatch)
+    refined_review = json.loads(review_path.read_text(encoding="utf-8"))
+    refined_review["identity"]["candidate_id"] = "candidate-drift"
+    _write_json(review_path, refined_review)
+
+    with pytest.raises(
+        ProgramPromotionDecisionError, match="current manifest identity"
+    ):
+        build_program_promotion_decision_record(
+            refined_review_path=review_path,
+            outcome="withhold",
+            decided_by="local_operator",
+            rationale="Reject identity drift.",
+        )
+
+
 def test_program_promotion_decision_promote_fails_closed_when_review_not_ready(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
