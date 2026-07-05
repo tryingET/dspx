@@ -458,8 +458,10 @@ def test_refinement_comparison_and_test_change_deduplicate_commands() -> None:
     assert plan["risk"] == "bounded"
     command_ids = _command_ids(plan)
     assert command_ids.count("ruff_touched") == 1
-    assert command_ids.count("pytest_refinement_candidate_comparison") == 1
-    assert "pytest_touched" in command_ids
+    assert command_ids.count("pytest_program_refinement_comparison") == 1
+    assert command_ids.count("pytest_program_sidecar_boundaries") == 1
+    assert "pytest_refinement_candidate_comparison" not in command_ids
+    assert "pytest_touched" not in command_ids
 
 
 def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
@@ -588,7 +590,7 @@ def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
         (
             "packages/dspx-core/src/dspx/services/program_refinement_episode.py",
             "python_service",
-            "pytest_refinement_candidate_comparison",
+            "pytest_program_refinement_episode",
         ),
         (
             "packages/dspx-core/src/dspx/tools/openapi/loader.py",
@@ -628,6 +630,63 @@ def test_coordinates_command_uses_split_phase_b_suite() -> None:
     assert "tests/test_coordinates_phase_b_real_embeddings.py" in command
     assert "tests/test_coordinates_phase_b.py" not in command
     assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+
+
+def test_refinement_episode_change_uses_product_shaped_episode_suite() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_refinement_episode.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_refinement_episode",
+    ]
+    command = plan["commands"][2]["command"]
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "tests/test_program_refinement_episode.py" in command
+    assert "tests/test_program_refinement_gepa_candidate.py" not in command
+    assert "verify_full" not in _command_ids(plan)
+
+
+def test_gepa_workflow_contract_change_uses_product_shaped_gepa_suite() -> None:
+    plan = _plan(
+        "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate_contracts.py"
+    )
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_refinement_gepa_candidate",
+    ]
+    command = plan["commands"][2]["command"]
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "tests/test_program_refinement_gepa_candidate.py" in command
+    assert "tests/test_program_refinement_episode.py" not in command
+
+
+def test_refinement_episode_code_test_and_docs_stays_product_bounded() -> None:
+    plan = _plan(
+        "packages/dspx-core/src/dspx/services/program_refinement_episode.py",
+        "tests/test_program_refinement_episode.py",
+        "docs/project/product-posture.md",
+    )
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert plan.get("wide_reason") is None
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_refinement_episode",
+        "docs_strict",
+    ]
+    groups = {
+        classification["impact_group"] for classification in plan["classifications"]
+    }
+    assert groups == {"program_refinement_episode", "docs"}
 
 
 def test_provider_v4_auth_adapter_change_stays_bounded() -> None:
