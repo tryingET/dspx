@@ -21,6 +21,7 @@ from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAME
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_runtime_traces import build_program_runtime_traces
 from dspx.services.run_replay_service import check_run_receipt
+from dspx.redaction import sanitize_diagnostic_text
 
 PROGRAM_RUNTIME_EPISODE_SCHEMA = "program-runtime-episode-v1"
 PROGRAM_BEHAVIOR_RESULTS_SCHEMA = "program-behavior-results-v1"
@@ -763,6 +764,10 @@ def _generated_program_module(candidate_root: Path) -> Iterator[Any]:
                     sys.modules[name] = saved_module
 
 
+def _sanitize_runtime_diagnostic(value: object, *, limit: int = 2000) -> str:
+    return sanitize_diagnostic_text("" if value is None else str(value), limit=limit)
+
+
 def _jsonable(value: object) -> object:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
@@ -803,7 +808,10 @@ def _configure_provider() -> dict[str, object]:
     except Exception as exc:
         return {
             "status": "unavailable",
-            "error": {"type": type(exc).__name__, "message": str(exc)},
+            "error": {
+                "type": type(exc).__name__,
+                "message": _sanitize_runtime_diagnostic(exc),
+            },
         }
 
 
@@ -844,7 +852,10 @@ def _validate_pdf_transition_review_outputs(
         try:
             parsed[field] = _parse_generated_json(observed[field], field=field)
         except Exception as exc:
-            errors.append(f"{field} is not valid JSON: {type(exc).__name__}: {exc}")
+            errors.append(
+                f"{field} is not valid JSON: {type(exc).__name__}: "
+                f"{_sanitize_runtime_diagnostic(exc)}"
+            )
     contract = parsed.get("artifact_contract_manifest_json")
     if (
         not isinstance(contract, Mapping)
@@ -1235,9 +1246,11 @@ def run_program_runtime_episode(
             else:
                 status = "executed"
     except Exception as exc:
-        error = {"type": type(exc).__name__, "message": str(exc)}
-        notes.append(str(exc))
+        sanitized_error = _sanitize_runtime_diagnostic(exc)
+        error = {"type": type(exc).__name__, "message": sanitized_error}
+        notes.append(sanitized_error)
 
+    notes = [_sanitize_runtime_diagnostic(note) for note in notes]
     output_files = _write_observed_output_files(root, observed)
     record: dict[str, object] = {
         "index": 0,

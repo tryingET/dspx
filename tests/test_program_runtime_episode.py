@@ -729,6 +729,52 @@ def test_runtime_input_materialization_rejects_absolute_image_path_outside_input
         )
 
 
+def test_program_runtime_episode_redacts_provider_diagnostics(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    candidate = _generated_candidate(tmp_path)
+    secret_message = (
+        "provider failed api_key=supersecret-value Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/run?token=url-secret&ok=1"
+    )
+
+    from dspx import provider_registry
+
+    def raise_secret_provider(*args, **kwargs):
+        raise RuntimeError(secret_message)
+
+    monkeypatch.setattr(provider_registry, "create_from_env", raise_secret_provider)
+    inputs = tmp_path / "runtime-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"ticket_text": "Server is down for all users"}}),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "runtime-redacted"
+
+    payload = run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=outdir,
+        skip_oracle_index=True,
+    )
+
+    assert payload["status"] in {"ok", "degraded"}
+    behavior = json.loads((outdir / "behavior_results.json").read_text())
+    combined = json.dumps({"payload": payload, "behavior": behavior}, sort_keys=True)
+    assert "supersecret-value" not in combined
+    assert "bearer-secret" not in combined
+    assert "url-secret" not in combined
+    assert "user:pass@" not in combined
+    assert "api_key=[REDACTED]" in combined
+    assert "Bearer [REDACTED]" in combined
+    assert "token=[REDACTED]" in combined
+    assert (
+        behavior["provider"]["error"]["message"]
+        == payload["steps"]["runtime_execution"]["provider"]["error"]["message"]
+    )
+
+
 def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:
     _env(tmp_path, monkeypatch)
     candidate = _generated_candidate(tmp_path)
