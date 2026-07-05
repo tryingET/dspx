@@ -9,6 +9,10 @@ from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
+from dspx.services.program_external_authority_export import (
+    ProgramExternalAuthorityExportError,
+    validate_program_external_authority_export_preflight_contract,
+)
 from dspx.services.program_evidence_adjudication_validation import (
     validate_program_evidence_adjudication_contract,
 )
@@ -1024,75 +1028,17 @@ def _validate_external_authority_export_preflight(
 ) -> None:
     if export_preflight is None:
         return
-    if export_preflight.get("status") not in {
-        "ready_not_applied",
-        "incomplete_preflight",
-    }:
-        raise ProgramActivationPacketError(
-            "external authority export preflight status must be ready_not_applied or incomplete_preflight"
+    try:
+        validate_program_external_authority_export_preflight_contract(
+            export_preflight,
+            expected_identities=[candidate_identity],
+            valid_manifest_hashes={_sha256_file(manifest_path)},
+            decision_record_sha256=_sha256_file(decision_record_path)
+            if decision_record_path is not None
+            else None,
         )
-    _validate_artifact_identity(
-        candidate_identity,
-        export_preflight,
-        label="external_authority_export_preflight",
-    )
-    preflight = _safe_mapping(export_preflight.get("preflight"))
-    if preflight.get("ready_for_future_apply") is not False:
-        raise ProgramActivationPacketError(
-            "external authority export preflight must keep ready_for_future_apply false"
-        )
-    if preflight.get("external_mutation_requested") is not False:
-        raise ProgramActivationPacketError(
-            "external authority export preflight must record external_mutation_requested false"
-        )
-    target = _safe_mapping(export_preflight.get("target"))
-    if target.get("mutation_supported") is not False:
-        raise ProgramActivationPacketError(
-            "external authority export preflight target must keep mutation_supported false"
-        )
-    if target.get("apply_command_available") is not False:
-        raise ProgramActivationPacketError(
-            "external authority export preflight target must keep apply_command_available false"
-        )
-    effect = _safe_mapping(export_preflight.get("effect"))
-    for key in (
-        "external_authority_mutated",
-        "ak_called",
-        "governance_mutated",
-        "program_files_mutated",
-        "promotion_state_changed",
-    ):
-        if effect.get(key) is not False:
-            raise ProgramActivationPacketError(
-                f"external authority export preflight must record {key} false"
-            )
-    non_authority = _safe_mapping(export_preflight.get("non_authority"))
-    if non_authority.get("preflight_only") is not True:
-        raise ProgramActivationPacketError(
-            "external authority export preflight must be preflight-only"
-        )
-    if non_authority.get("planned_not_exported") is not True:
-        raise ProgramActivationPacketError(
-            "external authority export preflight must be planned_not_exported"
-        )
-    _validate_non_authority_false(
-        export_preflight,
-        label="external authority export preflight",
-        keys=(
-            "external_apply",
-            "agent_kernel_mutation",
-            "governance_authority",
-            "promotion_authority",
-            "oracle_authority",
-            "winner_selection",
-            "automatic_promotion",
-        ),
-    )
-    _validate_export_preflight_artifact_hashes(
-        export_preflight,
-        manifest_path=manifest_path,
-        decision_record_path=decision_record_path,
-    )
+    except ProgramExternalAuthorityExportError as exc:
+        raise ProgramActivationPacketError(str(exc)) from exc
 
 
 def _external_authority_export_preflight_ref(

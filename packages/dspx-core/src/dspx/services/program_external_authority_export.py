@@ -389,6 +389,227 @@ def _export_id(*, external_ref: str, artifact_hashes: Mapping[str, str | None]) 
     return "prog-ext-export-" + _sha256_payload(seed)[:16]
 
 
+def validate_program_external_authority_export_preflight_contract(
+    export_preflight: Mapping[str, Any],
+    *,
+    expected_identities: list[Mapping[str, Any]],
+    valid_manifest_hashes: set[str],
+    decision_record_sha256: str | None = None,
+    comparison_sha256: str | None = None,
+) -> None:
+    """Validate a local export preflight before a final consumer summarizes it."""
+
+    if (
+        export_preflight.get("schema_version")
+        != PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA
+    ):
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight schema_version must be "
+            + PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA
+        )
+    if export_preflight.get("status") not in {
+        "ready_not_applied",
+        "incomplete_preflight",
+    }:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight status must be ready_not_applied or incomplete_preflight"
+        )
+
+    identity = _safe_mapping(export_preflight.get("identity"))
+    if not any(
+        _identity_exactly_matches(identity, expected)
+        for expected in expected_identities
+    ):
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight identity does not match candidate identity or candidate/source identity"
+        )
+
+    preflight = _safe_mapping(export_preflight.get("preflight"))
+    if preflight.get("ready_for_future_apply") is not False:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight must keep ready_for_future_apply false"
+        )
+    if preflight.get("external_mutation_requested") is not False:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight must record external_mutation_requested false"
+        )
+
+    target = _safe_mapping(export_preflight.get("target"))
+    if target.get("system") != TARGET_SYSTEM:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight target system must be agent_kernel"
+        )
+    if target.get("target_contract") != TARGET_CONTRACT:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight target_contract must be "
+            + TARGET_CONTRACT
+        )
+    if target.get("mutation_supported") is not False:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight target must keep mutation_supported false"
+        )
+    if target.get("apply_command_available") is not False:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight target must keep apply_command_available false"
+        )
+
+    effect = _safe_mapping(export_preflight.get("effect"))
+    for key in (
+        "external_authority_mutated",
+        "ak_called",
+        "governance_mutated",
+        "program_files_mutated",
+        "promotion_state_changed",
+    ):
+        if effect.get(key) is not False:
+            raise ProgramExternalAuthorityExportError(
+                f"external authority export preflight must record {key} false"
+            )
+
+    non_authority = _safe_mapping(export_preflight.get("non_authority"))
+    if non_authority.get("preflight_only") is not True:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight must be preflight-only"
+        )
+    if non_authority.get("planned_not_exported") is not True:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight must be planned_not_exported"
+        )
+    _assert_false_flags(
+        non_authority,
+        (
+            "external_apply",
+            "agent_kernel_mutation",
+            "governance_authority",
+            "promotion_authority",
+            "oracle_authority",
+            "winner_selection",
+            "automatic_promotion",
+        ),
+        label="external authority export preflight",
+    )
+
+    artifact_hashes = _safe_mapping(export_preflight.get("artifact_hashes"))
+    manifest_sha256 = _first_text(artifact_hashes.get("manifest_sha256"))
+    if manifest_sha256 not in valid_manifest_hashes:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight manifest_sha256 does not match current manifest or candidate/source manifest"
+        )
+    for field, expected_hash, label in (
+        ("decision_record_sha256", decision_record_sha256, "decision record"),
+        ("comparison_sha256", comparison_sha256, "comparison"),
+    ):
+        if expected_hash is not None and artifact_hashes.get(field) != expected_hash:
+            raise ProgramExternalAuthorityExportError(
+                f"external authority export preflight {field} does not match supplied {label}"
+            )
+
+    external_ref = _first_text(target.get("external_ref"))
+    export_id = _first_text(export_preflight.get("export_id"))
+    expected_export_id = _export_id(
+        external_ref=external_ref or "",
+        artifact_hashes={
+            "manifest_sha256": manifest_sha256,
+            "decision_record_sha256": _first_text(
+                artifact_hashes.get("decision_record_sha256")
+            ),
+            "comparison_sha256": _first_text(artifact_hashes.get("comparison_sha256")),
+        },
+    )
+    if external_ref is None or export_id != expected_export_id:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight export_id does not match target/artifact hashes"
+        )
+    idempotency = _safe_mapping(export_preflight.get("idempotency"))
+    if idempotency.get("export_id") != export_id:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight idempotency export_id mismatch"
+        )
+    if idempotency.get("target_ref") != external_ref:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight idempotency target_ref mismatch"
+        )
+    if idempotency.get("artifact_hashes_fingerprint") != _artifact_hashes_fingerprint(
+        artifact_hashes
+    ):
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight idempotency fingerprint mismatch"
+        )
+    if idempotency.get("safe_to_recompute") is not True:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight must be safe_to_recompute"
+        )
+    if idempotency.get("external_duplicate_check_performed") is not False:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight must not claim an external duplicate check"
+        )
+
+    refs_by_kind: dict[str, Mapping[str, Any]] = {}
+    planned_payload = _safe_mapping(export_preflight.get("planned_payload"))
+    if planned_payload.get("kind") != TARGET_CONTRACT:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight planned_payload kind must be "
+            + TARGET_CONTRACT
+        )
+    if planned_payload.get("target_ref") != external_ref:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight planned_payload target_ref mismatch"
+        )
+    for ref in _safe_list(planned_payload.get("evidence_refs")):
+        if not isinstance(ref, Mapping):
+            raise ProgramExternalAuthorityExportError(
+                "external authority export preflight evidence refs must be objects"
+            )
+        kind = _first_text(ref.get("kind"))
+        raw_path = _first_text(ref.get("path"))
+        expected_hash = _first_text(ref.get("sha256"))
+        if kind is None or raw_path is None or expected_hash is None:
+            raise ProgramExternalAuthorityExportError(
+                "external authority export preflight evidence refs must include kind, path, and sha256"
+            )
+        path = Path(raw_path).expanduser().resolve()
+        if not path.exists():
+            raise ProgramExternalAuthorityExportError(
+                f"external authority export preflight evidence ref is missing: {path}"
+            )
+        actual_hash = _sha256_file(path)
+        if actual_hash != expected_hash:
+            raise ProgramExternalAuthorityExportError(
+                "external authority export preflight evidence ref hash mismatch: "
+                f"{path}"
+            )
+        refs_by_kind[kind] = ref
+
+    expected_refs = {
+        "program_manifest": manifest_sha256,
+        "promotion_decision_record": _first_text(
+            artifact_hashes.get("decision_record_sha256")
+        ),
+        "candidate_comparison": _first_text(artifact_hashes.get("comparison_sha256")),
+    }
+    if export_preflight.get("status") == "ready_not_applied":
+        for kind, expected_hash in expected_refs.items():
+            if expected_hash is None or kind not in refs_by_kind:
+                raise ProgramExternalAuthorityExportError(
+                    f"external authority export preflight is missing {kind} evidence ref"
+                )
+    for kind, expected_hash in expected_refs.items():
+        if expected_hash is None:
+            continue
+        ref = refs_by_kind.get(kind)
+        if ref is None:
+            continue
+        if ref.get("sha256") != expected_hash:
+            raise ProgramExternalAuthorityExportError(
+                f"external authority export preflight {kind} evidence ref hash mismatch"
+            )
+    manifest_ref = refs_by_kind.get("program_manifest")
+    if manifest_ref is None or manifest_ref.get("sha256") != manifest_sha256:
+        raise ProgramExternalAuthorityExportError(
+            "external authority export preflight program_manifest ref does not match manifest_sha256"
+        )
+
+
 def build_program_external_authority_export_preflight(
     *,
     manifest_path: Path,

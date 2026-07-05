@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_external_authority_export import (
+    ProgramExternalAuthorityExportError,
+    validate_program_external_authority_export_preflight_contract,
+)
 from dspx.services.program_evidence_adjudication_validation import (
     validate_program_evidence_adjudication_contract,
 )
@@ -781,50 +785,19 @@ def _validate_optional_inputs(
             )
 
     if export_preflight is not None:
-        if export_preflight.get("status") not in {
-            "ready_not_applied",
-            "incomplete_preflight",
-        }:
-            raise ProgramCandidateStateError(
-                "external authority export preflight status must be ready_not_applied or incomplete_preflight"
+        valid_manifest_hashes = {current_manifest_hash}
+        if source_manifest_hash is not None:
+            valid_manifest_hashes.add(source_manifest_hash)
+        try:
+            validate_program_external_authority_export_preflight_contract(
+                export_preflight,
+                expected_identities=source_or_candidate,
+                valid_manifest_hashes=valid_manifest_hashes,
+                decision_record_sha256=sidecar_hashes.get("decision_record"),
+                comparison_sha256=comparison_hash,
             )
-        preflight = _safe_mapping(export_preflight.get("preflight"))
-        if preflight.get("ready_for_future_apply") is not False:
-            raise ProgramCandidateStateError(
-                "external authority export preflight must keep ready_for_future_apply false"
-            )
-        if _safe_mapping(export_preflight.get("effect")).get("ak_called") is not False:
-            raise ProgramCandidateStateError(
-                "external authority export preflight must record ak_called false"
-            )
-        _validate_non_authority_false(
-            export_preflight,
-            label="external authority export preflight",
-            keys=(
-                "external_apply",
-                "agent_kernel_mutation",
-                "governance_authority",
-                "promotion_authority",
-                "oracle_authority",
-                "winner_selection",
-                "automatic_promotion",
-            ),
-        )
-        preflight_identity = _safe_mapping(export_preflight.get("identity"))
-        if not any(
-            _identity_exactly_matches(preflight_identity, item)
-            for item in source_or_candidate
-        ):
-            raise ProgramCandidateStateError(
-                "external authority export preflight identity does not match candidate/source identity"
-            )
-        _validate_export_preflight_artifact_hashes(
-            export_preflight,
-            current_manifest_hash=current_manifest_hash,
-            source_manifest_hash=source_manifest_hash,
-            decision_hash=sidecar_hashes.get("decision_record"),
-            comparison_hash=comparison_hash,
-        )
+        except ProgramExternalAuthorityExportError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if meta_adjudication_plan is not None:
         if meta_adjudication_plan.get("status") != "planned_not_executed":

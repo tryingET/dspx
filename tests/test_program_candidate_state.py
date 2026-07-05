@@ -1203,6 +1203,32 @@ def test_program_candidate_state_rejects_stale_export_preflight_hash(
         )
 
 
+def test_program_candidate_state_rejects_export_preflight_idempotency_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    preflight = json.loads(paths["export_preflight"].read_text(encoding="utf-8"))
+    preflight["idempotency"]["artifact_hashes_fingerprint"] = "drifted"
+    drifted_preflight_path = tmp_path / "export" / "ak-export-preflight.drifted.json"
+    _write_json(drifted_preflight_path, preflight)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="external authority export preflight idempotency fingerprint mismatch",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            decision_record_path=paths["decision"],
+            comparison_path=paths["comparison"],
+            export_preflight_path=drifted_preflight_path,
+        )
+
+
 def test_program_candidate_state_rejects_activation_packet_missing_supplied_evidence_ref(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
