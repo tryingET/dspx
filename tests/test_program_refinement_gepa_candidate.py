@@ -380,6 +380,63 @@ def test_program_refine_materialize_and_compare_gepa_candidate_writes_local_work
     assert _hash_tree(tmp_path / "program-gepa") == optimizer_before
 
 
+def test_gepa_workflow_result_revalidates_generation_effect_flags_before_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    workflow_out = tmp_path / "refinement" / "gepa_generate_compare_result.json"
+    payload = materialize_and_compare_gepa_refinement_candidate(
+        manifest_path=program_root / "manifest.json",
+        gepa_result_path=gepa_result,
+        outdir=tmp_path / "program-gepa-candidate",
+        comparison_out_path=tmp_path / "refinement" / "gepa_candidate_comparison.json",
+        gepa_candidate_result_out=tmp_path
+        / "refinement"
+        / "gepa_candidate_result.json",
+    )
+    payload["generation"]["effect"]["gepa_optimizer_output_mutated"] = True
+
+    with pytest.raises(
+        ProgramRefinementWorkflowError,
+        match="widens effect flags: gepa_optimizer_output_mutated",
+    ):
+        write_program_refinement_workflow_result(payload, workflow_out)
+
+    assert not workflow_out.exists()
+
+
+def test_gepa_workflow_result_revalidates_current_candidate_lineage_before_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    program_root = _materialize_source(tmp_path)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    workflow_out = tmp_path / "refinement" / "gepa_generate_compare_result.json"
+    payload = materialize_and_compare_gepa_refinement_candidate(
+        manifest_path=program_root / "manifest.json",
+        gepa_result_path=gepa_result,
+        outdir=tmp_path / "program-gepa-candidate",
+        comparison_out_path=tmp_path / "refinement" / "gepa_candidate_comparison.json",
+        gepa_candidate_result_out=tmp_path
+        / "refinement"
+        / "gepa_candidate_result.json",
+    )
+    candidate_manifest_path = Path(payload["generation"]["candidate"]["manifest_path"])
+    candidate_manifest = json.loads(candidate_manifest_path.read_text(encoding="utf-8"))
+    candidate_manifest["gepa_refinement"]["source_manifest_sha256"] = "0" * 64
+    _write_json(candidate_manifest_path, candidate_manifest)
+
+    with pytest.raises(
+        ProgramRefinementWorkflowError,
+        match="candidate manifest source hash is stale",
+    ):
+        write_program_refinement_workflow_result(payload, workflow_out)
+
+    assert not workflow_out.exists()
+
+
 def test_program_refinement_workflow_result_rejects_overwriting_nested_sidecar_path(
     tmp_path: Path,
 ) -> None:

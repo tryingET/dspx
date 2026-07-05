@@ -13,6 +13,9 @@ from dspx.services.program_refinement_comparison import (
 from dspx.services.program_refinement_gepa_candidate import (
     materialize_gepa_refinement_candidate,
 )
+from dspx.services.program_refinement_gepa_candidate_contracts import (
+    validate_program_refinement_gepa_candidate_result_contract,
+)
 
 PROGRAM_REFINEMENT_GENERATE_COMPARE_SCHEMA = (
     "program-refinement-generate-and-compare-result-v1"
@@ -323,6 +326,32 @@ def _workflow_protected_roots(payload: Mapping[str, Any]) -> list[Path]:
     return roots
 
 
+def _validate_gepa_workflow_summary_payload(payload: Mapping[str, Any]) -> None:
+    if payload.get("schema_version") != PROGRAM_REFINEMENT_GEPA_GENERATE_COMPARE_SCHEMA:
+        return
+    created_from = payload.get("created_from")
+    if not isinstance(created_from, Mapping):
+        raise ProgramRefinementWorkflowError(
+            "program GEPA workflow summary is missing created_from"
+        )
+    generation = payload.get("generation")
+    if not isinstance(generation, Mapping):
+        raise ProgramRefinementWorkflowError(
+            "program GEPA workflow summary is missing generation sidecar"
+        )
+    validate_program_refinement_gepa_candidate_result_contract(
+        generation,
+        expected_source_manifest_path=Path(
+            str(created_from.get("manifest_path") or "")
+        ),
+        expected_gepa_result_path=Path(
+            str(created_from.get("gepa_refinement_result_path") or "")
+        ),
+        label="program GEPA workflow generation summary",
+        error_type=ProgramRefinementWorkflowError,
+    )
+
+
 def write_program_refinement_workflow_result(
     result: Mapping[str, Any],
     out_path: Path,
@@ -337,6 +366,7 @@ def write_program_refinement_workflow_result(
         payload_artifact_root_policy="forbid",
         extra_protected_roots=_workflow_protected_roots(payload),
     )
+    _validate_gepa_workflow_summary_payload(payload)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(_json_text(payload), encoding="utf-8")
     return payload

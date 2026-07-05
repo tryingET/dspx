@@ -28,6 +28,23 @@ _REQUIRED_FALSE_GEPA_NON_AUTHORITY_FLAGS = (
     "governance_authority",
     "external_mutation",
 )
+_REQUIRED_FALSE_GEPA_CANDIDATE_EFFECT_FLAGS = (
+    "source_program_files_mutated",
+    "source_dataset_artifacts_mutated",
+    "gepa_optimizer_output_mutated",
+    "external_authority_mutated",
+    "governance_mutated",
+)
+_REQUIRED_FALSE_GEPA_CANDIDATE_NON_AUTHORITY_FLAGS = (
+    "automatic_promotion",
+    "oracle_ranking",
+    "oracle_pruning",
+    "oracle_promotion",
+    "winner_selection",
+    "external_authority_export",
+    "governance_authority",
+    "external_mutation",
+)
 
 
 class ProgramRefinementGepaCandidateError(ValueError):
@@ -528,6 +545,243 @@ def validate_program_refinement_gepa_result_contract(
             "ready_for_future_candidate_materializer": readiness_claim is True,
             "optimizer_root": optimizer_root,
             "optimizer_manifest": optimizer_manifest,
+        }
+    except ProgramRefinementGepaCandidateError as exc:
+        if error_type is ProgramRefinementGepaCandidateError:
+            raise
+        raise error_type(str(exc)) from exc
+
+
+def validate_program_refinement_gepa_candidate_result_contract(
+    payload: Mapping[str, Any],
+    *,
+    expected_source_manifest_path: Path,
+    expected_gepa_result_path: Path,
+    label: str = "program GEPA candidate result",
+    error_type: type[Exception] = ProgramRefinementGepaCandidateError,
+) -> dict[str, Any]:
+    """Validate a materialized GEPA candidate result before summaries trust it."""
+
+    try:
+        if (
+            payload.get("schema_version")
+            != PROGRAM_REFINEMENT_GEPA_CANDIDATE_RESULT_SCHEMA
+        ):
+            raise ProgramRefinementGepaCandidateError(f"{label} has unsupported schema")
+        if payload.get("status") != "materialized":
+            raise ProgramRefinementGepaCandidateError(f"{label} must be materialized")
+
+        source_manifest_path = expected_source_manifest_path.expanduser().resolve()
+        gepa_result_path = expected_gepa_result_path.expanduser().resolve()
+        created_from = _safe_mapping(payload.get("created_from"))
+        declared_source_manifest = (
+            Path(str(created_from.get("manifest_path") or "")).expanduser().resolve()
+        )
+        declared_gepa_result = (
+            Path(str(created_from.get("gepa_refinement_result_path") or ""))
+            .expanduser()
+            .resolve()
+        )
+        if declared_source_manifest != source_manifest_path:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} source manifest path does not match expected manifest"
+            )
+        if declared_gepa_result != gepa_result_path:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} GEPA result path does not match expected sidecar"
+            )
+
+        source_manifest = _load_json_object(
+            source_manifest_path, label="source program manifest"
+        )
+        source_identity = _identity_from_manifest(source_manifest)
+        _assert_identity_matches(
+            _safe_mapping(payload.get("source_identity")),
+            source_identity,
+            label=f"{label} source identity",
+        )
+        source_manifest_hash = _sha256_file(source_manifest_path)
+        gepa_result_hash = _sha256_file(gepa_result_path)
+
+        candidate = _safe_mapping(payload.get("candidate"))
+        candidate_manifest_path = (
+            Path(str(candidate.get("manifest_path") or "")).expanduser().resolve()
+        )
+        candidate_root = (
+            Path(str(candidate.get("root_path") or "")).expanduser().resolve()
+        )
+        if candidate_manifest_path.parent != candidate_root:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate root does not match candidate manifest parent"
+            )
+        candidate_manifest = _load_json_object(
+            candidate_manifest_path, label="GEPA candidate manifest"
+        )
+        _candidate_root(candidate_manifest, candidate_manifest_path)
+        candidate_identity = _identity_from_manifest(candidate_manifest)
+        _assert_identity_matches(
+            candidate, candidate_identity, label=f"{label} candidate"
+        )
+        if candidate.get("promotion_state") != "not_promoted":
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate must remain not_promoted"
+            )
+
+        gepa_refinement = _safe_mapping(candidate_manifest.get("gepa_refinement"))
+        if (
+            gepa_refinement.get("schema_version")
+            != "program-gepa-candidate-materialization-v1"
+        ):
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate manifest is missing GEPA materialization lineage"
+            )
+        if gepa_refinement.get("status") != "materialized_local_candidate":
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate manifest has invalid GEPA materialization status"
+            )
+        _assert_identity_matches(
+            _safe_mapping(gepa_refinement.get("source_identity")),
+            source_identity,
+            label=f"{label} candidate manifest source identity",
+        )
+        lineage_source = (
+            Path(str(gepa_refinement.get("source_manifest_path") or ""))
+            .expanduser()
+            .resolve()
+        )
+        lineage_gepa_result = (
+            Path(str(gepa_refinement.get("gepa_refinement_result_path") or ""))
+            .expanduser()
+            .resolve()
+        )
+        if lineage_source != source_manifest_path:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate manifest source path drifted"
+            )
+        if lineage_gepa_result != gepa_result_path:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate manifest GEPA result path drifted"
+            )
+        if gepa_refinement.get("source_manifest_sha256") != source_manifest_hash:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate manifest source hash is stale"
+            )
+        if gepa_refinement.get("gepa_refinement_result_sha256") != gepa_result_hash:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate manifest GEPA result hash is stale"
+            )
+        lineage_non_authority = _safe_mapping(gepa_refinement.get("non_authority"))
+        invalid_lineage_flags = [
+            key
+            for key in (
+                "automatic_promotion",
+                "winner_selection",
+                "external_authority_export",
+                "governance_authority",
+                "external_mutation",
+            )
+            if lineage_non_authority.get(key) is not False
+        ]
+        if invalid_lineage_flags:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} candidate manifest widens GEPA lineage authority flags: "
+                + ", ".join(invalid_lineage_flags)
+            )
+
+        gepa_output = _safe_mapping(payload.get("gepa_output"))
+        copied_to = Path(str(gepa_output.get("copied_to") or "")).expanduser().resolve()
+        if not _is_same_or_descendant(copied_to, candidate_root):
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} copied optimizer output must stay under candidate root"
+            )
+        optimizer_manifest_path = copied_to / "manifest.json"
+        if _sha256_file(optimizer_manifest_path) != str(
+            gepa_output.get("manifest_sha256") or ""
+        ):
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} copied optimizer manifest hash is stale"
+            )
+        if gepa_refinement.get("gepa_optimizer_manifest_sha256") != gepa_output.get(
+            "manifest_sha256"
+        ):
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} optimizer manifest hash does not match candidate lineage"
+            )
+        actual_inventory = _optimizer_payload_inventory(copied_to)
+        if actual_inventory.get("tree_hash") != gepa_output.get("payload_tree_sha256"):
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} copied optimizer payload tree hash is stale"
+            )
+        if len(actual_inventory.get("files") or []) != gepa_output.get(
+            "payload_file_count"
+        ):
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} copied optimizer payload file count drifted"
+            )
+        if gepa_refinement.get("gepa_optimizer_payload_tree_sha256") != gepa_output.get(
+            "payload_tree_sha256"
+        ):
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} optimizer payload hash does not match candidate lineage"
+            )
+
+        behavior_refresh = _safe_mapping(payload.get("behavior_refresh"))
+        for path_key, hash_key in (
+            ("behavior_episode_path", "behavior_episode_sha256"),
+            ("behavior_results_path", "behavior_results_sha256"),
+        ):
+            raw_path = behavior_refresh.get(path_key)
+            expected_hash = behavior_refresh.get(hash_key)
+            if raw_path is None and expected_hash is None:
+                continue
+            if not isinstance(raw_path, str) or not raw_path.strip():
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} behavior refresh is missing {path_key}"
+                )
+            behavior_path = Path(raw_path).expanduser().resolve()
+            if not _is_same_or_descendant(behavior_path, candidate_root):
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} behavior refresh paths must stay under candidate root"
+                )
+            if _sha256_file(behavior_path) != expected_hash:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} behavior refresh hash is stale: {path_key}"
+                )
+
+        effect = _safe_mapping(payload.get("effect"))
+        if effect.get("local_gepa_candidate_generated") is not True:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} must record local GEPA candidate generation"
+            )
+        invalid_effect = [
+            key
+            for key in _REQUIRED_FALSE_GEPA_CANDIDATE_EFFECT_FLAGS
+            if effect.get(key) is not False
+        ]
+        if invalid_effect:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} widens effect flags: " + ", ".join(invalid_effect)
+            )
+        non_authority = _safe_mapping(payload.get("non_authority"))
+        if non_authority.get("local_candidate_generation_only") is not True:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} must be local candidate generation only"
+            )
+        invalid_non_authority = [
+            key
+            for key in _REQUIRED_FALSE_GEPA_CANDIDATE_NON_AUTHORITY_FLAGS
+            if non_authority.get(key) is not False
+        ]
+        if invalid_non_authority:
+            raise ProgramRefinementGepaCandidateError(
+                f"{label} widens non-authority flags: "
+                + ", ".join(invalid_non_authority)
+            )
+        return {
+            "source_identity": dict(source_identity),
+            "candidate_identity": dict(candidate_identity),
+            "candidate_manifest_path": candidate_manifest_path,
+            "candidate_root": candidate_root,
         }
     except ProgramRefinementGepaCandidateError as exc:
         if error_type is ProgramRefinementGepaCandidateError:
