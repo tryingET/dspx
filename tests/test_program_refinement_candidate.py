@@ -392,6 +392,42 @@ def test_program_refine_generate_candidate_rejects_decision_effect_authority_dri
     assert not (tmp_path / "program-effect-drift").exists()
 
 
+def test_program_refine_generate_candidate_rejects_stale_proposal_oracle_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, proposal_path, decision_path = _materialize_refinement_decision_path(
+        tmp_path,
+        monkeypatch,
+    )
+    proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+    report_path = Path(proposal["created_from"]["oracle_report_path"])
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["total_records"] = int(report.get("total_records") or 0) + 1
+    _write_json(report_path, report)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "generate-candidate",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--decision-record",
+            str(decision_path),
+            "--outdir",
+            str(tmp_path / "program-stale-proposal"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Oracle report hash" in (result.stdout + result.stderr)
+    assert not (tmp_path / "program-stale-proposal").exists()
+
+
 def test_program_refine_generate_candidate_rejects_identity_mismatch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

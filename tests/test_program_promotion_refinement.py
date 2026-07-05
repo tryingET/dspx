@@ -691,6 +691,26 @@ def test_program_promotion_refinement_rejects_authority_widened_proposal(
         )
 
 
+def test_program_promotion_refinement_rejects_stale_proposal_oracle_report_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["total_records"] = int(report.get("total_records") or 0) + 1
+    _write_json(report_path, report)
+
+    with pytest.raises(ProgramPromotionRefinementError, match="Oracle report hash"):
+        build_program_promotion_refinement(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            refinement_proposal_path=proposal_path,
+        )
+
+
 def test_program_promotion_refinement_rejects_oracle_report_partial_identity_collision(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

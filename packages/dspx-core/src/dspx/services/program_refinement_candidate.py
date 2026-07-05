@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -9,27 +10,24 @@ from dspx.services.program_promotion_decision import (
     ProgramPromotionDecisionError,
     validate_program_promotion_decision_record_contract,
 )
-from dspx.services.program_refinement import load_program_manifest
+from dspx.services.program_refinement import (
+    ProgramRefinementError,
+    load_program_manifest,
+    validate_program_refinement_proposal_contract,
+)
 from dspx.services.program_service import materialize_program_from_intent
 
 PROGRAM_REFINEMENT_CANDIDATE_RESULT_SCHEMA = "program-refinement-candidate-result-v1"
-PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 
 _ALLOWED_DECISION_OUTCOMES_FOR_SECOND_CANDIDATE = {"request_more_evidence"}
-_REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
-    "applies_changes",
-    "generates_candidate",
-    "oracle_ranking",
-    "oracle_pruning",
-    "oracle_promotion",
-    "promotion_authority",
-    "governance_authority",
-    "external_mutation",
-)
 
 
 class ProgramRefinementCandidateError(ValueError):
     """Raised when a second-candidate refinement request is invalid."""
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
@@ -134,30 +132,15 @@ def load_program_refinement_proposal(path: Path) -> dict[str, Any]:
     """Load a non-authoritative refinement proposal for candidate generation."""
 
     proposal = _load_json_object(path, label="program refinement proposal")
-    if proposal.get("schema_version") != PROGRAM_REFINEMENT_PROPOSAL_SCHEMA:
-        raise ProgramRefinementCandidateError(
-            "program refinement proposal schema_version must be "
-            + PROGRAM_REFINEMENT_PROPOSAL_SCHEMA
+    try:
+        validate_program_refinement_proposal_contract(
+            proposal,
+            allowed_statuses={"proposed"},
+            require_next_candidate_patch=True,
+            error_type=ProgramRefinementCandidateError,
         )
-    if proposal.get("status") != "proposed":
-        raise ProgramRefinementCandidateError(
-            "second-candidate generation requires a proposed refinement"
-        )
-    non_authority = _safe_mapping(proposal.get("non_authority"))
-    if non_authority.get("proposal_only") is not True:
-        raise ProgramRefinementCandidateError(
-            "program refinement proposal must be proposal-only"
-        )
-    invalid = [
-        key
-        for key in _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid:
-        raise ProgramRefinementCandidateError(
-            "program refinement proposal widens non-authority flags: "
-            + ", ".join(invalid)
-        )
+    except ProgramRefinementError as exc:
+        raise ProgramRefinementCandidateError(str(exc)) from exc
     return proposal
 
 
@@ -265,8 +248,19 @@ def materialize_refinement_candidate(
     outdir = outdir.expanduser().resolve()
 
     manifest = load_program_manifest(manifest_path)
-    proposal = load_program_refinement_proposal(refinement_proposal_path)
     source_identity = _identity_from_manifest(manifest)
+    proposal = load_program_refinement_proposal(refinement_proposal_path)
+    try:
+        validate_program_refinement_proposal_contract(
+            proposal,
+            expected_identity=source_identity,
+            valid_manifest_refs={manifest_path: _sha256_file(manifest_path)},
+            allowed_statuses={"proposed"},
+            require_next_candidate_patch=True,
+            error_type=ProgramRefinementCandidateError,
+        )
+    except ProgramRefinementError as exc:
+        raise ProgramRefinementCandidateError(str(exc)) from exc
     decision = load_program_promotion_decision_record(
         decision_record_path,
         expected_identity=source_identity,

@@ -16,6 +16,7 @@ from dspx.services.program_refinement import (
     load_program_manifest,
     load_program_oracle_report,
     validate_program_oracle_report_non_authority,
+    validate_program_refinement_proposal_contract,
 )
 
 PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA = "program-promotion-review-refined-v1"
@@ -26,17 +27,6 @@ PROGRAM_PROMOTION_ADJUDICATION_REQUEST_SCHEMA = (
 PROGRAM_PROMOTION_DECISION_SCHEMA = "program-promotion-decision-v1"
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
 PROGRAM_BEHAVIOR_EPISODE_SCHEMA = "program-behavior-episode-v1"
-
-_REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
-    "applies_changes",
-    "generates_candidate",
-    "oracle_ranking",
-    "oracle_pruning",
-    "oracle_promotion",
-    "promotion_authority",
-    "governance_authority",
-    "external_mutation",
-)
 
 _REFINED_PACKET_NON_AUTHORITY = {
     "local_review_packet_only": True,
@@ -563,28 +553,34 @@ def _validate_oracle_report_identity(
     )
 
 
-def _load_refinement_proposal(path: Path) -> dict[str, Any]:
+def _load_refinement_proposal(
+    path: Path,
+    *,
+    identity: Mapping[str, Any],
+    manifest_path: Path,
+    manifest_hash: str,
+    oracle_report_path: Path,
+    oracle_report_hash: str,
+    behavior_path: Path | None,
+    behavior_hash: str | None,
+) -> dict[str, Any]:
     proposal = _load_json_object(path, label="program refinement proposal")
-    _validate_schema(
-        proposal,
-        label="program refinement proposal",
-        expected_schema=PROGRAM_REFINEMENT_PROPOSAL_SCHEMA,
+    valid_behavior_refs = (
+        {behavior_path: behavior_hash}
+        if behavior_path is not None and behavior_hash is not None
+        else None
     )
-    non_authority = _safe_mapping(proposal.get("non_authority"))
-    if non_authority.get("proposal_only") is not True:
-        raise ProgramPromotionRefinementError(
-            "program refinement proposal must be proposal-only"
+    try:
+        validate_program_refinement_proposal_contract(
+            proposal,
+            expected_identity=identity,
+            valid_manifest_refs={manifest_path: manifest_hash},
+            valid_oracle_report_refs={oracle_report_path: oracle_report_hash},
+            valid_behavior_results_refs=valid_behavior_refs,
+            error_type=ProgramPromotionRefinementError,
         )
-    invalid = [
-        key
-        for key in _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid:
-        raise ProgramPromotionRefinementError(
-            "program refinement proposal widens non-authority flags: "
-            + ", ".join(invalid)
-        )
+    except ProgramRefinementError as exc:
+        raise ProgramPromotionRefinementError(str(exc)) from exc
     return proposal
 
 
@@ -870,17 +866,24 @@ def load_program_promotion_inputs(
         raise ProgramPromotionRefinementError(str(exc)) from exc
     identity = _identity_from_manifest(manifest)
     oracle_record, oracle_matched = _validate_oracle_report_identity(report, identity)
-    proposal = _load_refinement_proposal(refinement_proposal_path)
-    proposal_identity = _safe_mapping(proposal.get("identity"))
-    _assert_identity_matches(
-        proposal_identity, identity, label="program refinement proposal"
+    manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    oracle_report_hash = hashlib.sha256(oracle_report_path.read_bytes()).hexdigest()
+    proposal = _load_refinement_proposal(
+        refinement_proposal_path,
+        identity=identity,
+        manifest_path=manifest_path,
+        manifest_hash=manifest_hash,
+        oracle_report_path=oracle_report_path,
+        oracle_report_hash=oracle_report_hash,
+        behavior_path=behavior_path,
+        behavior_hash=behavior_hash,
     )
     model_jury_results, model_jury_results_file, model_jury_results_hash = (
         _load_model_jury_results(
             model_jury_results_path,
             identity=identity,
             manifest_path=manifest_path,
-            manifest_hash=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+            manifest_hash=manifest_hash,
         )
     )
     review, request, decision_template, promotion_paths = (

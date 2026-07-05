@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from dspx.security import confine_path, identity_matches_exact
+from dspx.security import confine_path, identity_matches_exact, identity_mismatch_keys
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
 
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
@@ -32,6 +32,10 @@ _PROPOSAL_NON_AUTHORITY = {
     "governance_authority": False,
     "external_mutation": False,
 }
+
+_REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = tuple(
+    key for key, value in _PROPOSAL_NON_AUTHORITY.items() if value is False
+)
 
 _BASE_LIMITATIONS = [
     "Behavior evidence is local and source-indexed; it is not a quality claim.",
@@ -74,6 +78,16 @@ def _string_list(value: object) -> list[str]:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _resolve_payload_path(raw_path: object, *, base: Path | None = None) -> Path | None:
+    text = str(raw_path or "").strip()
+    if not text:
+        return None
+    path = Path(text).expanduser()
+    if not path.is_absolute() and base is not None:
+        path = base / path
+    return path.resolve()
 
 
 def _json_text(payload: Mapping[str, Any]) -> str:
@@ -267,6 +281,179 @@ def validate_program_oracle_report_non_authority(report: Mapping[str, Any]) -> N
             "program Oracle evidence report widens non-authority flags: "
             + ", ".join(invalid)
         )
+
+
+def _raise_refinement_contract_error(error_type: type[Exception], message: str) -> None:
+    if issubclass(error_type, ValueError):
+        raise error_type(message)
+    raise ProgramRefinementError(message)
+
+
+def _hash_bound_created_from_ref(
+    *,
+    proposal: Mapping[str, Any],
+    path_key: str,
+    hash_key: str,
+    label: str,
+    error_type: type[Exception],
+    required: bool,
+) -> Path | None:
+    created_from = _safe_mapping(proposal.get("created_from"))
+    path = _resolve_payload_path(created_from.get(path_key))
+    if path is None:
+        if required:
+            _raise_refinement_contract_error(
+                error_type,
+                f"program refinement proposal is missing {label} path",
+            )
+        return None
+    expected_hash = _first_text(created_from.get(hash_key))
+    if expected_hash is None:
+        _raise_refinement_contract_error(
+            error_type,
+            f"program refinement proposal is missing {label} hash",
+        )
+    try:
+        actual_hash = _sha256_file(path)
+    except FileNotFoundError:
+        _raise_refinement_contract_error(
+            error_type,
+            f"program refinement proposal {label} path not found: {path}",
+        )
+    if actual_hash != expected_hash:
+        _raise_refinement_contract_error(
+            error_type,
+            f"program refinement proposal {label} hash does not match current file",
+        )
+    return path
+
+
+def _validate_proposal_bound_ref(
+    *,
+    actual_path: Path | None,
+    valid_refs: Mapping[Path, str] | None,
+    label: str,
+    error_type: type[Exception],
+) -> None:
+    if valid_refs is None or actual_path is None:
+        return
+    normalized_refs = {
+        path.expanduser().resolve(): value for path, value in valid_refs.items()
+    }
+    expected_hash = normalized_refs.get(actual_path)
+    if expected_hash is None:
+        _raise_refinement_contract_error(
+            error_type,
+            f"program refinement proposal {label} path does not match expected input",
+        )
+    actual_hash = _sha256_file(actual_path)
+    if actual_hash != expected_hash:
+        _raise_refinement_contract_error(
+            error_type,
+            f"program refinement proposal {label} hash does not match expected input",
+        )
+
+
+def validate_program_refinement_proposal_contract(
+    proposal: Mapping[str, Any],
+    *,
+    expected_identity: Mapping[str, Any] | None = None,
+    valid_manifest_refs: Mapping[Path, str] | None = None,
+    valid_oracle_report_refs: Mapping[Path, str] | None = None,
+    valid_behavior_results_refs: Mapping[Path, str] | None = None,
+    allowed_statuses: set[str] | frozenset[str] | None = None,
+    require_next_candidate_patch: bool = False,
+    label: str = "program refinement proposal",
+    error_type: type[Exception] = ProgramRefinementError,
+) -> None:
+    """Validate a refinement-proposal sidecar at the consumer boundary."""
+
+    if proposal.get("schema_version") != PROGRAM_REFINEMENT_PROPOSAL_SCHEMA:
+        _raise_refinement_contract_error(
+            error_type,
+            f"{label} schema_version must be {PROGRAM_REFINEMENT_PROPOSAL_SCHEMA}",
+        )
+    status = str(proposal.get("status") or "").strip()
+    if allowed_statuses is not None and status not in allowed_statuses:
+        _raise_refinement_contract_error(
+            error_type,
+            f"{label} status must be one of: " + ", ".join(sorted(allowed_statuses)),
+        )
+    if expected_identity is not None:
+        actual_identity = _safe_mapping(proposal.get("identity"))
+        if not identity_matches_exact(actual_identity, expected_identity):
+            mismatches = identity_mismatch_keys(actual_identity, expected_identity)
+            detail = ": " + ", ".join(sorted(mismatches)) if mismatches else ""
+            _raise_refinement_contract_error(
+                error_type,
+                f"{label} identity does not match expected identity" + detail,
+            )
+    non_authority = _safe_mapping(proposal.get("non_authority"))
+    if non_authority.get("proposal_only") is not True:
+        _raise_refinement_contract_error(error_type, f"{label} must be proposal-only")
+    invalid = [
+        key
+        for key in _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS
+        if non_authority.get(key) is not False
+    ]
+    if invalid:
+        _raise_refinement_contract_error(
+            error_type,
+            f"{label} widens non-authority flags: " + ", ".join(invalid),
+        )
+    manifest_path = _hash_bound_created_from_ref(
+        proposal=proposal,
+        path_key="manifest_path",
+        hash_key="manifest_sha256",
+        label="manifest",
+        error_type=error_type,
+        required=True,
+    )
+    _validate_proposal_bound_ref(
+        actual_path=manifest_path,
+        valid_refs=valid_manifest_refs,
+        label="manifest",
+        error_type=error_type,
+    )
+    oracle_report_path = _hash_bound_created_from_ref(
+        proposal=proposal,
+        path_key="oracle_report_path",
+        hash_key="oracle_report_sha256",
+        label="Oracle report",
+        error_type=error_type,
+        required=True,
+    )
+    _validate_proposal_bound_ref(
+        actual_path=oracle_report_path,
+        valid_refs=valid_oracle_report_refs,
+        label="Oracle report",
+        error_type=error_type,
+    )
+    behavior_path = _hash_bound_created_from_ref(
+        proposal=proposal,
+        path_key="behavior_results_path",
+        hash_key="behavior_results_sha256",
+        label="behavior results",
+        error_type=error_type,
+        required=False,
+    )
+    _validate_proposal_bound_ref(
+        actual_path=behavior_path,
+        valid_refs=valid_behavior_results_refs,
+        label="behavior results",
+        error_type=error_type,
+    )
+    if require_next_candidate_patch:
+        patch = _safe_mapping(
+            _safe_mapping(proposal.get("bounded_refinement")).get(
+                "next_candidate_intent_patch"
+            )
+        )
+        if not _string_list(patch.get("constraints")):
+            _raise_refinement_contract_error(
+                error_type,
+                f"{label} must include bounded next-candidate constraints",
+            )
 
 
 def _matching_oracle_record(
@@ -607,10 +794,13 @@ def build_program_refinement_proposal(
         "proposal_id": _proposal_id(identity, behavior_hash, report),
         "created_from": {
             "manifest_path": str(manifest_path),
+            "manifest_sha256": _sha256_file(manifest_path),
             "oracle_report_path": str(oracle_report_path),
+            "oracle_report_sha256": _sha256_file(oracle_report_path),
             "behavior_results_path": str(behavior_path)
             if behavior_path is not None and behavior_path.exists()
             else None,
+            "behavior_results_sha256": behavior_hash,
         },
         "identity": identity,
         "evidence_summary": {
