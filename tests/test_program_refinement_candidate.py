@@ -357,6 +357,41 @@ def test_program_refine_generate_candidate_rejects_reject_decision(
     assert not (tmp_path / "program-rejected").exists()
 
 
+def test_program_refine_generate_candidate_rejects_decision_effect_authority_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, proposal_path, decision_path = _materialize_refinement_decision_path(
+        tmp_path,
+        monkeypatch,
+    )
+    decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    decision["effect"]["external_authority_mutated"] = True
+    bad_decision_path = tmp_path / "promotion" / "effect_drift_decision.json"
+    _write_json(bad_decision_path, decision)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "generate-candidate",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--decision-record",
+            str(bad_decision_path),
+            "--outdir",
+            str(tmp_path / "program-effect-drift"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "external_authority_mutated" in (result.stdout + result.stderr)
+    assert not (tmp_path / "program-effect-drift").exists()
+
+
 def test_program_refine_generate_candidate_rejects_identity_mismatch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

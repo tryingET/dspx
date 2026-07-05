@@ -5,12 +5,15 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_promotion_decision import (
+    ProgramPromotionDecisionError,
+    validate_program_promotion_decision_record_contract,
+)
 from dspx.services.program_refinement import load_program_manifest
 from dspx.services.program_service import materialize_program_from_intent
 
 PROGRAM_REFINEMENT_CANDIDATE_RESULT_SCHEMA = "program-refinement-candidate-result-v1"
 PROGRAM_REFINEMENT_PROPOSAL_SCHEMA = "program-refinement-proposal-v1"
-PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 
 _ALLOWED_DECISION_OUTCOMES_FOR_SECOND_CANDIDATE = {"request_more_evidence"}
 _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
@@ -20,17 +23,6 @@ _REQUIRED_FALSE_PROPOSAL_NON_AUTHORITY_FLAGS = (
     "oracle_pruning",
     "oracle_promotion",
     "promotion_authority",
-    "governance_authority",
-    "external_mutation",
-)
-_REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS = (
-    "automatic_promotion",
-    "oracle_ranking",
-    "oracle_pruning",
-    "oracle_promotion",
-    "program_mutation",
-    "refined_review_mutation",
-    "new_candidate_generation",
     "governance_authority",
     "external_mutation",
 )
@@ -169,43 +161,28 @@ def load_program_refinement_proposal(path: Path) -> dict[str, Any]:
     return proposal
 
 
-def load_program_promotion_decision_record(path: Path) -> dict[str, Any]:
+def load_program_promotion_decision_record(
+    path: Path,
+    *,
+    expected_identity: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Load a local decision record for explicit second-candidate generation."""
 
     decision = _load_json_object(path, label="program promotion decision record")
-    if decision.get("schema_version") != PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA:
-        raise ProgramRefinementCandidateError(
-            "program promotion decision record schema_version must be "
-            + PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA
+    try:
+        validate_program_promotion_decision_record_contract(
+            decision,
+            expected_identities=[expected_identity] if expected_identity else None,
+            require_non_promoting=True,
         )
-    if decision.get("status") != "recorded":
-        raise ProgramRefinementCandidateError(
-            "program promotion decision record must have status recorded"
-        )
+    except ProgramPromotionDecisionError as exc:
+        raise ProgramRefinementCandidateError(str(exc)) from exc
+
     outcome = str(decision.get("outcome") or "").strip()
     if outcome not in _ALLOWED_DECISION_OUTCOMES_FOR_SECOND_CANDIDATE:
         allowed = ", ".join(sorted(_ALLOWED_DECISION_OUTCOMES_FOR_SECOND_CANDIDATE))
         raise ProgramRefinementCandidateError(
             "second-candidate generation requires decision outcome: " + allowed
-        )
-    if decision.get("promotion_state_after_decision") != "not_promoted":
-        raise ProgramRefinementCandidateError(
-            "second-candidate generation requires an unpromoted local decision record"
-        )
-    non_authority = _safe_mapping(decision.get("non_authority"))
-    if non_authority.get("local_decision_record_only") is not True:
-        raise ProgramRefinementCandidateError(
-            "program promotion decision record must be local-only"
-        )
-    invalid = [
-        key
-        for key in _REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid:
-        raise ProgramRefinementCandidateError(
-            "program promotion decision record widens non-authority flags: "
-            + ", ".join(invalid)
         )
     return decision
 
@@ -289,8 +266,11 @@ def materialize_refinement_candidate(
 
     manifest = load_program_manifest(manifest_path)
     proposal = load_program_refinement_proposal(refinement_proposal_path)
-    decision = load_program_promotion_decision_record(decision_record_path)
     source_identity = _identity_from_manifest(manifest)
+    decision = load_program_promotion_decision_record(
+        decision_record_path,
+        expected_identity=source_identity,
+    )
     _assert_identity_matches(
         _safe_mapping(proposal.get("identity")),
         source_identity,
