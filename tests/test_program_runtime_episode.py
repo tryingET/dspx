@@ -380,6 +380,24 @@ def test_runtime_observed_output_files_reject_path_escape(tmp_path: Path) -> Non
     assert not (tmp_path / "escape.json").exists()
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    ["behavior_results.json", "nested/manifest.json", "runtime_episode.json"],
+)
+def test_runtime_observed_output_files_reject_protected_artifact_names(
+    tmp_path: Path, field_name: str
+) -> None:
+    from dspx.services.program_runtime_episode import _write_observed_output_files
+
+    outdir = tmp_path / "out"
+    outdir.mkdir()
+
+    with pytest.raises(ValueError, match="protected artifact"):
+        _write_observed_output_files(outdir, {field_name: {"spoofed": True}})
+
+    assert not (outdir / field_name).exists()
+
+
 def test_generated_program_module_rejects_import_time_side_effects(
     tmp_path: Path,
 ) -> None:

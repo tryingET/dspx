@@ -17,6 +17,7 @@ from dspx.services.program_oracle_publication_preflight import (
     write_program_oracle_publication_preflight,
 )
 from dspx.security import confine_path, confine_relative_path
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_runtime_traces import build_program_runtime_traces
 from dspx.services.run_replay_service import check_run_receipt
@@ -25,6 +26,12 @@ PROGRAM_RUNTIME_EPISODE_SCHEMA = "program-runtime-episode-v1"
 PROGRAM_BEHAVIOR_RESULTS_SCHEMA = "program-behavior-results-v1"
 PROGRAM_ORACLE_EVIDENCE_SCHEMA = "program-oracle-evidence-v1"
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
+_RUNTIME_EPISODE_PROTECTED_ARTIFACT_NAMES = {
+    *PROTECTED_PROGRAM_ARTIFACT_NAMES,
+    "runtime_inputs.json",
+    "runtime_episode.json",
+    "program_oracle_report.json",
+}
 
 CONTRACT_MODES = {"none", "pdf_transition_review"}
 _GENERATED_PROGRAM_IMPORT_LOCK = threading.RLock()
@@ -877,7 +884,19 @@ def _write_observed_output_files(
 ) -> list[str]:
     written: list[str] = []
     for field, value in observed.items():
-        path = confine_relative_path(outdir, field)
+        output_name = str(field).strip()
+        path_parts = Path(output_name).parts
+        protected_parts = [
+            part
+            for part in path_parts
+            if part in _RUNTIME_EPISODE_PROTECTED_ARTIFACT_NAMES
+        ]
+        if protected_parts:
+            raise ValueError(
+                "runtime observed output field would overwrite protected artifact: "
+                + ", ".join(protected_parts)
+            )
+        path = confine_relative_path(outdir, output_name)
         path.parent.mkdir(parents=True, exist_ok=True)
         text = (
             value
