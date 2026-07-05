@@ -7,6 +7,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -16,7 +17,11 @@ from dspx.cli.dspx import app
 from dspx.services import program_service
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_runtime_episode import _generated_program_module
-from dspx.services.program_surfaces import render_direct_run_code
+from dspx.services.program_surfaces import (
+    render_direct_run_code,
+    render_eval_behavior,
+    render_eval_examples,
+)
 
 runner = CliRunner()
 
@@ -283,6 +288,109 @@ def build_program(): return P()
     assert "Traceback" not in result.stderr
     assert receipt["status"] == "failed"
     assert receipt["error"]["message"] == result.stderr.strip()
+
+
+def test_generated_eval_examples_redacts_secret_failure_diagnostics(
+    tmp_path: Path,
+) -> None:
+    program_dir = tmp_path / "program"
+    program_dir.mkdir()
+    (program_dir / "eval_examples.py").write_text(
+        render_eval_examples(object()), encoding="utf-8"
+    )
+    secret_message = (
+        "provider failed api_key=supersecret-value Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/run?token=url-secret&ok=1"
+    )
+    (program_dir / "program.py").write_text(
+        f"""
+def io_spec(): return {{"inputs": ["q"], "outputs": ["answer"]}}
+def intent_summary(): return {{"name": "secret-eval"}}
+def normalize_output(name, expected, observed, pred_trace=None): return expected, observed
+class P:
+    def __call__(self, **kw):
+        raise RuntimeError({secret_message!r})
+def build_program(): return P()
+""",
+        encoding="utf-8",
+    )
+    (program_dir / "examples.json").write_text(
+        '[{"inputs": {"q": "x"}, "outputs": {"answer": "ok"}}]\n',
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "eval_examples.py"],
+        cwd=program_dir,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads((program_dir / "behavior_results.json").read_text())
+    combined = json.dumps(payload, sort_keys=True)
+    assert "supersecret-value" not in combined
+    assert "bearer-secret" not in combined
+    assert "url-secret" not in combined
+    assert "user:pass@" not in combined
+    assert "api_key=[REDACTED]" in combined
+    assert "Bearer [REDACTED]" in combined
+    assert "token=[REDACTED]" in combined
+    assert payload["examples"][0]["status"] == "error"
+
+
+def test_generated_eval_behavior_redacts_child_diagnostics(
+    tmp_path: Path,
+) -> None:
+    program_dir = tmp_path / "program"
+    program_dir.mkdir()
+    intent = SimpleNamespace(
+        examples=[{"inputs": {"q": "x"}, "outputs": {"answer": "ok"}}],
+        examples_path=None,
+        dataset=None,
+        datasets=None,
+    )
+    (program_dir / "eval_behavior.py").write_text(
+        render_eval_behavior(intent), encoding="utf-8"
+    )
+    (program_dir / "program.py").write_text(
+        "def configure_observability(**kw): return False\n"
+        "def end_observability_run(started, status='FINISHED'): pass\n",
+        encoding="utf-8",
+    )
+    secret_message = (
+        "api_key=supersecret-value Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/run?token=url-secret&ok=1"
+    )
+    (program_dir / "eval_examples.py").write_text(
+        "import sys\n"
+        f"print({secret_message!r})\n"
+        f"print({secret_message!r}, file=sys.stderr)\n"
+        "raise SystemExit(1)\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "eval_behavior.py"],
+        cwd=program_dir,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads((program_dir / "behavior_episode.json").read_text())
+    combined = json.dumps(payload, sort_keys=True)
+    assert "supersecret-value" not in combined
+    assert "bearer-secret" not in combined
+    assert "url-secret" not in combined
+    assert "user:pass@" not in combined
+    assert "api_key=[REDACTED]" in combined
+    assert "Bearer [REDACTED]" in combined
+    assert "token=[REDACTED]" in combined
+    source = payload["sources"][0]
+    assert source["status"] == "failed"
 
 
 @pytest.mark.parametrize(
