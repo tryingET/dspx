@@ -159,6 +159,68 @@ def build_program(): return P()
 
 
 @pytest.mark.parametrize(
+    "field_name",
+    ["manifest.json", "nested/behavior_results.json", "direct_run_receipt.json"],
+)
+def test_generated_direct_run_rejects_protected_output_artifact_names(
+    tmp_path: Path, field_name: str
+) -> None:
+    program_dir = tmp_path / "program"
+    program_dir.mkdir()
+    (program_dir / "direct_run.py").write_text(
+        render_direct_run_code(object()), encoding="utf-8"
+    )
+    (program_dir / "program.py").write_text(
+        f"""
+def io_spec(): return {{"inputs": ["q"], "outputs": [{field_name!r}]}}
+def configure_observability(**kw): return False
+def end_observability_run(started, status="FINISHED"): pass
+class P:
+    def __call__(self, **kw): return {{{field_name!r}: {{"ok": True}}}}
+def build_program(): return P()
+""",
+        encoding="utf-8",
+    )
+    inputs = program_dir / "inputs.json"
+    inputs.write_text('{"q": "x"}\n', encoding="utf-8")
+    outdir = tmp_path / "out"
+    env = {
+        **os.environ,
+        "DSPX_PROVIDER": "stub",
+        "MLFLOW_ENABLE": "0",
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(program_dir / "direct_run.py"),
+            "--inputs",
+            str(inputs),
+            "--outdir",
+            str(outdir),
+        ],
+        text=True,
+        capture_output=True,
+        env=env,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert (
+        "generated output field collides with protected artifact path" in result.stderr
+    )
+    if field_name != "direct_run_receipt.json":
+        assert not (outdir / field_name).exists()
+    receipt = json.loads(
+        (outdir / "direct_run_receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["status"] == "failed"
+    assert receipt["error"]["message"].startswith(
+        "generated output field collides with protected artifact path"
+    )
+
+
+@pytest.mark.parametrize(
     ("flag", "value", "message"),
     [
         ("--parallel", "0", "--parallel must be >= 1"),

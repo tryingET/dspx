@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from dspx.dtos import ModuleSpec, SignatureGenRequest
+from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_contracts import (
     intent_field_specs,
     intent_surface_names,
@@ -15,6 +16,10 @@ from dspx.services.program_topology import (
     render_pipeline_program_code,
     render_pipeline_signature_surface,
 )
+
+_DIRECT_RUN_PROTECTED_OUTPUT_NAMES = PROTECTED_PROGRAM_ARTIFACT_NAMES | {
+    "direct_run_receipt.json",
+}
 
 
 def render_signature_surface(intent: Any) -> tuple[str, dict[str, Any]]:
@@ -105,6 +110,7 @@ from pathlib import Path
 from typing import Any
 
 OUTPUT_RECEIPT = 'direct_run_receipt.json'
+PROTECTED_OUTPUT_BASENAMES = __PROTECTED_OUTPUT_BASENAMES__
 CONFIG_CANDIDATES = ('dspx-local.config.toml', 'config.toml')
 
 
@@ -220,6 +226,8 @@ def _safe_output_path(outdir: Path, field: object) -> Path:
         raise SystemExit(f'unsafe generated output field path: {raw}')
     if any(part in {'', '.', '..'} for part in candidate.parts):
         raise SystemExit(f'unsafe generated output field path: {raw}')
+    if any(part in PROTECTED_OUTPUT_BASENAMES for part in candidate.parts):
+        raise SystemExit(f'generated output field collides with protected artifact path: {raw}')
     root = outdir.resolve()
     resolved = (root / candidate).resolve()
     try:
@@ -723,6 +731,10 @@ def main() -> int:
 if __name__ == '__main__':
     raise SystemExit(main())
 """
+    code = code.replace(
+        "__PROTECTED_OUTPUT_BASENAMES__",
+        repr(tuple(sorted(_DIRECT_RUN_PROTECTED_OUTPUT_NAMES))),
+    )
     return code if code.endswith("\n") else code + "\n"
 
 
