@@ -648,13 +648,12 @@ rules:
 
   - match: "packages/dspx-core/src/dspx/services/program_promotion_decision.py"
     category: python_service
-    impact_group: program_refinement_candidates
+    impact_group: program_promotion_decision
     risk: expanded
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_program_sidecar_boundaries
-      - pytest_promotion_plan_adjacent
+      - pytest_program_promotion_decision
 
   - match: "packages/dspx-core/src/dspx/services/program_external_authority_export.py"
     category: python_service
@@ -843,6 +842,15 @@ rules:
     commands:
       - ruff_touched
       - pytest_program_promotion_review
+
+  - match: "tests/test_program_promotion_decision.py"
+    category: test
+    impact_group: program_promotion_decision
+    risk: bounded
+    exclusive: true
+    commands:
+      - ruff_touched
+      - pytest_program_promotion_decision
 
   - match: "tests/test_*.py"
     category: test

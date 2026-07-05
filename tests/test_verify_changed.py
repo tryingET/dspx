@@ -686,6 +686,38 @@ def test_promotion_review_test_change_uses_product_shaped_review_suite() -> None
     )
 
 
+def test_promotion_decision_change_routes_to_product_shaped_decision_suite() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/services/program_promotion_decision.py")
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert "verify_full" not in _command_ids(plan)
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_promotion_decision",
+    ]
+    command = plan["commands"][2]["command"]
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "tests/test_program_promotion_decision.py" in command
+    assert "tests/test_program_promotion_plan.py" in command
+    assert "tests/test_authority_adapter_export_preflight.py" in command
+    assert "tests/test_program_refinement_candidate.py" in command
+    assert "tests/test_program_refinement_comparison.py" not in command
+
+
+def test_promotion_decision_test_change_uses_product_shaped_decision_suite() -> None:
+    plan = _plan("tests/test_program_promotion_decision.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == ["ruff_touched", "pytest_program_promotion_decision"]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_program_promotion_decision.py" in command
+    assert "tests/test_program_refinement_comparison.py" not in command
+
+
 def test_refinement_episode_code_test_and_docs_stays_product_bounded() -> None:
     plan = _plan(
         "packages/dspx-core/src/dspx/services/program_refinement_episode.py",
