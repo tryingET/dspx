@@ -710,6 +710,43 @@ def test_program_refinement_episode_can_generate_local_jury_results_as_state_evi
     assert _file_hashes(program_root) == before_source_hashes
 
 
+def test_program_refinement_episode_revalidates_local_jury_before_workflow_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "episode-jury-summary-drift"
+    original_write_state = episode_service.write_program_candidate_state
+
+    def tampering_state_writer(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        state = original_write_state(*args, **kwargs)
+        jury_path = outdir / "jury_results.json"
+        jury_payload = json.loads(jury_path.read_text(encoding="utf-8"))
+        jury_payload["effect"]["external_authority_mutated"] = True
+        _write_json(jury_path, jury_payload)
+        return state
+
+    monkeypatch.setattr(
+        episode_service, "write_program_candidate_state", tampering_state_writer
+    )
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="external_authority_mutated"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="revalidate local jury evidence before workflow summary",
+            generate_second_candidate=False,
+            run_local_jury=True,
+        )
+
+    _assert_no_episode_sidecars(outdir)
+    assert not (outdir / "jury_results.json").exists()
+
+
 def test_program_refinement_episode_rejects_ambiguous_or_unsafe_local_jury_generation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1113,6 +1150,43 @@ def test_program_refinement_episode_rejects_invalid_model_jury_results(
             model_jury_results_path=bad_model_jury_path,
         )
     _assert_no_episode_sidecars(authority_drift_outdir)
+
+
+def test_program_refinement_episode_revalidates_model_jury_before_workflow_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    model_jury_path = tmp_path / "promotion" / "model_jury_results.json"
+    _write_json(model_jury_path, _model_jury_result_for_manifest(manifest))
+    outdir = tmp_path / "episode-model-jury-summary-drift"
+    original_write_state = episode_service.write_program_candidate_state
+
+    def tampering_state_writer(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        state = original_write_state(*args, **kwargs)
+        model_jury_payload = json.loads(model_jury_path.read_text(encoding="utf-8"))
+        model_jury_payload["effect"]["external_authority_mutated"] = True
+        _write_json(model_jury_path, model_jury_payload)
+        return state
+
+    monkeypatch.setattr(
+        episode_service, "write_program_candidate_state", tampering_state_writer
+    )
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="external_authority_mutated"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="revalidate model-jury evidence before workflow summary",
+            model_jury_results_path=model_jury_path,
+        )
+
+    _assert_no_episode_sidecars(outdir)
 
 
 def test_program_refinement_episode_rejects_model_jury_output_overlap_before_writes(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -17,9 +18,15 @@ from dspx.services.program_jury_execution import (
     build_program_jury_execution_result,
     write_program_jury_execution_result,
 )
+from dspx.services.program_jury_result_validation import (
+    validate_program_jury_results_contract,
+)
 from dspx.services.program_meta_adjudication import (
     build_program_meta_adjudication_plan,
     write_program_meta_adjudication_plan,
+)
+from dspx.services.program_model_jury_validation import (
+    validate_program_model_jury_results_contract,
 )
 from dspx.services.program_promotion_decision import (
     build_program_promotion_decision_record,
@@ -108,6 +115,23 @@ def _safe_rel(path: Path, root: Path) -> str:
         return path.resolve().relative_to(root.resolve()).as_posix()
     except Exception:
         return str(path)
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _identity_matches(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
+    keys = (
+        "request_id",
+        "candidate_id",
+        "assembly_id",
+        "episode_id",
+        "receipt_bundle_id",
+    )
+    return all(
+        _first_text(left.get(key)) == _first_text(right.get(key)) for key in keys
+    )
 
 
 def _default_paths(sidecar_outdir: Path) -> dict[str, Path]:
@@ -372,6 +396,83 @@ def _path_from_summary(value: object, *, label: str) -> Path:
     return Path(text).expanduser().resolve()
 
 
+def _episode_manifest_context(
+    payload: Mapping[str, Any],
+) -> tuple[dict[Path, str], dict[Path, dict[str, str | None]]]:
+    source = _safe_mapping(payload.get("source_candidate"))
+    state_candidate = _safe_mapping(payload.get("state_candidate"))
+    manifest_paths = {
+        _path_from_summary(
+            source.get("manifest_path"), label="episode source manifest path"
+        ),
+        _path_from_summary(
+            state_candidate.get("manifest_path"), label="episode state manifest path"
+        ),
+    }
+    valid_refs: dict[Path, str] = {}
+    identities: dict[Path, dict[str, str | None]] = {}
+    for manifest_path in manifest_paths:
+        manifest = _load_json_object(manifest_path, label="episode manifest")
+        valid_refs[manifest_path] = _sha256_file(manifest_path)
+        identities[manifest_path] = _identity_from_manifest(manifest)
+    return valid_refs, identities
+
+
+def _validate_episode_jury_summary_payload(payload: Mapping[str, Any]) -> None:
+    steps = _safe_mapping(payload.get("steps"))
+    jury_step = _safe_mapping(steps.get("jury_results"))
+    model_jury_step = _safe_mapping(steps.get("model_jury_results"))
+    if jury_step.get("path") is None and model_jury_step.get("path") is None:
+        return
+
+    valid_refs, identities = _episode_manifest_context(payload)
+
+    if jury_step.get("path") is not None:
+        jury_path = _path_from_summary(
+            jury_step.get("path"), label="episode jury results path"
+        )
+        jury_payload = _load_json_object(jury_path, label="episode jury results")
+        manifest_path = validate_program_jury_results_contract(
+            jury_payload,
+            valid_manifest_refs=valid_refs,
+            label="program refinement episode jury summary",
+            error_type=ProgramRefinementEpisodeError,
+        )
+        expected_identity = identities.get(manifest_path)
+        if expected_identity is None or not _identity_matches(
+            _safe_mapping(jury_payload.get("identity")), expected_identity
+        ):
+            raise ProgramRefinementEpisodeError(
+                "program refinement episode jury summary identity does not match current manifest"
+            )
+
+    if model_jury_step.get("path") is not None:
+        model_jury_path = _path_from_summary(
+            model_jury_step.get("path"), label="episode model-jury results path"
+        )
+        model_jury_payload = _load_json_object(
+            model_jury_path, label="episode model-jury results"
+        )
+        validate_program_model_jury_results_contract(
+            model_jury_payload,
+            label="program refinement episode model-jury summary",
+            error_type=ProgramRefinementEpisodeError,
+            valid_manifest_refs=valid_refs,
+        )
+        model_created_from = _safe_mapping(model_jury_payload.get("created_from"))
+        model_manifest_path = _path_from_summary(
+            model_created_from.get("manifest_path"),
+            label="episode model-jury manifest path",
+        )
+        expected_identity = identities.get(model_manifest_path)
+        if expected_identity is None or not _identity_matches(
+            _safe_mapping(model_jury_payload.get("identity")), expected_identity
+        ):
+            raise ProgramRefinementEpisodeError(
+                "program refinement episode model-jury summary identity does not match current manifest"
+            )
+
+
 def _validate_gepa_episode_summary_payload(payload: Mapping[str, Any]) -> None:
     steps = _safe_mapping(payload.get("steps"))
     gepa_step = _safe_mapping(steps.get("gepa_candidate"))
@@ -449,6 +550,7 @@ def write_program_refinement_episode_result(
         )
     except ValueError as exc:
         raise ProgramRefinementEpisodeError(str(exc)) from exc
+    _validate_episode_jury_summary_payload(payload)
     _validate_gepa_episode_summary_payload(payload)
     target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))
