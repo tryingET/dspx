@@ -657,12 +657,12 @@ rules:
 
   - match: "packages/dspx-core/src/dspx/services/program_external_authority_export.py"
     category: python_service
-    impact_group: boundary_sensitive
+    impact_group: program_external_authority_export
     risk: expanded
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_authority_boundary_contracts
+      - pytest_program_external_authority_export
 
   - match: "packages/dspx-core/src/dspx/services/program_candidate_state.py"
     category: python_service
@@ -851,6 +851,15 @@ rules:
     commands:
       - ruff_touched
       - pytest_program_promotion_decision
+
+  - match: "tests/test_authority_adapter_export_preflight.py"
+    category: test
+    impact_group: program_external_authority_export
+    risk: bounded
+    exclusive: true
+    commands:
+      - ruff_touched
+      - pytest_program_external_authority_export
 
   - match: "tests/test_*.py"
     category: test

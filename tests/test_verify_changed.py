@@ -718,6 +718,42 @@ def test_promotion_decision_test_change_uses_product_shaped_decision_suite() -> 
     assert "tests/test_program_refinement_comparison.py" not in command
 
 
+def test_external_authority_export_change_uses_product_shaped_preflight_suite() -> None:
+    plan = _plan(
+        "packages/dspx-core/src/dspx/services/program_external_authority_export.py"
+    )
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_program_external_authority_export",
+    ]
+    command = plan["commands"][2]["command"]
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "tests/test_authority_adapter_export_preflight.py" in command
+    assert "tests/test_program_candidate_state.py" not in command
+    assert "pytest_authority_boundary_contracts" not in _command_ids(plan)
+
+
+def test_external_authority_export_test_change_uses_product_shaped_preflight_suite() -> (
+    None
+):
+    plan = _plan("tests/test_authority_adapter_export_preflight.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "pytest_program_external_authority_export",
+    ]
+    command = plan["commands"][1]["command"]
+    assert "tests/test_authority_adapter_export_preflight.py" in command
+    assert "tests/test_program_candidate_state.py" not in command
+
+
 def test_refinement_episode_code_test_and_docs_stays_product_bounded() -> None:
     plan = _plan(
         "packages/dspx-core/src/dspx/services/program_refinement_episode.py",
