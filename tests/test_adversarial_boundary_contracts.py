@@ -21,6 +21,8 @@ from dspx.services.program_surfaces import (
     render_direct_run_code,
     render_eval_behavior,
     render_eval_examples,
+    render_eval_jury,
+    render_eval_promotion,
 )
 
 runner = CliRunner()
@@ -338,6 +340,126 @@ def build_program(): return P()
     assert "Bearer [REDACTED]" in combined
     assert "token=[REDACTED]" in combined
     assert payload["examples"][0]["status"] == "error"
+
+
+def test_generated_eval_jury_redacts_contract_diagnostics(
+    tmp_path: Path,
+) -> None:
+    program_dir = tmp_path / "program"
+    program_dir.mkdir()
+    (program_dir / "eval_jury.py").write_text(render_eval_jury(), encoding="utf-8")
+    secret_message = (
+        "api_key=supersecret-value Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/run?token=url-secret&ok=1"
+    )
+    (program_dir / "jury.json").write_text(
+        json.dumps({"schema_version": "program-jury-v1"}), encoding="utf-8"
+    )
+    (program_dir / "jury_selection.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "program-jury-selection-v1",
+                "selected_jurors": secret_message,
+                "authority": "selection_contract_only_non_authoritative",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (program_dir / "jury_rubric.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "program-jury-rubric-v1",
+                "juror_rubrics": [],
+                "authority": "rubric_contract_only_non_authoritative",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "eval_jury.py"],
+        cwd=program_dir,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "supersecret-value" not in result.stderr
+    assert "bearer-secret" not in result.stderr
+    assert "url-secret" not in result.stderr
+    assert "user:pass@" not in result.stderr
+    assert "api_key=[REDACTED]" in result.stderr
+    assert "Bearer [REDACTED]" in result.stderr
+    assert "token=[REDACTED]" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_generated_eval_promotion_redacts_contract_diagnostics(
+    tmp_path: Path,
+) -> None:
+    program_dir = tmp_path / "program"
+    program_dir.mkdir()
+    (program_dir / "eval_promotion.py").write_text(
+        render_eval_promotion(), encoding="utf-8"
+    )
+    secret_message = (
+        "api_key=supersecret-value Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/run?token=url-secret&ok=1"
+    )
+    base_review = {
+        "schema_version": "program-promotion-review-v1",
+        "promotion_state": "not_promoted",
+        "decision": {"status": "pending"},
+        "adjudicator": "local",
+        "external_authority": {"opaque_ref": "none"},
+        "blocking_conditions": secret_message,
+        "non_authority": {
+            "automatic_promotion": False,
+            "ranking_pruning_promotion": False,
+            "external_authority_export": False,
+        },
+    }
+    request = {
+        "schema_version": "program-promotion-adjudication-request-v1",
+        "adjudicator": "local",
+        "external_authority": {"opaque_ref": "none"},
+        "decision_record_template": {
+            "schema_version": "program-promotion-decision-v1",
+            "status": "pending",
+            "decided_by": None,
+        },
+        "authority": "adjudication_request_only_non_authoritative",
+        "missing_required_evidence": [],
+        "status": "not_ready_blocked",
+    }
+    (program_dir / "promotion_review.json").write_text(
+        json.dumps(base_review), encoding="utf-8"
+    )
+    (program_dir / "promotion_adjudication_request.json").write_text(
+        json.dumps(request), encoding="utf-8"
+    )
+    (program_dir / "promotion_decision_template.json").write_text(
+        json.dumps(request["decision_record_template"]), encoding="utf-8"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "eval_promotion.py"],
+        cwd=program_dir,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "supersecret-value" not in result.stderr
+    assert "bearer-secret" not in result.stderr
+    assert "url-secret" not in result.stderr
+    assert "user:pass@" not in result.stderr
+    assert "api_key=[REDACTED]" in result.stderr
+    assert "Bearer [REDACTED]" in result.stderr
+    assert "token=[REDACTED]" in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_generated_eval_behavior_redacts_child_diagnostics(
