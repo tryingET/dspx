@@ -4,7 +4,7 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 PROGRAM_REFINEMENT_GEPA_CANDIDATE_RESULT_SCHEMA = (
     "program-refinement-gepa-candidate-result-v1"
@@ -403,31 +403,38 @@ def _load_optimizer_manifest(
     return payload, manifest_path
 
 
-def _load_ready_gepa_result(
-    path: Path,
+def _identity_matches_any(
+    actual: Mapping[str, Any], expected_identities: Sequence[Mapping[str, str | None]]
+) -> bool:
+    if not actual:
+        return False
+    for expected in expected_identities:
+        if all(
+            expected_value is None or actual.get(key) == expected_value
+            for key, expected_value in expected.items()
+        ):
+            return True
+    return False
+
+
+def _validate_gepa_result_base(
+    payload: Mapping[str, Any],
     *,
-    source_identity: Mapping[str, str | None],
-    source_program_hash: str,
-) -> tuple[dict[str, Any], dict[str, Any], Path]:
-    payload = _load_json_object(path, label="program GEPA refinement result")
+    expected_identities: Sequence[Mapping[str, str | None]],
+    label: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     if payload.get("schema_version") != PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA:
         raise ProgramRefinementGepaCandidateError(
-            "program GEPA refinement result schema_version must be "
-            + PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA
+            f"{label} schema_version must be {PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA}"
         )
-    _assert_identity_matches(
-        _safe_mapping(payload.get("source_identity")),
-        source_identity,
-        label="program GEPA refinement result",
-    )
+    source_identity = _safe_mapping(payload.get("source_identity"))
+    if not _identity_matches_any(source_identity, expected_identities):
+        raise ProgramRefinementGepaCandidateError(
+            f"{label} identity does not match expected source identity"
+        )
     if payload.get("candidate") is not None:
         raise ProgramRefinementGepaCandidateError(
-            "GEPA refinement result must not already claim a candidate"
-        )
-    gepa = _safe_mapping(payload.get("gepa"))
-    if gepa.get("attempted") is not True or gepa.get("status") != "completed":
-        raise ProgramRefinementGepaCandidateError(
-            "GEPA refinement result must record a completed GEPA attempt"
+            f"{label} must keep candidate null until explicit materialization"
         )
     effect = _safe_mapping(payload.get("effect"))
     invalid_effect = [
@@ -435,12 +442,12 @@ def _load_ready_gepa_result(
     ]
     if invalid_effect:
         raise ProgramRefinementGepaCandidateError(
-            "GEPA refinement result widens effect flags: " + ", ".join(invalid_effect)
+            f"{label} widens effect flags: " + ", ".join(invalid_effect)
         )
     non_authority = _safe_mapping(payload.get("non_authority"))
     if non_authority.get("local_refinement_only") is not True:
         raise ProgramRefinementGepaCandidateError(
-            "GEPA refinement result must be local-refinement-only"
+            f"{label} must be local-refinement-only"
         )
     invalid_non_authority = [
         key
@@ -449,38 +456,114 @@ def _load_ready_gepa_result(
     ]
     if invalid_non_authority:
         raise ProgramRefinementGepaCandidateError(
-            "GEPA refinement result widens non-authority flags: "
-            + ", ".join(invalid_non_authority)
+            f"{label} widens non-authority flags: " + ", ".join(invalid_non_authority)
         )
-    gepa_output = _safe_mapping(payload.get("gepa_output"))
-    readiness = _safe_mapping(gepa_output.get("readiness"))
-    if gepa_output.get("manifest_present") is not True:
-        raise ProgramRefinementGepaCandidateError(
-            "GEPA optimizer output manifest must be present"
+    return source_identity, _safe_mapping(payload.get("gepa_output"))
+
+
+def validate_program_refinement_gepa_result_contract(
+    payload: Mapping[str, Any],
+    *,
+    expected_identities: Sequence[Mapping[str, str | None]],
+    label: str = "program GEPA refinement result",
+    error_type: type[Exception] = ProgramRefinementGepaCandidateError,
+    source_program_hash: str | None = None,
+) -> dict[str, Any]:
+    """Validate a GEPA refinement sidecar before a final consumer trusts it.
+
+    The sidecar is local optimizer evidence only. When it claims materializer
+    readiness and a current source program hash is supplied, this validator also
+    re-reads the optimizer manifest and payload inventory so stale optimizer
+    output cannot shape downstream summaries.
+    """
+
+    try:
+        source_identity, gepa_output = _validate_gepa_result_base(
+            payload,
+            expected_identities=expected_identities,
+            label=label,
         )
-    if gepa_output.get("manifest_valid") is not True:
-        raise ProgramRefinementGepaCandidateError(
-            "GEPA optimizer output manifest must be valid"
-        )
-    if readiness.get("ready_for_future_candidate_materializer") is not True:
+        readiness = _safe_mapping(gepa_output.get("readiness"))
+        readiness_claim = readiness.get("ready_for_future_candidate_materializer")
+        optimizer_manifest: dict[str, Any] | None = None
+        optimizer_root: Path | None = None
+        if readiness_claim is True:
+            gepa = _safe_mapping(payload.get("gepa"))
+            if payload.get("status") == "gepa_output_unverified":
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} readiness conflicts with unverified status"
+                )
+            if gepa.get("attempted") is not True or gepa.get("status") != "completed":
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} readiness requires a completed GEPA attempt"
+                )
+            if gepa_output.get("manifest_present") is not True:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} readiness requires manifest_present true"
+                )
+            if gepa_output.get("manifest_valid") is not True:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} readiness requires manifest_valid true"
+                )
+            if readiness.get("status") != "optimizer_output_hash_bound_not_candidate":
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} readiness status must be optimizer_output_hash_bound_not_candidate"
+                )
+            expected_hash = str(gepa_output.get("manifest_sha256") or "").strip()
+            if not expected_hash:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} readiness requires manifest_sha256"
+                )
+            optimizer_root = (
+                Path(str(gepa_output.get("root_path") or "")).expanduser().resolve()
+            )
+            if source_program_hash is not None:
+                optimizer_manifest, _ = _load_optimizer_manifest(
+                    optimizer_root=optimizer_root,
+                    expected_manifest_hash=expected_hash,
+                    source_program_hash=source_program_hash,
+                )
+        return {
+            "source_identity": source_identity,
+            "ready_for_future_candidate_materializer": readiness_claim is True,
+            "optimizer_root": optimizer_root,
+            "optimizer_manifest": optimizer_manifest,
+        }
+    except ProgramRefinementGepaCandidateError as exc:
+        if error_type is ProgramRefinementGepaCandidateError:
+            raise
+        raise error_type(str(exc)) from exc
+
+
+def _load_ready_gepa_result(
+    path: Path,
+    *,
+    source_identity: Mapping[str, str | None],
+    source_program_hash: str,
+) -> tuple[dict[str, Any], dict[str, Any], Path]:
+    payload = _load_json_object(path, label="program GEPA refinement result")
+    validation = validate_program_refinement_gepa_result_contract(
+        payload,
+        expected_identities=[source_identity],
+        source_program_hash=source_program_hash,
+    )
+    if validation["ready_for_future_candidate_materializer"] is not True:
+        gepa_output = _safe_mapping(payload.get("gepa_output"))
+        if gepa_output.get("manifest_present") is not True:
+            raise ProgramRefinementGepaCandidateError(
+                "GEPA optimizer output manifest must be present"
+            )
+        if gepa_output.get("manifest_valid") is not True:
+            raise ProgramRefinementGepaCandidateError(
+                "GEPA optimizer output manifest must be valid"
+            )
         raise ProgramRefinementGepaCandidateError(
             "GEPA optimizer output is not ready for candidate materialization"
         )
-    if readiness.get("status") != "optimizer_output_hash_bound_not_candidate":
+    optimizer_manifest = validation.get("optimizer_manifest")
+    optimizer_root = validation.get("optimizer_root")
+    if not isinstance(optimizer_manifest, dict) or not isinstance(optimizer_root, Path):
         raise ProgramRefinementGepaCandidateError(
-            "GEPA optimizer output readiness status is not materializer-ready"
+            "GEPA optimizer output was not revalidated for candidate materialization"
         )
-    expected_hash = str(gepa_output.get("manifest_sha256") or "").strip()
-    if not expected_hash:
-        raise ProgramRefinementGepaCandidateError(
-            "GEPA optimizer output must include a manifest hash"
-        )
-    optimizer_root = (
-        Path(str(gepa_output.get("root_path") or "")).expanduser().resolve()
-    )
-    optimizer_manifest, _ = _load_optimizer_manifest(
-        optimizer_root=optimizer_root,
-        expected_manifest_hash=expected_hash,
-        source_program_hash=source_program_hash,
-    )
     return payload, optimizer_manifest, optimizer_root

@@ -26,6 +26,9 @@ from dspx.services.program_oracle_publication import (
     validate_program_oracle_publication_preflight_contract,
     validate_program_oracle_publication_receipt_contract,
 )
+from dspx.services.program_refinement_gepa_candidate_contracts import (
+    validate_program_refinement_gepa_result_contract,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -247,6 +250,28 @@ def _optional_hash(path: Path | None) -> str | None:
     if path is None or not path.exists():
         return None
     return _sha256_file(path)
+
+
+def _declared_program_surface_hash(
+    manifest: Mapping[str, Any], manifest_path: Path
+) -> str | None:
+    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
+    program_path: Path | None = None
+    for surface in _safe_list(candidate_assembly.get("surfaces")):
+        if not isinstance(surface, Mapping) or surface.get("kind") != "program":
+            continue
+        raw_path = _first_text(surface.get("path"))
+        if raw_path:
+            program_path = Path(raw_path)
+            break
+    if program_path is None:
+        program_path = Path("program.py")
+    if not program_path.is_absolute():
+        program_path = _manifest_root(manifest_path) / program_path
+    program_path = program_path.expanduser().resolve()
+    if not program_path.exists():
+        return None
+    return _sha256_file(program_path)
 
 
 def _declared_behavior_episode_path(
@@ -515,8 +540,10 @@ def _validate_optional_inputs(
     gepa_refinement: Mapping[str, Any] | None,
     current_manifest_path: Path,
     current_manifest_hash: str,
+    current_program_hash: str | None,
     source_manifest_path: Path | None,
     source_manifest_hash: str | None,
+    source_program_hash: str | None,
     behavior_hash: str | None,
     behavior_episode_hash: str | None,
     sidecar_hashes: Mapping[str, str | None],
@@ -649,69 +676,25 @@ def _validate_optional_inputs(
             )
 
     if gepa_refinement is not None:
-        _validate_non_authority_false(
-            gepa_refinement,
-            label="program GEPA refinement result",
-            keys=(
-                "automatic_promotion",
-                "oracle_ranking",
-                "oracle_pruning",
-                "oracle_promotion",
-                "winner_selection",
-                "external_authority_export",
-                "governance_authority",
-                "external_mutation",
-            ),
-        )
-        effect = _safe_mapping(gepa_refinement.get("effect"))
-        if effect.get("local_gepa_candidate_generated") is not False:
-            raise ProgramCandidateStateError(
-                "program GEPA refinement result must not claim local candidate generation"
-            )
-        if effect.get("source_program_files_mutated") is not False:
-            raise ProgramCandidateStateError(
-                "program GEPA refinement result must record source_program_files_mutated false"
-            )
-        if gepa_refinement.get("candidate") is not None:
-            raise ProgramCandidateStateError(
-                "program GEPA refinement result must keep candidate null"
-            )
         gepa_identity = _safe_mapping(gepa_refinement.get("source_identity"))
-        if (
-            _identity_role(
-                gepa_identity,
-                candidate_identity=candidate_identity,
-                source_identity=source_identity,
-            )
-            == "unrelated"
-        ):
+        gepa_role = _identity_role(
+            gepa_identity,
+            candidate_identity=candidate_identity,
+            source_identity=source_identity,
+        )
+        if gepa_role == "unrelated":
             raise ProgramCandidateStateError(
                 "program GEPA refinement identity does not match candidate/source identity"
             )
-        gepa_output = _safe_mapping(gepa_refinement.get("gepa_output"))
-        readiness = _safe_mapping(gepa_output.get("readiness"))
-        readiness_claim = readiness.get("ready_for_future_candidate_materializer")
-        if readiness_claim is True:
-            if gepa_refinement.get("status") == "gepa_output_unverified":
-                raise ProgramCandidateStateError(
-                    "program GEPA refinement readiness conflicts with unverified status"
-                )
-            if gepa_output.get("manifest_present") is not True:
-                raise ProgramCandidateStateError(
-                    "program GEPA refinement readiness requires manifest_present true"
-                )
-            if gepa_output.get("manifest_valid") is not True:
-                raise ProgramCandidateStateError(
-                    "program GEPA refinement readiness requires manifest_valid true"
-                )
-            if not _first_text(gepa_output.get("manifest_sha256")):
-                raise ProgramCandidateStateError(
-                    "program GEPA refinement readiness requires manifest_sha256"
-                )
-            if readiness.get("status") != "optimizer_output_hash_bound_not_candidate":
-                raise ProgramCandidateStateError(
-                    "program GEPA refinement readiness status must be optimizer_output_hash_bound_not_candidate"
-                )
+        gepa_program_hash = (
+            source_program_hash if gepa_role == "source" else current_program_hash
+        )
+        validate_program_refinement_gepa_result_contract(
+            gepa_refinement,
+            expected_identities=source_or_candidate,
+            error_type=ProgramCandidateStateError,
+            source_program_hash=gepa_program_hash,
+        )
 
     if promotion_plan is not None:
         if promotion_plan.get("status") != "planned_not_applied":
@@ -1773,6 +1756,12 @@ def build_program_candidate_state(
     )
 
     manifest_hash = _sha256_file(manifest_path)
+    current_program_hash = _declared_program_surface_hash(manifest, manifest_path)
+    source_program_hash = (
+        _declared_program_surface_hash(source_manifest, source_manifest_resolved)
+        if source_manifest is not None and source_manifest_resolved is not None
+        else None
+    )
     activation_sidecar_hashes = {
         "oracle_report": oracle_report_hash,
         "jury_results": jury_results_hash,
@@ -1837,8 +1826,10 @@ def build_program_candidate_state(
         gepa_refinement=gepa_refinement,
         current_manifest_path=manifest_path,
         current_manifest_hash=manifest_hash,
+        current_program_hash=current_program_hash,
         source_manifest_path=source_manifest_resolved,
         source_manifest_hash=source_manifest_hash,
+        source_program_hash=source_program_hash,
         behavior_hash=behavior_hash,
         behavior_episode_hash=behavior_episode_hash,
         sidecar_hashes=activation_sidecar_hashes,

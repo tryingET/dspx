@@ -350,7 +350,42 @@ def _write_gepa_refinement_result(
     identity = _identity_from_manifest_path(manifest_path)
     if authority_drift:
         identity = {**identity, "candidate_id": "wrong-candidate"}
-    optimizer_manifest_hash = hashlib.sha256(b"optimizer-manifest").hexdigest()
+    optimizer_root = path.parent / "gepa_optimizer_output"
+    optimizer_root.mkdir(parents=True, exist_ok=True)
+    optimizer_payload_path = optimizer_root / "optimizer_state.json"
+    optimizer_payload_path.write_text('{"weights": [1]}\n', encoding="utf-8")
+    optimizer_payload_file = {
+        "path": "optimizer_state.json",
+        "sha256": hashlib.sha256(optimizer_payload_path.read_bytes()).hexdigest(),
+        "size_bytes": optimizer_payload_path.stat().st_size,
+    }
+    optimizer_tree_text = json.dumps(
+        [optimizer_payload_file], sort_keys=True, separators=(",", ":")
+    )
+    optimizer_manifest_path = optimizer_root / "manifest.json"
+    _write_json(
+        optimizer_manifest_path,
+        {
+            "schema_version": "dspy-gepa-optimizer-output-manifest-v1",
+            "program": {
+                "path": str(manifest_path.parent / "program.py"),
+                "sha256": hashlib.sha256(
+                    (manifest_path.parent / "program.py").read_bytes()
+                ).hexdigest(),
+            },
+            "output_payload": {
+                "hash_algorithm": "sha256",
+                "tree_hash": hashlib.sha256(
+                    optimizer_tree_text.encode("utf-8")
+                ).hexdigest(),
+                "files": [optimizer_payload_file],
+                "excludes": ["manifest.json"],
+            },
+        },
+    )
+    optimizer_manifest_hash = hashlib.sha256(
+        optimizer_manifest_path.read_bytes()
+    ).hexdigest()
     _write_json(
         path,
         {
@@ -378,8 +413,8 @@ def _write_gepa_refinement_result(
                 },
             },
             "gepa_output": {
-                "root_path": "/tmp/program-gepa",
-                "manifest_path": "/tmp/program-gepa/manifest.json",
+                "root_path": str(optimizer_root),
+                "manifest_path": str(optimizer_manifest_path),
                 "manifest_present": True,
                 "manifest_valid": True,
                 "manifest_sha256": optimizer_manifest_hash,
@@ -767,7 +802,9 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
         "optimizer_metric": "exact",
         "output_manifest_present": True,
         "output_manifest_valid": True,
-        "output_manifest_sha256": hashlib.sha256(b"optimizer-manifest").hexdigest(),
+        "output_manifest_sha256": json.loads(
+            paths["gepa_refinement"].read_text(encoding="utf-8")
+        )["gepa_output"]["manifest_sha256"],
         "output_readiness_status": "optimizer_output_hash_bound_not_candidate",
         "ready_for_future_candidate_materializer": True,
         "readiness_blockers": [
@@ -1624,10 +1661,41 @@ def test_program_candidate_state_rejects_gepa_refinement_candidate_claim(
 
     with pytest.raises(
         ProgramCandidateStateError,
-        match="program GEPA refinement result must not claim local candidate generation",
+        match="program GEPA refinement result must keep candidate null",
     ):
         build_program_candidate_state(
             manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=_source_root / "manifest.json",
+            gepa_refinement_path=bad_gepa,
+        )
+
+
+def test_program_candidate_state_rejects_stale_gepa_optimizer_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    bad_payload = json.loads(paths["gepa_refinement"].read_text(encoding="utf-8"))
+    optimizer_manifest = Path(bad_payload["gepa_output"]["manifest_path"])
+    manifest_payload = json.loads(optimizer_manifest.read_text(encoding="utf-8"))
+    manifest_payload["program"]["sha256"] = "0" * 64
+    _write_json(optimizer_manifest, manifest_payload)
+    bad_payload["gepa_output"]["manifest_sha256"] = hashlib.sha256(
+        optimizer_manifest.read_bytes()
+    ).hexdigest()
+    bad_gepa = tmp_path / "refinement" / "bad_gepa_optimizer_manifest.json"
+    _write_json(bad_gepa, bad_payload)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="source program hash does not match source candidate",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
             gepa_refinement_path=bad_gepa,
         )
 
