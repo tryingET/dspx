@@ -173,6 +173,42 @@ def test_model_jury_service_calls_provider_backed_jurors_without_mutating_candid
     assert _file_hashes(program_root) == before
 
 
+def test_model_jury_execution_redacts_failed_juror_diagnostics(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    secret_diagnostic = (
+        "provider failed with api_key=supersecret-value "
+        "Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/path?token=url-secret"
+    )
+
+    def failing_juror_model(**_: Any) -> dict[str, Any]:
+        raise RuntimeError(secret_diagnostic)
+
+    monkeypatch.setattr(model_jury, "_configure_provider", _fake_provider)
+    monkeypatch.setattr(model_jury, "_run_juror_model", failing_juror_model)
+
+    payload = model_jury.build_program_model_jury_execution_result(
+        manifest_path=program_root / "manifest.json",
+        provider="stub",
+        max_jurors=1,
+    )
+
+    assert payload["status"] == "executed_with_failures"
+    assert payload["juror_results"][0]["status"] == "failed"
+    encoded = json.dumps(payload["juror_results"][0]["error"], sort_keys=True)
+    assert "supersecret-value" not in encoded
+    assert "bearer-secret" not in encoded
+    assert "url-secret" not in encoded
+    assert "user:pass@" not in encoded
+    assert "api_key=[REDACTED]" in encoded
+    assert "Bearer [REDACTED]" in encoded
+    assert "token=[REDACTED]" in encoded
+    assert payload["effect"]["program_files_mutated"] is False
+
+
 def test_model_jury_contract_rejects_missing_bound_jury_artifacts(
     tmp_path: Path,
     monkeypatch,
@@ -538,6 +574,49 @@ def test_configure_provider_restores_provider_env_on_success(
 
     assert model_jury._configure_provider("temporary")["provider"] == "stub"
     assert os.environ["DSPX_PROVIDER"] == "before"
+
+
+def test_configure_provider_redacts_secret_failure_diagnostics(monkeypatch) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "before")
+
+    class FakeDspy:
+        @staticmethod
+        def configure(*, lm: object) -> None:
+            assert lm is not None
+
+    original_import = __import__
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> object:
+        if name == "dspy":
+            return FakeDspy
+        return original_import(name, *args, **kwargs)
+
+    def failing_provider(default: str) -> object:
+        raise RuntimeError(
+            "provider failed with api_key=supersecret-value "
+            "Authorization: Bearer bearer-secret "
+            "https://user:pass@example.test/path?token=url-secret"
+        )
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    monkeypatch.setattr("dspx.provider_registry.ensure_default_providers", lambda: None)
+    monkeypatch.setattr("dspx.provider_registry.create_from_env", failing_provider)
+
+    try:
+        model_jury._configure_provider("temporary")
+    except model_jury.ProgramModelJuryExecutionError as exc:
+        message = str(exc)
+    else:  # pragma: no cover - defensive assertion for failed-provider test
+        raise AssertionError("provider failure was accepted")
+
+    assert os.environ["DSPX_PROVIDER"] == "before"
+    assert "supersecret-value" not in message
+    assert "bearer-secret" not in message
+    assert "url-secret" not in message
+    assert "user:pass@" not in message
+    assert "api_key=[REDACTED]" in message
+    assert "Bearer [REDACTED]" in message
+    assert "token=[REDACTED]" in message
 
 
 def test_program_promote_model_jury_rejects_evidence_output_overlap_before_provider_calls(

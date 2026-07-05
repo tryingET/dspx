@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from dspx.redaction import sanitize_diagnostic_text
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
 
 PROGRAM_MODEL_JURY_RESULTS_SCHEMA = "program-model-jury-results-v1"
@@ -86,6 +87,11 @@ def _sha256_file(path: Path) -> str:
 
 def _sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _sanitize_model_jury_diagnostic(value: object, *, limit: int = 1000) -> str:
+    text = "" if value is None else str(value)
+    return sanitize_diagnostic_text(text, limit=max(len(text), limit))
 
 
 def _json_text(payload: Mapping[str, Any]) -> str:
@@ -351,8 +357,9 @@ def _configure_provider(provider: str | None = None) -> dict[str, Any]:
             "provider": getattr(lm, "model", type(lm).__name__),
         }
     except Exception as exc:
+        diagnostic = _sanitize_model_jury_diagnostic(exc)
         raise ProgramModelJuryExecutionError(
-            f"model jury provider configuration failed: {type(exc).__name__}: {exc}"
+            f"model jury provider configuration failed: {type(exc).__name__}: {diagnostic}"
         ) from exc
 
 
@@ -546,7 +553,10 @@ def build_program_model_jury_execution_result(
                     "model": juror.get("model") or provider_config.get("provider"),
                     "execution_mode": "provider_backed_model",
                     "status": "failed",
-                    "error": {"type": type(exc).__name__, "message": str(exc)},
+                    "error": {
+                        "type": type(exc).__name__,
+                        "message": _sanitize_model_jury_diagnostic(exc),
+                    },
                 }
             )
     aggregate = _aggregate(juror_results)
