@@ -210,6 +210,130 @@ def _all_declared_false(payload: object, keys: Mapping[str, bool]) -> bool:
     return all(payload_map.get(key) is False for key in keys)
 
 
+def _identity_matches(actual: Mapping[str, Any], expected: Mapping[str, Any]) -> bool:
+    return all(
+        _first_text(actual.get(key)) == _first_text(expected.get(key))
+        for key in (
+            "request_id",
+            "candidate_id",
+            "assembly_id",
+            "episode_id",
+            "receipt_bundle_id",
+        )
+    )
+
+
+def _raise_contract_error(error_type: type[Exception], message: str) -> None:
+    raise error_type(message)
+
+
+def validate_program_meta_adjudication_plan_contract(
+    plan: Mapping[str, Any],
+    *,
+    expected_identities: object,
+    valid_manifest_hashes: object,
+    supplied_sidecar_refs: Mapping[str, tuple[Path, str]] | None = None,
+    label: str = "program meta-adjudication plan",
+    error_type: type[Exception] = ProgramMetaAdjudicationError,
+) -> dict[str, Any]:
+    """Validate a meta-adjudication plan at a final-consumer boundary."""
+
+    if plan.get("schema_version") != PROGRAM_META_ADJUDICATION_PLAN_SCHEMA:
+        _raise_contract_error(
+            error_type,
+            f"{label} schema_version must be {PROGRAM_META_ADJUDICATION_PLAN_SCHEMA}",
+        )
+    if plan.get("status") != "planned_not_executed":
+        _raise_contract_error(
+            error_type, f"{label} status must be planned_not_executed"
+        )
+    if plan.get("lifecycle_state") != "meta_adjudication_plan_ready":
+        _raise_contract_error(
+            error_type,
+            f"{label} lifecycle_state must be meta_adjudication_plan_ready",
+        )
+    if not _all_declared_false(plan.get("non_authority"), _NON_AUTHORITY):
+        _raise_contract_error(
+            error_type,
+            f"{label} non_authority flags must remain false authority claims",
+        )
+    if not _all_declared_false(plan.get("effect"), _EFFECT):
+        _raise_contract_error(
+            error_type, f"{label} effect flags must remain local/no-effect false"
+        )
+
+    expected = (
+        [
+            _safe_mapping(item)
+            for item in expected_identities
+            if isinstance(item, Mapping)
+        ]
+        if isinstance(expected_identities, list | tuple | set)
+        else []
+    )
+    identity = _safe_mapping(plan.get("identity"))
+    if expected and not any(_identity_matches(identity, item) for item in expected):
+        _raise_contract_error(
+            error_type,
+            f"{label} identity does not match expected candidate/source identity",
+        )
+
+    valid_hashes = (
+        {str(item).strip() for item in valid_manifest_hashes if str(item).strip()}
+        if isinstance(valid_manifest_hashes, list | tuple | set)
+        else set()
+    )
+    manifest = _safe_mapping(plan.get("manifest"))
+    manifest_hash = _first_text(manifest.get("sha256"))
+    if valid_hashes and manifest_hash not in valid_hashes:
+        _raise_contract_error(
+            error_type, f"{label} manifest sha256 does not match current manifest"
+        )
+
+    sidecars = _safe_mapping(plan.get("sidecars"))
+    supplied = supplied_sidecar_refs or {}
+    for key, raw_status in sidecars.items():
+        if not isinstance(raw_status, Mapping) or raw_status.get("present") is not True:
+            continue
+        status = _safe_mapping(raw_status)
+        if status.get("status") != "present" or status.get(
+            "schema_version"
+        ) != status.get("required_schema"):
+            _raise_contract_error(
+                error_type,
+                f"{label} {key} sidecar must have present status and expected schema",
+            )
+        raw_path = _first_text(status.get("path"))
+        claimed_hash = _first_text(status.get("sha256"))
+        if raw_path is None or claimed_hash is None:
+            _raise_contract_error(
+                error_type, f"{label} {key} sidecar ref must include path and sha256"
+            )
+        assert raw_path is not None
+        assert claimed_hash is not None
+        path = Path(raw_path).expanduser().resolve()
+        if not path.exists():
+            _raise_contract_error(
+                error_type, f"{label} {key} sidecar is missing: {path}"
+            )
+        if _sha256_file(path) != claimed_hash:
+            _raise_contract_error(
+                error_type, f"{label} {key} sidecar sha256 does not match current file"
+            )
+        supplied_ref = supplied.get(key)
+        if supplied_ref is not None:
+            supplied_path, supplied_hash = supplied_ref
+            if (
+                path != supplied_path.expanduser().resolve()
+                or claimed_hash != supplied_hash
+            ):
+                _raise_contract_error(
+                    error_type,
+                    f"{label} {key} sidecar does not match supplied {key}",
+                )
+    return {"manifest_sha256": manifest_hash, "identity": identity}
+
+
 def _manifest_root(manifest_path: Path) -> Path:
     return manifest_path.expanduser().resolve().parent
 

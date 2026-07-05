@@ -917,6 +917,43 @@ def test_program_refinement_episode_can_write_meta_adjudication_plan(
     assert _file_hashes(program_root) == before_source_hashes
 
 
+def test_program_refinement_episode_revalidates_meta_adjudication_plan_before_workflow_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "episode-meta-summary-drift"
+    original_write_state = episode_service.write_program_candidate_state
+
+    def tampering_state_writer(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        state = original_write_state(*args, **kwargs)
+        meta_path = outdir / "meta_adjudication_plan.json"
+        meta_payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta_payload["effect"]["provider_called"] = True
+        _write_json(meta_path, meta_payload)
+        return state
+
+    monkeypatch.setattr(
+        episode_service, "write_program_candidate_state", tampering_state_writer
+    )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="effect flags"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="revalidate meta-adjudication plan before workflow summary",
+            generate_second_candidate=False,
+            run_local_jury=True,
+            generate_meta_adjudication_plan=True,
+        )
+
+    _assert_no_episode_sidecars(outdir)
+    assert not (outdir / "jury_results.json").exists()
+    assert not (outdir / "meta_adjudication_plan.json").exists()
+
+
 def test_program_refinement_episode_rejects_unsafe_meta_adjudication_plan_options(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

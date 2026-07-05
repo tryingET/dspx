@@ -25,6 +25,7 @@ from dspx.services.program_jury_result_validation import (
 )
 from dspx.services.program_meta_adjudication import (
     build_program_meta_adjudication_plan,
+    validate_program_meta_adjudication_plan_contract,
     write_program_meta_adjudication_plan,
 )
 from dspx.services.program_model_jury_validation import (
@@ -528,6 +529,48 @@ def _validate_episode_export_preflight_summary_payload(
         )
 
 
+def _validate_episode_meta_adjudication_summary_payload(
+    payload: Mapping[str, Any],
+) -> None:
+    steps = _safe_mapping(payload.get("steps"))
+    meta_step = _safe_mapping(steps.get("meta_adjudication_plan"))
+    if meta_step.get("status") in (None, "skipped"):
+        return
+
+    valid_refs, identities = _episode_manifest_context(payload)
+    meta_plan_path = _path_from_summary(
+        meta_step.get("path"), label="episode meta-adjudication plan path"
+    )
+    meta_plan = _load_json_object(
+        meta_plan_path, label="episode meta-adjudication plan"
+    )
+    created_from = _safe_mapping(payload.get("created_from"))
+    sidecar_refs: dict[str, tuple[Path, str]] = {}
+    for key, raw_path in {
+        "oracle_report": created_from.get("oracle_report_path"),
+        "jury_results": _safe_mapping(steps.get("jury_results")).get("path"),
+        "review": _safe_mapping(steps.get("promotion_review_refined")).get("path"),
+        "decision_record": _safe_mapping(steps.get("decision_record")).get("path"),
+    }.items():
+        if raw_path is None:
+            continue
+        path = _path_from_summary(raw_path, label=f"episode {key} sidecar path")
+        sidecar_refs[key] = (path, _sha256_file(path))
+
+    validate_program_meta_adjudication_plan_contract(
+        meta_plan,
+        expected_identities=list(identities.values()),
+        valid_manifest_hashes=set(valid_refs.values()),
+        supplied_sidecar_refs=sidecar_refs,
+        label="program refinement episode meta-adjudication summary",
+        error_type=ProgramRefinementEpisodeError,
+    )
+    if meta_step.get("lifecycle_state") != meta_plan.get("lifecycle_state"):
+        raise ProgramRefinementEpisodeError(
+            "program refinement episode meta-adjudication summary lifecycle_state drifted from plan"
+        )
+
+
 def _validate_gepa_episode_summary_payload(payload: Mapping[str, Any]) -> None:
     steps = _safe_mapping(payload.get("steps"))
     gepa_step = _safe_mapping(steps.get("gepa_candidate"))
@@ -607,6 +650,7 @@ def write_program_refinement_episode_result(
         raise ProgramRefinementEpisodeError(str(exc)) from exc
     _validate_episode_jury_summary_payload(payload)
     _validate_episode_export_preflight_summary_payload(payload)
+    _validate_episode_meta_adjudication_summary_payload(payload)
     _validate_gepa_episode_summary_payload(payload)
     target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))
