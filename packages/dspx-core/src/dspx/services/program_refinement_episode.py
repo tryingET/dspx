@@ -11,7 +11,9 @@ from dspx.services.program_candidate_state import (
     write_program_candidate_state,
 )
 from dspx.services.program_external_authority_export import (
+    ProgramExternalAuthorityExportError,
     build_program_external_authority_export_preflight,
+    validate_program_external_authority_export_preflight_contract,
     write_program_external_authority_export_preflight,
 )
 from dspx.services.program_jury_execution import (
@@ -473,6 +475,59 @@ def _validate_episode_jury_summary_payload(payload: Mapping[str, Any]) -> None:
             )
 
 
+def _validate_episode_export_preflight_summary_payload(
+    payload: Mapping[str, Any],
+) -> None:
+    steps = _safe_mapping(payload.get("steps"))
+    export_step = _safe_mapping(steps.get("external_authority_export_preflight"))
+    if export_step.get("status") in (None, "skipped"):
+        return
+
+    valid_refs, identities = _episode_manifest_context(payload)
+    export_preflight_path = _path_from_summary(
+        export_step.get("path"), label="episode export preflight path"
+    )
+    export_preflight = _load_json_object(
+        export_preflight_path, label="episode export preflight"
+    )
+    decision_step = _safe_mapping(steps.get("decision_record"))
+    decision_record_path = _path_from_summary(
+        decision_step.get("path"), label="episode decision record path"
+    )
+    comparison_path: Path | None = None
+    for step_name in ("second_candidate", "gepa_candidate"):
+        step = _safe_mapping(steps.get(step_name))
+        if (
+            step.get("status") not in (None, "skipped")
+            and step.get("comparison_path") is not None
+        ):
+            comparison_path = _path_from_summary(
+                step.get("comparison_path"),
+                label=f"episode {step_name} comparison path",
+            )
+            break
+    try:
+        validate_program_external_authority_export_preflight_contract(
+            export_preflight,
+            expected_identities=list(identities.values()),
+            valid_manifest_hashes=set(valid_refs.values()),
+            decision_record_sha256=_sha256_file(decision_record_path),
+            comparison_sha256=_sha256_file(comparison_path)
+            if comparison_path is not None
+            else None,
+        )
+    except ProgramExternalAuthorityExportError as exc:
+        raise ProgramRefinementEpisodeError(str(exc)) from exc
+    if export_step.get("ready_for_future_apply") is not False:
+        raise ProgramRefinementEpisodeError(
+            "program refinement episode export preflight summary must keep ready_for_future_apply false"
+        )
+    if export_step.get("state_evidence_present") is not True:
+        raise ProgramRefinementEpisodeError(
+            "program refinement episode export preflight summary must be present in candidate state"
+        )
+
+
 def _validate_gepa_episode_summary_payload(payload: Mapping[str, Any]) -> None:
     steps = _safe_mapping(payload.get("steps"))
     gepa_step = _safe_mapping(steps.get("gepa_candidate"))
@@ -551,6 +606,7 @@ def write_program_refinement_episode_result(
     except ValueError as exc:
         raise ProgramRefinementEpisodeError(str(exc)) from exc
     _validate_episode_jury_summary_payload(payload)
+    _validate_episode_export_preflight_summary_payload(payload)
     _validate_gepa_episode_summary_payload(payload)
     target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))

@@ -473,6 +473,42 @@ def test_program_refinement_episode_writes_export_preflight_as_state_evidence(
     assert _file_hashes(program_root) == before_source_hashes
 
 
+def test_program_refinement_episode_revalidates_export_preflight_before_workflow_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "episode-export-preflight-drift"
+    preflight_path = outdir / "external_authority_export_preflight.json"
+    original_write_state = episode_service.write_program_candidate_state
+
+    def tamper_preflight_after_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        state_payload = original_write_state(*args, **kwargs)
+        preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+        preflight["effect"]["ak_called"] = True
+        _write_json(preflight_path, preflight)
+        return state_payload
+
+    monkeypatch.setattr(
+        episode_service,
+        "write_program_candidate_state",
+        tamper_preflight_after_state,
+    )
+
+    with pytest.raises(ProgramRefinementEpisodeError, match="ak_called false"):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="withhold",
+            decided_by="operator-test",
+            rationale="reject drifted export preflight before workflow summary",
+            generate_second_candidate=False,
+            external_ref="AK-LOCAL-PREFLIGHT",
+        )
+
+    _assert_no_episode_sidecars(outdir)
+
+
 def test_program_refinement_episode_rejects_export_preflight_options_before_writes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
