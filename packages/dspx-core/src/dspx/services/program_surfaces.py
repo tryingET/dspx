@@ -124,6 +124,15 @@ def _redact_url(value: object) -> str | None:
     return redact_url(str(value))
 
 
+def _sanitize_diagnostic_text(value: object, *, limit: int = 2000) -> str:
+    try:
+        from dspx.redaction import sanitize_diagnostic_text
+    except Exception:
+        text = '' if value is None else str(value)
+        return text[-limit:]
+    return sanitize_diagnostic_text('' if value is None else str(value), limit=limit)
+
+
 def _prediction_mapping(prediction: object, output_fields: list[str]) -> dict[str, object]:
     if isinstance(prediction, Mapping):
         return {str(key): value for key, value in prediction.items()}
@@ -443,7 +452,7 @@ def _write_direct_run_receipt(
     if error is not None:
         receipt['error'] = {
             'type': type(error).__name__,
-            'message': str(error),
+            'message': _sanitize_diagnostic_text(error),
         }
     (outdir / OUTPUT_RECEIPT).write_text(
         json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
@@ -501,7 +510,7 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
             artifacts_logged=False,
             error=exc,
         )
-        raise
+        raise SystemExit(_sanitize_diagnostic_text(exc)) from None
     finally:
         end_observability_run(started, status=end_status)
 
@@ -545,7 +554,7 @@ def _tail_text(value: object, *, limit: int = 2000) -> str:
         text = value.decode('utf-8', errors='replace')
     else:
         text = str(value)
-    return text[-limit:]
+    return _sanitize_diagnostic_text(text, limit=limit)
 
 
 def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: int, config_path: Path | None) -> dict[str, Any]:
@@ -581,7 +590,7 @@ def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: in
                 'attempt': attempt + 1,
                 'returncode': None,
                 'error_type': type(exc).__name__,
-                'error': str(exc),
+                'error': _sanitize_diagnostic_text(exc),
             })
             continue
         attempts.append({
@@ -661,7 +670,7 @@ def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds
                     'outdir': str(outdir.resolve()),
                     'attempts': [],
                     'error_type': type(exc).__name__,
-                    'error': str(exc),
+                    'error': _sanitize_diagnostic_text(exc),
                 })
     results.sort(key=lambda item: str(item.get('target', '')))
     failed = [item for item in results if item.get('status') != 'ok']
