@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.coordinates import reset_embedding_engine
+from dspx.services import program_refinement_episode as episode_service
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_jury_execution import (
     build_program_jury_execution_result,
@@ -1312,6 +1313,47 @@ def test_program_refinement_episode_can_materialize_gepa_candidate_and_state(
     assert _file_hashes(tmp_path / "program-gepa") == before_optimizer_hashes
 
 
+def test_program_refinement_episode_revalidates_gepa_result_before_workflow_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    gepa_result = _write_ready_gepa_result(tmp_path, program_root)
+    outdir = tmp_path / "refinement-episode"
+    original_workflow = (
+        episode_service.materialize_and_compare_gepa_refinement_candidate
+    )
+
+    def tampered_gepa_workflow(**kwargs: Any) -> dict[str, Any]:
+        workflow = original_workflow(**kwargs)
+        result_path = Path(str(kwargs["gepa_candidate_result_out"])).resolve()
+        result_payload = json.loads(result_path.read_text(encoding="utf-8"))
+        result_payload["effect"]["external_authority_mutated"] = True
+        _write_json(result_path, result_payload)
+        return workflow
+
+    monkeypatch.setattr(
+        episode_service,
+        "materialize_and_compare_gepa_refinement_candidate",
+        tampered_gepa_workflow,
+    )
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="external_authority_mutated"
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="compare one ready GEPA candidate",
+            gepa_result_path=gepa_result,
+        )
+
+    assert not (outdir / "program_refinement_episode.json").exists()
+    _assert_no_episode_sidecars(outdir)
+
+
 def test_program_refinement_episode_gepa_path_rejects_ambiguous_or_drifted_inputs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1331,7 +1373,9 @@ def test_program_refinement_episode_gepa_path_rejects_ambiguous_or_drifted_input
             second_candidate_outdir=outdir / "second",
         )
 
-    with pytest.raises(ProgramRefinementEpisodeError, match="candidate_id"):
+    with pytest.raises(
+        ProgramRefinementEpisodeError, match="identity does not match|candidate_id"
+    ):
         run_program_refinement_episode(
             manifest_path=program_root / "manifest.json",
             oracle_report_path=report_path,

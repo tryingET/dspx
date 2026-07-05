@@ -40,6 +40,9 @@ from dspx.services.program_refinement import (
     load_program_manifest,
     write_program_refinement_proposal,
 )
+from dspx.services.program_refinement_gepa_candidate_contracts import (
+    validate_program_refinement_gepa_candidate_result_contract,
+)
 from dspx.services.program_refinement_workflow import (
     materialize_and_compare_gepa_refinement_candidate,
     materialize_and_compare_refinement_candidate,
@@ -345,6 +348,89 @@ def _rollback_output_files(snapshots: Mapping[Path, bytes | None]) -> None:
             continue
 
 
+def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
+    source = path.expanduser().resolve()
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ProgramRefinementEpisodeError(f"{label} not found: {source}") from exc
+    except json.JSONDecodeError as exc:
+        raise ProgramRefinementEpisodeError(
+            f"{label} must be valid JSON: {source}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ProgramRefinementEpisodeError(
+            f"{label} must contain a JSON object: {source}"
+        )
+    return payload
+
+
+def _path_from_summary(value: object, *, label: str) -> Path:
+    text = str(value or "").strip()
+    if not text:
+        raise ProgramRefinementEpisodeError(f"{label} is required")
+    return Path(text).expanduser().resolve()
+
+
+def _validate_gepa_episode_summary_payload(payload: Mapping[str, Any]) -> None:
+    steps = _safe_mapping(payload.get("steps"))
+    gepa_step = _safe_mapping(steps.get("gepa_candidate"))
+    if gepa_step.get("status") in (None, "skipped"):
+        return
+
+    source = _safe_mapping(payload.get("source_candidate"))
+    state_candidate = _safe_mapping(payload.get("state_candidate"))
+    source_manifest_path = _path_from_summary(
+        source.get("manifest_path"), label="episode source manifest path"
+    )
+    gepa_result_path = _path_from_summary(
+        gepa_step.get("gepa_result_path"), label="episode GEPA result path"
+    )
+    candidate_result_path = _path_from_summary(
+        gepa_step.get("candidate_result_path"),
+        label="episode GEPA candidate result path",
+    )
+    candidate_result = _load_json_object(
+        candidate_result_path, label="episode GEPA candidate result"
+    )
+    validation = validate_program_refinement_gepa_candidate_result_contract(
+        candidate_result,
+        expected_source_manifest_path=source_manifest_path,
+        expected_gepa_result_path=gepa_result_path,
+        label="program refinement episode GEPA candidate summary",
+        error_type=ProgramRefinementEpisodeError,
+    )
+    candidate_manifest_path = validation["candidate_manifest_path"]
+    candidate_root = validation["candidate_root"]
+    if (
+        _path_from_summary(
+            gepa_step.get("manifest_path"), label="episode GEPA candidate manifest path"
+        )
+        != candidate_manifest_path
+    ):
+        raise ProgramRefinementEpisodeError(
+            "episode GEPA candidate manifest path does not match validated result"
+        )
+    if (
+        _path_from_summary(
+            gepa_step.get("root_path"), label="episode GEPA candidate root path"
+        )
+        != candidate_root
+    ):
+        raise ProgramRefinementEpisodeError(
+            "episode GEPA candidate root path does not match validated result"
+        )
+    if (
+        _path_from_summary(
+            state_candidate.get("manifest_path"), label="episode state manifest path"
+        )
+        != candidate_manifest_path
+    ):
+        raise ProgramRefinementEpisodeError(
+            "episode state manifest path does not match validated GEPA candidate"
+        )
+
+
 def write_program_refinement_episode_result(
     result: Mapping[str, Any],
     out_path: Path,
@@ -363,6 +449,7 @@ def write_program_refinement_episode_result(
         )
     except ValueError as exc:
         raise ProgramRefinementEpisodeError(str(exc)) from exc
+    _validate_gepa_episode_summary_payload(payload)
     target.parent.mkdir(parents=True, exist_ok=True)
     effect = _safe_mapping(payload.get("effect"))
     effect["workflow_summary_written"] = True
@@ -1069,4 +1156,10 @@ def run_program_refinement_episode(
             if key != "sidecar_outdir"
         },
     }
-    return write_program_refinement_episode_result(result, paths["workflow_out"])
+    try:
+        return write_program_refinement_episode_result(result, paths["workflow_out"])
+    except Exception as exc:
+        _rollback_output_files(output_snapshots)
+        if isinstance(exc, ProgramRefinementEpisodeError):
+            raise
+        raise ProgramRefinementEpisodeError(str(exc)) from exc
