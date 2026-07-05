@@ -638,6 +638,69 @@ def test_generated_direct_batch_records_internal_worker_exception(
     )
 
 
+def test_program_harness_runner_redacts_secret_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    secret_stdout = "stdout api_key=supersecret-value"
+    secret_stderr = (
+        "stderr Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/path?token=url-secret"
+    )
+
+    def fake_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=[sys.executable, "eval_smoke.py"],
+            returncode=0,
+            stdout=secret_stdout,
+            stderr=secret_stderr,
+        )
+
+    monkeypatch.setattr(program_service.subprocess, "run", fake_run)
+
+    result = program_service._run_eval_smoke(tmp_path)
+    combined = json.dumps(result, sort_keys=True)
+
+    assert "supersecret-value" not in combined
+    assert "bearer-secret" not in combined
+    assert "url-secret" not in combined
+    assert "user:pass@" not in combined
+    assert "api_key=[REDACTED]" in combined
+    assert "Bearer [REDACTED]" in combined
+    assert "token=[REDACTED]" in combined
+
+
+def test_program_harness_runner_redacts_secret_failure_message(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    secret_stderr = (
+        "Traceback provider api_key=supersecret-value "
+        "Authorization: Bearer bearer-secret "
+        "https://user:pass@example.test/path?token=url-secret"
+    )
+
+    def fake_run(*_args: object, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=[sys.executable, "eval_smoke.py"],
+            returncode=1,
+            stdout="",
+            stderr=secret_stderr,
+        )
+
+    monkeypatch.setattr(program_service.subprocess, "run", fake_run)
+
+    with pytest.raises(ValueError) as excinfo:
+        program_service._run_eval_smoke(tmp_path)
+
+    message = str(excinfo.value)
+    assert "supersecret-value" not in message
+    assert "bearer-secret" not in message
+    assert "url-secret" not in message
+    assert "user:pass@" not in message
+    assert "api_key=[REDACTED]" in message
+    assert "Bearer [REDACTED]" in message
+    assert "token=[REDACTED]" in message
+
+
 def test_program_gen_failure_cleans_partial_outdir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

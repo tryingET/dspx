@@ -10,6 +10,7 @@ from typing import Any, Mapping, Optional
 
 from dspx.cache import cache_dir, cache_enabled, make_key, sha256_text
 from dspx.generated_code_guard import isolated_subprocess_env
+from dspx.redaction import sanitize_diagnostic_text
 from dspx.services.program_capabilities import build_program_capability_registry
 from dspx.services.program_generated_policy import (
     verify_program_generated_module_policy,
@@ -637,6 +638,12 @@ def _program_harness_timeout_seconds() -> float:
         return 60.0
 
 
+def _sanitize_harness_diagnostic(value: object, *, limit: int = 500) -> str:
+    text = "" if value is None else str(value)
+    sanitized = sanitize_diagnostic_text(text, limit=max(len(text), limit))
+    return sanitized[-limit:]
+
+
 def _run_python_harness(root: Path, filename: str, *, label: str) -> dict[str, Any]:
     source_root = Path(__file__).resolve().parents[2]
     env = isolated_subprocess_env()
@@ -658,17 +665,20 @@ def _run_python_harness(root: Path, filename: str, *, label: str) -> dict[str, A
         check=False,
         env=env,
     )
-    stdout = (proc.stdout or "").strip()
-    stderr = (proc.stderr or "").strip()
+    stdout = _sanitize_harness_diagnostic((proc.stdout or "").strip(), limit=500)
+    stderr = _sanitize_harness_diagnostic((proc.stderr or "").strip(), limit=500)
     result: dict[str, Any] = {
         "command": [sys.executable, filename],
         "returncode": proc.returncode,
-        "stdout": stdout[-500:],
-        "stderr": stderr[-500:],
+        "stdout": stdout,
+        "stderr": stderr,
     }
     if proc.returncode != 0:
+        error_stderr = _sanitize_harness_diagnostic(
+            (proc.stderr or "").strip(), limit=240
+        )
         raise ValueError(
-            f"program {label} failed: rc={proc.returncode} stderr={stderr[-240:]}"
+            f"program {label} failed: rc={proc.returncode} stderr={error_stderr}"
         )
     return result
 
