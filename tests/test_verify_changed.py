@@ -398,7 +398,7 @@ def test_program_oracle_publication_change_is_mapped_without_full_verification()
     ]
 
 
-def test_promotion_refinement_change_routes_to_refinement_and_plan_contracts() -> None:
+def test_promotion_refinement_change_routes_to_product_shaped_review_suite() -> None:
     plan = _plan("packages/dspx-core/src/dspx/services/program_promotion_refinement.py")
 
     assert plan["risk"] == "expanded"
@@ -408,9 +408,13 @@ def test_promotion_refinement_change_routes_to_refinement_and_plan_contracts() -
     assert _command_ids(plan) == [
         "ruff_touched",
         "typecheck_core",
-        "pytest_refinement_candidate_comparison",
-        "pytest_promotion_plan_adjacent",
+        "pytest_program_promotion_review",
     ]
+    command = plan["commands"][2]["command"]
+    assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
+    assert "tests/test_program_promotion_refinement.py" in command
+    assert "tests/test_program_promotion_decision.py" in command
+    assert "tests/test_program_refinement_comparison.py" not in command
 
 
 def test_program_artifact_names_change_routes_to_boundary_contracts() -> None:
@@ -665,6 +669,21 @@ def test_gepa_workflow_contract_change_uses_product_shaped_gepa_suite() -> None:
     assert command[-3:] == ["-n", "auto", "--dist=loadfile"]
     assert "tests/test_program_refinement_gepa_candidate.py" in command
     assert "tests/test_program_refinement_episode.py" not in command
+
+
+def test_promotion_review_test_change_uses_product_shaped_review_suite() -> None:
+    plan = _plan("tests/test_program_promotion_refinement.py")
+
+    assert plan["risk"] == "bounded"
+    assert plan["full_verification_required"] is False
+    assert _command_ids(plan) == ["ruff_touched", "pytest_program_promotion_review"]
+    assert (
+        "tests/test_program_promotion_refinement.py" in plan["commands"][1]["command"]
+    )
+    assert (
+        "tests/test_program_refinement_comparison.py"
+        not in plan["commands"][1]["command"]
+    )
 
 
 def test_refinement_episode_code_test_and_docs_stays_product_bounded() -> None:

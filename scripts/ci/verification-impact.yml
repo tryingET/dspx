@@ -639,13 +639,12 @@ rules:
 
   - match: "packages/dspx-core/src/dspx/services/program_promotion_refinement.py"
     category: python_service
-    impact_group: program_refinement_candidates
+    impact_group: program_promotion_review
     risk: expanded
     commands:
       - ruff_touched
       - typecheck_core
-      - pytest_refinement_candidate_comparison
-      - pytest_promotion_plan_adjacent
+      - pytest_program_promotion_review
 
   - match: "packages/dspx-core/src/dspx/services/program_promotion_decision.py"
     category: python_service
@@ -835,6 +834,15 @@ rules:
     commands:
       - ruff_touched
       - pytest_program_refinement_gepa_candidate
+
+  - match: "tests/test_program_promotion_refinement.py"
+    category: test
+    impact_group: program_promotion_review
+    risk: bounded
+    exclusive: true
+    commands:
+      - ruff_touched
+      - pytest_program_promotion_review
 
   - match: "tests/test_*.py"
     category: test

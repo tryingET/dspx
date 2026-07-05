@@ -532,6 +532,22 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "GEPA candidate materialization/workflow seam changed",
     ),
+    "pytest_program_promotion_review": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_promotion_refinement.py",
+            "tests/test_program_promotion_decision.py",
+            "-n",
+            "auto",
+            "--dist=loadfile",
+        ],
+        "promotion review/refined-decision seam changed",
+    ),
     "pytest_refinement_candidate_comparison": CommandSpec(
         [
             "uv",
@@ -1092,6 +1108,7 @@ def build_plan(
         "pytest_program_refinement_comparison",
         "pytest_program_refinement_episode",
         "pytest_program_refinement_gepa_candidate",
+        "pytest_program_promotion_review",
         "pytest_refinement_candidate_comparison",
         "pytest_optimize_gepa",
         "pytest_program_sidecar_boundaries",
