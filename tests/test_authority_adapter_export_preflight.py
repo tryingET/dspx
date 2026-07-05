@@ -786,6 +786,10 @@ def test_agent_kernel_export_preflight_not_ready_when_promotion_already_applied(
         "promotion_state_after_decision": "not_promoted",
         "identity": identity,
         "effect": {
+            "local_decision_record_only": True,
+            "program_files_mutated": False,
+            "refined_review_mutated": False,
+            "new_candidate_generated": False,
             "external_authority_mutated": False,
             "governance_mutated": False,
         },
@@ -877,10 +881,14 @@ def test_agent_kernel_export_preflight_fails_closed_on_authority_widened_sidecar
     decision = {
         "schema_version": "program-promotion-decision-record-v1",
         "status": "recorded",
-        "outcome": "promote",
-        "promotion_state_after_decision": "local_promotion_decision_recorded",
+        "outcome": "request_more_evidence",
+        "promotion_state_after_decision": "not_promoted",
         "identity": identity,
         "effect": {
+            "local_decision_record_only": True,
+            "program_files_mutated": False,
+            "refined_review_mutated": False,
+            "new_candidate_generated": False,
             "external_authority_mutated": False,
             "governance_mutated": False,
         },
@@ -932,12 +940,32 @@ def test_agent_kernel_export_preflight_fails_closed_on_authority_widened_sidecar
         )
 
     promoting_decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    promoting_decision["outcome"] = "promote"
+    promoting_decision["promotion_state_after_decision"] = (
+        "local_promotion_decision_recorded"
+    )
     promoting_decision["non_authority"]["governance_authority"] = False
     promoting_decision["non_authority"]["external_mutation"] = False
     _write_json(decision_path, promoting_decision)
     with pytest.raises(
         ProgramExternalAuthorityExportError,
-        match="promotion_state_after_decision must be not_promoted",
+        match="program promotion decision record outcome must be non-promoting",
+    ):
+        build_program_external_authority_export_preflight(
+            manifest_path=manifest_path,
+            external_ref="AK-EXAMPLE",
+            decision_record_path=decision_path,
+            comparison_path=comparison_path,
+        )
+
+    effect_drift_decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    effect_drift_decision["outcome"] = "request_more_evidence"
+    effect_drift_decision["promotion_state_after_decision"] = "not_promoted"
+    effect_drift_decision["effect"]["external_authority_mutated"] = True
+    _write_json(decision_path, effect_drift_decision)
+    with pytest.raises(
+        ProgramExternalAuthorityExportError,
+        match="program promotion decision record widens non-authority flags or effect flags",
     ):
         build_program_external_authority_export_preflight(
             manifest_path=manifest_path,
@@ -947,8 +975,7 @@ def test_agent_kernel_export_preflight_fails_closed_on_authority_widened_sidecar
         )
 
     safe_decision = json.loads(decision_path.read_text(encoding="utf-8"))
-    safe_decision["outcome"] = "request_more_evidence"
-    safe_decision["promotion_state_after_decision"] = "not_promoted"
+    safe_decision["effect"]["external_authority_mutated"] = False
     _write_json(decision_path, safe_decision)
     comparison_without_contract = json.loads(
         comparison_path.read_text(encoding="utf-8")

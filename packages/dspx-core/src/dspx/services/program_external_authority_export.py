@@ -6,12 +6,15 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_promotion_decision import (
+    ProgramPromotionDecisionError,
+    validate_program_promotion_decision_record_contract,
+)
 
 PROGRAM_EXTERNAL_AUTHORITY_EXPORT_PREFLIGHT_SCHEMA = (
     "program-external-authority-export-preflight-v1"
 )
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
-PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
@@ -28,17 +31,6 @@ _ALLOWED_NON_PROMOTE_DECISION_OUTCOMES = {
     "reject",
     "request_more_evidence",
 }
-_REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS = (
-    "automatic_promotion",
-    "oracle_ranking",
-    "oracle_pruning",
-    "oracle_promotion",
-    "program_mutation",
-    "refined_review_mutation",
-    "new_candidate_generation",
-    "governance_authority",
-    "external_mutation",
-)
 _REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS = (
     "oracle_ranking",
     "oracle_pruning",
@@ -237,38 +229,14 @@ def _load_optional_decision_record(
         return None, None
     source = path.expanduser().resolve()
     record = _load_json_object(source, label="program promotion decision record")
-    if record.get("schema_version") != PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA:
-        raise ProgramExternalAuthorityExportError(
-            "program promotion decision record schema_version must be "
-            + PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA
+    try:
+        validate_program_promotion_decision_record_contract(
+            record,
+            expected_identities=[manifest_identity],
+            require_non_promoting=True,
         )
-    if record.get("status") != "recorded":
-        raise ProgramExternalAuthorityExportError(
-            "program promotion decision record must have status recorded"
-        )
-    _assert_identity_matches_manifest(
-        _safe_mapping(record.get("identity")),
-        manifest_identity,
-        label="program promotion decision record",
-    )
-    non_authority = _safe_mapping(record.get("non_authority"))
-    if non_authority.get("local_decision_record_only") is not True:
-        raise ProgramExternalAuthorityExportError(
-            "program promotion decision record must be local-only"
-        )
-    _assert_false_flags(
-        non_authority,
-        _REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS,
-        label="program promotion decision record",
-    )
-    if record.get("promotion_state_after_decision") != "not_promoted":
-        raise ProgramExternalAuthorityExportError(
-            "program promotion decision record promotion_state_after_decision must be not_promoted"
-        )
-    if record.get("outcome") not in _ALLOWED_NON_PROMOTE_DECISION_OUTCOMES:
-        raise ProgramExternalAuthorityExportError(
-            "program promotion decision record outcome must be non-promoting"
-        )
+    except ProgramPromotionDecisionError as exc:
+        raise ProgramExternalAuthorityExportError(str(exc)) from exc
     return record, source
 
 

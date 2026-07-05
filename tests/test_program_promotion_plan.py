@@ -501,6 +501,37 @@ def test_program_promote_plan_rejects_comparison_effect_authority_drift(
         )
 
 
+def test_program_promote_plan_rejects_decision_effect_authority_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (
+        source_root,
+        candidate_root,
+        decision_path,
+        comparison_path,
+        _review_path,
+        _index,
+    ) = _materialize_adjudication_plan_inputs(tmp_path, monkeypatch)
+    decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    decision["effect"]["external_authority_mutated"] = True
+    bad_decision_path = tmp_path / "promotion" / "effect_drift_decision.json"
+    _write_json(bad_decision_path, decision)
+
+    with pytest.raises(
+        ProgramPromotionPlanError,
+        match="program promotion decision record widens non-authority flags or effect flags",
+    ):
+        build_program_promotion_plan(
+            manifest_path=candidate_root / "manifest.json",
+            decision_record_path=bad_decision_path,
+            comparison_path=comparison_path,
+            source_manifest_path=source_root / "manifest.json",
+            target="local_preferred_candidate",
+            authority_owner="local_operator",
+        )
+
+
 def test_program_promote_plan_does_not_create_default_oracle_index(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

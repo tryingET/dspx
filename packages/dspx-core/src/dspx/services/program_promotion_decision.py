@@ -76,6 +76,17 @@ _DECISION_RECORD_EFFECT = {
     "governance_mutated": False,
 }
 
+_REQUIRED_FALSE_DECISION_RECORD_NON_AUTHORITY_FLAGS = tuple(
+    key for key, value in _DECISION_RECORD_NON_AUTHORITY.items() if value is False
+)
+_REQUIRED_FALSE_DECISION_RECORD_EFFECT_FLAGS = tuple(
+    key for key, value in _DECISION_RECORD_EFFECT.items() if value is False
+)
+_OPTIONAL_FALSE_DECISION_RECORD_NON_AUTHORITY_FLAGS = (
+    "promotion_authority",
+    "winner_selection",
+)
+
 
 class ProgramPromotionDecisionError(ValueError):
     """Raised when local program promotion decision recording is invalid."""
@@ -116,6 +127,27 @@ def _first_text(*values: object) -> str | None:
         if text:
             return text
     return None
+
+
+def _identity_exactly_matches(
+    actual: Mapping[str, Any], expected: Mapping[str, Any]
+) -> bool:
+    if not actual or not expected:
+        return False
+    for key, expected_value in expected.items():
+        if expected_value is not None and actual.get(key) != expected_value:
+            return False
+    return True
+
+
+def _assert_false_flags(
+    payload: Mapping[str, Any], required_false: tuple[str, ...], *, label: str
+) -> None:
+    invalid = [key for key in required_false if payload.get(key) is not False]
+    if invalid:
+        raise ProgramPromotionDecisionError(
+            f"{label} widens non-authority flags or effect flags: " + ", ".join(invalid)
+        )
 
 
 def _utc_now_iso() -> str:
@@ -190,6 +222,101 @@ def _promotion_state_after_decision(outcome: str) -> str:
     if outcome == "promote":
         return "local_promotion_decision_recorded"
     return "not_promoted"
+
+
+def validate_program_promotion_decision_record_contract(
+    decision_record: Mapping[str, Any],
+    *,
+    expected_identities: list[Mapping[str, Any]] | None = None,
+    require_non_promoting: bool = False,
+) -> None:
+    """Validate a promotion-decision sidecar before a downstream consumer trusts it."""
+
+    if (
+        decision_record.get("schema_version")
+        != PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA
+    ):
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record schema_version must be "
+            + PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA
+        )
+    if decision_record.get("status") != "recorded":
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record must have status recorded"
+        )
+
+    normalized_outcome = str(decision_record.get("outcome") or "").strip()
+    if normalized_outcome not in ALLOWED_PROGRAM_PROMOTION_DECISION_OUTCOMES:
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record outcome must be one of: "
+            + ", ".join(ALLOWED_PROGRAM_PROMOTION_DECISION_OUTCOMES)
+        )
+    if (
+        require_non_promoting
+        and normalized_outcome not in ALLOWED_COMPARISON_DECISION_OUTCOMES
+    ):
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record outcome must be non-promoting"
+        )
+
+    expected_state = _promotion_state_after_decision(normalized_outcome)
+    if require_non_promoting:
+        expected_state = "not_promoted"
+    if decision_record.get("promotion_state_after_decision") != expected_state:
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record promotion_state_after_decision must be "
+            + expected_state
+        )
+
+    identity = _safe_mapping(decision_record.get("identity"))
+    expected_identity_options = [
+        expected for expected in expected_identities or [] if expected
+    ]
+    if expected_identity_options and not any(
+        _identity_exactly_matches(identity, expected)
+        for expected in expected_identity_options
+    ):
+        mismatch_keys = sorted(
+            {
+                str(key)
+                for expected in expected_identity_options
+                for key, expected_value in expected.items()
+                if expected_value is not None and identity.get(key) != expected_value
+            }
+        )
+        suffix = ": " + ", ".join(mismatch_keys) if mismatch_keys else ""
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record identity does not match expected identity"
+            + suffix
+        )
+
+    effect = _safe_mapping(decision_record.get("effect"))
+    if effect.get("local_decision_record_only") is not True:
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record effect must be local_decision_record_only"
+        )
+    _assert_false_flags(
+        effect,
+        _REQUIRED_FALSE_DECISION_RECORD_EFFECT_FLAGS,
+        label="program promotion decision record",
+    )
+
+    non_authority = _safe_mapping(decision_record.get("non_authority"))
+    if non_authority.get("local_decision_record_only") is not True:
+        raise ProgramPromotionDecisionError(
+            "program promotion decision record must be local-only"
+        )
+    _assert_false_flags(
+        non_authority,
+        _REQUIRED_FALSE_DECISION_RECORD_NON_AUTHORITY_FLAGS,
+        label="program promotion decision record",
+    )
+    for key in _OPTIONAL_FALSE_DECISION_RECORD_NON_AUTHORITY_FLAGS:
+        if key in non_authority and non_authority.get(key) is not False:
+            raise ProgramPromotionDecisionError(
+                "program promotion decision record widens non-authority flags or effect flags: "
+                + key
+            )
 
 
 def _load_program_evidence_adjudication(path: Path) -> dict[str, Any]:

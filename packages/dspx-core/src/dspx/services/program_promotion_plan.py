@@ -12,6 +12,10 @@ from dspx.services.program_refinement import (
     load_program_behavior_results,
     load_program_manifest,
 )
+from dspx.services.program_promotion_decision import (
+    ProgramPromotionDecisionError,
+    validate_program_promotion_decision_record_contract,
+)
 from dspx.services.program_refinement_comparison import (
     ProgramRefinementComparisonError,
     validate_program_refinement_candidate_comparison_contract,
@@ -19,7 +23,6 @@ from dspx.services.program_refinement_comparison import (
 
 PROGRAM_PROMOTION_PLAN_SCHEMA = "program-promotion-plan-v1"
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
-PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA = "program-promotion-decision-record-v1"
 PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
     "program-refinement-candidate-comparison-v1"
 )
@@ -45,18 +48,6 @@ _FORBIDDEN_SOURCE_OUTPUT_NAMES = {
     "oracle_evidence.json",
     "execution_episode.json",
 }
-
-_REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS = (
-    "automatic_promotion",
-    "oracle_ranking",
-    "oracle_pruning",
-    "oracle_promotion",
-    "program_mutation",
-    "refined_review_mutation",
-    "new_candidate_generation",
-    "governance_authority",
-    "external_mutation",
-)
 
 _REQUIRED_FALSE_COMPARISON_NON_AUTHORITY_FLAGS = (
     "oracle_ranking",
@@ -330,32 +321,18 @@ def _load_program_behavior_episode(
     return episode, episode_path, actual_hash
 
 
-def _load_decision_record(path: Path) -> dict[str, Any]:
+def _load_decision_record(
+    path: Path, *, expected_identities: list[Mapping[str, Any]]
+) -> dict[str, Any]:
     decision = _load_json_object(path, label="program promotion decision record")
-    if decision.get("schema_version") != PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA:
-        raise ProgramPromotionPlanError(
-            "program promotion decision record schema_version must be "
-            + PROGRAM_PROMOTION_DECISION_RECORD_SCHEMA
+    try:
+        validate_program_promotion_decision_record_contract(
+            decision,
+            expected_identities=expected_identities,
+            require_non_promoting=True,
         )
-    if decision.get("status") != "recorded":
-        raise ProgramPromotionPlanError(
-            "program promotion decision record must have status recorded"
-        )
-    non_authority = _safe_mapping(decision.get("non_authority"))
-    if non_authority.get("local_decision_record_only") is not True:
-        raise ProgramPromotionPlanError(
-            "program promotion decision record must be local-only"
-        )
-    invalid = [
-        key
-        for key in _REQUIRED_FALSE_DECISION_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid:
-        raise ProgramPromotionPlanError(
-            "program promotion decision record widens non-authority flags: "
-            + ", ".join(invalid)
-        )
+    except ProgramPromotionDecisionError as exc:
+        raise ProgramPromotionPlanError(str(exc)) from exc
     return decision
 
 
@@ -536,11 +513,15 @@ def build_program_promotion_plan(
             "program manifest schema_version must be " + PROGRAM_MANIFEST_SCHEMA
         )
 
-    decision = _load_decision_record(decision_record_path)
     comparison = _load_comparison(
         comparison_path,
         candidate_manifest_path=manifest_path,
         source_manifest_path=source_manifest_path,
+    )
+    source_identity = _safe_mapping(comparison.get("source_identity"))
+    decision = _load_decision_record(
+        decision_record_path,
+        expected_identities=[source_identity],
     )
     review = _load_optional_review(review_path)
     target_info = _target_payload(target)
@@ -553,13 +534,6 @@ def build_program_promotion_plan(
         label="program candidate comparison candidate",
     )
     source_identity = _safe_mapping(comparison.get("source_identity"))
-    decision_identity = _safe_mapping(decision.get("identity"))
-    if source_identity:
-        _assert_identity_matches_exact(
-            decision_identity,
-            {key: str(value) for key, value in source_identity.items()},
-            label="program promotion decision record",
-        )
     if source_manifest_path is not None:
         source_manifest = load_program_manifest(source_manifest_path)
         _assert_identity_matches_exact(
