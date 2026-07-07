@@ -1,0 +1,20 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "dbd9a97ea8c84a08cf8036a9c8af2f365432e1db"
+created_at: "2026-07-07T20:22:50Z"
+intent: "Record final runtime-evidence posture frontier after validation"
+files:
+  - "docs/project/product-posture.md"
+validation:
+  fast_gate:
+    command: "node /home/tryinget/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict"
+    status: "pass"
+  full_gate:
+    command: "just loop-impact-run"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "posture-only follow-up for completed runtime evidence hardening"
