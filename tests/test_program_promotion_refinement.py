@@ -22,6 +22,7 @@ from dspx.services.program_promotion_refinement import (
     build_program_promotion_refinement,
     write_program_promotion_refinement,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
@@ -195,6 +196,22 @@ def _materialize_program_report_and_proposal(
     proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
     _write_json(proposal_path, proposal)
     return program_root, report_path, proposal_path
+
+
+def _write_runtime_episode(program_root: Path, tmp_path: Path) -> Path:
+    runtime_inputs = tmp_path / "runtime" / "runtime-inputs.json"
+    _write_json(
+        runtime_inputs,
+        {"inputs": {"ticket_text": "Server is down for all users"}},
+    )
+    runtime_root = tmp_path / "runtime" / "episode"
+    run_program_runtime_episode(
+        manifest_path=program_root / "manifest.json",
+        inputs_path=runtime_inputs,
+        outdir=runtime_root,
+        skip_oracle_index=True,
+    )
+    return runtime_root / "runtime_episode.json"
 
 
 def test_program_promotion_refinement_rejects_absolute_behavior_episode_path(
@@ -445,6 +462,286 @@ def test_program_promotion_refinement_cli_builds_local_review_packet(
     assert not (program_root / "promotion_review_refined.json").exists()
     assert (program_root / "eval_behavior.py").exists()
     assert (program_root / "behavior_episode.json").exists()
+
+
+def test_program_promotion_refinement_consumes_runtime_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    out_path = tmp_path / "promotion" / "promotion_review_refined.runtime.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    runtime_summary = payload["evidence_summary"]["runtime_episode"]
+    assert payload["created_from"]["runtime_episode_path"] == str(
+        runtime_episode.resolve()
+    )
+    assert (
+        payload["created_from"]["runtime_episode_sha256"]
+        == hashlib.sha256(runtime_episode.read_bytes()).hexdigest()
+    )
+    assert runtime_summary["present"] is True
+    assert runtime_summary["schema_version"] == "program-runtime-episode-v1"
+    assert runtime_summary["status"] == "executed"
+    assert runtime_summary["evidence_only"] is True
+    assert runtime_summary["promotion_authority"] is False
+    assert runtime_summary["activation_authority"] is False
+    assert "runtime_episode" in payload["adjudication_packet"]["evidence_refs"]
+    assert payload["promotion_state"] == "not_promoted"
+    assert payload["review_readiness"]["ready_for_adjudicator_review"] is False
+    assert payload["non_authority"]["promotion_authority"] is False
+
+
+def test_program_promotion_refinement_rejects_stale_runtime_episode_manifest_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    payload = json.loads(runtime_episode.read_text(encoding="utf-8"))
+    payload["artifact_hashes"]["source_manifest_sha256"] = "0" * 64
+    _write_json(runtime_episode, payload)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "promotion" / "bad.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "source_manifest_sha256" in result.output
+
+
+def test_program_promotion_refinement_rejects_cross_candidate_runtime_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    other_root, _other_report, _other_proposal = (
+        _materialize_program_report_and_proposal(
+            tmp_path / "other",
+            monkeypatch,
+        )
+    )
+    runtime_episode = _write_runtime_episode(other_root, tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "promotion" / "bad.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate_manifest_path" in result.output
+
+
+def test_program_promotion_refinement_rejects_runtime_episode_trace_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    traces_path = runtime_episode.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["status"] = "no_runtime_traces_captured"
+    _write_json(traces_path, traces)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "promotion" / "bad.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "program_runtime_traces_sha256" in result.output
+
+
+def test_program_promotion_refinement_rejects_runtime_episode_wrong_path_fresh_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    runtime_manifest_path = runtime_episode.parent / "manifest.json"
+    runtime_manifest = json.loads(runtime_manifest_path.read_text(encoding="utf-8"))
+    nested_behavior = runtime_episode.parent / "nested" / "behavior_results.json"
+    nested_behavior.parent.mkdir(parents=True, exist_ok=True)
+    nested_behavior.write_bytes(
+        (runtime_episode.parent / "behavior_results.json").read_bytes()
+    )
+    runtime_manifest["runtime_episode"]["behavior_results_path"] = (
+        "nested/behavior_results.json"
+    )
+    runtime_manifest["runtime_episode"]["behavior_results_sha256"] = hashlib.sha256(
+        nested_behavior.read_bytes()
+    ).hexdigest()
+    _write_json(runtime_manifest_path, runtime_manifest)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "promotion" / "bad.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "behavior_results_path" in result.output
+
+
+def test_program_promotion_refinement_rejects_runtime_episode_symlink_escape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    outside_trace = tmp_path / "outside-program-runtime-traces.json"
+    outside_trace.write_bytes(
+        (runtime_episode.parent / "program_runtime_traces.json").read_bytes()
+    )
+    (runtime_episode.parent / "program_runtime_traces.json").unlink()
+    (runtime_episode.parent / "program_runtime_traces.json").symlink_to(outside_trace)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "promotion" / "bad.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "escapes runtime episode root" in result.output
+
+
+def test_program_promotion_refinement_rejects_runtime_episode_authority_spoof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    payload = json.loads(runtime_episode.read_text(encoding="utf-8"))
+    payload["non_authority"]["promotion_authority"] = True
+    _write_json(runtime_episode, payload)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "review",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--oracle-report",
+            str(report_path),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "promotion" / "bad.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "non_authority" in result.output
 
 
 def test_program_promotion_refinement_consumes_model_jury_results(

@@ -30,6 +30,11 @@ def review(
         "--model-jury-results",
         help="Optional provider-backed program-model-jury-results-v1 JSON",
     ),
+    runtime_episode: Path | None = typer.Option(
+        None,
+        "--runtime-episode",
+        help="Optional program-runtime-episode-v1 JSON from program-run; evidence only, not promotion authority",
+    ),
     out: Path = typer.Option(
         ...,
         "--out",
@@ -50,6 +55,7 @@ def review(
             oracle_report_path=oracle_report,
             refinement_proposal_path=refinement_proposal,
             model_jury_results_path=model_jury_results,
+            runtime_episode_path=runtime_episode,
         )
         payload = write_program_promotion_refinement(packet, out)
     except ProgramPromotionRefinementError as exc:

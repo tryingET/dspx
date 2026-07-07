@@ -10,6 +10,10 @@ from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_model_jury_validation import (
     validate_program_model_jury_results_contract,
 )
+from dspx.services.program_runtime_episode import (
+    PROGRAM_RUNTIME_EPISODE_SCHEMA,
+    validate_program_runtime_episode_contract,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
@@ -692,6 +696,46 @@ def _load_model_jury_results(
     return payload, source, content_hash
 
 
+def _runtime_episode_summary(
+    runtime_episode: Mapping[str, Any] | None,
+    *,
+    path: Path | None,
+    content_hash: str | None,
+) -> dict[str, Any]:
+    if runtime_episode is None:
+        return {
+            "present": False,
+            "schema_version": None,
+            "status": "missing",
+            "runtime_episode_id": None,
+            "sha256": None,
+            "evidence_only": True,
+            "promotion_authority": False,
+            "activation_authority": False,
+        }
+    artifact_hashes = _safe_mapping(runtime_episode.get("artifact_hashes"))
+    return {
+        "present": True,
+        "schema_version": runtime_episode.get("schema_version"),
+        "status": runtime_episode.get("status"),
+        "runtime_episode_id": runtime_episode.get("runtime_episode_id"),
+        "contract_mode": runtime_episode.get("contract_mode"),
+        "path": str(path.resolve()) if path is not None else None,
+        "sha256": content_hash,
+        "source_manifest_sha256": artifact_hashes.get("source_manifest_sha256"),
+        "runtime_inputs_sha256": artifact_hashes.get("runtime_inputs_sha256"),
+        "behavior_results_sha256": artifact_hashes.get("behavior_results_sha256"),
+        "program_runtime_traces_sha256": artifact_hashes.get(
+            "program_runtime_traces_sha256"
+        ),
+        "oracle_evidence_sha256": artifact_hashes.get("oracle_evidence_sha256"),
+        "evidence_only": True,
+        "promotion_authority": False,
+        "activation_authority": False,
+        "shared_oracle_mutated": False,
+    }
+
+
 def _model_jury_summary(
     model_jury_results: Mapping[str, Any] | None,
     *,
@@ -907,6 +951,7 @@ def load_program_promotion_inputs(
     oracle_report_path: Path,
     refinement_proposal_path: Path,
     model_jury_results_path: Path | None = None,
+    runtime_episode_path: Path | None = None,
 ) -> dict[str, Any]:
     """Load and validate all existing evidence for local promotion-review refinement."""
 
@@ -948,6 +993,28 @@ def load_program_promotion_inputs(
             manifest_hash=manifest_hash,
         )
     )
+    runtime_episode: dict[str, Any] | None = None
+    runtime_episode_file: Path | None = None
+    runtime_episode_hash: str | None = None
+    if runtime_episode_path is not None:
+        runtime_episode_file = runtime_episode_path.expanduser().resolve()
+        runtime_episode = _load_json_object(
+            runtime_episode_file,
+            label="program runtime episode",
+        )
+        if runtime_episode.get("schema_version") != PROGRAM_RUNTIME_EPISODE_SCHEMA:
+            raise ProgramPromotionRefinementError(
+                f"program runtime episode schema_version must be {PROGRAM_RUNTIME_EPISODE_SCHEMA}"
+            )
+        validate_program_runtime_episode_contract(
+            runtime_episode,
+            runtime_episode_path=runtime_episode_file,
+            expected_manifest_path=manifest_path,
+            expected_manifest=manifest,
+            expected_manifest_sha256=manifest_hash,
+            error_type=ProgramPromotionRefinementError,
+        )
+        runtime_episode_hash = _sha256_file(runtime_episode_file)
     review, request, decision_template, promotion_paths = (
         _load_original_promotion_artifacts(
             manifest,
@@ -973,6 +1040,9 @@ def load_program_promotion_inputs(
         "model_jury_results": model_jury_results,
         "model_jury_results_path": model_jury_results_file,
         "model_jury_results_hash": model_jury_results_hash,
+        "runtime_episode": runtime_episode,
+        "runtime_episode_path": runtime_episode_file,
+        "runtime_episode_hash": runtime_episode_hash,
         "promotion_review": review,
         "promotion_adjudication_request": request,
         "promotion_decision_template": decision_template,
@@ -1007,6 +1077,7 @@ def build_program_promotion_refinement(
     oracle_report_path: Path,
     refinement_proposal_path: Path,
     model_jury_results_path: Path | None = None,
+    runtime_episode_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build a local non-authoritative refined promotion-review packet."""
 
@@ -1015,6 +1086,7 @@ def build_program_promotion_refinement(
         oracle_report_path=oracle_report_path,
         refinement_proposal_path=refinement_proposal_path,
         model_jury_results_path=model_jury_results_path,
+        runtime_episode_path=runtime_episode_path,
     )
     validate_promotion_refinement_inputs(inputs)
 
@@ -1037,6 +1109,8 @@ def build_program_promotion_refinement(
     oracle_matched = bool(inputs.get("oracle_matched"))
     model_jury_results = inputs.get("model_jury_results")
     model_jury_present = isinstance(model_jury_results, Mapping)
+    runtime_episode = inputs.get("runtime_episode")
+    runtime_episode_present = isinstance(runtime_episode, Mapping)
     missing = _missing_required_evidence(
         review=review,
         behavior_present=behavior_present,
@@ -1069,6 +1143,12 @@ def build_program_promotion_refinement(
         str(Path(model_jury_results_path).resolve())
         if isinstance(model_jury_results_path, Path)
         and model_jury_results_path.exists()
+        else None
+    )
+    runtime_episode_path = inputs.get("runtime_episode_path")
+    runtime_episode_path_text = (
+        str(Path(runtime_episode_path).resolve())
+        if isinstance(runtime_episode_path, Path) and runtime_episode_path.exists()
         else None
     )
     manifest_path = Path(inputs["manifest_path"]).resolve()
@@ -1113,6 +1193,10 @@ def build_program_promotion_refinement(
             "model_jury_results_sha256": inputs.get("model_jury_results_hash")
             if model_jury_results_path_text is not None
             else None,
+            "runtime_episode_path": runtime_episode_path_text,
+            "runtime_episode_sha256": inputs.get("runtime_episode_hash")
+            if runtime_episode_path_text is not None
+            else None,
             "original_promotion_review_path": str(original_promotion_review_path),
             "original_promotion_review_sha256": _sha256_file(
                 original_promotion_review_path
@@ -1150,6 +1234,15 @@ def build_program_promotion_refinement(
                 else None,
                 content_hash=inputs.get("model_jury_results_hash")
                 if isinstance(inputs.get("model_jury_results_hash"), str)
+                else None,
+            ),
+            "runtime_episode": _runtime_episode_summary(
+                runtime_episode if isinstance(runtime_episode, Mapping) else None,
+                path=runtime_episode_path
+                if isinstance(runtime_episode_path, Path)
+                else None,
+                content_hash=inputs.get("runtime_episode_hash")
+                if isinstance(inputs.get("runtime_episode_hash"), str)
                 else None,
             ),
         },
@@ -1204,6 +1297,7 @@ def build_program_promotion_refinement(
                     if model_jury_results_path_text is not None
                     else []
                 ),
+                *(["runtime_episode"] if runtime_episode_present else []),
             ],
         },
         "non_authority": dict(_REFINED_PACKET_NON_AUTHORITY),
