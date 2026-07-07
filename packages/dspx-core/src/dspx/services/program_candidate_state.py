@@ -544,6 +544,8 @@ def _validate_optional_inputs(
     candidate_identity: Mapping[str, str | None],
     source_identity: Mapping[str, str | None] | None,
     refinement_proposal: Mapping[str, Any] | None,
+    refinement_proposal_path: Path | None,
+    refinement_proposal_hash: str | None,
     review: Mapping[str, Any] | None,
     review_path: Path | None,
     decision: Mapping[str, Any] | None,
@@ -586,21 +588,21 @@ def _validate_optional_inputs(
     valid_manifest_refs = {current_manifest_path: current_manifest_hash}
     if source_manifest_path is not None and source_manifest_hash is not None:
         valid_manifest_refs[source_manifest_path] = source_manifest_hash
-    valid_behavior_results_refs: dict[Path, str] = {}
-    if behavior_path is not None and behavior_hash is not None:
-        valid_behavior_results_refs[behavior_path] = behavior_hash
-    if source_behavior_path is not None and source_behavior_hash is not None:
-        valid_behavior_results_refs[source_behavior_path] = source_behavior_hash
-    valid_behavior_episode_refs: dict[Path, str] = {}
-    if behavior_episode_path is not None and behavior_episode_hash is not None:
-        valid_behavior_episode_refs[behavior_episode_path] = behavior_episode_hash
-    if (
-        source_behavior_episode_path is not None
-        and source_behavior_episode_hash is not None
-    ):
-        valid_behavior_episode_refs[source_behavior_episode_path] = (
-            source_behavior_episode_hash
-        )
+
+    def refs_for_identity(
+        identity: Mapping[str, Any],
+        *,
+        current_path: Path | None,
+        current_hash: str | None,
+        source_path: Path | None,
+        source_hash: str | None,
+    ) -> dict[Path, str]:
+        if source_identity is not None and _identity_exactly_matches(
+            identity, source_identity
+        ):
+            return {source_path: source_hash} if source_path and source_hash else {}
+        return {current_path: current_hash} if current_path and current_hash else {}
+
     valid_model_jury_results_refs: dict[Path, str] = {}
     if model_jury_results_path is not None and model_jury_results_hash is not None:
         valid_model_jury_results_refs[model_jury_results_path] = model_jury_results_hash
@@ -621,7 +623,13 @@ def _validate_optional_inputs(
                 valid_oracle_report_refs={oracle_report_path: oracle_report_hash}
                 if oracle_report_path is not None and oracle_report_hash is not None
                 else None,
-                valid_behavior_results_refs=valid_behavior_results_refs,
+                valid_behavior_results_refs=refs_for_identity(
+                    expected_proposal_identity,
+                    current_path=behavior_path,
+                    current_hash=behavior_hash,
+                    source_path=source_behavior_path,
+                    source_hash=source_behavior_hash,
+                ),
                 error_type=ProgramCandidateStateError,
             )
         except ProgramRefinementError as exc:
@@ -644,8 +652,30 @@ def _validate_optional_inputs(
                 review,
                 refined_review_path=review_path,
                 expected_identity=expected_review_identity,
-                valid_behavior_results_refs=valid_behavior_results_refs,
-                valid_behavior_episode_refs=valid_behavior_episode_refs,
+                valid_manifest_refs=valid_manifest_refs,
+                valid_oracle_report_refs={oracle_report_path: oracle_report_hash}
+                if oracle_report_path is not None and oracle_report_hash is not None
+                else None,
+                valid_refinement_proposal_refs={
+                    refinement_proposal_path: refinement_proposal_hash
+                }
+                if refinement_proposal_path is not None
+                and refinement_proposal_hash is not None
+                else None,
+                valid_behavior_results_refs=refs_for_identity(
+                    expected_review_identity,
+                    current_path=behavior_path,
+                    current_hash=behavior_hash,
+                    source_path=source_behavior_path,
+                    source_hash=source_behavior_hash,
+                ),
+                valid_behavior_episode_refs=refs_for_identity(
+                    expected_review_identity,
+                    current_path=behavior_episode_path,
+                    current_hash=behavior_episode_hash,
+                    source_path=source_behavior_episode_path,
+                    source_hash=source_behavior_episode_hash,
+                ),
                 valid_model_jury_results_refs=valid_model_jury_results_refs,
                 error_type=ProgramCandidateStateError,
             )
@@ -1875,6 +1905,8 @@ def build_program_candidate_state(
         candidate_identity=candidate_identity,
         source_identity=source_identity,
         refinement_proposal=refinement_proposal,
+        refinement_proposal_path=refinement_proposal_file,
+        refinement_proposal_hash=refinement_proposal_hash,
         review=review,
         review_path=review_file,
         decision=decision,

@@ -387,7 +387,7 @@ def _validate_created_from_expected_ref(
     base_path: Path | None,
     error_type: type[Exception],
     required: bool = False,
-) -> None:
+) -> tuple[Path | None, str | None]:
     path, declared_hash = _validate_created_from_hash(
         created_from,
         path_key=path_key,
@@ -398,7 +398,7 @@ def _validate_created_from_expected_ref(
         required=required,
     )
     if valid_refs is None or path is None:
-        return
+        return path, declared_hash
     normalized_refs = {
         ref_path.expanduser().resolve(): ref_hash
         for ref_path, ref_hash in valid_refs.items()
@@ -414,6 +414,7 @@ def _validate_created_from_expected_ref(
             error_type,
             f"{label} hash does not match expected input",
         )
+    return path, declared_hash
 
 
 def validate_program_promotion_review_refined_contract(
@@ -421,6 +422,9 @@ def validate_program_promotion_review_refined_contract(
     *,
     refined_review_path: Path | None = None,
     expected_identity: Mapping[str, Any] | None = None,
+    valid_manifest_refs: Mapping[Path, str] | None = None,
+    valid_oracle_report_refs: Mapping[Path, str] | None = None,
+    valid_refinement_proposal_refs: Mapping[Path, str] | None = None,
     valid_behavior_results_refs: Mapping[Path, str] | None = None,
     valid_behavior_episode_refs: Mapping[Path, str] | None = None,
     valid_model_jury_results_refs: Mapping[Path, str] | None = None,
@@ -449,13 +453,15 @@ def validate_program_promotion_review_refined_contract(
         )
 
     created_from = _safe_mapping(refined_review.get("created_from"))
-    manifest_path, manifest_hash = _validate_created_from_hash(
+    manifest_path, manifest_hash = _validate_created_from_expected_ref(
         created_from,
         path_key="manifest_path",
         hash_key="manifest_sha256",
         label="refined promotion review manifest ref",
+        valid_refs=valid_manifest_refs,
         base_path=refined_review_path,
         error_type=error_type,
+        required=True,
     )
     assert manifest_path is not None and manifest_hash is not None
     try:
@@ -480,17 +486,27 @@ def validate_program_promotion_review_refined_contract(
                 + ", ".join(sorted(expected_mismatches)),
             )
 
+    _validate_created_from_expected_ref(
+        created_from,
+        path_key="oracle_report_path",
+        hash_key="oracle_report_sha256",
+        label="refined promotion review Oracle report ref",
+        valid_refs=valid_oracle_report_refs,
+        base_path=refined_review_path,
+        error_type=error_type,
+        required=True,
+    )
+    _validate_created_from_expected_ref(
+        created_from,
+        path_key="refinement_proposal_path",
+        hash_key="refinement_proposal_sha256",
+        label="refined promotion review proposal ref",
+        valid_refs=valid_refinement_proposal_refs,
+        base_path=refined_review_path,
+        error_type=error_type,
+        required=True,
+    )
     for path_key, hash_key, label in (
-        (
-            "oracle_report_path",
-            "oracle_report_sha256",
-            "refined promotion review Oracle report ref",
-        ),
-        (
-            "refinement_proposal_path",
-            "refinement_proposal_sha256",
-            "refined promotion review proposal ref",
-        ),
         (
             "original_promotion_review_path",
             "original_promotion_review_sha256",

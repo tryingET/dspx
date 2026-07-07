@@ -1164,6 +1164,58 @@ def test_program_candidate_state_rejects_wrong_path_refinement_proposal_behavior
         )
 
 
+def test_program_candidate_state_rejects_wrong_path_refined_review_oracle_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    wrong_report = tmp_path / "wrong" / "oracle_report.json"
+    _write_json(
+        wrong_report,
+        {"schema_version": "program-oracle-evidence-report-v1", "status": "ok"},
+    )
+    review = json.loads(paths["review"].read_text(encoding="utf-8"))
+    review["created_from"]["oracle_report_path"] = str(wrong_report)
+    review["created_from"]["oracle_report_sha256"] = _sha256(wrong_report)
+    _write_json(paths["review"], review)
+
+    with pytest.raises(ProgramCandidateStateError, match="Oracle report ref path"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            oracle_report_path=paths["oracle_report"],
+            review_path=paths["review"],
+        )
+
+
+def test_program_candidate_state_rejects_wrong_path_refined_review_proposal_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    wrong_proposal = tmp_path / "wrong" / "refinement_proposal.json"
+    _write_json(
+        wrong_proposal,
+        {"schema_version": "program-refinement-proposal-v1", "status": "proposed"},
+    )
+    review = json.loads(paths["review"].read_text(encoding="utf-8"))
+    review["created_from"]["refinement_proposal_path"] = str(wrong_proposal)
+    review["created_from"]["refinement_proposal_sha256"] = _sha256(wrong_proposal)
+    _write_json(paths["review"], review)
+
+    with pytest.raises(ProgramCandidateStateError, match="proposal ref path"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            refinement_proposal_path=paths["proposal"],
+            review_path=paths["review"],
+        )
+
+
 def test_program_candidate_state_rejects_wrong_path_refined_review_behavior_hash(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1185,6 +1237,28 @@ def test_program_candidate_state_rejects_wrong_path_refined_review_behavior_hash
     with pytest.raises(ProgramCandidateStateError, match="behavior-results ref path"):
         build_program_candidate_state(
             manifest_path=source_root / "manifest.json",
+            review_path=paths["review"],
+        )
+
+
+def test_program_candidate_state_rejects_refined_review_cross_manifest_behavior_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    candidate_behavior = candidate_root / "behavior_results.json"
+    review = json.loads(paths["review"].read_text(encoding="utf-8"))
+    review["created_from"]["behavior_results_path"] = str(candidate_behavior)
+    review["created_from"]["behavior_results_sha256"] = _sha256(candidate_behavior)
+    _write_json(paths["review"], review)
+
+    with pytest.raises(ProgramCandidateStateError, match="behavior-results ref path"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
             review_path=paths["review"],
         )
 
