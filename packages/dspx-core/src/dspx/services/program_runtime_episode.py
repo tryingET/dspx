@@ -19,7 +19,10 @@ from dspx.services.program_oracle_publication_preflight import (
 from dspx.security import confine_path, confine_relative_path
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
-from dspx.services.program_runtime_traces import build_program_runtime_traces
+from dspx.services.program_runtime_traces import (
+    build_program_runtime_traces,
+    validate_program_runtime_traces,
+)
 from dspx.services.run_replay_service import check_run_receipt
 from dspx.redaction import sanitize_diagnostic_text
 
@@ -129,6 +132,10 @@ def _safe_mapping(value: object) -> dict[str, Any]:
         if isinstance(value, Mapping)
         else {}
     )
+
+
+def _safe_list(value: object) -> list[Any]:
+    return list(value) if isinstance(value, list) else []
 
 
 def _manifest_identity(manifest: Mapping[str, Any]) -> dict[str, str | None]:
@@ -1128,6 +1135,314 @@ def _oracle_evidence(
             },
         ],
     }
+
+
+def _resolve_episode_artifact(root: Path, relative_path: str, *, label: str) -> Path:
+    path = Path(relative_path)
+    if path.is_absolute():
+        raise ValueError(f"{label} path must be runtime-episode-relative")
+    try:
+        return confine_path(root, path, strict=True)
+    except ValueError as exc:
+        raise ValueError(f"{label} path escapes runtime episode root") from exc
+
+
+def _assert_false_flags(
+    payload: Mapping[str, Any], *, section: str, keys: tuple[str, ...]
+) -> None:
+    raw = _safe_mapping(payload.get(section))
+    invalid = [key for key in keys if raw.get(key) is not False]
+    if invalid:
+        raise ValueError(
+            f"runtime episode {section} widens flags: " + ", ".join(invalid)
+        )
+
+
+def _assert_identity_matches(
+    actual: Mapping[str, Any], expected: Mapping[str, Any], *, label: str
+) -> None:
+    mismatches = [
+        key
+        for key in (
+            "request_id",
+            "candidate_id",
+            "assembly_id",
+            "episode_id",
+            "receipt_bundle_id",
+        )
+        if expected.get(key) is not None and actual.get(key) != expected.get(key)
+    ]
+    if mismatches:
+        raise ValueError(f"{label} identity mismatch: " + ", ".join(mismatches))
+
+
+def validate_program_runtime_episode_contract(
+    runtime_episode: Mapping[str, Any],
+    *,
+    runtime_episode_path: Path,
+    expected_manifest_path: Path,
+    expected_manifest: Mapping[str, Any],
+    expected_manifest_sha256: str,
+    error_type: type[Exception] = ValueError,
+) -> None:
+    """Validate a program-run runtime episode at final-consumer time.
+
+    The runtime episode bundle is caller-controlled local evidence.  Status and
+    workflow summaries must therefore re-bind every referenced artifact to the
+    current manifest and current bytes before mirroring it.
+    """
+
+    def fail(message: str) -> None:
+        raise error_type(message)
+
+    try:
+        if runtime_episode.get("schema_version") != PROGRAM_RUNTIME_EPISODE_SCHEMA:
+            fail(
+                f"runtime episode schema_version must be {PROGRAM_RUNTIME_EPISODE_SCHEMA}"
+            )
+        if runtime_episode.get("status") not in {
+            "executed",
+            "executed_valid_review_only",
+            "failed",
+            "failed_exception",
+            "failed_missing_inputs",
+            "error",
+            "degraded_exception",
+            "degraded_contract_violation",
+            "degraded_pdf_contract_violation",
+        }:
+            fail("runtime episode status is unsupported")
+        runtime_episode_id = str(
+            runtime_episode.get("runtime_episode_id") or ""
+        ).strip()
+        if not runtime_episode_id:
+            fail("runtime episode must include runtime_episode_id")
+
+        episode_root = runtime_episode_path.expanduser().resolve().parent
+        expected_manifest_resolved = expected_manifest_path.expanduser().resolve()
+        candidate_manifest = (
+            Path(str(runtime_episode.get("candidate_manifest_path") or ""))
+            .expanduser()
+            .resolve()
+        )
+        if candidate_manifest != expected_manifest_resolved:
+            fail(
+                "runtime episode candidate_manifest_path does not match current manifest"
+            )
+        if _sha256_file(expected_manifest_resolved) != expected_manifest_sha256:
+            fail("runtime episode expected manifest hash is stale")
+
+        artifact_hashes = _safe_mapping(runtime_episode.get("artifact_hashes"))
+        if artifact_hashes.get("source_manifest_sha256") != expected_manifest_sha256:
+            fail(
+                "runtime episode source_manifest_sha256 does not match current manifest"
+            )
+
+        declared_manifest_path = (
+            Path(str(runtime_episode.get("manifest_path") or "")).expanduser().resolve()
+        )
+        runtime_manifest_path = _resolve_episode_artifact(
+            episode_root,
+            "manifest.json",
+            label="runtime episode manifest",
+        )
+        if declared_manifest_path != runtime_manifest_path:
+            fail("runtime episode manifest_path must point at its manifest.json")
+        runtime_manifest = _load_json_object(
+            runtime_manifest_path, label="runtime episode manifest"
+        )
+        if runtime_manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
+            fail(
+                "runtime episode manifest schema_version must be program-candidate-assembly-v1"
+            )
+        _assert_identity_matches(
+            _manifest_identity(runtime_manifest),
+            _manifest_identity(expected_manifest),
+            label="runtime episode manifest",
+        )
+        source_ref = _safe_mapping(runtime_manifest.get("source_candidate_manifest"))
+        source_ref_path = Path(str(source_ref.get("path") or "")).expanduser().resolve()
+        if source_ref_path != expected_manifest_resolved:
+            fail(
+                "runtime episode manifest source_candidate_manifest.path does not match current manifest"
+            )
+        if source_ref.get("sha256") != expected_manifest_sha256:
+            fail("runtime episode manifest source_candidate_manifest.sha256 is stale")
+
+        runtime_manifest_episode = _safe_mapping(
+            runtime_manifest.get("runtime_episode")
+        )
+        if (
+            runtime_manifest_episode.get("schema_version")
+            != PROGRAM_RUNTIME_EPISODE_SCHEMA
+        ):
+            fail("runtime episode manifest runtime_episode schema is invalid")
+        if runtime_manifest_episode.get("runtime_episode_id") != runtime_episode_id:
+            fail("runtime episode id mismatch between episode and manifest")
+        if runtime_manifest_episode.get("contract_mode") != runtime_episode.get(
+            "contract_mode"
+        ):
+            fail("runtime episode contract_mode mismatch between episode and manifest")
+
+        if runtime_manifest_episode.get("inputs_path") != "runtime_inputs.json":
+            fail("runtime episode manifest inputs_path must be runtime_inputs.json")
+        if (
+            runtime_manifest_episode.get("behavior_results_path")
+            != "behavior_results.json"
+        ):
+            fail(
+                "runtime episode manifest behavior_results_path must be behavior_results.json"
+            )
+        inputs_path = _resolve_episode_artifact(
+            episode_root,
+            "runtime_inputs.json",
+            label="runtime inputs",
+        )
+        behavior_path = _resolve_episode_artifact(
+            episode_root,
+            "behavior_results.json",
+            label="runtime behavior results",
+        )
+        traces_path = _resolve_episode_artifact(
+            episode_root,
+            "program_runtime_traces.json",
+            label="program runtime traces",
+        )
+        oracle_path = _resolve_episode_artifact(
+            episode_root,
+            "oracle_evidence.json",
+            label="runtime Oracle evidence",
+        )
+
+        current_hashes = {
+            "runtime_inputs_sha256": _sha256_file(inputs_path),
+            "behavior_results_sha256": _sha256_file(behavior_path),
+            "program_runtime_traces_sha256": _sha256_file(traces_path),
+            "oracle_evidence_sha256": _sha256_file(oracle_path),
+        }
+        for key, actual in current_hashes.items():
+            if artifact_hashes.get(key) != actual:
+                fail(f"runtime episode {key} does not match current file")
+        if (
+            runtime_manifest_episode.get("inputs_sha256")
+            != current_hashes["runtime_inputs_sha256"]
+        ):
+            fail("runtime episode manifest inputs hash is stale")
+        if (
+            runtime_manifest_episode.get("behavior_results_sha256")
+            != current_hashes["behavior_results_sha256"]
+        ):
+            fail("runtime episode manifest behavior results hash is stale")
+
+        behavior = _load_json_object(behavior_path, label="runtime behavior results")
+        if behavior.get("schema_version") != PROGRAM_BEHAVIOR_RESULTS_SCHEMA:
+            fail(
+                "runtime behavior results schema_version must be program-behavior-results-v1"
+            )
+        if behavior.get("runtime_episode_id") != runtime_episode_id:
+            fail("runtime behavior results runtime_episode_id mismatch")
+        if behavior.get("authority") != "behavior_evidence_only_non_authoritative":
+            fail("runtime behavior results authority must remain evidence-only")
+        _assert_false_flags(
+            behavior,
+            section="non_authority",
+            keys=(
+                "optimization_authority",
+                "promotion_authority",
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "governance_authority",
+                "external_mutation",
+                "external_authority_mutated",
+                "winner_selection",
+            ),
+        )
+
+        traces = _load_json_object(traces_path, label="program runtime traces")
+        if not validate_program_runtime_traces(traces):
+            fail("program runtime traces contract validation failed")
+        for source in _safe_list(traces.get("sources")):
+            if not isinstance(source, Mapping):
+                fail("program runtime traces sources must be objects")
+            if (
+                source.get("path") == "behavior_results.json"
+                and source.get("content_hash")
+                != current_hashes["behavior_results_sha256"]
+            ):
+                fail("program runtime traces behavior_results source hash is stale")
+
+        oracle = _load_json_object(oracle_path, label="runtime Oracle evidence")
+        if oracle.get("schema_version") != PROGRAM_ORACLE_EVIDENCE_SCHEMA:
+            fail(
+                "runtime Oracle evidence schema_version must be program-oracle-evidence-v1"
+            )
+        if oracle.get("evidence_kind") != "program_execution_episode":
+            fail("runtime Oracle evidence kind must be program_execution_episode")
+        if oracle.get("authority") != "oracle_readability_only_non_authoritative":
+            fail("runtime Oracle evidence authority must remain readability-only")
+        oracle_identity = _safe_mapping(oracle.get("identity"))
+        _assert_identity_matches(
+            oracle_identity,
+            _manifest_identity(expected_manifest),
+            label="runtime Oracle evidence",
+        )
+        if oracle_identity.get("runtime_episode_id") != runtime_episode_id:
+            fail("runtime Oracle evidence runtime_episode_id mismatch")
+        _assert_false_flags(
+            oracle,
+            section="non_authority",
+            keys=(
+                "oracle_ranking",
+                "oracle_pruning",
+                "oracle_promotion",
+                "governance_authority",
+                "external_mutation",
+            ),
+        )
+        source_artifacts = _safe_list(oracle.get("source_artifacts"))
+        expected_source_hashes = {
+            "runtime_inputs.json": current_hashes["runtime_inputs_sha256"],
+            "behavior_results.json": current_hashes["behavior_results_sha256"],
+            "program_runtime_traces.json": current_hashes[
+                "program_runtime_traces_sha256"
+            ],
+        }
+        seen_source_paths: set[str] = set()
+        for ref in source_artifacts:
+            if not isinstance(ref, Mapping):
+                fail("runtime Oracle evidence source_artifacts must be objects")
+            path_text = str(ref.get("path") or "")
+            if path_text not in expected_source_hashes:
+                fail("runtime Oracle evidence has unexpected source artifact path")
+            seen_source_paths.add(path_text)
+            if ref.get("content_hash") != expected_source_hashes[path_text]:
+                fail("runtime Oracle evidence source artifact hash is stale")
+        if seen_source_paths != set(expected_source_hashes):
+            fail("runtime Oracle evidence source_artifacts are incomplete")
+        behavior_section = _safe_mapping(oracle.get("behavior"))
+        if (
+            behavior_section.get("result_path") != "behavior_results.json"
+            or behavior_section.get("result_hash")
+            != current_hashes["behavior_results_sha256"]
+        ):
+            fail("runtime Oracle evidence behavior result ref is stale")
+
+        _assert_false_flags(
+            runtime_episode,
+            section="non_authority",
+            keys=(
+                "promotion_authority",
+                "activation_authority",
+                "governance_mutated",
+                "external_authority_mutated",
+                "shared_oracle_mutated",
+            ),
+        )
+    except error_type:
+        raise
+    except Exception as exc:
+        fail(str(exc))
 
 
 def run_program_runtime_episode(

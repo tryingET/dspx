@@ -26,6 +26,10 @@ from dspx.services.program_oracle_publication import (
     validate_program_oracle_publication_preflight_contract,
     validate_program_oracle_publication_receipt_contract,
 )
+from dspx.services.program_runtime_episode import (
+    PROGRAM_RUNTIME_EPISODE_SCHEMA,
+    validate_program_runtime_episode_contract,
+)
 from dspx.services.program_promotion_decision import (
     ProgramPromotionDecisionError,
     validate_program_promotion_decision_record_contract,
@@ -1049,6 +1053,44 @@ def _behavior_episode_summary(
     }
 
 
+def _runtime_episode_summary(
+    runtime_episode: Mapping[str, Any] | None, runtime_episode_hash: str | None
+) -> dict[str, Any]:
+    if runtime_episode is None:
+        return {
+            "present": False,
+            "schema_version": None,
+            "status": "missing",
+            "runtime_episode_id": None,
+            "contract_mode": None,
+            "sha256": None,
+            "evidence_only": True,
+            "promotion_authority": False,
+            "activation_authority": False,
+        }
+    artifact_hashes = _safe_mapping(runtime_episode.get("artifact_hashes"))
+    return {
+        "present": True,
+        "schema_version": runtime_episode.get("schema_version"),
+        "status": runtime_episode.get("status"),
+        "runtime_episode_id": runtime_episode.get("runtime_episode_id"),
+        "contract_mode": runtime_episode.get("contract_mode"),
+        "sha256": runtime_episode_hash,
+        "source_manifest_sha256": artifact_hashes.get("source_manifest_sha256"),
+        "runtime_inputs_sha256": artifact_hashes.get("runtime_inputs_sha256"),
+        "behavior_results_sha256": artifact_hashes.get("behavior_results_sha256"),
+        "program_runtime_traces_sha256": artifact_hashes.get(
+            "program_runtime_traces_sha256"
+        ),
+        "oracle_evidence_sha256": artifact_hashes.get("oracle_evidence_sha256"),
+        "output_file_count": len(_safe_list(runtime_episode.get("output_files"))),
+        "evidence_only": True,
+        "promotion_authority": False,
+        "activation_authority": False,
+        "shared_oracle_mutated": False,
+    }
+
+
 def _oracle_readability_summary(
     manifest: Mapping[str, Any], manifest_path: Path
 ) -> dict[str, Any]:
@@ -1682,6 +1724,7 @@ def build_program_candidate_state(
     generation_fitness_results_path: Path | None = None,
     program_evidence_adjudication_path: Path | None = None,
     gepa_refinement_path: Path | None = None,
+    runtime_episode_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build one local truth-state artifact from existing program sidecars."""
 
@@ -1846,6 +1889,13 @@ def build_program_candidate_state(
             schema=PROGRAM_REFINEMENT_GEPA_RESULT_SCHEMA,
         )
     )
+    runtime_episode, runtime_episode_file, runtime_episode_hash = (
+        _load_optional_artifact(
+            runtime_episode_path,
+            label="program runtime episode",
+            schema=PROGRAM_RUNTIME_EPISODE_SCHEMA,
+        )
+    )
 
     manifest_hash = _sha256_file(manifest_path)
     current_program_hash = _declared_program_surface_hash(manifest, manifest_path)
@@ -1955,6 +2005,15 @@ def build_program_candidate_state(
         generation_fitness_results_hash=generation_fitness_results_hash,
         error_type=ProgramCandidateStateError,
     )
+    if runtime_episode is not None and runtime_episode_file is not None:
+        validate_program_runtime_episode_contract(
+            runtime_episode,
+            runtime_episode_path=runtime_episode_file,
+            expected_manifest_path=manifest_path,
+            expected_manifest=manifest,
+            expected_manifest_sha256=manifest_hash,
+            error_type=ProgramCandidateStateError,
+        )
 
     execution_episode_path = _optional_artifact_path(
         manifest,
@@ -1987,6 +2046,7 @@ def build_program_candidate_state(
         "generation_fitness_results_sha256": generation_fitness_results_hash,
         "program_evidence_adjudication_sha256": program_evidence_adjudication_hash,
         "gepa_refinement_sha256": gepa_refinement_hash,
+        "runtime_episode_sha256": runtime_episode_hash,
     }
     state_seed = {
         "schema_version": PROGRAM_CANDIDATE_STATE_SCHEMA,
@@ -2077,6 +2137,9 @@ def build_program_candidate_state(
             "gepa_refinement_path": str(gepa_refinement_file)
             if gepa_refinement_file is not None
             else None,
+            "runtime_episode_path": str(runtime_episode_file)
+            if runtime_episode_file is not None
+            else None,
         },
         "artifact_hashes": artifact_hashes,
         "candidate": {
@@ -2102,6 +2165,10 @@ def build_program_candidate_state(
             "behavior_episode": _behavior_episode_summary(
                 behavior_episode,
                 behavior_episode_hash,
+            ),
+            "runtime_episode": _runtime_episode_summary(
+                runtime_episode,
+                runtime_episode_hash,
             ),
             "execution_episode": {
                 "present": execution_episode_path.exists(),
@@ -2175,6 +2242,7 @@ def build_program_candidate_state(
             "target_protocol_adjudication_present": program_evidence_adjudication
             is not None,
             "gepa_refinement_present": gepa_refinement is not None,
+            "runtime_episode_present": runtime_episode is not None,
             "gepa_output_ready_for_future_candidate_materializer": _gepa_refinement_summary(
                 gepa_refinement,
                 candidate_identity=candidate_identity,

@@ -54,6 +54,7 @@ from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_refinement_workflow import (
     materialize_and_compare_refinement_candidate,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
@@ -489,6 +490,22 @@ def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
     reset_embedding_engine()
+
+
+def _write_runtime_episode(candidate_root: Path, tmp_path: Path) -> Path:
+    runtime_inputs = tmp_path / "runtime" / "runtime-inputs.json"
+    _write_json(
+        runtime_inputs,
+        {"inputs": {"ticket_text": "Server is down for all users"}},
+    )
+    runtime_root = tmp_path / "runtime" / "episode"
+    run_program_runtime_episode(
+        manifest_path=candidate_root / "manifest.json",
+        inputs_path=runtime_inputs,
+        outdir=runtime_root,
+        skip_oracle_index=True,
+    )
+    return runtime_root / "runtime_episode.json"
 
 
 def _materialize_candidate_state_inputs(
@@ -993,6 +1010,200 @@ def test_program_promote_status_writes_whole_candidate_truth_state_only(
     assert (source_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_promote_status_summarizes_program_run_runtime_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(source_root, tmp_path)
+    out_path = tmp_path / "state" / "program_candidate_state.runtime.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "status",
+            "--manifest",
+            str(source_root / "manifest.json"),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["created_from"]["runtime_episode_path"] == str(
+        runtime_episode.resolve()
+    )
+    assert payload["artifact_hashes"]["runtime_episode_sha256"] == _sha256(
+        runtime_episode
+    )
+    runtime_summary = payload["evidence_state"]["runtime_episode"]
+    assert runtime_summary["present"] is True
+    assert runtime_summary["schema_version"] == "program-runtime-episode-v1"
+    assert runtime_summary["status"] == "executed"
+    assert runtime_summary["evidence_only"] is True
+    assert runtime_summary["promotion_authority"] is False
+    assert runtime_summary["activation_authority"] is False
+    assert runtime_summary["shared_oracle_mutated"] is False
+    assert runtime_summary["source_manifest_sha256"] == _sha256(
+        source_root / "manifest.json"
+    )
+    assert runtime_summary["behavior_results_sha256"] == _sha256(
+        runtime_episode.parent / "behavior_results.json"
+    )
+    assert runtime_summary["program_runtime_traces_sha256"] == _sha256(
+        runtime_episode.parent / "program_runtime_traces.json"
+    )
+    assert payload["truth_summary"]["runtime_episode_present"] is True
+    assert payload["truth_summary"]["promotion_applied"] is False
+    assert payload["effect"]["oracle_index_mutated"] is False
+    assert payload["effect"]["external_authority_mutated"] is False
+
+
+def test_program_candidate_state_rejects_stale_program_run_manifest_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(source_root, tmp_path)
+    manifest_path = source_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["candidate_assembly"]["status"] = "materialized_after_runtime_drift"
+    _write_json(manifest_path, manifest)
+
+    with pytest.raises(ProgramCandidateStateError, match="source_manifest_sha256"):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            runtime_episode_path=runtime_episode,
+        )
+
+
+def test_program_candidate_state_rejects_cross_candidate_program_run_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(source_root, tmp_path)
+
+    with pytest.raises(ProgramCandidateStateError, match="candidate_manifest_path"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            runtime_episode_path=runtime_episode,
+        )
+
+
+def test_program_candidate_state_rejects_program_run_trace_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(source_root, tmp_path)
+    traces_path = runtime_episode.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["status"] = "no_runtime_traces_captured"
+    _write_json(traces_path, traces)
+
+    with pytest.raises(
+        ProgramCandidateStateError, match="program_runtime_traces_sha256"
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            runtime_episode_path=runtime_episode,
+        )
+
+
+def test_program_candidate_state_rejects_program_run_wrong_path_fresh_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(source_root, tmp_path)
+    runtime_manifest_path = runtime_episode.parent / "manifest.json"
+    runtime_manifest = json.loads(runtime_manifest_path.read_text(encoding="utf-8"))
+    nested_behavior = runtime_episode.parent / "nested" / "behavior_results.json"
+    nested_behavior.parent.mkdir(parents=True, exist_ok=True)
+    nested_behavior.write_bytes(
+        (runtime_episode.parent / "behavior_results.json").read_bytes()
+    )
+    runtime_manifest["runtime_episode"]["behavior_results_path"] = (
+        "nested/behavior_results.json"
+    )
+    runtime_manifest["runtime_episode"]["behavior_results_sha256"] = _sha256(
+        nested_behavior
+    )
+    _write_json(runtime_manifest_path, runtime_manifest)
+
+    with pytest.raises(ProgramCandidateStateError, match="behavior_results_path"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            runtime_episode_path=runtime_episode,
+        )
+
+
+def test_program_candidate_state_rejects_program_run_symlink_escape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(source_root, tmp_path)
+    outside_trace = tmp_path / "outside-program-runtime-traces.json"
+    outside_trace.write_bytes(
+        (runtime_episode.parent / "program_runtime_traces.json").read_bytes()
+    )
+    (runtime_episode.parent / "program_runtime_traces.json").unlink()
+    (runtime_episode.parent / "program_runtime_traces.json").symlink_to(outside_trace)
+
+    with pytest.raises(
+        ProgramCandidateStateError, match="escapes runtime episode root"
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            runtime_episode_path=runtime_episode,
+        )
+
+
+def test_program_candidate_state_rejects_program_run_authority_spoof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    runtime_episode = _write_runtime_episode(source_root, tmp_path)
+    payload = json.loads(runtime_episode.read_text(encoding="utf-8"))
+    payload["non_authority"]["promotion_authority"] = True
+    _write_json(runtime_episode, payload)
+
+    with pytest.raises(ProgramCandidateStateError, match="non_authority"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            runtime_episode_path=runtime_episode,
+        )
 
 
 def test_program_promote_status_summarizes_activation_packet_without_activation(
