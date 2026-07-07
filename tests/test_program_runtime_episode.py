@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, reset_embedding_engine
+import dspx.services.program_runtime_episode as runtime_episode_service
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_runtime_episode import (
     _generated_program_module,
@@ -807,6 +808,51 @@ def test_runtime_episode_validator_accepts_producer_failure_statuses(
             expected_manifest=manifest,
             expected_manifest_sha256=manifest_hash,
         )
+
+
+def test_runtime_episode_provider_configuration_failure_does_not_import_program(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    candidate = _generated_candidate(tmp_path)
+
+    from dspx import provider_registry
+
+    def raise_provider(*args, **kwargs):
+        raise RuntimeError("no provider")
+
+    monkeypatch.setattr(provider_registry, "create_from_env", raise_provider)
+    imported_program: list[bool] = []
+
+    def fail_if_imported(*args, **kwargs):
+        imported_program.append(True)
+        raise AssertionError("program module should not load without provider")
+
+    monkeypatch.setattr(
+        runtime_episode_service,
+        "_generated_program_module",
+        fail_if_imported,
+    )
+    inputs = tmp_path / "runtime-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"ticket_text": "Server is down for all users"}}),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "runtime-provider-failed"
+
+    payload = run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=outdir,
+        skip_oracle_index=True,
+    )
+
+    behavior = json.loads((outdir / "behavior_results.json").read_text())
+    assert imported_program == []
+    assert payload["status"] == "degraded"
+    assert payload["steps"]["runtime_execution"]["status"] == "error"
+    assert behavior["provider"]["status"] == "unavailable"
+    assert behavior["examples"][0]["observed_outputs"] == {}
 
 
 def test_program_run_cli_help_describes_inputs_as_file_path() -> None:

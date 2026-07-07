@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-07-07T18:53:29.188130700+00:00",
+  "task_id": 3531,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/product-posture.md",
+      "governance/task-scopes/AK-3531.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "tests/test_program_runtime_episode.py"
+    ],
+    "required_paths": [
+      "docs/project/product-posture.md",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "tests/test_program_runtime_episode.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -1522,6 +1522,13 @@ def run_program_runtime_episode(
     output_fields: list[str] = []
     intent_summary: dict[str, object] = {}
     try:
+        if provider.get("status") != "configured":
+            provider_error = _safe_mapping(provider.get("error"))
+            message = _first_text(
+                provider_error.get("message"),
+                "provider configuration unavailable",
+            )
+            raise RuntimeError(f"provider configuration unavailable: {message}")
         with _generated_program_module(candidate_root) as program_module:
             spec = program_module.io_spec()
             input_fields = [str(item) for item in spec.get("inputs") or []]
