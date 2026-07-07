@@ -344,8 +344,32 @@ def _validate_trace_linked_artifact_refs(trace: Mapping[str, Any]) -> None:
 
 def _validate_trace_runtime_episode_contract(trace: Mapping[str, Any]) -> None:
     linked = _safe_mapping(trace.get("linked_artifacts"))
-    evidence_refs = _safe_mapping(linked.get("evidence_refs"))
-    runtime_ref = _safe_mapping(evidence_refs.get("runtime_episode"))
+    trace_evidence_refs = _safe_mapping(linked.get("evidence_refs"))
+    trace_runtime_ref = _safe_mapping(trace_evidence_refs.get("runtime_episode"))
+    source_adjudication_ref = _safe_mapping(trace.get("source_adjudication"))
+    source_adjudication_path_text = _first_text(source_adjudication_ref.get("path"))
+    source_runtime_ref: dict[str, Any] = {}
+    if source_adjudication_path_text is not None:
+        source_adjudication = _load_json_object(
+            Path(source_adjudication_path_text).expanduser().resolve(),
+            label="adjudication trace source adjudication",
+        )
+        source_runtime_ref = _safe_mapping(
+            _safe_mapping(source_adjudication.get("evidence_refs")).get(
+                "runtime_episode"
+            )
+        )
+    if trace_runtime_ref and not source_runtime_ref:
+        raise ProgramAdjudicationPublicationError(
+            "adjudication trace runtime_episode ref is not present in source_adjudication evidence_refs"
+        )
+    if trace_runtime_ref and source_runtime_ref:
+        for key in ("path", "sha256", "schema_version"):
+            if trace_runtime_ref.get(key) != source_runtime_ref.get(key):
+                raise ProgramAdjudicationPublicationError(
+                    "adjudication trace runtime_episode ref does not match source_adjudication evidence_refs"
+                )
+    runtime_ref = source_runtime_ref or trace_runtime_ref
     if not runtime_ref:
         return
     if runtime_ref.get("schema_version") != PROGRAM_RUNTIME_EPISODE_SCHEMA:

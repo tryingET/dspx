@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -297,6 +298,48 @@ def test_adjudication_trace_publication_preflight_rejects_stale_runtime_episode_
     with pytest.raises(
         ProgramAdjudicationPublicationError,
         match="runtime episode program_runtime_traces_sha256 does not match current file",
+    ):
+        build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
+
+
+def test_adjudication_trace_publication_preflight_revalidates_source_runtime_ref_when_trace_copy_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch, include_runtime_episode=True)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    runtime_path = Path(
+        trace["linked_artifacts"]["evidence_refs"].pop("runtime_episode")["path"]
+    )
+    trace_path.write_text(json.dumps(trace, indent=2) + "\n", encoding="utf-8")
+    traces_path = runtime_path.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["sources"][0]["content_hash"] = "0" * 64
+    traces_path.write_text(json.dumps(traces, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="runtime episode program_runtime_traces_sha256 does not match current file",
+    ):
+        build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
+
+
+def test_adjudication_trace_publication_preflight_rejects_runtime_ref_not_in_source_adjudication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch, include_runtime_episode=True)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    source_path = Path(trace["source_adjudication"]["path"])
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    source["evidence_refs"].pop("runtime_episode")
+    source_path.write_text(json.dumps(source, indent=2) + "\n", encoding="utf-8")
+    trace["source_adjudication"]["sha256"] = hashlib.sha256(
+        source_path.read_bytes()
+    ).hexdigest()
+    trace_path.write_text(json.dumps(trace, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="runtime_episode ref is not present in source_adjudication evidence_refs",
     ):
         build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
 
