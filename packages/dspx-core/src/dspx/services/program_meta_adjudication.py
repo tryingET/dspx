@@ -787,8 +787,13 @@ def _next_commands(
             ),
         ]
     )
-    generation_evidence_args = "".join(
+    adjudication_evidence_args = "".join(
         [
+            _sidecar_command_option(
+                sidecars,
+                key="runtime_episode",
+                option="--runtime-episode",
+            ),
             _sidecar_command_option(
                 sidecars,
                 key="generation_traceability",
@@ -929,7 +934,7 @@ def _next_commands(
                 "dspx program-promote evidence-adjudication "
                 f"--manifest {manifest_arg} "
                 f"--adjudicator-verification {root / 'program_adjudicator_verification.json'}"
-                f"{generation_evidence_args} "
+                f"{adjudication_evidence_args} "
                 f"--out {root / 'program_evidence_adjudication.json'} --json"
             ),
         }
@@ -1806,7 +1811,9 @@ def _role_judgment(
     if perspective == "behavior_evidence":
         if not behavior_present:
             status = "needs_more_evidence"
-            missing_evidence.append("behavior_results.json or behavior_episode.json")
+            missing_evidence.append(
+                "behavior_results.json, behavior_episode.json, or runtime_episode.json"
+            )
             rationale = "no behavior evidence sidecar was available"
         elif not behavior_passed:
             status = "withhold"
@@ -1917,6 +1924,7 @@ def build_program_evidence_adjudication(
     manifest_path: Path,
     behavior_results_path: Path | None = None,
     behavior_episode_path: Path | None = None,
+    runtime_episode_path: Path | None = None,
     oracle_report_path: Path | None = None,
     activation_packet_path: Path | None = None,
     generation_fitness_results_path: Path | None = None,
@@ -1976,6 +1984,41 @@ def build_program_evidence_adjudication(
         behavior_ref = _artifact_ref(
             behavior_episode_ref, schema_version="program-behavior-episode-v1"
         )
+
+    runtime_episode_ref = None
+    runtime_episode_file = None
+    if runtime_episode_path is not None:
+        runtime_episode_file = runtime_episode_path.expanduser().resolve()
+    elif behavior_payload is None:
+        runtime_episode_file = _default_existing_path(
+            manifest_path,
+            explicit_path=None,
+            default_name="runtime_episode.json",
+        )
+    if runtime_episode_file is not None:
+        runtime_episode = _load_expected_sidecar(
+            runtime_episode_file, key="runtime_episode", label="runtime episode"
+        )
+        _validate_runtime_episode_sidecar(
+            manifest_path=manifest_path,
+            runtime_episode_path=runtime_episode_file,
+            runtime_episode=runtime_episode,
+        )
+        runtime_episode_ref = _artifact_ref(
+            runtime_episode_file, schema_version=PROGRAM_RUNTIME_EPISODE_SCHEMA
+        )
+        if behavior_payload is None:
+            runtime_behavior_path = (
+                runtime_episode_file.parent / "behavior_results.json"
+            )
+            behavior_payload = _load_expected_sidecar(
+                runtime_behavior_path,
+                key="behavior_results",
+                label="runtime behavior results",
+            )
+            behavior_ref = _artifact_ref(
+                runtime_behavior_path, schema_version="program-behavior-results-v1"
+            )
 
     resolved_oracle_report_path = _default_existing_path(
         manifest_path,
@@ -2103,6 +2146,7 @@ def build_program_evidence_adjudication(
         ),
         "evidence_refs": {
             "behavior": behavior_ref,
+            "runtime_episode": runtime_episode_ref,
             "oracle_report": oracle_ref,
             "activation_packet": activation_ref,
             "generation_traceability": generation_traceability_ref,

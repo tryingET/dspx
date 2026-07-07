@@ -11,6 +11,7 @@ from dspx.services.program_promotion_decision import (
     build_generated_program_adjudicator_decision_record,
     write_program_promotion_decision_record,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_meta_adjudication import (
     ProgramMetaAdjudicationError,
     build_program_adjudication_behavior_trace,
@@ -40,6 +41,74 @@ from program_meta_adjudication_helpers import (
     _write_minimal_activation_packet,
     runner,
 )
+
+
+def _remove_candidate_behavior_sidecars(candidate_root: Path) -> None:
+    for name in ("behavior_results.json", "behavior_episode.json"):
+        path = candidate_root / name
+        if path.exists():
+            path.unlink()
+
+
+def _write_runtime_inputs(tmp_path: Path) -> Path:
+    inputs_path = tmp_path / "runtime_inputs.json"
+    inputs_path.write_text(
+        json.dumps(
+            {
+                "marker_markdown": "# Close Reading\nUse source-grounded evidence.",
+                "source_package_json": '{"source_id":"zotero:user:demo/DEMO2026"}',
+                "existing_wiki_index_json": "{}",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return inputs_path
+
+
+def _write_runtime_episode(candidate_root: Path, tmp_path: Path) -> Path:
+    runtime_out = tmp_path / "runtime-episode"
+    run_program_runtime_episode(
+        manifest_path=candidate_root / "manifest.json",
+        inputs_path=_write_runtime_inputs(tmp_path),
+        outdir=runtime_out,
+        skip_oracle_index=True,
+    )
+    return runtime_out / "runtime_episode.json"
+
+
+def _write_verified_program_adjudicator(candidate_root: Path, tmp_path: Path) -> Path:
+    requirements_path = tmp_path / "jury_requirements.json"
+    selection_path = tmp_path / "meta_jury_selection.json"
+    jury_verification_path = tmp_path / "jury_verification.json"
+    formation_path = tmp_path / "program_adjudicator_formation.json"
+    adjudicator_verification_path = tmp_path / "program_adjudicator_verification.json"
+
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    write_program_jury_requirements(requirements, requirements_path)
+    selection = build_program_meta_jury_selection(
+        jury_requirements_path=requirements_path
+    )
+    write_program_meta_jury_selection(selection, selection_path)
+    jury_verification = build_program_jury_verification(
+        jury_selection_path=selection_path
+    )
+    write_program_jury_verification(jury_verification, jury_verification_path)
+    formation = build_program_adjudicator_formation(
+        jury_verification_path=jury_verification_path
+    )
+    write_program_adjudicator_formation(formation, formation_path)
+    adjudicator_verification = build_program_adjudicator_verification(
+        adjudicator_formation_path=formation_path
+    )
+    write_program_adjudicator_verification(
+        adjudicator_verification, adjudicator_verification_path
+    )
+    return adjudicator_verification_path
 
 
 def test_meta_adjudication_plan_tracks_target_fidelity_sidecars(
@@ -203,6 +272,97 @@ def test_program_evidence_adjudication_withholds_failed_target_fitness(
         if item["perspective"] == "target_protocol_fidelity"
     )
     assert target_judgment["judgment"] == "withhold"
+
+
+def test_program_evidence_adjudication_consumes_runtime_episode(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    _remove_candidate_behavior_sidecars(candidate_root)
+
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+        runtime_episode_path=runtime_episode_path,
+    )
+
+    runtime_ref = adjudication["evidence_refs"]["runtime_episode"]
+    behavior_ref = adjudication["evidence_refs"]["behavior"]
+    assert runtime_ref["schema_version"] == "program-runtime-episode-v1"
+    assert behavior_ref["path"] == str(
+        runtime_episode_path.parent / "behavior_results.json"
+    )
+    assert adjudication["behavior_summary"]["present"] is True
+    behavior_judgment = next(
+        item
+        for item in adjudication["role_judgments"]
+        if item["perspective"] == "behavior_evidence"
+    )
+    assert behavior_judgment["missing_evidence"] == []
+    assert "behavior evidence" not in adjudication["aggregate"]["missing_evidence"]
+
+
+def test_program_evidence_adjudication_rejects_stale_runtime_episode(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    traces_path = runtime_episode_path.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["sources"][0]["content_hash"] = "0" * 64
+    traces_path.write_text(json.dumps(traces, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(
+        ProgramMetaAdjudicationError,
+        match="runtime episode program_runtime_traces_sha256 does not match current file",
+    ):
+        build_program_evidence_adjudication(
+            adjudicator_verification_path=adjudicator_verification_path,
+            manifest_path=candidate_root / "manifest.json",
+            runtime_episode_path=runtime_episode_path,
+        )
+
+
+def test_program_evidence_adjudication_cli_accepts_runtime_episode(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    out = tmp_path / "program_evidence_adjudication.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "evidence-adjudication",
+            "--adjudicator-verification",
+            str(adjudicator_verification_path),
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--runtime-episode",
+            str(runtime_episode_path),
+            "--out",
+            str(out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["evidence_refs"]["runtime_episode"]["schema_version"] == (
+        "program-runtime-episode-v1"
+    )
+    assert out.exists()
 
 
 def test_program_evidence_adjudication_and_behavior_trace_sidecars(
