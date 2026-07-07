@@ -11,6 +11,10 @@ from dspx.services.program_oracle_publication import (
     validate_program_oracle_publication_preflight_contract,
     validate_program_oracle_publication_receipt_contract,
 )
+from dspx.services.program_runtime_episode import (
+    PROGRAM_RUNTIME_EPISODE_SCHEMA,
+    validate_program_runtime_episode_contract,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_manifest,
@@ -31,6 +35,7 @@ PROGRAM_ADJUDICATION_GEPA_EXAMPLE_SCHEMA = "program-adjudication-gepa-example-v1
 _EXPECTED_SIDECAR_SCHEMAS = {
     "behavior_results": "program-behavior-results-v1",
     "behavior_episode": "program-behavior-episode-v1",
+    "runtime_episode": PROGRAM_RUNTIME_EPISODE_SCHEMA,
     "oracle_report": "program-oracle-evidence-report-v1",
     "oracle_publication_receipt": "program-oracle-shared-publication-receipt-v1",
     "jury_results": "program-jury-results-v2",
@@ -57,6 +62,7 @@ _EXPECTED_SIDECAR_SCHEMAS = {
 _DEFAULT_SIDECAR_FILES = {
     "behavior_results": "behavior_results.json",
     "behavior_episode": "behavior_episode.json",
+    "runtime_episode": "runtime_episode.json",
     "oracle_report": "program_oracle_report.json",
     "oracle_publication_receipt": "program_oracle_publication_receipt.json",
     "jury_results": "jury_results.json",
@@ -373,6 +379,24 @@ def _sidecar_path(manifest_path: Path, *, key: str, explicit_path: Path | None) 
     return _manifest_root(manifest_path) / _DEFAULT_SIDECAR_FILES[key]
 
 
+def _validate_runtime_episode_sidecar(
+    *,
+    manifest_path: Path,
+    runtime_episode_path: Path,
+    runtime_episode: Mapping[str, Any],
+) -> None:
+    manifest_file = manifest_path.expanduser().resolve()
+    manifest = load_program_manifest(manifest_file)
+    validate_program_runtime_episode_contract(
+        runtime_episode,
+        runtime_episode_path=runtime_episode_path,
+        expected_manifest_path=manifest_file,
+        expected_manifest=manifest,
+        expected_manifest_sha256=_sha256_file(manifest_file),
+        error_type=ProgramMetaAdjudicationError,
+    )
+
+
 def _validate_oracle_publication_receipt_sidecar(
     *,
     manifest_path: Path,
@@ -438,6 +462,16 @@ def _sidecar_status(
     schema = payload.get("schema_version")
     sidecar_status = "present" if schema == required_schema else "schema_mismatch"
     warning = None
+    if schema == required_schema and key == "runtime_episode":
+        try:
+            _validate_runtime_episode_sidecar(
+                manifest_path=manifest_path,
+                runtime_episode_path=path,
+                runtime_episode=payload,
+            )
+        except ProgramMetaAdjudicationError as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
     if schema == required_schema and key == "oracle_publication_receipt":
         try:
             _validate_oracle_publication_receipt_sidecar(
@@ -669,9 +703,11 @@ def _sidecar_is_present_valid(sidecar: Mapping[str, Any]) -> bool:
 
 def _missing_evidence(sidecars: Mapping[str, Mapping[str, Any]]) -> list[str]:
     missing: list[str] = []
-    if not _sidecar_is_present_valid(
-        sidecars["behavior_results"]
-    ) and not _sidecar_is_present_valid(sidecars["behavior_episode"]):
+    if (
+        not _sidecar_is_present_valid(sidecars["behavior_results"])
+        and not _sidecar_is_present_valid(sidecars["behavior_episode"])
+        and not _sidecar_is_present_valid(sidecars["runtime_episode"])
+    ):
         missing.append("behavior_evidence")
     for key, label in (
         ("oracle_report", "oracle_report"),
@@ -776,6 +812,23 @@ def _next_commands(
                     "dspx program-promote jury "
                     f"--manifest {manifest_arg} --out {jury_results_out} --json"
                 ),
+            }
+        )
+    if not (
+        _sidecar_is_present_valid(sidecars["behavior_results"])
+        or _sidecar_is_present_valid(sidecars["behavior_episode"])
+        or _sidecar_is_present_valid(sidecars["runtime_episode"])
+    ):
+        commands.append(
+            {
+                "step": "run_runtime_episode",
+                "implemented": True,
+                "command": (
+                    "dspx program-run "
+                    f"--manifest {manifest_arg} --inputs <runtime-inputs.json> "
+                    f"--outdir {root.parent / f'{root.name}-runtime-episode'} --json"
+                ),
+                "note": "writes program-runtime-episode-v1 local runtime evidence; evidence only, not activation authority",
             }
         )
     if not sidecars["oracle_report"].get("present"):
@@ -2281,6 +2334,7 @@ def build_program_meta_adjudication_plan(
     manifest_path: Path,
     behavior_results_path: Path | None = None,
     behavior_episode_path: Path | None = None,
+    runtime_episode_path: Path | None = None,
     oracle_report_path: Path | None = None,
     oracle_publication_receipt_path: Path | None = None,
     jury_results_path: Path | None = None,
@@ -2307,6 +2361,9 @@ def build_program_meta_adjudication_plan(
         ),
         "behavior_episode": _sidecar_status(
             manifest_path, key="behavior_episode", explicit_path=behavior_episode_path
+        ),
+        "runtime_episode": _sidecar_status(
+            manifest_path, key="runtime_episode", explicit_path=runtime_episode_path
         ),
         "oracle_report": _sidecar_status(
             manifest_path, key="oracle_report", explicit_path=oracle_report_path

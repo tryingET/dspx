@@ -9,6 +9,7 @@ from dspx.services.program_jury_execution import (
     build_program_jury_execution_result,
     write_program_jury_execution_result,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_meta_adjudication import (
     build_program_adjudication_behavior_trace,
     build_program_adjudication_gepa_example,
@@ -37,6 +38,31 @@ from program_meta_adjudication_helpers import (
     _write_minimal_activation_packet,
     runner,
 )
+
+
+def _remove_candidate_behavior_sidecars(candidate_root: Path) -> None:
+    for name in ("behavior_results.json", "behavior_episode.json"):
+        path = candidate_root / name
+        if path.exists():
+            path.unlink()
+
+
+def _write_runtime_inputs(tmp_path: Path) -> Path:
+    inputs_path = tmp_path / "runtime_inputs.json"
+    inputs_path.write_text(
+        json.dumps(
+            {
+                "marker_markdown": "# Close Reading\nUse source-grounded evidence.",
+                "source_package_json": '{"source_id":"zotero:user:demo/DEMO2026"}',
+                "existing_wiki_index_json": "{}",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return inputs_path
 
 
 def test_program_adjudication_gepa_example_sidecar(tmp_path: Path, monkeypatch) -> None:
@@ -268,6 +294,103 @@ def test_meta_adjudication_plan_tracks_present_sidecars(
     )
     assert "program_jury_results" not in plan["missing_evidence"]
     assert "program_adjudicator_delegation" not in plan["missing_evidence"]
+
+
+def test_meta_adjudication_plan_consumes_valid_runtime_episode(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    runtime_out = tmp_path / "runtime-episode"
+    run_program_runtime_episode(
+        manifest_path=candidate_root / "manifest.json",
+        inputs_path=_write_runtime_inputs(tmp_path),
+        outdir=runtime_out,
+        skip_oracle_index=True,
+    )
+    runtime_episode_path = runtime_out / "runtime_episode.json"
+    _remove_candidate_behavior_sidecars(candidate_root)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        runtime_episode_path=runtime_episode_path,
+    )
+
+    runtime_status = plan["sidecars"]["runtime_episode"]
+    assert runtime_status["status"] == "present"
+    assert runtime_status["schema_version"] == "program-runtime-episode-v1"
+    assert runtime_status["sha256"]
+    assert "behavior_evidence" not in plan["missing_evidence"]
+    assert not any(
+        item["step"] == "run_runtime_episode" for item in plan["next_commands"]
+    )
+
+
+def test_meta_adjudication_plan_marks_invalid_runtime_episode_contract_invalid(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    runtime_out = tmp_path / "runtime-episode"
+    run_program_runtime_episode(
+        manifest_path=candidate_root / "manifest.json",
+        inputs_path=_write_runtime_inputs(tmp_path),
+        outdir=runtime_out,
+        skip_oracle_index=True,
+    )
+    runtime_episode_path = runtime_out / "runtime_episode.json"
+    _remove_candidate_behavior_sidecars(candidate_root)
+    traces_path = runtime_out / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["sources"][0]["content_hash"] = "0" * 64
+    traces_path.write_text(json.dumps(traces, indent=2, sort_keys=True) + "\n")
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        runtime_episode_path=runtime_episode_path,
+    )
+
+    runtime_status = plan["sidecars"]["runtime_episode"]
+    assert runtime_status["present"] is True
+    assert runtime_status["status"] == "contract_invalid"
+    assert (
+        "runtime episode program_runtime_traces_sha256 does not match current file"
+        in runtime_status["warning"]
+    )
+    assert "behavior_evidence" in plan["missing_evidence"]
+    assert any(item["step"] == "run_runtime_episode" for item in plan["next_commands"])
+
+
+def test_meta_adjudication_plan_cli_accepts_runtime_episode(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    runtime_out = tmp_path / "runtime-episode"
+    run_program_runtime_episode(
+        manifest_path=candidate_root / "manifest.json",
+        inputs_path=_write_runtime_inputs(tmp_path),
+        outdir=runtime_out,
+        skip_oracle_index=True,
+    )
+    out = tmp_path / "meta-adjudication-plan.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "meta-adjudication-plan",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--runtime-episode",
+            str(runtime_out / "runtime_episode.json"),
+            "--out",
+            str(out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["sidecars"]["runtime_episode"]["status"] == "present"
+    assert out.exists()
 
 
 def test_meta_adjudication_plan_validates_oracle_publication_receipt_contract(

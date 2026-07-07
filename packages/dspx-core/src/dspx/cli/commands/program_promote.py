@@ -1048,6 +1048,11 @@ def meta_adjudication_plan(
         "--behavior-episode",
         help="Optional program-behavior-episode-v1 JSON",
     ),
+    runtime_episode: Path | None = typer.Option(
+        None,
+        "--runtime-episode",
+        help="Optional program-runtime-episode-v1 JSON from program-run; evidence only, not adjudication authority",
+    ),
     oracle_report: Path | None = typer.Option(
         None,
         "--oracle-report",
@@ -1122,6 +1127,7 @@ def meta_adjudication_plan(
             manifest_path=manifest,
             behavior_results_path=behavior_results,
             behavior_episode_path=behavior_episode,
+            runtime_episode_path=runtime_episode,
             oracle_report_path=oracle_report,
             oracle_publication_receipt_path=oracle_publication_receipt,
             jury_results_path=jury_results,
