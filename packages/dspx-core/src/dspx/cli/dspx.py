@@ -1260,7 +1260,7 @@ def program_run(
     inputs: Path = typer.Option(
         ...,
         "--inputs",
-        help="JSON object, or {inputs: {...}}, for the generated program's declared inputs",
+        help="Path to a JSON file containing an object, or {inputs: {...}}, for the generated program's declared inputs",
     ),
     outdir: Path = typer.Option(
         ...,

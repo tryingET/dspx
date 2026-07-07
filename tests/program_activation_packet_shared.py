@@ -68,6 +68,10 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def _manifest_hash(root: Path) -> str:
+    return hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest()
+
+
 def _candidate_identity(root: Path) -> dict[str, str | None]:
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     candidate = manifest["candidate_assembly"]
@@ -89,6 +93,7 @@ def _write_target_aware_candidate_state(root: Path, out: Path) -> Path:
             "schema_version": "program-candidate-state-v1",
             "status": "not_promoted_materialized",
             "candidate_identity": _candidate_identity(root),
+            "artifact_hashes": {"manifest_sha256": _manifest_hash(root)},
             "target_fidelity_state": {
                 "obsidian_review_adapter_materialization_allowed": True,
                 "production_or_domain_activation_allowed": False,
@@ -217,6 +222,7 @@ def _write_candidate_state_with_publication_preflight(
             "schema_version": "program-candidate-state-v1",
             "status": "not_promoted_materialized",
             "candidate_identity": _candidate_identity(root),
+            "artifact_hashes": {"manifest_sha256": _manifest_hash(root)},
             "evidence_state": {
                 "oracle_publication_preflight": {
                     "present": True,

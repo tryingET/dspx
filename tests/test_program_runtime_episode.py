@@ -14,6 +14,7 @@ from dspx.services.program_runtime_episode import (
     _generated_program_module,
     _materialize_runtime_inputs,
     run_program_runtime_episode,
+    validate_program_runtime_episode_contract,
 )
 from dspx.services.program_service import (
     materialize_program_from_intent,
@@ -773,6 +774,46 @@ def test_program_runtime_episode_redacts_provider_diagnostics(
         behavior["provider"]["error"]["message"]
         == payload["steps"]["runtime_execution"]["provider"]["error"]["message"]
     )
+
+
+def test_runtime_episode_validator_accepts_producer_failure_statuses(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    candidate = _generated_candidate(tmp_path)
+    inputs = tmp_path / "runtime-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"ticket_text": "Server is down for all users"}}),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "runtime-statuses"
+    run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=outdir,
+        skip_oracle_index=True,
+    )
+    episode_path = outdir / "runtime_episode.json"
+    base_episode = json.loads(episode_path.read_text(encoding="utf-8"))
+    manifest = json.loads((candidate / "manifest.json").read_text(encoding="utf-8"))
+    manifest_hash = base_episode["artifact_hashes"]["source_manifest_sha256"]
+
+    for status in ("degraded_missing_outputs", "failed_boundary"):
+        episode = {**base_episode, "status": status}
+        validate_program_runtime_episode_contract(
+            episode,
+            runtime_episode_path=episode_path,
+            expected_manifest_path=candidate / "manifest.json",
+            expected_manifest=manifest,
+            expected_manifest_sha256=manifest_hash,
+        )
+
+
+def test_program_run_cli_help_describes_inputs_as_file_path() -> None:
+    result = runner.invoke(app, ["program-run", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "Path to a JSON file" in result.output
 
 
 def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:

@@ -1204,11 +1204,13 @@ def validate_program_runtime_episode_contract(
             "executed",
             "executed_valid_review_only",
             "failed",
+            "failed_boundary",
             "failed_exception",
             "failed_missing_inputs",
             "error",
             "degraded_exception",
             "degraded_contract_violation",
+            "degraded_missing_outputs",
             "degraded_pdf_contract_violation",
         }:
             fail("runtime episode status is unsupported")

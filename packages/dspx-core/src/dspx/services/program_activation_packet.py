@@ -1169,7 +1169,10 @@ def _validate_candidate_state_publication_alignment(
 
 
 def _validate_candidate_state(
-    identity: Mapping[str, Any], candidate_state: Mapping[str, Any] | None
+    identity: Mapping[str, Any],
+    candidate_state: Mapping[str, Any] | None,
+    *,
+    current_manifest_sha256: str,
 ) -> None:
     if candidate_state is None:
         return
@@ -1181,6 +1184,11 @@ def _validate_candidate_state(
         raise ProgramActivationPacketError(
             "candidate_state identity does not match candidate identity: "
             + ", ".join(mismatched)
+        )
+    artifact_hashes = _safe_mapping(candidate_state.get("artifact_hashes"))
+    if artifact_hashes.get("manifest_sha256") != current_manifest_sha256:
+        raise ProgramActivationPacketError(
+            "candidate_state manifest_sha256 does not match current manifest"
         )
     _validate_non_authority_false(
         candidate_state,
@@ -1239,22 +1247,60 @@ def _validate_candidate_state_runtime_episode_alignment(
     runtime_hash = _first_text(artifact_hashes.get("runtime_episode_sha256"))
     evidence = _safe_mapping(candidate_state.get("evidence_state"))
     runtime_summary = _safe_mapping(evidence.get("runtime_episode"))
+    created_from = _safe_mapping(candidate_state.get("created_from"))
+    runtime_path = _first_text(created_from.get("runtime_episode_path"))
     runtime_present = runtime_summary.get("present") is True or runtime_hash is not None
     if runtime_present and runtime_episode_ref is None:
         raise ProgramActivationPacketError(
             "candidate_state references runtime_episode but activation packet omitted it"
         )
+    if runtime_present and runtime_path is None:
+        raise ProgramActivationPacketError(
+            "candidate_state runtime_episode_path is required when runtime episode evidence is present"
+        )
     if runtime_episode_ref is not None:
         supplied_hash = _first_text(runtime_episode_ref.get("sha256"))
+        supplied_path = _first_text(runtime_episode_ref.get("path"))
         if runtime_hash and runtime_hash != supplied_hash:
             raise ProgramActivationPacketError(
                 "candidate_state runtime_episode hash does not match supplied runtime episode"
             )
-        if runtime_summary.get("present") is True:
-            if runtime_summary.get("sha256") != supplied_hash:
+        if runtime_path is not None and supplied_path is not None:
+            if (
+                Path(runtime_path).expanduser().resolve()
+                != Path(supplied_path).expanduser().resolve()
+            ):
                 raise ProgramActivationPacketError(
-                    "candidate_state runtime_episode summary does not match supplied runtime episode"
+                    "candidate_state runtime_episode_path does not match supplied runtime episode"
                 )
+        if runtime_summary.get("present") is True:
+            summary_checks = {
+                "sha256": supplied_hash,
+                "status": runtime_episode_ref.get("status"),
+                "runtime_episode_id": runtime_episode_ref.get("runtime_episode_id"),
+                "contract_mode": runtime_episode_ref.get("contract_mode"),
+                "source_manifest_sha256": runtime_episode_ref.get(
+                    "source_manifest_sha256"
+                ),
+                "runtime_inputs_sha256": runtime_episode_ref.get(
+                    "runtime_inputs_sha256"
+                ),
+                "behavior_results_sha256": runtime_episode_ref.get(
+                    "behavior_results_sha256"
+                ),
+                "program_runtime_traces_sha256": runtime_episode_ref.get(
+                    "program_runtime_traces_sha256"
+                ),
+                "oracle_evidence_sha256": runtime_episode_ref.get(
+                    "oracle_evidence_sha256"
+                ),
+            }
+            for key, expected in summary_checks.items():
+                if runtime_summary.get(key) != expected:
+                    raise ProgramActivationPacketError(
+                        "candidate_state runtime_episode summary does not match supplied runtime episode: "
+                        f"{key}"
+                    )
             if runtime_summary.get("activation_authority") is not False:
                 raise ProgramActivationPacketError(
                     "candidate_state runtime_episode summary must deny activation authority"
@@ -1657,7 +1703,11 @@ def build_generated_program_activation_packet(
         preflight=oracle_publication_preflight,
         preflight_ref=oracle_publication_preflight_ref,
     )
-    _validate_candidate_state(identity, candidate_state)
+    _validate_candidate_state(
+        identity,
+        candidate_state,
+        current_manifest_sha256=str(manifest_ref["sha256"]),
+    )
     if runtime_episode is not None:
         if runtime_episode_path is None:
             raise ProgramActivationPacketError("runtime_episode path is required")
@@ -1698,7 +1748,7 @@ def build_generated_program_activation_packet(
     )
     _validate_candidate_state_runtime_episode_alignment(
         candidate_state=candidate_state,
-        runtime_episode_ref=runtime_episode_ref,
+        runtime_episode_ref=_runtime_episode_ref(runtime_episode_ref, runtime_episode),
     )
     _validate_external_authority_export_preflight(
         identity,

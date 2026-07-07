@@ -118,6 +118,7 @@ def _write_target_aware_state_with_adjudication_refs(
     _write_target_aware_candidate_state(root, out)
     state = json.loads(out.read_text(encoding="utf-8"))
     state["artifact_hashes"] = {
+        **state.get("artifact_hashes", {}),
         "generation_fitness_results_sha256": hashlib.sha256(
             generation_fitness_results_path.read_bytes()
         ).hexdigest(),
