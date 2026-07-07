@@ -566,8 +566,16 @@ def _validate_optional_inputs(
     source_manifest_path: Path | None,
     source_manifest_hash: str | None,
     source_program_hash: str | None,
+    behavior_path: Path | None,
     behavior_hash: str | None,
+    behavior_episode_path: Path | None,
     behavior_episode_hash: str | None,
+    source_behavior_path: Path | None,
+    source_behavior_hash: str | None,
+    source_behavior_episode_path: Path | None,
+    source_behavior_episode_hash: str | None,
+    model_jury_results_path: Path | None,
+    model_jury_results_hash: str | None,
     sidecar_hashes: Mapping[str, str | None],
     comparison_hash: str | None,
     supplied_sidecar_refs: Mapping[str, tuple[Path, str]],
@@ -578,6 +586,24 @@ def _validate_optional_inputs(
     valid_manifest_refs = {current_manifest_path: current_manifest_hash}
     if source_manifest_path is not None and source_manifest_hash is not None:
         valid_manifest_refs[source_manifest_path] = source_manifest_hash
+    valid_behavior_results_refs: dict[Path, str] = {}
+    if behavior_path is not None and behavior_hash is not None:
+        valid_behavior_results_refs[behavior_path] = behavior_hash
+    if source_behavior_path is not None and source_behavior_hash is not None:
+        valid_behavior_results_refs[source_behavior_path] = source_behavior_hash
+    valid_behavior_episode_refs: dict[Path, str] = {}
+    if behavior_episode_path is not None and behavior_episode_hash is not None:
+        valid_behavior_episode_refs[behavior_episode_path] = behavior_episode_hash
+    if (
+        source_behavior_episode_path is not None
+        and source_behavior_episode_hash is not None
+    ):
+        valid_behavior_episode_refs[source_behavior_episode_path] = (
+            source_behavior_episode_hash
+        )
+    valid_model_jury_results_refs: dict[Path, str] = {}
+    if model_jury_results_path is not None and model_jury_results_hash is not None:
+        valid_model_jury_results_refs[model_jury_results_path] = model_jury_results_hash
 
     if refinement_proposal is not None:
         proposal_identity = _safe_mapping(refinement_proposal.get("identity"))
@@ -595,7 +621,7 @@ def _validate_optional_inputs(
                 valid_oracle_report_refs={oracle_report_path: oracle_report_hash}
                 if oracle_report_path is not None and oracle_report_hash is not None
                 else None,
-                valid_behavior_results_refs=None,
+                valid_behavior_results_refs=valid_behavior_results_refs,
                 error_type=ProgramCandidateStateError,
             )
         except ProgramRefinementError as exc:
@@ -618,6 +644,9 @@ def _validate_optional_inputs(
                 review,
                 refined_review_path=review_path,
                 expected_identity=expected_review_identity,
+                valid_behavior_results_refs=valid_behavior_results_refs,
+                valid_behavior_episode_refs=valid_behavior_episode_refs,
+                valid_model_jury_results_refs=valid_model_jury_results_refs,
                 error_type=ProgramCandidateStateError,
             )
         except ProgramPromotionRefinementError as exc:
@@ -1647,10 +1676,24 @@ def build_program_candidate_state(
     source_identity: dict[str, str | None] | None = None
     source_manifest_hash: str | None = None
     source_manifest_resolved: Path | None = None
+    source_behavior_path: Path | None = None
+    source_behavior_hash: str | None = None
+    source_behavior_episode_path: Path | None = None
+    source_behavior_episode_hash: str | None = None
     if source_manifest_path is not None:
         source_manifest_resolved = source_manifest_path.expanduser().resolve()
         try:
             source_manifest = load_program_manifest(source_manifest_resolved)
+            _source_behavior, source_behavior_path, source_behavior_hash = (
+                load_program_behavior_results(source_manifest, source_manifest_resolved)
+            )
+            (
+                _source_behavior_episode,
+                source_behavior_episode_path,
+                source_behavior_episode_hash,
+            ) = _load_program_behavior_episode(
+                source_manifest, source_manifest_resolved
+            )
         except ProgramRefinementError as exc:
             raise ProgramCandidateStateError(str(exc)) from exc
         source_identity = _identity_from_manifest(source_manifest)
@@ -1854,8 +1897,16 @@ def build_program_candidate_state(
         source_manifest_path=source_manifest_resolved,
         source_manifest_hash=source_manifest_hash,
         source_program_hash=source_program_hash,
+        behavior_path=behavior_path,
         behavior_hash=behavior_hash,
+        behavior_episode_path=behavior_episode_path,
         behavior_episode_hash=behavior_episode_hash,
+        source_behavior_path=source_behavior_path,
+        source_behavior_hash=source_behavior_hash,
+        source_behavior_episode_path=source_behavior_episode_path,
+        source_behavior_episode_hash=source_behavior_episode_hash,
+        model_jury_results_path=model_jury_results_file,
+        model_jury_results_hash=model_jury_results_hash,
         sidecar_hashes=activation_sidecar_hashes,
         comparison_hash=comparison_hash,
         supplied_sidecar_refs=supplied_sidecar_refs,

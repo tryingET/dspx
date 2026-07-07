@@ -1138,6 +1138,57 @@ def test_program_candidate_state_rejects_invalid_decision_record_status(
         )
 
 
+def test_program_candidate_state_rejects_wrong_path_refinement_proposal_behavior_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    wrong_behavior = tmp_path / "wrong" / "behavior_results.json"
+    _write_json(
+        wrong_behavior,
+        {"schema_version": "wrong-behavior-results-v1", "status": "passed"},
+    )
+    proposal = json.loads(paths["proposal"].read_text(encoding="utf-8"))
+    proposal["created_from"]["behavior_results_path"] = str(wrong_behavior)
+    proposal["created_from"]["behavior_results_sha256"] = _sha256(wrong_behavior)
+    _write_json(paths["proposal"], proposal)
+
+    with pytest.raises(ProgramCandidateStateError, match="behavior results path"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            oracle_report_path=paths["oracle_report"],
+            refinement_proposal_path=paths["proposal"],
+        )
+
+
+def test_program_candidate_state_rejects_wrong_path_refined_review_behavior_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    wrong_behavior = tmp_path / "wrong" / "behavior_results.json"
+    _write_json(
+        wrong_behavior,
+        {"schema_version": "wrong-behavior-results-v1", "status": "passed"},
+    )
+    review = json.loads(paths["review"].read_text(encoding="utf-8"))
+    review["created_from"]["behavior_results_path"] = str(wrong_behavior)
+    review["created_from"]["behavior_results_sha256"] = _sha256(wrong_behavior)
+    _write_json(paths["review"], review)
+
+    with pytest.raises(ProgramCandidateStateError, match="behavior-results ref path"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            review_path=paths["review"],
+        )
+
+
 def test_program_candidate_state_rejects_stale_comparison_candidate_behavior_hash(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

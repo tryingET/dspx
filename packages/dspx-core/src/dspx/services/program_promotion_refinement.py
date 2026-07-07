@@ -377,11 +377,53 @@ def _validate_created_from_hash(
     return path, actual_hash
 
 
+def _validate_created_from_expected_ref(
+    created_from: Mapping[str, Any],
+    *,
+    path_key: str,
+    hash_key: str,
+    label: str,
+    valid_refs: Mapping[Path, str] | None,
+    base_path: Path | None,
+    error_type: type[Exception],
+    required: bool = False,
+) -> None:
+    path, declared_hash = _validate_created_from_hash(
+        created_from,
+        path_key=path_key,
+        hash_key=hash_key,
+        label=label,
+        base_path=base_path,
+        error_type=error_type,
+        required=required,
+    )
+    if valid_refs is None or path is None:
+        return
+    normalized_refs = {
+        ref_path.expanduser().resolve(): ref_hash
+        for ref_path, ref_hash in valid_refs.items()
+    }
+    expected_hash = normalized_refs.get(path)
+    if expected_hash is None:
+        _raise_contract_error(
+            error_type,
+            f"{label} path does not match expected input",
+        )
+    if declared_hash != expected_hash:
+        _raise_contract_error(
+            error_type,
+            f"{label} hash does not match expected input",
+        )
+
+
 def validate_program_promotion_review_refined_contract(
     refined_review: Mapping[str, Any],
     *,
     refined_review_path: Path | None = None,
     expected_identity: Mapping[str, Any] | None = None,
+    valid_behavior_results_refs: Mapping[Path, str] | None = None,
+    valid_behavior_episode_refs: Mapping[Path, str] | None = None,
+    valid_model_jury_results_refs: Mapping[Path, str] | None = None,
     error_type: type[Exception] = ProgramPromotionRefinementError,
 ) -> None:
     """Validate a refined promotion-review sidecar before downstream consumption."""
@@ -474,32 +516,36 @@ def validate_program_promotion_review_refined_contract(
             error_type=error_type,
         )
 
-    for path_key, hash_key, label in (
-        (
-            "behavior_results_path",
-            "behavior_results_sha256",
-            "refined promotion review behavior-results ref",
-        ),
-        (
-            "behavior_episode_path",
-            "behavior_episode_sha256",
-            "refined promotion review behavior-episode ref",
-        ),
-        (
-            "model_jury_results_path",
-            "model_jury_results_sha256",
-            "refined promotion review model-jury ref",
-        ),
-    ):
-        _validate_created_from_hash(
-            created_from,
-            path_key=path_key,
-            hash_key=hash_key,
-            label=label,
-            base_path=refined_review_path,
-            error_type=error_type,
-            required=False,
-        )
+    _validate_created_from_expected_ref(
+        created_from,
+        path_key="behavior_results_path",
+        hash_key="behavior_results_sha256",
+        label="refined promotion review behavior-results ref",
+        valid_refs=valid_behavior_results_refs,
+        base_path=refined_review_path,
+        error_type=error_type,
+        required=False,
+    )
+    _validate_created_from_expected_ref(
+        created_from,
+        path_key="behavior_episode_path",
+        hash_key="behavior_episode_sha256",
+        label="refined promotion review behavior-episode ref",
+        valid_refs=valid_behavior_episode_refs,
+        base_path=refined_review_path,
+        error_type=error_type,
+        required=False,
+    )
+    _validate_created_from_expected_ref(
+        created_from,
+        path_key="model_jury_results_path",
+        hash_key="model_jury_results_sha256",
+        label="refined promotion review model-jury ref",
+        valid_refs=valid_model_jury_results_refs,
+        base_path=refined_review_path,
+        error_type=error_type,
+        required=False,
+    )
 
     model_jury_summary = _safe_mapping(
         _safe_mapping(refined_review.get("evidence_summary")).get("model_jury_results")
