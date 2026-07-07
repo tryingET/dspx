@@ -43,6 +43,7 @@ from dspx.services.program_promotion_decision import (
     build_generated_program_adjudicator_decision_record,
     write_program_promotion_decision_record,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
@@ -118,7 +119,21 @@ def _write_activation_packet(path: Path) -> None:
     )
 
 
-def _write_trace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def _write_runtime_inputs(tmp_path: Path) -> Path:
+    inputs_path = tmp_path / "runtime_inputs.json"
+    inputs_path.write_text(
+        json.dumps({"ticket_text": "Server is down for all users"}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return inputs_path
+
+
+def _write_trace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    include_runtime_episode: bool = False,
+) -> Path:
     root = _materialize_candidate(tmp_path, monkeypatch)
     requirements_path = tmp_path / "jury_requirements.json"
     selection_path = tmp_path / "meta_jury_selection.json"
@@ -130,6 +145,16 @@ def _write_trace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     decision_path = tmp_path / "promotion_decision_record.json"
     trace_path = tmp_path / "adjudication_behavior_trace.json"
     activation_packet_path = root / "activation_packet.json"
+    runtime_episode_path = None
+    if include_runtime_episode:
+        runtime_out = tmp_path / "runtime-episode"
+        run_program_runtime_episode(
+            manifest_path=root / "manifest.json",
+            inputs_path=_write_runtime_inputs(tmp_path),
+            outdir=runtime_out,
+            skip_oracle_index=True,
+        )
+        runtime_episode_path = runtime_out / "runtime_episode.json"
 
     requirements = build_program_jury_requirements(manifest_path=root / "manifest.json")
     write_program_jury_requirements(requirements, requirements_path)
@@ -161,6 +186,7 @@ def _write_trace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         adjudicator_verification_path=adjudicator_verification_path,
         manifest_path=root / "manifest.json",
         activation_packet_path=activation_packet_path,
+        runtime_episode_path=runtime_episode_path,
     )
     write_program_evidence_adjudication(adjudication, adjudication_path)
     decision = build_generated_program_adjudicator_decision_record(
@@ -251,6 +277,26 @@ def test_adjudication_trace_publication_preflight_rejects_stale_source_adjudicat
     with pytest.raises(
         ProgramAdjudicationPublicationError,
         match="source_adjudication sha256 no longer matches current file",
+    ):
+        build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
+
+
+def test_adjudication_trace_publication_preflight_rejects_stale_runtime_episode_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch, include_runtime_episode=True)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    runtime_path = Path(
+        trace["linked_artifacts"]["evidence_refs"]["runtime_episode"]["path"]
+    )
+    traces_path = runtime_path.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["sources"][0]["content_hash"] = "0" * 64
+    traces_path.write_text(json.dumps(traces, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="runtime episode program_runtime_traces_sha256 does not match current file",
     ):
         build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
 

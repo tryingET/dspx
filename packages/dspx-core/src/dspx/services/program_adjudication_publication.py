@@ -16,6 +16,10 @@ from dspx.services.program_oracle_secret_policy import (
     build_onepassword_ref_descriptors,
     validate_publisher_assertion_no_secret,
 )
+from dspx.services.program_runtime_episode import (
+    PROGRAM_RUNTIME_EPISODE_SCHEMA,
+    validate_program_runtime_episode_contract,
+)
 
 ADJUDICATION_TRACE_SCHEMA = "program-adjudication-behavior-trace-v1"
 ADJUDICATION_TRACE_PUBLICATION_PREFLIGHT_SCHEMA = (
@@ -335,6 +339,48 @@ def _validate_trace_linked_artifact_refs(trace: Mapping[str, Any]) -> None:
                 raise ProgramAdjudicationPublicationError(
                     f"adjudication trace {label} schema_version no longer matches {schema}"
                 )
+    _validate_trace_runtime_episode_contract(trace)
+
+
+def _validate_trace_runtime_episode_contract(trace: Mapping[str, Any]) -> None:
+    linked = _safe_mapping(trace.get("linked_artifacts"))
+    evidence_refs = _safe_mapping(linked.get("evidence_refs"))
+    runtime_ref = _safe_mapping(evidence_refs.get("runtime_episode"))
+    if not runtime_ref:
+        return
+    if runtime_ref.get("schema_version") != PROGRAM_RUNTIME_EPISODE_SCHEMA:
+        raise ProgramAdjudicationPublicationError(
+            "adjudication trace runtime_episode schema_version must be "
+            + PROGRAM_RUNTIME_EPISODE_SCHEMA
+        )
+    manifest_ref = _safe_mapping(linked.get("manifest"))
+    manifest_path_text = _first_text(manifest_ref.get("path"))
+    manifest_sha256 = _first_text(manifest_ref.get("sha256"))
+    runtime_path_text = _first_text(runtime_ref.get("path"))
+    if manifest_path_text is None or manifest_sha256 is None:
+        raise ProgramAdjudicationPublicationError(
+            "adjudication trace linked_artifacts.manifest path and sha256 are required for runtime episode validation"
+        )
+    if runtime_path_text is None:
+        raise ProgramAdjudicationPublicationError(
+            "adjudication trace linked_artifacts.evidence_refs.runtime_episode.path is required"
+        )
+    manifest_path = Path(manifest_path_text).expanduser().resolve()
+    runtime_path = Path(runtime_path_text).expanduser().resolve()
+    manifest = _load_json_object(
+        manifest_path, label="adjudication trace linked manifest"
+    )
+    runtime_episode = _load_json_object(
+        runtime_path, label="adjudication trace runtime episode"
+    )
+    validate_program_runtime_episode_contract(
+        runtime_episode,
+        runtime_episode_path=runtime_path,
+        expected_manifest_path=manifest_path,
+        expected_manifest=manifest,
+        expected_manifest_sha256=manifest_sha256,
+        error_type=ProgramAdjudicationPublicationError,
+    )
 
 
 def _validate_trace(trace: Mapping[str, Any], path: Path) -> None:
