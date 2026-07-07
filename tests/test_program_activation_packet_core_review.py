@@ -7,12 +7,16 @@ from pathlib import Path
 import pytest
 
 from dspx.cli.dspx import app
+from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_runtime_episode import run_program_runtime_episode
+from dspx.services.program_service import materialize_program_from_intent
 from program_activation_packet_shared import (
     _candidate_identity,
     _file_hashes,
     _materialize_program,
     _materialize_review_chain,
     _write_json,
+    _setup_env,
     _write_obsidian_adapter_receipt,
     _write_target_aware_candidate_state,
     runner,
@@ -29,6 +33,95 @@ def _hash_ref(path: Path) -> dict[str, object]:
             "schema_version"
         ),
     }
+
+
+def _materialize_runtime_program(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    outdir_name: str = "program",
+    program_name: str = "ActivationTicketProgram",
+) -> Path:
+    _setup_env(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name=program_name,
+            objective="Classify support ticket urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+            metric="exact_match",
+            constraints=["use only the supplied ticket text"],
+            examples=[
+                {
+                    "inputs": {"ticket_text": "Server is down for all users"},
+                    "outputs": {"urgency": "high"},
+                }
+            ],
+        ),
+        outdir=tmp_path / outdir_name,
+    )
+    return Path(artifact.root_path)
+
+
+def _write_runtime_episode(root: Path, tmp_path: Path) -> Path:
+    runtime_inputs = tmp_path / "runtime" / "runtime-inputs.json"
+    _write_json(
+        runtime_inputs,
+        {"inputs": {"ticket_text": "Server is down for all users"}},
+    )
+    runtime_root = tmp_path / "runtime" / "episode"
+    run_program_runtime_episode(
+        manifest_path=root / "manifest.json",
+        inputs_path=runtime_inputs,
+        outdir=runtime_root,
+        skip_oracle_index=True,
+    )
+    return runtime_root / "runtime_episode.json"
+
+
+def _write_candidate_state_with_runtime_episode(
+    root: Path,
+    runtime_episode_path: Path,
+    out: Path,
+    *,
+    runtime_hash: str | None = None,
+) -> Path:
+    episode = json.loads(runtime_episode_path.read_text(encoding="utf-8"))
+    supplied_hash = (
+        runtime_hash or hashlib.sha256(runtime_episode_path.read_bytes()).hexdigest()
+    )
+    _write_json(
+        out,
+        {
+            "schema_version": "program-candidate-state-v1",
+            "status": "not_promoted_materialized",
+            "candidate_identity": _candidate_identity(root),
+            "artifact_hashes": {"runtime_episode_sha256": supplied_hash},
+            "evidence_state": {
+                "runtime_episode": {
+                    "present": True,
+                    "schema_version": "program-runtime-episode-v1",
+                    "status": episode["status"],
+                    "runtime_episode_id": episode["runtime_episode_id"],
+                    "sha256": supplied_hash,
+                    "evidence_only": True,
+                    "activation_authority": False,
+                    "promotion_authority": False,
+                }
+            },
+            "non_authority": {
+                "agent_kernel_mutation": False,
+                "apply_promotion": False,
+                "automatic_promotion": False,
+                "external_apply": False,
+                "governance_authority": False,
+                "oracle_authority": False,
+                "promotion_authority": False,
+                "winner_selection": False,
+            },
+        },
+    )
+    return out
 
 
 def _write_model_jury_results(
@@ -188,6 +281,404 @@ def test_program_promote_activation_packet_blocks_without_required_evidence(
     assert payload["effect"]["production_activation_applied"] is False
     assert _file_hashes(program_root) == before_hashes
     assert not (program_root / "activation_packet.json").exists()
+
+
+def test_program_promote_activation_packet_includes_program_run_runtime_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    runtime_ref = payload["evidence"]["runtime_episode"]
+    assert runtime_ref["schema_version"] == "program-runtime-episode-v1"
+    assert (
+        runtime_ref["sha256"]
+        == hashlib.sha256(runtime_episode.read_bytes()).hexdigest()
+    )
+    assert runtime_ref["status"] == "executed"
+    assert runtime_ref["evidence_only"] is True
+    assert runtime_ref["activation_authority"] is False
+    assert runtime_ref["promotion_authority"] is False
+    assert runtime_ref["shared_oracle_mutated"] is False
+    assert (
+        runtime_ref["source_manifest_sha256"]
+        == hashlib.sha256((program_root / "manifest.json").read_bytes()).hexdigest()
+    )
+    assert payload["status"] == "blocked"
+    assert "oracle_report" in payload["missing_required_evidence"]
+    assert payload["effect"]["production_activation_applied"] is False
+    assert payload["non_authority"]["activation_packet_only"] is True
+
+
+def test_program_promote_activation_packet_rejects_stale_program_run_manifest_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    manifest_path = program_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["candidate_assembly"]["status"] = "materialized_after_runtime_drift"
+    _write_json(manifest_path, manifest)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(manifest_path),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "source_manifest_sha256" in result.output
+
+
+def test_program_promote_activation_packet_rejects_cross_candidate_runtime_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    other_root = _materialize_runtime_program(
+        tmp_path,
+        monkeypatch,
+        outdir_name="other-program",
+        program_name="OtherActivationTicketProgram",
+    )
+    runtime_episode = _write_runtime_episode(other_root, tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate_manifest_path" in result.output
+
+
+def test_program_promote_activation_packet_rejects_runtime_episode_trace_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    traces_path = runtime_episode.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["status"] = "no_runtime_traces_captured"
+    _write_json(traces_path, traces)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "program_runtime_traces_sha256" in result.output
+
+
+def test_program_promote_activation_packet_rejects_runtime_episode_wrong_path_fresh_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    runtime_manifest_path = runtime_episode.parent / "manifest.json"
+    runtime_manifest = json.loads(runtime_manifest_path.read_text(encoding="utf-8"))
+    nested_behavior = runtime_episode.parent / "nested" / "behavior_results.json"
+    nested_behavior.parent.mkdir(parents=True, exist_ok=True)
+    nested_behavior.write_bytes(
+        (runtime_episode.parent / "behavior_results.json").read_bytes()
+    )
+    runtime_manifest["runtime_episode"]["behavior_results_path"] = (
+        "nested/behavior_results.json"
+    )
+    runtime_manifest["runtime_episode"]["behavior_results_sha256"] = hashlib.sha256(
+        nested_behavior.read_bytes()
+    ).hexdigest()
+    _write_json(runtime_manifest_path, runtime_manifest)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "behavior_results_path" in result.output
+
+
+def test_program_promote_activation_packet_rejects_runtime_episode_symlink_escape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    outside_trace = tmp_path / "outside-program-runtime-traces.json"
+    outside_trace.write_bytes(
+        (runtime_episode.parent / "program_runtime_traces.json").read_bytes()
+    )
+    (runtime_episode.parent / "program_runtime_traces.json").unlink()
+    (runtime_episode.parent / "program_runtime_traces.json").symlink_to(outside_trace)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "escapes runtime episode root" in result.output
+
+
+def test_program_promote_activation_packet_rejects_runtime_episode_authority_spoof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    payload = json.loads(runtime_episode.read_text(encoding="utf-8"))
+    payload["non_authority"]["promotion_authority"] = True
+    _write_json(runtime_episode, payload)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "non_authority" in result.output
+
+
+def test_program_promote_activation_packet_aligns_candidate_state_runtime_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    candidate_state = _write_candidate_state_with_runtime_episode(
+        program_root,
+        runtime_episode,
+        tmp_path / "state" / "program_candidate_state.json",
+    )
+    out_path = tmp_path / "activation" / "activation_packet.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--candidate-state",
+            str(candidate_state),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert (
+        payload["evidence"]["candidate_state"]["sha256"]
+        == hashlib.sha256(candidate_state.read_bytes()).hexdigest()
+    )
+    assert (
+        payload["evidence"]["runtime_episode"]["sha256"]
+        == hashlib.sha256(runtime_episode.read_bytes()).hexdigest()
+    )
+
+
+def test_program_promote_activation_packet_rejects_candidate_state_runtime_omission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    candidate_state = _write_candidate_state_with_runtime_episode(
+        program_root,
+        runtime_episode,
+        tmp_path / "state" / "program_candidate_state.json",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--candidate-state",
+            str(candidate_state),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "candidate_state references runtime_episode" in result.output
+
+
+def test_program_promote_activation_packet_rejects_candidate_state_runtime_hash_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root = _materialize_runtime_program(tmp_path, monkeypatch)
+    runtime_episode = _write_runtime_episode(program_root, tmp_path)
+    candidate_state = _write_candidate_state_with_runtime_episode(
+        program_root,
+        runtime_episode,
+        tmp_path / "state" / "program_candidate_state.json",
+        runtime_hash="0" * 64,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "activation-packet",
+            "--manifest",
+            str(program_root / "manifest.json"),
+            "--owning-domain",
+            "softwareco/dspx-generated-program-governance",
+            "--activation-target",
+            "local-dogfood-only",
+            "--authority-owner",
+            "softwareco-program-governance",
+            "--candidate-state",
+            str(candidate_state),
+            "--runtime-episode",
+            str(runtime_episode),
+            "--out",
+            str(tmp_path / "activation" / "activation_packet.json"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "runtime_episode hash does not match" in result.output
 
 
 def test_program_promote_activation_packet_requires_obsidian_review_adapter_when_requested(

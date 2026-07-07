@@ -28,6 +28,10 @@ from dspx.services.program_oracle_publication import (
     validate_program_oracle_publication_preflight_contract,
     validate_program_oracle_publication_receipt_contract,
 )
+from dspx.services.program_runtime_episode import (
+    PROGRAM_RUNTIME_EPISODE_SCHEMA,
+    validate_program_runtime_episode_contract,
+)
 
 ACTIVATION_PACKET_SCHEMA = "generated-cognition-program-production-activation-packet-v1"
 TRANSITION_TYPE = "generated-cognition-program.production_activation"
@@ -55,6 +59,7 @@ _EXPECTED_SCHEMAS = {
     "external_authority_export_preflight": "program-external-authority-export-preflight-v1",
     "generation_fitness_results": "gen-fitness-results-v1",
     "program_evidence_adjudication": "program-evidence-adjudication-v1",
+    "runtime_episode": PROGRAM_RUNTIME_EPISODE_SCHEMA,
 }
 
 CANONICAL_BINDING_VERIFICATION_SCHEMA = "program-canonical-binding-verification-v1"
@@ -873,6 +878,32 @@ def _strip_sha256_prefix(value: object) -> str | None:
     return text.removeprefix("sha256:")
 
 
+def _runtime_episode_ref(
+    artifact_ref: Mapping[str, Any] | None,
+    runtime_episode: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if artifact_ref is None or runtime_episode is None:
+        return None
+    artifact_hashes = _safe_mapping(runtime_episode.get("artifact_hashes"))
+    return {
+        **dict(artifact_ref),
+        "status": runtime_episode.get("status"),
+        "runtime_episode_id": runtime_episode.get("runtime_episode_id"),
+        "contract_mode": runtime_episode.get("contract_mode"),
+        "source_manifest_sha256": artifact_hashes.get("source_manifest_sha256"),
+        "runtime_inputs_sha256": artifact_hashes.get("runtime_inputs_sha256"),
+        "behavior_results_sha256": artifact_hashes.get("behavior_results_sha256"),
+        "program_runtime_traces_sha256": artifact_hashes.get(
+            "program_runtime_traces_sha256"
+        ),
+        "oracle_evidence_sha256": artifact_hashes.get("oracle_evidence_sha256"),
+        "evidence_only": True,
+        "activation_authority": False,
+        "promotion_authority": False,
+        "shared_oracle_mutated": False,
+    }
+
+
 def _candidate_state_publication_refs(
     candidate_state: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
@@ -1197,6 +1228,43 @@ def _validate_candidate_state(
             )
 
 
+def _validate_candidate_state_runtime_episode_alignment(
+    *,
+    candidate_state: Mapping[str, Any] | None,
+    runtime_episode_ref: Mapping[str, Any] | None,
+) -> None:
+    if candidate_state is None:
+        return
+    artifact_hashes = _safe_mapping(candidate_state.get("artifact_hashes"))
+    runtime_hash = _first_text(artifact_hashes.get("runtime_episode_sha256"))
+    evidence = _safe_mapping(candidate_state.get("evidence_state"))
+    runtime_summary = _safe_mapping(evidence.get("runtime_episode"))
+    runtime_present = runtime_summary.get("present") is True or runtime_hash is not None
+    if runtime_present and runtime_episode_ref is None:
+        raise ProgramActivationPacketError(
+            "candidate_state references runtime_episode but activation packet omitted it"
+        )
+    if runtime_episode_ref is not None:
+        supplied_hash = _first_text(runtime_episode_ref.get("sha256"))
+        if runtime_hash and runtime_hash != supplied_hash:
+            raise ProgramActivationPacketError(
+                "candidate_state runtime_episode hash does not match supplied runtime episode"
+            )
+        if runtime_summary.get("present") is True:
+            if runtime_summary.get("sha256") != supplied_hash:
+                raise ProgramActivationPacketError(
+                    "candidate_state runtime_episode summary does not match supplied runtime episode"
+                )
+            if runtime_summary.get("activation_authority") is not False:
+                raise ProgramActivationPacketError(
+                    "candidate_state runtime_episode summary must deny activation authority"
+                )
+            if runtime_summary.get("promotion_authority") is not False:
+                raise ProgramActivationPacketError(
+                    "candidate_state runtime_episode summary must deny promotion authority"
+                )
+
+
 def _validate_candidate_state_target_adjudication_alignment(
     *,
     candidate_state: Mapping[str, Any] | None,
@@ -1447,6 +1515,7 @@ def build_generated_program_activation_packet(
     external_authority_export_preflight_path: Path | None = None,
     obsidian_review_adapter_receipt_path: Path | None = None,
     canonical_binding_verification_path: Path | None = None,
+    runtime_episode_path: Path | None = None,
     require_obsidian_review_adapter: bool = False,
     canonical_binding_ref: str | None = None,
     rollout_owner: str | None = None,
@@ -1549,6 +1618,10 @@ def build_generated_program_activation_packet(
             label="canonical_binding_verification",
         )
     )
+    runtime_episode, runtime_episode_ref = _load_optional_artifact(
+        runtime_episode_path,
+        label="runtime_episode",
+    )
 
     _validate_artifact_identity(identity, jury_results, label="jury_results")
     _validate_artifact_identity(
@@ -1585,6 +1658,18 @@ def build_generated_program_activation_packet(
         preflight_ref=oracle_publication_preflight_ref,
     )
     _validate_candidate_state(identity, candidate_state)
+    if runtime_episode is not None:
+        if runtime_episode_path is None:
+            raise ProgramActivationPacketError("runtime_episode path is required")
+        runtime_episode_resolved = runtime_episode_path.expanduser().resolve()
+        validate_program_runtime_episode_contract(
+            runtime_episode,
+            runtime_episode_path=runtime_episode_resolved,
+            expected_manifest_path=manifest_path,
+            expected_manifest=manifest,
+            expected_manifest_sha256=str(manifest_ref["sha256"]),
+            error_type=ProgramActivationPacketError,
+        )
     behavior_refs = _behavior_refs(root, manifest)
     validate_program_evidence_adjudication_contract(
         program_evidence_adjudication,
@@ -1610,6 +1695,10 @@ def build_generated_program_activation_packet(
         candidate_state=candidate_state,
         program_evidence_adjudication_ref=program_evidence_adjudication_ref,
         generation_fitness_results_ref=generation_fitness_results_ref,
+    )
+    _validate_candidate_state_runtime_episode_alignment(
+        candidate_state=candidate_state,
+        runtime_episode_ref=runtime_episode_ref,
     )
     _validate_external_authority_export_preflight(
         identity,
@@ -1719,6 +1808,10 @@ def build_generated_program_activation_packet(
             ),
             "obsidian_review_adapter_receipt": obsidian_review_adapter_receipt_ref,
             "canonical_binding_verification": canonical_binding_verification_ref,
+            "runtime_episode": _runtime_episode_ref(
+                runtime_episode_ref,
+                runtime_episode,
+            ),
         },
         "evidence_alignment": {
             "oracle_publication": _oracle_publication_alignment_summary(

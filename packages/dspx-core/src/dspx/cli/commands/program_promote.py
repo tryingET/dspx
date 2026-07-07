@@ -418,6 +418,11 @@ def activation_packet(
         "--canonical-binding-verification",
         help="Optional program-canonical-binding-verification-v1 JSON",
     ),
+    runtime_episode: Path | None = typer.Option(
+        None,
+        "--runtime-episode",
+        help="Optional program-runtime-episode-v1 JSON from program-run; evidence only, not activation authority",
+    ),
     require_obsidian_review_adapter: bool = typer.Option(
         False,
         "--require-obsidian-review-adapter",
@@ -467,6 +472,7 @@ def activation_packet(
             external_authority_export_preflight_path=export_preflight,
             obsidian_review_adapter_receipt_path=obsidian_review_adapter_receipt,
             canonical_binding_verification_path=canonical_binding_verification,
+            runtime_episode_path=runtime_episode,
             require_obsidian_review_adapter=require_obsidian_review_adapter,
             canonical_binding_ref=canonical_binding_ref,
             rollout_owner=rollout_owner,
