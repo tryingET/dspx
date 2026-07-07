@@ -26,9 +26,17 @@ from dspx.services.program_oracle_publication import (
     validate_program_oracle_publication_preflight_contract,
     validate_program_oracle_publication_receipt_contract,
 )
+from dspx.services.program_promotion_decision import (
+    ProgramPromotionDecisionError,
+    validate_program_promotion_decision_record_contract,
+)
 from dspx.services.program_promotion_plan import (
     ProgramPromotionPlanError,
     validate_program_promotion_plan_contract,
+)
+from dspx.services.program_promotion_refinement import (
+    ProgramPromotionRefinementError,
+    validate_program_promotion_review_refined_contract,
 )
 from dspx.services.program_refinement_comparison import (
     ProgramRefinementComparisonError,
@@ -41,6 +49,7 @@ from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
     load_program_manifest,
+    validate_program_refinement_proposal_contract,
 )
 
 PROGRAM_CANDIDATE_STATE_SCHEMA = "program-candidate-state-v1"
@@ -534,7 +543,9 @@ def _validate_optional_inputs(
     *,
     candidate_identity: Mapping[str, str | None],
     source_identity: Mapping[str, str | None] | None,
+    refinement_proposal: Mapping[str, Any] | None,
     review: Mapping[str, Any] | None,
+    review_path: Path | None,
     decision: Mapping[str, Any] | None,
     jury_results: Mapping[str, Any] | None,
     model_jury_results: Mapping[str, Any] | None,
@@ -549,6 +560,8 @@ def _validate_optional_inputs(
     gepa_refinement: Mapping[str, Any] | None,
     current_manifest_path: Path,
     current_manifest_hash: str,
+    oracle_report_path: Path | None,
+    oracle_report_hash: str | None,
     current_program_hash: str | None,
     source_manifest_path: Path | None,
     source_manifest_hash: str | None,
@@ -562,62 +575,62 @@ def _validate_optional_inputs(
     source_or_candidate = [candidate_identity]
     if source_identity is not None:
         source_or_candidate.append(source_identity)
+    valid_manifest_refs = {current_manifest_path: current_manifest_hash}
+    if source_manifest_path is not None and source_manifest_hash is not None:
+        valid_manifest_refs[source_manifest_path] = source_manifest_hash
+
+    if refinement_proposal is not None:
+        proposal_identity = _safe_mapping(refinement_proposal.get("identity"))
+        expected_proposal_identity = (
+            source_identity
+            if source_identity is not None
+            and _identity_exactly_matches(proposal_identity, source_identity)
+            else candidate_identity
+        )
+        try:
+            validate_program_refinement_proposal_contract(
+                refinement_proposal,
+                expected_identity=expected_proposal_identity,
+                valid_manifest_refs=valid_manifest_refs,
+                valid_oracle_report_refs={oracle_report_path: oracle_report_hash}
+                if oracle_report_path is not None and oracle_report_hash is not None
+                else None,
+                valid_behavior_results_refs=None,
+                error_type=ProgramCandidateStateError,
+            )
+        except ProgramRefinementError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if review is not None:
-        _validate_non_authority_false(
-            review,
-            label="refined promotion review",
-            keys=(
-                "automatic_promotion",
-                "oracle_ranking",
-                "oracle_pruning",
-                "oracle_promotion",
-                "program_mutation",
-                "new_candidate_generation",
-                "promotion_authority",
-                "governance_authority",
-                "external_mutation",
-            ),
-        )
-        review_identity = _safe_mapping(review.get("identity"))
-        if not any(
-            _identity_exactly_matches(review_identity, item)
-            for item in source_or_candidate
-        ):
+        if review_path is None:
             raise ProgramCandidateStateError(
-                "refined promotion review identity does not match candidate/source identity: "
-                + ", ".join(
-                    _identity_mismatch_keys(review_identity, candidate_identity)
-                )
+                "refined promotion review path is required for contract validation"
             )
+        review_identity = _safe_mapping(review.get("identity"))
+        expected_review_identity = (
+            source_identity
+            if source_identity is not None
+            and _identity_exactly_matches(review_identity, source_identity)
+            else candidate_identity
+        )
+        try:
+            validate_program_promotion_review_refined_contract(
+                review,
+                refined_review_path=review_path,
+                expected_identity=expected_review_identity,
+                error_type=ProgramCandidateStateError,
+            )
+        except ProgramPromotionRefinementError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if decision is not None:
-        _validate_non_authority_false(
-            decision,
-            label="program promotion decision record",
-            keys=(
-                "automatic_promotion",
-                "oracle_ranking",
-                "oracle_pruning",
-                "oracle_promotion",
-                "program_mutation",
-                "refined_review_mutation",
-                "new_candidate_generation",
-                "governance_authority",
-                "external_mutation",
-            ),
-        )
-        decision_identity = _safe_mapping(decision.get("identity"))
-        if not any(
-            _identity_exactly_matches(decision_identity, item)
-            for item in source_or_candidate
-        ):
-            raise ProgramCandidateStateError(
-                "program promotion decision record identity does not match candidate/source identity: "
-                + ", ".join(
-                    _identity_mismatch_keys(decision_identity, candidate_identity)
-                )
+        try:
+            validate_program_promotion_decision_record_contract(
+                decision,
+                expected_identities=source_or_candidate,
             )
+        except ProgramPromotionDecisionError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if jury_results is not None:
         jury_identity = _safe_mapping(jury_results.get("identity"))
@@ -1818,7 +1831,9 @@ def build_program_candidate_state(
     _validate_optional_inputs(
         candidate_identity=candidate_identity,
         source_identity=source_identity,
+        refinement_proposal=refinement_proposal,
         review=review,
+        review_path=review_file,
         decision=decision,
         jury_results=jury_results,
         model_jury_results=model_jury_results,
@@ -1833,6 +1848,8 @@ def build_program_candidate_state(
         gepa_refinement=gepa_refinement,
         current_manifest_path=manifest_path,
         current_manifest_hash=manifest_hash,
+        oracle_report_path=oracle_report_file,
+        oracle_report_hash=oracle_report_hash,
         current_program_hash=current_program_hash,
         source_manifest_path=source_manifest_resolved,
         source_manifest_hash=source_manifest_hash,

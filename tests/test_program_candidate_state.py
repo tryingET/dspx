@@ -1080,6 +1080,64 @@ def test_program_promote_status_summarizes_activation_packet_without_activation(
     assert _file_hashes(candidate_root) == before_candidate
 
 
+def test_program_candidate_state_rejects_stale_refinement_proposal_oracle_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    proposal = json.loads(paths["proposal"].read_text(encoding="utf-8"))
+    proposal["created_from"]["oracle_report_sha256"] = "0" * 64
+    _write_json(paths["proposal"], proposal)
+
+    with pytest.raises(ProgramCandidateStateError, match="Oracle report"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            oracle_report_path=paths["oracle_report"],
+            refinement_proposal_path=paths["proposal"],
+        )
+
+
+def test_program_candidate_state_rejects_stale_refined_review_manifest_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    review = json.loads(paths["review"].read_text(encoding="utf-8"))
+    review["created_from"]["manifest_sha256"] = "0" * 64
+    _write_json(paths["review"], review)
+
+    with pytest.raises(ProgramCandidateStateError, match="manifest ref"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            review_path=paths["review"],
+        )
+
+
+def test_program_candidate_state_rejects_invalid_decision_record_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    decision = json.loads(paths["decision"].read_text(encoding="utf-8"))
+    decision["status"] = "draft"
+    _write_json(paths["decision"], decision)
+
+    with pytest.raises(ProgramCandidateStateError, match="status recorded"):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            decision_record_path=paths["decision"],
+        )
+
+
 def test_program_candidate_state_rejects_stale_comparison_candidate_behavior_hash(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
