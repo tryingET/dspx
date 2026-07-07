@@ -30,6 +30,10 @@ from dspx.services.program_promotion_plan import (
     ProgramPromotionPlanError,
     validate_program_promotion_plan_contract,
 )
+from dspx.services.program_refinement_comparison import (
+    ProgramRefinementComparisonError,
+    validate_program_refinement_candidate_comparison_contract,
+)
 from dspx.services.program_refinement_gepa_candidate_contracts import (
     validate_program_refinement_gepa_result_contract,
 )
@@ -535,6 +539,7 @@ def _validate_optional_inputs(
     jury_results: Mapping[str, Any] | None,
     model_jury_results: Mapping[str, Any] | None,
     comparison: Mapping[str, Any] | None,
+    comparison_path: Path | None,
     promotion_plan: Mapping[str, Any] | None,
     export_preflight: Mapping[str, Any] | None,
     meta_adjudication_plan: Mapping[str, Any] | None,
@@ -653,21 +658,10 @@ def _validate_optional_inputs(
             )
 
     if comparison is not None:
-        _validate_non_authority_false(
-            comparison,
-            label="program candidate comparison",
-            keys=(
-                "oracle_ranking",
-                "oracle_pruning",
-                "oracle_promotion",
-                "winner_selection",
-                "automatic_promotion",
-                "program_mutation",
-                "new_candidate_generation",
-                "governance_authority",
-                "external_mutation",
-            ),
-        )
+        if comparison_path is None:
+            raise ProgramCandidateStateError(
+                "program candidate comparison path is required for contract validation"
+            )
         source_matches = _identity_exactly_matches(
             _safe_mapping(comparison.get("source_identity")), candidate_identity
         )
@@ -678,6 +672,29 @@ def _validate_optional_inputs(
             raise ProgramCandidateStateError(
                 "program candidate comparison must mention manifest identity as source or candidate"
             )
+        comparison_created_from = _safe_mapping(comparison.get("created_from"))
+        comparison_candidate_manifest_path = current_manifest_path
+        comparison_source_manifest_path = source_manifest_path
+        if source_matches and not candidate_matches:
+            raw_candidate_manifest_path = _first_text(
+                comparison_created_from.get("candidate_manifest_path")
+            )
+            if raw_candidate_manifest_path is None:
+                raise ProgramCandidateStateError(
+                    "program candidate comparison missing candidate_manifest_path"
+                )
+            comparison_candidate_manifest_path = (
+                Path(raw_candidate_manifest_path).expanduser().resolve()
+            )
+            comparison_source_manifest_path = current_manifest_path
+        try:
+            validate_program_refinement_candidate_comparison_contract(
+                comparison_path=comparison_path,
+                candidate_manifest_path=comparison_candidate_manifest_path,
+                source_manifest_path=comparison_source_manifest_path,
+            )
+        except (ProgramRefinementComparisonError, ProgramRefinementError) as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if gepa_refinement is not None:
         gepa_identity = _safe_mapping(gepa_refinement.get("source_identity"))
@@ -1806,6 +1823,7 @@ def build_program_candidate_state(
         jury_results=jury_results,
         model_jury_results=model_jury_results,
         comparison=comparison,
+        comparison_path=comparison_file,
         promotion_plan=promotion_plan,
         export_preflight=export_preflight,
         meta_adjudication_plan=meta_adjudication_plan,

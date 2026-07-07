@@ -1080,6 +1080,49 @@ def test_program_promote_status_summarizes_activation_packet_without_activation(
     assert _file_hashes(candidate_root) == before_candidate
 
 
+def test_program_candidate_state_rejects_stale_comparison_candidate_behavior_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    comparison = json.loads(paths["comparison"].read_text(encoding="utf-8"))
+    comparison["created_from"]["candidate_behavior_results_hash"] = "0" * 64
+    _write_json(paths["comparison"], comparison)
+
+    with pytest.raises(
+        ProgramCandidateStateError, match="candidate_behavior_results_hash"
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            comparison_path=paths["comparison"],
+        )
+
+
+def test_program_candidate_state_revalidates_comparison_when_current_manifest_is_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, _candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    comparison = json.loads(paths["comparison"].read_text(encoding="utf-8"))
+    comparison["created_from"]["source_behavior_results_hash"] = "0" * 64
+    _write_json(paths["comparison"], comparison)
+
+    with pytest.raises(
+        ProgramCandidateStateError, match="source_behavior_results_hash"
+    ):
+        build_program_candidate_state(
+            manifest_path=source_root / "manifest.json",
+            comparison_path=paths["comparison"],
+        )
+
+
 def test_program_candidate_state_rejects_stale_promotion_plan_comparison_hash(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
