@@ -37,8 +37,10 @@ from dspx.services.program_promotion_decision import (
 )
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_promotion_plan import (
+    ProgramPromotionPlanError,
     SUPPORTED_LOCAL_TARGETS,
     build_program_promotion_plan,
+    validate_program_promotion_plan_contract,
     write_program_promotion_plan,
 )
 from dspx.services.program_promotion_refinement import (
@@ -529,6 +531,54 @@ def _validate_episode_export_preflight_summary_payload(
         )
 
 
+def _validate_episode_promotion_plan_summary_payload(
+    payload: Mapping[str, Any],
+) -> None:
+    steps = _safe_mapping(payload.get("steps"))
+    promotion_plan_step = _safe_mapping(steps.get("promotion_plan"))
+    if promotion_plan_step.get("status") in (None, "skipped"):
+        return
+
+    promotion_plan_path = _path_from_summary(
+        promotion_plan_step.get("path"), label="episode promotion plan path"
+    )
+    state_path = _path_from_summary(
+        _safe_mapping(steps.get("candidate_state")).get("path"),
+        label="episode candidate-state path",
+    )
+    state_payload = _load_json_object(
+        state_path, label="episode candidate-state summary"
+    )
+    state_hashes = _safe_mapping(state_payload.get("artifact_hashes"))
+    current_plan_hash = _sha256_file(promotion_plan_path)
+    if state_hashes.get("promotion_plan_sha256") != current_plan_hash:
+        raise ProgramRefinementEpisodeError(
+            "program refinement episode promotion-plan summary hash drifted from candidate state"
+        )
+
+    promotion_plan = _load_json_object(
+        promotion_plan_path, label="episode promotion plan"
+    )
+    manifest_path = _path_from_summary(
+        _safe_mapping(state_payload.get("created_from")).get("manifest_path"),
+        label="episode promotion-plan manifest path",
+    )
+    manifest_hash = str(state_hashes.get("manifest_sha256") or "")
+    try:
+        validate_program_promotion_plan_contract(
+            promotion_plan,
+            expected_identities=[
+                _safe_mapping(state_payload.get("candidate_identity"))
+            ],
+            valid_manifest_hashes={manifest_hash},
+            expected_candidate_manifest_path=manifest_path,
+            decision_record_sha256=state_hashes.get("decision_record_sha256"),
+            comparison_sha256=state_hashes.get("comparison_sha256"),
+        )
+    except ProgramPromotionPlanError as exc:
+        raise ProgramRefinementEpisodeError(str(exc)) from exc
+
+
 def _validate_episode_meta_adjudication_summary_payload(
     payload: Mapping[str, Any],
 ) -> None:
@@ -650,6 +700,7 @@ def write_program_refinement_episode_result(
         raise ProgramRefinementEpisodeError(str(exc)) from exc
     _validate_episode_jury_summary_payload(payload)
     _validate_episode_export_preflight_summary_payload(payload)
+    _validate_episode_promotion_plan_summary_payload(payload)
     _validate_episode_meta_adjudication_summary_payload(payload)
     _validate_gepa_episode_summary_payload(payload)
     target.parent.mkdir(parents=True, exist_ok=True)

@@ -26,6 +26,10 @@ from dspx.services.program_oracle_publication import (
     validate_program_oracle_publication_preflight_contract,
     validate_program_oracle_publication_receipt_contract,
 )
+from dspx.services.program_promotion_plan import (
+    ProgramPromotionPlanError,
+    validate_program_promotion_plan_contract,
+)
 from dspx.services.program_refinement_gepa_candidate_contracts import (
     validate_program_refinement_gepa_result_contract,
 )
@@ -697,32 +701,17 @@ def _validate_optional_inputs(
         )
 
     if promotion_plan is not None:
-        if promotion_plan.get("status") != "planned_not_applied":
-            raise ProgramCandidateStateError(
-                "program promotion plan must have status planned_not_applied"
+        try:
+            validate_program_promotion_plan_contract(
+                promotion_plan,
+                expected_identities=[candidate_identity],
+                valid_manifest_hashes={current_manifest_hash},
+                expected_candidate_manifest_path=current_manifest_path,
+                decision_record_sha256=sidecar_hashes.get("decision_record"),
+                comparison_sha256=comparison_hash,
             )
-        if (
-            _safe_mapping(promotion_plan.get("eligibility")).get("allowed_for_apply")
-            is not False
-        ):
-            raise ProgramCandidateStateError(
-                "program promotion plan must keep eligibility.allowed_for_apply false"
-            )
-        _validate_non_authority_false(
-            promotion_plan,
-            label="program promotion plan",
-            keys=(
-                "automatic_promotion",
-                "apply_promotion",
-                "external_authority_export",
-                "oracle_ranking",
-                "oracle_pruning",
-                "oracle_promotion",
-                "winner_selection",
-                "governance_authority",
-                "external_mutation",
-            ),
-        )
+        except ProgramPromotionPlanError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if oracle_publication_preflight is not None:
         created_from = _safe_mapping(oracle_publication_preflight.get("created_from"))

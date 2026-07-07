@@ -474,6 +474,265 @@ def _eligibility_payload(
     }
 
 
+def _assert_plan_hash_field(
+    evidence_hashes: Mapping[str, Any], *, field: str, actual_hash: str | None
+) -> None:
+    declared = _first_text(evidence_hashes.get(field))
+    if actual_hash is None:
+        if declared is not None:
+            raise ProgramPromotionPlanError(
+                f"program promotion plan {field} must be null when current artifact is absent"
+            )
+        return
+    if declared != actual_hash:
+        raise ProgramPromotionPlanError(
+            f"program promotion plan {field} does not match current artifact hash"
+        )
+
+
+def _assert_plan_effect_flags(plan: Mapping[str, Any]) -> None:
+    effect = _safe_mapping(plan.get("effect"))
+    for key, expected in _PLAN_EFFECT.items():
+        if effect.get(key) is not expected:
+            raise ProgramPromotionPlanError(
+                f"program promotion plan effect.{key} must be {expected!r}"
+            )
+
+    non_authority = _safe_mapping(plan.get("non_authority"))
+    for key, expected in _PLAN_NON_AUTHORITY.items():
+        if non_authority.get(key) is not expected:
+            raise ProgramPromotionPlanError(
+                f"program promotion plan non_authority.{key} must be {expected!r}"
+            )
+
+
+def validate_program_promotion_plan_contract(
+    plan: Mapping[str, Any],
+    *,
+    expected_identities: list[Mapping[str, Any]],
+    valid_manifest_hashes: set[str],
+    expected_candidate_manifest_path: Path | None = None,
+    decision_record_sha256: str | None = None,
+    comparison_sha256: str | None = None,
+) -> Path:
+    """Validate a local promotion plan before a final consumer summarizes it."""
+
+    if plan.get("schema_version") != PROGRAM_PROMOTION_PLAN_SCHEMA:
+        raise ProgramPromotionPlanError(
+            "program promotion plan schema_version must be "
+            + PROGRAM_PROMOTION_PLAN_SCHEMA
+        )
+    if plan.get("status") != "planned_not_applied":
+        raise ProgramPromotionPlanError(
+            "program promotion plan status must be planned_not_applied"
+        )
+    if plan.get("promotion_state") != "not_promoted":
+        raise ProgramPromotionPlanError(
+            "program promotion plan promotion_state must be not_promoted"
+        )
+
+    target = _safe_mapping(plan.get("target"))
+    target_kind = _first_text(target.get("kind"))
+    if target_kind not in SUPPORTED_LOCAL_TARGETS:
+        raise ProgramPromotionPlanError(
+            "program promotion plan target.kind must be a supported local target"
+        )
+    if target.get("apply_supported") is not False:
+        raise ProgramPromotionPlanError(
+            "program promotion plan target.apply_supported must be false"
+        )
+
+    authority_owner = _safe_mapping(plan.get("authority_owner"))
+    if authority_owner.get("kind") != "human_operator" or not _first_text(
+        authority_owner.get("id")
+    ):
+        raise ProgramPromotionPlanError(
+            "program promotion plan must preserve a human_operator authority_owner id"
+        )
+
+    plan_identity = _safe_mapping(plan.get("candidate_identity"))
+    if not any(
+        _identity_matches_exact(plan_identity, expected)
+        for expected in expected_identities
+    ):
+        raise ProgramPromotionPlanError(
+            "program promotion plan candidate_identity does not match expected identity"
+        )
+
+    created_from = _safe_mapping(plan.get("created_from"))
+    raw_manifest_path = _first_text(created_from.get("candidate_manifest_path"))
+    if raw_manifest_path is None:
+        raise ProgramPromotionPlanError(
+            "program promotion plan missing created_from.candidate_manifest_path"
+        )
+    candidate_manifest_path = Path(raw_manifest_path).expanduser().resolve()
+    if (
+        expected_candidate_manifest_path is not None
+        and candidate_manifest_path
+        != expected_candidate_manifest_path.expanduser().resolve()
+    ):
+        raise ProgramPromotionPlanError(
+            "program promotion plan candidate_manifest_path does not match expected manifest path"
+        )
+
+    try:
+        manifest = load_program_manifest(candidate_manifest_path)
+        behavior, _behavior_path, behavior_hash = load_program_behavior_results(
+            manifest,
+            candidate_manifest_path,
+        )
+        behavior_episode, _behavior_episode_path, behavior_episode_hash = (
+            _load_program_behavior_episode(manifest, candidate_manifest_path)
+        )
+    except ProgramRefinementError as exc:
+        raise ProgramPromotionPlanError(str(exc)) from exc
+    if manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
+        raise ProgramPromotionPlanError(
+            "program promotion plan candidate manifest schema_version must be "
+            + PROGRAM_MANIFEST_SCHEMA
+        )
+    _assert_identity_matches_exact(
+        plan_identity,
+        _identity_from_manifest(manifest),
+        label="program promotion plan candidate",
+    )
+
+    evidence_hashes = _safe_mapping(plan.get("evidence_hashes"))
+    candidate_manifest_hash = _sha256_file(candidate_manifest_path)
+    if evidence_hashes.get("candidate_manifest_hash") != candidate_manifest_hash:
+        raise ProgramPromotionPlanError(
+            "program promotion plan candidate_manifest_hash does not match current manifest"
+        )
+    if candidate_manifest_hash not in valid_manifest_hashes:
+        raise ProgramPromotionPlanError(
+            "program promotion plan candidate_manifest_hash is not valid for this consumer"
+        )
+
+    execution_episode_hash = _optional_artifact_hash(
+        _artifact_path_from_manifest(
+            manifest,
+            candidate_manifest_path,
+            artifact_key="execution_episode_artifact",
+            default="execution_episode.json",
+        )
+    )
+    oracle_evidence_hash = _optional_artifact_hash(
+        _manifest_root(candidate_manifest_path) / "oracle_evidence.json"
+    )
+    _assert_plan_hash_field(
+        evidence_hashes,
+        field="candidate_behavior_results_hash",
+        actual_hash=behavior_hash if isinstance(behavior, Mapping) else None,
+    )
+    _assert_plan_hash_field(
+        evidence_hashes,
+        field="candidate_behavior_episode_hash",
+        actual_hash=behavior_episode_hash
+        if isinstance(behavior_episode, Mapping)
+        else None,
+    )
+    _assert_plan_hash_field(
+        evidence_hashes,
+        field="candidate_execution_episode_hash",
+        actual_hash=execution_episode_hash,
+    )
+    _assert_plan_hash_field(
+        evidence_hashes,
+        field="candidate_oracle_evidence_hash",
+        actual_hash=oracle_evidence_hash,
+    )
+
+    raw_comparison_path = _first_text(created_from.get("comparison_path"))
+    raw_decision_path = _first_text(created_from.get("decision_record_path"))
+    if raw_comparison_path is None or raw_decision_path is None:
+        raise ProgramPromotionPlanError(
+            "program promotion plan must bind comparison and decision record paths"
+        )
+    comparison_path = Path(raw_comparison_path).expanduser().resolve()
+    decision_record_path = Path(raw_decision_path).expanduser().resolve()
+    raw_source_manifest_path = _first_text(created_from.get("source_manifest_path"))
+    source_manifest_path = (
+        Path(raw_source_manifest_path).expanduser().resolve()
+        if raw_source_manifest_path is not None
+        else None
+    )
+    comparison = _load_comparison(
+        comparison_path,
+        candidate_manifest_path=candidate_manifest_path,
+        source_manifest_path=source_manifest_path,
+    )
+    comparison_hash = _sha256_file(comparison_path)
+    if evidence_hashes.get("comparison_hash") != comparison_hash:
+        raise ProgramPromotionPlanError(
+            "program promotion plan comparison_hash does not match current comparison"
+        )
+    if comparison_sha256 is not None and comparison_sha256 != comparison_hash:
+        raise ProgramPromotionPlanError(
+            "program promotion plan comparison_hash does not match supplied comparison"
+        )
+    source_identity = _safe_mapping(comparison.get("source_identity"))
+    _load_decision_record(decision_record_path, expected_identities=[source_identity])
+    decision_hash = _sha256_file(decision_record_path)
+    if evidence_hashes.get("decision_record_hash") != decision_hash:
+        raise ProgramPromotionPlanError(
+            "program promotion plan decision_record_hash does not match current decision record"
+        )
+    if decision_record_sha256 is not None and decision_record_sha256 != decision_hash:
+        raise ProgramPromotionPlanError(
+            "program promotion plan decision_record_hash does not match supplied decision record"
+        )
+
+    raw_review_path = _first_text(created_from.get("review_path"))
+    if raw_review_path is not None:
+        review = _load_optional_review(Path(raw_review_path).expanduser().resolve())
+        if review is not None:
+            _assert_identity_matches_exact(
+                _safe_mapping(review.get("identity")),
+                {key: str(value) for key, value in source_identity.items()},
+                label="program promotion plan refined review",
+            )
+
+    eligibility = _safe_mapping(plan.get("eligibility"))
+    if eligibility.get("allowed_for_apply") is not False:
+        raise ProgramPromotionPlanError(
+            "program promotion plan eligibility.allowed_for_apply must be false"
+        )
+    if eligibility.get("comparison_present") is not True:
+        raise ProgramPromotionPlanError(
+            "program promotion plan must record comparison_present true"
+        )
+    if eligibility.get("decision_record_present") is not True:
+        raise ProgramPromotionPlanError(
+            "program promotion plan must record decision_record_present true"
+        )
+
+    audit = _safe_mapping(plan.get("audit_trail"))
+    for field, expected in (
+        ("candidate_manifest_hash", candidate_manifest_hash),
+        ("decision_record_hash", decision_hash),
+        ("comparison_hash", comparison_hash),
+        ("candidate_behavior_results_hash", behavior_hash),
+        ("candidate_behavior_episode_hash", behavior_episode_hash),
+    ):
+        if expected is not None and audit.get(field) != expected:
+            raise ProgramPromotionPlanError(
+                f"program promotion plan audit_trail.{field} does not match current evidence"
+            )
+
+    reversibility = _safe_mapping(plan.get("reversibility"))
+    if reversibility.get("apply_status") != "not_applied":
+        raise ProgramPromotionPlanError(
+            "program promotion plan reversibility.apply_status must be not_applied"
+        )
+    if reversibility.get("rollback_required") is not False:
+        raise ProgramPromotionPlanError(
+            "program promotion plan reversibility.rollback_required must be false"
+        )
+
+    _assert_plan_effect_flags(plan)
+    return candidate_manifest_path
+
+
 def build_program_promotion_plan(
     *,
     manifest_path: Path,

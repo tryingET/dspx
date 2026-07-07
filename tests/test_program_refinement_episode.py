@@ -1382,6 +1382,49 @@ def test_program_refinement_episode_can_write_local_promotion_plan(
     assert _file_hashes(program_root) == before_source_hashes
 
 
+def test_program_refinement_episode_revalidates_promotion_plan_before_workflow_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, report_path = _materialize_program_and_report(tmp_path, monkeypatch)
+    outdir = tmp_path / "refinement-episode"
+    original_write_state = episode_service.write_program_candidate_state
+
+    def tamper_promotion_plan_after_state(
+        state: Mapping[str, Any], out_path: Path
+    ) -> dict[str, Any]:
+        payload = original_write_state(state, out_path)
+        plan_path = outdir / "promotion_plan.json"
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        plan["non_authority"]["apply_promotion"] = True
+        _write_json(plan_path, plan)
+        return payload
+
+    monkeypatch.setattr(
+        episode_service,
+        "write_program_candidate_state",
+        tamper_promotion_plan_after_state,
+    )
+
+    with pytest.raises(
+        ProgramRefinementEpisodeError,
+        match="promotion-plan summary hash drifted",
+    ):
+        run_program_refinement_episode(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            sidecar_outdir=outdir,
+            decision_outcome="request_more_evidence",
+            decided_by="operator-test",
+            rationale="collect one bounded second candidate and local plan only",
+            generate_promotion_plan=True,
+            promotion_plan_target="local_preferred_candidate",
+            promotion_plan_authority_owner="operator-test",
+        )
+
+    assert not (outdir / "program_refinement_episode.json").exists()
+    _assert_no_episode_sidecars(outdir)
+
+
 def test_program_refinement_episode_can_materialize_gepa_candidate_and_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

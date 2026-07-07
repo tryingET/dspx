@@ -1080,6 +1080,50 @@ def test_program_promote_status_summarizes_activation_packet_without_activation(
     assert _file_hashes(candidate_root) == before_candidate
 
 
+def test_program_candidate_state_rejects_stale_promotion_plan_comparison_hash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    promotion_plan = json.loads(paths["promotion_plan"].read_text(encoding="utf-8"))
+    promotion_plan["evidence_hashes"]["comparison_hash"] = "0" * 64
+    _write_json(paths["promotion_plan"], promotion_plan)
+
+    with pytest.raises(ProgramCandidateStateError, match="comparison_hash"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            decision_record_path=paths["decision"],
+            comparison_path=paths["comparison"],
+            promotion_plan_path=paths["promotion_plan"],
+        )
+
+
+def test_program_candidate_state_rejects_promotion_plan_effect_authority_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    promotion_plan = json.loads(paths["promotion_plan"].read_text(encoding="utf-8"))
+    promotion_plan["effect"]["external_authority_mutated"] = True
+    _write_json(paths["promotion_plan"], promotion_plan)
+
+    with pytest.raises(ProgramCandidateStateError, match="external_authority_mutated"):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            decision_record_path=paths["decision"],
+            comparison_path=paths["comparison"],
+            promotion_plan_path=paths["promotion_plan"],
+        )
+
+
 def test_program_candidate_state_rejects_activation_packet_authority_claim(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
