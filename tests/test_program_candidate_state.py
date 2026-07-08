@@ -1195,6 +1195,43 @@ def test_program_candidate_state_summarizes_runtime_aware_comparison(
     assert paths["comparison"].exists()
 
 
+def test_program_candidate_state_rejects_tampered_runtime_aware_comparison_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    source_runtime_episode = _write_runtime_episode(
+        source_root, tmp_path, name="source-comparison"
+    )
+    candidate_runtime_episode = _write_runtime_episode(
+        candidate_root, tmp_path, name="candidate-comparison"
+    )
+    comparison = build_program_refinement_candidate_comparison(
+        source_manifest_path=source_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+        source_runtime_episode_path=source_runtime_episode,
+        candidate_runtime_episode_path=candidate_runtime_episode,
+    )
+    comparison["runtime_evidence_comparison"]["candidate"]["runtime_status"] = (
+        "tampered"
+    )
+    runtime_comparison_path = tmp_path / "refinement" / "runtime_comparison.json"
+    write_program_refinement_candidate_comparison(comparison, runtime_comparison_path)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="runtime_evidence_comparison does not match current evidence",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            comparison_path=runtime_comparison_path,
+        )
+
+
 def test_program_candidate_state_rejects_stale_runtime_aware_comparison_trace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

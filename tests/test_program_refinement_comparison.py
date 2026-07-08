@@ -519,6 +519,103 @@ def test_program_refine_compare_candidates_rejects_cross_candidate_runtime_episo
         )
 
 
+def test_program_refine_comparison_contract_rejects_tampered_runtime_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, candidate_root, _proposal_path, _decision_path = (
+        _materialize_full_refinement_path(tmp_path, monkeypatch)
+    )
+    source_runtime_episode = _write_runtime_episode(
+        program_root,
+        tmp_path / "source-runtime",
+        text="Server is down for all users",
+    )
+    candidate_runtime_episode = _write_runtime_episode(
+        candidate_root,
+        tmp_path / "candidate-runtime",
+        text="Server is down for all users",
+    )
+    comparison = build_program_refinement_candidate_comparison(
+        source_manifest_path=program_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+        source_runtime_episode_path=source_runtime_episode,
+        candidate_runtime_episode_path=candidate_runtime_episode,
+    )
+    comparison["runtime_evidence_comparison"]["candidate"]["runtime_status"] = (
+        "executed_but_tampered"
+    )
+    out_path = tmp_path / "refinement" / "candidate_comparison_runtime.json"
+    write_program_refinement_candidate_comparison(comparison, out_path)
+
+    with pytest.raises(
+        ProgramRefinementComparisonError,
+        match="runtime_evidence_comparison does not match current evidence",
+    ):
+        validate_program_refinement_candidate_comparison_contract(
+            comparison_path=out_path,
+            source_manifest_path=program_root / "manifest.json",
+            candidate_manifest_path=candidate_root / "manifest.json",
+        )
+
+
+def test_program_refine_compare_candidates_uses_runtime_interpretation_without_generated_behavior(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    source = materialize_program_from_intent(
+        ProgramIntent(
+            name="RuntimeOnlySource",
+            objective="Answer a question.",
+            inputs=["ticket_text"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program",
+    )
+    candidate = materialize_program_from_intent(
+        ProgramIntent(
+            name="RuntimeOnlyCandidate",
+            objective="Answer a question.",
+            inputs=["ticket_text"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / "program-v2",
+    )
+    source_root = Path(source.root_path)
+    candidate_root = Path(candidate.root_path)
+    source_runtime_episode = _write_runtime_episode(
+        source_root,
+        tmp_path / "source-runtime",
+        text="Server is down for all users",
+    )
+    candidate_runtime_episode = _write_runtime_episode(
+        candidate_root,
+        tmp_path / "candidate-runtime",
+        text="Server is down for all users",
+    )
+
+    payload = build_program_refinement_candidate_comparison(
+        source_manifest_path=source_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+        source_runtime_episode_path=source_runtime_episode,
+        candidate_runtime_episode_path=candidate_runtime_episode,
+    )
+
+    assert payload["status"] == "compared"
+    assert (
+        payload["behavior_comparison"]["source"]["behavior_evidence_present"] is False
+    )
+    assert payload["runtime_evidence_comparison"]["compared"] is True
+    assert payload["runtime_evidence_comparison"]["interpretation"][
+        "needs_more_evidence"
+    ] in {True, False}
+    assert payload["interpretation"]["evidence_basis"] == "runtime_episode"
+    assert payload["interpretation"]["runtime_evidence_compared"] is True
+    assert payload["interpretation"]["generated_evidence_compared"] is False
+    assert payload["interpretation"]["evidence_conflict"] is False
+
+
 def test_program_refine_comparison_contract_rejects_stale_runtime_trace(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -2049,6 +2049,36 @@ def build_program_candidate_state(
             expected_manifest_sha256=manifest_hash,
             error_type=ProgramCandidateStateError,
         )
+    if comparison is not None and comparison_file is not None:
+        comparison_created_from = _safe_mapping(comparison.get("created_from"))
+        source_matches = _identity_exactly_matches(
+            _safe_mapping(comparison.get("source_identity")), candidate_identity
+        )
+        candidate_matches = _identity_exactly_matches(
+            _safe_mapping(comparison.get("candidate_identity")), candidate_identity
+        )
+        comparison_candidate_manifest_path = manifest_path
+        comparison_source_manifest_path = source_manifest_resolved
+        if source_matches and not candidate_matches:
+            raw_candidate_manifest_path = _first_text(
+                comparison_created_from.get("candidate_manifest_path")
+            )
+            if raw_candidate_manifest_path is None:
+                raise ProgramCandidateStateError(
+                    "program candidate comparison missing candidate_manifest_path"
+                )
+            comparison_candidate_manifest_path = (
+                Path(raw_candidate_manifest_path).expanduser().resolve()
+            )
+            comparison_source_manifest_path = manifest_path
+        try:
+            comparison = validate_program_refinement_candidate_comparison_contract(
+                comparison_path=comparison_file,
+                candidate_manifest_path=comparison_candidate_manifest_path,
+                source_manifest_path=comparison_source_manifest_path,
+            )
+        except (ProgramRefinementComparisonError, ProgramRefinementError) as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     execution_episode_path = _optional_artifact_path(
         manifest,

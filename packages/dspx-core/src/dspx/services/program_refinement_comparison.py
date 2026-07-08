@@ -792,11 +792,55 @@ def build_program_refinement_candidate_comparison(
         if generated_compared or runtime_compared
         else "insufficient_behavior_evidence"
     )
-    interpretation_inputs = (
-        (source_summary, candidate_summary, delta)
-        if generated_compared or not runtime_compared
-        else (source_runtime_summary, candidate_runtime_summary, runtime_delta)
+    generated_interpretation = _interpretation(
+        source_summary=source_summary,
+        candidate_summary=candidate_summary,
+        delta=delta,
     )
+    runtime_interpretation = _interpretation(
+        source_summary=source_runtime_summary,
+        candidate_summary=candidate_runtime_summary,
+        delta=runtime_delta,
+    )
+    evidence_conflict = (
+        generated_compared
+        and runtime_compared
+        and (
+            generated_interpretation.get("improvement_observed")
+            != runtime_interpretation.get("improvement_observed")
+            or generated_interpretation.get("needs_more_evidence")
+            != runtime_interpretation.get("needs_more_evidence")
+        )
+    )
+    if evidence_conflict:
+        interpretation = {
+            **generated_interpretation,
+            "summary": "Generated behavior and runtime episode comparison evidence disagree; inspect runtime_evidence_comparison before planning.",
+            "improvement_observed": False,
+            "needs_more_evidence": True,
+            "evidence_basis": "mixed_generated_and_runtime",
+            "generated_evidence_compared": True,
+            "runtime_evidence_compared": True,
+            "evidence_conflict": True,
+        }
+    elif generated_compared or not runtime_compared:
+        interpretation = {
+            **generated_interpretation,
+            "evidence_basis": "generated_behavior"
+            if generated_compared
+            else "insufficient_behavior_evidence",
+            "generated_evidence_compared": generated_compared,
+            "runtime_evidence_compared": runtime_compared,
+            "evidence_conflict": False,
+        }
+    else:
+        interpretation = {
+            **runtime_interpretation,
+            "evidence_basis": "runtime_episode",
+            "generated_evidence_compared": False,
+            "runtime_evidence_compared": True,
+            "evidence_conflict": False,
+        }
     return {
         "schema_version": PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA,
         "status": status,
@@ -856,16 +900,13 @@ def build_program_refinement_candidate_comparison(
             "candidate": candidate_runtime_summary,
             "delta": runtime_delta,
             "compared": runtime_compared,
+            "interpretation": runtime_interpretation,
             "limits": [
                 "Runtime episodes are already-produced local program-run evidence; comparison never reruns candidates.",
                 "Runtime success, trace coverage, or Oracle-readable evidence is not promotion, activation, ranking, or owner acceptance.",
             ],
         },
-        "interpretation": _interpretation(
-            source_summary=interpretation_inputs[0],
-            candidate_summary=interpretation_inputs[1],
-            delta=interpretation_inputs[2],
-        ),
+        "interpretation": interpretation,
         "effect": dict(_COMPARISON_EFFECT),
         "non_authority": dict(_COMPARISON_NON_AUTHORITY),
     }
@@ -960,6 +1001,18 @@ def _validate_recorded_runtime_episode(
         key=hash_key,
         current_hash=runtime_hash,
     )
+
+
+def _assert_current_view_matches(
+    *,
+    comparison: Mapping[str, Any],
+    current_view: Mapping[str, Any],
+    key: str,
+) -> None:
+    if _safe_mapping(comparison.get(key)) != _safe_mapping(current_view.get(key)):
+        raise ProgramRefinementComparisonError(
+            f"program candidate comparison {key} does not match current evidence"
+        )
 
 
 def validate_program_refinement_candidate_comparison_contract(
@@ -1181,7 +1234,38 @@ def validate_program_refinement_candidate_comparison_contract(
         comparison_path=comparison_path,
         label="program candidate comparison candidate runtime episode",
     )
-    return comparison
+    current_view = build_program_refinement_candidate_comparison(
+        source_manifest_path=source_manifest_path,
+        candidate_manifest_path=candidate_manifest_path,
+        source_runtime_episode_path=_resolve_recorded_path(
+            created_from.get("source_runtime_episode_path"),
+            base_path=comparison_path,
+        ),
+        candidate_runtime_episode_path=_resolve_recorded_path(
+            created_from.get("candidate_runtime_episode_path"),
+            base_path=comparison_path,
+        ),
+    )
+    if comparison.get("status") != current_view.get("status"):
+        raise ProgramRefinementComparisonError(
+            "program candidate comparison status does not match current evidence"
+        )
+    _assert_current_view_matches(
+        comparison=comparison,
+        current_view=current_view,
+        key="behavior_comparison",
+    )
+    _assert_current_view_matches(
+        comparison=comparison,
+        current_view=current_view,
+        key="runtime_evidence_comparison",
+    )
+    _assert_current_view_matches(
+        comparison=comparison,
+        current_view=current_view,
+        key="interpretation",
+    )
+    return current_view
 
 
 def _comparison_protected_roots(payload: Mapping[str, Any]) -> list[Path]:
