@@ -346,6 +346,12 @@ def validate_program_meta_adjudication_plan_contract(
         "generation_gate_preflight",
         "generation_traceability",
         "generation_fitness_results",
+        "jury_requirements",
+        "meta_jury_selection",
+        "jury_verification",
+        "program_adjudicator_formation",
+        "program_adjudicator_verification",
+        "program_adjudicator_delegation",
         "program_evidence_adjudication",
         "adjudication_behavior_trace",
     }
@@ -474,6 +480,26 @@ def validate_program_meta_adjudication_plan_contract(
                 key=target_key,
                 payload=target_payload,
                 sibling_payloads=present_sidecar_payloads,
+            )
+        except ProgramMetaAdjudicationError as exc:
+            _raise_contract_error(error_type, str(exc))
+
+    for chain_key in (
+        "jury_requirements",
+        "meta_jury_selection",
+        "jury_verification",
+        "program_adjudicator_formation",
+        "program_adjudicator_verification",
+        "program_adjudicator_delegation",
+    ):
+        chain_payload = present_sidecar_payloads.get(chain_key)
+        if chain_payload is None:
+            continue
+        try:
+            _validate_adjudicator_chain_sidecar(
+                key=chain_key,
+                payload=chain_payload,
+                valid_manifest_hashes=valid_hashes,
             )
         except ProgramMetaAdjudicationError as exc:
             _raise_contract_error(error_type, str(exc))
@@ -768,6 +794,40 @@ def _raise_blocked_validation(validation: Mapping[str, Any], *, label: str) -> N
         raise ProgramMetaAdjudicationError(f"{label} contract invalid{suffix}")
 
 
+def _validate_local_planning_flags(payload: Mapping[str, Any], *, label: str) -> None:
+    invalid_non_authority = [
+        key
+        for key in _NON_AUTHORITY
+        if _safe_mapping(payload.get("non_authority")).get(key) is not False
+    ]
+    if invalid_non_authority:
+        raise ProgramMetaAdjudicationError(
+            f"{label} widens non-authority flags: " + ", ".join(invalid_non_authority)
+        )
+    invalid_effect = [
+        key
+        for key in _EFFECT
+        if _safe_mapping(payload.get("effect")).get(key) is not False
+    ]
+    if invalid_effect:
+        raise ProgramMetaAdjudicationError(
+            f"{label} widens effect flags: " + ", ".join(invalid_effect)
+        )
+
+
+def _require_hash_bound_ref(
+    ref: object, *, expected_schema: str, label: str
+) -> tuple[Path, dict[str, Any]]:
+    ok, detail, payload = _load_hash_bound_ref(
+        ref, expected_schema=expected_schema, label=label
+    )
+    if not ok or payload is None:
+        raise ProgramMetaAdjudicationError(f"{label} ref invalid: {detail}")
+    path_text = _first_text(_safe_mapping(ref).get("path"))
+    assert path_text is not None
+    return Path(path_text).expanduser().resolve(), payload
+
+
 def _validate_target_fidelity_sidecar(
     *,
     key: str,
@@ -808,6 +868,198 @@ def _validate_target_fidelity_sidecar(
             validate_generation_fitness_results(payload), label=label
         )
         return
+
+
+def _validate_adjudicator_chain_sidecar(
+    *,
+    key: str,
+    payload: Mapping[str, Any],
+    valid_manifest_hashes: set[str] | None = None,
+) -> None:
+    label = f"program meta-adjudication plan {key} sidecar"
+    _validate_local_planning_flags(payload, label=label)
+    if key == "jury_requirements":
+        if payload.get("status") != "planned_not_executed":
+            raise ProgramMetaAdjudicationError(
+                f"{label} status must be planned_not_executed"
+            )
+        perspectives = _safe_list(payload.get("required_perspectives"))
+        if not perspectives:
+            raise ProgramMetaAdjudicationError(
+                f"{label} required_perspectives are required"
+            )
+        if int(payload.get("minimum_jurors") or 0) <= 0:
+            raise ProgramMetaAdjudicationError(
+                f"{label} minimum_jurors must be positive"
+            )
+        target_profile_ref = _safe_mapping(payload.get("target_profile"))
+        if target_profile_ref:
+            _require_hash_bound_ref(
+                target_profile_ref,
+                expected_schema=PROGRAM_TARGET_PROFILE_SCHEMA,
+                label=f"{label} target_profile",
+            )
+        return
+    if key == "meta_jury_selection":
+        if payload.get("status") != "selected":
+            raise ProgramMetaAdjudicationError(f"{label} status must be selected")
+        minimum = int(payload.get("minimum_jurors") or 0)
+        selected = _safe_list(payload.get("selected_jurors"))
+        if len(selected) < minimum:
+            raise ProgramMetaAdjudicationError(f"{label} selected jurors below minimum")
+        coverage = _safe_mapping(payload.get("coverage"))
+        if _string_list(coverage.get("missing_perspectives")):
+            raise ProgramMetaAdjudicationError(f"{label} missing required perspectives")
+        constraints = _safe_mapping(payload.get("selection_constraints"))
+        if constraints.get(
+            "require_authority_boundary_reviewer"
+        ) is True and "authority_boundary" not in set(
+            _string_list(coverage.get("selected_perspectives"))
+        ):
+            raise ProgramMetaAdjudicationError(
+                f"{label} missing authority_boundary juror"
+            )
+        requirements_ref = _safe_mapping(payload.get("jury_requirements"))
+        if requirements_ref:
+            _path, requirements = _require_hash_bound_ref(
+                requirements_ref,
+                expected_schema=PROGRAM_JURY_REQUIREMENTS_SCHEMA,
+                label=f"{label} jury_requirements",
+            )
+            _validate_adjudicator_chain_sidecar(
+                key="jury_requirements",
+                payload=requirements,
+                valid_manifest_hashes=valid_manifest_hashes,
+            )
+        return
+    if key == "jury_verification":
+        if payload.get("status") != "verified":
+            raise ProgramMetaAdjudicationError(f"{label} status must be verified")
+        if payload.get("approved_for_program_adjudicator_formation") is not True:
+            raise ProgramMetaAdjudicationError(
+                f"{label} must approve adjudicator formation"
+            )
+        if _string_list(payload.get("failed_checks")):
+            raise ProgramMetaAdjudicationError(f"{label} failed_checks must be empty")
+        _path, selection = _require_hash_bound_ref(
+            payload.get("jury_selection"),
+            expected_schema=PROGRAM_META_JURY_SELECTION_SCHEMA,
+            label=f"{label} jury_selection",
+        )
+        _validate_adjudicator_chain_sidecar(
+            key="meta_jury_selection",
+            payload=selection,
+            valid_manifest_hashes=valid_manifest_hashes,
+        )
+        return
+    if key == "program_adjudicator_formation":
+        if payload.get("status") != "formed":
+            raise ProgramMetaAdjudicationError(f"{label} status must be formed")
+        adjudicator = _safe_mapping(payload.get("program_adjudicator"))
+        if not _safe_list(adjudicator.get("roles")):
+            raise ProgramMetaAdjudicationError(
+                f"{label} adjudicator roles are required"
+            )
+        forbidden = set(_string_list(adjudicator.get("forbidden_outputs")))
+        required_forbidden = {
+            "production activation",
+            "canonical target mutation",
+            "AK/governance mutation",
+            "Oracle promotion authority",
+        }
+        if not required_forbidden.issubset(forbidden):
+            raise ProgramMetaAdjudicationError(
+                f"{label} missing authority-boundary forbidden outputs"
+            )
+        _path, verification = _require_hash_bound_ref(
+            payload.get("jury_verification"),
+            expected_schema=PROGRAM_JURY_VERIFICATION_SCHEMA,
+            label=f"{label} jury_verification",
+        )
+        _validate_adjudicator_chain_sidecar(
+            key="jury_verification",
+            payload=verification,
+            valid_manifest_hashes=valid_manifest_hashes,
+        )
+        _path, selection = _require_hash_bound_ref(
+            payload.get("jury_selection"),
+            expected_schema=PROGRAM_META_JURY_SELECTION_SCHEMA,
+            label=f"{label} jury_selection",
+        )
+        _validate_adjudicator_chain_sidecar(
+            key="meta_jury_selection",
+            payload=selection,
+            valid_manifest_hashes=valid_manifest_hashes,
+        )
+        if _first_text(
+            _safe_mapping(payload.get("jury_selection")).get("sha256")
+        ) != _first_text(
+            _safe_mapping(verification.get("jury_selection")).get("sha256")
+        ):
+            raise ProgramMetaAdjudicationError(
+                f"{label} selection hash does not match verified jury"
+            )
+        return
+    if key == "program_adjudicator_verification":
+        if payload.get("status") != "verified":
+            raise ProgramMetaAdjudicationError(f"{label} status must be verified")
+        if payload.get("approved_for_program_evidence_adjudication") is not True:
+            raise ProgramMetaAdjudicationError(
+                f"{label} must approve evidence adjudication"
+            )
+        if _string_list(payload.get("failed_checks")):
+            raise ProgramMetaAdjudicationError(f"{label} failed_checks must be empty")
+        _path, formation = _require_hash_bound_ref(
+            payload.get("program_adjudicator_formation"),
+            expected_schema=PROGRAM_ADJUDICATOR_FORMATION_SCHEMA,
+            label=f"{label} program_adjudicator_formation",
+        )
+        _validate_adjudicator_chain_sidecar(
+            key="program_adjudicator_formation",
+            payload=formation,
+            valid_manifest_hashes=valid_manifest_hashes,
+        )
+        return
+    if key == "program_adjudicator_delegation":
+        if payload.get("status") != "delegated":
+            raise ProgramMetaAdjudicationError(f"{label} status must be delegated")
+        generated = _safe_mapping(payload.get("generated_program_adjudicator"))
+        if generated.get("approved_to_decide") is not True:
+            raise ProgramMetaAdjudicationError(
+                f"{label} generated adjudicator must be approved"
+            )
+        if (
+            generated.get("promotion_authority") is not False
+            or generated.get("activation_authority") is not False
+        ):
+            raise ProgramMetaAdjudicationError(
+                f"{label} generated adjudicator widens authority"
+            )
+        _manifest_path, _manifest = _require_hash_bound_ref(
+            payload.get("manifest"),
+            expected_schema="program-candidate-assembly-v1",
+            label=f"{label} manifest",
+        )
+        manifest_hash = _first_text(
+            _safe_mapping(payload.get("manifest")).get("sha256")
+        )
+        if (
+            valid_manifest_hashes is not None
+            and manifest_hash not in valid_manifest_hashes
+        ):
+            raise ProgramMetaAdjudicationError(
+                f"{label} manifest sha256 does not match candidate/source manifest"
+            )
+        _path, verification = _require_hash_bound_ref(
+            payload.get("program_adjudicator_verification"),
+            expected_schema=PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
+            label=f"{label} program_adjudicator_verification",
+        )
+        _validate_adjudicator_chain_sidecar(
+            key="program_adjudicator_verification",
+            payload=verification,
+            valid_manifest_hashes=valid_manifest_hashes,
+        )
 
 
 def _validate_program_evidence_adjudication_sidecar(
@@ -940,6 +1192,19 @@ def _sidecar_status(
                 payload=payload,
                 sibling_payloads=sibling_payloads,
             )
+        except ProgramMetaAdjudicationError as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
+    if schema == required_schema and key in {
+        "jury_requirements",
+        "meta_jury_selection",
+        "jury_verification",
+        "program_adjudicator_formation",
+        "program_adjudicator_verification",
+        "program_adjudicator_delegation",
+    }:
+        try:
+            _validate_adjudicator_chain_sidecar(key=key, payload=payload)
         except ProgramMetaAdjudicationError as exc:
             sidecar_status = "contract_invalid"
             warning = str(exc)

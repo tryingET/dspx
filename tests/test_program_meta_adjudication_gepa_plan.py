@@ -363,6 +363,53 @@ def _write_decision_record(path: Path, *, candidate_root: Path) -> None:
     )
 
 
+def _write_adjudicator_chain(candidate_root: Path, tmp_path: Path) -> dict[str, Path]:
+    _ = tmp_path
+    requirements_path = candidate_root / "jury_requirements.json"
+    selection_path = candidate_root / "meta_jury_selection.json"
+    verification_path = candidate_root / "jury_verification.json"
+    formation_path = candidate_root / "program_adjudicator_formation.json"
+    adjudicator_verification_path = (
+        candidate_root / "program_adjudicator_verification.json"
+    )
+    delegation_path = candidate_root / "program_adjudicator_delegation.json"
+
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    write_program_jury_requirements(requirements, requirements_path)
+    selection = build_program_meta_jury_selection(
+        jury_requirements_path=requirements_path
+    )
+    write_program_meta_jury_selection(selection, selection_path)
+    verification = build_program_jury_verification(jury_selection_path=selection_path)
+    write_program_jury_verification(verification, verification_path)
+    formation = build_program_adjudicator_formation(
+        jury_verification_path=verification_path
+    )
+    write_program_adjudicator_formation(formation, formation_path)
+    adjudicator_verification = build_program_adjudicator_verification(
+        adjudicator_formation_path=formation_path
+    )
+    write_program_adjudicator_verification(
+        adjudicator_verification,
+        adjudicator_verification_path,
+    )
+    delegation = build_program_adjudicator_delegation(
+        manifest_path=candidate_root / "manifest.json",
+        adjudicator_verification_path=adjudicator_verification_path,
+    )
+    write_program_adjudicator_delegation(delegation, delegation_path)
+    return {
+        "requirements": requirements_path,
+        "selection": selection_path,
+        "verification": verification_path,
+        "formation": formation_path,
+        "adjudicator_verification": adjudicator_verification_path,
+        "delegation": delegation_path,
+    }
+
+
 def _write_refined_review(path: Path, *, candidate_root: Path, tmp_path: Path) -> None:
     oracle_report_path = tmp_path / "oracle" / "program_oracle_report.json"
     proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
@@ -431,6 +478,87 @@ def _write_refined_review(path: Path, *, candidate_root: Path, tmp_path: Path) -
         + "\n",
         encoding="utf-8",
     )
+
+
+def test_meta_adjudication_plan_revalidates_adjudicator_chain_sidecars(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    paths = _write_adjudicator_chain(candidate_root, tmp_path)
+
+    tampered_selection = json.loads(paths["selection"].read_text(encoding="utf-8"))
+    tampered_selection["non_authority"]["promotion_authority"] = True
+    paths["selection"].write_text(
+        json.dumps(tampered_selection, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json"
+    )
+
+    assert plan["sidecars"]["meta_jury_selection"]["status"] == "contract_invalid"
+    assert "promotion_authority" in plan["sidecars"]["meta_jury_selection"]["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["meta_jury_selection"] = {
+        **forged_sidecars["meta_jury_selection"],
+        "status": "present",
+        "sha256": _sha256_file(paths["selection"]),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="jury_verification|promotion_authority"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
+def test_meta_adjudication_plan_revalidates_delegation_chain_refs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    paths = _write_adjudicator_chain(candidate_root, tmp_path)
+
+    tampered_delegation = json.loads(paths["delegation"].read_text(encoding="utf-8"))
+    tampered_delegation["program_adjudicator_verification"]["sha256"] = "0" * 64
+    paths["delegation"].write_text(
+        json.dumps(tampered_delegation, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        program_adjudicator_delegation_path=paths["delegation"],
+    )
+
+    assert (
+        plan["sidecars"]["program_adjudicator_delegation"]["status"]
+        == "contract_invalid"
+    )
+    assert (
+        "program_adjudicator_verification"
+        in plan["sidecars"]["program_adjudicator_delegation"]["warning"]
+    )
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["program_adjudicator_delegation"] = {
+        **forged_sidecars["program_adjudicator_delegation"],
+        "status": "present",
+        "sha256": _sha256_file(paths["delegation"]),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="program_adjudicator_verification"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
 
 
 def test_meta_adjudication_plan_revalidates_target_fidelity_sidecars(
