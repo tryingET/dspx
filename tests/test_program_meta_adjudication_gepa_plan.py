@@ -622,6 +622,113 @@ def test_meta_adjudication_plan_revalidates_target_fidelity_sidecars(
         )
 
 
+def test_meta_adjudication_plan_rejects_foreign_target_fidelity_sidecar(
+    tmp_path: Path, monkeypatch
+) -> None:
+    current_dir = tmp_path / "current"
+    foreign_dir = tmp_path / "foreign"
+    current_dir.mkdir()
+    foreign_dir.mkdir()
+    current_root = _materialize_obsidian_like_candidate(current_dir, monkeypatch)
+    foreign_root = _materialize_obsidian_like_candidate(foreign_dir, monkeypatch)
+    fitness_results_path = tmp_path / "foreign_generation_fitness_results.json"
+    fitness_results_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "gen-fitness-results-v1",
+                "identity": {
+                    "candidate_manifest_sha256": _sha256_file(
+                        foreign_root / "manifest.json"
+                    ),
+                    "target_contract_sha256": "contract-sha",
+                    "fitness_suite_sha256": "suite-sha",
+                },
+                "status": "fitness_passed",
+                "rendered_state": "eligible_for_downstream_evidence_review",
+                "cases": [
+                    {
+                        "case_id": "target-protocol-fidelity",
+                        "status": "passed",
+                        "evidence_refs": ["generation_traceability.json"],
+                    }
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=current_root / "manifest.json",
+        generation_fitness_results_path=fitness_results_path,
+    )
+
+    sidecar = plan["sidecars"]["generation_fitness_results"]
+    assert sidecar["status"] == "contract_invalid"
+    assert "candidate_manifest_sha256" in sidecar["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["generation_fitness_results"] = {
+        **forged_sidecars["generation_fitness_results"],
+        "status": "present",
+        "sha256": _sha256_file(fitness_results_path),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="candidate_manifest_sha256"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
+def test_meta_adjudication_plan_rejects_malformed_minimum_jurors(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    requirements_path = candidate_root / "jury_requirements.json"
+    requirements = build_program_jury_requirements(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    requirements["minimum_jurors"] = "many"
+    write_program_jury_requirements(requirements, requirements_path)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json"
+    )
+
+    assert plan["sidecars"]["jury_requirements"]["status"] == "contract_invalid"
+    assert "minimum_jurors" in plan["sidecars"]["jury_requirements"]["warning"]
+
+
+def test_meta_adjudication_plan_rejects_foreign_jury_results_at_plan_build(
+    tmp_path: Path, monkeypatch
+) -> None:
+    current_dir = tmp_path / "current"
+    foreign_dir = tmp_path / "foreign"
+    current_dir.mkdir()
+    foreign_dir.mkdir()
+    current_root = _materialize_obsidian_like_candidate(current_dir, monkeypatch)
+    foreign_root = _materialize_obsidian_like_candidate(foreign_dir, monkeypatch)
+    jury_path = tmp_path / "foreign_jury_results.json"
+    jury = build_program_jury_execution_result(
+        manifest_path=foreign_root / "manifest.json"
+    )
+    write_program_jury_execution_result(jury, jury_path)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=current_root / "manifest.json",
+        jury_results_path=jury_path,
+    )
+
+    assert plan["sidecars"]["jury_results"]["status"] == "contract_invalid"
+    assert "manifest sha256" in plan["sidecars"]["jury_results"]["warning"]
+
+
 def test_meta_adjudication_plan_revalidates_jury_results_contract(
     tmp_path: Path, monkeypatch
 ) -> None:

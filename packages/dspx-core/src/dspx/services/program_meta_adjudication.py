@@ -359,7 +359,10 @@ def validate_program_meta_adjudication_plan_contract(
         if not isinstance(raw_status, Mapping) or raw_status.get("present") is not True:
             continue
         status = _safe_mapping(raw_status)
-        if status.get("status") != "present" or status.get(
+        allowed_statuses = {"present"}
+        if key in owner_validated_sidecar_keys:
+            allowed_statuses.add("contract_invalid")
+        if status.get("status") not in allowed_statuses or status.get(
             "schema_version"
         ) != status.get("required_schema"):
             _raise_contract_error(
@@ -480,6 +483,7 @@ def validate_program_meta_adjudication_plan_contract(
                 key=target_key,
                 payload=target_payload,
                 sibling_payloads=present_sidecar_payloads,
+                current_manifest_hash=manifest_hash,
             )
         except ProgramMetaAdjudicationError as exc:
             _raise_contract_error(error_type, str(exc))
@@ -794,6 +798,47 @@ def _raise_blocked_validation(validation: Mapping[str, Any], *, label: str) -> N
         raise ProgramMetaAdjudicationError(f"{label} contract invalid{suffix}")
 
 
+def _positive_int(value: object, *, label: str, field: str) -> int:
+    if isinstance(value, bool):
+        raise ProgramMetaAdjudicationError(
+            f"{label} {field} must be a positive integer"
+        )
+    if value in {None, ""}:
+        number = 0
+    elif isinstance(value, int | str):
+        try:
+            number = int(value)
+        except ValueError as exc:
+            raise ProgramMetaAdjudicationError(
+                f"{label} {field} must be a positive integer"
+            ) from exc
+    else:
+        raise ProgramMetaAdjudicationError(
+            f"{label} {field} must be a positive integer"
+        )
+    if number <= 0:
+        raise ProgramMetaAdjudicationError(f"{label} {field} must be positive")
+    return number
+
+
+def _validate_current_candidate_hash(
+    payload: Mapping[str, Any], *, current_manifest_hash: str | None, label: str
+) -> None:
+    if current_manifest_hash is None:
+        return
+    identity = _safe_mapping(payload.get("identity"))
+    candidate_hash = _first_text(identity.get("candidate_manifest_sha256"))
+    if (
+        candidate_hash is not None
+        and len(candidate_hash) == 64
+        and all(ch in "0123456789abcdef" for ch in candidate_hash)
+        and candidate_hash != current_manifest_hash
+    ):
+        raise ProgramMetaAdjudicationError(
+            f"{label} candidate_manifest_sha256 does not match current manifest"
+        )
+
+
 def _validate_local_planning_flags(payload: Mapping[str, Any], *, label: str) -> None:
     invalid_non_authority = [
         key
@@ -833,6 +878,7 @@ def _validate_target_fidelity_sidecar(
     key: str,
     payload: Mapping[str, Any],
     sibling_payloads: Mapping[str, Mapping[str, Any]],
+    current_manifest_hash: str | None = None,
 ) -> None:
     label = f"program meta-adjudication plan {key} sidecar"
     if key == "generation_target_contract":
@@ -859,11 +905,17 @@ def _validate_target_fidelity_sidecar(
             ) from exc
         return
     if key == "generation_traceability":
+        _validate_current_candidate_hash(
+            payload, current_manifest_hash=current_manifest_hash, label=label
+        )
         _raise_blocked_validation(
             validate_generation_traceability(payload), label=label
         )
         return
     if key == "generation_fitness_results":
+        _validate_current_candidate_hash(
+            payload, current_manifest_hash=current_manifest_hash, label=label
+        )
         _raise_blocked_validation(
             validate_generation_fitness_results(payload), label=label
         )
@@ -888,10 +940,9 @@ def _validate_adjudicator_chain_sidecar(
             raise ProgramMetaAdjudicationError(
                 f"{label} required_perspectives are required"
             )
-        if int(payload.get("minimum_jurors") or 0) <= 0:
-            raise ProgramMetaAdjudicationError(
-                f"{label} minimum_jurors must be positive"
-            )
+        _positive_int(
+            payload.get("minimum_jurors"), label=label, field="minimum_jurors"
+        )
         target_profile_ref = _safe_mapping(payload.get("target_profile"))
         if target_profile_ref:
             _require_hash_bound_ref(
@@ -903,7 +954,9 @@ def _validate_adjudicator_chain_sidecar(
     if key == "meta_jury_selection":
         if payload.get("status") != "selected":
             raise ProgramMetaAdjudicationError(f"{label} status must be selected")
-        minimum = int(payload.get("minimum_jurors") or 0)
+        minimum = _positive_int(
+            payload.get("minimum_jurors"), label=label, field="minimum_jurors"
+        )
         selected = _safe_list(payload.get("selected_jurors"))
         if len(selected) < minimum:
             raise ProgramMetaAdjudicationError(f"{label} selected jurors below minimum")
@@ -1103,6 +1156,9 @@ def _sidecar_status(
     sibling_sidecars: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     path = _sidecar_path(manifest_path, key=key, explicit_path=explicit_path)
+    manifest_file = manifest_path.expanduser().resolve()
+    current_manifest_hash = _sha256_file(manifest_file)
+    current_manifest_hashes = {current_manifest_hash}
     required_schema = _EXPECTED_SIDECAR_SCHEMAS[key]
     status: dict[str, Any] = {
         "key": key,
@@ -1146,6 +1202,7 @@ def _sidecar_status(
                 manifest_path=manifest_path,
                 jury_results=payload,
                 sibling_sidecars=sibling_sidecars or {},
+                valid_manifest_hashes=current_manifest_hashes,
             )
         except ProgramMetaAdjudicationError as exc:
             sidecar_status = "contract_invalid"
@@ -1157,6 +1214,7 @@ def _sidecar_status(
                 review_path=path,
                 review=payload,
                 sibling_sidecars=sibling_sidecars or {},
+                valid_manifest_hashes=current_manifest_hashes,
             )
         except (ProgramPromotionRefinementError, ProgramMetaAdjudicationError) as exc:
             sidecar_status = "contract_invalid"
@@ -1191,6 +1249,7 @@ def _sidecar_status(
                 key=key,
                 payload=payload,
                 sibling_payloads=sibling_payloads,
+                current_manifest_hash=current_manifest_hash,
             )
         except ProgramMetaAdjudicationError as exc:
             sidecar_status = "contract_invalid"
@@ -1204,7 +1263,11 @@ def _sidecar_status(
         "program_adjudicator_delegation",
     }:
         try:
-            _validate_adjudicator_chain_sidecar(key=key, payload=payload)
+            _validate_adjudicator_chain_sidecar(
+                key=key,
+                payload=payload,
+                valid_manifest_hashes=current_manifest_hashes,
+            )
         except ProgramMetaAdjudicationError as exc:
             sidecar_status = "contract_invalid"
             warning = str(exc)
