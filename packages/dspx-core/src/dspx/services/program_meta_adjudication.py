@@ -1759,6 +1759,123 @@ def _load_expected_sidecar(path: Path, *, key: str, label: str) -> dict[str, Any
     return payload
 
 
+def _summary_int(value: object, *, field: str) -> int:
+    if value in {None, ""}:
+        return 0
+    if isinstance(value, bool) or not isinstance(value, int | str):
+        raise ProgramMetaAdjudicationError(
+            f"behavior summary {field} must be an integer"
+        )
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise ProgramMetaAdjudicationError(
+            f"behavior summary {field} must be an integer"
+        ) from exc
+    if number < 0:
+        raise ProgramMetaAdjudicationError(
+            f"behavior summary {field} must be non-negative"
+        )
+    return number
+
+
+def _validate_behavior_results_contract(
+    *,
+    payload: Mapping[str, Any],
+    path: Path,
+    manifest: Mapping[str, Any],
+) -> None:
+    request = _safe_mapping(manifest.get("request"))
+    expected_hash = _first_text(request.get("behavior_results_hash"))
+    if expected_hash is None:
+        raise ProgramMetaAdjudicationError(
+            "behavior results cannot be consumed because manifest does not declare behavior_results_hash"
+        )
+    if _sha256_file(path.expanduser().resolve()) != expected_hash:
+        raise ProgramMetaAdjudicationError(
+            "behavior results sha256 does not match manifest behavior_results_hash"
+        )
+    if payload.get("authority") != "behavior_evidence_only_non_authoritative":
+        raise ProgramMetaAdjudicationError(
+            "behavior results authority must remain evidence-only"
+        )
+    non_authority = _safe_mapping(payload.get("non_authority"))
+    for key in (
+        "optimization_authority",
+        "promotion_authority",
+        "oracle_ranking",
+        "oracle_pruning",
+        "oracle_promotion",
+        "governance_authority",
+        "external_mutation",
+        "external_authority_mutated",
+        "winner_selection",
+    ):
+        if non_authority.get(key) is not False:
+            raise ProgramMetaAdjudicationError(
+                f"behavior results non_authority flag must remain false: {key}"
+            )
+    manifest_intent = _safe_mapping(manifest.get("intent"))
+    behavior_intent = _safe_mapping(payload.get("intent"))
+    expected_name = _first_text(manifest_intent.get("name"))
+    if (
+        expected_name
+        and _first_text(payload.get("intent_name"), behavior_intent.get("name"))
+        != expected_name
+    ):
+        raise ProgramMetaAdjudicationError(
+            "behavior results intent identity does not match manifest"
+        )
+    for field, behavior_key in (
+        ("inputs", "input_fields"),
+        ("outputs", "output_fields"),
+    ):
+        expected_values = _string_list(manifest_intent.get(field))
+        actual_values = _string_list(payload.get(behavior_key))
+        if expected_values and actual_values and actual_values != expected_values:
+            raise ProgramMetaAdjudicationError(
+                f"behavior results {behavior_key} do not match manifest intent"
+            )
+
+
+def _validate_behavior_episode_contract(
+    *,
+    payload: Mapping[str, Any],
+    path: Path,
+    manifest: Mapping[str, Any],
+) -> None:
+    request = _safe_mapping(manifest.get("request"))
+    expected_hash = _first_text(request.get("behavior_episode_hash"))
+    if expected_hash is None:
+        raise ProgramMetaAdjudicationError(
+            "behavior episode cannot be consumed because manifest does not declare behavior_episode_hash"
+        )
+    if _sha256_file(path.expanduser().resolve()) != expected_hash:
+        raise ProgramMetaAdjudicationError(
+            "behavior episode sha256 does not match manifest behavior_episode_hash"
+        )
+    if payload.get("authority") != "behavior_evidence_only_non_authoritative":
+        raise ProgramMetaAdjudicationError(
+            "behavior episode authority must remain evidence-only"
+        )
+    non_authority = _safe_mapping(payload.get("non_authority"))
+    for key in (
+        "optimization_authority",
+        "promotion_authority",
+        "oracle_ranking",
+        "oracle_pruning",
+        "oracle_promotion",
+        "governance_authority",
+        "external_mutation",
+        "external_authority_mutated",
+        "winner_selection",
+    ):
+        if non_authority.get(key) is not False:
+            raise ProgramMetaAdjudicationError(
+                f"behavior episode non_authority flag must remain false: {key}"
+            )
+
+
 def _behavior_summary(behavior: Mapping[str, Any] | None) -> dict[str, Any]:
     if behavior is None:
         return {
@@ -1773,12 +1890,13 @@ def _behavior_summary(behavior: Mapping[str, Any] | None) -> dict[str, Any]:
     return {
         "present": True,
         "status": _first_text(summary.get("status"), behavior.get("status"), "unknown"),
-        "passed": int(summary.get("passed") or 0),
-        "failed": int(summary.get("failed") or 0),
-        "error": int(summary.get("error") or 0),
-        "degraded": int(summary.get("degraded") or 0),
-        "total": int(
-            summary.get("total") or len(_safe_list(behavior.get("examples"))) or 0
+        "passed": _summary_int(summary.get("passed"), field="passed"),
+        "failed": _summary_int(summary.get("failed"), field="failed"),
+        "error": _summary_int(summary.get("error"), field="error"),
+        "degraded": _summary_int(summary.get("degraded"), field="degraded"),
+        "total": _summary_int(
+            summary.get("total") or len(_safe_list(behavior.get("examples"))) or 0,
+            field="total",
         ),
     }
 
@@ -1958,15 +2076,29 @@ def build_program_evidence_adjudication(
 
     manifest = load_program_manifest(manifest_path)
     manifest_text = _manifest_text(manifest)
-    behavior_path = _default_existing_path(
-        manifest_path,
-        explicit_path=behavior_results_path,
-        default_name="behavior_results.json",
+    if runtime_episode_path is not None and (
+        behavior_results_path is not None or behavior_episode_path is not None
+    ):
+        raise ProgramMetaAdjudicationError(
+            "runtime_episode cannot be combined with explicit behavior_results or behavior_episode evidence"
+        )
+    behavior_path = (
+        _default_existing_path(
+            manifest_path,
+            explicit_path=behavior_results_path,
+            default_name="behavior_results.json",
+        )
+        if runtime_episode_path is None
+        else None
     )
-    behavior_episode_ref = _default_existing_path(
-        manifest_path,
-        explicit_path=behavior_episode_path,
-        default_name="behavior_episode.json",
+    behavior_episode_ref = (
+        _default_existing_path(
+            manifest_path,
+            explicit_path=behavior_episode_path,
+            default_name="behavior_episode.json",
+        )
+        if runtime_episode_path is None
+        else None
     )
     behavior_payload: dict[str, Any] | None = None
     behavior_ref: dict[str, Any] | None = None
@@ -1974,12 +2106,18 @@ def build_program_evidence_adjudication(
         behavior_payload = _load_expected_sidecar(
             behavior_path, key="behavior_results", label="behavior results"
         )
+        _validate_behavior_results_contract(
+            payload=behavior_payload, path=behavior_path, manifest=manifest
+        )
         behavior_ref = _artifact_ref(
             behavior_path, schema_version="program-behavior-results-v1"
         )
     elif behavior_episode_ref is not None:
         behavior_payload = _load_expected_sidecar(
             behavior_episode_ref, key="behavior_episode", label="behavior episode"
+        )
+        _validate_behavior_episode_contract(
+            payload=behavior_payload, path=behavior_episode_ref, manifest=manifest
         )
         behavior_ref = _artifact_ref(
             behavior_episode_ref, schema_version="program-behavior-episode-v1"

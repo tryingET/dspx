@@ -306,6 +306,79 @@ def test_program_evidence_adjudication_consumes_runtime_episode(
     assert "behavior evidence" not in adjudication["aggregate"]["missing_evidence"]
 
 
+def test_program_evidence_adjudication_rejects_behavior_results_hash_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    behavior_path = candidate_root / "behavior_results.json"
+    behavior = json.loads(behavior_path.read_text(encoding="utf-8"))
+    behavior["summary"]["status"] = "tampered"
+    behavior_path.write_text(json.dumps(behavior, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(
+        ProgramMetaAdjudicationError,
+        match="behavior results sha256 does not match manifest behavior_results_hash",
+    ):
+        build_program_evidence_adjudication(
+            adjudicator_verification_path=adjudicator_verification_path,
+            manifest_path=candidate_root / "manifest.json",
+            behavior_results_path=behavior_path,
+        )
+
+
+def test_program_evidence_adjudication_rejects_ambiguous_runtime_and_behavior_inputs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+
+    with pytest.raises(
+        ProgramMetaAdjudicationError,
+        match="runtime_episode cannot be combined with explicit behavior_results",
+    ):
+        build_program_evidence_adjudication(
+            adjudicator_verification_path=adjudicator_verification_path,
+            manifest_path=candidate_root / "manifest.json",
+            runtime_episode_path=runtime_episode_path,
+            behavior_results_path=candidate_root / "behavior_results.json",
+        )
+
+
+def test_program_evidence_adjudication_rejects_malformed_behavior_summary_counts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    behavior_path = candidate_root / "behavior_results.json"
+    behavior = json.loads(behavior_path.read_text(encoding="utf-8"))
+    behavior["summary"]["passed"] = "NaN"
+    behavior_path.write_text(json.dumps(behavior, indent=2, sort_keys=True) + "\n")
+    manifest_path = candidate_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["request"]["behavior_results_hash"] = hashlib.sha256(
+        behavior_path.read_bytes()
+    ).hexdigest()
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(
+        ProgramMetaAdjudicationError,
+        match="behavior summary passed must be an integer",
+    ):
+        build_program_evidence_adjudication(
+            adjudicator_verification_path=adjudicator_verification_path,
+            manifest_path=manifest_path,
+            behavior_results_path=behavior_path,
+        )
+
+
 def test_program_evidence_adjudication_rejects_stale_runtime_episode(
     tmp_path: Path, monkeypatch
 ) -> None:
