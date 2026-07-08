@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateStore, ExecutionEmbedding, reset_embedding_engine
+from dspx.services import program_evidence_adjudication_validation
 from dspx.services.program_candidate_state import (
     ProgramCandidateStateError,
     build_program_candidate_state,
@@ -2401,6 +2402,65 @@ def test_program_promote_status_rejects_split_runtime_bound_adjudication(
         build_program_candidate_state(
             manifest_path=manifest_path,
             runtime_episode_path=supplied_runtime_episode_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
+
+
+def test_program_promote_status_rejects_runtime_bound_adjudication_oversized_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+    )
+    monkeypatch.setattr(
+        program_evidence_adjudication_validation,
+        "_MAX_ADJUDICATION_CONSUMER_REF_BYTES",
+        max(1, runtime_episode_path.stat().st_size - 1),
+    )
+
+    with pytest.raises(ProgramCandidateStateError, match="exceeded byte limit"):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
+
+
+def test_program_promote_status_rejects_malformed_target_adjudication_counts_as_contract_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+    )
+    adjudication = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    adjudication["aggregate"]["judgment_counts"] = {
+        "supports_domain_review": "not-an-int"
+    }
+    _write_json(adjudication_path, adjudication)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="aggregate judgment_counts values must be integers",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
             program_evidence_adjudication_path=adjudication_path,
         )
 

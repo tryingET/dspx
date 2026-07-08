@@ -5,12 +5,14 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, NoReturn
 
+from dspx.security import read_file_text_bounded
 from dspx.services.program_runtime_episode import (
     PROGRAM_RUNTIME_EPISODE_SCHEMA,
     validate_program_runtime_episode_contract,
 )
 
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
+_MAX_ADJUDICATION_CONSUMER_REF_BYTES = 16 * 1024 * 1024
 _ALLOWED_JUDGMENTS = {
     "supports_domain_review",
     "supports_domain_review_with_caveat",
@@ -55,8 +57,28 @@ def _first_text(*values: object) -> str | None:
     return None
 
 
-def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _sha256_file(path: Path, *, label: str, error_type: type[Exception]) -> str:
+    source = path.expanduser().resolve()
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with source.open("rb") as handle:
+            while True:
+                chunk = handle.read(
+                    min(64 * 1024, _MAX_ADJUDICATION_CONSUMER_REF_BYTES + 1)
+                )
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > _MAX_ADJUDICATION_CONSUMER_REF_BYTES:
+                    _raise(
+                        error_type,
+                        f"{label} exceeded byte limit: {total} > {_MAX_ADJUDICATION_CONSUMER_REF_BYTES}",
+                    )
+                digest.update(chunk)
+    except FileNotFoundError:
+        _raise(error_type, f"{label} path does not exist: {source}")
+    return digest.hexdigest()
 
 
 def _load_json_object(
@@ -64,11 +86,19 @@ def _load_json_object(
 ) -> dict[str, Any]:
     source = path.expanduser().resolve()
     try:
-        payload = json.loads(source.read_text(encoding="utf-8"))
+        payload = json.loads(
+            read_file_text_bounded(
+                source,
+                max_bytes=_MAX_ADJUDICATION_CONSUMER_REF_BYTES,
+                label=label,
+            )
+        )
     except FileNotFoundError:
         _raise(error_type, f"{label} path does not exist: {source}")
     except json.JSONDecodeError:
         _raise(error_type, f"{label} must be valid JSON: {source}")
+    except ValueError as exc:
+        _raise(error_type, str(exc))
     if not isinstance(payload, dict):
         _raise(error_type, f"{label} must contain a JSON object: {source}")
     return payload
@@ -126,10 +156,7 @@ def _validate_hash_bound_ref(
     if expected_sha256 not in expected_hashes:
         _raise(error_type, f"{label} ref sha256 does not match current evidence")
     path = Path(path_text).expanduser().resolve()
-    try:
-        actual_sha256 = _sha256_file(path)
-    except FileNotFoundError:
-        _raise(error_type, f"{label} ref path does not exist: {path}")
+    actual_sha256 = _sha256_file(path, label=f"{label} ref", error_type=error_type)
     if actual_sha256 != expected_sha256:
         _raise(error_type, f"{label} ref sha256 is stale: {path}")
 
@@ -196,7 +223,9 @@ def _validate_runtime_episode_ref(
         error_type=error_type,
     )
     behavior_path = runtime_path.parent / "behavior_results.json"
-    return behavior_path, _sha256_file(behavior_path)
+    return behavior_path, _sha256_file(
+        behavior_path, label=f"{label} behavior", error_type=error_type
+    )
 
 
 def validate_program_evidence_adjudication_contract(
@@ -255,7 +284,14 @@ def validate_program_evidence_adjudication_contract(
         _raise(error_type, f"{label} manifest path does not match current manifest")
     if manifest_sha256 != current_manifest_hash:
         _raise(error_type, f"{label} manifest sha256 does not match current manifest")
-    if _sha256_file(current_manifest_path.expanduser().resolve()) != manifest_sha256:
+    if (
+        _sha256_file(
+            current_manifest_path.expanduser().resolve(),
+            label=f"{label} manifest",
+            error_type=error_type,
+        )
+        != manifest_sha256
+    ):
         _raise(error_type, f"{label} manifest sha256 is stale")
 
     non_authority = _safe_mapping(payload.get("non_authority"))
@@ -395,9 +431,12 @@ def validate_program_evidence_adjudication_contract(
     if aggregate.get("activation_approved") is not False:
         _raise(error_type, f"{label} aggregate must keep activation_approved false")
     aggregate_counts = _safe_mapping(aggregate.get("judgment_counts"))
-    normalized_counts = {
-        str(key): int(value) for key, value in aggregate_counts.items()
-    }
+    try:
+        normalized_counts = {
+            str(key): int(value) for key, value in aggregate_counts.items()
+        }
+    except (TypeError, ValueError):
+        _raise(error_type, f"{label} aggregate judgment_counts values must be integers")
     if normalized_counts != judgment_counts:
         _raise(
             error_type, f"{label} aggregate judgment_counts do not match role judgments"
