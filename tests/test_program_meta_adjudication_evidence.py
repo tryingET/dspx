@@ -306,6 +306,127 @@ def test_program_evidence_adjudication_consumes_runtime_episode(
     assert "behavior evidence" not in adjudication["aggregate"]["missing_evidence"]
 
 
+def test_meta_adjudication_plan_validates_program_evidence_adjudication_contract(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    adjudication_path = tmp_path / "program_evidence_adjudication.json"
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+    )
+    write_program_evidence_adjudication(adjudication, adjudication_path)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        program_evidence_adjudication_path=adjudication_path,
+    )
+
+    sidecar = plan["sidecars"]["program_evidence_adjudication"]
+    assert sidecar["status"] == "present"
+    assert sidecar["path"] == str(adjudication_path.resolve())
+    assert "program_evidence_adjudication" not in plan["missing_evidence"]
+
+
+def test_meta_adjudication_plan_cli_accepts_program_evidence_adjudication(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    adjudication_path = tmp_path / "program_evidence_adjudication.json"
+    plan_path = tmp_path / "meta_adjudication_plan.json"
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+    )
+    write_program_evidence_adjudication(adjudication, adjudication_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-promote",
+            "meta-adjudication-plan",
+            "--manifest",
+            str(candidate_root / "manifest.json"),
+            "--program-evidence-adjudication",
+            str(adjudication_path),
+            "--out",
+            str(plan_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    sidecar = payload["sidecars"]["program_evidence_adjudication"]
+    assert sidecar["status"] == "present"
+    assert sidecar["path"] == str(adjudication_path.resolve())
+    assert plan_path.exists()
+
+
+def test_meta_adjudication_plan_rejects_authority_spoofed_evidence_adjudication(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    adjudication_path = tmp_path / "program_evidence_adjudication_spoofed.json"
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+    )
+    adjudication["non_authority"]["promotion_authority"] = True
+    write_program_evidence_adjudication(adjudication, adjudication_path)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        program_evidence_adjudication_path=adjudication_path,
+    )
+
+    sidecar = plan["sidecars"]["program_evidence_adjudication"]
+    assert sidecar["status"] == "contract_invalid"
+    assert "widens non-authority flags" in sidecar["warning"]
+    assert "program_evidence_adjudication" in plan["missing_evidence"]
+
+
+def test_meta_adjudication_plan_rejects_runtime_drifted_evidence_adjudication(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    _remove_candidate_behavior_sidecars(candidate_root)
+    adjudication_path = tmp_path / "program_evidence_adjudication_runtime.json"
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+        runtime_episode_path=runtime_episode_path,
+    )
+    write_program_evidence_adjudication(adjudication, adjudication_path)
+    traces_path = runtime_episode_path.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["sources"][0]["content_hash"] = "0" * 64
+    traces_path.write_text(json.dumps(traces, indent=2, sort_keys=True) + "\n")
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        program_evidence_adjudication_path=adjudication_path,
+    )
+
+    sidecar = plan["sidecars"]["program_evidence_adjudication"]
+    assert sidecar["status"] == "contract_invalid"
+    assert "program_runtime_traces_sha256" in sidecar["warning"]
+    assert "program_evidence_adjudication" in plan["missing_evidence"]
+
+
 def test_program_evidence_adjudication_rejects_behavior_results_hash_drift(
     tmp_path: Path, monkeypatch
 ) -> None:

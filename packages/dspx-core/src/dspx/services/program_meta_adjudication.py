@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_evidence_adjudication_validation import (
+    validate_program_evidence_adjudication_contract,
+)
 from dspx.services.program_oracle_publication import (
     ProgramOraclePublicationError,
     validate_program_oracle_publication_preflight_contract,
@@ -441,8 +444,69 @@ def _validate_oracle_publication_receipt_sidecar(
     )
 
 
+def _validated_sidecar_ref(
+    sidecars: Mapping[str, Mapping[str, Any]], key: str
+) -> tuple[Path, str] | None:
+    sidecar = _safe_mapping(sidecars.get(key))
+    if sidecar.get("present") is not True:
+        return None
+    if sidecar.get("status") != "present":
+        return None
+    if sidecar.get("schema_version") != sidecar.get("required_schema"):
+        return None
+    path_text = _first_text(sidecar.get("path"))
+    sha256 = _first_text(sidecar.get("sha256"))
+    if path_text is None or sha256 is None:
+        return None
+    return Path(path_text).expanduser().resolve(), sha256
+
+
+def _validated_sidecar_hash(
+    sidecars: Mapping[str, Mapping[str, Any]], key: str
+) -> str | None:
+    ref = _validated_sidecar_ref(sidecars, key)
+    return ref[1] if ref is not None else None
+
+
+def _validate_program_evidence_adjudication_sidecar(
+    *,
+    manifest_path: Path,
+    adjudication: Mapping[str, Any],
+    sibling_sidecars: Mapping[str, Mapping[str, Any]],
+) -> None:
+    manifest_file = manifest_path.expanduser().resolve()
+    manifest = load_program_manifest(manifest_file)
+    runtime_ref = _validated_sidecar_ref(sibling_sidecars, "runtime_episode")
+    validate_program_evidence_adjudication_contract(
+        adjudication,
+        expected_identity=_identity_from_manifest(manifest),
+        current_manifest_path=manifest_file,
+        current_manifest_hash=_sha256_file(manifest_file),
+        behavior_results_hash=_validated_sidecar_hash(
+            sibling_sidecars, "behavior_results"
+        ),
+        behavior_episode_hash=_validated_sidecar_hash(
+            sibling_sidecars, "behavior_episode"
+        ),
+        oracle_report_hash=_validated_sidecar_hash(sibling_sidecars, "oracle_report"),
+        activation_packet_hash=_validated_sidecar_hash(
+            sibling_sidecars, "activation_packet"
+        ),
+        generation_fitness_results_hash=_validated_sidecar_hash(
+            sibling_sidecars, "generation_fitness_results"
+        ),
+        expected_runtime_episode_path=runtime_ref[0] if runtime_ref else None,
+        expected_runtime_episode_hash=runtime_ref[1] if runtime_ref else None,
+        error_type=ProgramMetaAdjudicationError,
+    )
+
+
 def _sidecar_status(
-    manifest_path: Path, *, key: str, explicit_path: Path | None = None
+    manifest_path: Path,
+    *,
+    key: str,
+    explicit_path: Path | None = None,
+    sibling_sidecars: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     path = _sidecar_path(manifest_path, key=key, explicit_path=explicit_path)
     required_schema = _EXPECTED_SIDECAR_SCHEMAS[key]
@@ -480,6 +544,16 @@ def _sidecar_status(
                 receipt=payload,
             )
         except (ProgramOraclePublicationError, ProgramMetaAdjudicationError) as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
+    if schema == required_schema and key == "program_evidence_adjudication":
+        try:
+            _validate_program_evidence_adjudication_sidecar(
+                manifest_path=manifest_path,
+                adjudication=payload,
+                sibling_sidecars=sibling_sidecars or {},
+            )
+        except ProgramMetaAdjudicationError as exc:
             sidecar_status = "contract_invalid"
             warning = str(exc)
     status.update(
@@ -2529,6 +2603,7 @@ def build_program_meta_adjudication_plan(
     generation_traceability_path: Path | None = None,
     generation_fitness_results_path: Path | None = None,
     program_adjudicator_delegation_path: Path | None = None,
+    program_evidence_adjudication_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build a local meta-adjudication plan without model calls or authority effects."""
 
@@ -2537,94 +2612,44 @@ def build_program_meta_adjudication_plan(
     except ProgramRefinementError as exc:
         raise ProgramMetaAdjudicationError(str(exc)) from exc
 
-    sidecars = {
-        "behavior_results": _sidecar_status(
-            manifest_path, key="behavior_results", explicit_path=behavior_results_path
-        ),
-        "behavior_episode": _sidecar_status(
-            manifest_path, key="behavior_episode", explicit_path=behavior_episode_path
-        ),
-        "runtime_episode": _sidecar_status(
-            manifest_path, key="runtime_episode", explicit_path=runtime_episode_path
-        ),
-        "oracle_report": _sidecar_status(
-            manifest_path, key="oracle_report", explicit_path=oracle_report_path
-        ),
-        "oracle_publication_receipt": _sidecar_status(
-            manifest_path,
-            key="oracle_publication_receipt",
-            explicit_path=oracle_publication_receipt_path,
-        ),
-        "jury_results": _sidecar_status(
-            manifest_path, key="jury_results", explicit_path=jury_results_path
-        ),
-        "review": _sidecar_status(
-            manifest_path, key="review", explicit_path=review_path
-        ),
-        "decision_record": _sidecar_status(
-            manifest_path, key="decision_record", explicit_path=decision_record_path
-        ),
-        "activation_packet": _sidecar_status(
-            manifest_path, key="activation_packet", explicit_path=activation_packet_path
-        ),
-        "generation_target_contract": _sidecar_status(
-            manifest_path,
-            key="generation_target_contract",
-            explicit_path=generation_target_contract_path,
-        ),
-        "generation_fitness_suite": _sidecar_status(
-            manifest_path,
-            key="generation_fitness_suite",
-            explicit_path=generation_fitness_suite_path,
-        ),
-        "generation_gate_preflight": _sidecar_status(
-            manifest_path,
-            key="generation_gate_preflight",
-            explicit_path=generation_gate_preflight_path,
-        ),
-        "generation_traceability": _sidecar_status(
-            manifest_path,
-            key="generation_traceability",
-            explicit_path=generation_traceability_path,
-        ),
-        "generation_fitness_results": _sidecar_status(
-            manifest_path,
-            key="generation_fitness_results",
-            explicit_path=generation_fitness_results_path,
-        ),
-        "target_profile": _sidecar_status(
-            manifest_path, key="target_profile", explicit_path=None
-        ),
-        "jury_requirements": _sidecar_status(
-            manifest_path, key="jury_requirements", explicit_path=None
-        ),
-        "meta_jury_selection": _sidecar_status(
-            manifest_path, key="meta_jury_selection", explicit_path=None
-        ),
-        "jury_verification": _sidecar_status(
-            manifest_path, key="jury_verification", explicit_path=None
-        ),
-        "program_adjudicator_formation": _sidecar_status(
-            manifest_path, key="program_adjudicator_formation", explicit_path=None
-        ),
-        "program_adjudicator_verification": _sidecar_status(
-            manifest_path, key="program_adjudicator_verification", explicit_path=None
-        ),
-        "program_adjudicator_delegation": _sidecar_status(
-            manifest_path,
-            key="program_adjudicator_delegation",
-            explicit_path=program_adjudicator_delegation_path,
-        ),
-        "program_evidence_adjudication": _sidecar_status(
-            manifest_path, key="program_evidence_adjudication", explicit_path=None
-        ),
-        "adjudication_behavior_trace": _sidecar_status(
-            manifest_path, key="adjudication_behavior_trace", explicit_path=None
-        ),
-        "adjudication_gepa_example": _sidecar_status(
-            manifest_path, key="adjudication_gepa_example", explicit_path=None
-        ),
-    }
+    sidecars: dict[str, dict[str, Any]] = {}
+
+    def record_sidecar(key: str, explicit_path: Path | None = None) -> None:
+        sidecars[key] = _sidecar_status(
+            manifest_path, key=key, explicit_path=explicit_path
+        )
+
+    record_sidecar("behavior_results", behavior_results_path)
+    record_sidecar("behavior_episode", behavior_episode_path)
+    record_sidecar("runtime_episode", runtime_episode_path)
+    record_sidecar("oracle_report", oracle_report_path)
+    record_sidecar("oracle_publication_receipt", oracle_publication_receipt_path)
+    record_sidecar("jury_results", jury_results_path)
+    record_sidecar("review", review_path)
+    record_sidecar("decision_record", decision_record_path)
+    record_sidecar("activation_packet", activation_packet_path)
+    record_sidecar("generation_target_contract", generation_target_contract_path)
+    record_sidecar("generation_fitness_suite", generation_fitness_suite_path)
+    record_sidecar("generation_gate_preflight", generation_gate_preflight_path)
+    record_sidecar("generation_traceability", generation_traceability_path)
+    record_sidecar("generation_fitness_results", generation_fitness_results_path)
+    record_sidecar("target_profile")
+    record_sidecar("jury_requirements")
+    record_sidecar("meta_jury_selection")
+    record_sidecar("jury_verification")
+    record_sidecar("program_adjudicator_formation")
+    record_sidecar("program_adjudicator_verification")
+    record_sidecar(
+        "program_adjudicator_delegation", program_adjudicator_delegation_path
+    )
+    sidecars["program_evidence_adjudication"] = _sidecar_status(
+        manifest_path,
+        key="program_evidence_adjudication",
+        explicit_path=program_evidence_adjudication_path,
+        sibling_sidecars=sidecars,
+    )
+    record_sidecar("adjudication_behavior_trace")
+    record_sidecar("adjudication_gepa_example")
     profile = _target_profile(
         manifest,
         manifest_path=manifest_path,
