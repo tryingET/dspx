@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from typing import Any, Mapping, NoReturn
+
+from dspx.services.program_runtime_episode import (
+    PROGRAM_RUNTIME_EPISODE_SCHEMA,
+    validate_program_runtime_episode_contract,
+)
 
 PROGRAM_EVIDENCE_ADJUDICATION_SCHEMA = "program-evidence-adjudication-v1"
 _ALLOWED_JUDGMENTS = {
@@ -51,6 +57,21 @@ def _first_text(*values: object) -> str | None:
 
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _load_json_object(
+    path: Path, *, label: str, error_type: type[Exception]
+) -> dict[str, Any]:
+    source = path.expanduser().resolve()
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        _raise(error_type, f"{label} path does not exist: {source}")
+    except json.JSONDecodeError:
+        _raise(error_type, f"{label} must be valid JSON: {source}")
+    if not isinstance(payload, dict):
+        _raise(error_type, f"{label} must contain a JSON object: {source}")
+    return payload
 
 
 def _raise(error_type: type[Exception], message: str) -> NoReturn:
@@ -111,6 +132,54 @@ def _validate_hash_bound_ref(
         _raise(error_type, f"{label} ref path does not exist: {path}")
     if actual_sha256 != expected_sha256:
         _raise(error_type, f"{label} ref sha256 is stale: {path}")
+
+
+def _validate_runtime_episode_ref(
+    ref: object,
+    *,
+    label: str,
+    current_manifest_path: Path,
+    current_manifest_hash: str,
+    error_type: type[Exception],
+) -> tuple[Path, str] | None:
+    ref_map = _safe_mapping(ref)
+    if not ref_map:
+        return None
+    runtime_sha256 = _first_text(ref_map.get("sha256"))
+    if not runtime_sha256:
+        _raise(error_type, f"{label} ref sha256 is required")
+    _validate_hash_bound_ref(
+        ref_map,
+        label=label,
+        expected_schema=PROGRAM_RUNTIME_EPISODE_SCHEMA,
+        expected_hashes={runtime_sha256},
+        error_type=error_type,
+    )
+    runtime_path_text = _first_text(ref_map.get("path"))
+    if runtime_path_text is None:
+        _raise(error_type, f"{label} ref path is required")
+    runtime_path = Path(runtime_path_text).expanduser().resolve()
+    current_manifest_resolved = current_manifest_path.expanduser().resolve()
+    current_manifest = _load_json_object(
+        current_manifest_resolved,
+        label=f"{label} current manifest",
+        error_type=error_type,
+    )
+    runtime_episode = _load_json_object(
+        runtime_path,
+        label=label,
+        error_type=error_type,
+    )
+    validate_program_runtime_episode_contract(
+        runtime_episode,
+        runtime_episode_path=runtime_path,
+        expected_manifest_path=current_manifest_resolved,
+        expected_manifest=current_manifest,
+        expected_manifest_sha256=current_manifest_hash,
+        error_type=error_type,
+    )
+    behavior_path = runtime_path.parent / "behavior_results.json"
+    return behavior_path, _sha256_file(behavior_path)
 
 
 def validate_program_evidence_adjudication_contract(
@@ -188,10 +257,29 @@ def validate_program_evidence_adjudication_contract(
         )
 
     evidence_refs = _safe_mapping(payload.get("evidence_refs"))
+    runtime_behavior_ref = _validate_runtime_episode_ref(
+        evidence_refs.get("runtime_episode"),
+        label=f"{label} runtime_episode",
+        current_manifest_path=current_manifest_path,
+        current_manifest_hash=current_manifest_hash,
+        error_type=error_type,
+    )
     behavior_ref = _safe_mapping(evidence_refs.get("behavior"))
-    current_behavior_hashes = {
-        item for item in (behavior_results_hash, behavior_episode_hash) if item
-    }
+    if runtime_behavior_ref is not None and behavior_ref:
+        runtime_behavior_path, runtime_behavior_hash = runtime_behavior_ref
+        behavior_path_text = _first_text(behavior_ref.get("path"))
+        if behavior_path_text is None:
+            _raise(error_type, f"{label} behavior ref path is required")
+        if Path(behavior_path_text).expanduser().resolve() != runtime_behavior_path:
+            _raise(
+                error_type,
+                f"{label} behavior ref must match runtime_episode behavior_results.json",
+            )
+        current_behavior_hashes = {runtime_behavior_hash}
+    else:
+        current_behavior_hashes = {
+            item for item in (behavior_results_hash, behavior_episode_hash) if item
+        }
     if behavior_ref:
         _validate_hash_bound_ref(
             behavior_ref,

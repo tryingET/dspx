@@ -210,6 +210,73 @@ def _write_program_evidence_adjudication(
     return path
 
 
+def _write_runtime_evidence_adjudication(
+    path: Path,
+    *,
+    manifest_path: Path,
+    runtime_episode_path: Path,
+    behavior_results_path: Path | None = None,
+) -> Path:
+    behavior_results_path = behavior_results_path or (
+        runtime_episode_path.parent / "behavior_results.json"
+    )
+    _write_json(
+        path,
+        {
+            "schema_version": "program-evidence-adjudication-v1",
+            "status": "evidence_adjudicated",
+            "authority": "program_evidence_adjudication_evidence_only_non_authoritative",
+            "identity": _identity_from_manifest_path(manifest_path),
+            "manifest": _artifact_ref(manifest_path),
+            "evidence_refs": {
+                "behavior": _artifact_ref(behavior_results_path),
+                "runtime_episode": _artifact_ref(runtime_episode_path),
+                "oracle_report": None,
+                "activation_packet": None,
+                "generation_traceability": None,
+                "generation_fitness_results": None,
+            },
+            "aggregate": {
+                "ready_for_domain_decision": True,
+                "recommendation": "ready_for_domain_decision_not_activation",
+                "activation_approved": False,
+                "judgment_counts": {"supports_domain_review": 1},
+                "blocking_perspectives": [],
+                "missing_evidence": [],
+            },
+            "role_judgments": [
+                {
+                    "perspective": "runtime_behavior_evidence",
+                    "judgment": "supports_domain_review",
+                    "missing_evidence": [],
+                    "rationale": "runtime behavior evidence is present but remains non-authoritative",
+                    "activation_authority": False,
+                    "model_backed": False,
+                    "provider_called": False,
+                }
+            ],
+            "non_authority": {
+                "activation_authority": False,
+                "promotion_authority": False,
+                "oracle_authority": False,
+                "governance_authority": False,
+                "external_authority": False,
+                "external_mutation": False,
+            },
+            "effect": {
+                "candidate_files_mutated": False,
+                "canonical_target_mutated": False,
+                "ak_mutated": False,
+                "governance_mutated": False,
+                "oracle_index_mutated": False,
+                "shared_oracle_mutated": False,
+                "provider_called": False,
+            },
+        },
+    )
+    return path
+
+
 def _file_hashes(root: Path) -> dict[str, str]:
     return {
         str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -2245,6 +2312,125 @@ def test_program_promote_status_reports_target_fidelity_admission(
         payload["truth_summary"]["obsidian_review_adapter_materialization_allowed"]
         is True
     )
+
+
+def test_program_promote_status_accepts_runtime_bound_target_adjudication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+    )
+
+    payload = build_program_candidate_state(
+        manifest_path=manifest_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+
+    assert payload["artifact_hashes"][
+        "program_evidence_adjudication_sha256"
+    ] == _sha256(adjudication_path)
+    assert payload["truth_summary"]["target_protocol_adjudication_present"] is True
+
+
+def test_program_promote_status_rejects_runtime_bound_target_adjudication_trace_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+    )
+    traces_path = runtime_episode_path.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["sources"][0]["content_hash"] = "0" * 64
+    _write_json(traces_path, traces)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="program_runtime_traces_sha256 does not match current file",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
+
+
+def test_program_promote_status_rejects_runtime_bound_target_adjudication_behavior_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+    )
+    behavior_path = runtime_episode_path.parent / "behavior_results.json"
+    behavior = json.loads(behavior_path.read_text(encoding="utf-8"))
+    behavior["summary"]["status"] = "tampered"
+    _write_json(behavior_path, behavior)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="behavior_results_sha256 does not match current file",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
+
+
+def test_program_promote_status_rejects_runtime_bound_adjudication_mixed_behavior_ref(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    direct_behavior_path = tmp_path / "target" / "direct_behavior_results.json"
+    direct_behavior_path.parent.mkdir(parents=True, exist_ok=True)
+    direct_behavior_path.write_bytes(
+        (runtime_episode_path.parent / "behavior_results.json").read_bytes()
+    )
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+        behavior_results_path=direct_behavior_path,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="behavior ref must match runtime_episode behavior_results.json",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
 
 
 def test_program_promote_status_rejects_stale_target_adjudication_fitness_ref(
