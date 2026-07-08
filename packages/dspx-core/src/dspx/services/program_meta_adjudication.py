@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_adjudication_publication import (
+    ProgramAdjudicationPublicationError,
+    validate_program_adjudication_behavior_trace_contract,
+)
 from dspx.services.program_evidence_adjudication_validation import (
     validate_program_evidence_adjudication_contract,
 )
@@ -316,6 +320,7 @@ def validate_program_meta_adjudication_plan_contract(
         "runtime_episode",
         "oracle_publication_receipt",
         "program_evidence_adjudication",
+        "adjudication_behavior_trace",
     }
     for key, raw_status in sidecars.items():
         if not isinstance(raw_status, Mapping) or raw_status.get("present") is not True:
@@ -400,6 +405,19 @@ def validate_program_meta_adjudication_plan_contract(
                 manifest_path=manifest_file,
                 adjudication=evidence_adjudication,
                 sibling_sidecars=sidecars,
+            )
+        except ProgramMetaAdjudicationError as exc:
+            _raise_contract_error(error_type, str(exc))
+
+    adjudication_behavior_trace = present_sidecar_payloads.get(
+        "adjudication_behavior_trace"
+    )
+    if adjudication_behavior_trace is not None:
+        try:
+            validate_program_adjudication_behavior_trace_contract(
+                adjudication_behavior_trace,
+                trace_path=present_sidecar_paths["adjudication_behavior_trace"],
+                error_type=ProgramMetaAdjudicationError,
             )
         except ProgramMetaAdjudicationError as exc:
             _raise_contract_error(error_type, str(exc))
@@ -617,6 +635,19 @@ def _sidecar_status(
                 sibling_sidecars=sibling_sidecars or {},
             )
         except ProgramMetaAdjudicationError as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
+    if schema == required_schema and key == "adjudication_behavior_trace":
+        try:
+            validate_program_adjudication_behavior_trace_contract(
+                payload,
+                trace_path=path,
+                error_type=ProgramMetaAdjudicationError,
+            )
+        except (
+            ProgramAdjudicationPublicationError,
+            ProgramMetaAdjudicationError,
+        ) as exc:
             sidecar_status = "contract_invalid"
             warning = str(exc)
     status.update(
@@ -2667,6 +2698,7 @@ def build_program_meta_adjudication_plan(
     generation_fitness_results_path: Path | None = None,
     program_adjudicator_delegation_path: Path | None = None,
     program_evidence_adjudication_path: Path | None = None,
+    adjudication_behavior_trace_path: Path | None = None,
 ) -> dict[str, Any]:
     """Build a local meta-adjudication plan without model calls or authority effects."""
 
@@ -2711,7 +2743,7 @@ def build_program_meta_adjudication_plan(
         explicit_path=program_evidence_adjudication_path,
         sibling_sidecars=sidecars,
     )
-    record_sidecar("adjudication_behavior_trace")
+    record_sidecar("adjudication_behavior_trace", adjudication_behavior_trace_path)
     record_sidecar("adjudication_gepa_example")
     profile = _target_profile(
         manifest,
@@ -2773,10 +2805,14 @@ def build_program_adjudication_gepa_example(
     trace = _load_expected_sidecar(
         trace_path, key="adjudication_behavior_trace", label="adjudication trace"
     )
-    if trace.get("status") != "trace_ready_for_publication_preflight":
-        raise ProgramMetaAdjudicationError(
-            "adjudication trace must be trace_ready_for_publication_preflight"
+    try:
+        validate_program_adjudication_behavior_trace_contract(
+            trace,
+            trace_path=trace_path,
+            error_type=ProgramMetaAdjudicationError,
         )
+    except ProgramMetaAdjudicationError:
+        raise
     linked_artifacts = _safe_mapping(trace.get("linked_artifacts"))
     evidence_refs = _safe_mapping(linked_artifacts.get("evidence_refs"))
     judging_behavior = _safe_mapping(trace.get("judging_behavior"))

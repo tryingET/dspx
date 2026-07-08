@@ -111,6 +111,40 @@ def _write_verified_program_adjudicator(candidate_root: Path, tmp_path: Path) ->
     return adjudicator_verification_path
 
 
+def _write_adjudication_trace_fixture(
+    candidate_root: Path, tmp_path: Path
+) -> tuple[Path, Path, Path]:
+    adjudicator_verification_path = _write_verified_program_adjudicator(
+        candidate_root, tmp_path
+    )
+    delegation_path = tmp_path / "program_adjudicator_delegation.json"
+    evidence_adjudication_path = tmp_path / "program_evidence_adjudication.json"
+    decision_path = tmp_path / "promotion_decision_record.json"
+    trace_path = tmp_path / "adjudication_behavior_trace.json"
+    delegation = build_program_adjudicator_delegation(
+        manifest_path=candidate_root / "manifest.json",
+        adjudicator_verification_path=adjudicator_verification_path,
+    )
+    write_program_adjudicator_delegation(delegation, delegation_path)
+    adjudication = build_program_evidence_adjudication(
+        adjudicator_verification_path=adjudicator_verification_path,
+        manifest_path=candidate_root / "manifest.json",
+    )
+    write_program_evidence_adjudication(adjudication, evidence_adjudication_path)
+    decision = build_generated_program_adjudicator_decision_record(
+        evidence_adjudication_path=evidence_adjudication_path,
+        adjudicator_delegation_path=delegation_path,
+    )
+    write_program_promotion_decision_record(decision, decision_path)
+    trace = build_program_adjudication_behavior_trace(
+        evidence_adjudication_path=evidence_adjudication_path,
+        adjudicator_delegation_path=delegation_path,
+        decision_record_path=decision_path,
+    )
+    write_program_adjudication_behavior_trace(trace, trace_path)
+    return trace_path, evidence_adjudication_path, delegation_path
+
+
 def test_meta_adjudication_plan_tracks_target_fidelity_sidecars(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -696,6 +730,65 @@ def test_program_evidence_adjudication_and_behavior_trace_sidecars(
     assert decision["non_authority"]["promotion_authority"] is False
     assert decision["effect"]["governance_mutated"] is False
     assert decision_path.exists()
+
+
+def test_meta_adjudication_plan_marks_invalid_behavior_trace_contract_invalid(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    trace_path, evidence_adjudication_path, _delegation_path = (
+        _write_adjudication_trace_fixture(candidate_root, tmp_path)
+    )
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    trace["source_adjudication"]["sha256"] = "0" * 64
+    trace_path.write_text(json.dumps(trace, indent=2, sort_keys=True) + "\n")
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        program_evidence_adjudication_path=evidence_adjudication_path,
+        adjudication_behavior_trace_path=trace_path,
+    )
+
+    trace_status = plan["sidecars"]["adjudication_behavior_trace"]
+    assert trace_status["status"] == "contract_invalid"
+    assert "source_adjudication sha256" in trace_status["warning"]
+    assert "adjudication_behavior_trace" in plan["missing_evidence"]
+
+
+def test_program_adjudication_gepa_example_rejects_behavior_trace_link_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    trace_path, _evidence_adjudication_path, delegation_path = (
+        _write_adjudication_trace_fixture(candidate_root, tmp_path)
+    )
+    delegation = json.loads(delegation_path.read_text(encoding="utf-8"))
+    delegation["dspx_meta_adjudicator"]["scope"] = "tampered"
+    delegation_path.write_text(json.dumps(delegation, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(
+        ProgramMetaAdjudicationError,
+        match="linked_artifacts.program_adjudicator_delegation sha256",
+    ):
+        build_program_adjudication_gepa_example(trace_path=trace_path)
+
+
+def test_program_adjudication_gepa_example_rejects_authority_spoofed_trace(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    trace_path, _evidence_adjudication_path, _delegation_path = (
+        _write_adjudication_trace_fixture(candidate_root, tmp_path)
+    )
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    trace["non_authority"]["activation_authority"] = True
+    trace_path.write_text(json.dumps(trace, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(
+        ProgramMetaAdjudicationError,
+        match="widens non-authority flag: activation_authority",
+    ):
+        build_program_adjudication_gepa_example(trace_path=trace_path)
 
 
 def test_generated_program_adjudicator_decision_uses_dspx_meta_delegation(

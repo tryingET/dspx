@@ -444,6 +444,25 @@ def _validate_trace(trace: Mapping[str, Any], path: Path) -> None:
     _validate_trace_linked_artifact_refs(trace)
 
 
+def validate_program_adjudication_behavior_trace_contract(
+    trace: Mapping[str, Any],
+    *,
+    trace_path: Path,
+    error_type: type[Exception] = ProgramAdjudicationPublicationError,
+) -> None:
+    """Validate a program-adjudication-behavior-trace-v1 sidecar.
+
+    The trace is empirical/local evidence only. Consumers must re-bind linked
+    artifacts and nested runtime refs before mirroring it into planning,
+    publication, or optimization-example surfaces.
+    """
+
+    try:
+        _validate_trace(trace, trace_path)
+    except ProgramAdjudicationPublicationError as exc:
+        raise error_type(str(exc)) from exc
+
+
 def _expected_publication_id(
     *,
     target: str,

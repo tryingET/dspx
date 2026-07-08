@@ -1124,6 +1124,11 @@ def meta_adjudication_plan(
         "--program-evidence-adjudication",
         help="Optional program-evidence-adjudication-v1 JSON",
     ),
+    adjudication_behavior_trace: Path | None = typer.Option(
+        None,
+        "--adjudication-behavior-trace",
+        help="Optional program-adjudication-behavior-trace-v1 JSON",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print plan JSON"),
 ) -> None:
     """Plan target-sensitive jury/adjudicator orchestration without authority effects."""
@@ -1152,6 +1157,7 @@ def meta_adjudication_plan(
             generation_fitness_results_path=generation_fitness_results,
             program_adjudicator_delegation_path=program_adjudicator_delegation,
             program_evidence_adjudication_path=program_evidence_adjudication,
+            adjudication_behavior_trace_path=adjudication_behavior_trace,
         )
         payload = write_program_meta_adjudication_plan(plan_payload, out)
     except ProgramMetaAdjudicationError as exc:
