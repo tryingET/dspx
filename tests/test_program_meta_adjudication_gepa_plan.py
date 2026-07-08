@@ -72,6 +72,106 @@ def _write_runtime_inputs(tmp_path: Path) -> Path:
     return inputs_path
 
 
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _valid_generation_target_contract(contract_sha: str = "contract-sha") -> dict:
+    return {
+        "schema_version": "gen-target-contract-v1",
+        "identity": {
+            "intent_sha256": "intent-sha",
+            "contract_sha256": contract_sha,
+            "validator_version": "v1",
+        },
+        "target": {
+            "id": "obsidian_pdf_transition",
+            "owner": "obsidian/_System",
+            "owner_refs": ["/vault/_System/architecture/pdf-transition.md"],
+        },
+        "contract_source": "hand_authored",
+        "confirmation_status": "operator_confirmed_for_generation_gate",
+        "risk_tier": "authority_adjacent",
+        "protocol": {
+            "required_stages": ["source_package", "review"],
+            "artifact_families": ["source", "transition", "review"],
+            "forbidden_shortcuts": ["draft_canonical_note_before_review"],
+        },
+        "source_policy": {
+            "provenance_required": True,
+            "language_policy": "preserve_source_language",
+        },
+        "fitness": {"required_adversarial_cases": ["target_shortcut"]},
+        "requests": {},
+        "non_authority": {
+            "activation_authority": False,
+            "promotion_authority": False,
+            "oracle_authority": False,
+            "governance_authority": False,
+            "external_mutation": False,
+        },
+        "effect": {
+            "candidate_files_mutated": False,
+            "canonical_target_mutated": False,
+            "ak_mutated": False,
+            "governance_mutated": False,
+        },
+    }
+
+
+def _valid_generation_fitness_suite(
+    *, target_contract_sha: str = "contract-sha", suite_sha: str = "suite-sha"
+) -> dict:
+    return {
+        "schema_version": "gen-fitness-suite-v1",
+        "identity": {
+            "target_contract_sha256": target_contract_sha,
+            "suite_sha256": suite_sha,
+        },
+        "cases": [
+            {
+                "case_id": "target-protocol-fidelity",
+                "input_fixture": "fixtures/source.json",
+                "allowed_artifact_families": ["transition", "review"],
+                "forbidden_outputs_or_effects": ["draft_canonical_note_before_review"],
+                "source_provenance_assertions": [{"required": True}],
+                "target_stage_assertions": [{"stage": "review"}],
+                "expected_failure_label": "target_shortcut",
+                "validator": "dspx.local_check",
+            }
+        ],
+    }
+
+
+def _valid_generation_fitness_results(
+    *,
+    candidate_sha: str,
+    target_contract_sha: str = "contract-sha",
+    suite_sha: str = "suite-sha",
+) -> dict:
+    return {
+        "schema_version": "gen-fitness-results-v1",
+        "identity": {
+            "candidate_manifest_sha256": candidate_sha,
+            "target_contract_sha256": target_contract_sha,
+            "fitness_suite_sha256": suite_sha,
+        },
+        "status": "fitness_failed",
+        "rendered_state": "withheld_for_target_protocol_failure",
+        "cases": [
+            {
+                "case_id": "target-protocol-fidelity",
+                "status": "failed",
+                "evidence_refs": ["generation_traceability.json"],
+            }
+        ],
+    }
+
+
 def test_program_adjudication_gepa_example_sidecar(tmp_path: Path, monkeypatch) -> None:
     candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
     requirements_path = tmp_path / "jury_requirements.json"
@@ -679,6 +779,137 @@ def test_meta_adjudication_plan_rejects_foreign_target_fidelity_sidecar(
     forged_plan["sidecars"] = forged_sidecars
 
     with pytest.raises(ValueError, match="candidate_manifest_sha256"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
+def test_meta_adjudication_plan_rejects_malformed_candidate_manifest_hash(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    fitness_results_path = tmp_path / "generation_fitness_results.json"
+    payload = _valid_generation_fitness_results(
+        candidate_sha="not-a-sha",
+        target_contract_sha="contract-sha",
+        suite_sha="suite-sha",
+    )
+    _write_json(fitness_results_path, payload)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        generation_fitness_results_path=fitness_results_path,
+    )
+
+    sidecar = plan["sidecars"]["generation_fitness_results"]
+    assert sidecar["status"] == "contract_invalid"
+    assert "candidate_manifest_sha256" in sidecar["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["generation_fitness_results"] = {
+        **forged_sidecars["generation_fitness_results"],
+        "status": "present",
+        "sha256": _sha256_file(fitness_results_path),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="candidate_manifest_sha256"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
+def test_meta_adjudication_plan_rejects_target_fidelity_sibling_hash_mismatch(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    target_contract_path = tmp_path / "generation_target_contract.json"
+    fitness_suite_path = tmp_path / "generation_fitness_suite.json"
+    fitness_results_path = tmp_path / "generation_fitness_results.json"
+    _write_json(target_contract_path, _valid_generation_target_contract("contract-sha"))
+    _write_json(
+        fitness_suite_path,
+        _valid_generation_fitness_suite(
+            target_contract_sha="contract-sha", suite_sha="suite-sha"
+        ),
+    )
+    _write_json(
+        fitness_results_path,
+        _valid_generation_fitness_results(
+            candidate_sha=_sha256_file(candidate_root / "manifest.json"),
+            target_contract_sha="other-contract-sha",
+            suite_sha="suite-sha",
+        ),
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        generation_target_contract_path=target_contract_path,
+        generation_fitness_suite_path=fitness_suite_path,
+        generation_fitness_results_path=fitness_results_path,
+    )
+
+    sidecar = plan["sidecars"]["generation_fitness_results"]
+    assert sidecar["status"] == "contract_invalid"
+    assert "target_contract_sha256" in sidecar["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["generation_fitness_results"] = {
+        **forged_sidecars["generation_fitness_results"],
+        "status": "present",
+        "sha256": _sha256_file(fitness_results_path),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="target_contract_sha256"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
+def test_meta_adjudication_plan_rejects_adjudicator_ref_outside_plan_graph(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    paths = _write_adjudicator_chain(candidate_root, tmp_path)
+    alternate_selection_path = tmp_path / "alternate_meta_jury_selection.json"
+    alternate_selection_path.write_text(
+        paths["selection"].read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    formation = json.loads(paths["formation"].read_text(encoding="utf-8"))
+    formation["jury_selection"] = {
+        "path": str(alternate_selection_path),
+        "sha256": _sha256_file(alternate_selection_path),
+        "schema_version": "program-meta-jury-selection-v1",
+    }
+    _write_json(paths["formation"], formation)
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+    )
+
+    sidecar = plan["sidecars"]["program_adjudicator_formation"]
+    assert sidecar["status"] == "contract_invalid"
+    assert "plan sidecar meta_jury_selection" in sidecar["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["program_adjudicator_formation"] = {
+        **forged_sidecars["program_adjudicator_formation"],
+        "status": "present",
+        "sha256": _sha256_file(paths["formation"]),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="plan sidecar meta_jury_selection"):
         validate_program_meta_adjudication_plan_contract(
             forged_plan,
             expected_identities=[forged_plan["identity"]],

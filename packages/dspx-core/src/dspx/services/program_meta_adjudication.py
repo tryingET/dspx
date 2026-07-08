@@ -504,6 +504,7 @@ def validate_program_meta_adjudication_plan_contract(
                 key=chain_key,
                 payload=chain_payload,
                 valid_manifest_hashes=valid_hashes,
+                sibling_sidecars=sidecars,
             )
         except ProgramMetaAdjudicationError as exc:
             _raise_contract_error(error_type, str(exc))
@@ -828,14 +829,35 @@ def _validate_current_candidate_hash(
         return
     identity = _safe_mapping(payload.get("identity"))
     candidate_hash = _first_text(identity.get("candidate_manifest_sha256"))
-    if (
-        candidate_hash is not None
-        and len(candidate_hash) == 64
-        and all(ch in "0123456789abcdef" for ch in candidate_hash)
-        and candidate_hash != current_manifest_hash
-    ):
+    if candidate_hash is None:
+        return
+    if candidate_hash != current_manifest_hash:
         raise ProgramMetaAdjudicationError(
             f"{label} candidate_manifest_sha256 does not match current manifest"
+        )
+
+
+def _identity_hash(payload: Mapping[str, Any], key: str) -> str | None:
+    return _first_text(_safe_mapping(payload.get("identity")).get(key))
+
+
+def _validate_sibling_identity_hash(
+    *,
+    payload: Mapping[str, Any],
+    payload_key: str,
+    sibling_payloads: Mapping[str, Mapping[str, Any]],
+    sibling_key: str,
+    sibling_identity_key: str,
+    label: str,
+) -> None:
+    sibling = sibling_payloads.get(sibling_key)
+    if sibling is None:
+        return
+    claimed = _identity_hash(payload, payload_key)
+    expected = _identity_hash(sibling, sibling_identity_key)
+    if claimed is not None and expected is not None and claimed != expected:
+        raise ProgramMetaAdjudicationError(
+            f"{label} {payload_key} does not match {sibling_key}.{sibling_identity_key}"
         )
 
 
@@ -873,6 +895,32 @@ def _require_hash_bound_ref(
     return Path(path_text).expanduser().resolve(), payload
 
 
+def _require_matching_sibling_ref(
+    ref: object,
+    *,
+    sibling_sidecars: Mapping[str, Mapping[str, Any]] | None,
+    sibling_key: str,
+    label: str,
+) -> None:
+    if sibling_sidecars is None:
+        return
+    sibling_ref = _validated_sidecar_ref(sibling_sidecars, sibling_key)
+    if sibling_ref is None:
+        return
+    ref_map = _safe_mapping(ref)
+    ref_path = _first_text(ref_map.get("path"))
+    ref_sha256 = _first_text(ref_map.get("sha256"))
+    if ref_path is None or ref_sha256 is None:
+        raise ProgramMetaAdjudicationError(f"{label} ref must include path and sha256")
+    if (
+        Path(ref_path).expanduser().resolve() != sibling_ref[0]
+        or ref_sha256 != sibling_ref[1]
+    ):
+        raise ProgramMetaAdjudicationError(
+            f"{label} ref does not match plan sidecar {sibling_key}"
+        )
+
+
 def _validate_target_fidelity_sidecar(
     *,
     key: str,
@@ -897,6 +945,22 @@ def _validate_target_fidelity_sidecar(
         )
         return
     if key == "generation_gate_preflight":
+        _validate_sibling_identity_hash(
+            payload=payload,
+            payload_key="target_contract_sha256",
+            sibling_payloads=sibling_payloads,
+            sibling_key="generation_target_contract",
+            sibling_identity_key="contract_sha256",
+            label=label,
+        )
+        _validate_sibling_identity_hash(
+            payload=payload,
+            payload_key="fitness_suite_sha256",
+            sibling_payloads=sibling_payloads,
+            sibling_key="generation_fitness_suite",
+            sibling_identity_key="suite_sha256",
+            label=label,
+        )
         try:
             validate_generation_gate_preflight_payload(payload)
         except ProgramGenerationContractError as exc:
@@ -908,6 +972,14 @@ def _validate_target_fidelity_sidecar(
         _validate_current_candidate_hash(
             payload, current_manifest_hash=current_manifest_hash, label=label
         )
+        _validate_sibling_identity_hash(
+            payload=payload,
+            payload_key="target_contract_sha256",
+            sibling_payloads=sibling_payloads,
+            sibling_key="generation_target_contract",
+            sibling_identity_key="contract_sha256",
+            label=label,
+        )
         _raise_blocked_validation(
             validate_generation_traceability(payload), label=label
         )
@@ -915,6 +987,22 @@ def _validate_target_fidelity_sidecar(
     if key == "generation_fitness_results":
         _validate_current_candidate_hash(
             payload, current_manifest_hash=current_manifest_hash, label=label
+        )
+        _validate_sibling_identity_hash(
+            payload=payload,
+            payload_key="target_contract_sha256",
+            sibling_payloads=sibling_payloads,
+            sibling_key="generation_target_contract",
+            sibling_identity_key="contract_sha256",
+            label=label,
+        )
+        _validate_sibling_identity_hash(
+            payload=payload,
+            payload_key="fitness_suite_sha256",
+            sibling_payloads=sibling_payloads,
+            sibling_key="generation_fitness_suite",
+            sibling_identity_key="suite_sha256",
+            label=label,
         )
         _raise_blocked_validation(
             validate_generation_fitness_results(payload), label=label
@@ -927,6 +1015,7 @@ def _validate_adjudicator_chain_sidecar(
     key: str,
     payload: Mapping[str, Any],
     valid_manifest_hashes: set[str] | None = None,
+    sibling_sidecars: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> None:
     label = f"program meta-adjudication plan {key} sidecar"
     _validate_local_planning_flags(payload, label=label)
@@ -945,6 +1034,12 @@ def _validate_adjudicator_chain_sidecar(
         )
         target_profile_ref = _safe_mapping(payload.get("target_profile"))
         if target_profile_ref:
+            _require_matching_sibling_ref(
+                target_profile_ref,
+                sibling_sidecars=sibling_sidecars,
+                sibling_key="target_profile",
+                label=f"{label} target_profile",
+            )
             _require_hash_bound_ref(
                 target_profile_ref,
                 expected_schema=PROGRAM_TARGET_PROFILE_SCHEMA,
@@ -974,6 +1069,12 @@ def _validate_adjudicator_chain_sidecar(
             )
         requirements_ref = _safe_mapping(payload.get("jury_requirements"))
         if requirements_ref:
+            _require_matching_sibling_ref(
+                requirements_ref,
+                sibling_sidecars=sibling_sidecars,
+                sibling_key="jury_requirements",
+                label=f"{label} jury_requirements",
+            )
             _path, requirements = _require_hash_bound_ref(
                 requirements_ref,
                 expected_schema=PROGRAM_JURY_REQUIREMENTS_SCHEMA,
@@ -983,6 +1084,7 @@ def _validate_adjudicator_chain_sidecar(
                 key="jury_requirements",
                 payload=requirements,
                 valid_manifest_hashes=valid_manifest_hashes,
+                sibling_sidecars=sibling_sidecars,
             )
         return
     if key == "jury_verification":
@@ -994,8 +1096,15 @@ def _validate_adjudicator_chain_sidecar(
             )
         if _string_list(payload.get("failed_checks")):
             raise ProgramMetaAdjudicationError(f"{label} failed_checks must be empty")
+        jury_selection_ref = payload.get("jury_selection")
+        _require_matching_sibling_ref(
+            jury_selection_ref,
+            sibling_sidecars=sibling_sidecars,
+            sibling_key="meta_jury_selection",
+            label=f"{label} jury_selection",
+        )
         _path, selection = _require_hash_bound_ref(
-            payload.get("jury_selection"),
+            jury_selection_ref,
             expected_schema=PROGRAM_META_JURY_SELECTION_SCHEMA,
             label=f"{label} jury_selection",
         )
@@ -1003,6 +1112,7 @@ def _validate_adjudicator_chain_sidecar(
             key="meta_jury_selection",
             payload=selection,
             valid_manifest_hashes=valid_manifest_hashes,
+            sibling_sidecars=sibling_sidecars,
         )
         return
     if key == "program_adjudicator_formation":
@@ -1024,8 +1134,15 @@ def _validate_adjudicator_chain_sidecar(
             raise ProgramMetaAdjudicationError(
                 f"{label} missing authority-boundary forbidden outputs"
             )
+        jury_verification_ref = payload.get("jury_verification")
+        _require_matching_sibling_ref(
+            jury_verification_ref,
+            sibling_sidecars=sibling_sidecars,
+            sibling_key="jury_verification",
+            label=f"{label} jury_verification",
+        )
         _path, verification = _require_hash_bound_ref(
-            payload.get("jury_verification"),
+            jury_verification_ref,
             expected_schema=PROGRAM_JURY_VERIFICATION_SCHEMA,
             label=f"{label} jury_verification",
         )
@@ -1033,9 +1150,17 @@ def _validate_adjudicator_chain_sidecar(
             key="jury_verification",
             payload=verification,
             valid_manifest_hashes=valid_manifest_hashes,
+            sibling_sidecars=sibling_sidecars,
+        )
+        jury_selection_ref = payload.get("jury_selection")
+        _require_matching_sibling_ref(
+            jury_selection_ref,
+            sibling_sidecars=sibling_sidecars,
+            sibling_key="meta_jury_selection",
+            label=f"{label} jury_selection",
         )
         _path, selection = _require_hash_bound_ref(
-            payload.get("jury_selection"),
+            jury_selection_ref,
             expected_schema=PROGRAM_META_JURY_SELECTION_SCHEMA,
             label=f"{label} jury_selection",
         )
@@ -1043,6 +1168,7 @@ def _validate_adjudicator_chain_sidecar(
             key="meta_jury_selection",
             payload=selection,
             valid_manifest_hashes=valid_manifest_hashes,
+            sibling_sidecars=sibling_sidecars,
         )
         if _first_text(
             _safe_mapping(payload.get("jury_selection")).get("sha256")
@@ -1062,8 +1188,15 @@ def _validate_adjudicator_chain_sidecar(
             )
         if _string_list(payload.get("failed_checks")):
             raise ProgramMetaAdjudicationError(f"{label} failed_checks must be empty")
+        formation_ref = payload.get("program_adjudicator_formation")
+        _require_matching_sibling_ref(
+            formation_ref,
+            sibling_sidecars=sibling_sidecars,
+            sibling_key="program_adjudicator_formation",
+            label=f"{label} program_adjudicator_formation",
+        )
         _path, formation = _require_hash_bound_ref(
-            payload.get("program_adjudicator_formation"),
+            formation_ref,
             expected_schema=PROGRAM_ADJUDICATOR_FORMATION_SCHEMA,
             label=f"{label} program_adjudicator_formation",
         )
@@ -1071,6 +1204,7 @@ def _validate_adjudicator_chain_sidecar(
             key="program_adjudicator_formation",
             payload=formation,
             valid_manifest_hashes=valid_manifest_hashes,
+            sibling_sidecars=sibling_sidecars,
         )
         return
     if key == "program_adjudicator_delegation":
@@ -1103,8 +1237,15 @@ def _validate_adjudicator_chain_sidecar(
             raise ProgramMetaAdjudicationError(
                 f"{label} manifest sha256 does not match candidate/source manifest"
             )
+        adjudicator_verification_ref = payload.get("program_adjudicator_verification")
+        _require_matching_sibling_ref(
+            adjudicator_verification_ref,
+            sibling_sidecars=sibling_sidecars,
+            sibling_key="program_adjudicator_verification",
+            label=f"{label} program_adjudicator_verification",
+        )
         _path, verification = _require_hash_bound_ref(
-            payload.get("program_adjudicator_verification"),
+            adjudicator_verification_ref,
             expected_schema=PROGRAM_ADJUDICATOR_VERIFICATION_SCHEMA,
             label=f"{label} program_adjudicator_verification",
         )
@@ -1112,6 +1253,7 @@ def _validate_adjudicator_chain_sidecar(
             key="program_adjudicator_verification",
             payload=verification,
             valid_manifest_hashes=valid_manifest_hashes,
+            sibling_sidecars=sibling_sidecars,
         )
 
 
@@ -1237,7 +1379,10 @@ def _sidecar_status(
     }:
         try:
             sibling_payloads: dict[str, Mapping[str, Any]] = {}
-            for sibling_key in ("generation_target_contract",):
+            for sibling_key in (
+                "generation_target_contract",
+                "generation_fitness_suite",
+            ):
                 sibling_ref = _validated_sidecar_ref(
                     sibling_sidecars or {}, sibling_key
                 )
@@ -1267,6 +1412,7 @@ def _sidecar_status(
                 key=key,
                 payload=payload,
                 valid_manifest_hashes=current_manifest_hashes,
+                sibling_sidecars=sibling_sidecars or {},
             )
         except ProgramMetaAdjudicationError as exc:
             sidecar_status = "contract_invalid"
@@ -1818,33 +1964,21 @@ def build_program_target_profile(
         manifest = load_program_manifest(manifest_path)
     except ProgramRefinementError as exc:
         raise ProgramMetaAdjudicationError(str(exc)) from exc
-    sidecars = {
-        "generation_target_contract": _sidecar_status(
+    sidecars: dict[str, dict[str, Any]] = {}
+
+    def record_sidecar(key: str, explicit_path: Path | None = None) -> None:
+        sidecars[key] = _sidecar_status(
             manifest_path,
-            key="generation_target_contract",
-            explicit_path=generation_target_contract_path,
-        ),
-        "generation_fitness_suite": _sidecar_status(
-            manifest_path,
-            key="generation_fitness_suite",
-            explicit_path=generation_fitness_suite_path,
-        ),
-        "generation_gate_preflight": _sidecar_status(
-            manifest_path,
-            key="generation_gate_preflight",
-            explicit_path=generation_gate_preflight_path,
-        ),
-        "generation_traceability": _sidecar_status(
-            manifest_path,
-            key="generation_traceability",
-            explicit_path=generation_traceability_path,
-        ),
-        "generation_fitness_results": _sidecar_status(
-            manifest_path,
-            key="generation_fitness_results",
-            explicit_path=generation_fitness_results_path,
-        ),
-    }
+            key=key,
+            explicit_path=explicit_path,
+            sibling_sidecars=sidecars,
+        )
+
+    record_sidecar("generation_target_contract", generation_target_contract_path)
+    record_sidecar("generation_fitness_suite", generation_fitness_suite_path)
+    record_sidecar("generation_gate_preflight", generation_gate_preflight_path)
+    record_sidecar("generation_traceability", generation_traceability_path)
+    record_sidecar("generation_fitness_results", generation_fitness_results_path)
     return _target_profile(
         manifest,
         manifest_path=manifest_path,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -92,6 +93,13 @@ def _write_minimal_activation_packet(path: Path) -> None:
     )
 
 
+def _candidate_manifest_hash_for_sidecar(path: Path) -> str:
+    manifest_path = path.parent / "manifest.json"
+    if manifest_path.exists():
+        return hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    return "candidate-sha"
+
+
 def _write_generation_fitness_results(
     path: Path, *, status: str = "fitness_passed"
 ) -> None:
@@ -100,12 +108,13 @@ def _write_generation_fitness_results(
         if status == "fitness_passed"
         else "withheld_for_target_protocol_failure"
     )
+    candidate_sha = _candidate_manifest_hash_for_sidecar(path)
     path.write_text(
         json.dumps(
             {
                 "schema_version": "gen-fitness-results-v1",
                 "identity": {
-                    "candidate_manifest_sha256": "candidate-sha",
+                    "candidate_manifest_sha256": candidate_sha,
                     "target_contract_sha256": "contract-sha",
                     "fitness_suite_sha256": "suite-sha",
                 },
@@ -141,12 +150,13 @@ def _write_generation_fitness_results(
 
 
 def _write_generation_traceability(path: Path) -> None:
+    candidate_sha = _candidate_manifest_hash_for_sidecar(path)
     path.write_text(
         json.dumps(
             {
                 "schema_version": "gen-traceability-v1",
                 "identity": {
-                    "candidate_manifest_sha256": "candidate-sha",
+                    "candidate_manifest_sha256": candidate_sha,
                     "target_contract_sha256": "contract-sha",
                 },
                 "requirements": [

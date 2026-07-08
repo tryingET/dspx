@@ -105,8 +105,14 @@ def _write_generation_gate_preflight(path: Path, *, allowed: bool = True) -> Pat
 
 
 def _write_generation_fitness_results(
-    path: Path, *, status: str = "fitness_passed"
+    path: Path,
+    *,
+    status: str = "fitness_passed",
+    manifest_path: Path | None = None,
 ) -> Path:
+    candidate_sha = (
+        _sha256(manifest_path) if manifest_path is not None else "candidate-sha"
+    )
     _write_json(
         path,
         {
@@ -116,7 +122,7 @@ def _write_generation_fitness_results(
             if status == "fitness_passed"
             else "withheld_for_target_protocol_failure",
             "identity": {
-                "candidate_manifest_sha256": "candidate-sha",
+                "candidate_manifest_sha256": candidate_sha,
                 "target_contract_sha256": "contract-sha",
                 "fitness_suite_sha256": "suite-sha",
             },
@@ -2067,7 +2073,8 @@ def test_program_candidate_state_rejects_meta_adjudication_plan_invalid_evidence
         monkeypatch,
     )
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=source_root / "manifest.json",
     )
     adjudication_path = _write_program_evidence_adjudication(
         tmp_path / "target" / "program_evidence_adjudication.json",
@@ -2441,7 +2448,8 @@ def test_program_promote_status_reports_target_fidelity_admission(
         tmp_path / "target" / "generation_gate_preflight.json"
     )
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     manifest_path = candidate_root / "manifest.json"
     adjudication_path = _write_program_evidence_adjudication(
@@ -2744,7 +2752,8 @@ def test_program_promote_status_rejects_stale_target_adjudication_fitness_ref(
         monkeypatch,
     )
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     manifest_path = candidate_root / "manifest.json"
     adjudication_path = _write_program_evidence_adjudication(
@@ -2776,7 +2785,8 @@ def test_program_promote_status_rejects_wrong_candidate_target_adjudication(
         monkeypatch,
     )
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     manifest_path = candidate_root / "manifest.json"
     adjudication_path = _write_program_evidence_adjudication(
@@ -2808,7 +2818,8 @@ def test_program_promote_status_rejects_target_adjudication_authority_spoof(
         monkeypatch,
     )
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     manifest_path = candidate_root / "manifest.json"
     adjudication_path = _write_program_evidence_adjudication(
@@ -2842,7 +2853,8 @@ def test_program_promote_status_binds_activation_packet_target_adjudication_refs
     )
     manifest_path = candidate_root / "manifest.json"
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     adjudication_path = _write_program_evidence_adjudication(
         tmp_path / "target" / "program_evidence_adjudication.json",
@@ -2886,7 +2898,8 @@ def test_program_promote_status_rejects_activation_packet_target_adjudication_ha
     )
     manifest_path = candidate_root / "manifest.json"
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     adjudication_path = _write_program_evidence_adjudication(
         tmp_path / "target" / "program_evidence_adjudication.json",
@@ -2927,7 +2940,8 @@ def test_program_promote_status_rejects_activation_packet_missing_target_adjudic
     )
     manifest_path = candidate_root / "manifest.json"
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     adjudication_path = _write_program_evidence_adjudication(
         tmp_path / "target" / "program_evidence_adjudication.json",
@@ -2968,7 +2982,8 @@ def test_program_promote_status_rejects_activation_packet_target_fitness_hash_dr
     )
     manifest_path = candidate_root / "manifest.json"
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     adjudication_path = _write_program_evidence_adjudication(
         tmp_path / "target" / "program_evidence_adjudication.json",
@@ -3008,7 +3023,8 @@ def test_program_promote_status_blocks_adapter_admission_without_target_adjudica
         monkeypatch,
     )
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     out_path = tmp_path / "state" / "program_candidate_state_target_missing_adj.json"
 
@@ -3118,7 +3134,8 @@ def test_program_candidate_state_includes_oracle_publication_preflight_for_activ
         tmp_path / "oracle" / "publication_preflight.json",
     )
     fitness_path = _write_generation_fitness_results(
-        tmp_path / "target" / "generation_fitness_results.json"
+        tmp_path / "target" / "generation_fitness_results.json",
+        manifest_path=candidate_root / "manifest.json",
     )
     adjudication_path = _write_program_evidence_adjudication(
         tmp_path / "target" / "program_evidence_adjudication.json",
