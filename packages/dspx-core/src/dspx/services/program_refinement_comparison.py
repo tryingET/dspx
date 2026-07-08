@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
 from dspx.services.program_runtime_episode import (
-    validate_program_runtime_episode_contract,
+    load_validated_program_runtime_episode_bundle,
 )
 
 from dspx.services.program_refinement import (
@@ -345,19 +345,20 @@ def _load_validated_runtime_episode(
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, Path | None, str | None]:
     if runtime_episode_path is None:
         return None, None, None, None
-    episode_path = runtime_episode_path.expanduser().resolve()
-    runtime_episode = _load_json_object(episode_path, label=label)
-    validate_program_runtime_episode_contract(
-        runtime_episode,
-        runtime_episode_path=episode_path,
+    bundle = load_validated_program_runtime_episode_bundle(
+        runtime_episode_path=runtime_episode_path,
         expected_manifest_path=manifest_path,
         expected_manifest=manifest,
         expected_manifest_sha256=_sha256_file(manifest_path),
+        label=label,
         error_type=ProgramRefinementComparisonError,
     )
-    behavior_path = episode_path.parent / "behavior_results.json"
-    behavior = _load_json_object(behavior_path, label=f"{label} behavior results")
-    return runtime_episode, behavior, episode_path, _sha256_file(episode_path)
+    return (
+        bundle.runtime_episode,
+        bundle.behavior_results,
+        bundle.runtime_episode_path,
+        bundle.runtime_episode_sha256,
+    )
 
 
 def _runtime_artifact_hashes(

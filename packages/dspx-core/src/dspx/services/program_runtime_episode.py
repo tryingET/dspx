@@ -7,6 +7,7 @@ import json
 import sys
 import threading
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any, Iterator, Mapping, TypeGuard, cast
@@ -38,6 +39,20 @@ _RUNTIME_EPISODE_PROTECTED_ARTIFACT_NAMES = {
 }
 
 CONTRACT_MODES = {"none", "pdf_transition_review"}
+
+
+@dataclass(frozen=True)
+class ProgramRuntimeEpisodeBundle:
+    """Current-file-bound runtime episode evidence for final consumers."""
+
+    runtime_episode: dict[str, Any]
+    behavior_results: dict[str, Any]
+    runtime_episode_path: Path
+    runtime_episode_sha256: str
+    behavior_results_path: Path
+    behavior_results_sha256: str
+
+
 _GENERATED_PROGRAM_IMPORT_LOCK = threading.RLock()
 _ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS = {
     "__future__",
@@ -1445,6 +1460,56 @@ def validate_program_runtime_episode_contract(
         raise
     except Exception as exc:
         fail(str(exc))
+
+
+def load_validated_program_runtime_episode_bundle(
+    *,
+    runtime_episode_path: Path,
+    expected_manifest_path: Path,
+    expected_manifest: Mapping[str, Any],
+    expected_manifest_sha256: str,
+    label: str = "runtime episode",
+    error_type: type[Exception] = ValueError,
+) -> ProgramRuntimeEpisodeBundle:
+    """Load and rebind a program-run runtime episode bundle.
+
+    Runtime episode sidecars are caller-controlled local evidence.  Final
+    consumers that need the episode and its current behavior payload should use
+    this helper so schema, identity, current-hash, trace, Oracle-evidence, and
+    non-authority checks remain owned by the runtime-episode contract.
+    """
+
+    episode_path = runtime_episode_path.expanduser().resolve()
+    try:
+        runtime_episode = _load_json_object(episode_path, label=label)
+        validate_program_runtime_episode_contract(
+            runtime_episode,
+            runtime_episode_path=episode_path,
+            expected_manifest_path=expected_manifest_path,
+            expected_manifest=expected_manifest,
+            expected_manifest_sha256=expected_manifest_sha256,
+            error_type=error_type,
+        )
+        behavior_path = _resolve_episode_artifact(
+            episode_path.parent,
+            "behavior_results.json",
+            label=f"{label} behavior results",
+        )
+        behavior_results = _load_json_object(
+            behavior_path, label=f"{label} behavior results"
+        )
+    except error_type:
+        raise
+    except Exception as exc:
+        raise error_type(str(exc)) from exc
+    return ProgramRuntimeEpisodeBundle(
+        runtime_episode=runtime_episode,
+        behavior_results=behavior_results,
+        runtime_episode_path=episode_path,
+        runtime_episode_sha256=_sha256_file(episode_path),
+        behavior_results_path=behavior_path,
+        behavior_results_sha256=_sha256_file(behavior_path),
+    )
 
 
 def run_program_runtime_episode(
