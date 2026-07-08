@@ -2058,6 +2058,53 @@ def test_program_candidate_state_rejects_meta_adjudication_plan_stale_manifest_h
         )
 
 
+def test_program_candidate_state_rejects_meta_adjudication_plan_invalid_evidence_adjudication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    fitness_path = _write_generation_fitness_results(
+        tmp_path / "target" / "generation_fitness_results.json"
+    )
+    adjudication_path = _write_program_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=source_root / "manifest.json",
+        generation_fitness_results_path=fitness_path,
+    )
+    meta_plan = build_program_meta_adjudication_plan(
+        manifest_path=source_root / "manifest.json",
+        generation_fitness_results_path=fitness_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+    meta_plan_path = (
+        tmp_path / "promotion" / "meta_adjudication_plan_with_evidence.json"
+    )
+    write_program_meta_adjudication_plan(meta_plan, meta_plan_path)
+
+    tampered_adjudication = json.loads(adjudication_path.read_text(encoding="utf-8"))
+    tampered_adjudication["non_authority"]["promotion_authority"] = True
+    _write_json(adjudication_path, tampered_adjudication)
+    tampered_plan = json.loads(meta_plan_path.read_text(encoding="utf-8"))
+    tampered_plan["sidecars"]["program_evidence_adjudication"]["sha256"] = _sha256(
+        adjudication_path
+    )
+    _write_json(meta_plan_path, tampered_plan)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="widens non-authority flags: promotion_authority",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            oracle_report_path=paths["oracle_report"],
+            meta_adjudication_plan_path=meta_plan_path,
+        )
+
+
 def test_program_candidate_state_rejects_meta_adjudication_plan_stale_sidecar_hash(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

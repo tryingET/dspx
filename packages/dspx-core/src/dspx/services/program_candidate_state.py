@@ -17,6 +17,10 @@ from dspx.services.program_jury_result_validation import (
     PROGRAM_JURY_RESULTS_SCHEMA,
     validate_program_jury_results_contract,
 )
+from dspx.services.program_meta_adjudication import (
+    ProgramMetaAdjudicationError,
+    validate_program_meta_adjudication_plan_contract,
+)
 from dspx.services.program_model_jury_validation import (
     PROGRAM_MODEL_JURY_RESULTS_SCHEMA,
     validate_program_model_jury_results_contract,
@@ -868,63 +872,19 @@ def _validate_optional_inputs(
             raise ProgramCandidateStateError(str(exc)) from exc
 
     if meta_adjudication_plan is not None:
-        if meta_adjudication_plan.get("status") != "planned_not_executed":
-            raise ProgramCandidateStateError(
-                "meta-adjudication plan must be planned_not_executed"
-            )
-        if (
-            meta_adjudication_plan.get("lifecycle_state")
-            != "meta_adjudication_plan_ready"
-        ):
-            raise ProgramCandidateStateError(
-                "meta-adjudication plan lifecycle_state must be meta_adjudication_plan_ready"
-            )
-        _validate_non_authority_false(
-            meta_adjudication_plan,
-            label="meta-adjudication plan",
-            keys=(
-                "activation_authority",
-                "promotion_authority",
-                "oracle_authority",
-                "governance_authority",
-                "external_authority",
-                "external_mutation",
-            ),
-        )
-        effect = _safe_mapping(meta_adjudication_plan.get("effect"))
-        for key in (
-            "candidate_files_mutated",
-            "canonical_target_mutated",
-            "ak_mutated",
-            "governance_mutated",
-            "oracle_index_mutated",
-            "shared_oracle_mutated",
-            "provider_called",
-        ):
-            if effect.get(key) is not False:
-                raise ProgramCandidateStateError(
-                    f"meta-adjudication plan must record {key} false"
-                )
-        meta_identity = _safe_mapping(meta_adjudication_plan.get("identity"))
-        if not any(
-            _identity_exactly_matches(meta_identity, item)
-            for item in source_or_candidate
-        ):
-            raise ProgramCandidateStateError(
-                "meta-adjudication plan identity does not match candidate/source identity"
-            )
-        meta_manifest = _safe_mapping(meta_adjudication_plan.get("manifest"))
         valid_manifest_hashes = {current_manifest_hash}
         if source_manifest_hash is not None:
             valid_manifest_hashes.add(source_manifest_hash)
-        if meta_manifest.get("sha256") not in valid_manifest_hashes:
-            raise ProgramCandidateStateError(
-                "meta-adjudication plan manifest sha256 does not match candidate/source manifest"
+        try:
+            validate_program_meta_adjudication_plan_contract(
+                meta_adjudication_plan,
+                expected_identities=source_or_candidate,
+                valid_manifest_hashes=valid_manifest_hashes,
+                supplied_sidecar_refs=supplied_sidecar_refs,
+                error_type=ProgramCandidateStateError,
             )
-        _validate_meta_adjudication_plan_sidecar_freshness(
-            meta_adjudication_plan,
-            supplied_sidecar_refs=supplied_sidecar_refs,
-        )
+        except ProgramMetaAdjudicationError as exc:
+            raise ProgramCandidateStateError(str(exc)) from exc
 
     if activation_packet is not None:
         if activation_packet.get("status") not in {
@@ -1983,6 +1943,11 @@ def build_program_candidate_state(
                 "generation_fitness_results",
                 generation_fitness_results_file,
                 generation_fitness_results_hash,
+            ),
+            (
+                "program_evidence_adjudication",
+                program_evidence_adjudication_file,
+                program_evidence_adjudication_hash,
             ),
         )
         if path is not None and file_hash is not None

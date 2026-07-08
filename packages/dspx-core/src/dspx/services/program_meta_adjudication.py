@@ -261,14 +261,23 @@ def validate_program_meta_adjudication_plan_contract(
             error_type,
             f"{label} lifecycle_state must be meta_adjudication_plan_ready",
         )
-    if not _all_declared_false(plan.get("non_authority"), _NON_AUTHORITY):
+    non_authority = _safe_mapping(plan.get("non_authority"))
+    invalid_non_authority = [
+        key for key in _NON_AUTHORITY if non_authority.get(key) is not False
+    ]
+    if invalid_non_authority:
         _raise_contract_error(
             error_type,
-            f"{label} non_authority flags must remain false authority claims",
+            f"{label} non_authority flags must remain false authority claims: "
+            + ", ".join(invalid_non_authority),
         )
-    if not _all_declared_false(plan.get("effect"), _EFFECT):
+    effect = _safe_mapping(plan.get("effect"))
+    invalid_effect = [key for key in _EFFECT if effect.get(key) is not False]
+    if invalid_effect:
         _raise_contract_error(
-            error_type, f"{label} effect flags must remain local/no-effect false"
+            error_type,
+            f"{label} effect flags must remain local/no-effect false: "
+            + ", ".join(f"{key} false" for key in invalid_effect),
         )
 
     expected = (
@@ -301,6 +310,7 @@ def validate_program_meta_adjudication_plan_contract(
 
     sidecars = _safe_mapping(plan.get("sidecars"))
     supplied = supplied_sidecar_refs or {}
+    present_sidecar_payloads: dict[str, dict[str, Any]] = {}
     for key, raw_status in sidecars.items():
         if not isinstance(raw_status, Mapping) or raw_status.get("present") is not True:
             continue
@@ -340,6 +350,27 @@ def validate_program_meta_adjudication_plan_contract(
                     error_type,
                     f"{label} {key} sidecar does not match supplied {key}",
                 )
+        if key == "program_evidence_adjudication":
+            present_sidecar_payloads[key] = _load_json_object(
+                path, label=f"{label} {key} sidecar"
+            )
+
+    evidence_adjudication = present_sidecar_payloads.get(
+        "program_evidence_adjudication"
+    )
+    if evidence_adjudication is not None:
+        manifest_path = _first_text(manifest.get("path"))
+        if manifest_path is None:
+            _raise_contract_error(error_type, f"{label} manifest path is required")
+        assert manifest_path is not None
+        try:
+            _validate_program_evidence_adjudication_sidecar(
+                manifest_path=Path(manifest_path),
+                adjudication=evidence_adjudication,
+                sibling_sidecars=sidecars,
+            )
+        except ProgramMetaAdjudicationError as exc:
+            _raise_contract_error(error_type, str(exc))
     return {"manifest_sha256": manifest_hash, "identity": identity}
 
 
