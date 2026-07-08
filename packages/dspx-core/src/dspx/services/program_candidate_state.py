@@ -1949,6 +1949,7 @@ def build_program_candidate_state(
                 program_evidence_adjudication_file,
                 program_evidence_adjudication_hash,
             ),
+            ("runtime_episode", runtime_episode_file, runtime_episode_hash),
         )
         if path is not None and file_hash is not None
     }

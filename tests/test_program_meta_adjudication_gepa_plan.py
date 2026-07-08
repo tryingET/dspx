@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 
 from dspx.cli.dspx import app
 from dspx.services.program_jury_execution import (
@@ -21,6 +22,7 @@ from dspx.services.program_meta_adjudication import (
     build_program_jury_verification,
     build_program_meta_adjudication_plan,
     build_program_meta_jury_selection,
+    validate_program_meta_adjudication_plan_contract,
     write_program_adjudication_behavior_trace,
     write_program_adjudication_gepa_example,
     write_program_adjudicator_delegation,
@@ -359,6 +361,37 @@ def test_meta_adjudication_plan_marks_invalid_runtime_episode_contract_invalid(
     assert any(item["step"] == "run_runtime_episode" for item in plan["next_commands"])
 
 
+def test_meta_adjudication_plan_contract_rejects_runtime_episode_contract_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    runtime_out = tmp_path / "runtime-episode"
+    run_program_runtime_episode(
+        manifest_path=candidate_root / "manifest.json",
+        inputs_path=_write_runtime_inputs(tmp_path),
+        outdir=runtime_out,
+        skip_oracle_index=True,
+    )
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        runtime_episode_path=runtime_out / "runtime_episode.json",
+    )
+    traces_path = runtime_out / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["sources"][0]["content_hash"] = "0" * 64
+    traces_path.write_text(json.dumps(traces, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(
+        ValueError,
+        match="runtime episode program_runtime_traces_sha256 does not match current file",
+    ):
+        validate_program_meta_adjudication_plan_contract(
+            plan,
+            expected_identities=[plan["identity"]],
+            valid_manifest_hashes={plan["manifest"]["sha256"]},
+        )
+
+
 def test_meta_adjudication_plan_cli_accepts_runtime_episode(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -464,6 +497,34 @@ def test_meta_adjudication_plan_rejects_oracle_publication_receipt_stale_preflig
         "source.preflight_sha256 does not match current preflight"
         in receipt_status["warning"]
     )
+
+
+def test_meta_adjudication_plan_contract_rejects_oracle_receipt_preflight_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    receipt_path = _write_oracle_publication_receipt(
+        candidate_root, tmp_path / "oracle" / "program_oracle_publication_receipt.json"
+    )
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        oracle_publication_receipt_path=receipt_path,
+    )
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    preflight_path = receipt_path.parent / Path(receipt["source"]["preflight_file"])
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["planned_record"]["candidate_id"] = "drifted-candidate"
+    preflight_path.write_text(json.dumps(preflight, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(
+        ValueError,
+        match="source.preflight_sha256 does not match current preflight",
+    ):
+        validate_program_meta_adjudication_plan_contract(
+            plan,
+            expected_identities=[plan["identity"]],
+            valid_manifest_hashes={plan["manifest"]["sha256"]},
+        )
 
 
 def test_meta_adjudication_plan_treats_schema_mismatch_sidecars_as_missing(

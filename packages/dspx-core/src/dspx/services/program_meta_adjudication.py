@@ -310,7 +310,13 @@ def validate_program_meta_adjudication_plan_contract(
 
     sidecars = _safe_mapping(plan.get("sidecars"))
     supplied = supplied_sidecar_refs or {}
+    present_sidecar_paths: dict[str, Path] = {}
     present_sidecar_payloads: dict[str, dict[str, Any]] = {}
+    owner_validated_sidecar_keys = {
+        "runtime_episode",
+        "oracle_publication_receipt",
+        "program_evidence_adjudication",
+    }
     for key, raw_status in sidecars.items():
         if not isinstance(raw_status, Mapping) or raw_status.get("present") is not True:
             continue
@@ -350,22 +356,48 @@ def validate_program_meta_adjudication_plan_contract(
                     error_type,
                     f"{label} {key} sidecar does not match supplied {key}",
                 )
-        if key == "program_evidence_adjudication":
+        if key in owner_validated_sidecar_keys:
+            present_sidecar_paths[key] = path
             present_sidecar_payloads[key] = _load_json_object(
                 path, label=f"{label} {key} sidecar"
             )
 
+    manifest_path = _first_text(manifest.get("path"))
+    if present_sidecar_payloads and manifest_path is None:
+        _raise_contract_error(error_type, f"{label} manifest path is required")
+    manifest_file = Path(manifest_path) if manifest_path is not None else None
+
+    runtime_episode = present_sidecar_payloads.get("runtime_episode")
+    if runtime_episode is not None and manifest_file is not None:
+        try:
+            _validate_runtime_episode_sidecar(
+                manifest_path=manifest_file,
+                runtime_episode_path=present_sidecar_paths["runtime_episode"],
+                runtime_episode=runtime_episode,
+            )
+        except ProgramMetaAdjudicationError as exc:
+            _raise_contract_error(error_type, str(exc))
+
+    oracle_publication_receipt = present_sidecar_payloads.get(
+        "oracle_publication_receipt"
+    )
+    if oracle_publication_receipt is not None and manifest_file is not None:
+        try:
+            _validate_oracle_publication_receipt_sidecar(
+                manifest_path=manifest_file,
+                receipt_path=present_sidecar_paths["oracle_publication_receipt"],
+                receipt=oracle_publication_receipt,
+            )
+        except (ProgramOraclePublicationError, ProgramMetaAdjudicationError) as exc:
+            _raise_contract_error(error_type, str(exc))
+
     evidence_adjudication = present_sidecar_payloads.get(
         "program_evidence_adjudication"
     )
-    if evidence_adjudication is not None:
-        manifest_path = _first_text(manifest.get("path"))
-        if manifest_path is None:
-            _raise_contract_error(error_type, f"{label} manifest path is required")
-        assert manifest_path is not None
+    if evidence_adjudication is not None and manifest_file is not None:
         try:
             _validate_program_evidence_adjudication_sidecar(
-                manifest_path=Path(manifest_path),
+                manifest_path=manifest_file,
                 adjudication=evidence_adjudication,
                 sibling_sidecars=sidecars,
             )
