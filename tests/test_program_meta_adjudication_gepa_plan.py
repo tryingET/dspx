@@ -433,6 +433,67 @@ def _write_refined_review(path: Path, *, candidate_root: Path, tmp_path: Path) -
     )
 
 
+def test_meta_adjudication_plan_revalidates_target_fidelity_sidecars(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    fitness_results_path = tmp_path / "generation_fitness_results.json"
+    fitness_results_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "gen-fitness-results-v1",
+                "identity": {
+                    "candidate_manifest_sha256": _sha256_file(
+                        candidate_root / "manifest.json"
+                    ),
+                    "target_contract_sha256": "contract-sha",
+                    "fitness_suite_sha256": "suite-sha",
+                },
+                "status": "fitness_passed",
+                "rendered_state": "approval_granted",
+                "cases": [
+                    {
+                        "case_id": "target-protocol-fidelity",
+                        "status": "passed",
+                        "evidence_refs": ["generation_traceability.json"],
+                    }
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        generation_fitness_results_path=fitness_results_path,
+    )
+
+    sidecar = plan["sidecars"]["generation_fitness_results"]
+    assert sidecar["status"] == "contract_invalid"
+    assert "fitness_passed_requires_command_safe_rendering" in sidecar["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["generation_fitness_results"] = {
+        **forged_sidecars["generation_fitness_results"],
+        "status": "present",
+        "sha256": _sha256_file(fitness_results_path),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(
+        ValueError, match="fitness_passed_requires_command_safe_rendering"
+    ):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
 def test_meta_adjudication_plan_revalidates_jury_results_contract(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -13,6 +13,14 @@ from dspx.services.program_adjudication_publication import (
 from dspx.services.program_evidence_adjudication_validation import (
     validate_program_evidence_adjudication_contract,
 )
+from dspx.services.program_generation_contract import (
+    ProgramGenerationContractError,
+    validate_generation_fitness_results,
+    validate_generation_fitness_suite,
+    validate_generation_gate_preflight_payload,
+    validate_generation_target_contract,
+    validate_generation_traceability,
+)
 from dspx.services.program_jury_result_validation import (
     validate_program_jury_results_contract,
 )
@@ -333,6 +341,11 @@ def validate_program_meta_adjudication_plan_contract(
         "jury_results",
         "review",
         "decision_record",
+        "generation_target_contract",
+        "generation_fitness_suite",
+        "generation_gate_preflight",
+        "generation_traceability",
+        "generation_fitness_results",
         "program_evidence_adjudication",
         "adjudication_behavior_trace",
     }
@@ -444,6 +457,25 @@ def validate_program_meta_adjudication_plan_contract(
                 expected_identities=expected,
             )
         except (ProgramPromotionDecisionError, ProgramMetaAdjudicationError) as exc:
+            _raise_contract_error(error_type, str(exc))
+
+    for target_key in (
+        "generation_target_contract",
+        "generation_fitness_suite",
+        "generation_gate_preflight",
+        "generation_traceability",
+        "generation_fitness_results",
+    ):
+        target_payload = present_sidecar_payloads.get(target_key)
+        if target_payload is None:
+            continue
+        try:
+            _validate_target_fidelity_sidecar(
+                key=target_key,
+                payload=target_payload,
+                sibling_payloads=present_sidecar_payloads,
+            )
+        except ProgramMetaAdjudicationError as exc:
             _raise_contract_error(error_type, str(exc))
 
     evidence_adjudication = present_sidecar_payloads.get(
@@ -729,6 +761,55 @@ def _validate_decision_record_sidecar(
     )
 
 
+def _raise_blocked_validation(validation: Mapping[str, Any], *, label: str) -> None:
+    if validation.get("status") != "valid" or validation.get("valid") is not True:
+        reasons = _string_list(validation.get("fail_closed_reasons"))
+        suffix = ": " + ", ".join(reasons) if reasons else ""
+        raise ProgramMetaAdjudicationError(f"{label} contract invalid{suffix}")
+
+
+def _validate_target_fidelity_sidecar(
+    *,
+    key: str,
+    payload: Mapping[str, Any],
+    sibling_payloads: Mapping[str, Mapping[str, Any]],
+) -> None:
+    label = f"program meta-adjudication plan {key} sidecar"
+    if key == "generation_target_contract":
+        _raise_blocked_validation(
+            validate_generation_target_contract(payload), label=label
+        )
+        return
+    if key == "generation_fitness_suite":
+        target_contract = sibling_payloads.get("generation_target_contract")
+        _raise_blocked_validation(
+            validate_generation_fitness_suite(
+                payload,
+                target_contract=target_contract,
+            ),
+            label=label,
+        )
+        return
+    if key == "generation_gate_preflight":
+        try:
+            validate_generation_gate_preflight_payload(payload)
+        except ProgramGenerationContractError as exc:
+            raise ProgramMetaAdjudicationError(
+                f"{label} contract invalid: {exc}"
+            ) from exc
+        return
+    if key == "generation_traceability":
+        _raise_blocked_validation(
+            validate_generation_traceability(payload), label=label
+        )
+        return
+    if key == "generation_fitness_results":
+        _raise_blocked_validation(
+            validate_generation_fitness_results(payload), label=label
+        )
+        return
+
+
 def _validate_program_evidence_adjudication_sidecar(
     *,
     manifest_path: Path,
@@ -835,6 +916,31 @@ def _sidecar_status(
                 decision_record=payload,
             )
         except (ProgramPromotionDecisionError, ProgramMetaAdjudicationError) as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
+    if schema == required_schema and key in {
+        "generation_target_contract",
+        "generation_fitness_suite",
+        "generation_gate_preflight",
+        "generation_traceability",
+        "generation_fitness_results",
+    }:
+        try:
+            sibling_payloads: dict[str, Mapping[str, Any]] = {}
+            for sibling_key in ("generation_target_contract",):
+                sibling_ref = _validated_sidecar_ref(
+                    sibling_sidecars or {}, sibling_key
+                )
+                if sibling_ref is not None:
+                    sibling_payloads[sibling_key] = _load_json_object(
+                        sibling_ref[0], label=f"{sibling_key} sidecar"
+                    )
+            _validate_target_fidelity_sidecar(
+                key=key,
+                payload=payload,
+                sibling_payloads=sibling_payloads,
+            )
+        except ProgramMetaAdjudicationError as exc:
             sidecar_status = "contract_invalid"
             warning = str(exc)
     if schema == required_schema and key == "program_evidence_adjudication":
