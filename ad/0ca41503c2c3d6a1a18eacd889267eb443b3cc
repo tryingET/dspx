@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "ad0ca41503c2c3d6a1a18eacd889267eb443b3cc"
+created_at: "2026-07-08T19:06:14Z"
+intent: "Refresh product posture frontier after adjudication trace publication atomic completion"
+files:
+  - "docs/project/product-posture.md"
+validation:
+  fast_gate:
+    command: "just loop-impact-plan"
+    status: "pass"
+  full_gate:
+    command: "just loop-impact-run"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "docs-only product posture refresh"
+links:
+  task_ids:
+    - 3547
