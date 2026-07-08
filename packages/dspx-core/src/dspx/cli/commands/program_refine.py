@@ -481,6 +481,16 @@ def compare_candidates(
         "--decision-record",
         help="Optional program-promotion-decision-record-v1 lineage input",
     ),
+    source_runtime_episode: Path | None = typer.Option(
+        None,
+        "--source-runtime-episode",
+        help="Optional source program-runtime-episode-v1 JSON from program-run",
+    ),
+    candidate_runtime_episode: Path | None = typer.Option(
+        None,
+        "--candidate-runtime-episode",
+        help="Optional candidate program-runtime-episode-v1 JSON from program-run",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print comparison JSON"),
 ) -> None:
     """Compare existing source and refinement candidates without authority effects."""
@@ -496,6 +506,8 @@ def compare_candidates(
             candidate_manifest_path=candidate_manifest,
             refinement_proposal_path=refinement_proposal,
             decision_record_path=decision_record,
+            source_runtime_episode_path=source_runtime_episode,
+            candidate_runtime_episode_path=candidate_runtime_episode,
         )
         payload = write_program_refinement_candidate_comparison(comparison, out)
     except ProgramRefinementComparisonError as exc:

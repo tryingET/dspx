@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-07-08T05:53:43.289190602+00:00",
+  "task_id": 3537,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/product-posture.md",
+      "governance/task-scopes/AK-3537.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_comparison.py",
+      "tests/test_program_refinement_comparison.py"
+    ],
+    "required_paths": [
+      "docs/project/product-posture.md",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_comparison.py",
+      "tests/test_program_refinement_comparison.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_runtime_episode import (
+    validate_program_runtime_episode_contract,
+)
 
 from dspx.services.program_refinement import (
     ProgramRefinementError,
@@ -43,7 +46,8 @@ _COMPARISON_NON_AUTHORITY = {
 }
 
 _LIMITS = [
-    "Comparison is limited to generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+    "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+    "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
     "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
     "This comparison is not a promotion, ranking, winner-selection, or approval decision.",
 ]
@@ -332,6 +336,86 @@ def _load_program_behavior_episode(
     return episode, episode_path, actual_hash
 
 
+def _load_validated_runtime_episode(
+    runtime_episode_path: Path | None,
+    *,
+    manifest: Mapping[str, Any],
+    manifest_path: Path,
+    label: str,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, Path | None, str | None]:
+    if runtime_episode_path is None:
+        return None, None, None, None
+    episode_path = runtime_episode_path.expanduser().resolve()
+    runtime_episode = _load_json_object(episode_path, label=label)
+    validate_program_runtime_episode_contract(
+        runtime_episode,
+        runtime_episode_path=episode_path,
+        expected_manifest_path=manifest_path,
+        expected_manifest=manifest,
+        expected_manifest_sha256=_sha256_file(manifest_path),
+        error_type=ProgramRefinementComparisonError,
+    )
+    behavior_path = episode_path.parent / "behavior_results.json"
+    behavior = _load_json_object(behavior_path, label=f"{label} behavior results")
+    return runtime_episode, behavior, episode_path, _sha256_file(episode_path)
+
+
+def _runtime_artifact_hashes(
+    runtime_episode: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if runtime_episode is None:
+        return {}
+    artifact_hashes = _safe_mapping(runtime_episode.get("artifact_hashes"))
+    return {
+        "runtime_inputs_hash": artifact_hashes.get("runtime_inputs_sha256"),
+        "behavior_results_hash": artifact_hashes.get("behavior_results_sha256"),
+        "program_runtime_traces_hash": artifact_hashes.get(
+            "program_runtime_traces_sha256"
+        ),
+        "oracle_evidence_hash": artifact_hashes.get("oracle_evidence_sha256"),
+    }
+
+
+def _runtime_summary(
+    *,
+    manifest: Mapping[str, Any],
+    runtime_episode: Mapping[str, Any] | None,
+    runtime_behavior: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if runtime_episode is None:
+        return {
+            "behavior_evidence_present": False,
+            "behavior_evidence_kind": None,
+            "runtime_evidence_present": False,
+            "runtime_episode_id": None,
+            "runtime_status": "not_supplied",
+            "contract_mode": None,
+            "behavior_status": "insufficient_runtime_evidence",
+            "example_count": 0,
+            "status_counts": {},
+            "failure_signals": [],
+            "artifact_hashes": {},
+        }
+    behavior_summary = _behavior_summary(
+        manifest=manifest,
+        behavior=runtime_behavior,
+        behavior_episode=None,
+    )
+    return {
+        "behavior_evidence_present": True,
+        "behavior_evidence_kind": "runtime_episode",
+        "runtime_evidence_present": True,
+        "runtime_episode_id": runtime_episode.get("runtime_episode_id"),
+        "runtime_status": runtime_episode.get("status"),
+        "contract_mode": runtime_episode.get("contract_mode"),
+        "behavior_status": behavior_summary.get("behavior_status"),
+        "example_count": behavior_summary.get("example_count"),
+        "status_counts": behavior_summary.get("status_counts"),
+        "failure_signals": behavior_summary.get("failure_signals"),
+        "artifact_hashes": _runtime_artifact_hashes(runtime_episode),
+    }
+
+
 def _episode_status_counts(episode: Mapping[str, Any]) -> dict[str, int]:
     summary = _safe_mapping(episode.get("summary"))
     counts: dict[str, int] = {}
@@ -601,6 +685,8 @@ def build_program_refinement_candidate_comparison(
     candidate_manifest_path: Path,
     refinement_proposal_path: Path | None = None,
     decision_record_path: Path | None = None,
+    source_runtime_episode_path: Path | None = None,
+    candidate_runtime_episode_path: Path | None = None,
 ) -> dict[str, Any]:
     """Compare two existing program candidate manifests without mutating candidates."""
 
@@ -614,6 +700,16 @@ def build_program_refinement_candidate_comparison(
     decision_record_path = (
         decision_record_path.expanduser().resolve()
         if decision_record_path is not None
+        else None
+    )
+    source_runtime_episode_path = (
+        source_runtime_episode_path.expanduser().resolve()
+        if source_runtime_episode_path is not None
+        else None
+    )
+    candidate_runtime_episode_path = (
+        candidate_runtime_episode_path.expanduser().resolve()
+        if candidate_runtime_episode_path is not None
         else None
     )
     try:
@@ -630,6 +726,28 @@ def build_program_refinement_candidate_comparison(
         )
         candidate_episode, candidate_episode_path, candidate_episode_hash = (
             _load_program_behavior_episode(candidate_manifest, candidate_manifest_path)
+        )
+        (
+            source_runtime_episode,
+            source_runtime_behavior,
+            source_runtime_episode_path,
+            source_runtime_episode_hash,
+        ) = _load_validated_runtime_episode(
+            source_runtime_episode_path,
+            manifest=source_manifest,
+            manifest_path=source_manifest_path,
+            label="source runtime episode",
+        )
+        (
+            candidate_runtime_episode,
+            candidate_runtime_behavior,
+            candidate_runtime_episode_path,
+            candidate_runtime_episode_hash,
+        ) = _load_validated_runtime_episode(
+            candidate_runtime_episode_path,
+            manifest=candidate_manifest,
+            manifest_path=candidate_manifest_path,
+            label="candidate runtime episode",
         )
     except ProgramRefinementError as exc:
         raise ProgramRefinementComparisonError(str(exc)) from exc
@@ -648,12 +766,35 @@ def build_program_refinement_candidate_comparison(
         behavior=candidate_behavior,
         behavior_episode=candidate_episode,
     )
+    source_runtime_summary = _runtime_summary(
+        manifest=source_manifest,
+        runtime_episode=source_runtime_episode,
+        runtime_behavior=source_runtime_behavior,
+    )
+    candidate_runtime_summary = _runtime_summary(
+        manifest=candidate_manifest,
+        runtime_episode=candidate_runtime_episode,
+        runtime_behavior=candidate_runtime_behavior,
+    )
     delta = _behavior_delta(source_summary, candidate_summary)
+    runtime_delta = _behavior_delta(source_runtime_summary, candidate_runtime_summary)
+    runtime_compared = (
+        source_runtime_summary["runtime_evidence_present"]
+        and candidate_runtime_summary["runtime_evidence_present"]
+    )
+    generated_compared = (
+        source_summary["behavior_evidence_present"]
+        and candidate_summary["behavior_evidence_present"]
+    )
     status = (
         "compared"
-        if source_summary["behavior_evidence_present"]
-        and candidate_summary["behavior_evidence_present"]
+        if generated_compared or runtime_compared
         else "insufficient_behavior_evidence"
+    )
+    interpretation_inputs = (
+        (source_summary, candidate_summary, delta)
+        if generated_compared or not runtime_compared
+        else (source_runtime_summary, candidate_runtime_summary, runtime_delta)
     )
     return {
         "schema_version": PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA,
@@ -683,6 +824,14 @@ def build_program_refinement_candidate_comparison(
             else None,
             "source_behavior_episode_hash": source_episode_hash,
             "candidate_behavior_episode_hash": candidate_episode_hash,
+            "source_runtime_episode_path": str(source_runtime_episode_path)
+            if source_runtime_episode_path is not None
+            else None,
+            "candidate_runtime_episode_path": str(candidate_runtime_episode_path)
+            if candidate_runtime_episode_path is not None
+            else None,
+            "source_runtime_episode_hash": source_runtime_episode_hash,
+            "candidate_runtime_episode_hash": candidate_runtime_episode_hash,
             "refinement_proposal_path": str(refinement_proposal_path)
             if refinement_proposal_path is not None
             else None,
@@ -701,10 +850,20 @@ def build_program_refinement_candidate_comparison(
             "candidate": candidate_summary,
             "delta": delta,
         },
+        "runtime_evidence_comparison": {
+            "source": source_runtime_summary,
+            "candidate": candidate_runtime_summary,
+            "delta": runtime_delta,
+            "compared": runtime_compared,
+            "limits": [
+                "Runtime episodes are already-produced local program-run evidence; comparison never reruns candidates.",
+                "Runtime success, trace coverage, or Oracle-readable evidence is not promotion, activation, ranking, or owner acceptance.",
+            ],
+        },
         "interpretation": _interpretation(
-            source_summary=source_summary,
-            candidate_summary=candidate_summary,
-            delta=delta,
+            source_summary=interpretation_inputs[0],
+            candidate_summary=interpretation_inputs[1],
+            delta=interpretation_inputs[2],
         ),
         "effect": dict(_COMPARISON_EFFECT),
         "non_authority": dict(_COMPARISON_NON_AUTHORITY),
@@ -770,6 +929,36 @@ def _assert_recorded_path_matches(
         raise ProgramRefinementComparisonError(
             f"program candidate comparison stale artifact path: {key}"
         )
+
+
+def _validate_recorded_runtime_episode(
+    *,
+    created_from: Mapping[str, Any],
+    path_key: str,
+    hash_key: str,
+    manifest: Mapping[str, Any],
+    manifest_path: Path,
+    comparison_path: Path,
+    label: str,
+) -> None:
+    runtime_path = _resolve_recorded_path(
+        created_from.get(path_key), base_path=comparison_path
+    )
+    if runtime_path is None:
+        _assert_recorded_hash(payload=created_from, key=hash_key, current_hash=None)
+        return
+    runtime_episode, _, _, runtime_hash = _load_validated_runtime_episode(
+        runtime_path,
+        manifest=manifest,
+        manifest_path=manifest_path,
+        label=label,
+    )
+    _ = runtime_episode
+    _assert_recorded_hash(
+        payload=created_from,
+        key=hash_key,
+        current_hash=runtime_hash,
+    )
 
 
 def validate_program_refinement_candidate_comparison_contract(
@@ -972,6 +1161,24 @@ def validate_program_refinement_candidate_comparison_contract(
         payload=created_from,
         key="candidate_behavior_episode_hash",
         current_hash=candidate_episode_hash,
+    )
+    _validate_recorded_runtime_episode(
+        created_from=created_from,
+        path_key="source_runtime_episode_path",
+        hash_key="source_runtime_episode_hash",
+        manifest=source_manifest,
+        manifest_path=source_manifest_path,
+        comparison_path=comparison_path,
+        label="program candidate comparison source runtime episode",
+    )
+    _validate_recorded_runtime_episode(
+        created_from=created_from,
+        path_key="candidate_runtime_episode_path",
+        hash_key="candidate_runtime_episode_hash",
+        manifest=candidate_manifest,
+        manifest_path=candidate_manifest_path,
+        comparison_path=comparison_path,
+        label="program candidate comparison candidate runtime episode",
     )
     return comparison
 

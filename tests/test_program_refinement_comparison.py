@@ -22,9 +22,12 @@ from dspx.services.program_promotion_refinement import (
 from dspx.services.program_refinement import build_program_refinement_proposal
 from dspx.services.program_refinement_candidate import materialize_refinement_candidate
 from dspx.services.program_refinement_comparison import (
+    ProgramRefinementComparisonError,
     build_program_refinement_candidate_comparison,
+    validate_program_refinement_candidate_comparison_contract,
     write_program_refinement_candidate_comparison,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
@@ -81,6 +84,18 @@ def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
     reset_embedding_engine()
+
+
+def _write_runtime_episode(candidate_root: Path, outdir: Path, *, text: str) -> Path:
+    inputs = outdir / "runtime-inputs.json"
+    _write_json(inputs, {"inputs": {"ticket_text": text}})
+    run_program_runtime_episode(
+        manifest_path=candidate_root / "manifest.json",
+        inputs_path=inputs,
+        outdir=outdir / "runtime",
+        skip_oracle_index=True,
+    )
+    return outdir / "runtime" / "runtime_episode.json"
 
 
 def _materialize_full_refinement_path(
@@ -397,6 +412,146 @@ def test_program_refine_compare_candidates_cli_writes_local_sidecar_only(
     assert (program_root / "behavior_episode.json").exists()
     assert (candidate_root / "behavior_episode.json").exists()
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_program_refine_compare_candidates_accepts_validated_runtime_episodes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, candidate_root, proposal_path, decision_path = (
+        _materialize_full_refinement_path(tmp_path, monkeypatch)
+    )
+    source_runtime_episode = _write_runtime_episode(
+        program_root,
+        tmp_path / "source-runtime",
+        text="Server is down for all users",
+    )
+    candidate_runtime_episode = _write_runtime_episode(
+        candidate_root,
+        tmp_path / "candidate-runtime",
+        text="Server is down for all users",
+    )
+    out_path = tmp_path / "refinement" / "candidate_comparison_runtime.json"
+    before_source_hashes = _file_hashes(program_root)
+    before_candidate_hashes = _file_hashes(candidate_root)
+
+    result = runner.invoke(
+        app,
+        [
+            "program-refine",
+            "compare-candidates",
+            "--source-manifest",
+            str(program_root / "manifest.json"),
+            "--candidate-manifest",
+            str(candidate_root / "manifest.json"),
+            "--refinement-proposal",
+            str(proposal_path),
+            "--decision-record",
+            str(decision_path),
+            "--source-runtime-episode",
+            str(source_runtime_episode),
+            "--candidate-runtime-episode",
+            str(candidate_runtime_episode),
+            "--out",
+            str(out_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "compared"
+    created_from = payload["created_from"]
+    assert created_from["source_runtime_episode_path"] == str(
+        source_runtime_episode.resolve()
+    )
+    assert created_from["candidate_runtime_episode_path"] == str(
+        candidate_runtime_episode.resolve()
+    )
+    assert (
+        created_from["source_runtime_episode_hash"]
+        == hashlib.sha256(source_runtime_episode.read_bytes()).hexdigest()
+    )
+    assert (
+        created_from["candidate_runtime_episode_hash"]
+        == hashlib.sha256(candidate_runtime_episode.read_bytes()).hexdigest()
+    )
+    runtime_comparison = payload["runtime_evidence_comparison"]
+    assert runtime_comparison["compared"] is True
+    assert runtime_comparison["source"]["runtime_evidence_present"] is True
+    assert runtime_comparison["candidate"]["runtime_evidence_present"] is True
+    assert runtime_comparison["source"]["behavior_evidence_kind"] == "runtime_episode"
+    assert (
+        runtime_comparison["candidate"]["behavior_evidence_kind"] == "runtime_episode"
+    )
+    assert runtime_comparison["source"]["artifact_hashes"]["behavior_results_hash"]
+    assert "activation" in "\n".join(runtime_comparison["limits"])
+    validate_program_refinement_candidate_comparison_contract(
+        comparison_path=out_path,
+        source_manifest_path=program_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+    )
+    assert _file_hashes(program_root) == before_source_hashes
+    assert _file_hashes(candidate_root) == before_candidate_hashes
+
+
+def test_program_refine_compare_candidates_rejects_cross_candidate_runtime_episode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, candidate_root, _proposal_path, _decision_path = (
+        _materialize_full_refinement_path(tmp_path, monkeypatch)
+    )
+    candidate_runtime_episode = _write_runtime_episode(
+        candidate_root,
+        tmp_path / "candidate-runtime",
+        text="Server is down for all users",
+    )
+
+    with pytest.raises(
+        ProgramRefinementComparisonError,
+        match="candidate_manifest_path does not match current manifest",
+    ):
+        build_program_refinement_candidate_comparison(
+            source_manifest_path=program_root / "manifest.json",
+            candidate_manifest_path=candidate_root / "manifest.json",
+            source_runtime_episode_path=candidate_runtime_episode,
+        )
+
+
+def test_program_refine_comparison_contract_rejects_stale_runtime_trace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, candidate_root, _proposal_path, _decision_path = (
+        _materialize_full_refinement_path(tmp_path, monkeypatch)
+    )
+    source_runtime_episode = _write_runtime_episode(
+        program_root,
+        tmp_path / "source-runtime",
+        text="Server is down for all users",
+    )
+    comparison = build_program_refinement_candidate_comparison(
+        source_manifest_path=program_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+        source_runtime_episode_path=source_runtime_episode,
+    )
+    out_path = tmp_path / "refinement" / "candidate_comparison_runtime.json"
+    write_program_refinement_candidate_comparison(comparison, out_path)
+    traces_path = source_runtime_episode.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["status"] = "tampered"
+    _write_json(traces_path, traces)
+
+    with pytest.raises(
+        ProgramRefinementComparisonError,
+        match="program_runtime_traces_sha256 does not match current file",
+    ):
+        validate_program_refinement_candidate_comparison_contract(
+            comparison_path=out_path,
+            source_manifest_path=program_root / "manifest.json",
+            candidate_manifest_path=candidate_root / "manifest.json",
+        )
 
 
 def test_program_refine_compare_candidates_degrades_without_behavior_evidence(
