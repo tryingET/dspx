@@ -323,6 +323,28 @@ def test_adjudication_trace_publication_preflight_revalidates_source_runtime_ref
         build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
 
 
+def test_adjudication_trace_publication_preflight_rejects_source_runtime_sidecar_hash_drift_when_trace_copy_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_path = _write_trace(tmp_path, monkeypatch, include_runtime_episode=True)
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    runtime_path = Path(
+        trace["linked_artifacts"]["evidence_refs"].pop("runtime_episode")["path"]
+    )
+    trace_path.write_text(json.dumps(trace, indent=2) + "\n", encoding="utf-8")
+    runtime_episode = json.loads(runtime_path.read_text(encoding="utf-8"))
+    runtime_episode["tamper_marker"] = "still-contract-shaped"
+    runtime_path.write_text(
+        json.dumps(runtime_episode, indent=2) + "\n", encoding="utf-8"
+    )
+
+    with pytest.raises(
+        ProgramAdjudicationPublicationError,
+        match="runtime_episode sha256 no longer matches current file",
+    ):
+        build_adjudication_trace_publication_preflight(**_preflight_kwargs(trace_path))
+
+
 def test_adjudication_trace_publication_preflight_rejects_runtime_ref_not_in_source_adjudication(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -405,6 +427,7 @@ def test_adjudication_trace_publish_writes_shared_record_and_receipt(
     assert payload["effect"]["shared_oracle_mutated"] is True
     assert payload["effect"]["local_receipt_written"] is True
     assert payload["non_authority"]["oracle_authority"] is False
+    assert payload["non_authority"]["external_authority"] is False
     assert payload["non_authority"]["activation_authority"] is False
     assert len(store.records) == 1
     record = next(iter(store.records.values()))
@@ -412,7 +435,12 @@ def test_adjudication_trace_publish_writes_shared_record_and_receipt(
     assert record.run_kind == ADJUDICATION_TRACE_PUBLICATION_RUN_KIND
     assert record.template_version == ADJUDICATION_TRACE_PUBLICATION_RECORD_SCHEMA
     assert record.metadata["publication_label"] == "adjudication_behavior_trace"
+    assert record.metadata["non_authority"]["external_authority"] is False
     assert record.metadata["non_authority"]["activation_authority"] is False
+    assert (
+        record.metadata["planned_record"]["non_authority"]["external_authority"]
+        is False
+    )
     trace_summary = record.metadata["planned_record"]["trace_summary"]
     assert trace_summary["has_program_adjudicator_delegation"] is True
     assert trace_summary["has_generated_program_adjudicator_decision"] is True

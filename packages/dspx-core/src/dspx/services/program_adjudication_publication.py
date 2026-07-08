@@ -64,6 +64,7 @@ _PUBLICATION_NON_AUTHORITY = {
     "oracle_pruning": False,
     "oracle_promotion": False,
     "governance_authority": False,
+    "external_authority": False,
     "external_mutation": False,
     "activation_authority": False,
 }
@@ -381,6 +382,7 @@ def _validate_trace_runtime_episode_contract(trace: Mapping[str, Any]) -> None:
     manifest_path_text = _first_text(manifest_ref.get("path"))
     manifest_sha256 = _first_text(manifest_ref.get("sha256"))
     runtime_path_text = _first_text(runtime_ref.get("path"))
+    runtime_sha256 = _first_text(runtime_ref.get("sha256"))
     if manifest_path_text is None or manifest_sha256 is None:
         raise ProgramAdjudicationPublicationError(
             "adjudication trace linked_artifacts.manifest path and sha256 are required for runtime episode validation"
@@ -389,8 +391,16 @@ def _validate_trace_runtime_episode_contract(trace: Mapping[str, Any]) -> None:
         raise ProgramAdjudicationPublicationError(
             "adjudication trace linked_artifacts.evidence_refs.runtime_episode.path is required"
         )
+    if runtime_sha256 is None:
+        raise ProgramAdjudicationPublicationError(
+            "adjudication trace linked_artifacts.evidence_refs.runtime_episode.sha256 is required"
+        )
     manifest_path = Path(manifest_path_text).expanduser().resolve()
     runtime_path = Path(runtime_path_text).expanduser().resolve()
+    if _sha256_file(runtime_path) != runtime_sha256:
+        raise ProgramAdjudicationPublicationError(
+            "adjudication trace runtime_episode sha256 no longer matches current file"
+        )
     manifest = _load_json_object(
         manifest_path, label="adjudication trace linked manifest"
     )
@@ -1103,6 +1113,8 @@ def publish_adjudication_trace_preflight(
             "promotion_authority": False,
             "activation_authority": False,
             "governance_authority": False,
+            "external_authority": False,
+            "external_mutation": False,
             "agent_kernel_mutation": False,
             "winner_selection": False,
             "automatic_promotion": False,
